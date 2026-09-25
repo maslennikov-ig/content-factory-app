@@ -315,8 +315,8 @@ describe('public SaaS route boundary', () => {
     expect(copy('tenantIsolationTitle')).toBe(
       'translated:public_saas_tenant_isolation_title'
     );
-    expect(copy('docsScheduleTitle')).toBe(
-      'translated:public_saas_docs_schedule_title'
+    expect(copy('docsSignUpTitle')).toBe(
+      'translated:public_saas_docs_sign_up_title'
     );
     expect(source).toContain('const t = useT();');
     expect(source).not.toMatch(/\bPUBLIC_COPY\b|\buseVariables\b/);

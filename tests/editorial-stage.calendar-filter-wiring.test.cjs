@@ -92,7 +92,7 @@ describe('the calendar-view fetch omits editorialStage when unset, sends it when
   });
 });
 
-describe('the list-view fetch omits editorialStage when unset, sends it when set', () => {
+describe('the list-view fetch never sends editorialStage (2q28.25: the list has one status control, the tabs)', () => {
   const pattern = /const listParams = useMemo\(\(\) => \{\s*return new URLSearchParams\((\{[\s\S]*?\})\)\.toString/;
   const match = source.match(pattern);
   if (!match) throw new Error('listParams pattern not found in calendar.context.tsx');
@@ -110,16 +110,16 @@ describe('the list-view fetch omits editorialStage when unset, sends it when set
     expect('editorialStage' in built).toBe(false);
   });
 
-  test('present when a stage is chosen', () => {
+  test('absent even when a stage was chosen in the calendar', () => {
     const built = build(0, { customer: null, editorialStage: 'PLAN' }, 'all');
-    expect(built.editorialStage).toBe('PLAN');
+    expect('editorialStage' in built).toBe(false);
   });
 
   test('the word search (odb8.4.1) rides along as q, and only when there is one', () => {
     expect('q' in build(0, { customer: null, editorialStage: null }, 'all', '')).toBe(false);
     const built = build(0, { customer: null, editorialStage: 'PLAN' }, 'all', 'канбан');
     expect(built.q).toBe('канбан');
-    expect(built.editorialStage).toBe('PLAN');
+    expect('editorialStage' in built).toBe(false);
   });
 });
 
@@ -136,5 +136,21 @@ describe('every setFilters call in the toolbar carries the current stage forward
 
   test('the toolbar keeps the stage filter alongside channel and customer selectors (row 2, 97dq.82)', () => {
     expect(filtersSource).toMatch(/<Select\s[\s\S]*?value=\{calendar\.integrationId[\s\S]*?<EditorialStageFilter[\s\S]*?<SelectCustomer/);
+  });
+
+  test('the stage select is drawn only in the calendar, not beside the list tabs (2q28.25)', () => {
+    expect(filtersSource).toMatch(/\{!isListView && \(\s*<EditorialStageFilter/);
+  });
+});
+
+describe('the empty list offers a way on (2q28.25)', () => {
+  const calendarSource = fs.readFileSync(
+    path.join(__dirname, '..', 'apps/frontend/src/components/launches/calendar.tsx'),
+    'utf8'
+  );
+  test('«Нет публикаций» carries the «Новая заготовка» link for an editor, not after a search', () => {
+    expect(calendarSource).toMatch(
+      /<EmptyState\s+title=\{emptyMessage\}\s+action=\{\s+!listSearched && isOrganizationEditor\(user\?\.role\) \? \(\s+<ButtonLink href=\{NEW_PIECE_PATH\} variant="secondary">\s+\{planning\.newPiece\}/
+    );
   });
 });

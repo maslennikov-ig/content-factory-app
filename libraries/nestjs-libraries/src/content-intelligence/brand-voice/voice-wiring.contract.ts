@@ -1691,7 +1691,15 @@ export const VOICE_SURFACES = {
     dataFields: ['state', 'samples', 'sources', 'notice'],
     // What the browser is holding before it sends: the files that were picked,
     // and whether the request is out. The server knows neither.
-    clientOnlyProps: ['selectedCodes', 'upload', 'allowanceHint', 'maxMessages'],
+    // Whether the workspace has a channel to read own posts from comes from
+    // the channel list the wizard already holds (`2q28.15`).
+    clientOnlyProps: [
+      'selectedCodes',
+      'upload',
+      'allowanceHint',
+      'maxMessages',
+      'ownPostsNeedChannel',
+    ],
     routes: [
       {
         method: 'GET',

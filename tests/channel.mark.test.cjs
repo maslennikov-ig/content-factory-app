@@ -76,4 +76,14 @@ describe('ChannelMark', () => {
     expect(ordinary).not.toContain('var(--cf-signature)');
     expect(ordinary).toContain('var(--cf-border-control)');
   });
+
+  test('a badged card sets its letters clear of the badge corner (2q28.32)', () => {
+    const plain = render({ name: 'Записки с чаем', size: 48 });
+    const badged = render({ name: 'Записки с чаем', size: 48, badged: true });
+
+    expect(plain).toContain('items-center justify-center');
+    expect(badged).toContain('items-start justify-start');
+    expect(badged).toMatch(/padding:\s*6px/);
+    expect(text(badged)).toBe('ЗС');
+  });
 });

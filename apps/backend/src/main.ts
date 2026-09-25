@@ -21,6 +21,7 @@ import { AppModule } from './app.module';
 import { SubscriptionExceptionFilter } from '@contentfactory/backend/services/auth/permissions/subscription.exception';
 import { PostValidationExceptionFilter } from '@contentfactory/backend/api/routes/posts.validation.exception';
 import { HttpExceptionFilter } from '@contentfactory/nestjs-libraries/services/exception.filter';
+import { StripeErrorFilter } from '@contentfactory/nestjs-libraries/services/stripe.error.filter';
 import { ConfigurationChecker } from '@contentfactory/helpers/configuration/configuration.checker';
 import { startMcp } from '@contentfactory/nestjs-libraries/chat/start.mcp';
 import { buildBackendCorsOptions } from '@contentfactory/backend/cors.options';
@@ -77,6 +78,8 @@ async function start() {
   app.useGlobalFilters(new SubscriptionExceptionFilter());
   app.useGlobalFilters(new PostValidationExceptionFilter());
   app.useGlobalFilters(new HttpExceptionFilter());
+  // A billing-provider failure is never a sign-out (`2q28.18`).
+  app.useGlobalFilters(new StripeErrorFilter());
 
   // Does nothing unless CONTENT_FACTORY_SWAGGER_ENABLED is exactly "true".
   loadSwagger(app);

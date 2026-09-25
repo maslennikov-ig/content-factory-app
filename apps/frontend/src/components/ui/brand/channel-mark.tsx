@@ -46,18 +46,35 @@ export const ChannelMark: FC<{
    * usual case in a list. Otherwise the card announces the name itself.
    */
   decorative?: boolean;
-}> = ({ name, size = 32, primary = false, className, decorative = true }) => {
+  /**
+   * A platform badge sits on the bottom-end corner (2q28.32). Centred letters
+   * ran under it — «ЗС» read «3С» — so a badged card sets its letters in the
+   * top-start corner, clear of the badge, the way an element card carries its
+   * symbol.
+   */
+  badged?: boolean;
+}> = ({
+  name,
+  size = 32,
+  primary = false,
+  className,
+  decorative = true,
+  badged = false,
+}) => {
   const colour = primary ? 'var(--cf-signature)' : undefined;
   const fontSize = Math.max(10, Math.round((13 / 32) * size * 100) / 100);
 
   return (
     <span
       className={clsx(
-        'inline-flex shrink-0 items-center justify-center',
+        'inline-flex shrink-0',
+        badged ? 'items-start justify-start' : 'items-center justify-center',
         className
       )}
       style={{
         width: `${size}px`,
+        // An eighth of the side: 6px on the 48px card, 4px on the 28px row.
+        ...(badged ? { padding: `${Math.round(size / 8)}px` } : {}),
         height: `${size}px`,
         borderRadius: '4px',
         border: `1px solid ${colour ?? 'var(--cf-border-control)'}`,

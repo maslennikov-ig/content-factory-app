@@ -146,6 +146,7 @@ const component = loadTypeScriptModule(
         'apps/frontend/src/components/auth/identity-link-return.ts'
       ),
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: jest.fn() },
+    '@contentfactory/helpers/utils/timer': { timer: () => Promise.resolve() },
     '@contentfactory/react/form/button': {
       Button,
       buttonClassName: ({ className } = {}) => `button ${className ?? ''}`,
@@ -286,6 +287,7 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
       '@contentfactory/helpers/utils/custom.fetch': {
         useFetch: () => jest.fn(),
       },
+      '@contentfactory/helpers/utils/timer': { timer: () => Promise.resolve() },
       '@hookform/resolvers/class-validator': {
         classValidatorResolver: jest.fn(),
       },

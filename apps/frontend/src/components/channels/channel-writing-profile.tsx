@@ -40,9 +40,10 @@ const sameProfile = (
  *
  * Панель всегда открыта (владелец на одиннадцатом заходе убрал «Изменить» у
  * поста, на тринадцатом попросил один компонент для обоих): те же поля, тот
- * же порядок, те же «?». Поля текста сохраняются кнопкой «Сохранить»;
- * «План» — сразу при выборе, с вопросом «Только к новым / Ко всем N», если
- * у канала есть написанные посты. Рисуется на странице канала и в окне
+ * же порядок, те же «?». Всё, включая «План», сохраняется одной кнопкой
+ * «Сохранить» (`2q28.19`): раньше план уходил сразу, а остальные поля ждали
+ * кнопки. После записи плана — вопрос «Только к новым / Ко всем N», если у
+ * канала есть написанные посты. Рисуется на странице канала и в окне
  * «Настройки канала», где живёт и «Изменить расписание».
  */
 export function ChannelWritingProfile({
@@ -92,7 +93,8 @@ export function ChannelWritingProfile({
   }, [data]);
 
   const profile = draft ?? data?.profile ?? null;
-  const dirty = Boolean(data && !sameProfile(profile, data.profile));
+  const profileDirty = Boolean(data && !sameProfile(profile, data.profile));
+  const dirty = profileDirty || plan.dirty;
 
   const change = useCallback((patch: Partial<ChannelWritingProfileV1>) => {
     setSaved(false);
@@ -108,34 +110,55 @@ export function ChannelWritingProfile({
       );
       setDraft(next.profile);
       await mutate(next, { revalidate: false });
-      setSaved(true);
-      try {
-        await onSaved?.();
-      } catch {
-        // The profile itself is already saved. A parent-list refresh may retry
-        // independently without turning this successful write into an error.
-      }
     },
-    [integrationId, mutate, onSaved]
+    [integrationId, mutate]
   );
+
+  const announceSaved = useCallback(async () => {
+    setSaved(true);
+    try {
+      await onSaved?.();
+    } catch {
+      // The card itself is already saved. A parent-list refresh may retry
+      // independently without turning this successful write into an error.
+    }
+  }, [onSaved]);
 
   const save = useCallback(async () => {
     if (!canWrite || !profile || saving) return;
     setSaving(true);
     setSaveFailed(false);
     try {
-      const response = await request(url, {
-        method: 'PUT',
-        body: JSON.stringify(buildWritingProfilePayload(profile)),
-      });
-      if (!response.ok) throw new Error('writing profile not saved');
-      await acceptResponse(response);
+      // A card on the defaults is written by «Сохранить» even untouched — that
+      // is how it becomes the channel's own. A change of the plan alone does
+      // not turn the defaults into a stored card.
+      if (profileDirty || (!data?.stored && !plan.dirty)) {
+        const response = await request(url, {
+          method: 'PUT',
+          body: JSON.stringify(buildWritingProfilePayload(profile)),
+        });
+        if (!response.ok) throw new Error('writing profile not saved');
+        await acceptResponse(response);
+      }
+      if (!(await plan.commit())) throw new Error('plan mode not saved');
+      await announceSaved();
     } catch {
       setSaveFailed(true);
     } finally {
       setSaving(false);
     }
-  }, [acceptResponse, canWrite, profile, request, saving, url]);
+  }, [
+    acceptResponse,
+    announceSaved,
+    canWrite,
+    data?.stored,
+    plan,
+    profile,
+    profileDirty,
+    request,
+    saving,
+    url,
+  ]);
 
   const reset = useCallback(async () => {
     if (!canWrite || saving) return;
@@ -145,12 +168,26 @@ export function ChannelWritingProfile({
       const response = await request(url, { method: 'DELETE' });
       if (!response.ok) throw new Error('writing profile not reset');
       await acceptResponse(response);
+      await announceSaved();
     } catch {
       setSaveFailed(true);
     } finally {
       setSaving(false);
     }
-  }, [acceptResponse, canWrite, request, saving, url]);
+  }, [acceptResponse, announceSaved, canWrite, request, saving, url]);
+
+  const planField = useMemo(
+    () => ({
+      ...plan,
+      disabled: plan.disabled || saving,
+      onChange: (next: Parameters<typeof plan.onChange>[0]) => {
+        setSaved(false);
+        setSaveFailed(false);
+        plan.onChange(next);
+      },
+    }),
+    [plan, saving]
+  );
 
   return (
     <div
@@ -196,7 +233,7 @@ export function ChannelWritingProfile({
           disabled={!canWrite || saving}
           describedBy={canWrite ? undefined : readOnlyNoteId}
           onProfileChange={change}
-          plan={plan}
+          plan={planField}
           footer={
             <div className="flex min-w-0 flex-col gap-[8px]">
               {!data.stored ? (

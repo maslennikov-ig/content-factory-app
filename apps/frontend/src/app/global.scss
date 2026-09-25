@@ -1058,3 +1058,150 @@ html[dir='rtl'] [dir='ltr'] {
 .text-shadow-tags {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
+
+/*
+  Guided tour («Показать на экране», `content-factory-next-2q28.7`).
+  driver.js 1.8.0 places the card and cuts the overlay; its own stylesheet is
+  not loaded, so this block carries both the few structural rules the library
+  relies on and the whole look. Buttons are not styled here: they take the
+  shared `Button` classes in `components/guided-tour/guided-tour.tsx`.
+*/
+.driver-active .driver-overlay,
+.driver-active * {
+  pointer-events: none;
+}
+
+.driver-active .driver-active-element,
+.driver-active .driver-active-element *,
+.driver-popover,
+.driver-popover * {
+  pointer-events: auto;
+}
+
+.driver-active.driver-no-scroll {
+  overflow: hidden;
+}
+
+.driver-active-element-parent-no-scroll {
+  overflow: hidden !important;
+}
+
+.driver-no-interaction,
+.driver-no-interaction * {
+  pointer-events: none !important;
+}
+
+/* The outlined control: a 2px accent mark 6px outside it (ochre stays the rare brand marker). */
+.driver-active .driver-active-element {
+  outline: 2px solid var(--cf-accent);
+  outline-offset: 6px;
+}
+
+.driver-popover.cf-guided-tour {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1000000000;
+  box-sizing: border-box;
+  margin: 0;
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px;
+  padding-inline-end: 52px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 12px;
+  background: var(--cf-surface-raised);
+  color: var(--cf-ink);
+  box-shadow: var(--cf-overlay-shadow);
+}
+
+.driver-fade .driver-overlay,
+.driver-fade .driver-popover.cf-guided-tour {
+  animation: cf-guided-tour-in 200ms ease-out;
+}
+
+@keyframes cf-guided-tour-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cf-guided-tour .driver-popover-title {
+  @apply cf-heading-md text-cf-ink;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.cf-guided-tour .driver-popover-description {
+  @apply cf-body-md text-cf-ink-muted;
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}
+
+.cf-guided-tour .driver-popover-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  padding: 0;
+}
+
+.cf-guided-tour .driver-popover-footer {
+  margin-top: 16px;
+  margin-inline-end: -32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cf-guided-tour .driver-popover-progress-text {
+  @apply cf-caption text-cf-ink-muted;
+}
+
+.cf-guided-tour .driver-popover-navigation-btns {
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cf-guided-tour .driver-popover-arrow {
+  position: absolute;
+  border: 6px solid var(--cf-surface-raised);
+}
+
+.cf-guided-tour .driver-popover-arrow-side-left {
+  left: 100%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.cf-guided-tour .driver-popover-arrow-side-right {
+  right: 100%;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.cf-guided-tour .driver-popover-arrow-side-top {
+  top: 100%;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.cf-guided-tour .driver-popover-arrow-side-bottom {
+  bottom: 100%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-left-color: transparent;
+}
+
+.cf-guided-tour .driver-popover-arrow-side-over,
+.cf-guided-tour .driver-popover-arrow-side-center,
+.cf-guided-tour .driver-popover-arrow-none {
+  display: none;
+}

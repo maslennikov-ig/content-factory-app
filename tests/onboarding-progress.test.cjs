@@ -78,17 +78,21 @@ describe('onboarding progress follows the current piece fact store', () => {
 
     const prisma = {
       model: {
-        integration: { count: jest.fn().mockResolvedValue(1) },
+        integration: {
+          count: jest.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(1),
+        },
         brandVoiceSample: { count: jest.fn().mockResolvedValue(2) },
         projectBrandProfile: { count: jest.fn().mockResolvedValue(1) },
         contentFact: { count: jest.fn().mockResolvedValue(0) },
         contentPiece: {
           count: jest.fn().mockResolvedValue(6),
           findMany,
+          findFirst: jest.fn().mockResolvedValue({ id: 'piece-7' }),
         },
         post: {
           count: jest.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(1),
         },
+        contentDerivation: { count: jest.fn().mockResolvedValue(4) },
       },
     };
 
@@ -120,32 +124,57 @@ describe('onboarding progress follows the current piece fact store', () => {
       pieces: 6,
       drafts: 1,
       scheduled: 1,
+      adaptations: 4,
+      planModes: 1,
+      latestPieceId: 'piece-7',
+    });
+    // The piece touched last, for the adaptation step's links — only its id.
+    expect(prisma.model.contentPiece.findFirst).toHaveBeenCalledWith({
+      where: { organizationId: 'workspace-1', kind: 'CORE', archivedAt: null },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true },
+    });
+    // 2q28.6: adaptations of live CORE pieces, and channels whose plan mode
+    // somebody chose — `NULL` reads as «Бронь» but decides nothing.
+    expect(prisma.model.contentDerivation.count).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'workspace-1',
+        piece: { kind: 'CORE', archivedAt: null },
+      },
+    });
+    expect(prisma.model.integration.count).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'workspace-1',
+        deletedAt: null,
+        disabled: false,
+        planMode: { not: null },
+      },
     });
   });
 
-  test('an avatar filled in by hand closes the voice step without samples (fn33.157)', () => {
+  test('an avatar filled in by hand closes the avatar step without samples (fn33.157)', () => {
     const handFilled = { ...adapter.EMPTY_PROGRESS, avatars: 1 };
-    expect(adapter.stepIsDone('voice', handFilled)).toBe(true);
-    expect(adapter.stepIsDone('fact', handFilled)).toBe(false);
+    expect(adapter.stepIsDone('avatar', handFilled)).toBe(true);
+    expect(adapter.factIsDone(handFilled)).toBe(false);
     expect(adapter.readProgress({ avatars: 1 }).avatars).toBe(1);
     // An older answer without the field reads as zero, never as done.
-    expect(adapter.stepIsDone('voice', adapter.readProgress({}))).toBe(false);
+    expect(adapter.stepIsDone('avatar', adapter.readProgress({}))).toBe(false);
   });
 
-  test('a selected piece fact closes only the fact step', () => {
+  test('a selected piece fact ticks only the optional claim', () => {
     const onlyPiece = {
       ...adapter.EMPTY_PROGRESS,
       pieces: 1,
     };
-    expect(adapter.stepIsDone('fact', onlyPiece)).toBe(false);
+    expect(adapter.factIsDone(onlyPiece)).toBe(false);
 
     const withSelectedFact = {
       ...onlyPiece,
       pieceFacts: 1,
     };
-    expect(adapter.stepIsDone('fact', withSelectedFact)).toBe(true);
-    expect(adapter.stepIsDone('preview', withSelectedFact)).toBe(false);
-    expect(adapter.stepIsDone('schedule', withSelectedFact)).toBe(false);
+    expect(adapter.factIsDone(withSelectedFact)).toBe(true);
+    expect(adapter.stepIsDone('adaptation', withSelectedFact)).toBe(false);
+    expect(adapter.stepIsDone('plan', withSelectedFact)).toBe(false);
   });
 
   test('malformed legacy brief JSON cannot invent completion or break progress', () => {
@@ -158,11 +187,13 @@ describe('onboarding progress follows the current piece fact store', () => {
     );
   });
 
-  test('the production count shape completes all six steps', () => {
+  test('the production count shape completes all five steps', () => {
     expect(
       adapter.allStepsDone({
         channels: 1,
         voiceSamples: 1769,
+        // The samples alone no longer close the avatar step (2q28.13).
+        avatars: 1,
         facts: 0,
         pieceFacts: 76,
         pieces: 13,
@@ -174,8 +205,6 @@ describe('onboarding progress follows the current piece fact store', () => {
 
   test('older progress responses remain readable and do not invent facts', () => {
     expect(adapter.readProgress({ pieces: 3 }).pieceFacts).toBe(0);
-    expect(
-      adapter.stepIsDone('fact', adapter.readProgress({ pieces: 3 }))
-    ).toBe(false);
+    expect(adapter.factIsDone(adapter.readProgress({ pieces: 3 }))).toBe(false);
   });
 });

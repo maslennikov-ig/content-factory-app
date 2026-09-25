@@ -75,6 +75,8 @@ const Field = () => {
       },
       ['draft', 'reserve', 'autopilot'].map((mode) => h('option', { key: mode, value: mode }, mode))
     ),
+    // Since `2q28.19` the choice is written by the card's «Сохранить».
+    h('button', { type: 'button', onClick: () => void field.commit() }, 'Сохранить'),
     field.slot
   );
 };
@@ -102,6 +104,9 @@ test('a 409 on «Ко всем N» drops the refused choice and shows the mode t
 
   await act(async () => {
     fireEvent.change(select, { target: { value: 'autopilot' } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   });
   await screen.findByText('Ко всем 3', { exact: false });
   expect(select.value).toBe('autopilot');
@@ -147,6 +152,9 @@ describe('the «Применить к N» question says what happens to the post
     await act(async () => {});
     await act(async () => {
       fireEvent.change(screen.getByLabelText('План'), { target: { value: to } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     });
     await screen.findByText('Ко всем 2', { exact: false });
     const effect = document.querySelector('[data-channel-plan-apply-effect]');

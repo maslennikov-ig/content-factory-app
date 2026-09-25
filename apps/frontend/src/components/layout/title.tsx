@@ -41,5 +41,14 @@ export const Title = () => {
       (a, b) => b.pathname.length - a.pathname.length || b.query.size - a.query.size
     )[0]?.name;
 
-  return currentTitle ? <h1>{currentTitle}</h1> : null;
+  // `truncate` sits on the heading itself (2q28.28). On the wrapper it only
+  // passed `nowrap` down, and the global `h1 { text-wrap: balance }` reset the
+  // wrap mode: at 390 px «С чего начать» broke into lines the 56 px header
+  // cut off («С чего нача»). The class outranks the element rule, so the
+  // title stays one line and ends in an ellipsis; `title` keeps the full name.
+  return currentTitle ? (
+    <h1 className="truncate" title={currentTitle}>
+      {currentTitle}
+    </h1>
+  ) : null;
 };

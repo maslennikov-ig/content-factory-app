@@ -1,88 +1,41 @@
 'use client';
 
 import '@neynar/react/dist/style.css';
-import React, { FC, useCallback, useEffect, useRef, useState } from 'react';
+import React, { FC, useCallback } from 'react';
 import { Web3ProviderInterface } from '@contentfactory/frontend/components/launches/web3/web3.provider.interface';
-import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { timer } from '@contentfactory/helpers/utils/timer';
-import { generateConnectWord } from '@contentfactory/frontend/components/launches/web3/providers/connect.word';
+import { useTelegramConnect } from '@contentfactory/frontend/components/launches/web3/providers/use-telegram-connect';
 import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
 import copy from 'copy-to-clipboard';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-/**
- * Matches the window the backend will honour a connect receipt for. Polling
- * past it can only ever fail, and it used to do that in silence: the loop had
- * no end, so a command sent too long ago left the dialog spinning forever with
- * nothing to act on.
- */
-const CONNECT_CLAIM_WINDOW_MS = 15 * 60 * 1_000;
 
+/**
+ * The connect word, the polling and the 15-minute deadline live in
+ * `useTelegramConnect` (2q28.6), shared with the channel step of «С чего
+ * начать»; this dialog only draws them.
+ */
 export const TelegramProvider: FC<Web3ProviderInterface> = (props) => {
   const { onComplete, nonce } = props;
   const { telegramBotName } = useVariables();
-  const fetch = useFetch();
-  const word = useRef(generateConnectWord());
-  const stop = useRef(false);
-  const [step, setStep] = useState(false);
-  const [expired, setExpired] = useState(false);
   const toaster = useToaster();
   const t = useT();
-  async function* load() {
-    let id = '';
-    while (true) {
-      const data = await (
-        await fetch(
-          `/integrations/telegram/updates?word=${word.current}${
-            id ? `&id=${id}` : ''
-          }`
-        )
-      ).json();
-      if (data.lastChatId) {
-        id = data.lastChatId;
-      }
-      yield data;
-    }
-  }
-  const loadAll = async () => {
-    stop.current = false;
-    setExpired(false);
-    setStep(true);
-    const deadline = Date.now() + CONNECT_CLAIM_WINDOW_MS;
-    const generator = load();
-    for await (const data of generator) {
-      if (stop.current) {
-        return;
-      }
-      if (data.chatId) {
-        onComplete(data.chatId, nonce);
-        return;
-      }
-      if (Date.now() >= deadline) {
-        setExpired(true);
-        return;
-      }
-      await timer(2000);
-    }
-  };
-
-  const startAgain = useCallback(() => {
-    // A fresh word, because the old one is what the backend will no longer
-    // accept, and the command in the chat has to change with it.
-    word.current = generateConnectWord();
-    loadAll();
-  }, []);
+  const onChat = useCallback(
+    (chatId: string) => onComplete(chatId, nonce),
+    [onComplete, nonce]
+  );
+  const {
+    command,
+    started: step,
+    expired,
+    start: loadAll,
+    startAgain,
+  } = useTelegramConnect(onChat);
   const copyText = useCallback(() => {
-    copy(`/connect ${word.current}`);
+    copy(command);
     toaster.show(t('copied_to_clipboard', 'Copied to clipboard'), 'success');
-  }, [t, toaster]);
-  useEffect(() => {
-    return () => {
-      stop.current = true;
-    };
-  }, []);
+  }, [command, t, toaster]);
   return (
     <>
       <div className="justify-center items-center flex flex-col pt-[16px]">
@@ -144,7 +97,7 @@ export const TelegramProvider: FC<Web3ProviderInterface> = (props) => {
             <div className="mt-[16px] flex">
               <Input
                 label=""
-                value={`/connect ${word.current}`}
+                value={command}
                 name=""
                 disableForm={true}
                 readOnly

@@ -33,6 +33,7 @@ import {
   initialSettingsTab,
   SignInMethodsComponent,
 } from '@contentfactory/frontend/components/settings/sign-in-methods.component';
+import { isHiddenSettingsTab } from './hidden-upstream-surfaces';
 import { SettingsSurface } from '@contentfactory/frontend/components/settings/settings-surface.component';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
 import {
@@ -175,7 +176,9 @@ export const SettingsPopup: FC<{
       label: t('about_project', 'About'),
     });
 
-    return arr;
+    // Upstream tabs the product does not show (2q28.26). Their `?tab=`
+    // addresses still open them; only the rail stops offering them.
+    return arr.filter((item) => !isHiddenSettingsTab(item.tab));
   }, [isAdmin, isEditor, isRussian, t]);
 
   /**

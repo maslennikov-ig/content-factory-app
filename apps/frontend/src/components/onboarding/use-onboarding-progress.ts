@@ -11,7 +11,7 @@ import {
 } from './onboarding.adapter';
 
 /**
- * Насколько область прошла шесть шагов — один запрос на два читателя.
+ * Насколько пространство прошло пять шагов — один запрос на два читателя.
  *
  * The walkthrough asked this on its own page. Since 07.09.2026 the sidebar
  * asks it too, because «С чего начать» is a menu row that has to disappear
@@ -24,7 +24,7 @@ import {
  * replies, `progress` is `EMPTY_PROGRESS` — the right default for a reader
  * that must never congratulate anyone, and the wrong thing to act on: a menu
  * that hid the row while the answer was still in flight, or a bar that printed
- * «0 из 6», is making a claim about someone's workspace out of not knowing. An
+ * «0 из 5», is making a claim about someone's workspace out of not knowing. An
  * error counts as an answer: the ticks are then honestly missing, and the row
  * stays.
  */

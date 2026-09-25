@@ -10,7 +10,6 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const files = {
   disclosure: 'apps/frontend/src/components/ui/disclosure.tsx',
   help: 'apps/frontend/src/components/help/help-disclosure.tsx',
-  faq: 'apps/frontend/src/components/billing/faq.component.tsx',
   proposal: 'apps/frontend/src/components/brand-voice/voice-proposal.screen.tsx',
   avatars: 'apps/frontend/src/components/brand-voice/voice-avatars.screen.tsx',
   wizard: 'apps/frontend/src/components/brand-voice/voice-wizard.adapter.ts',
@@ -22,10 +21,10 @@ const files = {
 };
 
 describe('third walk: one disclosure primitive', () => {
-  test('the shared primitive owns disclosure state and all three consumers reuse it', () => {
+  test('the shared primitive owns disclosure state and its consumers reuse it', () => {
     expect(fs.existsSync(path.join(root, files.disclosure))).toBe(true);
     expect(read(files.disclosure)).toMatch(/export (?:const|function) Disclosure/);
-    for (const consumer of [files.help, files.faq, files.proposal]) {
+    for (const consumer of [files.help, files.proposal]) {
       expect(read(consumer)).toContain("components/ui/disclosure");
     }
   });

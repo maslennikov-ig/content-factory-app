@@ -94,7 +94,18 @@ function EmptyChannels({
           <SkeletonRows rows={3} label={t.loading} />
         ) : (
           data && (
-            <AddProviderComponent {...data} invite={false} update={reload} />
+            <AddProviderComponent
+              {...data}
+              invite={false}
+              update={reload}
+              featured={{
+                identifier: 'telegram',
+                title: t.telegramTitle,
+                description: t.telegramDescription,
+                action: t.telegramConnect,
+                othersLabel: t.otherPlatforms,
+              }}
+            />
           )
         )
       ) : (
@@ -154,17 +165,15 @@ function ChannelCard({
       {row.writingProfileStored ? (
         <p className="cf-body-sm text-cf-ink">{summary ?? t.stored}</p>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Status tone="warning">{t.notStored}</Status>
-          <span className="cf-caption text-cf-ink-muted">
-            {t.defaults} {row.identifier}
-          </span>
-        </div>
+        // Готовые настройки — рабочее состояние, не предупреждение (`2q28.24`).
+        <p className="cf-body-sm text-cf-ink-muted">{t.notStored}</p>
       )}
       <p className="cf-caption text-cf-ink-muted">
         {t.lastPost} {channelDate(row.postsSummary?.lastPostAt)} ·{' '}
-        {row.postsSummary?.total ?? '—'} {t.posts} ·{' '}
-        {row.time?.length ? `${row.time.length} ${t.slots}` : t.noSlots}
+        {row.postsSummary?.total != null
+          ? t.posts(row.postsSummary.total)
+          : '—'}{' '}
+        · {row.time?.length ? t.slots(row.time.length) : t.noSlots}
       </p>
       <div className="mt-auto flex flex-wrap gap-2">
         <ButtonLink
@@ -214,7 +223,10 @@ export function ChannelsScreen() {
   };
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-auto bg-cf-canvas p-5">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header
+        data-tour="channel-connect"
+        className="flex flex-wrap items-center justify-between gap-4"
+      >
         <p className="cf-caption text-cf-ink-muted">{t.subtitle}</p>
         <AddProviderButton primary label={t.connect} update={reload} />
       </header>
@@ -402,7 +414,7 @@ export function ChannelsScreen() {
                                     tone={
                                       row.writingProfileStored
                                         ? 'accent'
-                                        : 'warning'
+                                        : 'neutral'
                                     }
                                   >
                                     {row.writingProfileStored
@@ -416,7 +428,10 @@ export function ChannelsScreen() {
                                 <Td>
                                   <p className="cf-caption text-cf-ink-muted">
                                     {channelDate(row.postsSummary?.lastPostAt)}{' '}
-                                    · {row.postsSummary?.total ?? '—'} {t.posts}
+                                    ·{' '}
+                                    {row.postsSummary?.total != null
+                                      ? t.posts(row.postsSummary.total)
+                                      : '—'}
                                   </p>
                                 </Td>
                                 <Td data-row-action>

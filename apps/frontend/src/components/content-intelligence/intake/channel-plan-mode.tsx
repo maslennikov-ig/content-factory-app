@@ -34,10 +34,9 @@ export function readChannelPlanMode(value: unknown): ChannelPlanMode {
 export const channelPlanModeCopy = {
   ru: {
     label: 'План',
-    hint: 'Как адаптации этого канала встают в календарь. Сохраняется сразу, без кнопки.',
+    hint: 'Как адаптации этого канала встают в календарь. Сохраняется вместе с карточкой, кнопкой «Сохранить».',
     postHint:
       'Как этот пост встаёт в календарь. Применяется сразу, и к уже написанному посту тоже.',
-    saved: 'Сохранено',
     failed: 'Не удалось сохранить режим. Попробуйте ещё раз.',
     applyQuestion: (count: number) =>
       `Применить к ${count} ${plural(count, [
@@ -87,10 +86,9 @@ export const channelPlanModeCopy = {
   },
   en: {
     label: 'Plan',
-    hint: 'How this channel’s adaptations get into the calendar. Saves at once, no button.',
+    hint: 'How this channel’s adaptations get into the calendar. Saved with the rest of the card, by “Save”.',
     postHint:
       'How this post gets into the calendar. Applies at once, to the post already written too.',
-    saved: 'Saved',
     failed: 'The mode could not be saved. Try again.',
     applyQuestion: (count: number) =>
       `Apply to the ${count} ${count === 1 ? 'post' : 'posts'} already written, or to new ones only?`,

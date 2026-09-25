@@ -26,6 +26,7 @@ import {
   familyOfPlatform,
 } from '@contentfactory/react/platform/platform.families';
 import { useIntegrationList } from '@contentfactory/frontend/components/launches/helpers/use.integration.list';
+import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import copy from 'copy-to-clipboard';
@@ -465,6 +466,21 @@ export const AddProviderComponent: FC<{
   update?: () => void;
   onboarding?: boolean;
   isMobile?: boolean;
+  /**
+   * One platform first, the rest folded (`2q28.24`). The empty /channels
+   * showed thirty-plus tiles to a blogger whose one relevant option was
+   * Telegram, as one tile among them. With `featured` that platform leads with
+   * its own primary action — the same connect flow as its tile — and every
+   * other band waits under a collapsed «Другие площадки». Without it the
+   * picker is unchanged.
+   */
+  featured?: {
+    identifier: string;
+    title: string;
+    description: string;
+    action: string;
+    othersLabel: string;
+  };
 }> = (props) => {
   const { update, social, onboarding, isMobile } = props;
   const { isGeneral, extensionId } = useVariables();
@@ -819,9 +835,8 @@ export const AddProviderComponent: FC<{
     [onboarding]
   );
 
-  return (
-    <div className="relative flex w-full flex-col gap-[24px]">
-      {bands.map((band) => (
+  const renderBands = (list: typeof bands) =>
+    list.map((band) => (
         <section key={band.id} className="flex flex-col gap-[12px]">
           {/*
             The family is carried by the band and its heading. It used to be
@@ -913,7 +928,72 @@ export const AddProviderComponent: FC<{
             ))}
           </div>
         </section>
-      ))}
+      ));
+
+  const featuredItem = props.featured
+    ? bands
+        .flatMap((band) => band.items)
+        .find((item) => item.identifier === props.featured?.identifier)
+    : undefined;
+  const others = featuredItem
+    ? bands
+        .map((band) => ({
+          ...band,
+          items: band.items.filter(
+            (item) => item.identifier !== featuredItem.identifier
+          ),
+        }))
+        .filter((band) => band.items.length > 0)
+    : bands;
+
+  return (
+    <div className="relative flex w-full flex-col gap-[24px]">
+      {props.featured && featuredItem ? (
+        <>
+          <section
+            data-provider-featured={featuredItem.identifier}
+            className="flex flex-wrap items-center gap-[16px] rounded-[8px] bg-cf-surface-subtle p-[16px]"
+          >
+            <span className="shrink-0" aria-hidden={true}>
+              <PlatformCardLogo identifier={featuredItem.identifier} />
+            </span>
+            {/* A 240px basis lets the row wrap on a phone instead of squeezing
+                the text into a column under the button (wave-2 stand D1). */}
+            <div className="min-w-0 flex-[1_1_240px]">
+              <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
+                {props.featured.title}
+              </h3>
+              <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                {props.featured.description}
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              data-provider-featured-connect={featuredItem.identifier}
+              onClick={getSocialLink(
+                props.invite,
+                featuredItem.identifier,
+                featuredItem.isExternal,
+                featuredItem.isWeb3,
+                featuredItem.isChromeExtension,
+                featuredItem.customFields
+              )}
+            >
+              {props.featured.action}
+            </Button>
+          </section>
+          {others.length ? (
+            <Disclosure
+              summary={props.featured.othersLabel}
+              contentClassName="flex flex-col gap-[24px] pt-[12px]"
+            >
+              {renderBands(others)}
+            </Disclosure>
+          ) : null}
+        </>
+      ) : (
+        renderBands(bands)
+      )}
     </div>
   );
 };

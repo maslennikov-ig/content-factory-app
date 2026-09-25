@@ -1,37 +1,50 @@
 'use client';
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { buttonClassName } from '@contentfactory/react/form/button';
-import { Progress } from '../ui/progress';
+import { Button, buttonClassName } from '@contentfactory/react/form/button';
+import { Panel } from '@contentfactory/react/layout';
+import { Disclosure } from '../ui/disclosure';
 import {
-  ONBOARDING_STEP_HREF,
+  ONBOARDING_FACT_HREF,
   ONBOARDING_STEP_KEYS,
   currentStep,
   doneCount,
+  factIsDone,
+  nextStep,
+  previousStep,
   stepDetail,
+  stepHref,
   stepIsDone,
+  tourHref,
+  type OnboardingProgress,
   type OnboardingStepKey,
 } from './onboarding.adapter';
 import { useOnboardingProgress } from './use-onboarding-progress';
 import { onboardingCopy, resolveOnboardingLocale } from './onboarding.copy';
+import { OnboardingTelegramGuide } from './onboarding.telegram';
 
 /**
- * «С чего начать» — direction A of the 02.09.2026 canvas, chosen by the owner.
+ * «С чего начать» — variant B «Один шаг на экране» of the 25.09.2026 canvas,
+ * chosen by the owner (2q28.5, built in 2q28.6).
  *
- * A page rather than the modal it replaces, and the difference is not
- * cosmetic: every step's button leaves for the place where the work is done.
- * A modal you have to close in order to act, and that forgets you were in it,
- * is fighting its own instructions. This page is a place you leave and come
- * back to, and it reads its own state from the workspace each time.
- *
- * No local «I finished this» flag anywhere. A step is done when the thing
- * exists — a channel, a sample, a claim, a draft, a scheduled post — which is
- * the one reading that cannot lie to a person about their own workspace. It
- * also means the page is correct for someone who did the work months ago and
- * never opened it.
+ * A strip of five labelled segments on top, one step in the middle, and a
+ * footer with «Назад», «Сделаю позже» and «Дальше: …». The step on the screen
+ * is navigation state and nothing else: which step you are *looking at* is
+ * kept here, whether a step is *done* is never kept anywhere but in the
+ * workspace. A step is done when the thing exists — an avatar, a channel, a
+ * piece, an adaptation, a post in the schedule or a chosen channel plan —
+ * which is the one reading that cannot lie to a person about their own work.
+ * «Сделаю позже» moves on without ticking anything; the skipped step stays
+ * open on the strip, and every segment of the strip can be pressed.
  */
+
+type View = OnboardingStepKey | 'done';
+
+const headingClass =
+  'text-cf-ink [text-wrap:balance] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus';
 
 const CheckIcon = () => (
   <svg
@@ -49,19 +62,62 @@ const CheckIcon = () => (
   </svg>
 );
 
+type Words = (typeof onboardingCopy)['ru'];
+
+/** The optional claim: offered, ticked when it exists, never in the count. */
+function OptionalFact({
+  t,
+  progress,
+}: {
+  t: Words;
+  progress: OnboardingProgress;
+}) {
+  const done = factIsDone(progress);
+  const total = progress.facts + progress.pieceFacts;
+  return (
+    <div
+      data-onboarding-optional="fact"
+      data-onboarding-optional-state={done ? 'done' : 'todo'}
+      className="flex flex-col gap-[8px] rounded-[8px] border border-dashed border-cf-border-strong p-[16px]"
+    >
+      <span className="cf-caption text-cf-ink-muted">{t.fact.label}</span>
+      <span className="cf-label-md text-cf-ink">{t.fact.title}</span>
+      {done ? (
+        <span className="flex items-center gap-[8px] cf-body-sm text-cf-ink">
+          <span className="text-cf-accent">
+            <CheckIcon />
+          </span>
+          {t.fact.done(total)}
+        </span>
+      ) : (
+        <>
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {t.fact.body}
+          </p>
+          <Link
+            href={ONBOARDING_FACT_HREF}
+            data-onboarding-optional-action="fact"
+            className={buttonClassName({
+              variant: 'quiet',
+              className: 'self-start underline underline-offset-4',
+            })}
+          >
+            {t.fact.action}
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function OnboardingWalkthrough({
   embedded = false,
 }: {
   /**
-   * Внутри вкладки настроек, а не на своей странице.
-   *
-   * The settings tab used to hold a paragraph and a button that opened this
-   * page. Owner, 07.09.2026: «я не вижу смысла дополнительной кнопки в
-   * настройках… А так я попадаю как будто бы в раздел, которого и не
-   * существует». So the tab renders the steps themselves. Two things change
-   * and nothing else: the heading is an `h2`, because the settings screen
-   * already owns the page's `h1`, and the «закрыть и осмотреться» link goes —
-   * you are inside settings, there is nothing to close.
+   * Внутри вкладки настроек, а не на своей странице (owner, 07.09.2026). Two
+   * things change and nothing else: the heading is an `h2`, because the
+   * settings screen already owns the page's `h1`, and the «вернуться через
+   * меню» line goes — you are already somewhere you can come back to.
    */
   embedded?: boolean;
 } = {}) {
@@ -70,22 +126,72 @@ export function OnboardingWalkthrough({
 
   const { progress, answered, loading, error } = useOnboardingProgress();
 
-  const done = doneCount(progress);
+  /*
+    The step on the screen. `null` until the workspace answers, then pinned to
+    the first open step, so a step that closes while it is on the screen stays
+    there and turns «Дальше» on — instead of the page jumping away under the
+    person's hand.
+  */
+  const [chosen, setChosen] = useState<View | null>(null);
+  const firstOpen: View = currentStep(progress) ?? 'done';
+  const view: View = chosen ?? firstOpen;
+
+  useEffect(() => {
+    if (answered && chosen === null) setChosen(firstOpen);
+    // Pin once, on the first answer; later answers only move the ticks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered]);
+
+  // Focus follows a move the person made, so a screen reader hears the new step.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const moved = useRef(false);
+  const go = useCallback((next: View) => {
+    moved.current = true;
+    setChosen(next);
+  }, []);
+  useEffect(() => {
+    if (!moved.current) return;
+    moved.current = false;
+    heading.current?.focus();
+  }, [view]);
+
   const total = ONBOARDING_STEP_KEYS.length;
-  const active: OnboardingStepKey | null = answered
-    ? currentStep(progress)
+  const done = doneCount(progress);
+  const step = view === 'done' ? null : view;
+  const stepIndex = step ? ONBOARDING_STEP_KEYS.indexOf(step) : -1;
+  const stepDone = step ? stepIsDone(step, progress) : false;
+  const words = step ? t.steps[step] : null;
+  const next: View | null = step ? nextStep(step) : null;
+  const back: View | null = step
+    ? previousStep(step)
+    : ONBOARDING_STEP_KEYS[total - 1];
+  // The last step finishes rather than naming a step to go round to.
+  const nextLabel =
+    next === null ? '' : next === 'done' ? t.finish : t.next(t.steps[next].short);
+  const detail = step
+    ? stepDetail(step, progress, { channels: t.channels })
     : null;
-  const activeIndex = active ? ONBOARDING_STEP_KEYS.indexOf(active) : -1;
-  const step = active ? t.steps[active] : null;
+  const openCount = total - done;
+  // The settings tab already owns an `h2` for the section itself.
+  // It is never larger than that section heading either.
+  const Heading = embedded ? 'h3' : 'h2';
+  const headingSize = embedded ? 'cf-heading-md' : 'cf-heading-lg';
 
   return (
     <section
       data-onboarding-walkthrough="true"
+      data-onboarding-view={answered ? view : 'pending'}
       aria-labelledby={embedded ? 'onboarding-title' : undefined}
       aria-label={embedded ? undefined : t.pageTitle}
-      className="w-full rounded-[8px] border border-cf-border bg-cf-surface"
+      // Its own page takes the app's page gutter (`cf-page-pad`, as the
+      // calendar, content and settings do); inside the settings tab the
+      // surface around it already has one.
+      className={clsx(
+        'flex w-full flex-col gap-[24px]',
+        !embedded && 'cf-page-pad'
+      )}
     >
-      <header className="border-b border-cf-border p-[20px]">
+      <header className="flex flex-col gap-[4px]">
         {embedded && (
           <h2
             id="onboarding-title"
@@ -94,12 +200,7 @@ export function OnboardingWalkthrough({
             {t.pageTitle}
           </h2>
         )}
-        <p
-          className={clsx(
-            'max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]',
-            embedded && 'mt-[4px]'
-          )}
-        >
+        <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
           {t.pageLead}
         </p>
       </header>
@@ -107,228 +208,271 @@ export function OnboardingWalkthrough({
       {error && (
         <p
           role="alert"
-          className="m-[20px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className="rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.failed}
         </p>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-stretch">
-        {/*
-          The rail: what is behind, what is now, what is left. It is a list of
-          states, not a set of controls — the step you are on is the one the
-          product will let you finish, and letting someone jump to step five
-          would just move the refusal from here to the brief gate.
-        */}
-        <nav
-          aria-label={t.pageTitle}
-          className="w-full shrink-0 border-b border-cf-border py-[20px] md:w-[320px] md:border-b-0 md:border-e md:border-cf-border"
-        >
-          <div className="px-[20px] pb-[16px]">
-            <div className="flex items-baseline justify-between">
-              <span className="cf-caption text-cf-ink-muted">
-                {t.progressLabel}
-              </span>
-              <span
-                data-onboarding-progress={
-                  answered ? `${done}/${total}` : 'pending'
-                }
-                className="cf-caption text-cf-ink"
-              >
-                {answered ? t.progressValue(done, total) : t.progressPending}
-              </span>
-            </div>
-            {answered ? (
-              <Progress
-                mode="steps"
-                value={done}
-                total={total}
-                label={t.progressLabel}
-                valueText={t.progressValue(done, total)}
-                className="mt-[8px]"
-              />
-            ) : (
-              <Progress
-                mode="indeterminate"
-                label={t.progressLabel}
-                valueText={t.progressPending}
-                className="mt-[8px]"
-              />
-            )}
-          </div>
-
-          <ol className="flex flex-col">
-            {ONBOARDING_STEP_KEYS.map((key, index) => {
-              const finished = stepIsDone(key, progress);
-              const isActive = key === active;
-              const detail = stepDetail(key, progress, {
-                channels: t.channels,
-                samples: t.samples,
-                facts: t.facts,
-              });
-              return (
-                <li
-                  key={key}
+      {/*
+        The strip: five segments in menu order, every one of them a button.
+        Below `sm` the labels fold to their numbers — five words side by side
+        do not fit 360px — and the step's own caption says which one is on.
+      */}
+      <nav aria-label={t.stripLabel} className="flex flex-col gap-[8px]">
+        <div className="flex items-baseline justify-between gap-[12px]">
+          <span className="cf-caption text-cf-ink-muted">{t.stripLabel}</span>
+          <span
+            data-onboarding-progress={answered ? `${done}/${total}` : 'pending'}
+            className="cf-caption text-cf-ink"
+          >
+            {answered ? t.progressValue(done, total) : t.progressPending}
+          </span>
+        </div>
+        <ol className="grid grid-cols-5 gap-[4px] sm:gap-[12px]">
+          {ONBOARDING_STEP_KEYS.map((key, index) => {
+            const finished = answered && stepIsDone(key, progress);
+            const isOn = answered && key === view;
+            return (
+              <li key={key} className="min-w-0">
+                <Button
+                  variant="quiet"
+                  layout="content"
+                  onClick={() => go(key)}
+                  aria-current={isOn ? 'step' : undefined}
+                  disabled={!answered}
                   data-onboarding-step={key}
                   data-onboarding-step-state={
-                    finished ? 'done' : isActive ? 'current' : 'todo'
+                    finished ? 'done' : isOn ? 'current' : 'todo'
                   }
-                  aria-current={isActive ? 'step' : undefined}
-                  className={clsx(
-                    'flex items-start gap-[12px] px-[20px] py-[12px]',
-                    isActive && 'border-s-[4px] border-cf-accent bg-cf-surface-subtle'
-                  )}
+                  className="w-full rounded-[4px] px-[4px] py-[8px]"
+                  innerClassName="flex-col justify-start gap-[8px]"
                 >
                   <span
                     aria-hidden
                     className={clsx(
-                      'flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full cf-caption',
+                      'block h-[4px] w-full rounded-full',
                       finished
-                        ? 'bg-cf-accent text-cf-accent-ink'
-                        : isActive
-                        ? 'border border-cf-accent bg-cf-accent-soft text-cf-accent'
-                        : 'border border-cf-border-strong text-cf-ink-muted'
+                        ? 'bg-cf-accent'
+                        : isOn
+                        ? 'bg-cf-border-control'
+                        : 'bg-cf-border'
+                    )}
+                  />
+                  <span
+                    className={clsx(
+                      'flex w-full min-w-0 items-center gap-[4px] cf-label-sm',
+                      isOn || finished ? 'text-cf-ink' : 'text-cf-ink-muted'
                     )}
                   >
-                    {finished ? <CheckIcon /> : index + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span
-                      className={clsx(
-                        'block cf-label-md',
-                        finished ? 'text-cf-ink-muted' : 'text-cf-ink'
-                      )}
-                    >
-                      {t.steps[key].short}
+                    {finished && (
+                      <span aria-hidden className="shrink-0 text-cf-accent">
+                        <CheckIcon />
+                      </span>
+                    )}
+                    <span className="truncate">
+                      {index + 1}.
+                      <span className="hidden sm:inline">
+                        {' '}
+                        {t.steps[key].short}
+                      </span>
                     </span>
-                    {detail && (
-                      <span className="block cf-caption text-cf-ink-muted">
-                        {detail}
-                      </span>
-                    )}
-                    {isActive && !detail && (
-                      <span className="block cf-caption text-cf-ink-muted">
-                        {t.current}
-                      </span>
-                    )}
+                    <span className="sr-only">
+                      {' '}
+                      {t.steps[key].short},{' '}
+                      {finished ? t.stateDone : t.stateOpen}
+                    </span>
                   </span>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+                </Button>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
 
-        <div className="min-w-0 flex-1 p-[20px]">
-          {loading ? (
-            <p aria-busy="true" className="cf-body-sm text-cf-ink-muted">
-              {t.loading}
-            </p>
-          ) : step && active ? (
-            <>
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-[24px]">
+        {loading ? (
+          <p aria-busy="true" className="cf-body-sm text-cf-ink-muted">
+            {t.loading}
+          </p>
+        ) : step && words ? (
+          <>
+            <div className="flex flex-col gap-[12px]">
               <p className="cf-caption text-cf-ink-muted">
-                {t.stepOf(activeIndex + 1, total)}
+                {t.stepOf(stepIndex + 1, total)} · {words.short}
               </p>
-              <h2 className="mt-[8px] cf-heading-md text-cf-ink [text-wrap:balance]">
-                {step.title}
-              </h2>
-              <p className="mt-[8px] max-w-[62ch] cf-body-lg text-cf-ink [text-wrap:pretty]">
-                {step.why}
+              <Heading
+                ref={heading}
+                tabIndex={-1}
+                className={clsx(headingSize, headingClass)}
+              >
+                {words.title}
+              </Heading>
+              <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
+                {words.why}
               </p>
+              {stepDone && (
+                <p
+                  data-onboarding-step-done={step}
+                  className="flex items-center gap-[8px] cf-body-sm text-cf-ink"
+                >
+                  <span className="text-cf-accent">
+                    <CheckIcon />
+                  </span>
+                  {detail ?? t.doneNote}
+                </p>
+              )}
+            </div>
 
-              <div className="mt-[20px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]">
-                <p className="cf-caption text-cf-ink-muted">
-                  {t.todoLabel}
-                </p>
-                <p className="mt-[4px] max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">
-                  {step.todo}
-                </p>
-                <div className="mt-[16px] flex flex-wrap items-center gap-[8px]">
-                  {/*
-                    The primitive's own paint and geometry, not a second copy
-                    of them (`content-factory-next-za05`, item 7). This anchor
-                    had spelled out the accent fill, the padding, the focus
-                    ring and a `min-h-[40px]` by hand — one more place for the
-                    action scale to drift. `buttonClassName` is the branch the
-                    system already keeps for a control that has to stay a link.
-                  */}
-                  <Link
-                    href={ONBOARDING_STEP_HREF[active]}
-                    data-onboarding-action={active}
-                    className={buttonClassName({ variant: 'primary' })}
-                  >
-                    {step.action}
-                  </Link>
-                </div>
+            <Panel as="div" contentPadding="snug" contentClassName="flex flex-col gap-[16px] sm:p-[24px]">
+              {step === 'channel' && !stepDone ? (
+                <OnboardingTelegramGuide
+                  words={t.telegram}
+                  actionLabel={words.action}
+                />
+              ) : (
+                <>
+                  {step !== 'channel' && (
+                    <p className="max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                      {words.todo}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-[8px]">
+                    <Link
+                      href={stepHref(step, progress)}
+                      data-onboarding-action={step}
+                      className={buttonClassName({
+                        variant: stepDone ? 'secondary' : 'primary',
+                      })}
+                    >
+                      {step === 'channel'
+                        ? t.openChannels
+                        : (step === 'adaptation' || step === 'plan') &&
+                          progress.latestPieceId
+                        ? t.openLatestPiece
+                        : words.action}
+                    </Link>
+                  </div>
+                </>
+              )}
+              <div className="flex flex-wrap items-center gap-[8px] border-t border-cf-border pt-[16px]">
+                {/*
+                  The tour (stream S3) reads `?tour=<key>` on the target
+                  screen; this page only makes the address.
+                */}
+                <Link
+                  href={tourHref(step, progress)}
+                  data-onboarding-tour={step}
+                  className={buttonClassName({ variant: 'secondary' })}
+                >
+                  {t.showOnScreen}
+                </Link>
+                {/* What closes the step, only while it is still open. */}
+                {!stepDone && (
+                  <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                    {words.closes}
+                  </span>
+                )}
               </div>
+            </Panel>
 
-              {/*
-                One sentence, not two. Seen live on 02.09.2026: printing the
-                step's own «what closes this» beside the general «there is no
-                done button» read as the same thing said twice, one line apart.
-                The step's own sentence is the specific one, so it stays.
-              */}
-              <p className="mt-[16px] max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                {step.closes}
+            {step === 'piece' && <OptionalFact t={t} progress={progress} />}
+
+            <Disclosure
+              summary={<span className="cf-label-md">{t.moreLabel}</span>}
+              contentClassName="pt-[8px]"
+            >
+              <ul className="flex list-disc flex-col gap-[8px] ps-[20px]">
+                {words.more.map((line) => (
+                  <li
+                    key={line}
+                    className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
+          </>
+        ) : (
+          <div className="flex flex-col gap-[12px]">
+            <Heading
+              ref={heading}
+              tabIndex={-1}
+              className={clsx(headingSize, headingClass)}
+            >
+              {openCount === 0 ? t.allDoneTitle : t.leftTitle}
+            </Heading>
+            <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
+              {openCount === 0 ? t.allDoneBody : t.leftBody(openCount)}
+            </p>
+            <OptionalFact t={t} progress={progress} />
+          </div>
+        )}
+
+        {!loading && (
+          <div className="flex flex-col gap-[8px] border-t border-cf-border pt-[20px]">
+            <div className="flex flex-wrap items-center justify-between gap-[8px]">
+              {back ? (
+                <Button
+                  variant="quiet"
+                  onClick={() => go(back)}
+                  data-onboarding-nav="back"
+                >
+                  {t.back}
+                </Button>
+              ) : (
+                <span />
+              )}
+              {step && next !== null && (
+                <div className="flex flex-wrap items-center gap-[8px]">
+                  {!stepDone && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => go(next)}
+                      data-onboarding-nav="later"
+                    >
+                      {t.later}
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    onClick={() => go(next)}
+                    disabled={!stepDone}
+                    aria-describedby={stepDone ? undefined : 'onboarding-wait'}
+                    data-onboarding-nav="next"
+                  >
+                    {nextLabel}
+                  </Button>
+                </div>
+              )}
+            </div>
+            {step && !stepDone && (
+              <p id="onboarding-wait" className="cf-caption text-cf-ink-muted">
+                {t.waitNote}
               </p>
-            </>
-          ) : (
-            <>
-              <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
-                {t.allDoneTitle}
-              </h2>
-              <p className="mt-[8px] max-w-[62ch] cf-body-lg text-cf-ink [text-wrap:pretty]">
-                {t.allDoneBody}
-              </p>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-[12px] border-t border-cf-border p-[16px]">
-        <div className="min-w-0">
-          {/*
-            Where the ticks come from, and why there is no «начать заново».
-            Owner, 07.09.2026: «нужна, наверное, возможность сбросить
-            прохождение». There is nothing to reset — a step is closed by a
-            channel, a sample, a claim, a заготовка, a draft, a post in the
-            schedule, all of which are the workspace's own rows. A button that
-            unticked them would either delete someone's work or set a flag that
-            lies, and the second one is what makes ticks worthless. So the page
-            says so plainly instead of hiding it.
-          */}
-          <p
-            data-onboarding-note="counted"
-            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {t.counted}
+      {/*
+        Where the ticks come from, and why there is no «начать заново». There
+        is nothing to reset — every tick is a row of the workspace, and a
+        button that unticked them would either delete someone's work or set a
+        flag that lies (owner, 07.09.2026).
+      */}
+      <footer className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]">
+        <p
+          data-onboarding-note="counted"
+          className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
+          {t.counted}
+        </p>
+        {!embedded && (
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {t.comeBack}
           </p>
-          {!embedded && (
-            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {t.comeBack}
-            </p>
-          )}
-        </div>
-        {/*
-          One element, not a `<button>` wrapped in an `<a>`
-          (`content-factory-next-za05`, item 6). Nested interactive elements
-          are invalid HTML and give a keyboard or screen-reader user two stops
-          for one action, with the inner one carrying the label and the outer
-          one carrying the destination.
-        */}
-        {!embedded && answered && !error && (
-          <Link
-            href={
-              progress.pieces > 0
-                ? ONBOARDING_STEP_HREF.brief
-                : ONBOARDING_STEP_HREF.voice
-            }
-            className={buttonClassName({
-              variant: 'secondary',
-              className: 'shrink-0',
-            })}
-          >
-            {progress.pieces > 0 ? t.leaveToPieces : t.leaveToAvatar}
-          </Link>
         )}
       </footer>
     </section>

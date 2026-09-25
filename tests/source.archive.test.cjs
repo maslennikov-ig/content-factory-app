@@ -311,11 +311,9 @@ describe('Corresponding Source offer', () => {
     const link = read('apps/frontend/src/components/layout/source.link.tsx');
     expect(link).toContain('/public/source');
 
-    // The FAQ answer used to state the licence and stop there, which is the gap
-    // that made this work necessary.
-    const faq = read('apps/frontend/src/components/billing/faq.component.tsx');
-    expect(faq).toContain('sourceHref');
-    expect(faq).toContain('faq_download_the_source');
+    // The billing FAQ used to carry the offer too; it was upstream copy about
+    // someone else's product and left with its keys (`2q28.8`). Settings →
+    // About and the public footer above are where the offer lives.
 
     const locales = path.join(
       repositoryRoot,
@@ -325,17 +323,10 @@ describe('Corresponding Source offer', () => {
       const file = path.join(locales, locale, 'translation.json');
       if (!fs.existsSync(file)) continue;
       const translations = JSON.parse(fs.readFileSync(file, 'utf8'));
-      for (const key of [
-        'source_code',
-        'source_code_hint',
-        'faq_download_the_source',
-      ]) {
+      for (const key of ['source_code', 'source_code_hint']) {
         expect(typeof translations[key]).toBe('string');
         expect(translations[key].trim()).not.toBe('');
       }
-      expect(translations.faq_we_are_proudly_open_source).toMatch(
-        /AGPL[- ]?3\.0/
-      );
     }
   });
 

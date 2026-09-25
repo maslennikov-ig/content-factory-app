@@ -187,3 +187,30 @@ test('piece detail keeps the content section and route lookalikes do not match',
   view.rerender(h(Title, {}));
   expect(screen.queryByRole('heading')).toBeNull();
 });
+
+/**
+ * 2q28.28: at 390 px «С чего начать» wrapped inside the 56 px header and was
+ * cut to «С чего нача». The global `h1 { text-wrap: balance }` reset the
+ * `nowrap` the wrapper passed down, so the heading truncates itself.
+ */
+test('the section heading stays one line and ends in an ellipsis on a phone', () => {
+  pathname = '/onboarding';
+  language = 'ru';
+  render(h(Title, {}));
+  const heading = screen.getByRole('heading', { level: 1 });
+  expect(heading.className.split(' ')).toContain('truncate');
+  expect(heading.getAttribute('title')).toBe('С чего начать');
+
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const selector = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '..',
+      'apps/frontend/src/components/layout/organization.selector.tsx'
+    ),
+    'utf8'
+  );
+  // The workspace name beside it yields room below `sm`.
+  expect(selector).toContain('max-w-[96px] sm:max-w-[180px]');
+});

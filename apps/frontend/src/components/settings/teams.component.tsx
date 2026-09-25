@@ -42,7 +42,7 @@ const useRoles = () => {
         name: t('user', 'User'),
         meaning: t(
           'role_user_meaning',
-          'Writes and schedules, and uses the AI assistant.'
+          'Views the calendar, posts and Content, and leaves comments — does not write.'
         ),
       },
       {
@@ -58,7 +58,7 @@ const useRoles = () => {
         name: t('admin', 'Admin'),
         meaning: t(
           'role_admin_meaning',
-          'Everything an editor can do, plus channels, the brand voice, settings and the team.'
+          'Everything an editor can do, plus channels, settings and the team.'
         ),
       },
     ],

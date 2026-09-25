@@ -10,6 +10,7 @@ import {
   resolveOnboardingLocale,
 } from '@contentfactory/frontend/components/onboarding/onboarding.copy';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
+import { isHiddenMenuPath } from './hidden-upstream-surfaces';
 
 export interface MenuItemInterface {
   name: string;
@@ -44,8 +45,8 @@ export const useMenuItem = () => {
    * существует». Раньше единственная дверь была вкладкой настроек, и
    * страница, до которой доходили через две двери, читалась как несуществующая.
    *
-   * Пункт исчезает сам, когда пройдены все шесть шагов, — навсегда, потому что
-   * шаги считаются по строкам области и назад они не идут. Пока область не
+   * Пункт исчезает сам, когда пройдены все пять шагов (необязательный факт
+   * не в счёт), — навсегда, потому что шаги считаются по строкам области и назад они не идут. Пока область не
    * ответила, пункт показан: спрятать его по незнанию — это спрятать
    * единственный вход в продукт у того, кто ещё ничего не сделал.
    *
@@ -279,7 +280,12 @@ export const useMenuItem = () => {
     { ...entry('/launches'), step: 4 },
     { ...entry('/analytics'), step: 5 },
   ];
-  const secondaryMenu = ['/agents', '/media', '/plugs', '/help'].map(entry);
+  // `/agents` and `/plugs` stay defined so their pages keep a title; the
+  // sidebar skips whatever `hidden-upstream-surfaces.ts` lists (2q28.26).
+  const secondaryAll = ['/agents', '/media', '/plugs', '/help'].map(entry);
+  const secondaryMenu = secondaryAll.filter(
+    (item) => !isHiddenMenuPath(item.path)
+  );
 
   const adminMenu = [
     {
@@ -337,7 +343,7 @@ export const useMenuItem = () => {
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
   return {
-    all: [...workMenu, ...secondaryMenu, ...adminMenu],
+    all: [...workMenu, ...secondaryAll, ...adminMenu],
     workMenu,
     adminMenu: adminMenu.filter((item) => item.path === '/settings'),
     secondaryMenu,

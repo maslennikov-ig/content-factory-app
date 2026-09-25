@@ -73,7 +73,7 @@ function RecentPosts({
   return (
     <Panel
       title={t.recent}
-      description={data ? `${data.total} ${t.posts}` : undefined}
+      description={data ? t.posts(data.total) : undefined}
       actions={
         <ButtonLink href={calendarHref} variant="quiet" density="dense">
           {t.calendar}

@@ -42,66 +42,30 @@ export default async function AuthLayout({
 
       <aside className="flex flex-1 items-center justify-center border-t border-cf-border px-[24px] py-[40px] lg:border-t-0 lg:px-[48px] lg:py-[64px]">
         <WorkflowOverview
-          initialStep={1}
           heading={t(
-            'auth_overview_heading',
-            'Create content. Publish everywhere. Track what works.'
-          )}
-          intro={t(
-            'auth_overview_intro',
-            'Turn one idea into ready-to-publish content, adapt it for every channel, and launch it everywhere at once—without switching tools.'
-          )}
-          platformProof={t(
-            'auth_overview_platform_proof',
-            '30+ platforms in one launch—with reach, clicks, and engagement tracked in one place.'
+            'auth_pitch_heading',
+            'Posts for your Telegram channel, in your own voice'
           )}
           steps={[
             {
-              title: t('auth_overview_plan_title', 'Plan'),
+              title: t('auth_pitch_avatar_title', 'Avatar'),
               body: t(
-                'auth_overview_plan_body',
-                'See the calendar for every channel and decide what to work on next.'
+                'auth_pitch_avatar_body',
+                'Writes posts the way you write.'
               ),
             },
             {
-              title: t('auth_overview_draft_title', 'Content creation'),
-              tabTitle: t('auth_overview_create_tab', 'Create'),
+              title: t('auth_pitch_adapt_title', 'Adaptation'),
               body: t(
-                'auth_overview_draft_body',
-                'Build from project knowledge, refine text and media, then adapt the result for every channel.'
-              ),
-              momentum: {
-                availableLabel: t(
-                  'auth_overview_available_now_label',
-                  'Available now'
-                ),
-                availableBody: t(
-                  'auth_overview_available_now_body',
-                  'Web research with cited sources and RSS or Telegram feeds turned into drafts.'
-                ),
-                nextLabel: t(
-                  'auth_overview_coming_next_label',
-                  'Next on the roadmap'
-                ),
-                nextBody: t(
-                  'auth_overview_coming_next_body',
-                  'A brand voice profile that carries audience, vocabulary, tone, and rules into every draft.'
-                ),
-              },
-            },
-            {
-              title: t('auth_overview_review_title', 'Review'),
-              body: t(
-                'auth_overview_review_body',
-                'Check each platform preview and resolve validation before anything is queued.'
+                'auth_pitch_adapt_body',
+                'Rewrites one thought for each of your channels.'
               ),
             },
             {
-              title: t('auth_overview_publish_title', 'Publish and measure'),
-              tabTitle: t('schedule', 'Schedule'),
+              title: t('auth_pitch_plan_title', 'Plan'),
               body: t(
-                'auth_overview_publish_body',
-                'Launch scheduled posts together and track reach, clicks, and engagement in analytics.'
+                'auth_pitch_plan_body',
+                "Puts the posts into the channel's calendar."
               ),
             },
           ]}

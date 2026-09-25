@@ -138,7 +138,7 @@ describe('role refusal carries a message', () => {
  * installs on every backend call, so a refusal can be driven through the real
  * handler rather than asserted from its source.
  */
-function mountAfterRequest() {
+function mountAfterRequest({ billingEnabled = true } = {}) {
   const deleteDialog = jest.fn().mockResolvedValue(true);
   const areYouSure = jest.fn().mockResolvedValue(true);
   let afterRequest;
@@ -167,6 +167,7 @@ function mountAfterRequest() {
           backendUrl: 'https://backend.example',
           isGeneral: true,
           isSecured: true,
+          billingEnabled,
         }),
       },
     },
@@ -273,6 +274,32 @@ describe('the frontend tells a role refusal from a plan limit', () => {
     expect(deleteDialog.mock.calls[0][1]).toBe('Move to billing');
     expect(global.window.open).toHaveBeenCalledWith('/billing', '_blank');
     expect(areYouSure).not.toHaveBeenCalled();
+  });
+
+  test('a 402 without billing explains the limit and offers no way to billing (2q28.30)', async () => {
+    const { afterRequest, deleteDialog, areYouSure } = mountAfterRequest({
+      billingEnabled: false,
+    });
+
+    const proceed = await afterRequest(
+      '/media',
+      {},
+      backendResponse(402, {
+        statusCode: 402,
+        message: 'You have reached the maximum number of channels',
+      })
+    );
+
+    // /billing says only «Оплата пока не подключена» on such an instance.
+    expect(deleteDialog).not.toHaveBeenCalled();
+    expect(areYouSure).toHaveBeenCalledTimes(1);
+    const [dialog] = areYouSure.mock.calls[0];
+    expect(dialog.onlyApprove).toBe(true);
+    expect(dialog.description).toBe(
+      'You have reached the maximum number of channels'
+    );
+    expect(global.window.open).not.toHaveBeenCalled();
+    expect(proceed).toBe(false);
   });
 
   test('a 403 that is not our refusal is left to the caller', async () => {
@@ -393,6 +420,9 @@ function renderGlobalSettings(role) {
       '@contentfactory/frontend/components/layout/user.context': {
         useUser: () => (role ? { role } : undefined),
       },
+      '../layout/hidden-upstream-surfaces': loadTypeScriptModule(
+        'apps/frontend/src/components/layout/hidden-upstream-surfaces.ts'
+      ),
     },
     true
   );

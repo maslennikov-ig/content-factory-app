@@ -437,7 +437,7 @@ export function VoiceAnalysisScreen({
                     {rejected
                       .map(
                         (row) =>
-                          `${row.code} — ${t.analysisRejectedReasons[row.reason]}`
+                          `${t.sampleRef(row.code)} — ${t.analysisRejectedReasons[row.reason]}`
                       )
                       .join('; ')}
                   </p>

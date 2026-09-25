@@ -2,8 +2,9 @@
 
 /**
  * «Как пишем в «X»» — the channel scope of the one settings panel (`97dq.70`):
- * the same fields, order and hints as the post, the plan saved at once with the
- * inline «Только к новым / Ко всем N» question.
+ * the same fields, order and hints as the post, the plan saved by the card's
+ * one «Сохранить» (`2q28.19`), then the inline «Только к новым / Ко всем N»
+ * question.
  */
 
 const React = require('react');
@@ -231,6 +232,47 @@ test('the slider stores a density', async () => {
   await waitFor(() => expect(slider().getAttribute('aria-valuetext')).toBe('Много'));
 });
 
+// Пятый ноль, находка 18 (`2q28.22`): подписи делений выглядели кнопками и
+// ничего не делали — «Средне» оставляла «Мало».
+test('each emoji caption is a button that sets its stop', async () => {
+  serve({ stored: false });
+  draw();
+  await ready();
+  expect(slider().getAttribute('aria-valuetext')).toBe('Мало');
+  const captions = Array.from(
+    document.querySelectorAll('[data-emoji-divisions] button')
+  );
+  expect(captions.map((node) => node.textContent)).toEqual([
+    'Без эмодзи',
+    'Мало',
+    'Средне',
+    'Много',
+    'Как можно больше',
+  ]);
+  // Кнопки, а не картинка: в дереве доступности, с Tab и состоянием.
+  expect(document.querySelector('[data-emoji-divisions]').getAttribute('aria-hidden')).toBeNull();
+  expect(captions.every((node) => node.type === 'button' && node.tabIndex === 0)).toBe(true);
+  expect(captions.map((node) => node.getAttribute('aria-pressed'))).toEqual([
+    'false',
+    'true',
+    'false',
+    'false',
+    'false',
+  ]);
+  const medium = screen.getByRole('button', {
+    name: 'Сколько эмодзи в посте: Средне',
+  });
+  fireEvent.click(medium);
+  expect(slider().value).toBe('2');
+  expect(slider().getAttribute('aria-valuetext')).toBe('Средне');
+  expect(medium.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() =>
+    expect(calls.some((call) => call.method === 'PUT' && call.url === URL)).toBe(true)
+  );
+  expect(calls.find((call) => call.method === 'PUT').body.emojiLevel).toBe('medium');
+});
+
 test('«Сохранить» sends one PUT with the fields and the note, and notifies the parent', async () => {
   serve({ stored: false });
   const onSaved = jest.fn();
@@ -263,13 +305,13 @@ test('Reset uses DELETE, returns to defaults, and notifies the parent', async ()
   serve();
   const onSaved = jest.fn();
   draw({ onSaved });
-  const reset = await screen.findByRole('button', { name: 'Вернуть умолчания' });
+  const reset = await screen.findByRole('button', { name: 'Вернуть готовые настройки' });
   fireEvent.click(reset);
   await waitFor(() =>
     expect(panel().dataset.channelWritingProfileStored).toBe('false')
   );
   expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
-  expect(screen.getByText(/Карточка не заполнена/)).not.toBeNull();
+  expect(screen.getByText(/Пишем по готовым настройкам для Telegram/)).not.toBeNull();
   expect(onSaved).toHaveBeenCalledTimes(1);
 });
 
@@ -376,28 +418,68 @@ test('the busy save keeps its label and width through Button loading', async () 
   await act(async () => release());
 });
 
-describe('«План» of the channel (97dq.57, 97dq.70)', () => {
-  const choose = async (mode) => {
+describe('«План» of the channel (97dq.57, 97dq.70, 2q28.19)', () => {
+  const pick = async (mode) => {
     const plan = screen.getByLabelText('План');
     await act(async () => {
       fireEvent.change(plan, { target: { value: mode } });
     });
   };
+  const saveCard = async () => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+    });
+  };
+  const choose = async (mode) => {
+    await pick(mode);
+    await saveCard();
+  };
+  const planPuts = () =>
+    calls.filter((call) => call.url === PLAN_URL && call.method === 'PUT');
 
-  test('saves on choice, apart from the card; nothing written — no question', async () => {
+  test('a choice waits for «Сохранить» like every other field; nothing written — no question', async () => {
     serve({ planMode: 'draft' });
     draw();
     await ready();
     await waitFor(() => expect(screen.getByLabelText('План').value).toBe('draft'));
     expect(screen.getByText('Адаптация лежит черновиком. Время выбираете сами.')).toBeTruthy();
-    await choose('autopilot');
-    await screen.findByText('Сохранено');
-    expect(
-      calls.filter((call) => call.url === PLAN_URL && call.method === 'PUT').map((call) => call.body)
-    ).toEqual([{ planMode: 'autopilot' }]);
+    await pick('autopilot');
+    // One save model (`2q28.19`): nothing leaves until the card's button.
+    expect(planPuts()).toEqual([]);
+    expect(screen.getByLabelText('План').value).toBe('autopilot');
+    const save = screen.getByRole('button', { name: 'Сохранить' });
+    expect(save.disabled).toBe(false);
+    await saveCard();
+    await screen.findByText('Карточка сохранена.');
+    expect(planPuts().map((call) => call.body)).toEqual([{ planMode: 'autopilot' }]);
+    // The plan alone does not rewrite the text fields.
     expect(calls.filter((call) => call.url === URL && call.method !== 'GET')).toEqual([]);
     expect(document.querySelector('[data-channel-plan-apply]')).toBeNull();
     expect(calls.some((call) => call.url === APPLY_URL)).toBe(false);
+    await waitFor(() => expect(save.disabled).toBe(true));
+  });
+
+  test('the plan and the text fields go out with the same «Сохранить»', async () => {
+    serve({ planMode: 'reserve' });
+    draw();
+    await ready();
+    await pick('draft');
+    fireEvent.change(slider(), { target: { value: '0' } });
+    expect(planPuts()).toEqual([]);
+    await saveCard();
+    await screen.findByText('Карточка сохранена.');
+    expect(planPuts().map((call) => call.body)).toEqual([{ planMode: 'draft' }]);
+    const profilePut = calls.find((call) => call.url === URL && call.method === 'PUT');
+    expect(profilePut.body.emojiLevel).toBe('none');
+  });
+
+  test('the plan hint no longer promises saving without the button', () => {
+    const { channelPlanModeCopy } = loadTypeScriptModule(
+      'apps/frontend/src/components/content-intelligence/intake/channel-plan-mode.tsx'
+    );
+    expect(channelPlanModeCopy.ru.hint).not.toContain('Сохраняется сразу');
+    expect(channelPlanModeCopy.ru.hint).toContain('«Сохранить»');
+    expect(channelPlanModeCopy.en.hint).not.toContain('at once');
   });
 
   test('with written posts it asks inline; «Только к новым» is the default and applies nothing', async () => {

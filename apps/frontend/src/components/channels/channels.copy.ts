@@ -1,3 +1,4 @@
+import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
 import { intakeCopy } from '../content-intelligence/intake/intake.copy';
 
 /*
@@ -32,12 +33,14 @@ export const channelsCopy = {
     writingColumn: 'Как пишем',
     fill: 'Заполнить карточку',
     open: 'Открыть',
-    defaults: 'умолчания',
-    stored: 'заполнена',
-    notStored: 'карточка не заполнена',
+    defaults: 'готовые настройки',
+    stored: 'свои настройки',
+    notStored: 'Пишем по готовым настройкам площадки.',
     lastPost: 'последний пост',
-    posts: 'постов',
-    slots: 'слотов в день',
+    // «1 пост», «3 поста», «5 постов»; «3 публикации в день» (`2q28.21`).
+    posts: (n: number) => `${n} ${plural(n, ['пост', 'поста', 'постов'])}`,
+    slots: (n: number) =>
+      `${n} ${plural(n, ['публикация', 'публикации', 'публикаций'])} в день`,
     noSlots: 'без расписания',
     channel: 'Канал',
     state: 'Состояние',
@@ -46,8 +49,14 @@ export const channelsCopy = {
     empty: 'Каналов пока нет',
     emptyDescription:
       'Текст пишется под канал: его длину, эмодзи, призыв. Подключите хотя бы один — и заготовки будет куда адаптировать.',
+    // Пятый ноль, находка 22 (`2q28.24`): Telegram первым, остальное свёрнуто.
+    telegramTitle: 'Telegram-канал',
+    telegramDescription:
+      'Подключите свой канал: посты будут выходить в нём по вашему расписанию.',
+    telegramConnect: 'Подключить Telegram',
+    otherPlatforms: 'Другие площадки',
     profileHint:
-      'У каждого канала своя карточка «Как пишем в «канал»». Для Telegram доступны рекомендации, для остальных площадок — общие умолчания.',
+      'У каждого канала своя карточка «Как пишем в «канал»». Для Telegram настройки уже подобраны, для остальных площадок — общие.',
     readOnly: 'Подключать каналы и менять их настройки может администратор.',
     noMatches: 'Каналы не найдены',
     noMatchesDescription: 'Измените имя или фильтр состояния.',
@@ -118,12 +127,12 @@ export const channelsCopy = {
     writingColumn: 'How we write',
     fill: 'Set up writing profile',
     open: 'Open',
-    defaults: 'defaults',
-    stored: 'set up',
-    notStored: 'writing profile not set up',
+    defaults: 'ready-made settings',
+    stored: 'own settings',
+    notStored: 'Writing with the platform’s ready-made settings.',
     lastPost: 'last post',
-    posts: 'posts',
-    slots: 'slots per day',
+    posts: (n: number) => `${n} ${n === 1 ? 'post' : 'posts'}`,
+    slots: (n: number) => `${n} ${n === 1 ? 'slot' : 'slots'} per day`,
     noSlots: 'no schedule',
     channel: 'Channel',
     state: 'State',
@@ -132,8 +141,13 @@ export const channelsCopy = {
     empty: 'No channels yet',
     emptyDescription:
       'Writing is shaped for each channel: length, emoji and a call to action. Connect a channel to start adapting your pieces.',
+    telegramTitle: 'Telegram channel',
+    telegramDescription:
+      'Connect your channel: posts will go out there on your schedule.',
+    telegramConnect: 'Connect Telegram',
+    otherPlatforms: 'Other platforms',
     profileHint:
-      'Each channel has its own writing profile. Telegram has recommended settings; other platforms start with general defaults.',
+      'Each channel has its own writing profile. Telegram settings are already chosen; other platforms start with general ones.',
     readOnly:
       'An administrator can connect channels and change their settings.',
     noMatches: 'No matching channels',

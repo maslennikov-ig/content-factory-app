@@ -107,6 +107,8 @@ describe('§1.3 / §1.4 — one page gutter, one settings measure', () => {
     'apps/frontend/src/components/content-intelligence/content-section.screen.tsx',
     'apps/frontend/src/components/platform-analytics/production.analytics.view.tsx',
     'apps/frontend/src/components/platform-analytics/audience.analytics.view.tsx',
+    // «С чего начать» had none and touched the sidebar (stand check 25.09.2026).
+    'apps/frontend/src/components/onboarding/onboarding.walkthrough.tsx',
   ];
 
   test('the gutter is the cf-page-pad token, defined once', () => {

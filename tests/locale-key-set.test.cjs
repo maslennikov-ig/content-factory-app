@@ -89,7 +89,7 @@ const fallbackFreeKeys = () => {
   return used;
 };
 
-describe('locale key set and FAQ safety', () => {
+describe('locale key set', () => {
   // Checking ka_ge alone left the other fourteen free to drift: a key added to
   // English and forgotten everywhere else would fall back silently, and nothing
   // would say which locale had gone short. All sixteen agree today, so every one
@@ -140,32 +140,22 @@ describe('locale key set and FAQ safety', () => {
     expect(missing).toEqual({});
   });
 
-  test('FAQ availability copy states the AGPL open-source product boundary', () => {
-    for (const locale of fs.readdirSync(localesDir)) {
-      const file = path.join(localesDir, locale, 'translation.json');
-      if (!fs.existsSync(file)) continue;
-      const value = readLocale(locale).faq_we_are_proudly_open_source;
-      expect(typeof value).toBe('string');
-      expect(value).not.toMatch(/gitroomhq\/postiz-app/i);
-      if (locale !== 'en') {
-        expect(value).not.toMatch(
-          /the upstream repository|upstream foundation/i
-        );
-      }
-      expect(value).not.toMatch(
-        /private|closed[- ]source|закрыт|приватн|частн|privat|privado|privé|privato|privada|私有|非公開|비공개|კერძო/i
+  // The upstream billing FAQ answered questions about someone else's product
+  // (a $2 card hold, X and Pinterest channels, «AI auto-complete») and was
+  // removed with its keys by `content-factory-next-2q28.8`. The product's own
+  // answers live in /help; the source offer lives in Settings → About and the
+  // public footer (`tests/source.archive.test.cjs`).
+  test('the upstream billing FAQ stays removed, keys and component alike', () => {
+    for (const locale of shippedLocales()) {
+      const leftovers = Object.keys(readLocale(locale)).filter((key) =>
+        key.startsWith('faq_')
       );
-      expect(value).toMatch(
-        /AGPL[- ]?3\.0|open[- ]source|opensource|ღია კოდის|открыт.*код|código abierto|code source ouvert|open source|オープンソース|오픈소스|开源/i
-      );
+      expect({ locale, leftovers }).toEqual({ locale, leftovers: [] });
     }
-  });
-
-  test('FAQ component does not embed the upstream repository URL', () => {
-    const source = fs.readFileSync(
-      path.join(root, 'apps/frontend/src/components/billing/faq.component.tsx'),
-      'utf8'
-    );
-    expect(source).not.toMatch(/gitroomhq\/postiz-app/);
+    expect(
+      fs.existsSync(
+        path.join(root, 'apps/frontend/src/components/billing/faq.component.tsx')
+      )
+    ).toBe(false);
   });
 });

@@ -159,7 +159,7 @@ export function readVoiceFailure(error: unknown): VoiceFailure | null {
   const message =
     asString(record.message) ||
     (error instanceof Error ? error.message : '') ||
-    'Запрос к голосу бренда не удался.';
+    'Аватар не ответил. Попробуйте ещё раз.';
   return {
     code: known ? code : null,
     message,

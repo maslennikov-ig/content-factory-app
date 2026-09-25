@@ -10,6 +10,7 @@ import { Progress } from '../ui/progress';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { isHiddenSettingsRow } from '../layout/hidden-upstream-surfaces';
 
 interface EmailNotifications {
   sendSuccessEmails: boolean;
@@ -151,24 +152,26 @@ const EmailNotificationsComponent = () => {
           fill={true}
         />
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <div className="cf-label-md text-cf-ink">
-            {t('streak_emails', 'Streak Reminder Emails')}
+      {!isHiddenSettingsRow('streak_emails') && (
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <div className="cf-label-md text-cf-ink">
+              {t('streak_emails', 'Streak Reminder Emails')}
+            </div>
+            <div className="cf-body-sm text-cf-ink-muted">
+              {t(
+                'streak_emails_description',
+                'Receive email reminders when your posting streak is about to end'
+              )}
+            </div>
           </div>
-          <div className="cf-body-sm text-cf-ink-muted">
-            {t(
-              'streak_emails_description',
-              'Receive email reminders when your posting streak is about to end'
-            )}
-          </div>
+          <Slider
+            value={localSettings.sendStreakEmails ? 'on' : 'off'}
+            onChange={handleStreakEmailsChange}
+            fill={true}
+          />
         </div>
-        <Slider
-          value={localSettings.sendStreakEmails ? 'on' : 'off'}
-          onChange={handleStreakEmailsChange}
-          fill={true}
-        />
-      </div>
+      )}
     </SettingsSection>
   );
 };

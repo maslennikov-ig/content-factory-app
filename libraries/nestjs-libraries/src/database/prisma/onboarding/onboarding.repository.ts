@@ -21,6 +21,11 @@ type PieceCounter = {
     where: { organizationId: string; kind: string; archivedAt: null };
     select: { brief: true };
   }): Promise<Array<{ brief: unknown }>>;
+  findFirst(args: {
+    where: { organizationId: string; kind: string; archivedAt: null };
+    orderBy: { updatedAt: 'desc' };
+    select: { id: true };
+  }): Promise<{ id: string } | null>;
 };
 
 const recordOf = (value: unknown): Record<string, any> | null =>
@@ -84,16 +89,43 @@ export class OnboardingRepository {
       | 'contentFact'
       | 'post'
       | 'contentPiece'
+      | 'contentDerivation'
+      | 'userOrganization'
     >
   ) {}
+
+  /**
+   * Who founded the workspace: the member whose membership is the oldest.
+   * The founder and an invited administrator share the role `ADMIN`
+   * (`fn33.19`), so the role cannot tell them apart; the first membership
+   * can, because `createOrgAndUser` makes the workspace and its first
+   * membership in one write and every invitation joins later (2q28.12).
+   */
+  async founderId(organizationId: string): Promise<string | null> {
+    const first = await this._prisma.model.userOrganization.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: 'asc' },
+      select: { userId: true },
+    });
+    return first?.userId ?? null;
+  }
 
   private contentPiece(): PieceCounter {
     return this._prisma.model.contentPiece as unknown as PieceCounter;
   }
 
   async progress(organizationId: string) {
-    const [channels, voiceSamples, avatars, facts, pieces, drafts, scheduled] =
-      await Promise.all([
+    const [
+      channels,
+      voiceSamples,
+      avatars,
+      facts,
+      pieces,
+      drafts,
+      scheduled,
+      adaptations,
+      planModes,
+    ] = await Promise.all([
         this._prisma.model.integration.count({
           where: { organizationId, deletedAt: null, disabled: false },
         }),
@@ -157,6 +189,32 @@ export class OnboardingRepository {
             state: { in: ['QUEUE', 'PUBLISHED'] },
           },
         }),
+        /*
+          Адаптации живых заготовок (2q28.6). Since the plan wave an
+          adaptation exists before any post does — `postId` stays empty until
+          it is planned — so the draft count above cannot answer for the
+          adaptation step on its own. Only derivations of a live `CORE` piece:
+          an archived piece is gone from every list.
+        */
+        this._prisma.model.contentDerivation.count({
+          where: {
+            organizationId,
+            piece: { kind: 'CORE', archivedAt: null },
+          },
+        }),
+        /*
+          Channels whose plan mode someone chose (`Integration.planMode`,
+          97dq.57). `NULL` is read as «Бронь» everywhere, but only a written
+          value is a decision a person made, and only that closes the step.
+        */
+        this._prisma.model.integration.count({
+          where: {
+            organizationId,
+            deletedAt: null,
+            disabled: false,
+            planMode: { not: null },
+          },
+        }),
       ]);
 
     // Most new workspaces have no pieces yet and need no JSON read at all.
@@ -167,6 +225,18 @@ export class OnboardingRepository {
           select: { brief: true },
         })
       : [];
+    /*
+      The piece touched last (2q28.6): the adaptation step and its on-screen
+      tour open that piece's page, because adaptations are made there and the
+      list of pieces has nothing to point at. Only the id.
+    */
+    const latestPiece = pieces
+      ? await this.contentPiece().findFirst({
+          where: { organizationId, kind: 'CORE', archivedAt: null },
+          orderBy: { updatedAt: 'desc' },
+          select: { id: true },
+        })
+      : null;
 
     return {
       channels,
@@ -180,6 +250,9 @@ export class OnboardingRepository {
       pieces,
       drafts,
       scheduled,
+      adaptations,
+      planModes,
+      latestPieceId: latestPiece?.id ?? null,
     };
   }
 }

@@ -180,7 +180,10 @@ export function ScheduleBar({
           disabled={off}
           loading={scheduleLoading || busy === 'plan'}
           loadingLabel={scheduleLabel}
-          actionData={{ 'data-schedule-action': 'confirm' }}
+          actionData={{
+            'data-schedule-action': 'confirm',
+            'data-tour': 'plan-confirm',
+          }}
           menuLabel={t.planReservedMore}
           placement="below"
           align="end"

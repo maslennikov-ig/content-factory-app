@@ -14,7 +14,7 @@ export const isPlaceholderPicture = (picture?: string | null) =>
  * The channel picture with its platform badge; a picture that is missing or
  * fails to load becomes the two-letter `ChannelMark`, never the white
  * `no-picture` circle. `compact` is the 28px list-row size (the calendar's
- * «Что публикуем»).
+ * «Что публикуем»). The mark sets its letters clear of the badge corner.
  */
 export function ChannelAvatar({
   row,
@@ -50,7 +50,7 @@ export function ChannelAvatar({
           onError={() => setFailed(true)}
         />
       ) : (
-        <ChannelMark name={row.name} size={size} />
+        <ChannelMark name={row.name} size={size} badged />
       )}
       <PlatformBadge
         identifier={row.identifier}

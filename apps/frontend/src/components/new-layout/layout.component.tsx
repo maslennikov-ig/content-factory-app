@@ -46,6 +46,7 @@ import { FirstBillingComponent } from '@contentfactory/frontend/components/billi
 import { Sidebar } from '@contentfactory/frontend/components/new-layout/sidebar';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Button } from '@contentfactory/react/form/button';
+import { GuidedTour } from '@contentfactory/frontend/components/guided-tour/guided-tour';
 
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -113,6 +114,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
       <MantineWrapper>
         <ToolTip />
         <Toaster />
+        {/* `?tour=<key>` on any signed-in screen (`2q28.7`). */}
+        <GuidedTour />
         <CheckPayment check={searchParams.get('check') || ''} mutate={mutate}>
           <ShowLinkedinCompany />
           <MediaSettingsLayout />

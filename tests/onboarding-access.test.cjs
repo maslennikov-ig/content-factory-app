@@ -47,7 +47,7 @@ describe('onboarding stays reachable after it is skipped', () => {
   test('the walkthrough is also the first row of the working menu', () => {
     // Владелец 07.09.2026: «раздел «С чего начать» должен быть просто
     // отдельным пунктом меню вынесен». Пункт стоит первым и пропадает сам,
-    // когда все шесть шагов пройдены, — по данным области, а не по флагу.
+    // когда все пять шагов пройдены, — по данным области, а не по флагу.
     const menu = read('apps/frontend/src/components/layout/top.menu.tsx');
     const first = menu.indexOf("path: '/onboarding'");
     expect(first).toBeGreaterThan(-1);
@@ -59,14 +59,27 @@ describe('onboarding stays reachable after it is skipped', () => {
     expect(menu).toContain('onboarding.answered && allStepsDone');
   });
 
-  test('the onboarding modal actually opens on that query parameter', () => {
+  test('the old `?onboarding=true` address hands over to the one onboarding', () => {
+    // 2q28.6: the inherited Postiz modal is gone. The parameter still comes
+    // back from the channel-connect round trip and the billing return, so the
+    // mount stays inside the launches shell and sends the person to the page.
+    expect(
+      fs.existsSync(
+        path.join(
+          repositoryRoot,
+          'apps/frontend/src/components/onboarding/onboarding.modal.tsx'
+        )
+      )
+    ).toBe(false);
     const onboardingMount = read(
       'apps/frontend/src/components/onboarding/onboarding.tsx'
     );
     expect(onboardingMount).toMatch(/query\.get\('onboarding'\)/);
+    expect(onboardingMount).toContain('router.replace');
+    expect(onboardingMount).toContain("'/onboarding'");
+    // A two-step provider still needs its picker on /launches first.
+    expect(onboardingMount).toMatch(/query\.get\('continue'\)/);
 
-    // The mount point lives inside the launches shell, so the link has to
-    // land there, not on a page where <Onboarding /> is never rendered.
     const launches = read(
       'apps/frontend/src/components/launches/launches.component.tsx'
     );
@@ -94,6 +107,16 @@ describe('onboarding stays reachable after it is skipped', () => {
       'onboarding_step_review_body',
       'onboarding_step_publish',
       'onboarding_step_publish_body',
+      // 2q28.6: the modal that read these is gone.
+      'onboarding_step_next',
+      'onboarding_next_title',
+      'onboarding_next_description',
+      'connect_your_channels',
+      'connect_social_media_to_start',
+      'connected_channels',
+      'click_channel_to_add',
+      'continue_without_channels',
+      'get_started',
     ];
     const locales = fs.readdirSync(
       path.join(
@@ -114,8 +137,6 @@ describe('onboarding stays reachable after it is skipped', () => {
       for (const key of dead) {
         if (key in bundle) survivors.push(`${locale}/${key}`);
       }
-      // The one key this screen does still read stays.
-      expect(bundle.onboarding_step_next).toBeTruthy();
     }
 
     expect(survivors).toEqual([]);

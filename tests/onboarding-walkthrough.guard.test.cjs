@@ -34,7 +34,8 @@ const FILES = {
   controller: 'apps/backend/src/api/routes/onboarding.controller.ts',
   repository:
     'libraries/nestjs-libraries/src/database/prisma/onboarding/onboarding.repository.ts',
-  modal: 'apps/frontend/src/components/onboarding/onboarding.modal.tsx',
+  mount: 'apps/frontend/src/components/onboarding/onboarding.tsx',
+  telegram: 'apps/frontend/src/components/onboarding/onboarding.telegram.tsx',
   layout: 'apps/frontend/src/components/layout/layout.context.tsx',
   progressHook:
     'apps/frontend/src/components/onboarding/use-onboarding-progress.ts',
@@ -58,60 +59,62 @@ const adapter = require('./helpers/load-tsx.cjs').loadTypeScriptModule(
 );
 
 describe('a step closes because the work is done', () => {
+  const only = (patch) => ({ ...adapter.EMPTY_PROGRESS, ...patch });
+
   test('nothing is done in an empty workspace', () => {
     const empty = adapter.EMPTY_PROGRESS;
     expect(adapter.doneCount(empty)).toBe(0);
-    expect(adapter.currentStep(empty)).toBe('channel');
+    // Variant B (2q28.6): menu order, the avatar first.
+    expect(adapter.currentStep(empty)).toBe('avatar');
   });
 
   test('each count closes its own step and no other', () => {
-    const only = (patch) => ({ ...adapter.EMPTY_PROGRESS, ...patch });
+    // 2q28.13: samples are material for an avatar, not an avatar. One pasted
+    // text ticked this step while the avatar screen said «Аватара пока нет».
+    expect(adapter.stepIsDone('avatar', only({ voiceSamples: 2 }))).toBe(false);
+    expect(adapter.stepIsDone('avatar', only({ avatars: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('channel', only({ avatars: 1 }))).toBe(false);
 
     expect(adapter.stepIsDone('channel', only({ channels: 1 }))).toBe(true);
-    expect(adapter.stepIsDone('voice', only({ channels: 1 }))).toBe(false);
+    expect(adapter.stepIsDone('piece', only({ channels: 1 }))).toBe(false);
 
-    expect(adapter.stepIsDone('voice', only({ voiceSamples: 2 }))).toBe(true);
-    expect(adapter.stepIsDone('fact', only({ voiceSamples: 2 }))).toBe(false);
+    expect(adapter.stepIsDone('piece', only({ pieces: 1 }))).toBe(true);
+    // A piece alone has nothing cut for a channel yet.
+    expect(adapter.stepIsDone('adaptation', only({ pieces: 1 }))).toBe(false);
 
-    expect(adapter.stepIsDone('fact', only({ facts: 1 }))).toBe(true);
-    expect(adapter.stepIsDone('brief', only({ facts: 1 }))).toBe(false);
+    expect(adapter.stepIsDone('adaptation', only({ adaptations: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('plan', only({ adaptations: 1 }))).toBe(false);
 
-    // A draft is what the brief produced when the brief was the only way in,
-    // so it still closes both. Said out loud in the adapter rather than left
-    // for someone to discover.
-    expect(adapter.stepIsDone('brief', only({ drafts: 1 }))).toBe(true);
-    expect(adapter.stepIsDone('preview', only({ drafts: 1 }))).toBe(true);
-    expect(adapter.stepIsDone('schedule', only({ drafts: 1 }))).toBe(false);
-
-    expect(adapter.stepIsDone('schedule', only({ scheduled: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('plan', only({ scheduled: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('plan', only({ planModes: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('channel', only({ planModes: 1 }))).toBe(false);
   });
 
-  /**
-   * `content-factory-next-m2eg.23`. Владелец 07.09.2026 сделал заготовку и
-   * шаг остался открытым: «У меня все пройдено, кроме пункта… Хотя, по идее,
-   * я же создал новую заготовку». Он прав — шаг просит заполненный бриф, а
-   * заготовка `kind='CORE'` несёт его внутри себя.
-   */
-  test('заготовка закрывает шаг брифа и не закрывает предпросмотр', () => {
-    const only = (patch) => ({ ...adapter.EMPTY_PROGRESS, ...patch });
+  test('a draft from the older path still closes the piece and the adaptation', () => {
+    expect(adapter.stepIsDone('piece', only({ drafts: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('adaptation', only({ drafts: 1 }))).toBe(true);
+    expect(adapter.stepIsDone('plan', only({ drafts: 1 }))).toBe(false);
+  });
 
-    expect(adapter.stepIsDone('brief', only({ pieces: 1 }))).toBe(true);
-    // Смотреть ещё нечего: черновика под канал заготовка сама по себе не даёт.
-    expect(adapter.stepIsDone('preview', only({ pieces: 1 }))).toBe(false);
-    expect(adapter.stepIsDone('schedule', only({ pieces: 1 }))).toBe(false);
+  test('the claim is optional: it never counts and never blocks «всё пройдено»', () => {
+    expect(adapter.ONBOARDING_STEP_KEYS).not.toContain('fact');
+    expect(adapter.factIsDone(only({ facts: 1 }))).toBe(true);
+    expect(adapter.factIsDone(only({ pieceFacts: 1 }))).toBe(true);
+    expect(adapter.doneCount(only({ facts: 3, pieceFacts: 2 }))).toBe(0);
+    expect(
+      adapter.allStepsDone(
+        only({ avatars: 1, channels: 1, pieces: 1, adaptations: 1, planModes: 1 })
+      )
+    ).toBe(true);
   });
 
   test('the repository counts a live заготовка and not an archived one', () => {
     // `ContentPiece` has no `deletedAt` — the list hides a row by
-    // `archivedAt`, so the count asks the same question the screens do. A row
-    // without `kind` predates the wave and carries no brief.
+    // `archivedAt`, so the count asks the same question the screens do.
     const repository = read('repository');
     expect(repository).toMatch(
       /contentPiece\(\)\.count\(\{\s*where:\s*\{\s*organizationId,\s*kind:\s*'CORE',\s*archivedAt:\s*null\s*\}/
     );
-    // Узкий тип поверх клиента называет ровно те колонки, что есть у таблицы.
-    // `deletedAt` у неё нет, и написанный сюда он прошёл бы проверку типов и
-    // упал бы на боевой базе.
     const counter = repository.slice(
       repository.indexOf('type PieceCounter'),
       repository.indexOf('};', repository.indexOf('type PieceCounter'))
@@ -120,42 +123,32 @@ describe('a step closes because the work is done', () => {
     expect(counter).not.toContain('deletedAt');
   });
 
-  test('all six done is one function, not a number retyped per caller', () => {
+  test('all five done is one function, not a number retyped per caller', () => {
     expect(adapter.allStepsDone(adapter.EMPTY_PROGRESS)).toBe(false);
     expect(
-      adapter.allStepsDone({
-        channels: 1,
-        voiceSamples: 1,
-        facts: 1,
-        pieces: 1,
-        drafts: 1,
-        scheduled: 1,
-      })
+      adapter.allStepsDone(
+        only({ avatars: 1, channels: 1, pieces: 1, drafts: 1, scheduled: 1 })
+      )
     ).toBe(true);
-    // Заготовка без черновика — предпросмотр ещё открыт, значит не всё.
+    // A piece without an adaptation — the path is not over.
     expect(
-      adapter.allStepsDone({
-        channels: 1,
-        voiceSamples: 1,
-        facts: 1,
-        pieces: 1,
-        drafts: 0,
-        scheduled: 0,
-      })
+      adapter.allStepsDone(only({ avatars: 1, channels: 1, pieces: 1 }))
     ).toBe(false);
   });
 
   test('a published post keeps the last step closed', () => {
-    // `scheduled` counts QUEUE and PUBLISHED together in the repository. If it
-    // counted only QUEUE the step would reopen the moment the post went out,
-    // which is exactly backwards.
+    // `scheduled` counts QUEUE and PUBLISHED together in the repository.
     const repository = read('repository');
     expect(repository).toMatch(/state:\s*\{\s*in:\s*\['QUEUE',\s*'PUBLISHED'\]/);
   });
 
-  test('a retracted claim does not close the fact step', () => {
-    // The three statuses the brief itself refuses. Counting them would close
-    // the step and then let the brief refuse the id — the worst of both.
+  test('only a plan mode someone chose closes the plan step', () => {
+    // `NULL` reads as «Бронь» everywhere, but it is nobody's decision.
+    const repository = read('repository');
+    expect(repository).toMatch(/planMode:\s*\{\s*not:\s*null\s*\}/);
+  });
+
+  test('a retracted claim does not tick the optional claim', () => {
     const repository = read('repository');
     expect(repository).toContain("notIn: ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED']");
   });
@@ -166,14 +159,38 @@ describe('a step closes because the work is done', () => {
       adapter.EMPTY_PROGRESS
     );
     expect(adapter.readProgress({ channels: -3 }).channels).toBe(0);
+    // An older server without the two new fields reads them as zero.
+    expect(adapter.readProgress({ channels: 1 }).adaptations).toBe(0);
+    expect(adapter.readProgress({ channels: 1 }).planModes).toBe(0);
   });
 
   test('the screen keeps no completion state of its own', () => {
     const screen = read('screen');
-    // `useState` here would be a flag the page sets on itself, and a flag the
-    // page sets on itself is a tick that means nothing.
-    expect(screen).not.toMatch(/useState/);
+    // The one piece of state is which step is on the screen. A flag the page
+    // sets on itself — «viewed», «skipped», «finished» — is a tick that means
+    // nothing, and so is anything remembered in the browser.
+    const states = [...screen.matchAll(/useState<([^>]+)>/g)].map((m) => m[1]);
+    expect(states).toEqual(['View | null']);
+    expect(screen).not.toMatch(/localStorage|sessionStorage|setDone|setSkipped/);
     expect(screen).toContain('stepIsDone');
+  });
+});
+
+describe('moving between steps never ticks anything', () => {
+  const only = (patch) => ({ ...adapter.EMPTY_PROGRESS, ...patch });
+
+  test('«Дальше» and «Сделаю позже» lead to the next step in menu order', () => {
+    expect(adapter.nextStep('avatar', adapter.EMPTY_PROGRESS)).toBe('channel');
+    expect(adapter.nextStep('adaptation', adapter.EMPTY_PROGRESS)).toBe('plan');
+    expect(adapter.previousStep('avatar')).toBeNull();
+    expect(adapter.previousStep('channel')).toBe('avatar');
+  });
+
+  test('the last step finishes: no wrap-around to a skipped one', () => {
+    const skippedChannel = only({ avatars: 1, pieces: 1, adaptations: 1 });
+    expect(adapter.nextStep('plan', skippedChannel)).toBe('done');
+    const allButPlan = only({ avatars: 1, channels: 1, pieces: 1, adaptations: 1 });
+    expect(adapter.nextStep('plan', allButPlan)).toBe('done');
   });
 });
 
@@ -213,6 +230,7 @@ describe('the voice step counts the corpus the screens show', () => {
         projectBrandProfile: counter('projectBrandProfile'),
         contentFact: counter('contentFact'),
         contentPiece: counter('contentPiece'),
+        contentDerivation: counter('contentDerivation'),
         post: counter('post'),
       },
     }).progress('org-a');
@@ -241,28 +259,65 @@ describe('the walkthrough leads into the product', () => {
     }
   });
 
-  test('the six steps are the product’s own loop, not the inherited one', () => {
-    expect([...adapter.ONBOARDING_STEP_KEYS]).toEqual([
+  test('the five steps follow the menu, and their keys are the tour keys', () => {
+    expect([...adapter.ONBOARDING_TOUR_STEPS]).toEqual([
+      'avatar',
       'channel',
-      'voice',
-      'fact',
-      'brief',
-      'preview',
-      'schedule',
+      'piece',
+      'adaptation',
+      'plan',
     ]);
-    // The two the old screen never mentioned, and the reason the owner could
-    // finish it without learning what the product is for.
+    expect(adapter.ONBOARDING_STEP_KEYS).toBe(adapter.ONBOARDING_TOUR_STEPS);
     const copy = read('copy');
     expect(copy).toContain('чьей манерой писать');
-    expect(copy).toContain('на что будете опираться');
+    expect(copy).toContain('Необязательно');
+  });
+
+  test('«Показать на экране» keeps the target query and adds the tour key', () => {
+    expect(adapter.tourHref('avatar')).toBe('/content?tab=avatars&tour=avatar');
+    expect(adapter.tourHref('channel')).toBe('/channels?tour=channel');
+    expect(adapter.tourHref('piece')).toBe('/content?tab=materials&tour=piece');
+    // The adaptation anchors live on a piece's page (contract with S3):
+    // without a piece the list's own tour is the honest fallback.
+    expect(adapter.tourHref('adaptation')).toBe(
+      '/content?tab=materials&tour=piece'
+    );
+    const withPiece = { ...adapter.EMPTY_PROGRESS, latestPieceId: 'p 1' };
+    expect(adapter.tourHref('adaptation', withPiece)).toBe(
+      '/content/pieces/p%201?tour=adaptation'
+    );
+    expect(adapter.tourHref('plan', withPiece)).toBe('/launches?tour=plan');
+    expect(adapter.withTour('/x?tour=old&a=1', 'plan')).toBe('/x?a=1&tour=plan');
+    expect(read('screen')).toContain('tourHref(step, progress)');
+  });
+
+  test('the adaptation and plan buttons open the piece touched last', () => {
+    const withPiece = { ...adapter.EMPTY_PROGRESS, latestPieceId: 'abc' };
+    expect(adapter.stepHref('adaptation', withPiece)).toBe('/content/pieces/abc');
+    expect(adapter.stepHref('plan', withPiece)).toBe('/content/pieces/abc');
+    expect(adapter.stepHref('plan', adapter.EMPTY_PROGRESS)).toBe('/launches');
+    expect(adapter.stepHref('piece', withPiece)).toBe('/content?tab=materials');
+    expect(adapter.readProgress({ latestPieceId: 42 }).latestPieceId).toBeNull();
   });
 
   test('each step says what closes it', () => {
     const copy = read('copy');
-    // Six in each language, plus the field on the type: the sentence that
-    // tells a person what the product is waiting for. Without it a step is a
-    // suggestion.
-    expect((copy.match(/^\s+closes:/gm) || []).length).toBe(13);
+    // Five in each language, plus the field on the type.
+    expect((copy.match(/^\s+closes:/gm) || []).length).toBe(11);
+  });
+
+  test('the avatar step names the real corpus floor and the lighter path', () => {
+    const copy = read('copy');
+    expect(copy).toContain('MIN_CORPUS_SAMPLES');
+    expect(copy).toContain('MIN_CORPUS_CHARS');
+    expect(copy).toContain('«Заполнить вручную»');
+  });
+
+  test('the channel step connects Telegram through the shared mechanics', () => {
+    const guide = read('telegram');
+    expect(guide).toContain('useTelegramConnect');
+    expect(guide).toContain('/integrations/social/telegram?redirectUrl=');
+    expect(guide).toContain('telegramBotName');
   });
 });
 
@@ -310,13 +365,15 @@ describe('it can be found again', () => {
     expect(copy).toContain('There is no reset');
   });
 
-  test('the modal hands over instead of teaching a loop of its own', () => {
-    const modal = read('modal');
-    expect(modal).toContain('href="/onboarding"');
-    // The four paragraphs about calendar/draft/preview/schedule are gone.
-    expect(modal).not.toContain('onboarding_step_plan');
-    expect(modal).not.toContain('watch_tutorial_title');
-    // And the step no longer promises a video.
-    expect(modal).not.toMatch(/t\('watch_tutorial',/);
+  test('there is one onboarding: the legacy modal is gone and its address hands over', () => {
+    expect(
+      fs.existsSync(
+        path.join(root, 'apps/frontend/src/components/onboarding/onboarding.modal.tsx')
+      )
+    ).toBe(false);
+    const mount = read('mount');
+    expect(mount).not.toContain('OnboardingModal');
+    expect(mount).toMatch(/query\.get\('onboarding'\)/);
+    expect(mount).toContain("'/onboarding'");
   });
 });

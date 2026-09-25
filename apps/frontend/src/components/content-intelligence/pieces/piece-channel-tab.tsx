@@ -317,6 +317,7 @@ export function PieceChannelTab({
                     ]}
                     onChange={setView}
                     data-piece-view={previewing ? 'preview' : 'text'}
+                    data-tour="adaptation-preview"
                     wrap
                   />
                 ) : null}
@@ -510,6 +511,7 @@ export function PieceChannelTab({
                     loading={adapting}
                     loadingLabel={adaptingLabel}
                     data-piece-adapt={channel.id}
+                    data-tour="adaptation-adapt"
                     onClick={() => onAdapt(kind)}
                   >
                     {t.adaptFor(platformLabel)}

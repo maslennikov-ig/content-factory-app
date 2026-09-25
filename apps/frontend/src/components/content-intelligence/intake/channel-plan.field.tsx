@@ -23,14 +23,30 @@ type ApplyState =
   | { kind: 'failed'; count: number }
   | { kind: 'changed' };
 
+export type ChannelPlanField = PlanFieldProps & {
+  /** Выбран режим, которого ещё нет на сервере. */
+  dirty: boolean;
+  /**
+   * Записать выбранный режим. Зовёт «Сохранить» карточки; `false` — не
+   * записалось, выбор остаётся и ждёт следующего «Сохранить».
+   */
+  commit: () => Promise<boolean>;
+};
+
 /**
- * «План» карточки канала (`97dq.57`, `97dq.70`).
+ * «План» карточки канала (`97dq.57`, `97dq.70`, `2q28.19`).
  *
- * Режим канала сохраняется сразу при выборе, отдельно от кнопки карточки. Если
- * у канала уже есть написанные невышедшие посты без своего режима, под полем
- * встаёт вопрос словами, без системных окон: «Применить к N уже написанным
- * постам или только к новым?» — «Только к новым» (главная, по умолчанию) или
- * «Ко всем N». Посты со своим режимом не меняются ни при каком ответе.
+ * С `2q28.19` у карточки одна модель сохранения: выбор режима — часть формы и
+ * записывается той же кнопкой «Сохранить», что и остальные поля. Раньше план
+ * уходил на сервер сразу, а длина и эмодзи ждали кнопки, и уход со страницы
+ * молча терял одно и сохранял другое. Адрес на сервере прежний
+ * (`PUT /integrations/:id/plan-mode`), его зовёт `commit`.
+ *
+ * Если у канала уже есть написанные невышедшие посты без своего режима, после
+ * записи под полем встаёт вопрос словами, без системных окон: «Применить к N
+ * уже написанным постам или только к новым?» — «Только к новым» (главная, по
+ * умолчанию) или «Ко всем N». Посты со своим режимом не меняются ни при каком
+ * ответе.
  */
 export function useChannelPlanField({
   integrationId,
@@ -42,7 +58,7 @@ export function useChannelPlanField({
   locale: IntakeLocale;
   canWrite: boolean;
   enabled?: boolean;
-}): PlanFieldProps {
+}): ChannelPlanField {
   const t = channelPlanModeCopy[locale];
   const request = useFetch();
   const url = channelPlanModeUrl(integrationId);
@@ -59,7 +75,9 @@ export function useChannelPlanField({
     'idle'
   );
   const [apply, setApply] = useState<ApplyState>({ kind: 'idle' });
-  const value = chosen ?? data ?? 'reserve';
+  const held: ChannelPlanMode = data ?? 'reserve';
+  const value = chosen ?? held;
+  const dirty = chosen !== null && chosen !== held;
   const query = `?language=${locale}`;
   /*
     Каждый выбор режима получает номер (ревью `97dq.70`, P2): ответ счёта
@@ -73,30 +91,29 @@ export function useChannelPlanField({
     from: ChannelPlanMode;
   } | null>(null);
 
-  const change = useCallback(
-    async (mode: ChannelPlanMode) => {
-      if (!canWrite || mode === value) return;
-      const mine = ++turn.current;
-      const before = value;
-      setChosen(mode);
-      setSave('saving');
-      setApply({ kind: 'idle' });
-      try {
-        const response = await request(url, {
-          method: 'PUT',
-          body: JSON.stringify({ planMode: mode }),
-        });
-        if (!response.ok) throw new Error('plan mode not saved');
-        if (mine !== turn.current) return;
-        setSave('saved');
-        await mutate(mode, { revalidate: false });
-      } catch {
-        if (mine !== turn.current) return;
-        setChosen(before);
-        setSave('failed');
-        return;
-      }
-      // Вопрос — только когда есть к чему применять.
+  const commit = useCallback(async (): Promise<boolean> => {
+    if (!canWrite || chosen === null || chosen === held) return true;
+    const mine = ++turn.current;
+    const mode = chosen;
+    const before = held;
+    setSave('saving');
+    setApply({ kind: 'idle' });
+    try {
+      const response = await request(url, {
+        method: 'PUT',
+        body: JSON.stringify({ planMode: mode }),
+      });
+      if (!response.ok) throw new Error('plan mode not saved');
+      // Сервер держит `mode`, даже если человек уже выбрал другое.
+      await mutate(mode, { revalidate: false });
+      if (mine === turn.current) setSave('saved');
+    } catch {
+      if (mine === turn.current) setSave('failed');
+      return false;
+    }
+    // Вопрос — только когда есть к чему применять. Карточка его не ждёт:
+    // режим уже записан, вопрос встаёт под полем, когда придёт счёт.
+    void (async () => {
       try {
         const response = await request(
           `${PIECES_API.channelPlanImpact(integrationId)}${query}`
@@ -112,9 +129,9 @@ export function useChannelPlanField({
       } catch {
         // Без ответа вопроса нет: режим канала уже сохранён для новых постов.
       }
-    },
-    [canWrite, integrationId, mutate, query, request, url, value]
-  );
+    })();
+    return true;
+  }, [canWrite, chosen, held, integrationId, mutate, query, request, url]);
 
   const applyAll = useCallback(
     async (count: number) => {
@@ -154,16 +171,12 @@ export function useChannelPlanField({
     apply.kind === 'ask' || apply.kind === 'applying' || apply.kind === 'failed';
 
   const slot =
-    save === 'idle' && apply.kind === 'idle' ? null : (
+    save !== 'failed' && apply.kind === 'idle' ? null : (
       <div
         data-channel-plan-state={save}
         className="flex min-w-0 flex-col gap-[8px]"
       >
-        {save === 'saved' && !asking && apply.kind === 'idle' ? (
-          <p role="status" className="cf-caption text-cf-accent">
-            {t.saved}
-          </p>
-        ) : save === 'failed' ? (
+        {save === 'failed' ? (
           <p role="alert" className="cf-caption text-cf-danger">
             {t.failed}
           </p>
@@ -240,8 +253,15 @@ export function useChannelPlanField({
     channel: value,
     disabled: !canWrite || save === 'saving' || apply.kind === 'applying',
     onChange: (next) => {
-      if (next) void change(next);
+      if (!next || !canWrite) return;
+      // Новый выбор — новый ход: вопрос о прежнем режиме больше не к месту.
+      turn.current += 1;
+      setChosen(next);
+      setSave('idle');
+      setApply({ kind: 'idle' });
     },
     slot,
+    dirty,
+    commit,
   };
 }

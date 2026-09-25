@@ -35,6 +35,13 @@ const corpusFloorChars = (locale: VoiceLocale): string =>
     CORPUS_FLOOR_CHARS
   );
 
+const formatCount = (value: number, locale: VoiceLocale): string =>
+  new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(value);
+
+/** «из 8 текстов», «из 21 текста»: the genitive after «из» follows the goal. */
+const ofGoalRu = (goal: number, forms: [string, string]): string =>
+  goal % 10 === 1 && goal % 100 !== 11 ? forms[0] : forms[1];
+
 const pasteCharLimitLabel = (locale: VoiceLocale): string =>
   new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(
     VOICE_SAMPLE_PASTE_LIMITS.maxCharsPerSample
@@ -104,7 +111,7 @@ export const voiceCopy = {
     path: 'Путь',
     manualTitle: 'Заполнить вручную',
     manualBody:
-      'Вы сами пишете, каким тоном говорит бренд. Ничего не читаем и не разбираем.',
+      'Вы сами описываете свою манеру: как говорите, какой длины фразы, чего избегаете. Ничего не читаем и не разбираем.',
     manualTime: '10–15 мин',
     manualNeeds: 'нет',
     // Five, because five is what the form asks for. The card promised eight
@@ -148,17 +155,42 @@ export const voiceCopy = {
     samplesNote:
       'Чужие тексты в этом пути не используются. Каждый образец остаётся видимым и удаляется по одному.',
     collected: 'Набрано',
-    ofMinimum: 'знаков из минимума',
-    minimumNeeded: 'Нужно минимум',
+    /**
+     * Both floors as progress towards one fixed goal (2q28.31).
+     *
+     * The screen used to print a remaining-samples estimate derived from the
+     * average length, so two short posts turned «И ещё 8 образцов» into «И ещё
+     * 18». The gate is the same pair the server holds: eight texts and fifteen
+     * thousand characters. Past a goal the half says only what is there.
+     */
+    progress: (samples: number, chars: number) =>
+      `${
+        samples < CORPUS_FLOOR_SAMPLES
+          ? `${samples} из ${CORPUS_FLOOR_SAMPLES} ${ofGoalRu(
+              CORPUS_FLOOR_SAMPLES,
+              ['текста', 'текстов']
+            )}`
+          : `${samples} ${plural(samples, ['текст', 'текста', 'текстов'])}`
+      } · ${
+        chars < CORPUS_FLOOR_CHARS
+          ? `${formatCount(chars, 'ru')} из ${corpusFloorChars(
+              'ru'
+            )} ${ofGoalRu(CORPUS_FLOOR_CHARS, ['знака', 'знаков'])}`
+          : `${formatCount(chars, 'ru')} ${plural(chars, [
+              'знак',
+              'знака',
+              'знаков',
+            ])}`
+      }`,
     shortfall: 'Недобор',
     shortfallBody: (missing: string) =>
       `Добавьте ещё ${missing} знаков. На меньшем объёме разбор находит случайные привычки вместо устойчивых — аватар получится неточным.`,
     shortfallSamples: (missing: number) =>
       `И ещё ${missing} ${plural(missing, [
-        'образец',
-        'образца',
-        'образцов',
-      ])}: короткая форма компенсируется числом текстов, а не только объёмом.`,
+        'текст',
+        'текста',
+        'текстов',
+      ])}: по нескольким текстам не отличить привычку от случайности.`,
     collectedSamples: 'Набранные образцы',
     deleteSelected: 'Удалить выбранные',
     nextAnalysis: 'Дальше — разбор',
@@ -172,18 +204,25 @@ export const voiceCopy = {
       analysisSamples: number
     ) =>
       `«${name}»: взяли ${selected} последних из ${eligible} подходящих сообщений; разбор читает ${analysisSamples} образцов из корпуса.`,
-    opensAt: 'откроется на 15 000 знаках',
+    // Both halves of the gate, read off the contract (2q28.31).
+    opensAt: `откроется на ${CORPUS_FLOOR_SAMPLES} текстах и ${corpusFloorChars('ru')} знаках`,
     saveAndLeave: 'Сохранить и выйти',
-    columnCode: 'Код',
+    columnCode: '№',
+    // 2q28.23: `smp-02` is the storage code; the person reads «№ 2». The
+    // number still ties the table to the analysis and to the evidence quotes.
+    sampleRef: (code: string) => `№ ${sampleNumber(code)}`,
     columnWhat: 'Что это',
     columnFrom: 'Откуда',
     columnChars: 'Знаков',
     columnDate: 'Дата',
     emptyCorpusTitle: 'Ни одного образца',
     emptyCorpusBody:
-      'Начните с любого источника слева. Обычно хватает шести-восьми постов.',
+      `Начните с любого источника слева. Нужно не меньше ${CORPUS_FLOOR_SAMPLES} текстов.`,
     sourceOwnPosts: 'Мои опубликованные посты',
     sourceOwnPostsHint: 'подключённые каналы',
+    sourceOwnPostsNeedChannel:
+      'Сначала подключите канал: посты берутся из него.',
+    connectChannel: 'Подключить канал',
     sourceTelegram: 'Выгрузка Telegram Desktop',
     sourceTelegramHint: 'файл result.json из «Экспорт истории»',
     sourcePaste: 'Вставить текст',
@@ -696,7 +735,7 @@ export const voiceCopy = {
 
     // Screen 12 — the avatars of a space.
     avatarsTitle: 'Аватары',
-    avatarsSubtitle: 'Люди и бренды, от чьего лица пишет ИИ',
+    avatarsSubtitle: 'Чьим голосом ИИ пишет ваши посты',
     avatarsCount: (count: number, limit: number) =>
       `${count} ${plural(count, ['аватар', 'аватара', 'аватаров'])} из ${limit}`,
     avatarsCreate: 'Создать аватар',
@@ -868,7 +907,7 @@ export const voiceCopy = {
     path: 'Path',
     manualTitle: 'Fill it in by hand',
     manualBody:
-      'You write what tone the brand speaks in. Nothing is read and nothing is analysed.',
+      'You describe your own manner: how you speak, how long your sentences run, what you avoid. Nothing is read and nothing is analysed.',
     manualTime: '10–15 min',
     manualNeeds: 'no',
     manualFields: '5',
@@ -906,13 +945,21 @@ export const voiceCopy = {
     samplesNote:
       'Someone else’s texts are not used on this path. Every sample stays visible and is deleted one at a time.',
     collected: 'Collected',
-    ofMinimum: 'characters of the minimum',
-    minimumNeeded: 'Minimum needed',
+    progress: (samples: number, chars: number) =>
+      `${
+        samples < CORPUS_FLOOR_SAMPLES
+          ? `${samples} of ${CORPUS_FLOOR_SAMPLES} texts`
+          : `${samples} ${samples === 1 ? 'text' : 'texts'}`
+      } · ${
+        chars < CORPUS_FLOOR_CHARS
+          ? `${formatCount(chars, 'en')} of ${corpusFloorChars('en')} characters`
+          : `${formatCount(chars, 'en')} ${chars === 1 ? 'character' : 'characters'}`
+      }`,
     shortfall: 'Short of the floor',
     shortfallBody: (missing: string) =>
       `Add ${missing} more characters. On less than that the analysis finds accidental habits rather than settled ones, and the avatar will be wrong.`,
     shortfallSamples: (missing: number) =>
-      `And ${missing} more ${missing === 1 ? 'sample' : 'samples'}: short-form writing compensates with count, not only volume.`,
+      `And ${missing} more ${missing === 1 ? 'text' : 'texts'}: a few texts cannot tell a habit from an accident.`,
     collectedSamples: 'Collected samples',
     deleteSelected: 'Delete selected',
     nextAnalysis: 'Next — analysis',
@@ -926,18 +973,22 @@ export const voiceCopy = {
       analysisSamples: number
     ) =>
       `“${name}”: selected the latest ${selected} of ${eligible} eligible messages; analysis reads ${analysisSamples} corpus samples.`,
-    opensAt: 'opens at 15,000 characters',
+    opensAt: `opens at ${CORPUS_FLOOR_SAMPLES} texts and ${corpusFloorChars('en')} characters`,
     saveAndLeave: 'Save and leave',
-    columnCode: 'Code',
+    columnCode: '#',
+    sampleRef: (code: string) => `#${sampleNumber(code)}`,
     columnWhat: 'What it is',
     columnFrom: 'From',
     columnChars: 'Chars',
     columnDate: 'Date',
     emptyCorpusTitle: 'No samples yet',
     emptyCorpusBody:
-      'Start with any source on the left. Six to eight posts is usually enough.',
+      `Start with any source on the left. At least ${CORPUS_FLOOR_SAMPLES} texts are needed.`,
     sourceOwnPosts: 'My published posts',
     sourceOwnPostsHint: 'connected channels',
+    sourceOwnPostsNeedChannel:
+      'Connect a channel first: the posts come from it.',
+    connectChannel: 'Connect a channel',
     sourceTelegram: 'Telegram Desktop export',
     sourceTelegramHint: 'the result.json file from “Export chat history”',
     sourcePaste: 'Paste text',
@@ -1383,7 +1434,7 @@ export const voiceCopy = {
     comparisonChangedMark: 'changed',
 
     avatarsTitle: 'Avatars',
-    avatarsSubtitle: 'The people and brands the AI writes as',
+    avatarsSubtitle: 'Whose voice the AI writes your posts in',
     avatarsCount: (count: number, limit: number) =>
       `${count} of ${limit} avatars`,
     avatarsCreate: 'New avatar',
@@ -1513,6 +1564,15 @@ export {
   confidenceReasonsFor,
   requiredSamples,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+
+/**
+ * The number inside a sample's storage code: `smp-02` → `2`. Anything that is
+ * not that shape is shown as it came, so an unexpected code stays readable.
+ */
+export function sampleNumber(code: string): string {
+  const match = /^smp-0*(\d+)$/.exec(code);
+  return match ? match[1] : code;
+}
 
 export const formatChars = (value: number, locale: VoiceLocale): string =>
   new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(value);

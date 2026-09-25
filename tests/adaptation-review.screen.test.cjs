@@ -266,7 +266,7 @@ test('read-only role cannot start review; identical texts retain the exact strin
 test('core exposes regeneration and research enrichment at the same secondary weight', () => {
   draw({ adaptationId: undefined });
   const regenerate = screen.getByRole('button', { name: 'Переписать…' });
-  const research = screen.getByRole('button', { name: 'Дополнить ресерчем' });
+  const research = screen.getByRole('button', { name: 'Дополнить из интернета' });
   expect(regenerate.className).toContain('bg-cf-surface');
   expect(research.className).toContain('bg-cf-surface');
   expect(calls).toHaveLength(0);
@@ -278,22 +278,22 @@ test('research opens the shared outcome, toggles correction twins, and accepts f
       ? ok({ body: 'Автор указал 12% комиссии.', title: 'Обновлённая суть' })
       : ok(researchPreview());
   draw({ adaptationId: undefined });
-  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить из интернета' }));
   expect(calls).toHaveLength(0);
   // Ресерч раскрывается на месте, а не окном: одна поверхность на весь ряд.
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('region', { name: 'Дополнить ресерчем' })).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Дополнить из интернета' })).toBeTruthy();
   expect(screen.getByText('Куда копать')).toBeTruthy();
   expect(screen.getByText('Например: свежие цифры за 2026 год. Можно оставить пустым')).toBeTruthy();
-  expect(screen.getByRole('combobox', { name: 'Глубина ресерча' }).value).toBe('standard');
+  expect(screen.getByRole('combobox', { name: 'Глубина поиска' }).value).toBe('standard');
   fireEvent.change(screen.getByRole('textbox', { name: 'Куда копать' }), {
     target: { value: 'Свежие цифры за 2026 год' },
   });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Глубина ресерча' }), {
+  fireEvent.change(screen.getByRole('combobox', { name: 'Глубина поиска' }), {
     target: { value: 'deep' },
   });
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить ресерч' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Начать поиск' }))
   );
   await act(async () => undefined);
 
@@ -339,9 +339,9 @@ test('expired research snapshot keeps the preview visible, reports the error, an
         }
       : ok(researchPreview());
   draw({ adaptationId: undefined });
-  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить из интернета' }));
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить ресерч' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Начать поиск' }))
   );
   await act(async () => undefined);
   await act(async () =>
@@ -357,11 +357,11 @@ test('expired research snapshot keeps the preview visible, reports the error, an
 
 test('research cancellation spends nothing and keeps the standard default', () => {
   draw({ adaptationId: undefined });
-  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
-  expect(screen.getByRole('combobox', { name: 'Глубина ресерча' }).value).toBe('standard');
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить из интернета' }));
+  expect(screen.getByRole('combobox', { name: 'Глубина поиска' }).value).toBe('standard');
   fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
   expect(calls).toHaveLength(0);
-  expect(screen.queryByRole('region', { name: 'Дополнить ресерчем' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Дополнить из интернета' })).toBeNull();
 });
 
 test('research request error stays in the research section and preserves retry choices', async () => {
@@ -371,17 +371,17 @@ test('research request error stays in the research section and preserves retry c
     json: async () => ({ message: 'Ресерч временно недоступен' }),
   });
   draw({ adaptationId: undefined });
-  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить из интернета' }));
   const direction = screen.getByRole('textbox', { name: 'Куда копать' });
-  const level = screen.getByRole('combobox', { name: 'Глубина ресерча' });
+  const level = screen.getByRole('combobox', { name: 'Глубина поиска' });
   fireEvent.change(direction, { target: { value: 'Только данные регулятора' } });
   fireEvent.change(level, { target: { value: 'deep' } });
 
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить ресерч' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Начать поиск' }))
   );
 
-  const section = screen.getByRole('region', { name: 'Дополнить ресерчем' });
+  const section = screen.getByRole('region', { name: 'Дополнить из интернета' });
   expect(within(section).getByRole('alert').textContent).toBe('Ресерч временно недоступен');
   expect(screen.getAllByRole('alert')).toHaveLength(1);
   expect(direction.value).toBe('Только данные регулятора');
@@ -390,7 +390,7 @@ test('research request error stays in the research section and preserves retry c
 
 test('the adaptation row has no research action', () => {
   draw();
-  expect(screen.queryByRole('button', { name: /ресерч/i })).toBeNull();
+  expect(screen.queryByRole('button', { name: /ресерч|интернет|поиск/i })).toBeNull();
   expect(calls).toHaveLength(0);
 });
 

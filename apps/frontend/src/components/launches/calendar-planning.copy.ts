@@ -92,7 +92,7 @@ export const calendarPlanningCopy = {
     statePublished: 'вышел',
     stateError: 'не ушло',
     legendHint:
-      '«в плане» — время забронировано, пост выйдет после «Запланировать»; «в очереди» — выйдет сам в своё время.',
+      '«в плане» — время забронировано, пост выйдет после вашего «Подтвердить»; «в очереди» — выйдет сам в своё время.',
     channels: (count: number) =>
       `${count} ${plural(count, ['канал', 'канала', 'каналов'])}`,
     channelsShort: (count: number) => `${count} кан.`,
@@ -173,7 +173,7 @@ export const calendarPlanningCopy = {
     modeHint:
       'Режим «План» канала задаётся на карточке «Как пишем» в разделе «Каналы».',
     explainReserve:
-      'Сама не опубликуется: в канале режим «Бронь». Выйдет после «Запланировать».',
+      'Сама не опубликуется: в канале режим «Бронь». Выйдет после вашего «Подтвердить».',
     explainAutopilot: 'Выйдет сама в это время.',
     explainDraft:
       'Лежит черновиком с этим временем: в канале режим «Без плана». Выйдет после «Запланировать».',
@@ -257,7 +257,7 @@ export const calendarPlanningCopy = {
     statePublished: 'out',
     stateError: 'failed',
     legendHint:
-      '“planned” — the time is held and the post goes out after “Schedule”; “queued” — it goes out by itself on time.',
+      '“planned” — the time is held and the post goes out after your “Confirm”; “queued” — it goes out by itself on time.',
     channels: (count: number) =>
       `${count} ${count === 1 ? 'channel' : 'channels'}`,
     channelsShort: (count: number) => `${count} ch.`,
@@ -336,7 +336,7 @@ export const calendarPlanningCopy = {
     modeHint:
       'A channel’s plan mode is set on its “How we write” card in Channels.',
     explainReserve:
-      'It will not publish by itself: the channel is in “Reserve” mode. It goes out after “Schedule”.',
+      'It will not publish by itself: the channel is in “Reserve” mode. It goes out after your “Confirm”.',
     explainAutopilot: 'It goes out by itself at this time.',
     explainDraft:
       'It stays a draft with this time: the channel is in “No plan” mode. It goes out after “Schedule”.',

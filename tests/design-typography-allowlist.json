@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 672,
+  "total": 650,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 646,
+      "total": 624,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -149,8 +149,7 @@
           "text-[30px]": 2
         },
         "apps/frontend/src/components/billing/main.billing.component.tsx": {
-          "text-[12px]": 1,
-          "text-[16px]": 1
+          "text-[12px]": 1
         },
         "apps/frontend/src/components/developer/developer.component.tsx": {
           "font-[600]": 28,
@@ -181,7 +180,6 @@
           "font-[600]": 1,
           "font-medium": 2,
           "text-[14px]": 5,
-          "text-[16px]": 1,
           "text-[20px]": 1,
           "text-lg": 1,
           "text-sm": 1
@@ -435,14 +433,6 @@
           "font-bold": 3,
           "font-normal": 1,
           "text-[11px]": 1
-        },
-        "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
-          "font-[600]": 2,
-          "font-medium": 4,
-          "font-semibold": 3,
-          "text-[13px]": 1,
-          "text-[14px]": 9,
-          "text-[24px]": 1
         },
         "apps/frontend/src/components/platform-analytics/render.analytics.tsx": {
           "font-medium": 3,

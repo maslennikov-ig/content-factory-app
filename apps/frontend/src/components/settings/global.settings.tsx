@@ -8,6 +8,7 @@ import ShortlinkPreferenceComponent from '@contentfactory/frontend/components/se
 import AiProviderComponent from '@contentfactory/frontend/components/settings/ai-provider.component';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isHiddenSettingsRow } from '../layout/hidden-upstream-surfaces';
 
 const MetricComponent = dynamic(
   () => import('@contentfactory/frontend/components/settings/metric.component'),
@@ -33,7 +34,9 @@ export const GlobalSettings = () => {
       </h2>
       <MetricComponent />
       <EmailNotificationsComponent />
-      {isAdmin && <ShortlinkPreferenceComponent />}
+      {isAdmin && !isHiddenSettingsRow('shortlink_preference') && (
+        <ShortlinkPreferenceComponent />
+      )}
       {isAdmin && <AiProviderComponent />}
     </div>
   );

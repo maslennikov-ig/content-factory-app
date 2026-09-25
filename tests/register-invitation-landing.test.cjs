@@ -171,6 +171,9 @@ const mocks = {
   '@contentfactory/frontend/components/layout/loading': {
     LoadingComponent: emptyProvider,
   },
+  '@contentfactory/frontend/components/auth/approval-marker': {
+    rememberAwaitingApproval: () => undefined,
+  },
   '@contentfactory/frontend/components/auth/auth.divider': {
     AuthDivider: emptyProvider,
   },

@@ -106,6 +106,15 @@ const { PostValidationExceptionFilter, PostValidationException } = loadModule(
 const { HttpExceptionFilter, HttpForbiddenException } = loadModule(
   'libraries/nestjs-libraries/src/services/exception.filter.ts'
 );
+const { StripeErrorFilter } = loadModule(
+  'libraries/nestjs-libraries/src/services/stripe.error.filter.ts'
+);
+const Stripe = require('stripe');
+const stripeAuthError = () =>
+  new Stripe.errors.StripeAuthenticationError({
+    message: 'Invalid API Key provided: sk_nothing',
+    statusCode: 401,
+  });
 
 // What the collector's `BaseExceptionFilter` hands to the HTTP adapter.
 const replies = [];
@@ -119,6 +128,7 @@ const filterByName = () => ({
   SubscriptionExceptionFilter: new SubscriptionExceptionFilter(),
   PostValidationExceptionFilter: new PostValidationExceptionFilter(),
   HttpExceptionFilter: new HttpExceptionFilter(),
+  StripeErrorFilter: new StripeErrorFilter(),
   SentryGlobalFilter: new SentryGlobalFilter(httpAdapter),
 });
 
@@ -224,12 +234,13 @@ const postValidation = () =>
   });
 
 describe('the collector filter is tried last and answers only what nothing else claims', () => {
-  test('main.ts registers the collector before the three product filters', () => {
+  test('main.ts registers the collector before the product filters', () => {
     expect(registrationOrderFromMain()).toEqual([
       'SentryGlobalFilter',
       'SubscriptionExceptionFilter',
       'PostValidationExceptionFilter',
       'HttpExceptionFilter',
+      'StripeErrorFilter',
     ]);
   });
 
@@ -261,6 +272,7 @@ describe('the collector filter is tried last and answers only what nothing else 
       postValidation,
       'PostValidationExceptionFilter',
     ],
+    ['StripeAuthenticationError', stripeAuthError, 'StripeErrorFilter'],
   ])('Nest selects the product filter for %s', (_name, make, expected) => {
     const { selected } = answerFor(registrationOrderFromMain(), make());
     expect(selected.name).toBe(expected);
@@ -285,6 +297,39 @@ describe('the collector filter is tried last and answers only what nothing else 
     expect(recorded.status).toBe(401);
     expect(recorded.sent).toBe(true);
     expect(removedAuthFor).toEqual([response]);
+  });
+
+  /**
+   * `2q28.18`: on an instance without a Stripe key, opening /billing asked
+   * Stripe with `sk_nothing`. Stripe's error carries `statusCode: 401`, Nest's
+   * base filter replayed it, and the frontend dropped the auth cookie on that
+   * 401 — a billing failure signed the person out.
+   */
+  test('a billing-provider refusal answers 502 and keeps the session', () => {
+    removedAuthFor.length = 0;
+    expect(stripeAuthError().statusCode).toBe(401);
+    const { selected, response, recorded } = answerFor(
+      registrationOrderFromMain(),
+      stripeAuthError()
+    );
+    selected.instance.catch(stripeAuthError(), hostFor(response));
+
+    expect(recorded.status).toBe(HttpStatus.BAD_GATEWAY);
+    expect(recorded.body).toEqual({
+      statusCode: HttpStatus.BAD_GATEWAY,
+      message: expect.any(String),
+    });
+    expect(removedAuthFor).toEqual([]);
+  });
+
+  test('without a Stripe key the tiers list is empty and Stripe is not asked', () => {
+    const source = read(
+      'libraries/nestjs-libraries/src/services/stripe.service.ts'
+    );
+    const body = source.slice(source.indexOf('async getPackages()'));
+    const guard = body.indexOf('if (!process.env.STRIPE_SECRET_KEY)');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(body.indexOf('stripe.prices.list'));
   });
 
   test('a plan limit answers 402 with the text the upgrade dialog renders', () => {

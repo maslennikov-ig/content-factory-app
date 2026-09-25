@@ -158,18 +158,26 @@ export function VoiceEmptyScreen({
           type="button"
           onClick={onCreate}
           disabled={busy || blocked}
+          data-tour="avatar-create"
           variant={hasCollected || hasManualDraft ? 'secondary' : 'primary'}
         >
           {t.createVoice}
         </Button>
-        <Button
-          type="button"
-          onClick={onExample}
-          disabled={busy}
-          variant="secondary"
-        >
-          {t.seeExample}
-        </Button>
+        {/*
+          Only with somewhere to go: without `onExample` the button did
+          nothing, and the avatar tour sent people to press it (stand check
+          25.09.2026, D1). No host passes one yet.
+        */}
+        {onExample ? (
+          <Button
+            type="button"
+            onClick={onExample}
+            disabled={busy}
+            variant="secondary"
+          >
+            {t.seeExample}
+          </Button>
+        ) : null}
       </div>
     </Panel>
   );

@@ -10,6 +10,7 @@ import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
+import { useIntegrationList } from '@contentfactory/frontend/components/launches/helpers/use.integration.list';
 import type {
   VoicePathKeyV1,
   VoiceScreenStateV1,
@@ -120,6 +121,40 @@ export function VoiceWizardContainer({
   // request that can write it (`content-factory-next-fn33.46`).
   const [avatarName, setAvatarName] = useState('');
   const [intake, setIntake] = useState<IntakeDraft | null>(null);
+  /**
+   * «Мои опубликованные посты» need a channel to take them from
+   * (`content-factory-next-2q28.15`). Only a list that has actually arrived and
+   * is empty closes the card: while it loads, or if the request failed, the
+   * card keeps its ordinary action rather than claiming there is no channel.
+   */
+  const channels = useIntegrationList();
+  const ownPostsNeedChannel =
+    !channels.isLoading &&
+    !channels.error &&
+    Array.isArray(channels.data) &&
+    channels.data.length === 0;
+  /**
+   * The paste box opens under a long page. Without this it appeared below the
+   * fold and the button seemed to do nothing, so opening it brings it on
+   * screen and puts the caret in the text.
+   */
+  const intakeText = useRef<HTMLTextAreaElement | null>(null);
+  const [intakeOpened, setIntakeOpened] = useState(0);
+  useEffect(() => {
+    const field = intakeText.current;
+    if (!intakeOpened || !field) return;
+    const reduced =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof field.scrollIntoView === 'function') {
+      field.scrollIntoView({
+        block: 'center',
+        behavior: reduced ? 'auto' : 'smooth',
+      });
+    }
+    field.focus({ preventScroll: true });
+  }, [intakeOpened]);
   // The picked files, which only this browser knows about until they are sent.
   const [upload, setUpload] = useState<{
     phase: 'idle' | 'chosen' | 'sending';
@@ -145,7 +180,7 @@ export function VoiceWizardContainer({
   >(null);
   const [shortfall, setShortfall] = useState<{
     missingChars: number;
-    missingSamples: number;
+    sampleCount: number;
   } | null>(null);
   const analysisRun = useRef(0);
   const analysisAbort = useRef<AbortController | null>(null);
@@ -799,7 +834,10 @@ export function VoiceWizardContainer({
                 : {}),
             }}
             notice={samplesFailure?.message ?? noticeOn('samples') ?? samples.notice}
-            onAdd={(origin: SampleOriginLabel) => setIntake(emptyIntake(origin))}
+            onAdd={(origin: SampleOriginLabel) => {
+              setIntake(emptyIntake(origin));
+              setIntakeOpened((count) => count + 1);
+            }}
             onPickFiles={(files, origin) => pickFiles(files, origin)}
             onSendFiles={() => void sendFiles()}
             onClearFiles={() =>
@@ -828,6 +866,7 @@ export function VoiceWizardContainer({
               before it is pressed (`content-factory-next-fn33.28.3`).
             */
             allowanceHint={<AllowanceHint />}
+            ownPostsNeedChannel={ownPostsNeedChannel}
           />
 
           {intake ? (
@@ -858,6 +897,7 @@ export function VoiceWizardContainer({
                 }
               />
               <Textarea
+                ref={intakeText}
                 standalone
                 name="voice-sample-text"
                 aria-label={w.intakeTextLabel}

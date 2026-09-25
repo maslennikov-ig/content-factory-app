@@ -21,6 +21,7 @@ import { FarcasterProvider } from '@contentfactory/frontend/components/auth/prov
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
+import { rememberAwaitingApproval } from '@contentfactory/frontend/components/auth/approval-marker';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
 import { PASSWORD_POLICY_RANGE } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 import {
@@ -105,6 +106,7 @@ export function Register() {
     // The account came back from the provider but is not switched on yet.
     // Without this the page would sit on its spinner forever.
     if (response.headers.get('approval') === 'true') {
+      rememberAwaitingApproval();
       router.push('/auth/pending');
       return;
     }
@@ -348,6 +350,7 @@ export function RegisterAfter({
       });
       if (response.status === 200) {
         if (response.headers.get('approval') === 'true') {
+          rememberAwaitingApproval();
           router.push('/auth/pending');
           return;
         }

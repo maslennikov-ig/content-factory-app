@@ -16,6 +16,7 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { FarcasterProvider } from '@contentfactory/frontend/components/auth/providers/farcaster.provider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
+import { rememberAwaitingApproval } from '@contentfactory/frontend/components/auth/approval-marker';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
 import {
   parseRequestFailure,
@@ -110,6 +111,7 @@ export function Login() {
       console.error('Sign-in refused', failure.status, failure.raw);
       if (failure.raw.trim() === 'User is awaiting approval') {
         setAwaitingApproval(true);
+        rememberAwaitingApproval();
       } else if (failure.raw.trim() === 'User is not activated') {
         setNotActivated(true);
       } else {

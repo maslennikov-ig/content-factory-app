@@ -1,46 +1,37 @@
 'use client';
 
-import { FC, useCallback, useEffect, useRef } from 'react';
+import { FC, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
-import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { OnboardingModal } from '@contentfactory/frontend/components/onboarding/onboarding.modal';
 
+/**
+ * `?onboarding=true` → «С чего начать» (2q28.6). One onboarding, not two.
+ *
+ * The inherited upstream modal opened here on that parameter. The parameter
+ * itself still arrives from real places: the channel-connect round trip
+ * carries it back to `/launches` (`add.provider.component.tsx`,
+ * `continue.integration.tsx`) and the billing return sends
+ * `/launches?onboarding=true&trialStart=true&check=…`
+ * (`stripe.service.ts`). So the mount stays and becomes a hand-over to the
+ * page.
+ *
+ * It waits while something else on `/launches` still needs the address: a
+ * two-step provider's picker (`added` + `continue`, `ContinueProvider`) or a
+ * connect popup that is about to close itself (`window.opener`). The payment
+ * check (`check`) is read by the layout on every page, so it travels along.
+ */
 export const Onboarding: FC = () => {
   const query = useSearchParams();
-  const modal = useModals();
   const router = useRouter();
-  const modalOpen = useRef(false);
-  const t = useT();
-
-  const handleClose = useCallback(() => {
-    modal.closeAll();
-    router.push('/launches');
-  }, [modal, router]);
 
   useEffect(() => {
-    const onboarding = query.get('onboarding');
-    if (!onboarding) {
-      if (modalOpen.current) {
-        modalOpen.current = false;
-        modal.closeAll();
-      }
-      return;
-    }
-    if (modalOpen.current) {
-      return;
-    }
-    modalOpen.current = true;
-    modal.openModal({
-      withCloseButton: true,
-      closeOnEscape: false,
-      removeLayout: true,
-      askClose: true,
-      fullScreen: true,
-      onClose: handleClose,
-      children: <OnboardingModal onClose={handleClose} />,
-    });
-  }, [query, handleClose, t]);
-  
+    if (!query.get('onboarding')) return;
+    if (query.get('continue')) return;
+    if (typeof window !== 'undefined' && window.opener) return;
+    const check = query.get('check');
+    router.replace(
+      check ? `/onboarding?check=${encodeURIComponent(check)}` : '/onboarding'
+    );
+  }, [query, router]);
+
   return null;
 };

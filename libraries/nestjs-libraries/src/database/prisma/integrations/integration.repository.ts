@@ -8,6 +8,45 @@ import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.fa
 import { PlugDto } from '@contentfactory/nestjs-libraries/dtos/plugs/plug.dto';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 
+/**
+ * The posting slots a newly connected channel starts with
+ * (`content-factory-next-2q28.21`).
+ *
+ * `Integration.postingTimes` stores minutes after midnight UTC. The schema
+ * default (`120, 400, 700`) reads as 05:00, 09:40 and 14:40 in Moscow, so a
+ * channel with «Бронь» on booked its first post at five in the morning. The
+ * schema default stays — changing it is a migration and it would not touch
+ * existing channels anyway — and every new channel gets these times at
+ * creation instead.
+ *
+ * 09:00, 13:00 and 19:00 in the person's own time. The connect request carries
+ * the offset the calendar shows (`dayjs.tz().utcOffset()`, minutes east of
+ * UTC); when it is missing or unreadable the times are Moscow's, which is where
+ * this product's people are.
+ */
+
+/** 09:00, 13:00, 19:00 as minutes after local midnight. */
+export const DEFAULT_LOCAL_POSTING_MINUTES = [540, 780, 1140] as const;
+
+/** Moscow is UTC+3 all year. */
+export const MOSCOW_UTC_OFFSET_MINUTES = 180;
+
+const DAY_MINUTES = 24 * 60;
+
+export function defaultPostingTimes(
+  utcOffsetMinutes?: number | null
+): { time: number }[] {
+  const offset =
+    typeof utcOffsetMinutes === 'number' &&
+    Number.isFinite(utcOffsetMinutes) &&
+    Math.abs(utcOffsetMinutes) <= 14 * 60
+      ? utcOffsetMinutes
+      : MOSCOW_UTC_OFFSET_MINUTES;
+  return DEFAULT_LOCAL_POSTING_MINUTES.map((local) => ({
+    time: (((local - offset) % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES,
+  }));
+}
+
 const channelVisiblePostsWhere = (org: string): Prisma.PostWhereInput => ({
   organizationId: org,
   deletedAt: null,
@@ -338,15 +377,10 @@ export class IntegrationRepository {
     timezone?: number,
     customInstanceDetails?: string
   ) {
-    const postTimes = timezone
-      ? {
-          postingTimes: JSON.stringify([
-            { time: 560 - timezone },
-            { time: 850 - timezone },
-            { time: 1140 - timezone },
-          ]),
-        }
-      : {};
+    // Only `create` reads this: a reconnected channel keeps its own times.
+    const postTimes = {
+      postingTimes: JSON.stringify(defaultPostingTimes(timezone)),
+    };
     const upsert = await this._integration.model.integration.upsert({
       where: {
         organizationId_internalId: {

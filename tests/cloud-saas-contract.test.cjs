@@ -508,10 +508,6 @@ const LOCALE_CLAIM_ALLOWLIST = new Map(
       'en/cancel_subscription_confirm',
       'This will immediately cancel the subscription. The user will be downgraded to the FREE plan. This cannot be undone.',
     ],
-    [
-      'en/faq_to_confirm_credit_card_information_we_will_hold',
-      'To confirm credit card information Content Factory will hold $2 and release it immediately, you can cancel your subscription anytime from settings without talking to a person',
-    ],
     ['en/pay_nothing_for_the_first_7_days', 'Pay nothing for the first 7 days'],
     [
       'en/purchase_a_life_time_pro_account_with_sol_199',
@@ -531,10 +527,6 @@ const LOCALE_CLAIM_ALLOWLIST = new Map(
     ],
     ['ru/billing_pay_nothing_7_days', 'Платите НИЧЕГО первые 7 дней'],
     ['ru/billing_your_7_day_trial_is', 'Ваш 7-дневный пробный период'],
-    [
-      'ru/faq_to_confirm_credit_card_information_we_will_hold',
-      'Для подтверждения информации о кредитной карте Content Factory временно удержит $2 и сразу же их вернет. Вы можете отменить подписку в любое время через настройки без необходимости разговаривать с оператором.',
-    ],
     ['ru/fast_track_charge_now', 'Завершить пробный период и оплатить'],
     ['ru/pay_nothing_for_the_first_7_days', 'Не платите ничего первые 7 дней'],
     [

@@ -329,7 +329,9 @@ describe('settings navigation follows the role matrix', () => {
       /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'webhooks'/
     );
     expect(globalSettings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
-    expect(globalSettings).toMatch(/isAdmin && <ShortlinkPreferenceComponent \/>/);
+    expect(globalSettings).toMatch(
+      /isAdmin &&\s+!isHiddenSettingsRow\('shortlink_preference'\) &&\s+\(\s*<ShortlinkPreferenceComponent \/>/
+    );
     expect(globalSettings).toMatch(/isAdmin && <AiProviderComponent \/>/);
   });
 

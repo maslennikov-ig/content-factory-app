@@ -65,10 +65,11 @@ export const intakeCopy = {
     languageLabel: 'Язык текста',
     languageRu: 'Русский',
     languageEn: 'English',
-    researchLabel: 'Нужен ресерч',
+    // 2q28.33: «ресерч» — внутреннее слово; на экране — что будет сделано.
+    researchLabel: 'Поискать в интернете',
     // Кружок с вопросом вместо подписи под флажком (владелец, 14.09.2026):
     // объяснение живёт в подсказке и не занимает место на экране.
-    researchHintLabel: 'Подсказка: что такое ресерч',
+    researchHintLabel: 'Подсказка: поиск в интернете',
     researchHint:
       'Проверим вашу мысль по внешним источникам: подтвердим числа и факты, ' +
       'поправим то, что расходится с источниками, и добавим находки по теме ' +
@@ -93,7 +94,7 @@ export const intakeCopy = {
       'Чужой пост, статья или ссылка на них. Сделаем из этого ваш собственный пост и спросим вашу позицию.',
     kindInstructionHint:
       'Описание поста, который нужно написать. Напишем по нему, а ссылки из описания сохраним дословно.',
-    researchLevelLabel: 'Глубина ресерча',
+    researchLevelLabel: 'Глубина поиска',
     researchQuick: 'Быстрый · до 8 источников',
     researchStandard: 'Стандартный · до 20 источников',
     researchDeep: 'Глубокий · до 50 источников',
@@ -274,14 +275,14 @@ export const intakeCopy = {
     profileSave: 'Сохранить',
     profileSaving: 'Сохраняем…',
     profileSaved: 'Карточка сохранена.',
-    profileReset: 'Вернуть умолчания',
+    profileReset: 'Вернуть готовые настройки',
     profileFailed: 'Карточка не загрузилась.',
     profileSaveFailed: 'Карточка не сохранилась. Попробуйте ещё раз.',
     profileLoading: 'Загружаем карточку',
     profileDefaultsBody: (provider: string) =>
-      `Карточка не заполнена: пишем по умолчаниям для ${
+      `Пишем по готовым настройкам для ${
         provider || 'площадки'
-      }. Проверьте их — это три минуты, и каждая адаптация станет точнее.`,
+      }. Их можно оставить как есть или поправить под себя и нажать «Сохранить».`,
     profileHintFor: (label: string) => `Подсказка: ${label}`,
     profileHintLength:
       'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
@@ -525,14 +526,14 @@ export const intakeCopy = {
     profileSave: 'Save',
     profileSaving: 'Saving…',
     profileSaved: 'The card is saved.',
-    profileReset: 'Back to defaults',
+    profileReset: 'Back to ready-made settings',
     profileFailed: 'The card did not load.',
     profileSaveFailed: 'The card was not saved. Try again.',
     profileLoading: 'Loading the card',
     profileDefaultsBody: (provider: string) =>
-      `This card is not filled in: we use the defaults for ${
+      `We write with the ready-made settings for ${
         provider || 'this platform'
-      }. Review them once so every adaptation is more accurate.`,
+      }. Keep them as they are, or adjust them and press “Save”.`,
     profileHintFor: (label: string) => `Hint: ${label}`,
     profileHintLength: 'Post length. We can choose within the platform limit.',
     profileHintEmoji:

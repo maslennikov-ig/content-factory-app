@@ -311,6 +311,11 @@ export class StripeService {
   }
 
   async getPackages() {
+    // Without a Stripe key there is nothing to list, and asking Stripe with
+    // `sk_nothing` only produces an authentication error (`2q28.18`).
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return {};
+    }
     const products = await stripe.prices.list({
       active: true,
       expand: ['data.tiers', 'data.product'],

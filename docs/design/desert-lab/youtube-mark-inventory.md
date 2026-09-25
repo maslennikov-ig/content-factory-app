@@ -60,9 +60,9 @@
 | Текущий канал в новом запуске | `new-launch/select.current.tsx` | 16 | нет |
 | Провайдер высшего порядка | `new-launch/providers/high.order.provider.tsx` | 16 | нет |
 | Провайдер Reddit | `new-launch/providers/reddit/reddit.provider.tsx` | 16 | нет |
-| Онбординг | `onboarding/onboarding.modal.tsx` | 16 | нет |
+| ~~Онбординг~~ | ~~`onboarding/onboarding.modal.tsx`~~ — удалён 25.09.2026 (`2q28.6`), знака больше не несёт | — | — |
 | Импорт поста для отладки | `launches/import-debug-post.modal.tsx` | 16 | нет |
-| Обзор рабочего процесса на входе | `auth/workflow.overview.tsx` | 16 (по умолчанию 24 рамка) | нет |
+| ~~Обзор рабочего процесса на входе~~ | ~~`auth/workflow.overview.tsx`~~ — полоса площадок убрана 25.09.2026 (`2q28.17`), знака больше не несёт | — | — |
 | Реестр платформ на публичной главной | `public-saas/public-home.tsx` | 16 | нет |
 
 Стенд `interface-review/settings-admin/channel-picker.scene.tsx` перечисляет

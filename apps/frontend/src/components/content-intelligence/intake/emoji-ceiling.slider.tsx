@@ -3,6 +3,7 @@
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Range } from '@contentfactory/react/form/range';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import { emojiLevelWord, emojiStopWord } from './emoji-words';
 import {
@@ -54,6 +55,12 @@ const at = (index: number) => `calc(12px + (100% - 24px) * ${index / LAST})`;
  * caption («Как можно больше», «As many as fit») wraps inside its own cell — between
  * words first, inside a word only when a word is wider than the cell — so it
  * never runs into «Много».
+ *
+ * Each caption is a button that sets its stop (`2q28.22`): the words looked
+ * clickable and did nothing, so a click on «Средне» left the value at «Мало».
+ * The handle stays the one control that arrows move; the captions are
+ * reachable by Tab and pressed with Enter or Space, and the current one says
+ * so through `aria-pressed`.
  */
 export function EmojiCeilingSlider({
   locale,
@@ -222,21 +229,32 @@ export function EmojiCeilingSlider({
           </div>
 
           <div
-            aria-hidden="true"
             data-emoji-divisions="true"
             className="grid min-w-0 grid-cols-5 cf-caption text-cf-ink-muted"
           >
-            {EMOJI_STOPS.map((division) => (
-              <span
-                key={division}
-                className={clsx(
-                  'min-w-0 text-center [overflow-wrap:anywhere]',
-                  division === stop && !muted && 'text-cf-ink'
-                )}
-              >
-                {emojiStopWord(locale, division)}
-              </span>
-            ))}
+            {EMOJI_STOPS.map((division) => {
+              const word = emojiStopWord(locale, division);
+              const current = division === stop;
+              return (
+                <ControlButton
+                  key={division}
+                  layout="content"
+                  data-emoji-division={division}
+                  aria-label={`${t.profileEmojiSlider}: ${word}`}
+                  aria-pressed={current}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (!current || muted) onChange(division);
+                  }}
+                  className={clsx(
+                    'min-w-0 cursor-pointer rounded-[4px] text-center cf-caption [overflow-wrap:anywhere] transition-colors duration-state hover:text-cf-ink motion-reduce:transition-none',
+                    current && !muted ? 'text-cf-ink' : 'text-cf-ink-muted'
+                  )}
+                >
+                  {word}
+                </ControlButton>
+              );
+            })}
           </div>
         </div>
       </div>

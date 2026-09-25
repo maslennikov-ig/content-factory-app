@@ -1,5 +1,9 @@
 import type { OnboardingStepKey } from './onboarding.adapter';
 import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
+import {
+  MIN_CORPUS_CHARS,
+  MIN_CORPUS_SAMPLES,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
  * The walkthrough's words, written out in two languages beside the code —
@@ -7,18 +11,20 @@ import { resolveContentLocale } from '@contentfactory/frontend/components/conten
  * `editorial-stage.copy.ts`): two languages spelled out here, not sixteen
  * locale files promising a translation nobody wrote.
  *
- * Every step says three things and in this order: what to do, why the product
- * asks for it, and what closes the step. The third one matters most — the
- * screen this replaces never told anyone what it wanted, so there was nothing
- * to finish.
+ * Variant B (2q28.6): one step on the screen. Each step says what it is in
+ * one heading, why in one line, gives one action, and says what closes it.
+ * Everything else a step could teach — the essence, «Переписать по
+ * настройкам», the channel card, the calendar list — is folded under «Что
+ * ещё здесь есть»: there for whoever wants it, never in the way of the one
+ * thing to do («решать за человека», owner, 13.09.2026).
  */
 
 type StepWords = {
-  /** The rail's short name. */
+  /** The strip's short name — the menu's own word. */
   short: string;
   /** The step's own heading. */
   title: string;
-  /** Why the product asks. Never «because it is step three». */
+  /** Why the product asks, in one line. */
   why: string;
   /** The one thing to do. */
   todo: string;
@@ -26,21 +32,53 @@ type StepWords = {
   action: string;
   /** What closes the step, said plainly. */
   closes: string;
+  /** Optional things worth knowing on the step's screens, folded away. */
+  more: readonly string[];
+};
+
+type TelegramWords = {
+  addBotTitle: string;
+  addBotBody: string;
+  commandTitle: string;
+  commandIdle: string;
+  commandBody: string;
+  appearsTitle: string;
+  waiting: string;
+  expired: string;
+  startAgain: string;
+  copy: string;
+  copyBot: string;
+  copyCommand: string;
+  copied: string;
+  failed: string;
+  unavailable: string;
+  otherPlatform: string;
 };
 
 type Words = {
   pageTitle: string;
   pageLead: string;
-  progressLabel: string;
+  stripLabel: string;
   progressValue: (done: number, total: number) => string;
-  stepOf: (index: number, total: number) => string;
-  todoLabel: string;
-  current: string;
   progressPending: string;
+  stepOf: (index: number, total: number) => string;
+  stateDone: string;
+  stateOpen: string;
+  doneNote: string;
+  waitNote: string;
+  showOnScreen: string;
+  openChannels: string;
+  openLatestPiece: string;
+  back: string;
+  later: string;
+  next: (name: string) => string;
+  /** The last step's forward button: it finishes, it does not go round. */
+  finish: string;
+  moreLabel: string;
   allDoneTitle: string;
   allDoneBody: string;
-  leaveToPieces: string;
-  leaveToAvatar: string;
+  leftTitle: string;
+  leftBody: (open: number) => string;
   comeBack: string;
   /** Откуда берутся галочки и почему нет кнопки «начать заново». */
   counted: string;
@@ -49,8 +87,14 @@ type Words = {
   loading: string;
   failed: string;
   channels: (n: number) => string;
-  samples: (n: number) => string;
-  facts: (n: number) => string;
+  fact: {
+    label: string;
+    title: string;
+    body: string;
+    action: string;
+    done: (n: number) => string;
+  };
+  telegram: TelegramWords;
   steps: Record<OnboardingStepKey, StepWords>;
 };
 
@@ -62,170 +106,293 @@ const plural = (n: number, one: string, few: string, many: string) => {
   return many;
 };
 
+/*
+ * The avatar step names the real floor of «Собрать из моих текстов» — the
+ * one the collecting screen enforces — rather than a number of its own.
+ */
+const corpusChars = (locale: 'ru' | 'en') =>
+  MIN_CORPUS_CHARS.toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US');
+
 export const onboardingCopy: { ru: Words; en: Words } = {
   ru: {
     pageTitle: 'С чего начать',
     pageLead:
-      'Пройдите один материал от начала до конца. Дальше всё остальное — то же самое, только быстрее.',
-    progressLabel: 'Пройдено',
+      'Пять шагов до первого поста в вашем канале. Один шаг на экране; любой можно отложить и вернуться к нему с полосы сверху.',
+    stripLabel: 'Шаги',
     progressValue: (done, total) => `${done} из ${total}`,
-    stepOf: (index, total) => `Шаг ${index} из ${total}`,
-    todoLabel: 'Что сделать',
-    current: 'Сейчас на этом шаге',
     progressPending: 'считаем…',
+    stepOf: (index, total) => `Шаг ${index} из ${total}`,
+    stateDone: 'сделано',
+    stateOpen: 'не сделано',
+    doneNote: 'Этот шаг уже сделан.',
+    waitNote:
+      '«Дальше» станет доступна, когда шаг будет сделан. «Сделаю позже» — перейти, ничего не отмечая.',
+    showOnScreen: 'Показать на экране',
+    openChannels: 'Открыть каналы',
+    openLatestPiece: 'Открыть последнюю заготовку',
+    back: 'Назад',
+    later: 'Сделаю позже',
+    next: (name) => `Дальше: ${name}`,
+    finish: 'Завершить',
+    moreLabel: 'Что ещё здесь есть',
     allDoneTitle: 'Всё пройдено',
     allDoneBody:
-      'Первый материал прошёл весь путь. Дальше можно не возвращаться сюда — но страница останется в настройках, если понадобится.',
-    leaveToPieces: 'К заготовкам',
-    leaveToAvatar: 'К аватару',
+      'Первый пост прошёл весь путь. Сюда можно не возвращаться — страница останется в настройках.',
+    leftTitle: 'Почти всё',
+    leftBody: (open) =>
+      `${open} ${plural(
+        open,
+        'шаг отложен',
+        'шага отложены',
+        'шагов отложено'
+      )}. Вернитесь к ${plural(open, 'нему', 'ним', 'ним')} с полосы сверху, когда будет время.`,
     comeBack: 'Вернуться к этим шагам можно через пункт меню «С чего начать».',
     counted:
       'Шаги считаются по данным пространства. Сбросить нельзя: пройдите заново в новом пространстве.',
     menuLabel: 'С чего начать',
     loading: 'Смотрим, что уже сделано',
     failed:
-      'Не удалось узнать, что уже сделано. Шаги ниже те же самые — просто галочки пока не проставлены.',
+      'Не удалось узнать, что уже сделано. Шаги те же самые — просто галочки пока не проставлены.',
+    // «1 канал подключён», «3 канала подключены», «5 каналов подключено».
     channels: (n) =>
-      `${n} ${plural(n, 'канал', 'канала', 'каналов')} подключено`,
-    samples: (n) =>
-      `${n} ${plural(n, 'образец', 'образца', 'образцов')} манеры`,
-    facts: (n) =>
       `${n} ${plural(
         n,
-        'утверждение',
-        'утверждения',
-        'утверждений'
-      )} в памяти и заготовках`,
+        'канал подключён',
+        'канала подключены',
+        'каналов подключено'
+      )}`,
+    fact: {
+      label: 'Необязательно',
+      title: 'Опора для поста',
+      body: 'Цена, срок, цифра, которую вы точно знаете. С опорой текст конкретнее, и в разборе видно, на чём держится утверждение. Без неё путь тоже проходится.',
+      action: 'Открыть «Новая заготовка»',
+      done: (n) =>
+        `${n} ${plural(
+          n,
+          'утверждение',
+          'утверждения',
+          'утверждений'
+        )} в памяти и заготовках`,
+    },
+    telegram: {
+      addBotTitle: 'Добавьте бота в свой канал администратором',
+      addBotBody:
+        'В Telegram: канал → Администраторы → Добавить. Нужно одно право — публиковать сообщения.',
+      commandTitle: 'Отправьте в канал эту команду',
+      commandIdle:
+        'Нажмите «Подключить Telegram» — появится команда со словом только для вас.',
+      commandBody:
+        'Команда действует 15 минут. Если у бота нет права удалять сообщения, удалите её из канала сами.',
+      appearsTitle: 'Готово — канал появится здесь сам',
+      waiting: 'Ждём сообщение в канале…',
+      expired: 'Команда устарела. Получите новую и отправьте её ещё раз.',
+      startAgain: 'Новая команда',
+      copy: 'Скопировать',
+      copyBot: 'Скопировать имя бота',
+      copyCommand: 'Скопировать команду',
+      copied: 'Скопировано',
+      failed:
+        'Не получилось начать подключение. Подключите канал на экране каналов.',
+      unavailable:
+        'Бот Telegram на этом сервере не настроен. Подключите канал на экране каналов.',
+      otherPlatform: 'Другая площадка — на экране каналов',
+    },
     steps: {
-      channel: {
-        short: 'Подключить канал',
-        title: 'Подключите канал',
-        why: 'Без канала посту некуда выйти. С него же продукт узнаёт, как вы обычно пишете, — если канал уже вёлся.',
-        todo: 'Подключите один канал. Остальные добавите позже.',
-        action: 'Открыть каналы',
-        closes: 'Шаг закроется, когда появится первый подключённый канал.',
-      },
-      voice: {
-        short: 'Задать голос',
+      avatar: {
+        short: 'Аватар',
         title: 'Скажите, чьей манерой писать',
-        why: 'Иначе черновик выйдет ровным текстом без лица. Манера собирается из образцов — ваших прежних постов, статей, писем.',
-        todo: 'Добавьте хотя бы один образец своего текста в разделе «Аватар».',
+        why: 'Без аватара черновики выходят ровным текстом без лица.',
+        todo: `Быстрее всего — «Заполнить вручную»: пять строк о том, как вы пишете, 10–15 минут, тексты не нужны. «Собрать из моих текстов» точнее, но просит от ${MIN_CORPUS_SAMPLES} текстов и от ${corpusChars(
+          'ru'
+        )} знаков.`,
         action: 'Открыть «Аватар»',
-        closes: 'Шаг закроется, когда появится первый образец.',
-      },
-      fact: {
-        short: 'Найти, на что опереться',
-        title: 'Найдите то, на что будете опираться',
-        why: 'Опора делает текст конкретным и показывает в разборе, на чём держится утверждение.',
-        todo: 'Добавьте одно утверждение о своём деле — цену, срок, цифру, которую вы точно знаете. Или найдите его поиском и подтвердите.',
-        action: 'Открыть «Новая заготовка»',
         closes:
-          'Шаг закроется, когда пригодное утверждение появится в памяти или выбранное — в заготовке.',
+          'Шаг закроется, когда аватар будет готов.',
+        more: [
+          'Путь можно сменить в любой момент: образцы сохраняются.',
+          'Третий путь — взять манеру автора, который нравится: берём ритм и устройство фраз, не содержание.',
+        ],
       },
-      brief: {
-        short: 'Сделать заготовку',
-        title: 'Сделайте заготовку и получите черновик',
-        why: 'Заготовка — это суть материала: одна мысль, записанная простыми словами, и заполненный бриф рядом с ней. Из неё собираются черновики под каждый канал. Пока сути нет, ИИ пишет складно и ни о чём.',
-        todo: 'Нажмите «Новая заготовка», войдите одной мыслью — что вы хотите сказать — и ответьте на вопросы брифа.',
-        action: 'Открыть «Контент»',
-        closes:
-          'Шаг закроется, когда в пространстве появится первая заготовка — или первый черновик, если вы шли прежним путём.',
+      channel: {
+        short: 'Канал',
+        title: 'Подключите канал, куда будут выходить посты',
+        why: 'Подойдёт и тестовый закрытый канал. Больше ничего на этом шаге не нужно.',
+        todo: 'Три действия в Telegram — и канал подключится сам.',
+        action: 'Подключить Telegram',
+        closes: 'Шаг закроется, когда канал подключится.',
+        more: [
+          'У каждого канала есть карточка «Как пишем в «…»»: длина поста, бегунок «Сколько эмодзи в посте», ссылки и хэштеги.',
+          'Там же «План» — как посты канала встают в календарь: «Бронь» ждёт вашего «Подтвердить», «Автопилот» выходит сам.',
+        ],
       },
-      preview: {
-        short: 'Посмотреть черновик в канале',
-        title: 'Посмотрите, как это выйдет в канале',
-        why: 'В каждом канале текст выглядит по-своему: где-то обрежется, где-то ссылка развернётся картинкой. Предпросмотр показывает то, что увидит читатель.',
-        todo: 'На странице заготовки создайте адаптацию, затем откройте её предпросмотр.',
-        action: 'Открыть «Контент»',
-        closes:
-          'Шаг закроется, когда появится первая адаптация в черновике: продукт не хранит отдельно, смотрели вы предпросмотр или нет.',
+      piece: {
+        short: 'Заготовка',
+        title: 'Запишите суть будущего поста',
+        why: 'Суть — одна мысль простыми словами. Из неё собираются посты под каждый канал.',
+        todo: 'На вкладке «Заготовки» нажмите «Новая заготовка», напишите, что хотите сказать, и ответьте на вопросы.',
+        action: 'Открыть «Заготовки»',
+        closes: 'Шаг закроется, когда появится первая заготовка.',
+        more: [
+          'Суть можно поправить руками: она нейтральна, стиль добавит адаптация.',
+          'Если вопросов слишком много — «Решите всё за меня».',
+        ],
       },
-      schedule: {
-        short: 'Поставить в расписание',
-        title: 'Поставьте пост в расписание',
-        why: 'Это последний шаг пути. Дальше продукт публикует сам и показывает, что из этого вышло.',
-        todo: 'Выберите время и поставьте черновик в очередь.',
+      adaptation: {
+        short: 'Адаптация',
+        title: 'Сделайте из сути пост для канала',
+        why: 'Адаптация — пост под конкретный канал: его длина, тон и оформление.',
+        todo: 'Откройте заготовку и создайте адаптацию для своего канала.',
+        action: 'Открыть «Заготовки»',
+        closes: 'Шаг закроется, когда появится первая адаптация.',
+        more: [
+          'Не нравится текст — поменяйте длину, эмодзи или пожелание и нажмите «Переписать по настройкам».',
+          '«Переписать и запомнить для канала» сделает эти значения готовыми настройками канала.',
+        ],
+      },
+      plan: {
+        short: 'План',
+        title: 'Решите, когда выйдет пост',
+        why: 'Дальше продукт публикует сам — в выбранное время.',
+        todo: 'На странице заготовки, в адаптации, нажмите «Запланировать» — или «Подтвердить» у брони. В календаре видны все посты.',
         action: 'Открыть календарь',
-        closes: 'Шаг закроется, когда первый пост встанет в расписание.',
+        closes:
+          'Шаг закроется, когда пост встанет в расписание или вы выберете план канала.',
+        more: [
+          'План канала — «Бронь» или «Автопилот» — выбирается в карточке канала, и новые посты встают в календарь сами.',
+          'В календаре есть вид «Список» и поиск по тексту постов.',
+        ],
       },
     },
   },
   en: {
     pageTitle: 'Where to start',
     pageLead:
-      'Take one piece of content the whole way through. Everything after that is the same, only faster.',
-    progressLabel: 'Done',
+      'Five steps to the first post in your channel. One step on the screen; any of them can wait, and the strip above brings you back.',
+    stripLabel: 'Steps',
     progressValue: (done, total) => `${done} of ${total}`,
-    stepOf: (index, total) => `Step ${index} of ${total}`,
-    todoLabel: 'What to do',
-    current: 'You are here',
     progressPending: 'counting…',
+    stepOf: (index, total) => `Step ${index} of ${total}`,
+    stateDone: 'done',
+    stateOpen: 'not done',
+    doneNote: 'This step is already done.',
+    waitNote:
+      '"Next" opens once the step is done. "Later" moves on without ticking anything.',
+    showOnScreen: 'Show me on the screen',
+    openChannels: 'Open channels',
+    openLatestPiece: 'Open the latest piece',
+    back: 'Back',
+    later: 'Later',
+    next: (name) => `Next: ${name}`,
+    finish: 'Finish',
+    moreLabel: 'What else is here',
     allDoneTitle: 'All done',
     allDoneBody:
-      'Your first piece went the whole way. You do not need to come back here — but the page stays in Settings if you ever do.',
-    leaveToPieces: 'Go to pieces',
-    leaveToAvatar: 'Go to avatar',
+      'Your first post went the whole way. You do not need to come back here — the page stays in Settings.',
+    leftTitle: 'Almost there',
+    leftBody: (open) =>
+      `${open} step${open === 1 ? '' : 's'} put off. Come back from the strip above when you have time.`,
     comeBack: 'Return to these steps through the "Where to start" menu item.',
     counted:
       'The ticks are counted from what is in this workspace. There is no reset: start again in a new workspace.',
     menuLabel: 'Where to start',
     loading: 'Checking what is already done',
     failed:
-      'We could not read what is already done. The steps below are the same — the ticks are just missing.',
+      'We could not read what is already done. The steps are the same — the ticks are just missing.',
     channels: (n) => `${n} channel${n === 1 ? '' : 's'} connected`,
-    samples: (n) => `${n} writing sample${n === 1 ? '' : 's'}`,
-    facts: (n) => `${n} claim${n === 1 ? '' : 's'} in memory and pieces`,
+    fact: {
+      label: 'Optional',
+      title: 'Something for the post to stand on',
+      body: 'A price, a deadline, a number you know. A claim makes the text concrete and shows in the review what it stands on. The path works without it too.',
+      action: 'Open "New piece"',
+      done: (n) => `${n} claim${n === 1 ? '' : 's'} in memory and pieces`,
+    },
+    telegram: {
+      addBotTitle: 'Add the bot to your channel as an admin',
+      addBotBody:
+        'In Telegram: channel → Administrators → Add. It needs one right — to post messages.',
+      commandTitle: 'Send this command to the channel',
+      commandIdle:
+        'Press "Connect Telegram" and a command with a word just for you appears.',
+      commandBody:
+        'The command works for 15 minutes. If the bot cannot delete messages, remove it from the channel yourself.',
+      appearsTitle: 'Done — the channel shows up here by itself',
+      waiting: 'Waiting for the message in the channel…',
+      expired: 'The command expired. Get a new one and send it again.',
+      startAgain: 'New command',
+      copy: 'Copy',
+      copyBot: 'Copy the bot name',
+      copyCommand: 'Copy the command',
+      copied: 'Copied',
+      failed:
+        'Could not start connecting. Connect the channel on the channels screen.',
+      unavailable:
+        'The Telegram bot is not set up on this server. Connect the channel on the channels screen.',
+      otherPlatform: 'Another platform — on the channels screen',
+    },
     steps: {
-      channel: {
-        short: 'Connect a channel',
-        title: 'Connect a channel',
-        why: 'Without one a post has nowhere to go. It is also where the product learns how you usually write, if the channel has been running.',
-        todo: 'Connect one channel. The rest can wait.',
-        action: 'Open channels',
-        closes: 'This closes when the first channel is connected.',
-      },
-      voice: {
-        short: 'Set the voice',
+      avatar: {
+        short: 'Avatar',
         title: 'Say whose voice to write in',
-        why: 'Otherwise the draft comes out even and faceless. The voice is built from samples — your own posts, articles, letters.',
-        todo: 'Add at least one sample of your own writing in the "Avatar" section.',
+        why: 'Without an avatar drafts come out even and faceless.',
+        todo: `Fastest is "Fill it in by hand": five lines about how you write, 10–15 minutes, no texts needed. "Build it from my own texts" is more precise but needs at least ${MIN_CORPUS_SAMPLES} texts and ${corpusChars(
+          'en'
+        )} characters.`,
         action: 'Open "Avatar"',
-        closes: 'This closes when the first sample is in.',
-      },
-      fact: {
-        short: 'Find something to stand on',
-        title: 'Find what the piece will stand on',
-        why: 'A claim makes the writing concrete and lets the review show what that claim stands on.',
-        todo: 'Add one claim about your own work — a price, a deadline, a number you know. Or find one by search and confirm it.',
-        action: 'Open "New piece"',
         closes:
-          'This closes when an eligible claim exists in memory or a selected claim exists in a piece.',
+          'This closes when the avatar is ready.',
+        more: [
+          'You can switch paths at any time: samples are kept.',
+          'A third path borrows the manner of an author you like: rhythm and sentence build, never content.',
+        ],
       },
-      brief: {
-        short: 'Make a piece',
-        title: 'Make a piece and get a draft',
-        why: 'A piece is the substance: one thought written out in plain words, with the filled brief beside it. Drafts for each channel are cut from it. While there is no substance, AI writes something fluent about nothing.',
-        todo: 'Press "New piece", start with one thought — what you want to say — and answer the brief.',
-        action: 'Open "Content"',
-        closes:
-          'This closes when the workspace has its first piece — or its first draft, if you came the older way.',
+      channel: {
+        short: 'Channel',
+        title: 'Connect the channel your posts go to',
+        why: 'A private test channel works too. Nothing else is needed on this step.',
+        todo: 'Three moves in Telegram, and the channel connects by itself.',
+        action: 'Connect Telegram',
+        closes: 'This closes when the channel is connected.',
+        more: [
+          'Every channel has a card “How we write in …”: post length, the “How many emoji a post has” slider, links and hashtags.',
+          'The same card has “Plan” — how the channel’s posts get into the calendar: “Reserve” waits for your “Confirm”, “Autopilot” goes out by itself.',
+        ],
       },
-      preview: {
-        short: 'See it in the channel',
-        title: 'See how it comes out in the channel',
-        why: 'Every channel renders text its own way: one truncates, another turns a link into a card. The preview shows what a reader will actually see.',
-        todo: 'Create an adaptation on the piece page, then open its channel preview.',
-        action: 'Open "Content"',
-        closes:
-          'This closes when the first draft exists: the product does not record separately whether you looked.',
+      piece: {
+        short: 'Piece',
+        title: 'Write down the essence of the post',
+        why: 'The essence is one thought in plain words. Posts for each channel are cut from it.',
+        todo: 'On the "Pieces" tab press "New piece", write what you want to say and answer the questions.',
+        action: 'Open "Pieces"',
+        closes: 'This closes when the first piece exists.',
+        more: [
+          'You can edit the essence by hand: it is neutral, the adaptation adds the style.',
+          'Too many questions? “You decide everything”.',
+        ],
       },
-      schedule: {
-        short: 'Put it in the schedule',
-        title: 'Put the post in the schedule',
-        why: 'This is the last step of the path. From here the product publishes on its own and shows what came of it.',
-        todo: 'Pick a time and queue the draft.',
+      adaptation: {
+        short: 'Adaptation',
+        title: 'Turn the essence into a post for the channel',
+        why: 'An adaptation is the post for one channel: its length, tone and layout.',
+        todo: 'Open the piece and create an adaptation for your channel.',
+        action: 'Open "Pieces"',
+        closes: 'This closes when the first adaptation exists.',
+        more: [
+          'Not happy with the text? Change the length, emoji or a wish and press “Rewrite with these settings”.',
+          '“Rewrite and remember for the channel” makes those values the channel’s defaults.',
+        ],
+      },
+      plan: {
+        short: 'Plan',
+        title: 'Decide when the post goes out',
+        why: 'From here the product publishes by itself, at the time you chose.',
+        todo: 'On the piece page, in the adaptation, press "Schedule" — or "Confirm" on a reservation. The calendar shows every post.',
         action: 'Open the calendar',
-        closes: 'This closes when the first post is scheduled.',
+        closes:
+          'This closes when a post is scheduled or you choose a plan for the channel.',
+        more: [
+          'The channel plan — “Reserve” or “Autopilot” — is chosen on the channel card, and new posts get into the calendar by themselves.',
+          'The calendar has a “List” view and search through the text of posts.',
+        ],
       },
     },
   },
@@ -234,15 +401,9 @@ export const onboardingCopy: { ru: Words; en: Words } = {
 export type OnboardingLocale = keyof typeof onboardingCopy;
 
 /**
- * Which of the two languages a person reads, decided in one place.
- *
- * This used to spell the ternary out again — the eighth hand-written copy of
- * `String(language ?? 'ru').toLowerCase().startsWith('ru')`, written two
- * commits after `content-factory-next-w4vh` removed seven of them, and outside
- * the folder `content-locale-single-decision.guard.test.cjs` watches. It is
- * the same question with the same answer, so it delegates instead. The name
- * stays: callers here ask for an onboarding locale, and this file is where
- * that word means something.
+ * Which of the two languages a person reads, decided in one place: the same
+ * question `content-section.copy.ts` answers, so it delegates instead of
+ * spelling the ternary out again.
  */
 export const resolveOnboardingLocale = (
   language: string | undefined | null

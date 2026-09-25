@@ -88,7 +88,7 @@ test('«Поставить на HH:mm» places the adaptation and the window sta
  expect(screen.getByText(/cnt-00/).parentElement.textContent).toBe(`cnt-00 · Channel tg · ${moment}`);
  expect(document.querySelector('[data-plan-state]').textContent).toBe('бронь');
  expect(document.querySelector('[data-plan-state]').getAttribute('data-plan-state')).toBe('reserved');
- expect(screen.getByText('Сама не опубликуется: в канале режим «Бронь». Выйдет после «Запланировать».')).toBeTruthy();
+ expect(screen.getByText('Сама не опубликуется: в канале режим «Бронь». Выйдет после вашего «Подтвердить».')).toBeTruthy();
  expect(screen.getByRole('button',{name:'Подсказка: режим плана'})).toBeTruthy();
  // «Открыть и поправить» leads to the channel tab with the slot date, as before.
  fireEvent.click(screen.getByRole('button',{name:'Открыть и поправить'}));
@@ -331,4 +331,22 @@ test('a channel with the placeholder picture shows its two-letter mark, not the 
  await screen.findByText('Title 0');
  expect(document.querySelector('img[src="/no-picture.jpg"]')).toBeNull();
  expect(screen.getAllByText('CT').length).toBeGreaterThan(0);
+});
+
+// 2q28.20: a reservation is confirmed with «Подтвердить» on the piece page —
+// the channel card, the calendar legend and the placed-post note all name
+// that one verb. «Запланировать» stays only for a plain draft.
+test('a reservation has one verb everywhere it is explained', () => {
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const read=(file)=>fs.readFileSync(path.resolve(__dirname,'..',file),'utf8');
+ const calendar=read('apps/frontend/src/components/launches/calendar-planning.copy.ts');
+ const card=read('apps/frontend/src/components/content-intelligence/intake/channel-plan-mode.tsx');
+ for (const source of [calendar,card]) {
+  expect(source).not.toMatch(/(в плане|Бронь)[^'\n]*после «Запланировать»/);
+  expect(source).not.toMatch(/(planned|Reserve)[^'\n]*after “Schedule”/);
+ }
+ expect(calendar).toContain('пост выйдет после вашего «Подтвердить»');
+ expect(calendar).toContain('goes out after your “Confirm”');
+ expect(card).toContain('Выйдет после вашего «Подтвердить».');
 });

@@ -295,12 +295,36 @@ test('picking a tab by hand is not undone by an address that names none', () => 
   search = new URLSearchParams('');
   const view = render(h(settings.SettingsPopup));
 
-  fireEvent.click(document.querySelector('[data-tab-button="sets"]'));
-  expect(openedTab()).toBe('sets');
+  fireEvent.click(document.querySelector('[data-tab-button="about"]'));
+  expect(openedTab()).toBe('about');
 
   // A re-render for any other reason — the address still names no tab.
   view.rerender(h(settings.SettingsPopup));
-  expect(openedTab()).toBe('sets');
+  expect(openedTab()).toBe('about');
+});
+
+test('upstream tabs leave the rail but still open by address (2q28.26)', () => {
+  search = new URLSearchParams('');
+  const view = render(h(settings.SettingsPopup));
+  for (const hidden of [
+    'webhooks',
+    'autopost',
+    'sets',
+    'signatures',
+    'api',
+    'approved_apps',
+  ]) {
+    expect(
+      document.querySelector(`[data-tab-button="${hidden}"]`)
+    ).toBeNull();
+  }
+  expect(
+    document.querySelector('[data-tab-button="teams"]')
+  ).not.toBeNull();
+
+  search = new URLSearchParams('tab=webhooks');
+  view.rerender(h(settings.SettingsPopup));
+  expect(openedTab()).toBe('webhooks');
 });
 
 test('the known list is exactly what the screen can draw', () => {

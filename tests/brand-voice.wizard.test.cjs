@@ -44,6 +44,14 @@ const {
 } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
+// «Подключить канал» — ссылка роутера Next; jsdom не несёт `self`, который ей
+// нужен для предзагрузки, а проверяется здесь только адрес.
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, prefetch: _prefetch, ...rest }) =>
+    require('react').createElement('a', { href, ...rest }, children),
+}));
+
 /**
  * The two buttons every test in this file presses, named once.
  *
@@ -446,8 +454,21 @@ const analysisReady = () => ({
   rejected: [],
 });
 
-function mount(server, { language = 'ru' } = {}) {
+function mount(
+  server,
+  { language = 'ru', channels = [{ id: 'channel-1' }] } = {}
+) {
   const container = loadWithMocks(CONTAINER, {
+    // Один подключённый канал по умолчанию: «Мои опубликованные посты»
+    // без канала закрыты (`2q28.15`), и это проверяется отдельно.
+    '@contentfactory/frontend/components/launches/helpers/use.integration.list':
+      {
+        useIntegrationList: () => ({
+          data: channels,
+          isLoading: false,
+          error: undefined,
+        }),
+      },
     swr: { __esModule: true, default: createUseSWR() },
     '@contentfactory/helpers/utils/custom.fetch': {
       useFetch: () => server.request,
@@ -826,7 +847,7 @@ describe('the voice wizard on live data', () => {
     await click(openWizard(screen));
     await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
 
-    expect(surface('samples').textContent).toContain('smp-01');
+    expect(surface('samples').textContent).toContain('№ 1');
     await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
     await click(screen.getByRole('button', { name: 'Дальше — предложение' }));
     expect(
@@ -872,7 +893,9 @@ describe('the voice wizard on live data', () => {
     // The refused text is named, with the reason, on the screen the person is
     // looking at — not counted silently into "1 of 2 added".
     expect(surface('samples').textContent).toContain('уже есть в наборе');
-    expect(surface('samples').textContent).toContain('smp-02');
+    expect(surface('samples').textContent).toContain('№ 2');
+    // 2q28.23: the storage code is not shown; the person reads the number.
+    expect(surface('samples').textContent).not.toContain('smp-');
   });
 
   test('deleting a sample says what it cost, in the words the server used', async () => {
@@ -1105,6 +1128,57 @@ describe('the voice wizard on live data', () => {
     expect(posted.body.getAll('files').map((one) => one.name)).toEqual([
       'result.json',
     ]);
+  });
+
+  // Пятый ноль, находка 7 (`2q28.15`): без канала «Выбрать» молча открывала
+  // форму вставки под сгибом страницы, и на экране ничего не происходило.
+  test('with no connected channel the own-posts card says so and leads to /channels', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope({ samples: [] }),
+    });
+    await renderWizard(server, { channels: [] });
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+
+    const card = document.querySelector('[data-voice-source="OWN_POST"]');
+    expect(card.textContent).toContain('Сначала подключите канал');
+    expect(within(card).queryByRole('button', { name: 'Выбрать' })).toBeNull();
+    const link = within(card).getByRole('link', { name: 'Подключить канал' });
+    expect(link.getAttribute('href')).toBe('/channels');
+    expect(document.querySelector('[data-voice-intake]')).toBeNull();
+  });
+
+  test('an opened paste box is scrolled into view and takes the caret', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope({ samples: [] }),
+    });
+    const scrolled = [];
+    const original = window.HTMLElement.prototype.scrollIntoView;
+    window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() {
+      scrolled.push(this);
+    };
+    try {
+      await renderWizard(server);
+      await click(openWizard(screen));
+      await click(
+        screen.getByRole('button', { name: 'Собрать из моих текстов' })
+      );
+      const card = document.querySelector('[data-voice-source="PASTE"]');
+      await click(within(card).getByRole('button', { name: 'Вставить' }));
+
+      const field = document.querySelector(
+        '[data-voice-intake] textarea[name="voice-sample-text"]'
+      );
+      expect(field).not.toBeNull();
+      expect(scrolled).toContain(field);
+      expect(document.activeElement).toBe(field);
+    } finally {
+      window.HTMLElement.prototype.scrollIntoView = original;
+    }
   });
 
   test('a reference upload asks for the right and the erasure date in the same card', async () => {
@@ -1586,6 +1660,49 @@ describe('the wizard adapter', () => {
     );
     expect(en).toMatch(/8[\s,  ]?600/);
     expect(en).not.toMatch(/\b0\b/);
+  });
+
+  test('the corpus goal does not move as short texts arrive (2q28.31)', async () => {
+    const progressFor = async (samples) => {
+      const server = createServer({
+        [`GET ${VOICE_API}/overview`]: overview(),
+        [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+        [`GET ${VOICE_API}/samples`]: samplesEnvelope({
+          samples,
+          readiness: readiness({
+            charCount: samples.reduce((sum, one) => sum + one.charCount, 0),
+            sampleCount: samples.length,
+            // The server's length-based estimate: it must not reach the screen.
+            missingSamples: 18,
+          }),
+        }),
+      });
+      await renderWizard(server);
+      await click(openWizard(screen));
+      await click(
+        screen.getByRole('button', { name: 'Собрать из моих текстов' })
+      );
+      const samplesSurface = surface('samples');
+      const said = {
+        progress: samplesSurface
+          .querySelector('[data-voice-progress]')
+          .textContent.replace(/[\u00a0\u202f]/g, ' '),
+        shortfall: samplesSurface
+          .querySelector('[data-voice-shortfall]')
+          .textContent.replace(/[\u00a0\u202f]/g, ' '),
+      };
+      cleanup();
+      return said;
+    };
+
+    const empty = await progressFor([]);
+    expect(empty.progress).toBe('0 из 8 текстов · 0 из 15 000 знаков');
+    expect(empty.shortfall).toContain('И ещё 8 текстов');
+
+    const two = await progressFor([sampleRow(1, 500), sampleRow(2, 500)]);
+    expect(two.progress).toBe('2 из 8 текстов · 1 000 из 15 000 знаков');
+    expect(two.shortfall).toContain('И ещё 6 текстов');
+    expect(two.shortfall).not.toContain('18');
   });
 
   test('a rejected text is named with its reason rather than dropped', () => {

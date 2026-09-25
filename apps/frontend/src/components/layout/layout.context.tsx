@@ -111,7 +111,7 @@ export function setCookie(cname: string, cvalue: string, exdays: number) {
 }
 function LayoutContextInner(params: { children: ReactNode }) {
   const returnUrl = useReturnUrl();
-  const { backendUrl, isSecured } = useVariables();
+  const { backendUrl, isSecured, billingEnabled } = useVariables();
   const afterRequest = useCallback(
     async (url: string, options: RequestInit, response: Response) => {
       if (
@@ -159,10 +159,10 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (response?.headers?.get('onboarding')) {
         /*
           `content-factory-next-rrs9`: a fresh space lands on the walkthrough
-          itself rather than on a screen with a modal over it. The modal is
-          still reachable at `?onboarding=true` for the channel-connecting step
-          it owns; what changed is where someone with an empty workspace is
-          sent first, and it is now a page they can leave and come back to.
+          itself rather than on a screen with a modal over it. Since 2q28.6
+          the modal is gone and `?onboarding=true` hands over to the same
+          page (`onboarding/onboarding.tsx`): one onboarding, a page someone
+          can leave and come back to.
         */
         window.location.href = '/onboarding';
         return true;
@@ -271,6 +271,19 @@ function LayoutContextInner(params: { children: ReactNode }) {
               'Your plan does not include this action. Change the plan to continue.'
             );
 
+        // Без Stripe оплаты нет (2q28.30): /billing говорит только «Оплата
+        // пока не подключена», и кнопка туда обещала бы то, чего нет. Предел
+        // (например, месячная квота ИИ) остаётся — его объясняют и закрывают.
+        if (!billingEnabled) {
+          await areYouSure({
+            title: i18next.t('plan_refusal_title', 'Plan limit reached'),
+            description,
+            approveLabel: i18next.t('close', 'Close'),
+            onlyApprove: true,
+          });
+          return false;
+        }
+
         if (
           await deleteDialog(
             description,
@@ -285,7 +298,7 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
       return true;
     },
-    []
+    [billingEnabled]
   );
   return (
     <FetchWrapperComponent baseUrl={backendUrl} afterRequest={afterRequest}>

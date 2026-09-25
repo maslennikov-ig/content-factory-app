@@ -108,16 +108,9 @@ function denseTouchTargetMarginBlock() {
 const choiceTabs = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/choice/tabs.tsx'
 );
-const platformBadge = loadTypeScriptModule(
-  'libraries/react-shared-libraries/src/platform/platform.badge.tsx'
-);
-
 const { WorkflowOverview } = loadWithMocks(
   'apps/frontend/src/components/auth/workflow.overview.tsx',
-  {
-    '@contentfactory/react/choice/tabs': choiceTabs,
-    '@contentfactory/react/platform/platform.badge': platformBadge,
-  }
+  {}
 );
 
 const registrationFetch = jest.fn(async () => ({
@@ -211,6 +204,9 @@ const registerMocks = {
   },
   '@contentfactory/frontend/components/layout/loading': {
     LoadingComponent: emptyProvider,
+  },
+  '@contentfactory/frontend/components/auth/approval-marker': {
+    rememberAwaitingApproval: () => undefined,
   },
   '@contentfactory/frontend/components/auth/auth.divider': {
     AuthDivider: emptyProvider,
@@ -318,24 +314,24 @@ afterEach(() => {
 });
 
 describe('auth landing conversion surface', () => {
-  const steps = [
-    { title: 'Plan', body: 'Plan every channel.' },
-    { title: 'Draft', body: 'Write and adapt.' },
-    { title: 'Review', body: 'Resolve checks.' },
-    { title: 'Calendar', body: 'Schedule the result.' },
-  ];
-
-  test('switches the workflow preview with tabs and keyboard arrows', () => {
+  // The auth panel used to be the only dense tab row checked here; the rule
+  // belongs to the primitive, so it is checked on the primitive.
+  test('a dense tab keeps its 44px mobile hit area', () => {
+    const { Tabs, TabList, Tab } = choiceTabs;
     render(
-      h(WorkflowOverview, {
-        heading: 'One workflow',
-        intro: 'See the work before creating an account.',
-        steps,
-      })
+      h(
+        Tabs,
+        { value: 'a', onChange: () => undefined },
+        h(
+          TabList,
+          { 'aria-label': 'Stages' },
+          h(Tab, { value: 'a', density: 'dense', mobileTouchTarget: true }, 'Plan'),
+          h(Tab, { value: 'b', density: 'dense', mobileTouchTarget: true }, 'Draft')
+        )
+      )
     );
 
     const plan = screen.getByRole('tab', { name: 'Plan' });
-    const draft = screen.getByRole('tab', { name: 'Draft' });
     // Visual height is the primitive's: a dense 32px body, with the 44px
     // mobile hit area coming from the reserved pseudo-element rather than a
     // hand-typed `min-h-[44px]` the shared control would strip anyway.
@@ -348,118 +344,50 @@ describe('auth landing conversion surface', () => {
     // 44px target, read from the stylesheet instead of restated here.
     expect(32 + 2 * Number.parseFloat(denseTouchTargetMarginBlock())).toBe(44);
     expect(plan.hasAttribute('mobiletouchtarget')).toBe(false);
-    expect(plan.getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tabpanel').textContent).toContain(
-      'Plan every channel.'
-    );
-
-    plan.focus();
-    fireEvent.keyDown(plan, { key: 'ArrowRight' });
-
-    expect(document.activeElement).toBe(draft);
-    expect(draft.getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tabpanel').textContent).toContain(
-      'Write and adapt.'
-    );
-    expect(screen.queryByText('Plan every channel.')).toBeNull();
   });
 
-  test('keeps the full stage title in the panel while the tab stays compact', () => {
+  /**
+   * 2q28.17: a first-time blogger read «30+ платформ для одного запуска» and
+   * an agency roadmap here. The panel now says, in three lines, what she
+   * gets for her channel.
+   */
+  test('says what the product does for one channel, in three lines', () => {
     render(
       h(WorkflowOverview, {
-        heading: 'One workflow',
-        intro: 'See the work before creating an account.',
+        heading: 'Posts for your Telegram channel, in your own voice',
         steps: [
-          ...steps.slice(0, 3),
-          {
-            title: 'Schedule and publish',
-            tabTitle: 'Schedule',
-            body: 'Queue the result and follow what happened.',
-          },
+          { title: 'Avatar', body: 'Writes posts the way you write.' },
+          { title: 'Adaptation', body: 'Rewrites one thought for each of your channels.' },
+          { title: 'Plan', body: "Puts the posts into the channel's calendar." },
         ],
       })
     );
 
-    const schedule = screen.getByRole('tab', { name: 'Schedule' });
-    fireEvent.click(schedule);
-
-    expect(schedule.getAttribute('aria-selected')).toBe('true');
     expect(
-      screen.getByRole('heading', { name: 'Schedule and publish' })
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'Posts for your Telegram channel, in your own voice',
+      })
     ).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.getByRole('heading', { level: 3, name: 'Avatar' })).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/30\+/);
   });
 
-  test('shows multi-platform publishing and measurement proof before signup', () => {
-    render(
-      h(WorkflowOverview, {
-        heading: 'Create content. Publish everywhere. Track what works.',
-        intro: 'Turn one idea into ready-to-publish content.',
-        platformProof:
-          '30+ platforms in one launch—with reach, clicks, and engagement tracked in one place.',
-        steps,
-      })
+  test('the auth layout no longer advertises platforms or a roadmap', () => {
+    const layout = fs.readFileSync(
+      path.join(repositoryRoot, 'apps/frontend/src/app/(app)/auth/layout.tsx'),
+      'utf8'
     );
-
-    expect(
-      screen.getByText(
-        '30+ platforms in one launch—with reach, clicks, and engagement tracked in one place.'
-      )
-    ).toBeTruthy();
-    for (const platform of [
-      'Instagram',
-      'LinkedIn',
-      'YouTube',
-      'TikTok',
-      'Telegram',
-      'WordPress',
+    expect(layout).not.toMatch(/30\+|platformProof|momentum|auth_overview_/);
+    for (const key of [
+      'auth_pitch_avatar_title',
+      'auth_pitch_adapt_title',
+      'auth_pitch_plan_title',
     ]) {
-      expect(screen.getByRole('img', { name: platform })).toBeTruthy();
+      expect(layout).toContain(`'${key}'`);
     }
-  });
-
-  test('leads with content creation and separates live capability from roadmap', () => {
-    render(
-      h(WorkflowOverview, {
-        heading: 'One workflow',
-        intro: 'See the work before creating an account.',
-        initialStep: 1,
-        steps: [
-          steps[0],
-          {
-            ...steps[1],
-            momentum: {
-              availableLabel: 'Available now',
-              availableBody:
-                'Web research with cited sources and RSS or Telegram feeds turned into drafts.',
-              nextLabel: 'Next on the roadmap',
-              nextBody:
-                'A brand voice profile that carries audience, vocabulary, tone, and rules into every draft.',
-            },
-          },
-          ...steps.slice(2),
-        ],
-      })
-    );
-
-    expect(
-      screen.getByRole('tab', { name: 'Draft' }).getAttribute('aria-selected')
-    ).toBe('true');
-    expect(screen.getByText('Available now')).toBeTruthy();
-    expect(
-      screen.getByText(
-        'Web research with cited sources and RSS or Telegram feeds turned into drafts.'
-      )
-    ).toBeTruthy();
-    expect(screen.getByText('Next on the roadmap')).toBeTruthy();
-    expect(
-      screen.getByText(
-        'A brand voice profile that carries audience, vocabulary, tone, and rules into every draft.'
-      )
-    ).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Plan' }));
-    expect(screen.queryByText('Available now')).toBeNull();
-    expect(screen.queryByText('Next on the roadmap')).toBeNull();
   });
 
   test('marks required account fields and exposes an optional workspace', () => {
@@ -529,12 +457,13 @@ describe('auth landing conversion surface', () => {
       for (const key of [
         'field_required',
         'company_field_helper',
-        'auth_overview_create_tab',
-        'auth_overview_platform_proof',
-        'auth_overview_available_now_label',
-        'auth_overview_available_now_body',
-        'auth_overview_coming_next_label',
-        'auth_overview_coming_next_body',
+        'auth_pitch_heading',
+        'auth_pitch_avatar_title',
+        'auth_pitch_avatar_body',
+        'auth_pitch_adapt_title',
+        'auth_pitch_adapt_body',
+        'auth_pitch_plan_title',
+        'auth_pitch_plan_body',
       ]) {
         expect(messages[key]).toEqual(expect.any(String));
         expect(messages[key].trim()).not.toBe('');

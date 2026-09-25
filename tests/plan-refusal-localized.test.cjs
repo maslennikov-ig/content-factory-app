@@ -99,7 +99,11 @@ const LayoutContext = loadWithMocks(SCREEN, {
     useReturnUrl: () => ({ getAndClear: () => null }),
   },
   '@contentfactory/react/helpers/variable.context': {
-    useVariables: () => ({ backendUrl: '/api', isSecured: true }),
+    useVariables: () => ({
+      backendUrl: '/api',
+      isSecured: true,
+      billingEnabled: true,
+    }),
   },
   '@contentfactory/react/translation/i18next': {
     __esModule: true,

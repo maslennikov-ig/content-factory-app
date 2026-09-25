@@ -2,11 +2,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
-const loadTelegramProvider = (mocks) => {
-  const filename = path.resolve(
-    __dirname,
-    '../apps/frontend/src/components/launches/web3/providers/telegram.provider.tsx'
-  );
+const PROVIDERS = '../apps/frontend/src/components/launches/web3/providers';
+const HOOK =
+  '@contentfactory/frontend/components/launches/web3/providers/use-telegram-connect';
+
+const loadModule = (relative, mocks) => {
+  const filename = path.resolve(__dirname, relative);
   const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     fileName: filename,
     compilerOptions: {
@@ -29,7 +30,20 @@ const loadTelegramProvider = (mocks) => {
     '__dirname',
     compiled
   )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports.TelegramProvider;
+  return loaded.exports;
+};
+
+/**
+ * The dialog and its polling hook, loaded with the same substitutes: since
+ * 2q28.6 the word, the polling and the deadline live in
+ * `use-telegram-connect.ts`, shared with the onboarding channel step.
+ */
+const loadTelegramProvider = (mocks) => {
+  const hook = loadModule(`${PROVIDERS}/use-telegram-connect.ts`, mocks);
+  return loadModule(`${PROVIDERS}/telegram.provider.tsx`, {
+    ...mocks,
+    [HOOK]: hook,
+  }).TelegramProvider;
 };
 
 const textContent = (node) => {
@@ -94,10 +108,10 @@ test('an expired Telegram connection stops polling and starts again with a fresh
     useCallback: (callback) => callback,
     useEffect: () => undefined,
   };
+  // The word is drawn when waiting starts, not on every render.
   const generateConnectWord = jest
     .fn()
     .mockReturnValueOnce('first-word')
-    .mockReturnValueOnce('discarded-render-word')
     .mockReturnValueOnce('fresh-word');
   const fetch = jest
     .fn()
@@ -162,7 +176,7 @@ test('an expired Telegram connection stops polling and starts again with a fresh
     startAgain.props.onClick();
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(generateConnectWord).toHaveBeenCalledTimes(3);
+    expect(generateConnectWord).toHaveBeenCalledTimes(2);
     expect(fetch).toHaveBeenLastCalledWith(
       '/integrations/telegram/updates?word=fresh-word'
     );

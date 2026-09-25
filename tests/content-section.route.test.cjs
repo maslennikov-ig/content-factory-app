@@ -124,7 +124,7 @@ describe('content lives in the working menu', () => {
     // Right after the calendar. The mockup puts it there and the reason is not
     // decoration: it is the section the calendar sends people to. Стоящий
     // выше «С чего начать» (07.09.2026) — временная строка, она пропадает,
-    // когда все шесть шагов пройдены, поэтому проверяется соседство с
+    // когда все пять шагов пройдены, поэтому проверяется соседство с
     // календарём, а не место в списке.
     expect(paths.indexOf('/content')).toBe(paths.indexOf('/launches') - 1);
     expect(workMenu[paths.indexOf('/content')].name).toBe('Content');
@@ -421,8 +421,17 @@ describe('the Content frame is reviewable without a network', () => {
    const { workMenu, secondaryMenu, adminMenu } = await menuFor('ru');
    expect(workMenu.map((item) => item.path)).toEqual(['/onboarding', '/content?tab=avatars', '/channels', '/content', '/launches', '/analytics']);
    expect(workMenu.map((item) => item.step)).toEqual([0, 1, 2, 3, 4, 5]);
-   expect(secondaryMenu.map((item) => item.path)).toEqual(['/agents', '/media', '/plugs', '/help']);
+   // 2q28.26: «Агент» and «Плагины» are upstream surfaces the sidebar no
+   // longer offers; `hidden-upstream-surfaces.ts` is the one list.
+   expect(secondaryMenu.map((item) => item.path)).toEqual(['/media', '/help']);
    expect(adminMenu.map((item) => item.path)).toEqual(['/settings']);
+ });
+
+ test('a hidden menu entry keeps its page title', async () => {
+   const { all } = await menuFor('ru');
+   expect(all.map((item) => item.path)).toEqual(
+     expect.arrayContaining(['/agents', '/plugs', '/analytics'])
+   );
  });
  test('a sidebar navigation updates the already mounted content screen', () => {
    const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');

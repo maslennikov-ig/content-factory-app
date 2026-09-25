@@ -51,7 +51,11 @@ export function FieldLabel({
   return (
     <Wrapper
       data-field-label="true"
-      className={clsx('flex min-w-0 flex-wrap items-center gap-[4px]', className)}
+      // No wrap between the name and its «?» (2q28.32): in a narrow column
+      // «Формат по умолчанию» pushed the «?» onto a line of its own, where it
+      // read as belonging to nothing. The name wraps inside itself instead,
+      // and the «?» stays on its row.
+      className={clsx('flex min-w-0 items-center gap-[4px]', className)}
     >
       {Heading ? (
         <Heading id={id} className={labelClassName}>
@@ -67,7 +71,7 @@ export function FieldLabel({
         </span>
       )}
       {hint && hintLabel ? (
-        <Hint label={hintLabel} side={hintSide}>
+        <Hint label={hintLabel} side={hintSide} className="shrink-0">
           {hint}
         </Hint>
       ) : null}

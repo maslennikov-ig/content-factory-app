@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Panel } from '@contentfactory/react/layout';
 import type { BillingPlanViewModel } from './billing-first-use.view';
 
 export function resolveBillingManageState({
@@ -35,7 +36,8 @@ export function BillingManageView({
     | 'error'
     | 'restricted'
     | 'disabled'
-    | 'long-content';
+    | 'long-content'
+    | 'unavailable';
   locale: 'en' | 'ru';
   plans: readonly BillingPlanViewModel[];
   currentPlan: string;
@@ -57,6 +59,35 @@ export function BillingManageView({
         aria-busy="true"
         className="h-[360px] rounded-[8px] bg-cf-surface-subtle"
       />
+    );
+  /**
+   * The instance has no payments at all (no `STRIPE_PUBLISHABLE_KEY`,
+   * 2q28.30). Upstream's tiers in dollars are not this product's offer, and
+   * with no Stripe nothing on them could be bought, so the screen says the
+   * one thing that is true and stops.
+   */
+  if (state === 'unavailable')
+    return (
+      <section
+        data-billing-view="unavailable"
+        className="min-w-0 bg-cf-canvas p-[24px] text-cf-ink mobile:p-[16px]"
+      >
+        <h1 className="cf-heading-lg text-balance">
+          {ru ? 'Тариф и оплата' : 'Plan and billing'}
+        </h1>
+        <Panel
+          as="div"
+          role="status"
+          contentPadding="snug"
+          className="mt-[16px] max-w-[70ch]"
+        >
+          <p className="cf-body-md text-cf-ink text-pretty">
+            {ru
+              ? 'Оплата пока не подключена. Пока идёт тест, всё доступно без оплаты.'
+              : 'Payments are not connected yet. While we are testing, everything is available without paying.'}
+          </p>
+        </Panel>
+      </section>
     );
   if (state === 'restricted')
     return (

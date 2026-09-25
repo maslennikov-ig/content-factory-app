@@ -277,14 +277,15 @@ export const CalendarWeekProvider: FC<{
       customer: filters?.customer?.toString() || '',
       ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
       state: listState,
-      ...(filters.editorialStage
-        ? { editorialStage: filters.editorialStage }
-        : {}),
+      // No editorialStage here (2q28.25): the list has one status control,
+      // the state tabs, and a stage chosen in the calendar must not narrow a
+      // list that no longer shows the stage select. The filter stays in
+      // `filters`, so going back to the calendar keeps it.
       // Omitted when empty: an empty `q` is no search, and the key stays the
       // one the list had before search existed.
       ...(listSearched ? { q: listSearched } : {}),
     }).toString();
-  }, [listPage, filters.customer, filters.integrationId, filters.editorialStage, listState, listSearched]);
+  }, [listPage, filters.customer, filters.integrationId, listState, listSearched]);
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);

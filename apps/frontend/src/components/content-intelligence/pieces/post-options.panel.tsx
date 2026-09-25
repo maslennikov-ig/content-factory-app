@@ -142,8 +142,8 @@ export type ChannelScopeProps = CommonProps & {
  * текст, — при переписывании, и пока текст старше настроек, рядом с
  * «Переписать по настройкам» (сверху панели, `97dq.78`) стоит тихое «применится при переписывании».
  *
- * Область канала (карточка канала): те же поля с его значениями, сохраняются
- * кнопкой карточки; «План» — сразу, отдельно от карточки.
+ * Область канала (карточка канала): те же поля с его значениями, и «План»
+ * вместе с ними, сохраняются одной кнопкой карточки (`2q28.19`).
  */
 export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) {
   const { locale, avatars, disabled = false, plan, footer, describedBy } = props;
@@ -581,6 +581,7 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
             align="start"
             actionData={{
               'data-post-options-rewrite': adaptFirst ? 'adapt' : 'true',
+              'data-tour': adaptFirst ? 'adaptation-adapt' : 'adaptation-rewrite',
             }}
             onClick={post.onRewrite}
             items={primaryItems}
@@ -594,6 +595,7 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
             density="dense"
             disabled={rewriteOff}
             data-post-options-rewrite={adaptFirst ? 'adapt' : 'true'}
+            data-tour={adaptFirst ? 'adaptation-adapt' : 'adaptation-rewrite'}
             onClick={post.onRewrite}
           >
             {primaryLabel}
@@ -667,6 +669,7 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
     <Panel
       className="min-w-0"
       contentClassName="flex min-w-0 flex-col gap-[12px]"
+      data-tour={scope === 'post' ? 'adaptation-panel' : undefined}
     >
       {/*
         Шапка (`97dq.78`): «Настройки поста», счёт изменений, «Сохранено ·
@@ -717,7 +720,9 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
           'grid min-w-0 items-center gap-x-[12px] gap-y-[8px]',
           scope === 'post'
             ? 'grid-cols-[112px_minmax(0,1fr)]'
-            : 'grid-cols-[112px_minmax(0,1fr)] sm:grid-cols-[160px_minmax(0,1fr)]'
+            : // 176, not 160 (2q28.32): «Формат по умолчанию» and its «?»
+              // fit one line on the channel card.
+              'grid-cols-[112px_minmax(0,1fr)] sm:grid-cols-[176px_minmax(0,1fr)]'
         )}
       >
         {planRow}

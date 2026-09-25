@@ -31,7 +31,7 @@ const mocks = {
   '../launches/calendar.context': { CalendarContext: React.createContext({}), calendarDefaults: {} },
   '../launches/add.provider.component': {
     AddProviderButton: ({ label = 'Подключить канал', renderTrigger }) => role === 'ADMIN' ? renderTrigger ? renderTrigger(action) : h('button', { onClick: action }, label) : null,
-    AddProviderComponent: ({ social }) => h('div', null, social.map(provider => h('button', { key: provider.identifier, onClick: action }, provider.name))),
+    AddProviderComponent: ({ social, featured }) => h('div', { 'data-featured': featured ? featured.identifier : '' }, featured && h('p', null, `${featured.action} · ${featured.othersLabel}`), social.map(provider => h('button', { key: provider.identifier, onClick: action }, provider.name))),
   },
   './channel-parts': {
     ChannelAvatar: () => null,
@@ -91,6 +91,11 @@ test('cards and rows route to the same detail; action clicks do not navigate the
 test('empty state renders real provider catalog flow; readers do not receive connection controls', () => {
   rows = []; const result = render(h(ChannelsScreen));
   expect(screen.getByText('Каналов пока нет')).toBeTruthy();
+  // Telegram first, the rest folded (`2q28.24`): the picker's own rendering is
+  // in `channels.empty-telegram-first.test.cjs`.
+  expect(document.querySelector('[data-featured="telegram"]')).not.toBeNull();
+  expect(screen.getByText('Подключить Telegram · Другие площадки')).toBeTruthy();
+  expect(document.body.textContent).not.toMatch(/умолчани/);
   fireEvent.click(screen.getByRole('button', { name: 'Telegram' }));
   expect(action).toHaveBeenCalledTimes(1);
   result.unmount(); role = 'USER'; render(h(ChannelsScreen));
@@ -140,4 +145,26 @@ test('mobile list CSS always keeps cards, hides desktop switch/table at the name
   fireEvent.click(screen.getByRole('button', { name: 'Попробовать снова' }));
   expect(reload).toHaveBeenCalled();
   expect(screen.queryByText('Каналов пока нет')).toBeNull();
+});
+
+test('counts on the channel card agree with the number (2q28.21)', () => {
+  const { channelsCopy } = loadWithMocks(path + 'channels.copy.ts');
+  const t = channelsCopy.ru;
+  expect([1, 3, 5, 21, 12].map(t.slots)).toEqual([
+    '1 публикация в день',
+    '3 публикации в день',
+    '5 публикаций в день',
+    '21 публикация в день',
+    '12 публикаций в день',
+  ]);
+  expect([1, 2, 11].map(t.posts)).toEqual(['1 пост', '2 поста', '11 постов']);
+  rows = [{ ...base, id: 'one', name: 'Первый', time: [{ time: 360 }, { time: 600 }, { time: 960 }], postsSummary: { total: 4, lastPostAt: null } }];
+  render(h(ChannelsScreen));
+  const card = document.querySelector('[data-channel-id="one"]');
+  expect(card.textContent).toContain('4 поста');
+  expect(card.textContent).toContain('3 публикации в день');
+  expect(card.textContent).not.toContain('слотов');
+  // Готовые настройки — обычным словом, без «умолчаний» (`2q28.24`).
+  expect(card.textContent).toContain('Пишем по готовым настройкам площадки.');
+  expect(card.textContent).not.toMatch(/умолчани|не заполнена/);
 });

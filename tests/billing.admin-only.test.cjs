@@ -238,3 +238,38 @@ describe('an unknown user is loading; trial words only for the one who can pay',
     for (const key of Object.keys(ru)) expect(dialog).toContain(`words.${key}`);
   });
 });
+
+describe('an instance without Stripe shows one card, not tiers (2q28.30)', () => {
+  test.each(['ru', 'en'])('unavailable (%s): no tiers, no prices, one plain sentence', (locale) => {
+    const markup = renderToStaticMarkup(
+      h(BillingManageView, {
+        state: 'unavailable',
+        locale,
+        plans: PLANS,
+        currentPlan: 'FREE',
+        period: 'MONTHLY',
+      })
+    );
+    expect(markup).toContain('data-billing-view="unavailable"');
+    expect(markup).not.toContain('$');
+    expect(markup).not.toContain('Standard');
+    expect(markup).toMatch(
+      locale === 'ru'
+        ? /Оплата пока не подключена\. Пока идёт тест, всё доступно без оплаты\./
+        : /Payments are not connected yet/
+    );
+  });
+
+  test('the screen asks nothing of the server when billing is off', () => {
+    const screen = read('apps/frontend/src/components/billing/billing.component.tsx');
+    expect(screen).toContain("useSWR(billingEnabled ? '/user/subscription/tiers' : null, load)");
+    expect(screen).toContain("useSWR(billingEnabled ? '/user/subscription' : null, load)");
+    expect(screen).toMatch(/if \(!billingEnabled\) \{\s+return \(\s+<BillingManageView\s+state="unavailable"/);
+  });
+
+  test('the tier cards read their features in the screen language', () => {
+    const main = read('apps/frontend/src/components/billing/main.billing.component.tsx');
+    expect(main).toContain('<BillingFeatures tier={pack} stacked={true} />');
+    expect(main).not.toMatch(/'\/month'|'\/year'|AI copilots/);
+  });
+});

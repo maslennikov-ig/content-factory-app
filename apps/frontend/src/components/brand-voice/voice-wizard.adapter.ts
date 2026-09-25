@@ -122,7 +122,7 @@ export const wizardCopy = {
       'Запрос не дошёл до сервера. Ничего не потеряно — образцы и принятые поля хранятся на сервере.',
     shortfallChars: (missing: string) => `Не хватает ${missing} знаков`,
     shortfallSamples: (missing: number) =>
-      `${missing} ${plural(missing, ['образец', 'образца', 'образцов'])}`,
+      `${missing} ${plural(missing, ['текст', 'текста', 'текстов'])}`,
     shortfallLead: 'Разбор пока не запускается.',
     back: 'Назад',
     intakeTitle: 'Добавить текст',
@@ -183,7 +183,7 @@ export const wizardCopy = {
       'The request did not reach the server. Nothing is lost — samples and decided fields are kept on the server.',
     shortfallChars: (missing: string) => `${missing} characters short`,
     shortfallSamples: (missing: number) =>
-      `${missing} ${missing === 1 ? 'sample' : 'samples'} short`,
+      `${missing} ${missing === 1 ? 'text' : 'texts'} short`,
     shortfallLead: 'The analysis does not start yet.',
     back: 'Back',
     intakeTitle: 'Add a text',
@@ -803,7 +803,7 @@ export function readProposal(value: unknown): ProposalReading {
  * sits beside an own one.
  */
 export function shortfallText(
-  readiness: Pick<CorpusReadinessV1, 'missingChars' | 'missingSamples'>,
+  readiness: Pick<CorpusReadinessV1, 'missingChars' | 'sampleCount'>,
   locale: VoiceLocale
 ): string {
   const t = wizardCopy[locale];
@@ -811,8 +811,12 @@ export function shortfallText(
   if (readiness.missingChars > 0) {
     parts.push(t.shortfallChars(formatChars(readiness.missingChars, locale)));
   }
-  if (readiness.missingSamples > 0) {
-    parts.push(t.shortfallSamples(readiness.missingSamples));
+  // Counted against the fixed floor, not the server's length-based estimate
+  // (2q28.31): that estimate grows as short texts arrive, while the gate it
+  // guards is met exactly when eight texts and the volume are both in.
+  const missingSamples = Math.max(0, MIN_CORPUS_SAMPLES - readiness.sampleCount);
+  if (missingSamples > 0) {
+    parts.push(t.shortfallSamples(missingSamples));
   }
   if (!parts.length) return '';
   return `${parts.join(locale === 'ru' ? ' и ещё ' : ', ')}. ${t.shortfallLead}`;

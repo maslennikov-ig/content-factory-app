@@ -17,6 +17,11 @@ import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
 import { PiecesContainer } from './pieces/pieces.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
+import { useAssistantAvailability } from '../copilot/assistant-availability';
+import {
+  TOUR_REVEALS_ATTR,
+  type TourRevealsState,
+} from '../guided-tour/guided-tour.contract';
 import {
   SECTION_TAB_LIST_CLASS,
   SectionTabPanel,
@@ -116,11 +121,18 @@ export function ContentSectionShell({
   locale,
   tab,
   onTabChange,
+  briefReveals,
   children,
 }: {
   locale: ContentSectionLocale;
   tab: ContentTab;
   onTabChange: (tab: ContentTab) => void;
+  /**
+   * Whether opening «Бриф» brings the intake's kinds and input, for the
+   * piece tour (`TOUR_REVEALS_ATTR`). The caller knows; the frame only
+   * writes it on the tab.
+   */
+  briefReveals?: TourRevealsState;
   children: ReactNode;
 }) {
   const t = contentSectionCopy[locale];
@@ -173,6 +185,10 @@ export function ContentSectionShell({
               <Tab
                 key={value}
                 value={value}
+                data-tour={value === 'brief' ? 'piece-new' : undefined}
+                {...(value === 'brief' && briefReveals
+                  ? { [TOUR_REVEALS_ATTR]: briefReveals }
+                  : {})}
                 // The shared strip (`ui/section-tabs`, `97dq.76`).
                 className={sectionTabClass(tab === value)}
               >
@@ -249,8 +265,27 @@ export function ContentSectionScreen({
     }
   }, []);
 
+  /*
+    Без модели «Бриф» показывает «Написать пока нечем» вместо видов и поля,
+    и тур заготовки, нажав вкладку за человека, повисал на «1 из 3»
+    (проверка стенда 25.09.2026, D4). Запрос тот же, что у строки остатка и
+    у самого входа, — SWR отдаёт его одним.
+  */
+  const availability = useAssistantAvailability(tab !== 'avatars');
+  const briefReveals: TourRevealsState =
+    availability === 'checking'
+      ? 'pending'
+      : availability === 'unavailable'
+      ? 'off'
+      : 'on';
+
   return (
-    <ContentSectionShell locale={locale} tab={tab} onTabChange={changeTab}>
+    <ContentSectionShell
+      locale={locale}
+      tab={tab}
+      onTabChange={changeTab}
+      briefReveals={briefReveals}
+    >
       {/*
         Three tabs hold live work rather than a settings form. `avatars` is the
         measured voice, edited on the card that shows it. `brief` is the radar

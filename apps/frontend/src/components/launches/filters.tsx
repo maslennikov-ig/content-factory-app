@@ -468,6 +468,7 @@ export const Filters = () => {
         <Segmented<'calendar' | 'list'>
           label={copy.toolbarView}
           iconOnly
+          data-tour="plan-view"
           value={isListView ? 'list' : 'calendar'}
           options={[
             { value: 'calendar', label: copy.toolbarViewCalendar, icon: <CalendarViewIcon /> },
@@ -504,7 +505,13 @@ export const Filters = () => {
             </option>
           ))}
         </Select>
-        <EditorialStageFilter value={calendar.editorialStage} onChange={setStage} />
+        {/*
+          The list has its own status tabs in row 1; a second status control
+          («Все этапы») beside them was the same question twice (2q28.25).
+        */}
+        {!isListView && (
+          <EditorialStageFilter value={calendar.editorialStage} onChange={setStage} />
+        )}
         <SelectCustomer
           customer={calendar.customer as string}
           onChange={(customer: string) => setCustomer(customer)}
@@ -517,6 +524,7 @@ export const Filters = () => {
           */
           <span
             data-calendar-list-search="true"
+            data-tour="plan-search"
             className="inline-flex min-w-0 max-w-full items-center gap-[4px]"
           >
             <Input

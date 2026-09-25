@@ -514,7 +514,9 @@ export function VoiceProposalScreen({
                           </p>
                           <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                             «{observation.quote}»{' '}
-                            <span className="cf-caption">{observation.sampleCode}</span>
+                            <span className="cf-caption">
+                              {t.sampleRef(observation.sampleCode)}
+                            </span>
                           </p>
                         </div>
                       ))}

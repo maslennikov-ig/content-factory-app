@@ -311,6 +311,7 @@ export function VoiceAvatarsScreen({
             type="button"
             variant="primary"
             disabled={atLimit || busy}
+            data-tour="avatar-create"
             onClick={() => onCreate?.()}
           >
             {t.avatarsCreate}
@@ -377,7 +378,10 @@ export function VoiceAvatarsScreen({
           ) : null}
         </Panel>
       ) : (
-        <ul className="grid min-w-0 grid-cols-1 gap-[16px] md:grid-cols-2">
+        <ul
+          data-tour="avatar-list"
+          className="grid min-w-0 grid-cols-1 gap-[16px] md:grid-cols-2"
+        >
           {avatars.map((avatar) => {
             const isRenaming = renamingId === avatar.id;
             const menuOpen = openMenuId === avatar.id;

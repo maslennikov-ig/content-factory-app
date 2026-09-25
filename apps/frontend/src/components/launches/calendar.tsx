@@ -82,7 +82,12 @@ import {
   resolveEditorialStageLocale,
   EditorialStageValue,
 } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
-import { StatusTone } from '@contentfactory/frontend/components/ui/surface';
+import {
+  EmptyState,
+  StatusTone,
+} from '@contentfactory/frontend/components/ui/surface';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
+import { NEW_PIECE_PATH } from '../content-intelligence/pieces/pieces.adapter';
 import {
   BracketsIcon,
   ChannelMarks,
@@ -697,10 +702,22 @@ export const ListView = () => {
     );
   }
 
+  // An empty list offers one way on (2q28.25): the same «Новая заготовка»
+  // the placement window ends with. Not after a search — there the way on is
+  // other words — and not for a reader, who cannot write one.
   if (listPosts.length === 0) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center">
-        <div className="text-textColor text-[16px]">{emptyMessage}</div>
+        <EmptyState
+          title={emptyMessage}
+          action={
+            !listSearched && isOrganizationEditor(user?.role) ? (
+              <ButtonLink href={NEW_PIECE_PATH} variant="secondary">
+                {planning.newPiece}
+              </ButtonLink>
+            ) : undefined
+          }
+        />
       </div>
     );
   }

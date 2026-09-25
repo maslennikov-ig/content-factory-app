@@ -255,6 +255,7 @@ export function IntakeScreen({
                 label={t.kindLabel}
                 value={materialKind}
                 data-intake-material-kind={materialKind}
+                data-tour="piece-kind"
                 options={[
                   {
                     value: 'thought',
@@ -301,6 +302,7 @@ export function IntakeScreen({
                 layout="composer"
                 id="intake-input"
                 name="intake-input"
+                data-tour="piece-input"
                 aria-label={t.inputLabel}
                 placeholder={t.inputPlaceholder}
                 className="w-full max-w-[80ch]"

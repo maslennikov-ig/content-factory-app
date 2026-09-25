@@ -368,15 +368,21 @@ describe('Content Factory Telegram connect word', () => {
   });
 
   test('is the word the Telegram connect flow actually uses', () => {
-    const provider = fs.readFileSync(
-      path.join(
-        repositoryRoot,
-        'apps/frontend/src/components/launches/web3/providers/telegram.provider.tsx'
-      ),
-      'utf8'
-    );
-
-    expect(provider).toContain('generateConnectWord()');
+    const source = (file) =>
+      fs.readFileSync(
+        path.join(
+          repositoryRoot,
+          `apps/frontend/src/components/launches/web3/providers/${file}`
+        ),
+        'utf8'
+      );
+    // 2q28.6: the word and the polling live in one hook, shared by the
+    // connect dialog and the channel step of «С чего начать».
+    const hook = source('use-telegram-connect.ts');
+    expect(hook).toContain('generateConnectWord()');
+    expect(hook).not.toContain('makeId');
+    const provider = source('telegram.provider.tsx');
+    expect(provider).toContain('useTelegramConnect');
     expect(provider).not.toContain('makeId');
   });
 });

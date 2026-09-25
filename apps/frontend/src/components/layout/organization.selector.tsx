@@ -151,7 +151,7 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
             current ? workspaceDisplayName(current.name, t) : ''
           }`}
           density="dense"
-          className="max-w-[180px] px-[10px] rounded-[8px] flex items-center gap-[6px] text-[13px] font-[600] text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink transition-colors duration-state"
+          className="max-w-[96px] sm:max-w-[180px] px-[10px] rounded-[8px] flex items-center gap-[6px] text-[13px] font-[600] text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink transition-colors duration-state"
         >
           <span className="truncate">
             {current ? workspaceDisplayName(current.name, t) : label}

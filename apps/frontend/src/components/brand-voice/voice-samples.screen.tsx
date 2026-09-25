@@ -4,6 +4,7 @@ import { Panel } from '@contentfactory/react/layout';
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { FileInput } from '@contentfactory/react/form/file-input';
 import { Input } from '@contentfactory/react/form/input';
@@ -12,8 +13,8 @@ import {
   LOW_CONFIDENCE_CHARS,
   LOW_CONFIDENCE_SAMPLES,
   MIN_CORPUS_CHARS,
+  MIN_CORPUS_SAMPLES,
   confidenceReasonsFor,
-  requiredSamples,
   formatBytes,
   formatChars,
   voiceCopy,
@@ -32,8 +33,9 @@ import {
  * меньшем объёме разбор находит случайные привычки вместо устойчивых" — is why
  * the gate exists, and it is the difference between a rule and a wall.
  *
- * Two floors, not one. Volume alone lets four long documents through, and
- * short-form writing needs count as well; the second shortfall line says so.
+ * Two floors, not one. Volume alone lets four long documents through, so the
+ * count is a floor too; the progress line carries both, each towards a goal
+ * that does not move.
  */
 
 export type SampleOriginLabel =
@@ -200,6 +202,7 @@ export function VoiceSamplesScreen({
   onNext,
   allowanceHint,
   notice,
+  ownPostsNeedChannel = false,
 }: {
   locale: VoiceLocale;
   state?: VoiceSamplesState;
@@ -227,6 +230,13 @@ export function VoiceSamplesScreen({
    */
   allowanceHint?: ReactNode;
   notice?: string;
+  /**
+   * No channel is connected, so «Мои опубликованные посты» has nothing to take
+   * from (`content-factory-next-2q28.15`). The card says so and its action
+   * leads to /channels. Its button used to open the paste box below the fold,
+   * which on screen looked like nothing happened.
+   */
+  ownPostsNeedChannel?: boolean;
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading';
@@ -234,12 +244,12 @@ export function VoiceSamplesScreen({
   const sending = upload?.phase === 'sending';
   const charCount = samples.reduce((sum, one) => sum + one.charCount, 0);
   const missingChars = Math.max(0, MIN_CORPUS_CHARS - charCount);
-  // Eight long articles and eight short posts are not the same corpus, and
-  // this screen used to ask the same eight of both.
-  const missingSamples = Math.max(
-    0,
-    requiredSamples(charCount, samples.length) - samples.length
-  );
+  // One fixed goal, eight texts and fifteen thousand characters (2q28.31).
+  // The estimate derived from the average length grew as short posts arrived
+  // («И ещё 8» became «И ещё 18»). It is the same gate as the server's: once
+  // the volume is there, the length-based count never exceeds the texts in
+  // hand, so the only count left to reach is the floor.
+  const missingSamples = Math.max(0, MIN_CORPUS_SAMPLES - samples.length);
   const ready = missingChars === 0 && missingSamples === 0;
   /**
    * Enough to compute is not the same as enough to trust, and the label alone
@@ -311,6 +321,8 @@ export function VoiceSamplesScreen({
             // под обеими значило бы показать один и тот же файл дважды.
             const showsPicked = isFileCard && (upload?.origin ?? 'FILE') === key;
             const disabled = !source.available || state === 'restricted';
+            const needsChannel =
+              key === 'OWN_POST' && ownPostsNeedChannel && source.available;
             return (
               <div
                 key={key}
@@ -325,12 +337,22 @@ export function VoiceSamplesScreen({
                   <div className="min-w-0">
                     <p className="cf-body-sm text-cf-ink">{meta.title}</p>
                     <p className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                      {source.available
+                      {needsChannel
+                        ? t.sourceOwnPostsNeedChannel
+                        : source.available
                         ? meta.hint
                         : source.unavailableReason ?? meta.hint}
                     </p>
                   </div>
-                  {isFileCard ? (
+                  {needsChannel ? (
+                    <ButtonLink
+                      href="/channels"
+                      variant="secondary"
+                      data-voice-connect-channel="true"
+                    >
+                      {t.connectChannel}
+                    </ButtonLink>
+                  ) : isFileCard ? (
                     <FileInput
                       name={
                         key === 'FILE'
@@ -479,9 +501,11 @@ export function VoiceSamplesScreen({
             >
               {formatChars(charCount, locale)}
             </p>
-            <p className="mt-[4px] cf-caption text-cf-ink-muted">
-              {t.ofMinimum} · {t.minimumNeeded}{' '}
-              {formatChars(MIN_CORPUS_CHARS, locale)}
+            <p
+              className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+              data-voice-progress="true"
+            >
+              {t.progress(samples.length, charCount)}
             </p>
 
             {ready ? (
@@ -603,7 +627,7 @@ export function VoiceSamplesScreen({
                             }
                             label={
                               <span className="whitespace-nowrap cf-label-sm text-cf-ink">
-                                {sample.code}
+                                {t.sampleRef(sample.code)}
                               </span>
                             }
                           />

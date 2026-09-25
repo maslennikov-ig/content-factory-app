@@ -124,9 +124,9 @@ describe('the door is one field, and its refusals are readable', () => {
   // кружок с вопросом рядом с флажком, а строки под флажком нет.
   test('the research checkbox carries a hint and no caption beneath it', () => {
     draw({ state: 'idle' });
-    const hint = screen.getByRole('button', { name: 'Подсказка: что такое ресерч' });
+    const hint = screen.getByRole('button', { name: 'Подсказка: поиск в интернете' });
     expect(hint).not.toBeNull();
-    const checkbox = screen.getByRole('checkbox', { name: 'Нужен ресерч' });
+    const checkbox = screen.getByRole('checkbox', { name: 'Поискать в интернете' });
     expect(checkbox).not.toBeNull();
     expect(document.body.textContent).not.toContain('Соберём внешние опоры');
     expect(document.body.textContent).not.toContain('платный расход');

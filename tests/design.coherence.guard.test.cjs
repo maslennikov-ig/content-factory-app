@@ -91,7 +91,6 @@ const DISCLOSURE_PATTERN = /<details\b|[▸▾▴]/;
 const DISCLOSURE_ALLOWED = [
   'apps/frontend/src/components/content-intelligence/content-facts.container.tsx',
   'apps/frontend/src/components/help/help-disclosure.tsx',
-  'apps/frontend/src/components/help/help.copy.ts',
   'apps/frontend/src/components/new-launch/provenance.line.tsx',
 ];
 

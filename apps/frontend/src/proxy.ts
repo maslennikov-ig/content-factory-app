@@ -20,6 +20,13 @@ const PENDING_TEAM_INVITATION_COOKIE = 'pending-team-invitation';
 // registration that waits for an administrator's approval outlives any short
 // cookie: fifteen minutes lost the invitation for everyone approved later.
 const PENDING_TEAM_INVITATION_TTL_SECONDS = 2 * 24 * 60 * 60;
+// 2q28.16: set by the browser when the server answered «awaiting approval»
+// (`components/auth/approval-marker.ts`, which this file cannot import — the
+// proxy runs ahead of the application bundle). It is not a credential: it only
+// sends an unauthenticated visitor to the waiting screen rather than to the
+// sign-up form, and any session clears it. The two names are held equal by
+// `tests/proxy-awaiting-approval.test.cjs`.
+export const AWAITING_APPROVAL_COOKIE = 'cf-awaiting-approval';
 const isInviteToken = (value?: string | null) =>
   !!value && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
 
@@ -40,6 +47,44 @@ export const PUBLIC_PATHS = [
   '/subprocessors',
 ];
 
+/**
+ * 2q28.12: the landing after sign-in. Every sign-in ends on `/` (the login
+ * answer reloads `/auth/login`, which a session sends here), so this is the
+ * one place that decides where a signed-in person starts — and it asks only
+ * on the root, never on an ordinary navigation. A founder whose path is still
+ * open starts on «С чего начать»; everyone else, and any failure to ask,
+ * lands where they always did. An impersonating operator is left alone.
+ */
+async function onboardingLanding(request: NextRequest): Promise<string | null> {
+  const backend = process.env.BACKEND_INTERNAL_URL;
+  const auth = request.cookies.get('auth')?.value || request.headers.get('auth');
+  if (!backend || !auth || request.cookies.get('impersonate')?.value) {
+    return null;
+  }
+  try {
+    // Loaded here, not at the top: only the root landing needs the rule, and
+    // it stays the walkthrough's own (`onboarding.adapter.ts`), not a copy.
+    const { ONBOARDING_PROGRESS_API, readProgress, signedInLanding } =
+      await import(
+        '@contentfactory/frontend/components/onboarding/onboarding.adapter'
+      );
+    const showorg = request.cookies.get('showorg')?.value;
+    const response = await fetch(`${backend}${ONBOARDING_PROGRESS_API}`, {
+      headers: {
+        auth,
+        ...(showorg ? { showorg } : {}),
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) return null;
+    return signedInLanding(readProgress(await response.json()));
+  } catch {
+    return null;
+  }
+}
+
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
@@ -51,6 +96,8 @@ export async function proxy(request: NextRequest) {
   const pendingInvitation = request.cookies.get(
     PENDING_TEAM_INVITATION_COOKIE
   )?.value;
+  const awaitingApproval =
+    request.cookies.get(AWAITING_APPROVAL_COOKIE)?.value === '1';
   const cookieLanguage = request.cookies.get(cookieName)?.value;
   // `acceptLanguage.get` answers with the first configured language when it
   // matches nothing, so ask separately whether the browser named a language
@@ -84,6 +131,16 @@ export async function proxy(request: NextRequest) {
       headers: requestHeaders,
     },
   });
+
+  // A session means the account is past approval (or never needed it), so
+  // the waiting-screen marker has nothing left to say.
+  if (authCookie && awaitingApproval) {
+    topResponse.cookies.set(AWAITING_APPROVAL_COOKIE, '', {
+      path: '/',
+      maxAge: -1,
+      expires: new Date(0),
+    });
+  }
 
   // A negotiated language also has to reach the browser, because the client
   // detector reads the cookie and nothing else: without this the first paint
@@ -282,6 +339,12 @@ export async function proxy(request: NextRequest) {
 
   const url = new URL(nextUrl).search;
   if (!nextUrl.pathname.startsWith('/auth') && !authCookie) {
+    // 2q28.16: this browser was told the account waits for approval. The
+    // sign-up form would invite a second registration; the waiting screen
+    // says what happens next and still links to sign-in.
+    if (awaitingApproval) {
+      return NextResponse.redirect(new URL('/auth/pending', nextUrl.href));
+    }
     const providers = ['google', 'settings'];
     const findIndex = providers.find((p) => nextUrl.href.indexOf(p) > -1);
     const additional = !findIndex
@@ -320,9 +383,11 @@ export async function proxy(request: NextRequest) {
   }
   try {
     if (nextUrl.pathname === '/') {
+      const onboarding = await onboardingLanding(request);
       return NextResponse.redirect(
         new URL(
-          !!process.env.IS_GENERAL ? '/launches' : `/analytics`,
+          onboarding ??
+            (!!process.env.IS_GENERAL ? '/launches' : `/analytics`),
           nextUrl.href
         )
       );
