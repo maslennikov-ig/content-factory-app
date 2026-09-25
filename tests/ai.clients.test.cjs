@@ -309,6 +309,19 @@ describe('per-organization AI clients', () => {
     expect(clients.WEB_SEARCH_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
+  test('a chat model never streams, even inside streamEvents (sixteenth walk B1)', async () => {
+    await clients.getChatModel(register(openrouter));
+
+    expect(built.chat[0].disableStreaming).toBe(true);
+  });
+
+  test('on the own key a whole answer gets the generation room of its raised ceiling (97dq.95)', async () => {
+    await clients.getChatModel(register(openrouter), 0.7, 2247);
+
+    // 60 s to the answer plus 100 tokens a second over 2 247 + 8 192.
+    expect(built.chat[0].timeout).toBe(60_000 + Math.ceil((2247 + 8192) * 10));
+  });
+
   test('the same configuration is reused, a changed one is not', async () => {
     const organization = register(openrouter);
     const neighbour = register(plainOpenAi);

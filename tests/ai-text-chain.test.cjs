@@ -722,7 +722,7 @@ describe('an answer cut at the ceiling is asked for once more, with a larger one
     }
   });
 
-  test('workspace_key and the openai provider: no retry at all, the request leaves as built (fifteenth F1)', async () => {
+  test('workspace_key and the openai provider: no retry at all, only the ceiling is raised (fifteenth F1, 97dq.95)', async () => {
     for (const source of [
       { ...included, usageMode: 'workspace_key' },
       { ...included, provider: 'openai' },
@@ -731,9 +731,34 @@ describe('an answer cut at the ceiling is asked for once more, with a larger one
       const init = post(jsonRequest);
       const response = await chain.createTextChainFetch(source, fetch)(URL_, init);
       expect(calls).toHaveLength(1);
-      expect(calls[0].init).toBe(init);
+      const cap = Object.keys(jsonRequest).find((key) => /max_(completion_)?tokens/.test(key));
+      expect(calls[0].body).toEqual({
+        ...jsonRequest,
+        [cap]: chain.withReasoningHeadroom(jsonRequest[cap]),
+      });
       expect(JSON.parse(await response.text()).choices[0].finish_reason).toBe('length');
     }
+  });
+
+  test('97dq.95: on the own key the draft ceiling leaves room for reasoning (25.09.2026: 2 085 of 2 247)', async () => {
+    const source = { ...included, usageMode: 'workspace_key' };
+    const { fetch, calls } = scripted(json(200, whole('{"a":1}')));
+    await chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, max_tokens: 2247 }));
+    expect(calls[0].body).toEqual({ ...request, max_tokens: 2247 + chain.REASONING_HEADROOM_TOKENS });
+  });
+
+  test('97dq.95: a raised ceiling the model refuses is sent once more as the SDK built it', async () => {
+    const source = { ...included, usageMode: 'workspace_key' };
+    const { fetch, calls } = scripted(
+      json(400, { error: { code: 400, message: 'max_tokens is too large' } }),
+      json(200, whole('{"a":1}'))
+    );
+    const init = post({ ...request, max_tokens: 2000 });
+    const response = await chain.createTextChainFetch(source, fetch)(URL_, init);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].body.max_tokens).toBe(2000 + chain.REASONING_HEADROOM_TOKENS);
+    expect(calls[1].init).toBe(init);
+    expect(response.status).toBe(200);
   });
 
   test('the retry cap is twice the caller cap, never more; a known model limit clamps it (fifteenth F12)', () => {

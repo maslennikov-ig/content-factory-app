@@ -23,10 +23,12 @@ import {
   STANDARD_ATTEMPT_TIMEOUT_MS,
   TextChainSource,
   createTextChainFetch,
+  generationTimeoutMs,
   registerChainClient,
   textChainApplies,
   textChainBudgetMs,
   maxTextChainBudgetMs,
+  withReasoningHeadroom,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
@@ -228,8 +230,22 @@ export const getChatModel = async (
         model,
         temperature,
         ...(maxTokens ? { maxTokens } : {}),
-        timeout: chained?.timeout ?? CHAT_TIMEOUT_MS,
+        // Outside the chain the SDK's deadline is the whole call: a whole
+        // answer arrives at once, after the reasoning and the text, so it gets
+        // the generation room of the ceiling the transport sends (97dq.95).
+        timeout:
+          chained?.timeout ??
+          Math.max(
+            CHAT_TIMEOUT_MS,
+            generationTimeoutMs(maxTokens ? withReasoningHeadroom(maxTokens) : undefined)
+          ),
         maxRetries: chained?.maxRetries ?? CHAT_MAX_RETRIES,
+        // Inside `streamEvents` LangChain turns `invoke` into a stream on its
+        // own, and nothing here reads tokens as they come. A stream skips the
+        // retry after a cut answer and the body window, so the post draft of
+        // the sixteenth walk (25.09.2026) still ended in `Failed to parse`
+        // after 97dq.91. One whole answer per call, whoever is listening.
+        disableStreaming: true,
         configuration: {
           ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
           // Every text call leaves through the shared transport: the chain

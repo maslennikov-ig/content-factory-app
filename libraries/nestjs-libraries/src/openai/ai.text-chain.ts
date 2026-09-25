@@ -151,7 +151,8 @@ export interface TextAttempt {
  *
  * On `workspace_key` the key and the model belong to the workspace. Tier
  * choice, a second model and an effort level would each change what the
- * workspace pays for, so its calls leave byte-for-byte as they did. The
+ * workspace pays for, so its calls leave as they did — except a capped
+ * text call, whose ceiling gets the reasoning headroom (`withHeadroomInit`). The
  * `openai` provider has no GLM and no OpenRouter routing either.
  */
 export const textChainApplies = (source: TextChainSource): boolean =>
@@ -942,6 +943,33 @@ const withLengthRetry = (
   return retried;
 };
 
+/**
+ * Outside the chain, the request as built with only its output ceiling
+ * raised by the reasoning headroom (`content-factory-next-97dq.95`).
+ *
+ * Model, tier and effort stay the workspace's. The ceiling does not: a
+ * reasoning model spends it on thinking first, and on 25.09.2026 a post
+ * draft on the owner's own key spent 2 085 of its 2 247 tokens there, so the
+ * JSON ran out after 162 — the same cut 97dq.91 fixed only for the chain. A
+ * higher ceiling costs nothing by itself; a cut answer is paid and thrown
+ * away. Undefined when there is no cap to raise.
+ */
+const withHeadroomInit = (
+  init: RequestInit | undefined,
+  original: Record<string, unknown>,
+  outputLimit?: number
+): RequestInit | undefined => {
+  let raised = false;
+  const body: Record<string, unknown> = { ...original };
+  for (const key of CAP_KEYS) {
+    const cap = original[key];
+    if (typeof cap !== 'number') continue;
+    body[key] = clampToOutputLimit(withReasoningHeadroom(cap), outputLimit);
+    raised = raised || body[key] !== cap;
+  }
+  return raised ? { ...init, body: JSON.stringify(body) } : undefined;
+};
+
 /** The chain itself, without the retry after a cut answer. */
 const sendText = (
   source: TextChainSource,
@@ -977,7 +1005,16 @@ const sendText = (
       };
       let response: Response;
       try {
-        response = await baseFetch(input, init);
+        const roomy =
+          imageRequest || pluginCall
+            ? undefined
+            : withHeadroomInit(init, original, source.outputLimits?.[original.model]);
+        response = await baseFetch(input, roomy ?? init);
+        if (roomy && response.status === 400) {
+          // The model refused the raised ceiling: send what the SDK built.
+          void response.body?.cancel().catch(() => undefined);
+          response = await baseFetch(input, init);
+        }
       } catch (error) {
         // The request left and no answer came back: an abort or a transport
         // failure may still be billed (review F4 of the fifteenth walk).
