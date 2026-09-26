@@ -421,10 +421,12 @@ describe('the Content frame is reviewable without a network', () => {
    const { workMenu, secondaryMenu, adminMenu } = await menuFor('ru');
    expect(workMenu.map((item) => item.path)).toEqual(['/onboarding', '/content?tab=avatars', '/channels', '/content', '/launches', '/analytics']);
    expect(workMenu.map((item) => item.step)).toEqual([0, 1, 2, 3, 4, 5]);
-   // 2q28.26: «Агент» and «Плагины» are upstream surfaces the sidebar no
-   // longer offers; `hidden-upstream-surfaces.ts` is the one list.
-   expect(secondaryMenu.map((item) => item.path)).toEqual(['/media', '/help']);
-   expect(adminMenu.map((item) => item.path)).toEqual(['/settings']);
+   // 2q28.26: «Агент», «Плагины» and «Интеграции» are upstream surfaces a
+   // member is not offered; they stay in the list marked `hide`, so the
+   // superadmin sees them marked (97dq.100).
+   expect(secondaryMenu.map((item) => item.path)).toEqual(['/agents', '/media', '/plugs', '/third-party', '/help']);
+   expect(secondaryMenu.filter((item) => item.hide).map((item) => item.path)).toEqual(['/agents', '/plugs', '/third-party']);
+   expect(adminMenu.map((item) => item.path)).toEqual(['/billing', '/settings']);
  });
 
  test('a hidden menu entry keeps its page title', async () => {
@@ -452,3 +454,23 @@ describe('the Content frame is reviewable without a network', () => {
    expect(screen.getAllByRole('tab')).toHaveLength(4);
    expect(screen.queryByRole('heading', {level: 1})).toBeNull();
  });
+
+// Owner decision of 26.09.2026: the instance superadmin sees every menu item,
+// and the ones a role, plan or state would hide come back marked.
+test('filterMenu hides gated items from a member and marks them for a superadmin', async () => {
+  const { secondaryMenu, adminMenu } = await menuFor('ru');
+  const items = [...secondaryMenu, ...adminMenu];
+  const member = menu.filterMenu(items, { role: 'USER' }, false);
+  expect(member.map((item) => item.path)).not.toContain('/third-party');
+  expect(member.map((item) => item.path)).not.toContain('/billing');
+  expect(member.every((item) => !item.superadminOnly)).toBe(true);
+
+  const admin = menu.filterMenu(items, { role: 'ADMIN' }, true);
+  expect(admin.filter((item) => ['/third-party', '/billing'].includes(item.path)).map((item) => item.superadminOnly)).toEqual([undefined, undefined]);
+
+  const superadmin = menu.filterMenu(items, { role: 'USER', isSuperAdmin: true }, false);
+  expect(superadmin.map((item) => item.path)).toEqual(items.map((item) => item.path));
+  const marked = superadmin.filter((item) => item.superadminOnly).map((item) => item.path);
+  expect(marked).toEqual(expect.arrayContaining(['/agents', '/third-party', '/billing']));
+  expect(marked).not.toContain('/help');
+});

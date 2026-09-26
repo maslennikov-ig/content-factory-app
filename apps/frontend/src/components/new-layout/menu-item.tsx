@@ -8,6 +8,7 @@ import {
   Button,
   navigationRowVariant,
 } from '@contentfactory/react/form/button';
+import { SuperadminMark } from '@contentfactory/frontend/components/ui/superadmin-mark';
 
 /**
  * A signed navigation row: the icon supports the label, it never replaces it.
@@ -46,7 +47,18 @@ export const MenuItem: FC<{
   onClick?: () => void;
   collapsed?: boolean;
   onNavigate?: () => void;
-}> = ({ label, icon, step, path, onClick, collapsed = false, onNavigate }) => {
+  /** Hidden from this person's role or plan, shown because a superadmin looks. */
+  superadminOnly?: boolean;
+}> = ({
+  label,
+  icon,
+  step,
+  path,
+  onClick,
+  collapsed = false,
+  onNavigate,
+  superadminOnly = false,
+}) => {
   const currentPath = usePathname();
   const searchParams = useSearchParams();
   const isExternal = path.indexOf('http') === 0;
@@ -99,6 +111,13 @@ export const MenuItem: FC<{
       <span className={clsx('cf-nav-label truncate', collapsed && 'sr-only')}>
         {label}
       </span>
+      {superadminOnly && (
+        <SuperadminMark
+          className={clsx(
+            collapsed ? 'absolute end-[4px] top-[4px]' : 'ms-auto'
+          )}
+        />
+      )}
     </>
   );
 

@@ -196,6 +196,7 @@ export const Sidebar: FC<{
                   label={item.name}
                   icon={item.icon}
                   step={item.step}
+                  superadminOnly={item.superadminOnly}
                   onClick={item.onClick}
                   collapsed={isCollapsed}
                   onNavigate={isDrawer ? onCloseMobile : undefined}

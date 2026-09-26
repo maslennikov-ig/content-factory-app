@@ -2,6 +2,27 @@
 
 import React, { ReactNode } from 'react';
 import { Panel } from '@contentfactory/frontend/components/ui/surface';
+import {
+  SuperadminMark,
+  useSuperadminOnly,
+} from '@contentfactory/frontend/components/ui/superadmin-mark';
+
+/** The block's name, marked when only the instance superadmin sees it. */
+const SectionTitle = ({
+  as: Heading,
+  children,
+}: {
+  as: 'h3' | 'h4';
+  children: ReactNode;
+}) => {
+  const superadminOnly = useSuperadminOnly();
+  return (
+    <Heading className="flex items-center gap-[8px] cf-label-md text-cf-ink">
+      {children}
+      {superadminOnly && <SuperadminMark />}
+    </Heading>
+  );
+};
 
 /**
  * One block of the settings tab, drawn one way.
@@ -53,7 +74,7 @@ export const SettingsSection = ({
       className="grid gap-[12px] border-b border-cf-border py-[24px] last:border-b-0 md:grid-cols-[260px_minmax(0,1fr)] md:gap-[32px]"
     >
       <div className="flex min-w-0 flex-col gap-[4px]">
-        {title ? <h3 className="cf-label-md text-cf-ink">{title}</h3> : null}
+        {title ? <SectionTitle as="h3">{title}</SectionTitle> : null}
         {caption ? (
           <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {caption}
@@ -71,7 +92,7 @@ export const SettingsSection = ({
       contentPadding="roomy"
       contentClassName="flex flex-col gap-[24px]"
     >
-      {title ? <h4 className="cf-label-md text-cf-ink">{title}</h4> : null}
+      {title ? <SectionTitle as="h4">{title}</SectionTitle> : null}
       {children}
     </Panel>
   );

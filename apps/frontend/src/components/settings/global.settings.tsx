@@ -9,6 +9,7 @@ import AiProviderComponent from '@contentfactory/frontend/components/settings/ai
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { isHiddenSettingsRow } from '../layout/hidden-upstream-surfaces';
+import { SuperadminOnly } from '@contentfactory/frontend/components/ui/superadmin-mark';
 
 const MetricComponent = dynamic(
   () => import('@contentfactory/frontend/components/settings/metric.component'),
@@ -38,6 +39,18 @@ export const GlobalSettings = () => {
         <ShortlinkPreferenceComponent />
       )}
       {isAdmin && <AiProviderComponent />}
+      {/* Суперадмин видит и то, что закрыто ролью или спрятано (26.09.2026). */}
+      {user?.isSuperAdmin &&
+        (!isAdmin || isHiddenSettingsRow('shortlink_preference')) && (
+          <SuperadminOnly>
+            <ShortlinkPreferenceComponent />
+          </SuperadminOnly>
+        )}
+      {!isAdmin && user?.isSuperAdmin && (
+        <SuperadminOnly>
+          <AiProviderComponent />
+        </SuperadminOnly>
+      )}
     </div>
   );
 };

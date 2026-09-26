@@ -18,7 +18,15 @@
  */
 
 /** Menu paths that are not drawn in the sidebar. */
-export const HIDDEN_MENU_PATHS: readonly string[] = ['/agents', '/plugs'];
+export const HIDDEN_MENU_PATHS: readonly string[] = [
+  '/agents',
+  '/plugs',
+  // HeyGen and Reelfarm keys: the same kind of leftover (97dq.100).
+  '/third-party',
+];
+
+// The instance superadmin still sees everything listed here, marked
+// «Видно только суперадмину» (owner decision of 26.09.2026, 97dq.100).
 
 /** Settings tabs that are not drawn in the tab rail. */
 export const HIDDEN_SETTINGS_TABS: readonly string[] = [

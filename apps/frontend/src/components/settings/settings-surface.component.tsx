@@ -9,8 +9,14 @@ import {
   Tabs,
 } from '@contentfactory/react/choice/tabs';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { SuperadminMark } from '@contentfactory/frontend/components/ui/superadmin-mark';
 
-export type SettingsSurfaceTab = Readonly<{ value: string; label: string }>;
+export type SettingsSurfaceTab = Readonly<{
+  value: string;
+  label: string;
+  /** Closed to this role; shown because the instance superadmin looks. */
+  superadminOnly?: boolean;
+}>;
 
 export function SettingsSurface({
   tabs,
@@ -46,13 +52,14 @@ export function SettingsSurface({
                 key={tab.value}
                 value={tab.value}
                 className={clsx(
-                  'cf-control-h w-full rounded-[8px] px-[12px] text-start cf-label-md transition-colors duration-state',
+                  'cf-control-h flex w-full items-center gap-[8px] rounded-[8px] px-[12px] text-start cf-label-md transition-colors duration-state',
                   value === tab.value
                     ? 'bg-cf-accent-soft text-cf-accent'
                     : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink'
                 )}
               >
-                <span className="block truncate">{tab.label}</span>
+                <span className="block min-w-0 truncate">{tab.label}</span>
+                {tab.superadminOnly && <SuperadminMark className="ms-auto" />}
               </Tab>
             ))}
           </TabList>

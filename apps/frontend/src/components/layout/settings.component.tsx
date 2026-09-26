@@ -106,6 +106,7 @@ export const SettingsPopup: FC<{
   // ушли редактору (`content-factory-next-fn33.90`), а вебхуки — наоборот,
   // строго администратору.
   const isEditor = isOrganizationEditor(user?.role);
+  const isSuperAdmin = Boolean(user?.isSuperAdmin);
 
   const [tab, setTab] = useState(() =>
     resolveSettingsTab(requestedTab ?? initialSettingsTab(url))
@@ -130,7 +131,12 @@ export const SettingsPopup: FC<{
 
   const t = useT();
   const list = useMemo(() => {
-    const arr = [];
+    const arr: {
+      tab: string;
+      label: string;
+      allowed?: boolean;
+      superadminOnly?: boolean;
+    }[] = [];
     arr.push({ tab: 'profile', label: t('profile', 'Profile') });
     arr.push({
       tab: 'global_settings',
@@ -142,20 +148,12 @@ export const SettingsPopup: FC<{
     });
     // «Знания о контенте» left this list on 23.09.2026 (97dq.51): the surface
     // lives in /content, and the page redirects the old `?tab=` there.
-    if (isAdmin) {
-      arr.push({ tab: 'teams', label: t('teams', 'Teams') });
-    }
-    if (isAdmin) {
-      arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
-    }
-    if (isEditor) {
-      arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
-      arr.push({ tab: 'sets', label: t('sets', 'Sets') });
-      arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
-    }
-    if (isAdmin) {
-      arr.push({ tab: 'api', label: t('developers', 'Developers') });
-    }
+    arr.push({ tab: 'teams', label: t('teams', 'Teams'), allowed: isAdmin });
+    arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks'), allowed: isAdmin });
+    arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post'), allowed: isEditor });
+    arr.push({ tab: 'sets', label: t('sets', 'Sets'), allowed: isEditor });
+    arr.push({ tab: 'signatures', label: t('signatures', 'Signatures'), allowed: isEditor });
+    arr.push({ tab: 'api', label: t('developers', 'Developers'), allowed: isAdmin });
     arr.push({
       tab: 'approved_apps',
       label: t('approved_apps', 'Approved Apps'),
@@ -176,10 +174,18 @@ export const SettingsPopup: FC<{
       label: t('about_project', 'About'),
     });
 
-    // Upstream tabs the product does not show (2q28.26). Their `?tab=`
-    // addresses still open them; only the rail stops offering them.
-    return arr.filter((item) => !isHiddenSettingsTab(item.tab));
-  }, [isAdmin, isEditor, isRussian, t]);
+    // Вкладка, закрытая ролью или спрятанная как наследие донора (2q28.26),
+    // всё равно показывается суперадмину инстанса — с меткой (решение
+    // владельца 26.09.2026, как `filterMenu` в меню). Адреса `?tab=`
+    // открывают вкладку в любом случае.
+    return arr.flatMap((item) =>
+      item.allowed !== false && !isHiddenSettingsTab(item.tab)
+        ? [item]
+        : isSuperAdmin
+        ? [{ ...item, superadminOnly: true }]
+        : []
+    );
+  }, [isAdmin, isEditor, isSuperAdmin, isRussian, t]);
 
   /**
    * Вкладка, которую эта роль не открывает, — вписанная в адрес руками.
@@ -188,7 +194,9 @@ export const SettingsPopup: FC<{
    * ответы: администратора просят у владельца пространства, а редактора — у
    * того же администратора, и это разговор о другом.
    */
-  const restrictedTab = !isAdmin && (tab === 'teams' || tab === 'api' || tab === 'webhooks')
+  const restrictedTab = isSuperAdmin
+    ? null
+    : !isAdmin && (tab === 'teams' || tab === 'api' || tab === 'webhooks')
     ? 'admin'
     : !isEditor && (tab === 'autopost' || tab === 'sets' || tab === 'signatures')
     ? 'editor'
@@ -196,7 +204,11 @@ export const SettingsPopup: FC<{
 
   return (
     <SettingsSurface
-      tabs={list.map(({ tab: value, label }) => ({ value, label }))}
+      tabs={list.map(({ tab: value, label, superadminOnly }) => ({
+        value,
+        label,
+        superadminOnly,
+      }))}
       value={tab}
       onChange={(value) => setTab(resolveSettingsTab(value))}
       navigationFooter={
@@ -259,7 +271,7 @@ export const SettingsPopup: FC<{
                   <GlobalSettings />
                 </div>
               )}
-              {tab === 'teams' && isAdmin && (
+              {tab === 'teams' && (isAdmin || isSuperAdmin) && (
                 <div>
                   <TeamsComponent />
                 </div>
@@ -289,7 +301,7 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'api' && isAdmin && (
+              {tab === 'api' && (isAdmin || isSuperAdmin) && (
                 <div>
                   <PublicComponent />
                 </div>

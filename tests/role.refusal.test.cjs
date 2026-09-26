@@ -392,7 +392,7 @@ describe('shortlink preference is read by everyone and changed by an administrat
 
 const AI_PROVIDER_MARKER = 'ai-provider-section';
 
-function renderGlobalSettings(role) {
+function renderGlobalSettings(role, isSuperAdmin = false) {
   const { GlobalSettings } = loadTypeScriptModule(
     'apps/frontend/src/components/settings/global.settings.tsx',
     {
@@ -418,7 +418,11 @@ function renderGlobalSettings(role) {
         default: () => React.createElement('div', null, AI_PROVIDER_MARKER),
       },
       '@contentfactory/frontend/components/layout/user.context': {
-        useUser: () => (role ? { role } : undefined),
+        useUser: () => (role ? { role, isSuperAdmin } : undefined),
+      },
+      '@contentfactory/frontend/components/ui/superadmin-mark': {
+        SuperadminOnly: ({ children }) =>
+          React.createElement('div', { 'data-superadmin-only': '' }, children),
       },
       '../layout/hidden-upstream-surfaces': loadTypeScriptModule(
         'apps/frontend/src/components/layout/hidden-upstream-surfaces.ts'
@@ -448,5 +452,17 @@ describe('AI provider settings visibility', () => {
 
   test('an unresolved user is treated as not an administrator', () => {
     expect(renderGlobalSettings(null)).not.toContain(AI_PROVIDER_MARKER);
+  });
+
+  // Owner decision of 26.09.2026: the instance superadmin sees what the
+  // workspace role hides, and the block says so.
+  test('an instance superadmin with a member role sees the section marked', () => {
+    const markup = renderGlobalSettings('USER', true);
+    expect(markup).toContain(AI_PROVIDER_MARKER);
+    expect(markup).toMatch(/data-superadmin-only[^>]*>[\s\S]*ai-provider-section/);
+    // An administrator's own AI block is not marked; only the short-link row
+    // hidden for everyone (2q28.26) comes back marked.
+    const admin = renderGlobalSettings('ADMIN', true);
+    expect(admin).toContain(`<div>${AI_PROVIDER_MARKER}</div><div data-superadmin-only=""><div>shortlink</div>`);
   });
 });

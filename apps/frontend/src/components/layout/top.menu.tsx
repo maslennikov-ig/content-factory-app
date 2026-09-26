@@ -30,6 +30,11 @@ export interface MenuItemInterface {
   hide?: boolean;
   requireBilling?: boolean;
   onClick?: () => void;
+  /**
+   * Пункт закрыт обычными правилами и показан только потому, что смотрит
+   * суперадмин инстанса. Ставит `filterMenu`, строка рисует `SuperadminMark`.
+   */
+  superadminOnly?: boolean;
 }
 
 export const useMenuItem = () => {
@@ -233,6 +238,9 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: '/third-party',
+      // Ключи сторонних сервисов пространства — его общее имущество, как
+      // каналы и ключи модели (`organization.roles.ts`).
+      role: ['ADMIN', 'SUPERADMIN'],
     },
     {
       /**
@@ -280,12 +288,15 @@ export const useMenuItem = () => {
     { ...entry('/launches'), step: 4 },
     { ...entry('/analytics'), step: 5 },
   ];
-  // `/agents` and `/plugs` stay defined so their pages keep a title; the
-  // sidebar skips whatever `hidden-upstream-surfaces.ts` lists (2q28.26).
-  const secondaryAll = ['/agents', '/media', '/plugs', '/help'].map(entry);
-  const secondaryMenu = secondaryAll.filter(
-    (item) => !isHiddenMenuPath(item.path)
-  );
+  // «Интеграции» и «Оплата» выпали из меню 08.09.2026 при переходе на
+  // конвейер (`5b6d2a1ae`): в макете `NavConveyor.dc.html` их не было, а
+  // решения их убрать не было. Возвращены 26.09.2026 по слову владельца.
+  // Наследие донора из `hidden-upstream-surfaces.ts` (2q28.26) остаётся в
+  // списке с `hide`: обычный участник его не видит, суперадмин видит с
+  // меткой, а страница сохраняет заголовок.
+  const secondaryMenu = ['/agents', '/media', '/plugs', '/third-party', '/help']
+    .map(entry)
+    .map((item) => (isHiddenMenuPath(item.path) ? { ...item, hide: true } : item));
 
   const adminMenu = [
     {
@@ -343,24 +354,44 @@ export const useMenuItem = () => {
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
   return {
-    all: [...workMenu, ...secondaryAll, ...adminMenu],
+    all: [...workMenu, ...secondaryMenu, ...adminMenu],
     workMenu,
-    adminMenu: adminMenu.filter((item) => item.path === '/settings'),
+    adminMenu,
     secondaryMenu,
   };
 };
 
-/** Applies the role, billing and lifetime gates the shell has always enforced. */
-export const filterMenu = (
-  items: MenuItemInterface[],
+/** Whether the role, billing, lifetime and state gates let this item show. */
+const passesGates = (
+  item: MenuItemInterface,
   user: { role?: string; isLifetime?: boolean } | undefined,
   billingEnabled: boolean
-) =>
-  items.filter((item) => {
-    if (item.hide) return false;
-    if (item.requireBilling && !billingEnabled) return false;
-    if (item.requireEditor && !isOrganizationEditor(user?.role)) return false;
-    if (item.name === 'Billing' && user?.isLifetime) return false;
-    if (item.role) return item.role.includes(user?.role!);
-    return true;
-  });
+) => {
+  if (item.hide) return false;
+  if (item.requireBilling && !billingEnabled) return false;
+  if (item.requireEditor && !isOrganizationEditor(user?.role)) return false;
+  if (item.path === '/billing' && user?.isLifetime) return false;
+  if (item.role) return item.role.includes(user?.role!);
+  return true;
+};
+
+/**
+ * Applies the gates the shell has always enforced. The instance superadmin
+ * (`User.isSuperAdmin`, not the workspace role) sees every item anyway —
+ * owner decision of 26.09.2026 — and the ones the gates would have hidden
+ * come back marked `superadminOnly`.
+ */
+export const filterMenu = (
+  items: MenuItemInterface[],
+  user:
+    | { role?: string; isLifetime?: boolean; isSuperAdmin?: boolean }
+    | undefined,
+  billingEnabled: boolean
+): MenuItemInterface[] =>
+  items.flatMap((item) =>
+    passesGates(item, user, billingEnabled)
+      ? [item]
+      : user?.isSuperAdmin
+      ? [{ ...item, superadminOnly: true }]
+      : []
+  );

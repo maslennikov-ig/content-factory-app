@@ -320,13 +320,13 @@ describe('settings navigation follows the role matrix', () => {
     );
     expect(settings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
     expect(settings).toMatch(
-      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'teams'/
+      /arr\.push\(\{ tab: 'teams', [^\n]*allowed: isAdmin \}\)/
     );
     expect(settings).toMatch(
-      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'api'/
+      /arr\.push\(\{ tab: 'api', [^\n]*allowed: isAdmin \}\)/
     );
     expect(settings).toMatch(
-      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'webhooks'/
+      /arr\.push\(\{ tab: 'webhooks', [^\n]*allowed: isAdmin \}\)/
     );
     expect(globalSettings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
     expect(globalSettings).toMatch(
@@ -344,11 +344,10 @@ describe('settings navigation follows the role matrix', () => {
     expect(settings).toContain(
       'const isEditor = isOrganizationEditor(user?.role);'
     );
-    expect(settings).toMatch(
-      /if \(isEditor\) \{\s+arr\.push\(\{ tab: 'autopost'/
-    );
-    for (const tab of ['sets', 'signatures']) {
-      expect(settings).toContain(`arr.push({ tab: '${tab}'`);
+    for (const tab of ['autopost', 'sets', 'signatures']) {
+      expect(settings).toMatch(
+        new RegExp(`arr\\.push\\(\\{ tab: '${tab}', [^\\n]*allowed: isEditor \\}\\)`)
+      );
     }
   });
 
