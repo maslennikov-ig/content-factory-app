@@ -167,7 +167,11 @@ export function OnboardingWalkthrough({
     : ONBOARDING_STEP_KEYS[total - 1];
   // The last step finishes rather than naming a step to go round to.
   const nextLabel =
-    next === null ? '' : next === 'done' ? t.finish : t.next(t.steps[next].short);
+    next === null
+      ? ''
+      : next === 'done'
+      ? t.finish
+      : t.next(t.steps[next].short);
   const detail = step
     ? stepDetail(step, progress, { channels: t.channels })
     : null;
@@ -176,6 +180,15 @@ export function OnboardingWalkthrough({
   // It is never larger than that section heading either.
   const Heading = embedded ? 'h3' : 'h2';
   const headingSize = embedded ? 'cf-heading-md' : 'cf-heading-lg';
+  /*
+    Variant C of the 26.09.2026 layout canvas, chosen by the owner. On its own
+    page from `xl` up the screen stops spreading over the whole width: it
+    keeps to one 1200px container, the step takes the left column, and the
+    right column carries what was folded — «Что ещё здесь есть» open, and the
+    note on how the steps are counted. Below `xl`, and inside the settings tab
+    (whose surface is already narrow), it is the one-column screen as before.
+  */
+  const wide = !embedded;
 
   return (
     <section
@@ -188,7 +201,8 @@ export function OnboardingWalkthrough({
       // surface around it already has one.
       className={clsx(
         'flex w-full flex-col gap-[24px]',
-        !embedded && 'cf-page-pad'
+        !embedded && 'cf-page-pad',
+        wide && 'xl:mx-auto xl:max-w-[1248px]'
       )}
     >
       <header className="flex flex-col gap-[4px]">
@@ -290,199 +304,252 @@ export function OnboardingWalkthrough({
         </ol>
       </nav>
 
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-[24px]">
-        {loading ? (
-          <p aria-busy="true" className="cf-body-sm text-cf-ink-muted">
-            {t.loading}
-          </p>
-        ) : step && words ? (
-          <>
+      {/*
+        One column below `xl`: the step, then the footer. From `xl` a grid —
+        the step spans both rows on the left, the open «more» sits top right
+        and the footer under it — so the footer is the same element in both
+        layouts and only its cell moves.
+      */}
+      <div
+        className={clsx(
+          'flex flex-col gap-[24px]',
+          wide &&
+            'xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:grid-rows-[auto_1fr] xl:gap-x-[48px]'
+        )}
+      >
+        <div
+          className={clsx(
+            'mx-auto flex w-full max-w-[720px] flex-col gap-[24px]',
+            wide && 'xl:row-span-2 xl:mx-0 xl:max-w-none'
+          )}
+        >
+          {loading ? (
+            <p aria-busy="true" className="cf-body-sm text-cf-ink-muted">
+              {t.loading}
+            </p>
+          ) : step && words ? (
+            <>
+              <div className="flex flex-col gap-[12px]">
+                <p className="cf-caption text-cf-ink-muted">
+                  {t.stepOf(stepIndex + 1, total)} · {words.short}
+                </p>
+                <Heading
+                  ref={heading}
+                  tabIndex={-1}
+                  className={clsx(headingSize, headingClass)}
+                >
+                  {words.title}
+                </Heading>
+                <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
+                  {words.why}
+                </p>
+                {stepDone && (
+                  <p
+                    data-onboarding-step-done={step}
+                    className="flex items-center gap-[8px] cf-body-sm text-cf-ink"
+                  >
+                    <span className="text-cf-accent">
+                      <CheckIcon />
+                    </span>
+                    {detail ?? t.doneNote}
+                  </p>
+                )}
+              </div>
+
+              <Panel
+                as="div"
+                contentPadding="snug"
+                contentClassName="flex flex-col gap-[16px] sm:p-[24px]"
+              >
+                {step === 'channel' && !stepDone ? (
+                  <OnboardingTelegramGuide
+                    words={t.telegram}
+                    actionLabel={words.action}
+                  />
+                ) : (
+                  <>
+                    {step !== 'channel' && (
+                      <p className="max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                        {words.todo}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-[8px]">
+                      <Link
+                        href={stepHref(step, progress)}
+                        data-onboarding-action={step}
+                        className={buttonClassName({
+                          variant: stepDone ? 'secondary' : 'primary',
+                        })}
+                      >
+                        {step === 'channel'
+                          ? t.openChannels
+                          : (step === 'adaptation' || step === 'plan') &&
+                            progress.latestPieceId
+                          ? t.openLatestPiece
+                          : words.action}
+                      </Link>
+                    </div>
+                  </>
+                )}
+                <div className="flex flex-wrap items-center gap-[8px] border-t border-cf-border pt-[16px]">
+                  {/*
+                  The tour (stream S3) reads `?tour=<key>` on the target
+                  screen; this page only makes the address.
+                */}
+                  <Link
+                    href={tourHref(step, progress)}
+                    data-onboarding-tour={step}
+                    className={buttonClassName({ variant: 'secondary' })}
+                  >
+                    {t.showOnScreen}
+                  </Link>
+                  {/* What closes the step, only while it is still open. */}
+                  {!stepDone && (
+                    <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                      {words.closes}
+                    </span>
+                  )}
+                </div>
+              </Panel>
+
+              {step === 'piece' && <OptionalFact t={t} progress={progress} />}
+
+              <Disclosure
+                className={clsx(wide && 'xl:hidden')}
+                summary={<span className="cf-label-md">{t.moreLabel}</span>}
+                contentClassName="pt-[8px]"
+              >
+                <ul className="flex list-disc flex-col gap-[8px] ps-[20px]">
+                  {words.more.map((line) => (
+                    <li
+                      key={line}
+                      className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </Disclosure>
+            </>
+          ) : (
             <div className="flex flex-col gap-[12px]">
-              <p className="cf-caption text-cf-ink-muted">
-                {t.stepOf(stepIndex + 1, total)} · {words.short}
-              </p>
               <Heading
                 ref={heading}
                 tabIndex={-1}
                 className={clsx(headingSize, headingClass)}
               >
-                {words.title}
+                {openCount === 0 ? t.allDoneTitle : t.leftTitle}
               </Heading>
               <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
-                {words.why}
+                {openCount === 0 ? t.allDoneBody : t.leftBody(openCount)}
               </p>
-              {stepDone && (
+              <OptionalFact t={t} progress={progress} />
+            </div>
+          )}
+
+          {!loading && (
+            <div className="flex flex-col gap-[8px] border-t border-cf-border pt-[20px]">
+              <div className="flex flex-wrap items-center justify-between gap-[8px]">
+                {back ? (
+                  <Button
+                    variant="quiet"
+                    onClick={() => go(back)}
+                    data-onboarding-nav="back"
+                  >
+                    {t.back}
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                {step && next !== null && (
+                  <div className="flex flex-wrap items-center gap-[8px]">
+                    {!stepDone && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => go(next)}
+                        data-onboarding-nav="later"
+                      >
+                        {t.later}
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      onClick={() => go(next)}
+                      disabled={!stepDone}
+                      aria-describedby={
+                        stepDone ? undefined : 'onboarding-wait'
+                      }
+                      data-onboarding-nav="next"
+                    >
+                      {nextLabel}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {step && !stepDone && (
                 <p
-                  data-onboarding-step-done={step}
-                  className="flex items-center gap-[8px] cf-body-sm text-cf-ink"
+                  id="onboarding-wait"
+                  className="cf-caption text-cf-ink-muted"
                 >
-                  <span className="text-cf-accent">
-                    <CheckIcon />
-                  </span>
-                  {detail ?? t.doneNote}
+                  {t.waitNote(nextLabel, t.later)}
                 </p>
               )}
             </div>
+          )}
+        </div>
 
-            <Panel as="div" contentPadding="snug" contentClassName="flex flex-col gap-[16px] sm:p-[24px]">
-              {step === 'channel' && !stepDone ? (
-                <OnboardingTelegramGuide
-                  words={t.telegram}
-                  actionLabel={words.action}
-                />
-              ) : (
-                <>
-                  {step !== 'channel' && (
-                    <p className="max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">
-                      {words.todo}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-[8px]">
-                    <Link
-                      href={stepHref(step, progress)}
-                      data-onboarding-action={step}
-                      className={buttonClassName({
-                        variant: stepDone ? 'secondary' : 'primary',
-                      })}
-                    >
-                      {step === 'channel'
-                        ? t.openChannels
-                        : (step === 'adaptation' || step === 'plan') &&
-                          progress.latestPieceId
-                        ? t.openLatestPiece
-                        : words.action}
-                    </Link>
-                  </div>
-                </>
-              )}
-              <div className="flex flex-wrap items-center gap-[8px] border-t border-cf-border pt-[16px]">
-                {/*
-                  The tour (stream S3) reads `?tour=<key>` on the target
-                  screen; this page only makes the address.
-                */}
-                <Link
-                  href={tourHref(step, progress)}
-                  data-onboarding-tour={step}
-                  className={buttonClassName({ variant: 'secondary' })}
+        {wide && !loading && words && (
+          <aside
+            data-onboarding-more="side"
+            className="hidden flex-col gap-[12px] xl:col-start-2 xl:row-start-1 xl:flex"
+          >
+            <h3 className="cf-caption text-cf-ink-muted">{t.moreLabel}</h3>
+            <ul className="flex list-disc flex-col gap-[8px] ps-[20px]">
+              {words.more.map((line) => (
+                <li
+                  key={line}
+                  className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
                 >
-                  {t.showOnScreen}
-                </Link>
-                {/* What closes the step, only while it is still open. */}
-                {!stepDone && (
-                  <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                    {words.closes}
-                  </span>
-                )}
-              </div>
-            </Panel>
-
-            {step === 'piece' && <OptionalFact t={t} progress={progress} />}
-
-            <Disclosure
-              summary={<span className="cf-label-md">{t.moreLabel}</span>}
-              contentClassName="pt-[8px]"
-            >
-              <ul className="flex list-disc flex-col gap-[8px] ps-[20px]">
-                {words.more.map((line) => (
-                  <li
-                    key={line}
-                    className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-                  >
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            </Disclosure>
-          </>
-        ) : (
-          <div className="flex flex-col gap-[12px]">
-            <Heading
-              ref={heading}
-              tabIndex={-1}
-              className={clsx(headingSize, headingClass)}
-            >
-              {openCount === 0 ? t.allDoneTitle : t.leftTitle}
-            </Heading>
-            <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
-              {openCount === 0 ? t.allDoneBody : t.leftBody(openCount)}
-            </p>
-            <OptionalFact t={t} progress={progress} />
-          </div>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </aside>
         )}
 
-        {!loading && (
-          <div className="flex flex-col gap-[8px] border-t border-cf-border pt-[20px]">
-            <div className="flex flex-wrap items-center justify-between gap-[8px]">
-              {back ? (
-                <Button
-                  variant="quiet"
-                  onClick={() => go(back)}
-                  data-onboarding-nav="back"
-                >
-                  {t.back}
-                </Button>
-              ) : (
-                <span />
-              )}
-              {step && next !== null && (
-                <div className="flex flex-wrap items-center gap-[8px]">
-                  {!stepDone && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => go(next)}
-                      data-onboarding-nav="later"
-                    >
-                      {t.later}
-                    </Button>
-                  )}
-                  <Button
-                    variant="primary"
-                    onClick={() => go(next)}
-                    disabled={!stepDone}
-                    aria-describedby={stepDone ? undefined : 'onboarding-wait'}
-                    data-onboarding-nav="next"
-                  >
-                    {nextLabel}
-                  </Button>
-                </div>
-              )}
-            </div>
-            {step && !stepDone && (
-              <p id="onboarding-wait" className="cf-caption text-cf-ink-muted">
-                {t.waitNote(nextLabel, t.later)}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/*
+        {/*
         Where the ticks come from, and why there is no «начать заново». There
         is nothing to reset — every tick is a row of the workspace, and a
         button that unticked them would either delete someone's work or set a
         flag that lies (owner, 07.09.2026).
       */}
-      <footer className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]">
-        <p
-          data-onboarding-note="counted"
-          className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        <footer
+          className={clsx(
+            'flex flex-col gap-[4px] border-t border-cf-border pt-[16px]',
+            wide && 'xl:col-start-2 xl:row-start-2 xl:self-start'
+          )}
         >
-          {t.counted}
-        </p>
-        {/*
+          <p
+            data-onboarding-note="counted"
+            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {t.counted}
+          </p>
+          {/*
           The way back, once. The menu row it points at hides at 5 of 5
           (`top.menu.tsx`, `allStepsDone`), so from then on the way back is
           the settings tab — and inside that tab there is nothing to say.
         */}
-        {!embedded && (
-          <p
-            data-onboarding-note="come-back"
-            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {openCount === 0 ? t.comeBackDone : t.comeBack}
-          </p>
-        )}
-      </footer>
+          {!embedded && (
+            <p
+              data-onboarding-note="come-back"
+              className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {openCount === 0 ? t.comeBackDone : t.comeBack}
+            </p>
+          )}
+        </footer>
+      </div>
     </section>
   );
 }
