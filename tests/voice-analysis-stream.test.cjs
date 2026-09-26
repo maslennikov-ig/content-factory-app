@@ -521,3 +521,54 @@ describe('ingress не рвёт длинный ход', () => {
     expect(relay[1]).toMatch(/proxy_read_timeout\s+500ms;/u);
   });
 });
+
+describe('вернувшийся человек не платит за разбор второй раз (2q28.34)', () => {
+  test('готовый разбор говорит, что предложение сохранено и тексты те же', async () => {
+    const { service, controller } = harness({
+      assist: assistOver(groundedTransport()),
+    });
+    await fill(service);
+    await run(controller);
+
+    const saved = await service.analysis(admin);
+    expect(saved).toMatchObject({
+      outcome: 'ready',
+      hasProposal: true,
+      corpusChanged: false,
+    });
+    expect(Number.isNaN(Date.parse(saved.measuredAt))).toBe(false);
+  });
+
+  test('добавленный текст делает разбор чужим для корпуса', async () => {
+    const { service, controller } = harness({
+      assist: assistOver(groundedTransport()),
+    });
+    await fill(service);
+    await run(controller);
+    await service.intake(admin, {
+      origin: 'PASTE',
+      usagePurpose: 'OWN_VOICE',
+      language: 'ru',
+      items: [{ title: 'Ещё один', text: `Новая запись. ${PARAGRAPH.repeat(3)}` }],
+    });
+
+    const saved = await service.analysis(admin);
+    expect(saved.outcome).toBe('ready');
+    expect(saved.corpusChanged).toBe(true);
+  });
+
+  test('модель не ответила — числа есть, предложения нет', async () => {
+    const { service, controller } = harness({
+      assist: assistOver(brokenTransport()),
+    });
+    await fill(service);
+    await run(controller);
+
+    const saved = await service.analysis(admin);
+    expect(saved).toMatchObject({
+      outcome: 'ready',
+      hasProposal: false,
+      corpusChanged: false,
+    });
+  });
+});

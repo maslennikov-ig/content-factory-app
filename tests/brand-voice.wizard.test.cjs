@@ -653,6 +653,13 @@ describe('the voice wizard on live data', () => {
     // in flight, with a caption saying what is happening.
     expect(surface('analysis').getAttribute('aria-busy')).toBe('true');
     expect(screen.getByRole('status').textContent).toMatch(/Читаем образцы/i);
+    // 2q28.35: every model call of the run happens on this screen, so the
+    // note says so, how long it takes, and that leaving is safe.
+    const note = surface('analysis').textContent;
+    expect(note).not.toContain('ИИ подключится на следующем шаге');
+    expect(note).toContain('около пяти минут');
+    expect(note).toContain('Можно уйти и вернуться');
+    expect(note).not.toMatch(/модел/i);
 
     await act(async () => {
       finish({
@@ -671,6 +678,40 @@ describe('the voice wizard on live data', () => {
     expect(screen.getByRole('alert').textContent).toContain(
       'Разбор не удалось завершить.'
     );
+  });
+
+  test('2q28.39: no «Остановить разбор» — a quiet «Назад к текстам» opens the texts and leaves the run alone', async () => {
+    let finish;
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
+      [`POST ${VOICE_API}/analysis/stream`]: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    });
+    await renderWizard(server);
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+    await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
+
+    expect(surface('analysis').getAttribute('aria-busy')).toBe('true');
+    expect(screen.queryByRole('button', { name: /Остановить/ })).toBeNull();
+    const back = screen.getByRole('button', { name: 'Назад к текстам' });
+    expect(back.hasAttribute('disabled')).toBe(false);
+    const posts = () =>
+      server.calls.filter((call) => call.method !== 'GET').length;
+    const before = posts();
+
+    await click(back);
+    expect(surface('analysis')).toBeNull();
+    expect(surface('samples')).not.toBeNull();
+    // Going back sends nothing: no cancel door, the server run is not touched.
+    expect(posts()).toBe(before);
+    await act(async () => {
+      finish({ status: 500, body: { code: 'VOICE_ANALYSIS_FAILED' } });
+    });
   });
 
   test('a model that did not answer leaves the numbers on screen, not a promise of them', async () => {
@@ -803,6 +844,13 @@ describe('the voice wizard on live data', () => {
     expect(proposal.textContent).toContain('Предложение для TONE');
     expect(proposal.textContent).toContain('Причина — поставка.');
     expect(proposal.textContent).toContain('Голос v1');
+    // 2q28.38: no storage refs beside a label, a count over the six lines on
+    // screen with Russian agreement, and no bare number in the heading.
+    expect(proposal.textContent).not.toContain('smp-01#1');
+    expect(proposal.textContent).toContain('из текста № 1');
+    expect(proposal.textContent).toContain('принято 2 поля из 6');
+    expect(proposal.textContent).toContain('Как пишет аватар');
+    expect(proposal.textContent).not.toMatch(/Как пишет аватар\s*·/);
   });
 
   test('a reload keeps the corpus and the decided fields, because the server keeps them', async () => {
@@ -1265,19 +1313,21 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/proposal/manual`]: manualEnvelope(),
     });
     await renderWizard(server);
+    // Screen 01 reads what is stored before any path is chosen (2q28.34);
+    // what this path asks for is counted from the moment it is chosen.
+    const before = server.calls.length;
     await click(openWizard(screen));
     await click(screen.getByRole('button', { name: 'Заполнить вручную' }));
+    const onPath = server.calls.slice(before);
 
     const proposal = surface('proposal');
     expect(proposal).not.toBeNull();
     expect(proposal.getAttribute('data-voice-mode')).toBe('manual');
     expect(proposal.querySelectorAll('textarea')).toHaveLength(6);
     // Nothing on this path is measured, so nothing on this path asks to be.
+    expect(onPath.some((call) => call.route.includes('/analysis'))).toBe(false);
     expect(
-      server.calls.some((call) => call.route.includes('/analysis'))
-    ).toBe(false);
-    expect(
-      server.calls.some((call) => call.route === `${VOICE_API}/proposal`)
+      onPath.some((call) => call.route === `${VOICE_API}/proposal`)
     ).toBe(false);
     // The corpus shortfall belongs to a path that reads texts. This one does
     // not, and a banner counting missing characters would be a demand for
@@ -1392,6 +1442,144 @@ describe('the voice wizard on live data', () => {
 
     // Straight into the corpus that was left, not back to the three paths.
     expect(surface('samples')).not.toBeNull();
+  });
+
+  /* 2q28.34: coming back must not mean paying for the analysis again. */
+  const storedRun = (over = {}) => ({
+    ...analysisReady(),
+    hasProposal: true,
+    corpusChanged: false,
+    measuredAt: '2026-09-25T09:00:00.000Z',
+    ...over,
+  });
+  const streamCalls = (server) =>
+    server.calls.filter(
+      (call) => call.method === 'POST' && call.route.includes('/analysis')
+    );
+
+  test('a finished proposal is reopened from screen 01, with no second run', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 8, charCount: 15206 }),
+      }),
+      [`GET ${VOICE_API}/analysis`]: storedRun(),
+      [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server);
+
+    const collected = document.querySelector('[data-voice-empty-collected]');
+    expect(collected.getAttribute('data-voice-empty-resume')).toBe('proposal');
+    expect(collected.textContent).toContain('Предложение сохранено');
+    expect(screen.queryByRole('button', { name: 'Продолжить сбор' })).toBeNull();
+
+    await click(screen.getByRole('button', { name: 'Открыть предложение' }));
+
+    expect(surface('proposal')).not.toBeNull();
+    expect(surface('proposal').textContent).toContain('Предложение для TONE');
+    expect(streamCalls(server)).toEqual([]);
+  });
+
+  test('«Дальше — разбор» over unchanged texts shows the stored run instead of paying for one', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
+      [`GET ${VOICE_API}/analysis`]: storedRun(),
+      [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server);
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+    await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
+
+    expect(surface('analysis').getAttribute('data-voice-state')).toBe('success');
+    expect(streamCalls(server)).toEqual([]);
+    await click(screen.getByRole('button', { name: 'Дальше — предложение' }));
+    expect(surface('proposal').textContent).toContain('Предложение для TONE');
+  });
+
+  test('changed texts are the one case «Дальше — разбор» runs the analysis again', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
+      [`GET ${VOICE_API}/analysis`]: storedRun({ corpusChanged: true }),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server);
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+    await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
+
+    expect(streamCalls(server)).toHaveLength(1);
+    expect(surface('analysis').getAttribute('data-voice-state')).toBe('success');
+  });
+
+  test('a stored run the model never finished shows its numbers and reruns only on its own button', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 8, charCount: 15206 }),
+      }),
+      [`GET ${VOICE_API}/analysis`]: storedRun({ hasProposal: false }),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server);
+    await click(screen.getByRole('button', { name: 'Открыть разбор' }));
+
+    const analysis = surface('analysis');
+    expect(analysis.getAttribute('data-voice-state')).toBe('error');
+    expect(screen.getByRole('alert').textContent).toContain(
+      'ИИ не закончил предложение'
+    );
+    expect(
+      analysis.querySelector('[data-voice-analysis-sentence-length]')
+    ).not.toBeNull();
+    expect(streamCalls(server)).toEqual([]);
+
+    await click(screen.getByRole('button', { name: 'Продолжить разбор' }));
+    expect(streamCalls(server)).toHaveLength(1);
+  });
+
+  test('a run left mid-way is waited for, not started again', async () => {
+    const stored = {
+      reading: storedRun({
+        hasProposal: false,
+        measuredAt: new Date(Date.now() - 60_000).toISOString(),
+      }),
+    };
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 8, charCount: 15206 }),
+      }),
+      [`GET ${VOICE_API}/analysis`]: () => stored.reading,
+      [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server);
+    jest.useFakeTimers();
+    try {
+      await click(screen.getByRole('button', { name: 'Открыть разбор' }));
+
+      const analysis = surface('analysis');
+      expect(analysis.getAttribute('aria-busy')).toBe('true');
+      expect(analysis.textContent).toContain('Разбор идёт на сервере');
+      expect(analysis.textContent).not.toContain('%');
+
+      stored.reading = storedRun();
+      await act(async () => {
+        jest.advanceTimersByTime(10_000);
+      });
+      await act(async () => {});
+
+      expect(surface('analysis').getAttribute('data-voice-state')).toBe(
+        'success'
+      );
+      expect(streamCalls(server)).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('a hand-filled draft left mid-way is said out loud, with a way back into it', async () => {
@@ -1599,6 +1787,37 @@ describe('the voice wizard on live data', () => {
 
 describe('the wizard adapter', () => {
   const adapter = () => loadTypeScriptModule(ADAPTER);
+
+  test('a returning person lands where the stored run allows, and pays only when texts changed (2q28.34)', () => {
+    const { readAnalysis, resumeStepFor, ANALYSIS_BACKGROUND_WINDOW_MS } =
+      adapter();
+    const at = Date.parse('2026-09-25T09:00:00.000Z');
+    const stored = (over) =>
+      readAnalysis({
+        ...analysisReady(),
+        measuredAt: '2026-09-25T09:00:00.000Z',
+        ...over,
+      });
+
+    expect(resumeStepFor(null, at)).toBe('samples');
+    expect(resumeStepFor(readAnalysis({ outcome: 'insufficient' }), at)).toBe(
+      'samples'
+    );
+    // An older server says nothing about the texts: nobody can claim the
+    // stored run is about them.
+    expect(resumeStepFor(stored({ hasProposal: true }), at)).toBe('samples');
+    expect(
+      resumeStepFor(stored({ hasProposal: true, corpusChanged: true }), at)
+    ).toBe('samples');
+    expect(
+      resumeStepFor(stored({ hasProposal: true, corpusChanged: false }), at)
+    ).toBe('proposal');
+    const unfinished = stored({ hasProposal: false, corpusChanged: false });
+    expect(resumeStepFor(unfinished, at + 60_000)).toBe('waiting');
+    expect(
+      resumeStepFor(unfinished, at + ANALYSIS_BACKGROUND_WINDOW_MS + 1)
+    ).toBe('analysis');
+  });
 
   test('a refusal keeps its code and lands in the state the contract assigns it', () => {
     const { voiceFailureFrom } = adapter();

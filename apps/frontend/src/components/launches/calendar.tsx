@@ -1686,7 +1686,11 @@ const CalendarItem: FC<{
         'rounded-[8px] border',
         channelRow ? 'bg-cf-surface' : 'bg-cf-surface-subtle',
         state === 'ERROR' ? 'border-cf-danger' : 'border-cf-border',
-        wide && 'min-h-[36px] gap-[10px] px-[10px] py-[4px]',
+        // A phone has no room for the state chip and the sentence on one
+        // line: the sentence takes its own line above the chip, time and
+        // channel (stand check 26.09.2026 — the chip shrank it to «П.»).
+        wide &&
+          'min-h-[36px] flex-wrap sm:flex-nowrap gap-x-[10px] gap-y-[4px] px-[10px] py-[4px]',
         channelRow && 'min-w-0 min-h-[40px] gap-[12px] px-[12px] py-[4px]',
         isBeforeNow && '!grayscale'
       )}
@@ -1759,12 +1763,25 @@ const CalendarItem: FC<{
         </>
       ) : wide ? (
         <>
-          {bandLabel && (
+          {/*
+            The list row always says where the post is in delivery, in the
+            calendar's own words — the ones the channel rows and the legend
+            use (live walk 25.09.2026, P3-10). It used to fall back from the
+            stage to the tag names to «Черновик», so a post confirmed into
+            the queue, with neither a stage nor a tag, lost its only chip.
+            The stage, when a person set one, stays beside it.
+          */}
+          <PlanStatePill
+            state={planState}
+            label={planStateWord(planningCopy, planState)}
+            title={tagNames || undefined}
+          />
+          {post.editorialStage && bandLabel && (
             <StagePill tone={bandTone} label={bandLabel} title={bandTitle} />
           )}
           <div
             onClick={editPost}
-            className="flex-1 min-w-0 cf-body-md text-cf-ink truncate text-start cursor-pointer"
+            className="order-first basis-full sm:order-none sm:basis-0 flex-1 min-w-0 cf-body-md text-cf-ink truncate text-start cursor-pointer"
           >
             {sentence}
           </div>

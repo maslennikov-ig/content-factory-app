@@ -13,6 +13,7 @@ import {
   TOUR_REVEALS_ATTR,
   TOUR_STOPS,
   clearTourSeen,
+  tourEntry,
   markTourSeen,
   readTourRequest,
   type TourKey,
@@ -134,8 +135,23 @@ export async function startTour(key: TourKey): Promise<boolean> {
   active = null;
 
   const stops = TOUR_STOPS[key];
+  // None of the stops on the screen yet, but the screen names the control
+  // that brings them (a tab, `TOUR_ENTER_ATTR`): click it once and keep
+  // looking, rather than waiting out the timeout on the wrong tab.
+  let entered = false;
   const first = await waitFor(
-    () => stops.find((stop) => resolveStop(stop)) ?? null,
+    () => {
+      const found = stops.find((stop) => resolveStop(stop)) ?? null;
+      if (found || entered) return found;
+      const entry = Array.from(document.querySelectorAll(tourEntry(key))).find(
+        isVisible
+      );
+      if (entry) {
+        entered = true;
+        entry.click();
+      }
+      return null;
+    },
     APPEAR_TIMEOUT_MS,
     alive
   );

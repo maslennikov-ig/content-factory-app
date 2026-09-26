@@ -2121,6 +2121,20 @@ export function workspaceTabs(
   return { shown, more };
 }
 
+/**
+ * Вкладка, которую открывает тур «Адаптация», если заготовка стоит на «Сути»
+ * (живой заход 25.09.2026, P2-3): все его остановки живут на вкладке канала.
+ * Канал с адаптацией — там видны все четыре остановки; иначе первый
+ * подключённый; иначе первая показанная вкладка.
+ */
+export const tourEntryChannel = (
+  shown: readonly WorkspaceChannel[]
+): WorkspaceChannel | null =>
+  shown.find((one) => one.adaptations.length > 0) ??
+  shown.find((one) => one.connected) ??
+  shown[0] ??
+  null;
+
 /** Канал из адреса, если такой есть в заготовке. */
 export const channelOfTab = (
   channels: readonly WorkspaceChannel[],

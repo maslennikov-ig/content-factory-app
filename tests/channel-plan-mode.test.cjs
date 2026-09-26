@@ -557,6 +557,42 @@ const stand = (options = {}) => {
       post.updatedAt = new Date(++updates);
       return { updatedAt: post.updatedAt };
     },
+    // «Удалять при подтверждении» (`2q28.39`): мягкое удаление черновиков
+    // канала и обратный ход для одной версии.
+    ...(options.noDrop
+      ? {}
+      : {
+          dropDraftPosts: async (_org, integrationId, ids) => {
+            if (!calls.inLock) throw new Error('drafts dropped outside the lock');
+            let count = 0;
+            for (const id of ids) {
+              const post = posts.get(id);
+              if (!post || post.deletedAt || post.state !== 'DRAFT' || post.integrationId !== integrationId)
+                continue;
+              post.deletedAt = new Date(clock);
+              count += 1;
+            }
+            (calls.dropped = calls.dropped || []).push(...ids);
+            return count;
+          },
+          restoreDraftPost: async (_org, id) => {
+            const post = posts.get(id);
+            if (!post || !post.deletedAt || post.state !== 'DRAFT') return false;
+            post.deletedAt = null;
+            return true;
+          },
+        }),
+    // Автосохранение: запись только в живой черновик, как у репозитория.
+    editAdaptation: async (_org, _pieceId, adaptationId, postId, change) => {
+      const post = posts.get(postId);
+      if (!post || post.deletedAt)
+        throw Object.assign(new Error('gone'), { reason: 'ADAPTATION_POST_GONE' });
+      if (post.state !== 'DRAFT')
+        throw Object.assign(new Error('closed'), { reason: 'ADAPTATION_NOT_DRAFT' });
+      post.content = change.content ?? post.content;
+      (calls.edits = calls.edits || []).push([adaptationId, postId, change.body]);
+      return { saved: true };
+    },
     setPlan: async (_org, id, data, onlyPlan) => {
       calls.setPlan.push([id, data, onlyPlan]);
       const row = derivations.find((one) => one.id === id);
@@ -1799,5 +1835,281 @@ describe('«Бронь» → как в канале: сервер сверяет
       'utf8'
     );
     expect(dto).toMatch(/@IsIn\(\['draft', 'reserve', 'autopilot'\]\)\s*expectedChannelMode\?/);
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * «Удалять при подтверждении» (`2q28.39`, решение владельца 26.09.2026)
+ * ---------------------------------------------------------------------- */
+
+describe('«Удалять при подтверждении»: черновики других версий уходят из календаря (2q28.39)', () => {
+  const SLOT = '2026-09-22T18:00:00.000Z';
+  const variantRow = (id, postId, overrides = {}) => ({
+    id,
+    contentPieceId: 'piece-1',
+    integrationId: 'int-tg',
+    postId,
+    plan: null,
+    planNote: null,
+    plannedAt: null,
+    createdAt: new Date('2026-09-20T09:00:00.000Z'),
+    ...overrides,
+  });
+  const postRow = (id, state, overrides = {}) => ({
+    id,
+    state,
+    publishDate: new Date('2026-09-21T09:00:00.000Z'),
+    deletedAt: null,
+    integrationId: 'int-tg',
+    ...overrides,
+  });
+
+  test('«Подтвердить» второй версии удаляет черновик первой мягко; текст «Варианта 1» остаётся', async () => {
+    const { service, generate, posts, derivations, queued } = stand();
+    await generate();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    expect(queued().map((post) => post.id)).toEqual(['post-2']);
+    expect(posts.get('post-1').state).toBe('DRAFT');
+    expect(posts.get('post-1').deletedAt).toBeInstanceOf(Date);
+    // Строка версии не удаляется: «Вариант 1» по-прежнему на заготовке.
+    expect(derivations.map((row) => [row.id, row.postId])).toEqual([
+      ['ad-1', 'post-1'],
+      ['ad-2', 'post-2'],
+    ]);
+    const detail = await service.detail('org-a', 'piece-1', 'ru');
+    expect(detail.adaptations.map((one) => [one.id, one.body])).toEqual([
+      ['ad-1', 'Текст.'],
+      ['ad-2', 'Текст.'],
+    ]);
+    // Пост другого канала не тронут.
+    expect(posts.get('other').deletedAt).toBeNull();
+  });
+
+  test('потом «Запланировать» первой версии: тот же пост возвращается и встаёт в очередь, вторая уходит', async () => {
+    const { service, generate, posts, queued } = stand();
+    await generate();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    const result = await service.scheduleAdaptation(
+      'org-a',
+      'piece-1',
+      'ad-1',
+      { date: '2026-09-23T09:00:00.000Z' },
+      'ru'
+    );
+    expect(result.adaptation.state).toBe('queued');
+    expect(posts.get('post-1')).toMatchObject({ state: 'QUEUE', deletedAt: null });
+    expect(posts.get('post-1').publishDate.toISOString()).toBe('2026-09-23T09:00:00.000Z');
+    // Вторая снята с очереди человеком и, став черновиком, тоже ушла.
+    expect(posts.get('post-2').state).toBe('DRAFT');
+    expect(posts.get('post-2').deletedAt).toBeInstanceOf(Date);
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+  });
+
+  test('вышедшее, ошибка, чужая заготовка и чужой канал не трогаются — только живые черновики', async () => {
+    const { service, generate, posts } = stand({
+      posts: [
+        postRow('post-pub', 'PUBLISHED'),
+        postRow('post-err', 'ERROR'),
+        postRow('post-other-piece', 'DRAFT'),
+        postRow('post-vk', 'DRAFT', { integrationId: 'int-vk' }),
+      ],
+      derivations: [
+        variantRow('ad-pub', 'post-pub'),
+        variantRow('ad-err', 'post-err'),
+        variantRow('ad-other-piece', 'post-other-piece', { contentPieceId: 'piece-2' }),
+        variantRow('ad-vk', 'post-vk', { integrationId: 'int-vk' }),
+      ],
+    });
+    await generate(); // ad-5 / post-1
+    await generate(); // ad-6 / post-2
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-6', { date: SLOT }, 'ru');
+    expect(posts.get('post-1').deletedAt).toBeInstanceOf(Date);
+    for (const id of ['post-pub', 'post-err', 'post-other-piece', 'post-vk', 'post-2', 'other'])
+      expect([id, posts.get(id).deletedAt]).toEqual([id, null]);
+    expect(posts.get('post-pub').state).toBe('PUBLISHED');
+    expect(posts.get('post-err').state).toBe('ERROR');
+  });
+
+  test('«Без плана»: слота нет, черновики видны — ничего не удаляется', async () => {
+    const { service, generate, posts, calls } = stand({ planMode: 'draft' });
+    await generate();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    expect(posts.get('post-2').state).toBe('QUEUE');
+    expect(posts.get('post-1').deletedAt).toBeNull();
+    expect(calls.dropped).toBeUndefined();
+  });
+
+  test('процесс публикации не запустился — подтверждения нет, и ничего не удалено', async () => {
+    const { service, generate, posts, options } = stand();
+    await generate();
+    await generate();
+    options.startFails = ['post-2'];
+    await expect(
+      service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru')
+    ).rejects.toMatchObject({ code: 'ADAPTATION_SCHEDULE_UNAVAILABLE' });
+    expect(posts.get('post-1').deletedAt).toBeNull();
+    expect(posts.get('post-2').state).toBe('DRAFT');
+  });
+
+  test('площадка не приняла удалённую версию — пост не оживает', async () => {
+    const { service, generate, posts, options } = stand();
+    await generate();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    options.verdict = { valid: false, emptyContent: true };
+    await expect(
+      service.scheduleAdaptation('org-a', 'piece-1', 'ad-1', { date: '2026-09-23T09:00:00.000Z' }, 'ru')
+    ).rejects.toMatchObject({ code: 'ADAPTATION_SCHEDULE_INVALID' });
+    expect(posts.get('post-1').deletedAt).toBeInstanceOf(Date);
+    expect(posts.get('post-2').state).toBe('QUEUE');
+  });
+
+  test('хранилище без удаления — подтверждение работает как раньше', async () => {
+    const { service, generate, posts } = stand({ noDrop: true });
+    await generate();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    expect(posts.get('post-2').state).toBe('QUEUE');
+    expect(posts.get('post-1').deletedAt).toBeNull();
+  });
+
+  test('репозиторий: удаление группой, как `deletePost`, но только живые черновики этого канала этой области; возврат — ровно того же удара', async () => {
+    const calls = [];
+    const deletedAt = new Date('2026-09-26T10:00:00.000Z');
+    const repository = new PieceRepository(
+      {
+        model: {
+          $transaction: async (work) =>
+            work({
+              $queryRaw: async () => [{ locked: 1 }],
+              post: {
+                findMany: async (input) => {
+                  calls.push(['findMany', input]);
+                  return [{ group: 'g-1' }, { group: 'g-1' }];
+                },
+                findFirst: async (input) => {
+                  calls.push(['findFirst', input]);
+                  return { group: 'g-1', integrationId: 'int-tg', deletedAt };
+                },
+                updateMany: async (input) => {
+                  calls.push(['updateMany', input]);
+                  return { count: 2 };
+                },
+              },
+            }),
+        },
+      },
+      {},
+      {}
+    );
+    await repository.withChannelLock('org-a', 'piece-1', 'int-tg', async (db) => {
+      expect(await db.dropDraftPosts('org-a', 'int-tg', [])).toBe(0);
+      expect(await db.dropDraftPosts('org-a', 'int-tg', ['post-1', 'post-1'])).toBe(2);
+      expect(await db.restoreDraftPost('org-a', 'post-1')).toBe(true);
+    });
+    expect(calls[0]).toEqual([
+      'findMany',
+      {
+        where: { organizationId: 'org-a', integrationId: 'int-tg', id: { in: ['post-1'] }, deletedAt: null, state: 'DRAFT' },
+        select: { group: true },
+      },
+    ]);
+    expect(calls[1][0]).toBe('updateMany');
+    expect(calls[1][1].where).toEqual({
+      organizationId: 'org-a',
+      integrationId: 'int-tg',
+      group: { in: ['g-1'] },
+      deletedAt: null,
+      state: 'DRAFT',
+    });
+    expect(calls[1][1].data.deletedAt).toBeInstanceOf(Date);
+    expect(calls[2]).toEqual([
+      'findFirst',
+      {
+        where: { organizationId: 'org-a', id: 'post-1', state: 'DRAFT', deletedAt: { not: null } },
+        select: { group: true, integrationId: true, deletedAt: true },
+      },
+    ]);
+    expect(calls[3]).toEqual([
+      'updateMany',
+      {
+        where: { organizationId: 'org-a', integrationId: 'int-tg', group: 'g-1', state: 'DRAFT', deletedAt },
+        data: { deletedAt: null },
+      },
+    ]);
+  });
+});
+
+describe('действия над «Вариантом 1» после уборки возвращают его черновик (2q28.39)', () => {
+  const SLOT = '2026-09-22T18:00:00.000Z';
+  const confirmSecond = async (setup = {}) => {
+    const one = stand(setup);
+    await one.generate();
+    await one.generate();
+    await one.service.scheduleAdaptation('org-a', 'piece-1', 'ad-2', { date: SLOT }, 'ru');
+    expect(one.posts.get('post-1').deletedAt).toBeInstanceOf(Date);
+    return one;
+  };
+
+  test('правка текста удалённой уборкой версии: пост снова черновик, правка сохранена, очередь не тронута', async () => {
+    const { service, posts, calls } = await confirmSecond();
+    const queuedBefore = { ...posts.get('post-2') };
+    const result = await service.editAdaptation(
+      'org-a',
+      'piece-1',
+      'ad-1',
+      { body: 'Новый текст первой версии.' },
+      'ru'
+    );
+    expect(posts.get('post-1')).toMatchObject({ state: 'DRAFT', deletedAt: null });
+    expect(calls.edits).toEqual([['ad-1', 'post-1', 'Новый текст первой версии.']]);
+    expect(result).toBeTruthy();
+    expect(posts.get('post-2')).toEqual(queuedBefore);
+    expect(posts.get('post-2').state).toBe('QUEUE');
+  });
+
+  test('черновик, удалённый не уборкой (подтверждённой соседней версии нет), не возвращается', async () => {
+    const { service, posts, generate } = stand();
+    await generate();
+    posts.get('post-1').deletedAt = new Date(NOW);
+    await expect(
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'Текст.' }, 'ru')
+    ).rejects.toMatchObject({ code: 'ADAPTATION_POST_GONE' });
+    expect(posts.get('post-1').deletedAt).toBeInstanceOf(Date);
+  });
+
+  test('«Поставить на …» удалённой уборкой версии идёт от вернувшегося черновика', async () => {
+    const { service, posts } = await confirmSecond();
+    await service.placeAdaptation(
+      'org-a',
+      'piece-1',
+      'ad-1',
+      { date: '2026-09-24T09:00:00.000Z' },
+      'ru'
+    );
+    expect(posts.get('post-1')).toMatchObject({ state: 'DRAFT', deletedAt: null });
+    expect(posts.get('post-1').publishDate.toISOString()).toBe('2026-09-24T09:00:00.000Z');
+    expect(posts.get('post-2').state).toBe('QUEUE');
+  });
+
+  test('каждое чтение поста версии для действия идёт через один помощник', () => {
+    const source = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        '../libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts'
+      ),
+      'utf8'
+    );
+    // «Убрать следы», «Проверить факты», «Переписать» и их «Принять».
+    const reviewReads = source.match(/this\.pieces\.reviewDraft\(/g) || [];
+    const routedReviews = source.match(/liveVariantRead\([^)]*\) =>\s*this\.pieces\.reviewDraft\(/g) || [];
+    expect(reviewReads.length).toBe(2);
+    expect(routedReviews.length).toBe(reviewReads.length);
+    // Правка и «Поставить на …».
+    const routedDrafts = source.match(/liveVariantRead\([^)]*\) =>\s*this\.pieces\.workspaceDraft\(/g) || [];
+    expect(routedDrafts.length).toBe(2);
   });
 });

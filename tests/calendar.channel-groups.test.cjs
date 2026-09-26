@@ -375,3 +375,44 @@ describe('the words and the hint', () => {
     expect(filters).not.toContain('PlanLegend');
   });
 });
+
+describe('list: every row says its delivery state', () => {
+  /*
+   * Live walk 25.09.2026, P3-10. The list row's pill fell back from the stage
+   * to the tag names to «Черновик»; a post confirmed into the queue had
+   * neither stage nor tag and lost its only chip. It now carries the same
+   * plan state word as the channel rows, and a stage beside it when one is set.
+   */
+  const mountList = (posts) => {
+    context = {
+      integrations: [channel(0, ['09:00'])],
+      listPosts: posts,
+      listState: 'all',
+      listSearched: '',
+      loading: false,
+    };
+    return render(
+      h(CalendarContext.Provider, { value: context }, h(Calendar.ListView))
+    );
+  };
+  const one = (patch) => ({ ...post(0, '09:00'), ...patch });
+
+  test.each([
+    [{ state: 'DRAFT', plan: 'reserve' }, 'reserved', 'в плане'],
+    [{ state: 'QUEUE', plan: 'reserve' }, 'queued', 'в очереди'],
+    [{ state: 'DRAFT', plan: null }, 'draft', 'черновик'],
+    [{ state: 'PUBLISHED', plan: null }, 'published', 'вышел'],
+  ])('%o shows «%s»', (patch, state, word) => {
+    mountList([one(patch)]);
+    const pills = document.querySelectorAll('[data-plan-state]');
+    expect(pills).toHaveLength(1);
+    expect(pills[0].getAttribute('data-plan-state')).toBe(state);
+    expect(pills[0].textContent).toBe(word);
+  });
+
+  test('a stage set by a person stays beside the state', () => {
+    mountList([one({ state: 'QUEUE', plan: null, editorialStage: 'REVIEW' })]);
+    expect(document.querySelector('[data-plan-state]').textContent).toBe('в очереди');
+    expect(document.body.textContent).toContain('Проверка');
+  });
+});

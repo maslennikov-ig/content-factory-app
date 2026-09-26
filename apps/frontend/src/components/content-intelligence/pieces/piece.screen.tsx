@@ -21,6 +21,7 @@ import {
   NEW_PIECE_PATH,
   PIECE_TAB_CORE,
   platformName,
+  tourEntryChannel,
   workspaceTabs,
   type PieceWorkspaceV1,
   type VoiceScreenStateV1,
@@ -184,6 +185,7 @@ export function PieceScreen({
   };
 
   const { shown, more } = workspaceTabs(channels, tab);
+  const tourEntry = tourEntryChannel(shown);
   const tabLabel = (channel: WorkspaceChannel) =>
     `${platformName(channel.platform, locale, channel.platformName)} · ${
       channel.name
@@ -400,6 +402,9 @@ export function PieceScreen({
                   value={channel.id}
                   data-piece-tab-button={channel.id}
                   data-piece-tab-state={channel.state}
+                  data-tour-enter={
+                    channel.id === tourEntry?.id ? 'adaptation' : undefined
+                  }
                   aria-label={`${tabLabel(channel)}: ${stateWord(
                     channel.state,
                     t

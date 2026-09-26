@@ -304,7 +304,20 @@ const open = async (props = {}) => {
   (`97dq.78`); текст пишет главная кнопка вкладки.
 */
 const openAdaptTab = async (name = 'Telegram · Мой канал') => {
-  await click(screen.getByRole('button', { name: `Адаптировать · ${name}` }));
+  // One «Адаптировать» for the block (26.09.2026): one channel — the button
+  // goes straight to its tab; several — it opens a choice of channels.
+  const only = document.querySelector('[data-piece-next-adapt]');
+  if (only) {
+    await click(only);
+    return;
+  }
+  await click(
+    document.querySelector('[data-workspace-menu="adapt-channel"] button')
+  );
+  const item = [
+    ...document.querySelectorAll('[data-workspace-menu-item]'),
+  ].find((node) => node.textContent.includes(name));
+  await click(item);
 };
 
 const adaptTo = async (name = 'Telegram · Мой канал') => {

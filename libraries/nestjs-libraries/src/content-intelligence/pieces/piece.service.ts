@@ -723,6 +723,28 @@ class QueueStartFailed extends Error {
   }
 }
 
+/**
+ * A variant whose DRAFT post the confirm-time cleanup removed (`2q28.39`):
+ * its own post is soft-deleted and still `DRAFT`, and another variant of the
+ * same piece in the same channel went on (a live queued, published or failed
+ * post). Without that sibling the draft was removed by someone else — the
+ * calendar, the editor — and it is not brought back.
+ */
+const droppedByConfirm = (variants: readonly PlanVariantRow[], adaptationId: string): boolean => {
+  const mine = variants.find((one) => one.id === adaptationId);
+  const post = mine?.post;
+  if (!post || !post.deletedAt || upperState(post.state) !== 'DRAFT') return false;
+  return variants.some(
+    (one) =>
+      one.id !== adaptationId &&
+      !!one.post &&
+      one.post.id !== post.id &&
+      !one.post.deletedAt &&
+      one.post.integrationId === post.integrationId &&
+      ['QUEUE', 'PUBLISHED', 'ERROR'].includes(upperState(one.post.state))
+  );
+};
+
 const planVariantOf = (row: PlanVariantRow) => ({
   id: row.id,
   pieceId: row.contentPieceId,
@@ -1870,6 +1892,54 @@ export class PieceService {
       });
     }
     return released;
+  }
+
+  /**
+   * «Удалять при подтверждении» (`2q28.39`, решение владельца 26.09.2026).
+   *
+   * Человек подтвердил одну версию — черновики других версий этой заготовки
+   * в этом канале уходят из календаря мягким удалением (`deletedAt`), а не
+   * лежат там невидимыми дублями (живой заход 25.09, P3-5). Текст версии
+   * (`ContentDerivation.body`) остаётся: «Вариант 1» по-прежнему читается на
+   * заготовке, и его «Запланировать» возвращает тот же пост
+   * (`restoreDraftPost`). Трогаются только живые `DRAFT`: очередь, вышедшее и
+   * ошибка — никогда. Под «Без плана» слота нет и черновики видны, поэтому
+   * они остаются, как до волны. Идёт после того, как очередь встала: отказ
+   * или несостоявшийся старт ничего не удаляют. Сбой уборки подтверждение не
+   * отменяет — черновик просто остаётся вытесненным, как раньше.
+   */
+  private async dropOtherDrafts(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    adaptationId: string
+  ): Promise<void> {
+    try {
+      await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        if (!db.dropDraftPosts) return;
+        if ((await this.planModeFor(db, organizationId, pieceId, integrationId)) === 'draft')
+          return;
+        const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+        const mine = variants.find((one) => one.id === adaptationId);
+        if (!mine?.post || mine.post.deletedAt || upperState(mine.post.state) !== 'QUEUE') return;
+        const others = variants
+          .filter(
+            (one) =>
+              one.id !== adaptationId &&
+              one.post &&
+              one.post.id !== mine.post!.id &&
+              !one.post.deletedAt &&
+              one.post.integrationId === integrationId &&
+              upperState(one.post.state) === 'DRAFT'
+          )
+          .map((one) => one.post!.id);
+        if (others.length) await db.dropDraftPosts(organizationId, integrationId, others);
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Piece ${pieceId}: other variants' drafts in channel ${integrationId} were not removed: ${describeError(error)}`
+      );
+    }
   }
 
   /** Temporal по состоянию поста в базе. Без календаря — «не запустилось». */
@@ -3470,6 +3540,58 @@ export class PieceService {
    * -------------------------------------------------------------------- */
 
   /**
+   * Every read of a variant's post that an action on it starts from
+   * (`2q28.39`): autosave, «Поставить на …», «Убрать следы», «Проверить
+   * факты», «Переписать» and their «Принять». If the confirm-time cleanup
+   * removed this variant's draft, the post comes back as the same `DRAFT`
+   * first — under the channel lock, only the rows that cleanup removed
+   * (`droppedByConfirm`, `restoreDraftPost`) — and the row is read again.
+   * Anything else reads exactly as it did. «Запланировать» restores inside
+   * its own queue transaction instead, so a refusal brings nothing back.
+   */
+  private async liveVariantRead<
+    T extends {
+      post: {
+        id: string;
+        state: string;
+        deletedAt: Date | null;
+        integration: { id?: string };
+      } | null;
+    }
+  >(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    read: () => Promise<T | null>
+  ): Promise<T | null> {
+    const row = await read();
+    const post = row?.post;
+    const integrationId = post?.integration?.id;
+    if (
+      !post ||
+      !post.deletedAt ||
+      upperState(post.state) !== 'DRAFT' ||
+      !integrationId ||
+      !this.planStore()
+    )
+      return row;
+    let revived = false;
+    try {
+      revived = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        if (!db.restoreDraftPost) return false;
+        const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+        if (!droppedByConfirm(variants, adaptationId)) return false;
+        return db.restoreDraftPost(organizationId, post.id);
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Adaptation ${adaptationId}: removed draft was not brought back: ${describeError(error)}`
+      );
+    }
+    return revived ? read() : row;
+  }
+
+  /**
    * Черновик, который экран адаптации вправе менять: свой, живой и `DRAFT`.
    * Возвращает строку вместе с постом, чтобы звавшему не читать её второй раз.
    */
@@ -3477,7 +3599,12 @@ export class PieceService {
     organizationId: string,
     pieceId: string,
     adaptationId: string,
-    language: 'ru' | 'en'
+    language: 'ru' | 'en',
+    /**
+     * «Запланировать» / «Подтвердить» may bring back a variant whose draft
+     * left the calendar when another variant was confirmed (`2q28.39`).
+     */
+    revivable = false
   ) {
     const draft = await this.pieces.workspaceDraft(
       organizationId,
@@ -3488,7 +3615,7 @@ export class PieceService {
     const post = draft.post;
     if (
       !post ||
-      post.deletedAt ||
+      (post.deletedAt && !revivable) ||
       String(post.state || '').toUpperCase() !== 'DRAFT'
     ) {
       throw workspaceError('ADAPTATION_NOT_DRAFT', language);
@@ -3513,10 +3640,8 @@ export class PieceService {
     adaptationId: string,
     language: 'ru' | 'en'
   ) {
-    const draft = await this.pieces.workspaceDraft(
-      organizationId,
-      pieceId,
-      adaptationId
+    const draft = await this.liveVariantRead(organizationId, pieceId, adaptationId, () =>
+      this.pieces.workspaceDraft(organizationId, pieceId, adaptationId)
     );
     if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
     const post = draft.post;
@@ -3802,7 +3927,8 @@ export class PieceService {
       organizationId,
       pieceId,
       adaptationId,
-      language
+      language,
+      Boolean(this.planStore())
     );
 
     // Площадка проверяет пост до замка (I3): замок не ждёт её.
@@ -3840,7 +3966,19 @@ export class PieceService {
       const effects = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
         const variants = await db.channelVariants(organizationId, pieceId, integrationId);
         const mine = variants.find((one) => one.id === adaptationId);
-        if (!mine?.post || mine.post.deletedAt || upperState(mine.post.state) !== 'DRAFT')
+        if (!mine?.post || upperState(mine.post.state) !== 'DRAFT')
+          throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+        // «Вариант 1» после подтверждения второго (`2q28.39`): его черновик
+        // ушёл из календаря, и выбор человека возвращает тот же пост — в той
+        // же транзакции, что и очередь, так что отказ ничего не оживляет.
+        if (
+          mine.post.deletedAt &&
+          !(
+            droppedByConfirm(variants, adaptationId) &&
+            db.restoreDraftPost &&
+            (await db.restoreDraftPost(organizationId, mine.post.id))
+          )
+        )
           throw workspaceError('ADAPTATION_NOT_DRAFT', language);
         const gate = queueGate(variants, adaptationId, this.now(), {
           releaseHuman: true,
@@ -3862,6 +4000,7 @@ export class PieceService {
       });
       if (!(await this.applyQueueEffects(organizationId, pieceId, integrationId, effects, language)))
         throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+      await this.dropOtherDrafts(organizationId, pieceId, integrationId, adaptationId);
     }
 
     return {
@@ -4375,10 +4514,8 @@ export class PieceService {
 
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
-    const draft = await this.pieces.workspaceDraft(
-      organizationId,
-      pieceId,
-      adaptationId
+    const draft = await this.liveVariantRead(organizationId, pieceId, adaptationId, () =>
+      this.pieces.workspaceDraft(organizationId, pieceId, adaptationId)
     );
     if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
     const post = draft.post;
@@ -4644,10 +4781,8 @@ export class PieceService {
     // «До N» поста или канала (`97dq.83`): у сути потолка нет.
     let emojiCeiling: EmojiCeiling | null | undefined;
     if (adaptationId) {
-      const draft = await this.pieces.reviewDraft(
-        organizationId,
-        pieceId,
-        adaptationId
+      const draft = await this.liveVariantRead(organizationId, pieceId, adaptationId, () =>
+        this.pieces.reviewDraft(organizationId, pieceId, adaptationId)
       );
       if (!draft)
         throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
@@ -4888,10 +5023,8 @@ export class PieceService {
       );
     }
     if (adaptationId) {
-      const draft = await this.pieces.reviewDraft(
-        organizationId,
-        pieceId,
-        adaptationId
+      const draft = await this.liveVariantRead(organizationId, pieceId, adaptationId, () =>
+        this.pieces.reviewDraft(organizationId, pieceId, adaptationId)
       );
       if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', 'ru', adaptationId);
       if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt)

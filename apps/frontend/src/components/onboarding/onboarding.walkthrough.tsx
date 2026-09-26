@@ -449,7 +449,7 @@ export function OnboardingWalkthrough({
             </div>
             {step && !stepDone && (
               <p id="onboarding-wait" className="cf-caption text-cf-ink-muted">
-                {t.waitNote}
+                {t.waitNote(nextLabel, t.later)}
               </p>
             )}
           </div>
@@ -469,9 +469,17 @@ export function OnboardingWalkthrough({
         >
           {t.counted}
         </p>
+        {/*
+          The way back, once. The menu row it points at hides at 5 of 5
+          (`top.menu.tsx`, `allStepsDone`), so from then on the way back is
+          the settings tab — and inside that tab there is nothing to say.
+        */}
         {!embedded && (
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {t.comeBack}
+          <p
+            data-onboarding-note="come-back"
+            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {openCount === 0 ? t.comeBackDone : t.comeBack}
           </p>
         )}
       </footer>

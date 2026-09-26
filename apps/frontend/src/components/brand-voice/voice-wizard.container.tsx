@@ -25,6 +25,7 @@ import type { VoiceLocale } from './voice-copy';
 import {
   ANALYSIS_PROGRESS_START,
   ANALYSIS_SILENCE_MS,
+  ANALYSIS_WATCH_INTERVAL_MS,
   VOICE_ROUTES,
   advanceAnalysis,
   buildFilePayload,
@@ -41,6 +42,7 @@ import {
   readPaths,
   readProposal,
   readSamples,
+  resumeStepFor,
   shortfallText,
   voiceFailureFrom,
   voiceHttpError,
@@ -174,6 +176,12 @@ export function VoiceWizardContainer({
   >(null);
   const [notice, setNotice] = useState<SurfaceNotice | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  /**
+   * A run started before the page was left, still finishing on the server
+   * (`2q28.34`). Nothing streams here, so the screen asks `GET …/analysis`
+   * until the proposal lands rather than paying for a second run.
+   */
+  const [watching, setWatching] = useState(false);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const [analysisResult, setAnalysisResult] = useState<
     Extract<AnalysisReading, { outcome: 'ready' }> | null
@@ -256,6 +264,23 @@ export function VoiceWizardContainer({
     () => readOverview(overviewQuery.data),
     [overviewQuery.data]
   );
+  /**
+   * What is already stored for the texts on file, read where a person comes
+   * back (`2q28.34`). Without it «Продолжить сбор» opened the sample list over
+   * a finished proposal, and the only way on paid for the analysis again.
+   */
+  const standingQuery = useSWR(
+    step === 'empty' && overview.readiness.sampleCount > 0
+      ? scoped(VOICE_ROUTES.analysis)
+      : null,
+    () => read(scoped(VOICE_ROUTES.analysis)),
+    { revalidateOnFocus: false }
+  );
+  const standing = useMemo(
+    () => (standingQuery.data ? readAnalysis(standingQuery.data) : null),
+    [standingQuery.data]
+  );
+  const resumeStep = resumeStepFor(standing, Date.now());
   const paths = useMemo(
     () => readPaths(pathsQuery.data, overview.paths),
     [overview.paths, pathsQuery.data]
@@ -297,8 +322,73 @@ export function VoiceWizardContainer({
     setNotice(null);
     setShortfall(null);
     setAnalysisResult(null);
+    setWatching(false);
     setStep(next);
   }, []);
+
+  /**
+   * A stored run, shown on screen 04 without running anything.
+   *
+   * With a proposal it is the ordinary finished step. Without one the model
+   * did not finish, and the screen says so beside the numbers that were
+   * saved — the rerun is its own button there, never this one.
+   */
+  const openStoredAnalysis = useCallback(
+    (reading: AnalysisReading) => {
+      if (reading.outcome !== 'ready') return;
+      setChosenPath((current) => current ?? 'own');
+      goTo('analysis');
+      setAnalysisResult(reading);
+      if (!reading.hasProposal) {
+        setFailure({
+          surface: 'analysis',
+          failure: {
+            code: null,
+            message: w.proposalMissing,
+            status: null,
+            screenState: 'error',
+          },
+        });
+      }
+    },
+    [goTo, w.proposalMissing]
+  );
+
+  /** Screen 04 waiting for a run the server is still finishing. */
+  const watchStoredRun = useCallback(() => {
+    setChosenPath((current) => current ?? 'own');
+    goTo('analysis');
+    setWatching(true);
+    onAnalysingChange?.(true);
+  }, [goTo, onAnalysingChange]);
+
+  useEffect(() => {
+    if (!watching) return;
+    let cancelled = false;
+    const tick = async () => {
+      let reading: AnalysisReading;
+      try {
+        reading = readAnalysis(await read(scoped(VOICE_ROUTES.analysis)));
+      } catch {
+        // A missed answer is not an ending: the next tick asks again.
+        return;
+      }
+      if (cancelled) return;
+      const next = resumeStepFor(reading, Date.now());
+      if (next === 'waiting') return;
+      onAnalysingChange?.(false);
+      if (next === 'samples') {
+        goTo('samples');
+        return;
+      }
+      openStoredAnalysis(reading);
+    };
+    const timer = setInterval(() => void tick(), ANALYSIS_WATCH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [goTo, onAnalysingChange, openStoredAnalysis, read, scoped, watching]);
 
   const choosePath = useCallback(
     (path: VoicePathKeyV1) => {
@@ -444,8 +534,45 @@ export function VoiceWizardContainer({
     }
   }, [fail, locale, read, request, scoped, onAnalysisStart, onAnalysingChange]);
 
-  /** Stopping mid-run: the request is cut, and the corpus step is where it left off. */
-  const stopAnalysis = useCallback(() => {
+  /**
+   * «Дальше — разбор», which pays only when it has to (`2q28.34`).
+   *
+   * The stored run is read first. If it answers for exactly these texts, the
+   * step shows it — or waits for it, if it is still finishing — and nothing is
+   * sent to the model. A new run starts only when there is nothing stored for
+   * these texts, they changed since, or the read itself failed.
+   */
+  const proceedFromSamples = useCallback(async () => {
+    let reading: AnalysisReading | null = null;
+    try {
+      reading = readAnalysis(await read(scoped(VOICE_ROUTES.analysis)));
+    } catch {
+      reading = null;
+    }
+    const target = resumeStepFor(reading, Date.now());
+    if (!reading || target === 'samples') {
+      await runAnalysis();
+      return;
+    }
+    onAnalysisStart?.();
+    if (target === 'waiting') watchStoredRun();
+    else openStoredAnalysis(reading);
+  }, [
+    onAnalysisStart,
+    openStoredAnalysis,
+    read,
+    runAnalysis,
+    scoped,
+    watchStoredRun,
+  ]);
+
+  /**
+   * «Назад к текстам» (`2q28.39`): the page stops listening and the corpus
+   * step opens. The server run is not stopped — it finishes and is stored,
+   * and «Дальше — разбор» over the same texts shows it; changed texts start
+   * a fresh run.
+   */
+  const backToTexts = useCallback(() => {
     analysisRun.current += 1;
     analysisAbort.current?.abort();
     analysisAbort.current = null;
@@ -680,7 +807,7 @@ export function VoiceWizardContainer({
 
   const emptyState = overviewFailure
     ? overviewFailure.screenState
-    : overviewQuery.isLoading
+    : overviewQuery.isLoading || standingQuery.isLoading
     ? 'loading'
     : !canManage
     ? 'restricted'
@@ -715,7 +842,7 @@ export function VoiceWizardContainer({
     : // Идёт — значит идёт. Раньше это состояние держалось только до первой
       // доли прогресса, потому что доля приходила одна на весь ход; теперь
       // строки идут всю дорогу, и шаг остаётся `loading`, пока они идут.
-      analysing
+      analysing || watching
     ? 'loading'
     : !canManage
     ? 'restricted'
@@ -783,9 +910,24 @@ export function VoiceWizardContainer({
                 },
               }
             : {})}
+          resumeAt={
+            resumeStep === 'samples' || resumeStep === 'proposal'
+              ? resumeStep
+              : 'analysis'
+          }
           onContinue={() => {
             setChosenPath((current) => current ?? 'own');
-            goTo('samples');
+            // Read again at the click: a run that was still finishing when
+            // the screen opened may have finished, or run out its window.
+            const target = resumeStepFor(standing, Date.now());
+            if (!standing || target === 'samples') {
+              goTo('samples');
+              return;
+            }
+            onAnalysisStart?.();
+            if (target === 'proposal') goTo('proposal');
+            else if (target === 'waiting') watchStoredRun();
+            else openStoredAnalysis(standing);
           }}
           {...(manualDraft ? { manualDraft } : {})}
           onContinueManual={() => choosePath('manual')}
@@ -859,7 +1001,7 @@ export function VoiceWizardContainer({
             onDeleteSelected={deleteSelected}
             maxMessages={maxMessages}
             onMaxMessagesChange={setMaxMessages}
-            onNext={runAnalysis}
+            onNext={() => void proceedFromSamples()}
             /*
               The analysis is the most expensive button in the product: it maps
               the whole corpus through the model. What is left is said here,
@@ -979,10 +1121,11 @@ export function VoiceWizardContainer({
           punctuation={analysisResult?.punctuation}
           rejected={analysisResult?.rejected}
           selectionSummary={selectionSummary}
+          waiting={watching}
           notice={analysisFailure?.message}
           onContinue={() => goTo('proposal')}
           onRetry={() => void runAnalysis()}
-          onStop={stopAnalysis}
+          onBack={backToTexts}
         />
       ) : null}
 

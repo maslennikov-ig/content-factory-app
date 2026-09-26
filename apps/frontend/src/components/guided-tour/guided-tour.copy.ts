@@ -63,7 +63,7 @@ export const guidedTourCopy: { ru: Words; en: Words } = {
       },
       adaptationPanel: {
         title: 'Настройки поста',
-        body: 'Длина, тон, аватар и остальное для этого поста. Применяются, когда пост переписывается.',
+        body: 'Длина, эмодзи, хэштеги, ссылки, призыв и пожелание — только для этого поста. Применяются, когда пост пишется или переписывается.',
       },
       adaptationRewrite: {
         title: '«Переписать по настройкам»',
@@ -128,7 +128,7 @@ export const guidedTourCopy: { ru: Words; en: Words } = {
       },
       adaptationPanel: {
         title: 'Post settings',
-        body: 'Length, tone, avatar and the rest for this post. They apply when the post is rewritten.',
+        body: 'Length, emoji, hashtags, links, call to action and a wish — for this post only. They apply when the post is written or rewritten.',
       },
       adaptationRewrite: {
         title: '"Rewrite with these settings"',

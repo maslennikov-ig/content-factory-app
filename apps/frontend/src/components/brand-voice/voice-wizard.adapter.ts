@@ -116,6 +116,10 @@ const asCount = (value: unknown): number =>
 export const wizardCopy = {
   ru: {
     analysing: 'Разбираем ваши тексты',
+    // A stored run whose proposal never arrived (`2q28.34`). Shown under
+    // «Разбор прерван» with the numbers that were saved and the rerun button.
+    proposalMissing:
+      'В прошлый раз ИИ не закончил предложение. Числа сохранены. Чтобы получить предложение, запустите разбор ещё раз — это около пяти минут.',
     analysingMeasuring: 'считаем длину фраз, пунктуацию и повторы',
     analysingAssisting: 'составляем предложение голоса',
     unknownFailure:
@@ -177,6 +181,8 @@ export const wizardCopy = {
   },
   en: {
     analysing: 'Reading your texts',
+    proposalMissing:
+      'Last time the AI did not finish the proposal. The numbers are saved. To get a proposal, run the analysis again — it takes about five minutes.',
     analysingMeasuring: 'counting sentence length, punctuation and repetition',
     analysingAssisting: 'drafting the voice proposal',
     unknownFailure:
@@ -494,6 +500,10 @@ export type AnalysisReading =
       lexicon: readonly AnalysisLexiconRow[];
       punctuation: AnalysisPunctuationRow;
       rejected: readonly AnalysisRejectedRow[];
+      /** Read back by `GET …/analysis` only; see `resumeStepFor`. */
+      hasProposal?: boolean;
+      corpusChanged?: boolean;
+      measuredAt?: string;
     };
 
 const asPercentOrNull = (value: unknown): number | null =>
@@ -548,7 +558,65 @@ export function readAnalysis(value: unknown): AnalysisReading {
             : ('TOO_SHORT' as const),
       };
     }),
+    ...(typeof analysis.hasProposal === 'boolean'
+      ? { hasProposal: analysis.hasProposal }
+      : {}),
+    ...(typeof analysis.corpusChanged === 'boolean'
+      ? { corpusChanged: analysis.corpusChanged }
+      : {}),
+    ...(asText(analysis.measuredAt)
+      ? { measuredAt: asText(analysis.measuredAt) }
+      : {}),
   };
+}
+
+/**
+ * How long a stored run without a proposal may still be finishing.
+ *
+ * The server does not stop a run when the page is left: the arithmetic is
+ * saved in seconds, and the proposal is written onto the same row when the
+ * last model call returns. Eight texts took 270–330 s on the walk of
+ * 25.09.2026; twenty-eight, the most the analysis reads, run in about three
+ * times as many rounds. Twenty minutes covers that with room. Past it, a
+ * measurement without a proposal is a run the model did not finish.
+ */
+export const ANALYSIS_BACKGROUND_WINDOW_MS = 20 * 60_000;
+
+/** How often a returning person's screen asks whether the run has finished. */
+export const ANALYSIS_WATCH_INTERVAL_MS = 10_000;
+
+/**
+ * Where a person who comes back to the wizard lands (`2q28.34`).
+ *
+ * - `proposal`: the stored run answers for these texts and carries a proposal.
+ *   Nothing needs paying for again.
+ * - `waiting`: the arithmetic is stored for these texts and the proposal is
+ *   not, but the run started recently enough to still be going on the server.
+ * - `analysis`: the numbers are stored and the model did not finish; the
+ *   screen shows them and offers the rerun as its own button.
+ * - `samples`: nothing stored answers for these texts — none yet, or the
+ *   texts changed since. Only here does «Дальше — разбор» start a paid run.
+ *
+ * An older server that sends no `corpusChanged` reads as `samples`: without it
+ * nobody can say the stored run is about these texts.
+ */
+export type ResumeStep = 'samples' | 'analysis' | 'waiting' | 'proposal';
+
+export function resumeStepFor(
+  reading: AnalysisReading | null | undefined,
+  now: number
+): ResumeStep {
+  if (!reading || reading.outcome !== 'ready') return 'samples';
+  if (reading.corpusChanged !== false) return 'samples';
+  if (reading.hasProposal) return 'proposal';
+  const measuredAt = reading.measuredAt ? Date.parse(reading.measuredAt) : NaN;
+  if (
+    Number.isFinite(measuredAt) &&
+    now - measuredAt < ANALYSIS_BACKGROUND_WINDOW_MS
+  ) {
+    return 'waiting';
+  }
+  return 'analysis';
 }
 
 /* -------------------------------------------------------------------------

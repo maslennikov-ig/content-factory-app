@@ -65,7 +65,12 @@ type Words = {
   stateDone: string;
   stateOpen: string;
   doneNote: string;
-  waitNote: string;
+  /**
+   * Under a forward button that is still off. It names that button as it is
+   * labelled — «Дальше: Канал» or, on the last step, «Завершить» — and the
+   * «Сделаю позже» beside it (live walk 25.09.2026, P3-8).
+   */
+  waitNote: (forward: string, later: string) => string;
   showOnScreen: string;
   openChannels: string;
   openLatestPiece: string;
@@ -79,7 +84,10 @@ type Words = {
   allDoneBody: string;
   leftTitle: string;
   leftBody: (open: number) => string;
+  /** Only while the «С чего начать» menu row is there: it hides at 5 of 5. */
   comeBack: string;
+  /** At 5 of 5 the menu row is gone; the settings tab is the way back. */
+  comeBackDone: string;
   /** Откуда берутся галочки и почему нет кнопки «начать заново». */
   counted: string;
   /** Подпись пункта бокового меню. */
@@ -125,8 +133,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     stateDone: 'сделано',
     stateOpen: 'не сделано',
     doneNote: 'Этот шаг уже сделан.',
-    waitNote:
-      '«Дальше» станет доступна, когда шаг будет сделан. «Сделаю позже» — перейти, ничего не отмечая.',
+    waitNote: (forward, later) =>
+      `Кнопка «${forward}» станет доступна, когда шаг будет сделан. «${later}» — перейти, ничего не отмечая.`,
     showOnScreen: 'Показать на экране',
     openChannels: 'Открыть каналы',
     openLatestPiece: 'Открыть последнюю заготовку',
@@ -137,7 +145,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     moreLabel: 'Что ещё здесь есть',
     allDoneTitle: 'Всё пройдено',
     allDoneBody:
-      'Первый пост прошёл весь путь. Сюда можно не возвращаться — страница останется в настройках.',
+      'Первый пост прошёл весь путь. Сюда можно не возвращаться.',
     leftTitle: 'Почти всё',
     leftBody: (open) =>
       `${open} ${plural(
@@ -147,6 +155,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         'шагов отложено'
       )}. Вернитесь к ${plural(open, 'нему', 'ним', 'ним')} с полосы сверху, когда будет время.`,
     comeBack: 'Вернуться к этим шагам можно через пункт меню «С чего начать».',
+    comeBackDone:
+      'Страница остаётся в настройках — вкладка «С чего начать».',
     counted:
       'Шаги считаются по данным пространства. Сбросить нельзя: пройдите заново в новом пространстве.',
     menuLabel: 'С чего начать',
@@ -177,12 +187,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     telegram: {
       addBotTitle: 'Добавьте бота в свой канал администратором',
       addBotBody:
-        'В Telegram: канал → Администраторы → Добавить. Нужно одно право — публиковать сообщения.',
+        'В Telegram: канал → Администраторы → Добавить. Обязательно право публиковать сообщения. Право удалять сообщения — по желанию: с ним бот уберёт команду из канала сам.',
       commandTitle: 'Отправьте в канал эту команду',
       commandIdle:
         'Нажмите «Подключить Telegram» — появится команда со словом только для вас.',
       commandBody:
-        'Команда действует 15 минут. Если у бота нет права удалять сообщения, удалите её из канала сами.',
+        'Команда действует 15 минут. Без права удалять сообщения бот её оставит — удалите её из канала сами, на подключение это не влияет.',
       appearsTitle: 'Готово — канал появится здесь сам',
       waiting: 'Ждём сообщение в канале…',
       expired: 'Команда устарела. Получите новую и отправьте её ещё раз.',
@@ -275,8 +285,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     stateDone: 'done',
     stateOpen: 'not done',
     doneNote: 'This step is already done.',
-    waitNote:
-      '"Next" opens once the step is done. "Later" moves on without ticking anything.',
+    waitNote: (forward, later) =>
+      `"${forward}" opens once the step is done. "${later}" moves on without ticking anything.`,
     showOnScreen: 'Show me on the screen',
     openChannels: 'Open channels',
     openLatestPiece: 'Open the latest piece',
@@ -287,11 +297,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     moreLabel: 'What else is here',
     allDoneTitle: 'All done',
     allDoneBody:
-      'Your first post went the whole way. You do not need to come back here — the page stays in Settings.',
+      'Your first post went the whole way. You do not need to come back here.',
     leftTitle: 'Almost there',
     leftBody: (open) =>
       `${open} step${open === 1 ? '' : 's'} put off. Come back from the strip above when you have time.`,
     comeBack: 'Return to these steps through the "Where to start" menu item.',
+    comeBackDone: 'The page stays in Settings, on the "Where to start" tab.',
     counted:
       'The ticks are counted from what is in this workspace. There is no reset: start again in a new workspace.',
     menuLabel: 'Where to start',
@@ -309,12 +320,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     telegram: {
       addBotTitle: 'Add the bot to your channel as an admin',
       addBotBody:
-        'In Telegram: channel → Administrators → Add. It needs one right — to post messages.',
+        'In Telegram: channel → Administrators → Add. The right to post messages is required. The right to delete messages is optional: with it, the bot removes the command from the channel itself.',
       commandTitle: 'Send this command to the channel',
       commandIdle:
         'Press "Connect Telegram" and a command with a word just for you appears.',
       commandBody:
-        'The command works for 15 minutes. If the bot cannot delete messages, remove it from the channel yourself.',
+        'The command works for 15 minutes. Without the right to delete messages the bot leaves it there — remove it yourself; the connection works either way.',
       appearsTitle: 'Done — the channel shows up here by itself',
       waiting: 'Waiting for the message in the channel…',
       expired: 'The command expired. Get a new one and send it again.',

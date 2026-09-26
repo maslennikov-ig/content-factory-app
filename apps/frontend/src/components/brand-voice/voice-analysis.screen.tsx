@@ -88,10 +88,11 @@ export function VoiceAnalysisScreen({
   punctuation,
   rejected = [],
   selectionSummary,
+  waiting = false,
   notice,
   onContinue,
   onRetry,
-  onStop,
+  onBack,
 }: {
   locale: VoiceLocale;
   state?: VoiceAnalysisState;
@@ -117,10 +118,20 @@ export function VoiceAnalysisScreen({
   rejected?: readonly AnalysisRejectedRow[];
   /** Telegram selection made before this run, kept visible with its result. */
   selectionSummary?: string;
+  /**
+   * A run started before the page was left, still finishing on the server
+   * (`2q28.34`). Nothing streams to this page, so there is no share to draw:
+   * the bar runs without a number and the line says what is awaited.
+   */
+  waiting?: boolean;
   notice?: string;
   onContinue?: () => void;
   onRetry?: () => void;
-  onStop?: () => void;
+  /**
+   * «Назад к текстам»: the page stops listening and the corpus step opens.
+   * The run on the server is not stopped — it finishes and is kept.
+   */
+  onBack?: () => void;
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading' || (state === 'default' && progress != null);
@@ -151,7 +162,7 @@ export function VoiceAnalysisScreen({
    * половина, и честно про неё говорит строка «Числа посчитаны, предложение —
    * нет», а не число.
    */
-  const showPercent = state !== 'error';
+  const showPercent = state !== 'error' && !(waiting && !ready);
   const stageLabel =
     (stage === 'ASSISTING' || (stage === 'MEASURED' && assisted))
       ? assisted && assisted.total > 0
@@ -164,6 +175,8 @@ export function VoiceAnalysisScreen({
           : t.analysisLoading;
   const progressLabel = ready
     ? t.analysisDone
+    : waiting && state !== 'error'
+      ? t.analysisWaiting
     : countedOnly
       ? t.analysisCountedOnly
       : state === 'error'
@@ -284,6 +297,8 @@ export function VoiceAnalysisScreen({
                 label={stageLabel}
                 active={busy}
               />
+            ) : waiting && state !== 'error' ? (
+              <Progress mode="indeterminate" label={t.analysisWaiting} />
             ) : null}
           </div>
           <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
@@ -461,16 +476,21 @@ export function VoiceAnalysisScreen({
           <Button type="button" variant="secondary" onClick={onRetry}>
             {t.analysisRetry}
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={state === 'restricted' || ready}
-            onClick={onStop}
-          >
-            {t.analysisStop}
-          </Button>
-        )}
+        ) : null}
+        {/*
+          2q28.39: «Остановить разбор» ушла. Она только переставала слушать:
+          разбор на сервере доходит до конца (и уже оплачен), а экран говорит,
+          что уходить можно. Единственная причина остановить — не те тексты, —
+          и её решает возврат к ним: изменённые тексты запускают новый разбор.
+        */}
+        <Button
+          type="button"
+          variant="quiet"
+          data-voice-analysis-back="true"
+          onClick={onBack}
+        >
+          {t.analysisBack}
+        </Button>
       </div>
     </section>
   );

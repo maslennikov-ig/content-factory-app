@@ -515,9 +515,19 @@ describe('a short corpus is a result, not a refusal', () => {
     });
 
     const ran = await service.runAnalysis(admin, {});
-    const read = await service.analysis(admin);
+    const { hasProposal, corpusChanged, measuredAt, ...said } =
+      await service.analysis(admin);
+    const read = said;
 
     expect(read).toEqual(ran);
+    // The read adds only where a returning person stands (2q28.34). The
+    // dropped English text was part of what this run looked at, so the texts
+    // on file are still the ones it measured.
+    expect({ hasProposal, corpusChanged }).toEqual({
+      hasProposal: false,
+      corpusChanged: false,
+    });
+    expect(typeof measuredAt).toBe('string');
     // A text dropped before counting stays dropped and named, not silently
     // absorbed into "everything was counted".
     expect(read.rejected.map((one) => one.reason)).toContain('LANGUAGE');

@@ -90,6 +90,18 @@ export const TOUR_REVEALS_ATTR = 'data-tour-reveals';
 export type TourRevealsState = 'pending' | 'on' | 'off';
 
 /**
+ * Set by a screen on the control that brings a tour's stops onto the screen
+ * when they are not there yet: the piece page opens on «Суть», while every
+ * adaptation stop lives on a channel tab (live walk 25.09.2026, P2-3). The
+ * value is the tour key; when none of the tour's controls is on the screen,
+ * the tour clicks this control once and then looks for its stops again.
+ */
+export const TOUR_ENTER_ATTR = 'data-tour-enter';
+
+/** `[data-tour-enter="…"]` — the control that opens a tour's screen state. */
+export const tourEntry = (key: TourKey) => `[${TOUR_ENTER_ATTR}="${key}"]`;
+
+/**
  * Two to four stops per key. A stop whose control is not on the screen is left
  * out of the run, so one tour serves both states of a screen (an empty avatar
  * section and a list of avatars, a piece with and without an adaptation).

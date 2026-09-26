@@ -28,8 +28,9 @@ import { Metric } from '../ui/metric';
  * now speak in counts, counted on the server (`GET /analytics/ahead`,
  * `calculatePlanAhead`, `plan-ahead/v2`) in the reader's time zone:
  *
- * - the calendar chip: «В плане 3 поста · до чт 24.09» or «План пуст»;
- *   reserved and queued posts both count; hover or focus lists channels;
+ * - the calendar chip: «Впереди 3 поста · до чт 24.09» or «План пуст»;
+ *   reserved and queued posts both count, so it does not borrow «в плане»,
+ *   the word of the reserved state alone; hover or focus lists channels;
  * - «Аналитика → Производство»: four numbers, the next 14 days with a count
  *   per day, and a table per channel.
  */
@@ -96,7 +97,7 @@ export const aheadDay = (key: string, locale: Locale, weekday = false) => {
   return `${name} ${date}`;
 };
 
-/** The chip's words: «В плане 3 поста · до чт 24.09» or «План пуст». */
+/** The chip's words: «Впереди 3 поста · до чт 24.09» or «План пуст». */
 export const aheadLabel = (ahead: PlanAheadCounts, locale: Locale) =>
   calendarPlanningCopy[locale].aheadChip(
     ahead.planned,

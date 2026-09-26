@@ -297,9 +297,8 @@ describe('registration newsletter consent', () => {
    * `focus-visible:outline-none` — so in the browsers that still paint a default
    * outline the ring arrived with a second outline beside it.
    *
-   * Since 13.09.2026 the ring is drawn on the box rather than on the input:
-   * `CheckboxField` hides the native control and paints its sibling through
-   * `peer-*`, so a ring on a clipped element would be a ring nobody sees. The
+   * Since 26.09.2026 (`2q28.36`) the visible box is the native input itself,
+   * drawn with `appearance: none`, so the ring sits on the input directly. The
    * contract is unchanged — the shared ring, `outline-none` included, on
    * whatever the focused control actually looks like.
    */
@@ -310,11 +309,10 @@ describe('registration newsletter consent', () => {
     render(h(RegisterAfter, { token: 'provider-token', provider: 'GOOGLE' }));
 
     const consent = screen.getByRole('checkbox', { name: consentName });
-    const drawn = consent.nextElementSibling;
     for (const className of CONTROL_FOCUS_RING.split(' ')) {
-      expect(drawn.className.split(' ')).toContain(`peer-${className}`);
+      expect(consent.className.split(' ')).toContain(className);
     }
-    expect(consent.className.split(' ')).toContain('peer');
+    expect(consent.className.split(' ')).toContain('appearance-none');
     expect(CONTROL_FOCUS_RING).toContain('focus-visible:outline-none');
   });
 

@@ -8,7 +8,7 @@ import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
-import { voiceCopy, type VoiceLocale } from './voice-copy';
+import { sampleNumber, voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
  * The proposal: five fields on the left, the reason for each on the right.
@@ -99,6 +99,29 @@ const FIELD_ORDER: readonly ProposalFieldKey[] = [
   'TOPICS',
 ];
 
+/**
+ * The texts an observation rests on, as the numbers the sample table shows.
+ *
+ * `smp-01#1 · smp-04#2` beside a label was the storage format of an
+ * observation reference (live walk 25.09.2026, P3-1). A person reads the
+ * table's «№ 1», and two observations from one text are one text.
+ */
+const groundingTexts = (
+  refs: readonly string[],
+  observations: readonly ProposalObservation[]
+): string[] => {
+  const numbers = new Set<string>();
+  for (const ref of refs) {
+    const code =
+      observations.find((observation) => observation.ref === ref)
+        ?.sampleCode || ref.split('#')[0];
+    if (code) numbers.add(sampleNumber(code));
+  }
+  return [...numbers].sort(
+    (left, right) => Number(left) - Number(right) || left.localeCompare(right)
+  );
+};
+
 const fieldLabel = (
   key: ProposalFieldKey,
   t: (typeof voiceCopy)['ru'] | (typeof voiceCopy)['en']
@@ -174,7 +197,14 @@ export function VoiceProposalScreen({
   const readOnly = state === 'restricted';
   const manual = mode === 'manual';
   const named = avatarName.trim().length > 0;
-  const accepted = fields.filter((one) => one.status === 'ACCEPTED').length;
+  /**
+   * Counted over the lines on screen. All six are always drawn, including the
+   * ones the model had no grounds for, so a total taken from `fields` read
+   * «4 поля из 4 приняты» over six lines, one of them «Не решено».
+   */
+  const accepted = FIELD_ORDER.filter((key) =>
+    fields.some((one) => one.key === key && one.status === 'ACCEPTED')
+  ).length;
   const portraitAccepted = Boolean(portrait && portrait.status === 'ACCEPTED');
   const activationReady = manual
     ? fields.length === FIELD_ORDER.length && accepted === fields.length
@@ -240,7 +270,7 @@ export function VoiceProposalScreen({
             profileLabel,
             manual
               ? t.manualProposalSubtitle(accepted, fields.length)
-              : t.proposalSubtitle(accepted, fields.length),
+              : t.proposalSubtitle(accepted, FIELD_ORDER.length),
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -292,7 +322,9 @@ export function VoiceProposalScreen({
                   </span>
                   {portrait.observationRefs.length ? (
                     <span className="cf-caption text-cf-ink-muted">
-                      {portrait.observationRefs.join(' · ')}
+                      {t.groundedIn(
+                        groundingTexts(portrait.observationRefs, observations)
+                      )}
                     </span>
                   ) : null}
                 </div>
@@ -361,8 +393,7 @@ export function VoiceProposalScreen({
           ) : null}
 
           <h3 className="cf-label-sm text-cf-ink-muted">
-            {manual ? t.manualProposalFields : t.proposalFields} ·{' '}
-            {FIELD_ORDER.length}
+            {manual ? t.manualProposalFields : t.proposalFields}
           </h3>
 
           {FIELD_ORDER.map((key) => {
@@ -410,7 +441,9 @@ export function VoiceProposalScreen({
                     </span>
                     {grounded ? (
                       <span className="cf-caption text-cf-ink-muted">
-                        {field.observationRefs.join(' · ')}
+                        {t.groundedIn(
+                          groundingTexts(field.observationRefs, observations)
+                        )}
                       </span>
                     ) : null}
                   </div>

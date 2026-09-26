@@ -40,6 +40,7 @@ export function WorkspaceMenu({
   placement = 'below',
   align = 'start',
   disabled = false,
+  density = 'standard',
   dataName,
 }: {
   /** Доступное имя кнопки, когда на ней нет слов. */
@@ -50,6 +51,8 @@ export function WorkspaceMenu({
   placement?: 'below' | 'above';
   align?: 'start' | 'end';
   disabled?: boolean;
+  /** Высота кнопки: плотная — рядом с плотными кнопками (`2q28.39`). */
+  density?: 'standard' | 'dense';
   /** Метка для тестов и стенда: `data-workspace-menu`. */
   dataName: string;
 }) {
@@ -75,6 +78,7 @@ export function WorkspaceMenu({
         <MenuButton
           aria-label={label}
           disabled={disabled}
+          density={density}
           className={triggerClassName}
         >
           {trigger}

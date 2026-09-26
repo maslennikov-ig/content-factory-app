@@ -131,6 +131,31 @@ describe('guided tour contract', () => {
     expect(missing).toEqual([]);
   });
 
+  test('the adaptation tour has an entry on the piece page and the driver clicks it', () => {
+    expect(contract.tourEntry('adaptation')).toBe('[data-tour-enter="adaptation"]');
+    const screenSource = fs.readFileSync(
+      path.join(
+        root,
+        'apps/frontend/src/components/content-intelligence/pieces/piece.screen.tsx'
+      ),
+      'utf8'
+    );
+    expect(screenSource).toMatch(/data-tour-enter=\{[^}]*'adaptation'/);
+    const tour = fs.readFileSync(
+      path.join(root, 'apps/frontend/src/components/guided-tour/guided-tour.tsx'),
+      'utf8'
+    );
+    expect(tour).toContain('tourEntry(key)');
+  });
+
+  test('the panel stop names only controls the post panel has (live walk 25.09, P3-9)', () => {
+    for (const locale of ['ru', 'en']) {
+      const body = guidedTourCopy[locale].stops.adaptationPanel.body;
+      expect(body).not.toMatch(/тон|аватар|tone|avatar/i);
+    }
+    expect(guidedTourCopy.ru.stops.adaptationPanel.body).toMatch(/Эмодзи|эмодзи/);
+  });
+
   test('loads driver.js on the client only and is mounted in the signed-in layout', () => {
     const tour = fs.readFileSync(
       path.join(root, 'apps/frontend/src/components/guided-tour/guided-tour.tsx'),

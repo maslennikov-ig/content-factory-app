@@ -104,9 +104,12 @@ export const calendarPlanningCopy = {
     groupOpen: (time: string, count: number) =>
       `${time}: ${count} ${plural(count, ['канал', 'канала', 'каналов'])} — показать посты`,
     // План впереди (`97dq.59`, счётчики с `97dq.73`): в постах, не в днях подряд.
+    // «Впереди», а не «В плане»: «в плане» — имя состояния «ждёт вашего
+    // «Подтвердить»», а чип считает и подтверждённые посты в очереди (живой
+    // прогон 25.09.2026, P3-10). Слово то же, что у «Постов впереди».
     aheadChip: (count: number, until: string) =>
       count
-        ? `В плане ${count} ${ruPosts(count)}${until ? ` · до ${until}` : ''}`
+        ? `Впереди ${count} ${ruPosts(count)}${until ? ` · до ${until}` : ''}`
         : 'План пуст',
     aheadChannel: (count: number, until: string) =>
       count ? `${count} ${ruPosts(count)}${until ? ` · до ${until}` : ''}` : 'пусто',
@@ -270,7 +273,7 @@ export const calendarPlanningCopy = {
       `${time}: ${count} ${count === 1 ? 'channel' : 'channels'} — show posts`,
     aheadChip: (count: number, until: string) =>
       count
-        ? `${count} ${enPosts(count)} planned${until ? ` · until ${until}` : ''}`
+        ? `${count} ${enPosts(count)} ahead${until ? ` · until ${until}` : ''}`
         : 'Plan is empty',
     aheadChannel: (count: number, until: string) =>
       count ? `${count} ${enPosts(count)}${until ? ` · until ${until}` : ''}` : 'empty',

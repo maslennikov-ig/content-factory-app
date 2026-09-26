@@ -93,6 +93,23 @@ export const voiceCopy = {
         'знаков',
       ])}. Образцы сохранены.`,
     emptyContinue: 'Продолжить сбор',
+    // Где продолжать, если разбор уже сохранён (`2q28.34`): раньше кнопка
+    // вела только к образцам, и дальше был один путь — платный разбор заново.
+    emptyAnalysed: (samples: number, characters: number, proposal: boolean) =>
+      `${proposal ? 'Разбор готов' : 'Разбор начат'}: ${samples} ${plural(
+        samples,
+        ['образец', 'образца', 'образцов']
+      )} · ${characters.toLocaleString('ru-RU')} ${plural(characters, [
+        'знак',
+        'знака',
+        'знаков',
+      ])}. ${
+        proposal
+          ? 'Предложение сохранено — запускать разбор заново не нужно.'
+          : 'Числа сохранены.'
+      }`,
+    emptyOpenProposal: 'Открыть предложение',
+    emptyOpenAnalysis: 'Открыть разбор',
     // A hand-filled draft left mid-way (`content-factory-next-fn33.150`):
     // its lines are saved one by one and survive a reload, so the tab says so.
     emptyManualDraft: (filled: number, total: number) =>
@@ -264,8 +281,14 @@ export const voiceCopy = {
     analysisProgressHeading: 'Что идёт сейчас',
     analysisStageMeasuring: 'считаем длину фраз, пунктуацию и повторы',
     analysisStageAssisting: 'составляем аватар',
+    // 2q28.35: здесь раньше было «Пока это арифметика… ИИ подключится на
+    // следующем шаге», а все вызовы ИИ идут именно на этом экране.
     analysisNote:
-      'Пока это арифметика по вашим текстам: считаются слова, знаки и повторы. ИИ подключится на следующем шаге, когда из подсчёта нужно будет собрать формулировки.',
+      'Сначала мы считаем слова, длину фраз и повторы — это несколько секунд. Потом ИИ читает ваши тексты и составляет предложение аватара: обычно около пяти минут, на большом наборе дольше. Ждать на этой странице не обязательно — разбор идёт на сервере. Можно уйти и вернуться: откроется готовый результат, запускать разбор заново не придётся.',
+    /** Разбор, начатый до ухода со страницы, ещё идёт на сервере. */
+    analysisWaiting: 'Разбор идёт на сервере — ждём, когда ИИ закончит',
+    // Уйти — не остановить: разбор на сервере доработает сам (2q28.39).
+    analysisBack: 'Назад к текстам',
     analysisMeasuredHeading: 'Что уже видно в ваших текстах',
     analysisHoldout: (count: number) =>
       count === 1
@@ -295,7 +318,6 @@ export const voiceCopy = {
       LANGUAGE: 'не тот язык',
     },
     analysisNext: 'Дальше — предложение',
-    analysisStop: 'Остановить разбор',
     analysisRetry: 'Продолжить разбор',
     analysisErrorTitle: 'Разбор прерван',
     analysisErrorFallback: 'Разбор не удалось завершить.',
@@ -320,9 +342,18 @@ export const voiceCopy = {
 
     // Screen 05 — the proposal.
     proposalTitle: 'Вот что получилось из ваших текстов',
+    // 2q28.38: «5 поля из 5 приняты» — и падеж, и счёт: делитель — строки
+    // на экране (их всегда шесть), а не те, что предложил ИИ.
     proposalSubtitle: (accepted: number, total: number) =>
-      `черновик · ${accepted} ${accepted === 1 ? 'поле' : 'поля'} из ${total} приняты`,
-    proposalFields: 'Предложенный аватар',
+      `черновик · принято ${accepted} ${plural(accepted, ['поле', 'поля', 'полей'])} из ${total}`,
+    // Был «Предложенный аватар · 6» — под карточкой, которая сама называется
+    // «Аватар». Это строки о том, как он пишет, и число им не нужно.
+    proposalFields: 'Как пишет аватар',
+    /** Из каких текстов взято основание — номерами из таблицы образцов. */
+    groundedIn: (numbers: readonly string[]) =>
+      numbers.length === 1
+        ? `из текста № ${numbers[0]}`
+        : `из текстов № ${numbers.join(', ')}`,
     /**
      * «Аватар», а не «портрет», — так это называет владелец, и так это читается
      * без объяснений: не описание манеры, а человек, которым модель становится.
@@ -617,11 +648,13 @@ export const voiceCopy = {
     passportHintInventExamples:
       'Когда вы нажимаете «Решите за меня», ИИ дописывает ответ из своих знаний. Выключено: он добавляет объяснения, советы и приёмы, но никогда не выдумывает ваш опыт — ни случаев от вашего лица, ни точных чисел, ни цитат, ни источников. Включено: он может придумать правдоподобный пример от вашего лица, чтобы мысль читалась живее, — прочитайте такой текст перед публикацией. Числа, цитаты и источники не придумываются и тогда.',
     confidenceLabel: 'Насколько твёрдо',
-    confidenceFirm: 'Корпуса хватает: привычки посчитаны на устойчивом объёме.',
+    // 2q28.38: без «корпуса», «мерки похожести» и «порога» — факт тот же,
+    // словами человека: чего не хватает и что станет лучше.
+    confidenceFirm: 'Текстов хватает: привычки видны уверенно.',
     confidenceFewChars: (missing: string) =>
-      `Профиль посчитается, но тексты короткие: ещё ${missing} сделают привычки твёрже.`,
+      `Разбор пройдёт и так, но тексты короткие: ещё ${missing} знаков — и привычки будут видны увереннее.`,
     confidenceFewSamples: (missing: number) =>
-      `Профиль посчитается, но текстов мало: ещё ${missing} ${plural(missing, ['штука', 'штуки', 'штук'])} — и мерка похожести начнёт держать порог.`,
+      `Разбор пройдёт и так, но текстов мало: добавьте ещё ${missing} ${plural(missing, ['текст', 'текста', 'текстов'])} — тогда мы надёжнее отличим, похож ли новый текст на ваш.`,
 
     // Screen 07 — the eight scales.
     scalesTitle: 'Профиль стиля',
@@ -892,6 +925,16 @@ export const voiceCopy = {
         samples === 1 ? 'sample' : 'samples'
       } · ${characters.toLocaleString('en-US')} characters. They are kept.`,
     emptyContinue: 'Continue collecting',
+    emptyAnalysed: (samples: number, characters: number, proposal: boolean) =>
+      `${proposal ? 'The analysis is ready' : 'The analysis has started'}: ${samples} ${
+        samples === 1 ? 'sample' : 'samples'
+      } · ${characters.toLocaleString('en-US')} characters. ${
+        proposal
+          ? 'The proposal is saved — no need to run the analysis again.'
+          : 'The numbers are saved.'
+      }`,
+    emptyOpenProposal: 'Open the proposal',
+    emptyOpenAnalysis: 'Open the analysis',
     emptyManualDraft: (filled: number, total: number) =>
       `A «Fill it in by hand» draft is under way: ${filled} of ${total} filled. The lines are kept.`,
     emptyContinueManual: 'Continue the draft',
@@ -1028,7 +1071,9 @@ export const voiceCopy = {
     analysisStageMeasuring: 'counting sentence length, punctuation and repetition',
     analysisStageAssisting: 'drafting the avatar',
     analysisNote:
-      'This is still arithmetic over your texts: words, marks and repeats. AI joins on the next step, once the counts need to become wording.',
+      'First we count words, sentence length and repetition — a few seconds. Then the AI reads your texts and drafts the avatar: usually about five minutes, longer for a large set. You do not have to wait on this page — the analysis runs on the server. Leave and come back: the finished result opens, with no need to run the analysis again.',
+    analysisWaiting: 'The analysis is running on the server — waiting for the AI to finish',
+    analysisBack: 'Back to the texts',
     analysisMeasuredHeading: 'What already shows in your texts',
     analysisHoldout: (count: number) =>
       count === 1
@@ -1054,7 +1099,6 @@ export const voiceCopy = {
       LANGUAGE: 'wrong language',
     },
     analysisNext: 'Next — proposal',
-    analysisStop: 'Stop the analysis',
     analysisRetry: 'Resume the analysis',
     analysisErrorTitle: 'The analysis was cut off',
     analysisErrorFallback: 'The analysis could not finish.',
@@ -1072,7 +1116,11 @@ export const voiceCopy = {
     proposalTitle: 'Here is what came out of your texts',
     proposalSubtitle: (accepted: number, total: number) =>
       `draft · ${accepted} of ${total} fields accepted`,
-    proposalFields: 'Proposed avatar',
+    proposalFields: 'How the avatar writes',
+    groundedIn: (numbers: readonly string[]) =>
+      numbers.length === 1
+        ? `from text #${numbers[0]}`
+        : `from texts #${numbers.join(', ')}`,
     portraitTitle: 'Avatar',
     portraitHint:
       'Who this is, not what their style is like. AI writes as them, and where this and the other fields disagree, the person wins. Edit freely — this is your person.',
@@ -1331,11 +1379,11 @@ export const voiceCopy = {
     passportHintInventExamples:
       'When you press “You decide”, the AI writes the answer from its own knowledge. Off: it adds explanations, advice and techniques, but never invents your experience — no stories in your name, no exact numbers, quotes or sources. On: it may invent a plausible example in your voice to make the point livelier — read such a text before publishing. Numbers, quotes and sources are not invented even then.',
     confidenceLabel: 'How firmly',
-    confidenceFirm: 'The corpus is enough: the habits rest on a settled volume.',
+    confidenceFirm: 'There are enough texts: the habits show clearly.',
     confidenceFewChars: (missing: string) =>
-      `The profile will compute, but the texts are short: another ${missing} would make the habits firmer.`,
+      `The analysis will run anyway, but the texts are short: another ${missing} characters and the habits will show more clearly.`,
     confidenceFewSamples: (missing: number) =>
-      `The profile will compute, but there are few texts: ${missing} more and the likeness measure starts holding its threshold.`,
+      `The analysis will run anyway, but there are few texts: add ${missing} more and we can tell more reliably whether a new text sounds like yours.`,
 
     scalesTitle: 'Style profile',
     scalesSubtitle: 'eight measurements · one 0–100 scale',

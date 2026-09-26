@@ -620,6 +620,21 @@ export type VoiceAnalysisResponseV1 =
        * has no split to count.
        */
       holdoutCount?: number;
+      /**
+       * Where a person who comes back stands (`2q28.34`). Sent by `GET
+       * …/analysis` only: the stream's own `done` line is the run itself.
+       *
+       * `hasProposal` — the model's proposal is stored on this measurement,
+       * so screen 05 can open without another paid run. `corpusChanged` — the
+       * texts are not the ones this measurement counted (one was added or
+       * removed, or the split was never recorded), so a new run is the only
+       * way to numbers about them. `measuredAt` — when the arithmetic was
+       * saved; a recent one without a proposal is a run the server may still
+       * be finishing after the page was left.
+       */
+      hasProposal?: boolean;
+      corpusChanged?: boolean;
+      measuredAt?: string;
     };
 
 /**
@@ -1660,7 +1675,10 @@ export const VOICE_SURFACES = {
     // empty workspace (`content-factory-next-fn33.45`). `manualDraft` is the
     // hand-filled draft's filled lines, read from the route screen 05 owns
     // (`GET …/proposal/manual`, `content-factory-next-fn33.150`).
-    dataFields: ['state', 'note', 'collected', 'manualDraft'],
+    // `resumeAt` is read from `GET …/analysis` (claimed by screen 04 below):
+    // where «continue» leads when a run is already stored for these texts
+    // (`2q28.34`).
+    dataFields: ['state', 'note', 'collected', 'resumeAt', 'manualDraft'],
     clientOnlyProps: [] as string[],
     routes: [
       {
@@ -1760,6 +1778,9 @@ export const VOICE_SURFACES = {
       'punctuation',
       'rejected',
       'notice',
+      // A run left mid-way, still finishing on the server: read from
+      // `GET …/analysis` (`measuredAt` without a proposal), `2q28.34`.
+      'waiting',
     ],
     clientOnlyProps: ['selectionSummary'],
     routes: [

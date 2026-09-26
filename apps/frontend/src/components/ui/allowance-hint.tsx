@@ -195,7 +195,9 @@ export const AllowanceHintView = ({
 
   return (
     <span className="cf-caption text-cf-ink-muted" aria-live="polite">
-      {t('ai_allowance_included', '{{remaining}} of {{limit}} left until {{date}}', {
+      {/* What is counted is named (2q28.38): «Осталось 200 из 200» left a
+          person guessing 200 of what. One request to the AI is one unit. */}
+      {t('ai_allowance_included', 'AI requests left: {{remaining}} of {{limit}}, until {{date}}', {
         remaining: state.remaining,
         limit: state.limit,
         date: formatResetDate(state.resetsAt, language),

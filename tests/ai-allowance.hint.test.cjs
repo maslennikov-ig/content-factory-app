@@ -28,7 +28,8 @@ const translations = {
   ai_allowance_unlimited: 'Ключи системы: без предела',
   ai_allowance_unknown: 'Остаток сейчас не показать.',
   ai_usage_exhausted: 'Лимит включённого AI исчерпан.',
-  ai_allowance_included: 'Осталось {{remaining}} из {{limit}} до {{date}}',
+  ai_allowance_included: require('../libraries/react-shared-libraries/src/translation/locales/ru/translation.json')
+    .ai_allowance_included,
   ai_allowance_unavailable:
     'ИИ ещё не подключён: нет ни включённого лимита, ни ключа пространства. Настроить может администратор в «Настройки → Глобальные настройки».',
   ai_allowance_none:
@@ -111,7 +112,8 @@ describe('the allowance line', () => {
       resetsAt: '2026-10-04T00:00:00.000Z',
     });
 
-    expect(markup).toContain('Осталось 7 из 10 до 4 октября');
+    // 2q28.38: the line names what is counted, not just two numbers.
+    expect(markup).toContain('Обращений к ИИ осталось: 7 из 10, до 4 октября');
   });
 
   test('«без предела» is said in words, never as a number (97dq.27)', () => {

@@ -133,7 +133,7 @@ const TARGETS = [
   },
 ];
 
-const detailOf = (adaptations = [adaptation()], core = CORE) =>
+const detailOf = (adaptations = [adaptation()], core = CORE, targets = TARGETS) =>
   adapter.readPieceDetail({
     state: 'default',
     piece: {
@@ -152,7 +152,7 @@ const detailOf = (adaptations = [adaptation()], core = CORE) =>
     core,
     legacyBody: null,
     adaptations,
-    targets: TARGETS,
+    targets,
     later: [],
   });
 
@@ -270,6 +270,26 @@ describe('the page is one workspace with tabs', () => {
     expect(tabs[2].getAttribute('data-piece-tab-state')).toBe('none');
   });
 
+  test('the adaptation tour enters through one channel tab (live walk 25.09, P2-3)', () => {
+    const onTabChange = jest.fn();
+    drawPage({ onTabChange });
+    const entries = document.querySelectorAll('[data-tour-enter="adaptation"]');
+    expect(entries).toHaveLength(1);
+    // The channel with an adaptation: there all four stops are on the screen.
+    expect(entries[0].getAttribute('data-piece-tab-button')).toBe('tg-main');
+    fireEvent.click(entries[0]);
+    expect(onTabChange).toHaveBeenCalledWith('tg-main');
+  });
+
+  test('without an adaptation the tour enters the first connected channel', () => {
+    const channels = adapter.workspaceChannels(detailOf([]));
+    const { shown } = adapter.workspaceTabs(channels, 'core');
+    expect(adapter.tourEntryChannel(shown).id).toBe('tg-main');
+    const unconnected = shown.map((one) => ({ ...one, connected: false }));
+    expect(adapter.tourEntryChannel(unconnected).id).toBe(shown[0].id);
+    expect(adapter.tourEntryChannel([])).toBeNull();
+  });
+
   test('«Ещё канал» holds the other channels of a platform and opens their tab', () => {
     const onTabChange = jest.fn();
     drawPage({ onTabChange });
@@ -337,7 +357,9 @@ describe('«Суть»', () => {
     ).toBe('Мы сократили неделю до четырёх дней.');
   });
 
-  test('«Куда дальше» has one row per channel: open a written one, adapt an empty one', () => {
+  // Решение владельца 26.09.2026 (`2q28.39`): одна «Адаптировать» на блок,
+  // и она спрашивает канал; строки — сводка состояний без своих кнопок.
+  test('«Куда дальше» lists channel states and holds one «Адаптировать» that asks for the channel', () => {
     const onOpenChannel = jest.fn();
     const onAdaptChannel = jest.fn();
     const detail = detailOf();
@@ -352,14 +374,114 @@ describe('«Суть»', () => {
       'vk-1',
     ]);
     expect(rows[0].textContent).toContain('черновик · 1 вариант');
+    for (const row of rows) {
+      expect(row.querySelector('button, a')).toBeNull();
+    }
+    const trigger = screen.getByRole('button', {
+      name: 'Адаптировать — выберите канал',
+    });
+    expect(trigger.textContent).toBe('Адаптировать');
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: /^Адаптировать ·/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Открыть/ })).toBeNull();
+
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('menu', { name: 'Адаптировать — выберите канал' });
+    const items = within(menu).getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Telegram · AiDevTeamчерновик · 1 вариант',
+      'Telegram · Заметкиещё нет',
+      'ВКонтакте · Мой пабликещё нет',
+    ]);
+    fireEvent.click(items[2]);
+    expect(onAdaptChannel).toHaveBeenCalledWith('vk-1');
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    // Написанный канал в выборе остаётся: он открывает свой текст.
+    fireEvent.click(trigger);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Открыть · Telegram · AiDevTeam' })
+      within(screen.getByRole('menu')).getAllByRole('menuitem')[0]
     );
     expect(onOpenChannel).toHaveBeenCalledWith('tg-main');
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Адаптировать · ВКонтакте · Мой паблик' })
-    );
+    expect(onAdaptChannel).toHaveBeenCalledTimes(1);
+  });
+
+  test('the channel choice works from the keyboard and closes on Escape or a press outside', () => {
+    const onAdaptChannel = jest.fn();
+    const detail = detailOf();
+    drawPage({ detail, coreTab: coreTab(detail, { onAdaptChannel }) });
+    const trigger = screen.getByRole('button', {
+      name: 'Адаптировать — выберите канал',
+    });
+    trigger.focus();
+    // Enter на кнопке — клик с detail 0: список открывается на первом пункте.
+    fireEvent.click(trigger, { detail: 0 });
+    let items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(items[1], { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(onAdaptChannel).not.toHaveBeenCalled();
+  });
+
+  test('with one channel there is nothing to choose: the button names it and goes straight to its tab', () => {
+    const onAdaptChannel = jest.fn();
+    const onOpenChannel = jest.fn();
+    const single = [{ ...TARGETS[1] }];
+    const empty = detailOf([], CORE, single);
+    drawPage({
+      detail: empty,
+      coreTab: coreTab(empty, { onAdaptChannel, onOpenChannel }),
+    });
+    const adapt = screen.getByRole('button', { name: 'Адаптировать для ВКонтакте' });
+    expect(adapt.getAttribute('aria-haspopup')).toBeNull();
+    expect(adapt.getAttribute('data-piece-next-adapt')).toBe('vk-1');
+    fireEvent.click(adapt);
     expect(onAdaptChannel).toHaveBeenCalledWith('vk-1');
+    cleanup();
+
+    const written = detailOf(
+      [adaptation({ platform: 'vk', integrationId: 'vk-1', integrationName: 'Мой паблик' })],
+      CORE,
+      single
+    );
+    drawPage({
+      detail: written,
+      coreTab: coreTab(written, { onAdaptChannel, onOpenChannel }),
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Открыть текст для ВКонтакте' })
+    );
+    expect(onOpenChannel).toHaveBeenCalledWith('vk-1');
+    expect(onAdaptChannel).toHaveBeenCalledTimes(1);
+  });
+
+  test('the choice is off while busy or before the core, and absent without the right to write', () => {
+    const detail = detailOf();
+    const trigger = () =>
+      screen.queryByRole('button', { name: 'Адаптировать — выберите канал' });
+    drawPage({ detail, coreTab: coreTab(detail, { busy: true }) });
+    expect(trigger().disabled).toBe(true);
+    cleanup();
+
+    const waiting = detailOf([adaptation()], { ...CORE, text: '' });
+    drawPage({ detail: waiting, coreTab: coreTab(waiting) });
+    expect(trigger().disabled).toBe(true);
+    cleanup();
+
+    drawPage({ detail, coreTab: coreTab(detail, { canWrite: false }) });
+    expect(trigger()).toBeNull();
+    // Сводка состояний остаётся и для того, кто только читает.
+    expect(document.querySelectorAll('[data-piece-next]').length).toBe(3);
   });
 
   test('on a phone the channel name and its state word stack instead of sharing a line with the button', () => {
@@ -399,11 +521,25 @@ describe('«Суть»', () => {
     expect(document.querySelector('details')).toBeNull();
   });
 
-  test('a platform without a channel says so and leads to the channels', () => {
+  test('a platform without a channel says so, and the block has one way to the channels', () => {
     drawPage();
     const row = document.querySelector('[data-piece-next-unavailable="instagram"]');
     expect(row.textContent).toContain('нет канала');
-    expect(within(row).getByRole('link').getAttribute('href')).toBe('/channels');
+    expect(row.querySelector('a, button')).toBeNull();
+    const links = document.querySelectorAll('[data-piece-next-channels]');
+    expect(links.length).toBe(1);
+    expect(links[0].getAttribute('href')).toBe('/channels');
+    expect(links[0].textContent).toBe('К каналам');
+  });
+
+  test('with no channel at all the block says so and leads to the channels', () => {
+    const none = detailOf([], CORE, []);
+    drawPage({ detail: none, coreTab: coreTab(none) });
+    expect(document.body.textContent).toContain('Каналов пока нет');
+    expect(screen.queryByRole('button', { name: /Адаптировать/ })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: /К каналам/ }).getAttribute('href')
+    ).toBe('/channels');
   });
 
   test('«Что мы поняли» shows a handed-over decision marked «решили мы» (`97dq.56`)', () => {

@@ -98,10 +98,10 @@ describe('«впереди N дней» in the calendar header', () => {
     expect(ahead.planAheadUrl([], '')).toBe('/analytics/ahead');
   });
 
-  test('the words count posts: «В плане 5 постов · до вт 29.09», per channel «N постов · до DD.MM» or «пусто»', () => {
-    expect(ahead.aheadLabel(AHEAD, 'ru')).toBe(`В плане 5 постов · до ${weekdayOf(2026, 9, 29)} 29.09`);
-    expect(ahead.aheadLabel({ ...AHEAD, planned: 3 }, 'ru')).toMatch(/^В плане 3 поста · до /);
-    expect(ahead.aheadLabel({ ...AHEAD, planned: 1 }, 'ru')).toMatch(/^В плане 1 пост · до /);
+  test('the words count posts: «Впереди 5 постов · до вт 29.09», per channel «N постов · до DD.MM» or «пусто»', () => {
+    expect(ahead.aheadLabel(AHEAD, 'ru')).toBe(`Впереди 5 постов · до ${weekdayOf(2026, 9, 29)} 29.09`);
+    expect(ahead.aheadLabel({ ...AHEAD, planned: 3 }, 'ru')).toMatch(/^Впереди 3 поста · до /);
+    expect(ahead.aheadLabel({ ...AHEAD, planned: 1 }, 'ru')).toMatch(/^Впереди 1 пост · до /);
     expect(ahead.aheadLabel({ planned: 0, planUntil: null }, 'ru')).toBe('План пуст');
     expect(ahead.aheadLabel({ planned: 0, planUntil: null }, 'en')).toBe('Plan is empty');
     expect(ahead.aheadChannelLine(AHEAD.channels[0], 'ru')).toBe('5 постов · до 29.09');
@@ -117,7 +117,7 @@ describe('«впереди N дней» in the calendar header', () => {
         timeZone: 'Europe/Moscow',
       })
     );
-    const chip = await screen.findByRole('button', { name: /В плане 5 постов/ });
+    const chip = await screen.findByRole('button', { name: /Впереди 5 постов/ });
     expect(requests[0]).toContain('/analytics/ahead?integrationIds=tg%2Cvk');
     expect(screen.getByRole('button', { name: 'Подсказка: план впереди' })).toBeTruthy();
     expect(document.querySelector('[data-plan-ahead-channels]')).toBeNull();
@@ -142,7 +142,7 @@ describe('«впереди N дней» in the calendar header', () => {
         withLegend: true,
       })
     );
-    const chip = await screen.findByRole('button', { name: /В плане 5 постов/ });
+    const chip = await screen.findByRole('button', { name: /Впереди 5 постов/ });
     fireEvent.mouseEnter(chip.parentElement);
     expect(document.querySelector('[data-plan-ahead-channels]')).not.toBeNull();
     // The legend's bubble is portalled into <body>, outside the holder.
@@ -229,7 +229,7 @@ describe('«впереди N дней» in the calendar header', () => {
     render(
       h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: ['tg'], timeZone: 'UTC', withLegend: true })
     );
-    await screen.findByRole('button', { name: /В плане 5 постов/ });
+    await screen.findByRole('button', { name: /Впереди 5 постов/ });
     // No standalone legend on the surface: it is the tooltip's text.
     expect(document.querySelector('[data-plan-legend]')).toBeNull();
     const trigger = screen.getByRole('button', {

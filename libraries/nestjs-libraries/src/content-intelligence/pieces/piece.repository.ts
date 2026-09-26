@@ -112,6 +112,25 @@ export type PlanDb = {
     postId: string,
     data: { state?: 'DRAFT' | 'QUEUE'; publishDate?: Date }
   ): Promise<{ updatedAt: Date } | null>;
+  /**
+   * «Удалять при подтверждении» (`2q28.39`, owner 26.09.2026): the other
+   * variants' DRAFT posts in this channel leave the calendar once a person
+   * confirms one. Soft delete by group, the way `PostsRepository.deletePost`
+   * deletes, narrowed to this channel's live DRAFT rows: a queued, published
+   * or failed post is never touched. Returns the number of rows marked.
+   * Optional: a store without it keeps the variants' drafts as before.
+   */
+  dropDraftPosts?(
+    organizationId: string,
+    integrationId: string,
+    postIds: readonly string[]
+  ): Promise<number>;
+  /**
+   * The inverse for one variant the person confirms later: its DRAFT post
+   * and the rows deleted in the same stroke come back. Rows deleted at
+   * another moment (a thread item removed in the editor) stay deleted.
+   */
+  restoreDraftPost?(organizationId: string, postId: string): Promise<boolean>;
 };
 
 /** Версия адаптации канала, как её читает правило держателя слота (`97dq.57`). */
@@ -516,6 +535,40 @@ export class PieceRepository {
           select: { updatedAt: true },
         });
         return row ? { updatedAt: row.updatedAt } : null;
+      },
+      dropDraftPosts: async (organizationId, integrationId, postIds) => {
+        const ids = [...new Set(postIds.filter(Boolean))];
+        if (!ids.length) return 0;
+        const rows: Array<{ group: string }> = await client.post.findMany({
+          where: { organizationId, integrationId, id: { in: ids }, deletedAt: null, state: 'DRAFT' },
+          select: { group: true },
+        });
+        const groups = [...new Set(rows.map((row) => row.group).filter(Boolean))];
+        if (!groups.length) return 0;
+        const dropped = await client.post.updateMany({
+          where: { organizationId, integrationId, group: { in: groups }, deletedAt: null, state: 'DRAFT' },
+          data: { deletedAt: new Date() },
+        });
+        return dropped.count as number;
+      },
+      restoreDraftPost: async (organizationId, postId) => {
+        const row: { group: string; integrationId: string; deletedAt: Date } | null =
+          await client.post.findFirst({
+            where: { organizationId, id: postId, state: 'DRAFT', deletedAt: { not: null } },
+            select: { group: true, integrationId: true, deletedAt: true },
+          });
+        if (!row) return false;
+        const restored = await client.post.updateMany({
+          where: {
+            organizationId,
+            integrationId: row.integrationId,
+            group: row.group,
+            state: 'DRAFT',
+            deletedAt: row.deletedAt,
+          },
+          data: { deletedAt: null },
+        });
+        return restored.count > 0;
       },
     };
   }

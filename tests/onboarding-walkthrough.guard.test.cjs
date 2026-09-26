@@ -377,3 +377,51 @@ describe('it can be found again', () => {
     expect(mount).toContain("'/onboarding'");
   });
 });
+
+describe('live walk 25.09.2026: the words match what is on the screen', () => {
+  const { onboardingCopy } = require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+    FILES.copy
+  );
+
+  test('P3-7: publishing is the one required right; deleting only tidies the command', () => {
+    // The bot deletes the connect command only when it holds
+    // `can_delete_messages`, and connects either way.
+    const updates = fs.readFileSync(
+      path.join(
+        root,
+        'libraries/nestjs-libraries/src/integrations/telegram.updates.service.ts'
+      ),
+      'utf8'
+    );
+    expect(updates).toContain('member.can_delete_messages');
+    for (const locale of ['ru', 'en']) {
+      const words = onboardingCopy[locale].telegram;
+      expect(words.addBotBody).toMatch(locale === 'ru' ? /Обязательно право публиковать/ : /post messages is required/);
+      expect(words.addBotBody).toMatch(locale === 'ru' ? /удалять сообщения — по желанию/ : /delete messages is optional/);
+      expect(words.commandBody).toMatch(locale === 'ru' ? /на подключение это не влияет/ : /connection works either way/);
+    }
+    expect(onboardingCopy.ru.telegram.addBotBody).not.toContain('одно право');
+  });
+
+  test('P3-8: the wait note names the forward button as it is labelled', () => {
+    const ru = onboardingCopy.ru;
+    expect(ru.waitNote(ru.finish, ru.later)).toContain('«Завершить»');
+    expect(ru.waitNote(ru.finish, ru.later)).not.toContain('«Дальше»');
+    expect(ru.waitNote(ru.next('План'), ru.later)).toContain('«Дальше: План»');
+    expect(onboardingCopy.en.waitNote('Finish', 'Later')).toContain('"Finish"');
+    const screen = read('screen');
+    expect(screen).toContain('t.waitNote(nextLabel, t.later)');
+  });
+
+  test('P3-8: the way back is said once, and at 5 of 5 it is the settings tab', () => {
+    // The menu row hides once every step is done, so the footer cannot keep
+    // pointing at it; and the «всё пройдено» body no longer repeats it.
+    const screen = read('screen');
+    expect(screen).toContain('openCount === 0 ? t.comeBackDone : t.comeBack');
+    expect(screen.match(/\{t\.counted\}/g)).toHaveLength(1);
+    expect(read('menu')).toContain('hide: onboardingFinished');
+    for (const locale of ['ru', 'en']) {
+      expect(onboardingCopy[locale].allDoneBody).not.toMatch(/настройках|Settings/);
+    }
+  });
+});

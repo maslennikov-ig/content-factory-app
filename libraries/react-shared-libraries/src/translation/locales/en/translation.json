@@ -1439,7 +1439,7 @@
   "ai_usage_zero_quota": "No included AI operations are available. Choose Workspace API key to enable AI.",
   "ai_usage_workspace_mode": "Only this workspace’s encrypted provider keys are used. Included credentials are never used as fallback.",
   "ai_allowance_loading": "Checking the allowance…",
-  "ai_allowance_included": "{{remaining}} of {{limit}} left until {{date}}",
+  "ai_allowance_included": "AI requests left: {{remaining}} of {{limit}}, until {{date}}",
   "ai_allowance_workspace_key": "Workspace key: no counted limit",
   "ai_allowance_unavailable": "AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → Global Settings.",
   "ai_allowance_none": "This workspace has no included AI allowance. An administrator can add a plan or choose a workspace key in Settings → Global Settings.",

@@ -44,6 +44,7 @@ export function VoiceEmptyScreen({
   onContinue,
   onContinueManual,
   collected,
+  resumeAt = 'samples',
   manualDraft,
   note,
 }: {
@@ -62,6 +63,12 @@ export function VoiceEmptyScreen({
    * been collected: zero would be a claim that the corpus was looked at.
    */
   collected?: { sampleCount: number; charCount: number };
+  /**
+   * Where «continue» leads when a run is already stored for these texts
+   * (`2q28.34`). The button used to open the sample list whatever had
+   * happened, and the only way on from there paid for the analysis again.
+   */
+  resumeAt?: 'samples' | 'analysis' | 'proposal';
   /**
    * A hand-filled draft that was started and left
    * (`content-factory-next-fn33.150`). Its lines are saved one by one, and
@@ -118,9 +125,16 @@ export function VoiceEmptyScreen({
       {collected && collected.sampleCount > 0 ? (
         <p
           data-voice-empty-collected={String(collected.sampleCount)}
+          data-voice-empty-resume={resumeAt}
           className="mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
-          {t.emptyCollected(collected.sampleCount, collected.charCount)}
+          {resumeAt === 'samples'
+            ? t.emptyCollected(collected.sampleCount, collected.charCount)
+            : t.emptyAnalysed(
+                collected.sampleCount,
+                collected.charCount,
+                resumeAt === 'proposal'
+              )}
         </p>
       ) : null}
 
@@ -141,7 +155,11 @@ export function VoiceEmptyScreen({
             disabled={busy || blocked}
             variant="primary"
           >
-            {t.emptyContinue}
+            {resumeAt === 'proposal'
+              ? t.emptyOpenProposal
+              : resumeAt === 'analysis'
+                ? t.emptyOpenAnalysis
+                : t.emptyContinue}
           </Button>
         ) : null}
         {hasManualDraft ? (

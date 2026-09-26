@@ -1586,14 +1586,55 @@ export class VoiceService {
       actor.organizationId,
       await this.corpusScope(actor)
     );
+    const corpus = await this.corpusFor(actor);
     if (!measurement) {
-      const corpus = await this.corpusFor(actor);
       return {
         outcome: 'insufficient',
         readiness: toReadiness(corpusReadiness(corpus.map(toInput))),
       };
     }
-    return this.measurementReady(measurement);
+    return {
+      ...this.measurementReady(measurement),
+      ...this.measurementStanding(measurement, corpus),
+    };
+  }
+
+  /**
+   * Whether the stored run still answers for the texts on file.
+   *
+   * The wizard used to offer only «Дальше — разбор» to a person who came back,
+   * and that button paid for the whole analysis again — nine model calls and
+   * five minutes — over a proposal already stored here (live walk 25.09.2026,
+   * `2q28.34`). This is what lets it open the stored run instead, and rerun
+   * only when the texts moved. The measured set is the split plus what was
+   * dropped before counting; a measurement with no split cannot say what it
+   * counted, and is treated as changed so the old way stays open.
+   */
+  private measurementStanding(
+    measurement: StoredVoiceMeasurement,
+    corpus: readonly { code: string }[]
+  ): { hasProposal: boolean; corpusChanged: boolean; measuredAt?: string } {
+    const metrics = metricsOf(measurement);
+    const split = Object.keys(measurement.corpusSplit ?? {});
+    const measured = new Set([
+      ...split,
+      ...(metrics.rejected ?? []).map((row) => row.code),
+    ]);
+    const current = new Set(corpus.map((sample) => sample.code));
+    const corpusChanged =
+      measurement.stale ||
+      split.length === 0 ||
+      measured.size !== current.size ||
+      [...current].some((code) => !measured.has(code));
+    const proposal = metrics.proposal;
+    const measuredAt = new Date(measurement.createdAt);
+    return {
+      hasProposal: Boolean(proposal?.portrait || proposal?.fields?.length),
+      corpusChanged,
+      ...(Number.isNaN(measuredAt.getTime())
+        ? {}
+        : { measuredAt: measuredAt.toISOString() }),
+    };
   }
 
   /* ---------------------------------------------------------------------

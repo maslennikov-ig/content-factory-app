@@ -36,6 +36,8 @@ import {
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { SectionLabel } from '../../ui/section-label';
+import { MenuChevron } from '../../ui/split-button';
+import { WorkspaceMenu } from './workspace-menu';
 
 /**
  * Вкладка «Суть» (`97dq.37`, §3.1).
@@ -46,7 +48,7 @@ import { SectionLabel } from '../../ui/section-label';
  * До волны страница начиналась с таблицы кнопок «Адаптировать», выключенных,
  * пока сути нет, и Telegram встречался дважды, разорванный сутью (`97dq.39`,
  * C4) — теперь адаптации живут во вкладках, а здесь от них остаётся одна
- * строка на канал.
+ * строка состояния на канал и одно действие «Адаптировать» (`2q28.39`).
  */
 export function PieceCoreTab({
   locale,
@@ -200,6 +202,86 @@ export function PieceCoreTab({
 
   const sent = detail.sentText;
   const sentAt = sent?.at ? cellDate('queued', sent.at) : null;
+
+  /*
+    «Куда дальше» (`2q28.39`, решение владельца 26.09.2026): одно действие
+    «Адаптировать» на весь блок, и уже оно спрашивает, для какого канала.
+    Строки каналов — только сводка состояний: открыть канал можно вкладкой
+    над страницей, второй набор кнопок здесь не нужен. Выбор ведёт на
+    вкладку канала и ничего не пишет (`97dq.78`) — текст пишет
+    «Адаптировать» на самой вкладке, после настроек.
+
+    В списке выбора — все каналы, и написанные тоже, со своим состоянием:
+    человек, который пришёл переписать Telegram, найдёт его там же, где
+    начинал. Один канал — выбирать не из чего, кнопка сразу называет его.
+    Без права писать действия нет: вкладки открывают тексты и так.
+  */
+  const channelLabel = (channel: WorkspaceChannel) =>
+    `${platformName(channel.platform, locale, channel.platformName)} · ${
+      channel.name
+    }`;
+  const channelState = (channel: WorkspaceChannel) => {
+    const count = channel.adaptations.length;
+    return count > 0
+      ? `${stateWord(channel.state, t)} · ${t.variantsCount(count)}`
+      : stateWord(channel.state, t);
+  };
+  const goTo = (channel: WorkspaceChannel) =>
+    channel.adaptations.length
+      ? onOpenChannel(channel.id)
+      : onAdaptChannel(channel.id);
+  const adaptOff = busy || Boolean(core && !core.text.trim());
+  const only = channels.length === 1 ? channels[0] : null;
+  const onlyPlatform = only
+    ? platformName(only.platform, locale, only.platformName)
+    : '';
+  const adaptAction: ReactNode = !canWrite ? null : only ? (
+    only.adaptations.length ? (
+      <Button
+        type="button"
+        variant="secondary"
+        density="dense"
+        data-piece-next-adapt={only.id}
+        disabled={busy}
+        onClick={() => goTo(only)}
+      >
+        {t.openTextFor(onlyPlatform)}
+      </Button>
+    ) : (
+      <Button
+        type="button"
+        variant="primary"
+        density="dense"
+        data-piece-next-adapt={only.id}
+        disabled={adaptOff}
+        onClick={() => goTo(only)}
+      >
+        {t.adaptFor(onlyPlatform)}
+      </Button>
+    )
+  ) : channels.length > 1 ? (
+    <WorkspaceMenu
+      dataName="adapt-channel"
+      label={t.adaptChooseLabel}
+      density="dense"
+      disabled={adaptOff}
+      triggerClassName={buttonClassName({ variant: 'primary', density: 'dense' })}
+      trigger={
+        <>
+          {t.adapt}
+          <MenuChevron />
+        </>
+      }
+      items={channels.map((channel) => ({
+        id: channel.id,
+        title: channelLabel(channel),
+        description: channelState(channel),
+        onSelect: () => goTo(channel),
+      }))}
+    />
+  ) : null;
+  // Площадка без канала или ни одного канала — путь один, к каналам.
+  const channelsLink = unavailable.length > 0 || channels.length === 0;
 
   return (
     <div className="grid min-w-0 gap-[32px] lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
@@ -369,95 +451,73 @@ export function PieceCoreTab({
           {channels.length === 0 && unavailable.length === 0 ? (
             <p className="cf-body-sm text-cf-ink-muted">{t.noChannelsYet}</p>
           ) : null}
-          <ul className="flex min-w-0 flex-col divide-y divide-cf-border">
-            {channels.map((channel) => {
-              const label = `${platformName(
-                channel.platform,
-                locale,
-                channel.platformName
-              )} · ${channel.name}`;
-              const count = channel.adaptations.length;
-              return (
+          {channels.length || unavailable.length ? (
+            <ul className="flex min-w-0 flex-col divide-y divide-cf-border">
+              {channels.map((channel) => (
                 <li
                   key={channel.id}
                   data-piece-next={channel.id}
                   data-piece-next-state={channel.state}
-                  className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px] py-[8px]"
+                  className="flex min-w-0 items-center gap-x-[12px] py-[8px]"
                 >
                   <StateSquare state={channel.state} />
                   {/*
-                    Имя и слово состояния — одна колонка на узком экране:
-                    в одной строке с кнопкой имя канала сжималось до слова
-                    на строку и налезало на «черновик · 1 вариант» (390 px,
-                    стенд 22.09.2026).
+                    Имя и слово состояния — одна колонка на узком экране: в
+                    одной строке имя канала сжималось до слова на строку и
+                    налезало на «черновик · 1 вариант» (390 px, стенд
+                    22.09.2026).
                   */}
                   <span className="flex min-w-0 flex-1 flex-col gap-y-[4px] sm:flex-row sm:items-center sm:gap-x-[12px]">
                     <span className="min-w-0 cf-body-sm text-cf-ink [overflow-wrap:anywhere] sm:basis-[240px] sm:flex-none">
-                      {label}
+                      {channelLabel(channel)}
                     </span>
                     <span className="cf-caption text-cf-ink-muted">
-                      {count > 0
-                        ? `${stateWord(channel.state, t)} · ${t.variantsCount(
-                            count
-                          )}`
-                        : stateWord(channel.state, t)}
+                      {channelState(channel)}
                     </span>
                   </span>
-                  {count > 0 ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      density="dense"
-                      aria-label={`${t.openChannel} · ${label}`}
-                      onClick={() => onOpenChannel(channel.id)}
-                    >
-                      {t.openChannel}
-                    </Button>
-                  ) : channel.connected ? (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      density="dense"
-                      aria-label={`${t.adapt} · ${label}`}
-                      disabled={
-                        !canWrite || busy || Boolean(core && !core.text.trim())
-                      }
-                      onClick={() => onAdaptChannel(channel.id)}
-                    >
-                      {t.adapt}
-                    </Button>
-                  ) : null}
                 </li>
-              );
-            })}
-            {unavailable.map((target) => (
-              <li
-                key={target.platform}
-                data-piece-next-unavailable={target.platform}
-                className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px] py-[8px]"
-              >
-                <StateSquare state="no_channel" />
-                <span className="flex min-w-0 flex-1 flex-col gap-y-[4px] sm:flex-row sm:items-center sm:gap-x-[12px]">
-                  <span className="min-w-0 cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] sm:basis-[240px] sm:flex-none">
-                    {platformName(target.platform, locale, target.name)}
+              ))}
+              {unavailable.map((target) => (
+                <li
+                  key={target.platform}
+                  data-piece-next-unavailable={target.platform}
+                  className="flex min-w-0 items-center gap-x-[12px] py-[8px]"
+                >
+                  <StateSquare state="no_channel" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-y-[4px] sm:flex-row sm:items-center sm:gap-x-[12px]">
+                    <span className="min-w-0 cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] sm:basis-[240px] sm:flex-none">
+                      {platformName(target.platform, locale, target.name)}
+                    </span>
+                    <span className="cf-caption text-cf-ink-muted">
+                      {t.stateNoChannel}
+                    </span>
                   </span>
-                  <span className="cf-caption text-cf-ink-muted">
-                    {t.stateNoChannel}
-                  </span>
-                </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {adaptAction || channelsLink ? (
+            <div
+              data-piece-next-actions="true"
+              className="flex min-w-0 flex-wrap items-center gap-[8px]"
+            >
+              {adaptAction}
+              {channelsLink ? (
                 <a
                   href="/channels"
+                  data-piece-next-channels="true"
                   aria-label={`${t.toChannels} — ${t.noChannelReason}`}
                   className={buttonClassName({
-                    variant: 'quiet',
+                    // Без канала это единственное продолжение — оно и главное.
+                    variant: channels.length === 0 ? 'secondary' : 'quiet',
                     density: 'dense',
                   })}
                 >
                   {t.toChannels}
                 </a>
-              </li>
-            ))}
-          </ul>
+              ) : null}
+            </div>
+          ) : null}
         </Panel>
       </div>
 

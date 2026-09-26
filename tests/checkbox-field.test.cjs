@@ -9,12 +9,11 @@
  * to the browser, so the unchecked box was a light-theme control with the
  * browser's own border and radius sitting on a dark-theme surface.
  *
- * The fix is a drawn box beside a visually hidden native input. That trade is
- * exactly where a checkbox is usually broken — the semantics and the keyboard
- * get dropped along with the appearance — so what is checked here is that the
+ * The fix is the native input drawn by the theme (`appearance: none`). Until
+ * 26.09.2026 it was a drawn box beside a visually hidden input, and that hidden
+ * input could not be aimed at (`2q28.36`). What is checked here is that the
  * native control is still a native control: it keeps its role, its checked
- * state, its label, its disabled state, and it is hidden from sight rather than
- * from assistive technology.
+ * state, its label, its disabled state, and it is the visible box itself.
  *
  * The document comes from `jsdom` directly rather than from the jsdom Jest
  * environment, for the reason `tests/design.hint.test.cjs` gives: that one
@@ -88,25 +87,41 @@ describe('the box is drawn, and the control underneath is still native', () => {
     expect(box.checked).toBe(false);
   });
 
-  test('the native input is hidden from sight, never from assistive technology', () => {
+  test('the box a person sees is the native input itself, not a hidden one beside it', () => {
     const { container } = renderField();
     const box = container.querySelector('input');
+    const classes = box.className.split(/\s+/);
 
-    // `sr-only` clips it; `hidden`, `display:none` or `aria-hidden` would take
-    // it out of the accessibility tree and out of the tab order with it.
-    expect(box.className.split(/\s+/)).toContain('sr-only');
+    // 2q28.36: a visually hidden input is a box nobody can aim at — Playwright
+    // `check()` waited for a visible control and timed out on the avatar
+    // consent. The input is drawn with `appearance: none` and keeps its size.
+    expect(classes).not.toContain('sr-only');
+    expect(classes).not.toContain('opacity-0');
+    expect(classes).toContain('appearance-none');
+    expect(classes).toContain('size-[20px]');
     expect(box.getAttribute('aria-hidden')).toBeNull();
     expect(box.hasAttribute('hidden')).toBe(false);
   });
 
-  test('the drawn box is decoration and says nothing of its own', () => {
-    const { container } = renderField();
-    const drawn = container.querySelector('span[aria-hidden="true"]');
+  test('clicking the box itself toggles it', () => {
+    renderField();
+    const box = screen.getByRole('checkbox');
 
-    expect(drawn).toBeTruthy();
+    fireEvent.click(box);
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    expect(box.checked).toBe(false);
+  });
+
+  test('the tick is decoration: it says nothing and never takes the pointer', () => {
+    const { container } = renderField();
+    const mark = container.querySelector('[data-checkbox-mark]');
+
+    expect(mark.getAttribute('aria-hidden')).toBe('true');
+    expect(mark.className).toContain('pointer-events-none');
     // It has to follow the input: the peer variants are a sibling selector.
-    expect(drawn.previousElementSibling.tagName).toBe('INPUT');
-    expect(drawn.textContent).toBe('');
+    expect(mark.previousElementSibling.tagName).toBe('INPUT');
+    expect(mark.textContent).toBe('');
   });
 
   test('indeterminate is set as the DOM property it is, and it follows the prop', () => {
@@ -132,7 +147,7 @@ describe('the box is drawn, and the control underneath is still native', () => {
     expect(container.querySelector('label').className).toContain('opacity-50');
     // Hover paint is withheld: a row that lights up under the pointer promises
     // an action that is not there.
-    expect(container.querySelector('span[aria-hidden="true"]').className).not.toContain(
+    expect(container.querySelector('input').className).not.toContain(
       'group-hover:'
     );
   });
@@ -149,8 +164,8 @@ describe('the box is drawn, and the control underneath is still native', () => {
 
 describe('the appearance stays inside the system', () => {
   test('the focus ring is the shared one, moved onto the box', () => {
-    // Tailwind only generates classes it can read literally, so the peer form
-    // is written out rather than derived. That is the moment the two can
+    // Tailwind only generates classes it can read literally, so the ring is
+    // written out rather than derived. That is the moment the two can
     // drift, and this is the check that they have not.
     const shared = /CONTROL_FOCUS_RING =\s*\n?\s*'([^']+)'/.exec(
       read(CONTROL_BUTTON)
@@ -163,10 +178,10 @@ describe('the appearance stays inside the system', () => {
       .split(/\s+/);
 
     for (const token of shared.split(/\s+/)) {
-      expect(peer).toContain(`peer-${token}`);
+      expect(peer).toContain(token);
     }
     // The offset colour has to name the surface the ring is drawn against.
-    expect(peer).toContain('peer-focus-visible:ring-offset-cf-surface');
+    expect(peer).toContain('focus-visible:ring-offset-cf-surface');
   });
 
   test('no colour is written outside the cf layer', () => {

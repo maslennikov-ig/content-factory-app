@@ -20,9 +20,12 @@
  * Invariant I1: at most one post per (piece, channel) holds a slot. The holder
  * is the live variant with the latest `plannedAt ?? createdAt`; the other
  * variants' DRAFT posts are "superseded" and are hidden from the calendar, the
- * picker and the slot search. Nothing is deleted: the rows stay, «Вариант N»
- * keeps working, and choosing an older variant (placing or scheduling it) sets
- * its `plannedAt`, which makes it the holder again. «Снять с расписания» on a
+ * picker and the slot search. The rows stay, «Вариант N» keeps working, and
+ * choosing an older variant (placing or scheduling it) sets its `plannedAt`,
+ * which makes it the holder again. Once a person confirms a variant into the
+ * queue, the other variants' DRAFT posts are soft-deleted (`2q28.39`, owner
+ * 26.09.2026; `PieceService.dropOtherDrafts`); their text stays on the
+ * derivation, and scheduling such a variant later restores its post. «Снять с расписания» on a
  * variant that is not the holder is such a choice too, so the unscheduled
  * draft stays in the calendar (review F10). Under «Без плана» (the post's own
  * mode, else the channel's) no variant holds a slot and none is hidden, as

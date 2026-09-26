@@ -234,7 +234,9 @@ export const piecesCopy = {
       'Каналов пока нет. Подключите первый — и здесь появится его вкладка.',
     variantsCount: (count: number) =>
       `${count} ${plural(count, ['вариант', 'варианта', 'вариантов'])}`,
-    openChannel: 'Открыть',
+    // Одна кнопка на блок «Куда дальше» (`2q28.39`): имя меню для скринридера.
+    adaptChooseLabel: 'Адаптировать — выберите канал',
+    openTextFor: (platform: string) => `Открыть текст для ${platform}`,
     receiptUnderstoodAs: 'Понято как',
     receiptForeignWithLink: 'чужой пост + ссылка',
     receiptMaterial: 'Материал',
@@ -684,7 +686,8 @@ export const piecesCopy = {
       'No channels yet. Connect the first one and its tab appears here.',
     variantsCount: (count: number) =>
       `${count} ${count === 1 ? 'version' : 'versions'}`,
-    openChannel: 'Open',
+    adaptChooseLabel: 'Adapt — choose a channel',
+    openTextFor: (platform: string) => `Open the text for ${platform}`,
     receiptUnderstoodAs: 'Understood as',
     receiptForeignWithLink: 'somebody else’s post + link',
     receiptMaterial: 'Material',
