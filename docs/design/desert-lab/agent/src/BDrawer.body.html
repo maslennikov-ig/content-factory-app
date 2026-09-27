@@ -1,0 +1,22 @@
+<div class="shell" style="width:1440px;height:900px">
+%%INC:_nav.inc%%
+<main class="col" style="flex:1;min-width:0;position:relative">
+%%SET:TITLE=Пост из одной мысли%%
+%%INC:_btop.inc%%
+  <div class="col" style="padding:32px 24px 24px;align-items:center">
+    <div class="conv" style="width:100%;max-width:820px">
+%%INC:_flow_head.inc%%
+    </div>
+  </div>
+  <div class="backdrop"></div>
+  <aside class="drawer" style="left:0" aria-label="Разговоры">
+    <div class="row" style="padding:16px 16px 12px"><span class="h3">Разговоры</span><span class="sp"></span><span class="btn quiet dense icon" aria-label="Закрыть">%%x%%</span></div>
+    <div style="padding:0 16px 12px"><span class="input dense">%%search%%Найти разговор</span></div>
+    <div class="col threads" style="width:auto;border:0;padding:0 8px;gap:2px;background:transparent">
+%%INC:_threads_list.inc%%
+    </div>
+    <span class="sp"></span>
+    <div style="padding:16px"><span class="btn secondary" style="width:100%">%%plus%%Новый разговор</span></div>
+  </aside>
+</main>
+</div>

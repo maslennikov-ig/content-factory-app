@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Carried over verbatim: the person’s numbers, names, dates, examples and distinctive expressions');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v16');
     /*
       Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
       сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
@@ -2066,7 +2066,7 @@ describe('ответы на открытые вопросы заготовки',
 
     const drafts = modelCalls.filter((call) => call.role === 'draft');
     expect(drafts).toHaveLength(1);
-    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v16');
     expect(drafts[0].prompt).toContain('QUESTIONS HANDED TO THE MODEL');
     expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
     expect(drafts[0].prompt).toContain('A separate rule about the «questions handed to the model» block');
@@ -3155,13 +3155,14 @@ describe('97dq.44: интервью заготовки — столько воп
   /*
     «Решите за меня» из знаний ИИ (`97dq.99`): политика аватара доезжает до
     промпта сути. Разрешённые примеры — своё правило; сбой чтения —
-    умолчание, а не разрешение.
+    умолчание, а не разрешение. С `wffi` вопрос о своём материале автора при
+    умолчании модели не отдаётся: он пробел, и суть пишется в обход него.
   */
   describe.each([
-    ['examples', 'The author has allowed invented examples', 'do not invent their case'],
-    ['knowledge', 'do not invent their case', 'The author has allowed invented examples'],
-    [new Error('db down'), 'do not invent their case', 'The author has allowed invented examples'],
-  ])('97dq.99: политика аватара %s', (policy, present, absent) => {
+    ['examples', true],
+    ['knowledge', false],
+    [new Error('db down'), false],
+  ])('97dq.99: политика аватара %s', (policy, handed) => {
     test('доезжает до промпта сути из аватара области', async () => {
       const asked = [
         { field: 'facts', key: 'ask-1', question: 'Как выглядела конкретная рабочая ситуация?', options: [], suggested: null },
@@ -3175,15 +3176,29 @@ describe('97dq.44: интервью заготовки — столько воп
 
       expect(calls.policy).toEqual(['org-a']);
       const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
-      expect(prompt).toContain('PROMPT VERSION: core-write/v15');
-      expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: only the person knows it)');
-      expect(prompt).toContain('the person expects you to answer it with content from your own knowledge');
-      expect(prompt).toContain(present);
-      expect(prompt).not.toContain(absent);
+      expect(prompt).toContain('PROMPT VERSION: core-write/v16');
+      const stored = calls.updateCore[0][2].brief;
+      const ask1 = stored.questions.answered.find((answer) => answer.key === 'ask-1');
+      if (handed) {
+        expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: only the person knows it)');
+        expect(prompt).toContain('the person expects you to answer it with content from your own knowledge');
+        expect(prompt).toContain('The author has allowed invented examples');
+        expect(prompt).not.toContain('THE AUTHOR’S MATERIAL THAT IS MISSING');
+        expect(ask1).toEqual(expect.objectContaining({ origin: 'model', text: 'Текст объясняет, как это обычно бывает.' }));
+      } else {
+        expect(prompt).not.toContain('QUESTIONS HANDED TO THE MODEL');
+        expect(prompt).not.toContain('The author has allowed invented examples');
+        expect(prompt).toContain('THE AUTHOR’S MATERIAL THAT IS MISSING');
+        expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация?');
+        expect(prompt).toContain('The rule about the author’s missing material');
+        // A returned decision for a gap is not kept: nothing is decided for them.
+        expect(ask1).toEqual(expect.objectContaining({ origin: 'model', text: '' }));
+        expect(stored.answers.filter((answer) => answer.key === 'ask-1')).toEqual([]);
+      }
     });
   });
 
-  test('cnt-32: отданный вопрос о материале хранит решение-рамку, суть видит ответы и решения (`97dq.56`)', async () => {
+  test('cnt-32: отданный вопрос о материале — пробел, а не решение-рамка; суть видит ответы (`97dq.56`, `wffi`)', async () => {
     const asked = [
       { field: 'facts', key: 'ask-1', question: 'Как выглядела конкретная рабочая ситуация?', options: [], suggested: null },
       { field: 'facts', key: 'ask-2', question: 'Как команда работала с задачами до доски?', options: [], suggested: null },
@@ -3216,32 +3231,58 @@ describe('97dq.44: интервью заготовки — столько воп
     const prompt = drafts[0].prompt;
     expect(prompt).toContain('Как команда работала с задачами до доски? → У каждого был свой задачник');
     expect(prompt).toContain('Что удивило сильнее всего? → Выросший КПД.');
-    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: only the person knows it)');
-    expect(prompt).toContain('[ask-3] Что именно вы изменили? (about the author’s material: only the person knows it)');
-    // Без аватара с разрешением — политика по умолчанию (`97dq.99`): знания
-    // да, выдуманный случай нет.
-    expect(prompt).toContain('answer it in general terms — how this usually goes and why — and do not invent their case');
+    // Без аватара с разрешением — политика по умолчанию: вопросы о своём
+    // материале автора модели не отдаются, это пробелы (`wffi`, N3 перепроверки
+    // W2 27.09.2026 — «например, команда довела до выпуска функцию…»).
+    expect(prompt).toContain('THE AUTHOR’S MATERIAL THAT IS MISSING');
+    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация?');
+    expect(prompt).toContain('[ask-3] Что именно вы изменили?');
+    expect(prompt).not.toContain('QUESTIONS HANDED TO THE MODEL');
+    expect(prompt).not.toContain('answer it in general terms — how this usually goes and why');
+    expect(prompt).toContain('an invented or hypothetical episode');
     expect(prompt).not.toContain('The author has allowed invented examples');
     expect(prompt).toContain('4) develop what was said instead of shrinking it');
 
     const stored = calls.updateCore[0][2].brief;
     expect(stored.questions.answered).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'ask-1', origin: 'model', text: frame1 }),
+        expect.objectContaining({ key: 'ask-1', origin: 'model', text: '' }),
         expect.objectContaining({ key: 'ask-2', origin: 'person' }),
         expect.objectContaining({ key: 'ask-3', origin: 'model', text: '' }),
         expect.objectContaining({ key: 'ask-4', origin: 'person', text: 'Выросший КПД.' }),
       ])
     );
-    // Решение едет со сутью своим происхождением: следующая перепись видит
-    // его блоком решений, а не словами человека.
-    expect(stored.answers).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ key: 'ask-1', origin: 'model', text: frame1, step: 'core' }),
-      ])
-    );
+    // Решение модели по пробелу не хранится: следующая перепись не увидит
+    // выдуманной рамки блоком решений.
+    expect(stored.answers.filter((answer) => answer.key === 'ask-1')).toEqual([]);
     expect(stored.answers.filter((answer) => answer.key === 'ask-3')).toEqual([]);
     expect(stored.authorNumbers).toBe(false);
+  });
+
+  test('wffi: «Решите за меня» только на своём опыте автора при написанной сути — платного вызова нет, суть не тронута', async () => {
+    const asked = [
+      { field: 'facts', key: 'ask-1', question: 'Какой эпизод вы имеете в виду?', options: [], suggested: null },
+      { field: 'facts', key: 'ask-2', question: 'За какой период вы сравниваете?', options: [], suggested: null },
+    ];
+    const piece = askedPiece({ round: 0, items: asked, answered: [] });
+    expect(piece.body.trim()).not.toBe('');
+    const { service, calls } = buildPieces({
+      piece,
+      models: [{ text: 'Суть с выдуманным эпизодом.', decisions: [{ key: 'ask-1', text: 'Например, команда довела до выпуска функцию.' }] }],
+    });
+    await answerDrain(service, { decideKeys: ['ask-1', 'ask-2'] });
+
+    expect(modelCalls.filter((call) => call.role === 'draft')).toEqual([]);
+    const saved = calls.updateCore[0][2];
+    expect(saved.body).toBe(piece.body);
+    expect(saved.body).not.toContain('Например, команда');
+    expect(saved.brief.questions.items).toEqual([]);
+    expect(saved.brief.questions.answered).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'ask-1', origin: 'model', text: '' }),
+        expect.objectContaining({ key: 'ask-2', origin: 'model', text: '' }),
+      ])
+    );
   });
 
   test('ответы на вопросы о материале едут в суть парой «вопрос → ответ», поля брифа не трогают', async () => {

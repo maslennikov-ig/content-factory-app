@@ -328,6 +328,7 @@ export function SuggestedQuestionsCard({
   onSubmit,
   onSkipAll,
   extra,
+  framed = true,
 }: {
   words: SuggestedQuestionsWords;
   questions: readonly SuggestedQuestion[];
@@ -344,6 +345,12 @@ export function SuggestedQuestionsCard({
     decideKeys: readonly string[]
   ) => void;
   onSkipAll?: () => void;
+  /**
+   * Off: no panel and no header of its own — the questions and the footer
+   * inside a frame the caller draws (the agent's interview card, `kcxz.16`),
+   * so a card is not nested in a card.
+   */
+  framed?: boolean;
 }) {
   const [answers, setAnswers] = useState<QuestionAnswers>({});
 
@@ -404,26 +411,8 @@ export function SuggestedQuestionsCard({
     onSubmit(given, decided);
   };
 
-  return (
-    <Panel
-      data-piece-questions="true"
-      as="section"
-      contentPadding="snug"
-      className="min-w-0"
-      contentClassName="flex flex-col gap-[16px]"
-    >
-      <header className="flex flex-col gap-[8px]">
-        <div className="flex flex-wrap items-center gap-[8px]">
-          <Status tone="info">{words.badge}</Status>
-          <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
-            {words.title(questions.length)}
-          </h3>
-        </div>
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-          {words.lead}
-        </p>
-      </header>
-
+  const body = (
+    <>
       {questions.map((question) => {
         const answer = answers[question.key];
         const value =
@@ -650,6 +639,37 @@ export function SuggestedQuestionsCard({
           </Button>
         ) : null}
       </footer>
+    </>
+  );
+
+  if (!framed) {
+    return (
+      <div data-piece-questions="true" className="flex min-w-0 flex-col gap-[16px]">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Panel
+      data-piece-questions="true"
+      as="section"
+      contentPadding="snug"
+      className="min-w-0"
+      contentClassName="flex flex-col gap-[16px]"
+    >
+      <header className="flex flex-col gap-[8px]">
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <Status tone="info">{words.badge}</Status>
+          <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
+            {words.title(questions.length)}
+          </h3>
+        </div>
+        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          {words.lead}
+        </p>
+      </header>
+      {body}
     </Panel>
   );
 }

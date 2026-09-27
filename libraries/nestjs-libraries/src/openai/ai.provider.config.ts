@@ -694,6 +694,17 @@ export const withActiveAiConfig = <T>(
     callback
   );
 
+/**
+ * Run `callback` outside any admitted operation (`content-factory-next-kcxz.6`,
+ * premortem U1). A paid capability called from an agent turn must open its own
+ * admission, as its door does; inside the turn's `agent` admission the
+ * short-circuit in `AiUsageService` would silently absorb it and the ledger
+ * would record one `agent` row and no row of its own. Only the admitted AI
+ * configuration is left: the acting user and every other context stay.
+ */
+export const withoutActiveAiConfig = <T>(callback: () => T): T =>
+  activeAiConfig.exit(callback);
+
 /** Client construction is legal only inside an admitted product operation. */
 export const requireActiveAiConfig = async (
   organizationId: string

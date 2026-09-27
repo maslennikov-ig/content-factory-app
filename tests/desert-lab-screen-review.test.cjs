@@ -16,7 +16,6 @@ const channelSurfaces = [
   'apps/frontend/src/components/new-launch/manage.modal.tsx',
   'apps/frontend/src/components/new-launch/providers/high.order.provider.tsx',
   'apps/frontend/src/components/post-url-selector/post.url.selector.tsx',
-  'apps/frontend/src/components/agents/agent.tsx',
   'apps/frontend/src/components/preview/post.preview.tsx',
 ];
 
@@ -123,7 +122,6 @@ describe('desert-lab screen review regressions', () => {
   test.each([
     'apps/frontend/src/components/channels/channel-parts.tsx',
     'apps/frontend/src/components/launches/adaptation-picker.tsx',
-    'apps/frontend/src/components/agents/agent.tsx',
     'apps/frontend/src/components/new-launch/picks.socials.component.tsx',
     'apps/frontend/src/components/new-launch/select.current.tsx',
   ])('%s handles an avatar URL that fails to load', (file) => {
@@ -198,7 +196,6 @@ describe('desert-lab screen review regressions', () => {
       'apps/frontend/src/components/launches/launches.component.tsx',
       'apps/frontend/src/components/launches/add.provider.component.tsx',
       'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
-      'apps/frontend/src/components/agents/agent.tsx',
       'apps/frontend/src/components/preview/post.preview.tsx',
     ];
     const offenders = surfacesWithVisibleNames.filter((file) =>

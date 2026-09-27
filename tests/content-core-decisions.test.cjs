@@ -41,6 +41,7 @@ const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v11 = loadWithMocks(`${base}/pieces/core-write-prompt.v11.ts`);
 const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
 const v15 = loadWithMocks(`${base}/pieces/core-write-prompt.v15.ts`);
+const v16 = loadWithMocks(`${base}/pieces/core-write-prompt.v16.ts`);
 const v9 = loadWithMocks(`${base}/pieces/core-write-prompt.v9.ts`);
 const fill10 = loadWithMocks(`${base}/intake/intake.prompts.v10.ts`);
 const fill11 = loadWithMocks(`${base}/intake/intake.prompts.v11.ts`);
@@ -92,8 +93,8 @@ const input = (overrides = {}) => ({
 describe('core-write/v11', () => {
   test('своя версия (v13 с `97dq.90`), v9–v12 остаются для квитанций', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v16');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v16');
     expect(v14.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
     expect(v11.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
@@ -144,7 +145,7 @@ describe('core-write/v11', () => {
     expect(block(words.answers)).not.toContain('Без конкретного эпизода');
     expect(prompt).toContain('THE MODEL’S DECISIONS (the person handed these questions to the model; what the model decided and wrote in answer, not the person’s words)');
     // Decisions from an earlier round carry the policy even without a new block.
-    expect(prompt).toContain(v15.CORE_WRITE_HANDED_V15.knowledge);
+    expect(prompt).toContain(v16.CORE_WRITE_HANDED_V16.knowledge);
     expect(prompt).not.toContain(v15.CORE_WRITE_DELEGATED_V15);
     expect(block(words.decisions)).toContain(`${DELEGATED[0].question} → Без конкретного эпизода`);
     // Пустое «Реши сама» (заготовки до v11) блока не заводит.
@@ -165,10 +166,18 @@ describe('core-write/v11', () => {
     expect(without).not.toContain('A separate rule about the «questions handed to the model» block');
     expect(without).not.toContain('The rule about handed questions («You decide»)');
 
-    const prompt = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    // The author's material is handed to the model only under the avatar's
+    // `examples` opt-in; by default it is a gap (`wffi`, see core-write-v16).
+    const prompt = coreWrite.corePrompt(input({ delegated: DELEGATED, delegatedPolicy: 'examples' }));
     expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL (answer them yourself; the decision goes into decisions under the same key)');
     expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (about the author’s material: only the person knows it)`);
     expect(prompt).toContain('A separate rule about the «questions handed to the model» block');
+
+    const byDefault = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    expect(byDefault).not.toContain('QUESTIONS HANDED TO THE MODEL');
+    expect(byDefault).not.toContain('A separate rule about the «questions handed to the model» block');
+    expect(byDefault).toContain(v16.CORE_WRITE_BLOCK_TITLES_V16.gaps);
+    expect(byDefault).toContain(`[ask-1] ${DELEGATED[0].question}`);
   });
 
   test('вопрос о факте автора решается рамкой: правило запрещает выдумывать случай от первого лица', () => {
@@ -191,13 +200,13 @@ describe('core-write/v11', () => {
       }
     }
     // v11 stays for receipts; the current prompt is v15 (`97dq.99`).
-    const current = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    const current = coreWrite.corePrompt(input({ delegated: DELEGATED, delegatedPolicy: 'examples' }));
     expect(current).not.toContain(v11.CORE_WRITE_DELEGATED_V11.en);
     expect(current).toContain(v15.CORE_WRITE_DELEGATED_V15);
   });
 
   test('английская сторона на месте', () => {
-    const prompt = coreWrite.corePrompt(input({ language: 'en', delegated: DELEGATED }));
+    const prompt = coreWrite.corePrompt(input({ language: 'en', delegated: DELEGATED, delegatedPolicy: 'examples' }));
     expect(prompt).toContain('4) develop what was said instead of shrinking it');
     expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL');
     expect(prompt).toContain('about the author’s material: only the person knows it');
@@ -259,7 +268,10 @@ describe('writeCoreWithDecisions', () => {
         { key: 'ask-3', text: 'Текст показывает переход от личных задачников к одной доске.' },
       ],
     }];
-    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({ delegated: DELEGATED }), deps);
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(
+      input({ delegated: DELEGATED, delegatedPolicy: 'examples' }),
+      deps
+    );
     expect(modelCalls).toHaveLength(1);
     expect(core.text).toBe('Суть по cnt-32.');
     expect(core.writtenBy).toBe('model');
@@ -399,6 +411,6 @@ describe('the core keeps the author’s caveats (97dq.53)', () => {
 
   test('released receipts keep their contract: v11 does not carry the rule', () => {
     expect(v11.coreWriteSystemV11('ru', '')).not.toContain('Оговорки человека');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v16');
   });
 });

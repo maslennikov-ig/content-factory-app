@@ -241,8 +241,10 @@ describe('every account-changing door proves where the press came from', () => {
   test('the browser helper sends JSON headers even with no body', () => {
     const helper = read('libraries/helpers/src/utils/custom.fetch.func.ts');
 
+    // One case-insensitive header set since kcxz.29 (D1): the JSON type is a
+    // default every request without `FormData` carries, body or not.
     expect(helper).toMatch(
-      /options\.body instanceof FormData\s*\n\s*\? \{\}\s*\n\s*: \{ 'Content-Type': 'application\/json' \}/
+      /if \(!\(options\.body instanceof FormData\)\) \{\s*\n\s*headers\.set\('Content-Type', 'application\/json'\);/
     );
     expect(helper).toContain("credentials: 'include'");
   });

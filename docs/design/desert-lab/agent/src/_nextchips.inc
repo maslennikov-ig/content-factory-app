@@ -1,0 +1,1 @@
+<div class="row wrap" style="gap:8px"><span class="cap" style="margin-inline-end:4px">Дальше</span><span class="next rec">Подтвердить бронь</span><span class="next">Адаптировать для Мастерской</span><span class="next">Что ещё в плане на неделю</span></div>

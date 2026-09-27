@@ -27,7 +27,14 @@ const { buildBackendCorsOptions } = loadTypeScriptModule(
   'apps/backend/src/cors.options.ts'
 );
 
-function preflight(options, origin) {
+function preflight(
+  options,
+  origin,
+  {
+    path: requestPath = '/copilot/chat',
+    headers: requested = 'content-type,x-copilotkit-runtime-client-gql-version',
+  } = {}
+) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       cors(options)(req, res, () => {
@@ -43,12 +50,11 @@ function preflight(options, origin) {
           host: '127.0.0.1',
           port: address.port,
           method: 'OPTIONS',
-          path: '/copilot/chat',
+          path: requestPath,
           headers: {
             Origin: origin,
             'Access-Control-Request-Method': 'POST',
-            'Access-Control-Request-Headers':
-              'content-type,x-copilotkit-runtime-client-gql-version',
+            'Access-Control-Request-Headers': requested,
           },
         },
         (response) => {
@@ -105,6 +111,39 @@ describe('backend CORS', () => {
     // Local mode also carries the session in headers, so they have to be
     // readable by the browser.
     expect(options.exposedHeaders).toContain('auth');
+  });
+
+  test('lets a frontend on another origin read the agent chat thread header', () => {
+    // `POST /agent/chat` names the thread a first message opened; hidden, every
+    // message would open a new thread (correctness review W1 F10).
+    const { AGENT_THREAD_HEADER } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts'
+    );
+    for (const env of [{ FRONTEND_URL: 'http://localhost:4200' }, { FRONTEND_URL: 'https://x.example', NOT_SECURED: 'true' }]) {
+      expect(buildBackendCorsOptions(env).exposedHeaders).toContain(AGENT_THREAD_HEADER);
+    }
+  });
+
+  test('review W2 F1: a cross-origin agent chat preflight may send the zone header', async () => {
+    // Every chat POST and the thread history carry `x-agent-timezone`; a
+    // preflight that does not list it makes the browser block the request.
+    const { AGENT_TIMEZONE_HEADER } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts'
+    );
+    const origin = 'http://localhost:4200';
+    for (const env of [{ FRONTEND_URL: origin }, { FRONTEND_URL: origin, NOT_SECURED: 'true' }]) {
+      const response = await preflight(buildBackendCorsOptions(env), origin, {
+        path: '/agent/chat',
+        headers: `content-type,${AGENT_TIMEZONE_HEADER}`,
+      });
+      expect(response.status).toBe(204);
+      expect(response.headers['access-control-allow-origin']).toBe(origin);
+      const allowed = String(response.headers['access-control-allow-headers'] ?? '')
+        .toLowerCase()
+        .split(',')
+        .map((one) => one.trim());
+      expect(allowed).toEqual(expect.arrayContaining(['content-type', AGENT_TIMEZONE_HEADER]));
+    }
   });
 
   test('offers the MCP Inspector origin only outside production', async () => {

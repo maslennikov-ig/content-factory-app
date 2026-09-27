@@ -1,0 +1,33 @@
+<div class="shell" style="width:1440px;height:900px">
+%%INC:_nav.inc%%
+<main class="col" style="width:520px;flex:none">
+%%SET:TITLE=Новый разговор%%
+%%INC:_ctop.inc%%
+  <div class="col" style="flex:1;padding:32px 20px 20px;gap:20px">
+    <div class="ai"><span class="mark">Cf</span><div class="say"><span class="h3">С чего начнём?</span><p class="muted">Пространство пустое. Справа — что уже есть; начните с первого шага или напишите своими словами.</p></div></div>
+    <div class="col" style="gap:8px">
+      <span class="next rec" style="align-self:flex-start">%%user%%Соберём аватар</span>
+      <span class="next" style="align-self:flex-start"><span class="tg">%%tgp%%</span>Подключим Telegram</span>
+      <span class="next" style="align-self:flex-start">%%pen%%Напишем пост из одной мысли</span>
+      <span class="next" style="align-self:flex-start">%%cal%%Что у нас в плане на неделю</span>
+    </div>
+    <span class="sp"></span>
+%%INC:_allow_line.inc%%
+%%INC:_composer.inc%%
+  </div>
+</main>
+<section class="col" style="flex:1;min-width:0;background:var(--cf-surface);border-inline-start:1px solid var(--cf-border)" aria-label="Рабочая панель">
+  <div class="topbar" style="padding:0 24px"><span class="lm">Пространство AiDevTeam</span><span class="sp"></span><span class="cap">0 из 5 шагов</span></div>
+  <div class="col" style="padding:24px;gap:12px">
+    <span class="sm muted">Здесь откроется то, над чем работаем: аватар, канал, заготовка, план. Пока — что есть в пространстве.</span>
+    <div class="pbar"><i style="width:0"></i></div>
+    <div class="kc"><div class="kc-b" style="gap:0;padding:0">
+      <div class="row" style="padding:14px 16px;border-bottom:1px solid var(--cf-border);gap:12px"><span class="num cur">1</span><div class="col" style="flex:1"><span class="lm">Аватар</span><span class="sm muted">нет — черновики выйдут ровным текстом без лица</span></div><span class="btn primary dense">Сделать в чате</span></div>
+      <div class="row" style="padding:14px 16px;border-bottom:1px solid var(--cf-border);gap:12px"><span class="num">2</span><div class="col" style="flex:1"><span class="lm">Каналы</span><span class="sm muted">не подключено ни одного</span></div><span class="btn quiet dense">Сделать в чате</span></div>
+      <div class="row" style="padding:14px 16px;border-bottom:1px solid var(--cf-border);gap:12px"><span class="num">3</span><div class="col" style="flex:1"><span class="lm">Контент</span><span class="sm muted">заготовок нет</span></div><span class="btn quiet dense">Сделать в чате</span></div>
+      <div class="row" style="padding:14px 16px;border-bottom:1px solid var(--cf-border);gap:12px"><span class="num">4</span><div class="col" style="flex:1"><span class="lm">Календарь</span><span class="sm muted">на неделю пусто</span></div><span class="btn quiet dense">Сделать в чате</span></div>
+      <div class="row" style="padding:14px 16px;gap:12px"><span class="num">5</span><div class="col" style="flex:1"><span class="lm">Аналитика</span><span class="sm muted">появится после первых публикаций</span></div></div>
+    </div></div>
+  </div>
+</section>
+</div>

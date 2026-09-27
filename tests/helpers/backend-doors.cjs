@@ -85,6 +85,26 @@ const sectionsOfArgument = (argument, aliases) => {
 };
 
 /**
+ * The `[action, section]` pair one `@CheckPolicies` argument names, alias or
+ * literal — the whole policy rather than its section, for the agent registry
+ * guard (`content-factory-next-kcxz.6`), which rebuilds a door's metadata.
+ */
+const policyOfArgument = (argument, aliases) => {
+  const read = (text) => {
+    const action = text.match(/AuthorizationActions\.(\w+)/);
+    const section = text.match(/Sections\.(\w+)/);
+    return action && section ? [action[1], section[1]] : null;
+  };
+  const text = argument.getText();
+  const direct = read(text);
+  if (direct) return [direct];
+  const name = text.replace(/\s+as\s+\w+$/, '').trim();
+  const aliased = aliases.get(name);
+  const followed = aliased && read(aliased);
+  return followed ? [followed] : [];
+};
+
+/**
  * Every route handler that carries `@CheckPolicies`, with its sections.
  * With `{ all: true }`, every handler, and the ones without a policy carry
  * `sections: []` (`content-factory-next-fn33.90.2`).
@@ -104,6 +124,7 @@ const doorsWithPolicies = ({ all = false } = {}) => {
     source.forEachChild((node) => {
       if (!ts.isClassDeclaration(node)) return;
 
+      const controller = node.name ? node.name.text : null;
       let prefix = null;
       for (const decorator of ts.getDecorators(node) || []) {
         const call = decorator.expression;
@@ -122,6 +143,7 @@ const doorsWithPolicies = ({ all = false } = {}) => {
         let method;
         let route = '';
         let sections;
+        let policies;
         for (const decorator of ts.getDecorators(member) || []) {
           const call = decorator.expression;
           if (!ts.isCallExpression(call)) continue;
@@ -134,6 +156,9 @@ const doorsWithPolicies = ({ all = false } = {}) => {
             sections = call.arguments.flatMap((argument) =>
               sectionsOfArgument(argument, aliases)
             );
+            policies = call.arguments.flatMap((argument) =>
+              policyOfArgument(argument, aliases)
+            );
           }
         }
 
@@ -143,6 +168,9 @@ const doorsWithPolicies = ({ all = false } = {}) => {
           path: `${prefix}${route}`.replace(/\/$/, '') || '/',
           sections: sections || [],
           file: relative,
+          controller,
+          handler: member.name.getText(),
+          policies: policies || [],
         });
       }
     });

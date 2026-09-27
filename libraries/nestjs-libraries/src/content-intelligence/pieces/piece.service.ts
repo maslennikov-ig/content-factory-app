@@ -14,6 +14,7 @@ import {
 } from './piece-research.contract';
 import type { IntakeRunState } from '../intake/intake.service';
 import { reviewOnceV3, signReview, readReview } from './review.v3';
+import { neverSayList } from '../text-quality/never-say';
 import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposalV3, type ReviewSnapshotV2 } from './review.v3.contract';
 import { webReviewSources } from './adaptation-web-review';
 import {
@@ -196,6 +197,7 @@ import {
   coreQuestionText,
 } from './core-questions';
 import {
+  handedQuestionsOf,
   writeCore,
   writeCoreWithDecisions,
   type CoreDecisionV1,
@@ -277,7 +279,7 @@ import {
   WebResearchService,
   type ResearchLevel,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
-import { AdaptationReviewError, reviewConflict,
+import { ADAPTATION_QUEUE_NEEDS_CONSENT, AdaptationReviewError, type QueueConsentV1, reviewConflict,
   type AdaptationReviewAction } from './adaptation-review.contract';
 import {
   READY_ADAPTATIONS_VERSION,
@@ -712,7 +714,21 @@ const PLAN_NOTES = {
     ru: 'Эта заготовка уже вышла в канале, поэтому автопилот не ставит новую версию в очередь — она осталась в плане.',
     en: 'This piece already went out in the channel, so the autopilot does not queue the new version; it stays planned.',
   },
+  consentNeeded: {
+    ru: 'Канал на автопилоте, но в очередь эту версию не просили ставить, поэтому она осталась в плане. Нажмите «Запланировать», чтобы она вышла.',
+    en: 'The channel is on autopilot, but nobody asked to queue this version, so it stays planned. Press “Schedule” to send it.',
+  },
 } as const;
+
+/** The placement refused because the queue needs the person's consent (W2 F2). */
+const queueNeedsConsent = (language: 'ru' | 'en') =>
+  new AdaptationReviewError(
+    ADAPTATION_QUEUE_NEEDS_CONSENT,
+    409,
+    language === 'ru'
+      ? 'Канал на автопилоте или пост уже в очереди: поставить его так значит отправить без подтверждения, поэтому ничего не изменилось.'
+      : 'The channel is on autopilot or the post is already queued: placing it would send it without a confirmation, so nothing changed.'
+  );
 
 const upperState = (value: unknown) => String(value || '').toUpperCase();
 
@@ -1450,7 +1466,9 @@ export class PieceService {
      * форму вызова ради одного неиспользуемого поля дороже, чем принять его.
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    actorUserId?: string
+    actorUserId?: string,
+    /** The agent chat's `queueAllowed: false` (review W2 F2); the door omits it. */
+    consent: QueueConsentV1 = {}
   ): AsyncGenerator<PieceAdaptEventV1> {
     const language = plan.language;
     yield {
@@ -1607,7 +1625,7 @@ export class PieceService {
       output = leftover.value;
     }
 
-    const saved = await this.persist(organizationId, plan, output, answers);
+    const saved = await this.persist(organizationId, plan, output, answers, consent);
     if (!saved) {
       yield {
         name: 'error',
@@ -1639,7 +1657,8 @@ export class PieceService {
     organizationId: string,
     plan: PieceAdaptPlanV1,
     output: any,
-    answers: PieceAnswerV1[]
+    answers: PieceAnswerV1[],
+    consent: QueueConsentV1 = {}
   ) {
     /*
       Метки строк блока материала («[E2]», «[F1]») — адрес для
@@ -1697,7 +1716,15 @@ export class PieceService {
     });
     if (!row) return null;
     const planned = this.planStore()
-      ? await this.planNewVariantSafely(organizationId, plan, row.id, postId, html, draftDate)
+      ? await this.planNewVariantSafely(
+          organizationId,
+          plan,
+          row.id,
+          postId,
+          html,
+          draftDate,
+          consent.queueAllowed !== false
+        )
       : null;
     // Новая адаптация должна находиться сразу: следующий канал этой же
     // заготовки уже вправе на неё сослаться (`content-factory-next-m2eg.19`).
@@ -1814,6 +1841,22 @@ export class PieceService {
     work: (db: PlanDb) => Promise<T>
   ): Promise<T> {
     return this.planStore()!.withChannelLock(organizationId, pieceId, integrationId, work);
+  }
+
+  /**
+   * The plan mode a new adaptation of this piece for this channel is placed
+   * by — the post's own mode, else the channel's (`planModeFor`), read before
+   * anything is spent. The agent chat asks the person first when it is
+   * `autopilot` (`kcxz.14`, spec §1.4): such a post leaves by itself.
+   * `null` when the plan is not stored here (no plan columns).
+   */
+  async adaptPlanMode(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string
+  ): Promise<PlanModeV1 | null> {
+    const store = this.planStore();
+    return store ? this.planModeFor(store, organizationId, pieceId, integrationId) : null;
   }
 
   /**
@@ -2087,10 +2130,19 @@ export class PieceService {
     adaptationId: string,
     postId: string,
     html: string,
-    draftDate: string
+    draftDate: string,
+    queueAllowed = true
   ): Promise<AdaptationPlanV1> {
     try {
-      return await this.planNewVariant(organizationId, plan, adaptationId, postId, html, draftDate);
+      return await this.planNewVariant(
+        organizationId,
+        plan,
+        adaptationId,
+        postId,
+        html,
+        draftDate,
+        queueAllowed
+      );
     } catch (error) {
       this.logger.error(
         `Adaptation ${adaptationId} was saved but not placed: ${describeError(error)}`
@@ -2129,14 +2181,15 @@ export class PieceService {
     adaptationId: string,
     postId: string,
     html: string,
-    draftDate: string
+    draftDate: string,
+    queueAllowed = true
   ): Promise<AdaptationPlanV1> {
     const store = this.planStore()!;
     const language = plan.language;
     const before = await this.planModeFor(store, organizationId, plan.pieceId, plan.channel.id);
     let validated = false;
     let refusal: string | null = null;
-    if (before === 'autopilot' && this.posts) {
+    if (before === 'autopilot' && this.posts && queueAllowed) {
       refusal =
         (
           await this.queueRefusal(
@@ -2205,7 +2258,11 @@ export class PieceService {
 
         let note: string | null = null;
         let effects = NO_EFFECTS;
-        if (mode === 'autopilot' && validated) {
+        if (mode === 'autopilot' && !queueAllowed) {
+          // The mode read under the lock is autopilot, and nobody consented
+          // to the queue on this call: a reserve with the reason (W2 F2).
+          note = PLAN_NOTES.consentNeeded[language];
+        } else if (mode === 'autopilot' && validated) {
           note = !this.posts
             ? ADAPTATION_WORKSPACE_MESSAGES.ADAPTATION_SCHEDULE_UNAVAILABLE[language]
             : !date
@@ -3010,7 +3067,8 @@ export class PieceService {
       модели уже есть, решено этим предложением. Поле без предложения и вопрос
       о материале решаются тем же вызовом, что пишет суть: модель возвращает
       решение рядом с сутью. Вопрос о материале — это то, что знает только
-      автор, и решение по нему — рамка, а не выдуманный случай.
+      автор: при политике по умолчанию модель его не решает вовсе, суть
+      пишется в обход пробела (`wffi`, `handedQuestionsOf`).
     */
     const briefValue = (field: BriefField): string | null =>
       textOrNull((plan.core.brief as any)?.[field]);
@@ -3050,7 +3108,11 @@ export class PieceService {
     */
     let rewritten: ZagotovkaCoreV1 | null = null;
     let decisions: CoreDecisionV1[] = [];
-    if ((given.length || told.length || delegated.length || !plan.core.text.trim()) && this.aiUsage) {
+    const delegatedPolicy = await this.coreDelegatedPolicy(organizationId);
+    // A gap (the author's own material under the default policy) has nothing
+    // to decide: alone it does not pay for a rewrite of a written core.
+    const decidable = handedQuestionsOf(delegated, delegatedPolicy).handed;
+    if ((given.length || told.length || decidable.length || !plan.core.text.trim()) && this.aiUsage) {
       const said = [
         ...this.promptAnswers(given, answeredAt),
         ...told.map((answer) => ({
@@ -3066,7 +3128,7 @@ export class PieceService {
         {
           organizationId,
           language,
-          delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
+          delegatedPolicy,
           brief: selectedFactsBrief(answeredBrief),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
@@ -3186,11 +3248,33 @@ export class PieceService {
         taken from it, and the write only lands on that row; if it moved
         again, it is read and merged once more.
       */
+      /*
+        «Решите за меня» on every question closes «Какую ссылку поставить в
+        пост?» too (`content-factory-next-kcxz.37`, F9): the person handed the
+        piece over, and a link is not something we invent — so the answer is
+        «Без ссылки», the posts go without one. Only when nothing was answered
+        in words, only while the question is actually asked, and never over a
+        link the person gave (read from the row right before the write).
+        And only on an explicit «all» (`kcxz.38`, review P3-4): no `decide`
+        list (the door's «no answers decides every open question»), or one
+        naming every open brief question. A `decide` naming only some of them
+        is not the person handing the piece over, so the link stays theirs.
+      */
+      const decideNamed = new Set<string>(plan.request.decide ?? []);
+      const decideAll =
+        !decideNamed.size ||
+        before.items.every((question) => question.key || decideNamed.has(question.field));
+      const handedEverything = !given.length && !told.length && decideAll;
+      let linkAsked: boolean | null = null;
       let saved = false;
       for (let attempt = 0; attempt < 3 && !saved; attempt += 1) {
         const fresh = await this.pieces.getPiece(organizationId, plan.pieceId);
         const freshCore = fresh ? this.coreOf(fresh) : null;
-        const merged = this.withAuthorFields(core, plan.core, freshCore, Boolean(rewritten));
+        let merged = this.withAuthorFields(core, plan.core, freshCore, Boolean(rewritten));
+        if (handedEverything && fresh && !merged.postLink) {
+          linkAsked ??= await this.linkQuestionAsked(organizationId, fresh, freshCore ?? merged);
+          if (linkAsked) merged = { ...merged, postLink: postLinkAnswer(null, answeredAt) };
+        }
         try {
           await this.briefs.updateCore(organizationId, plan.pieceId, {
             body: merged.text,
@@ -4499,8 +4583,22 @@ export class PieceService {
     pieceId: string,
     adaptationId: string,
     input: PieceAdaptationPlaceRequestV1,
-    language: 'ru' | 'en' = 'ru'
+    language: 'ru' | 'en' = 'ru',
+    /**
+     * The agent chat's reserve (review W2 F2): `queueAllowed: false` refuses,
+     * under the channel lock, a placement that would queue the post (an
+     * autopilot channel) or keep it queued (a queued post moved). The
+     * calendar's door omits it.
+     *
+     * `reserve: true` — the agent chat's «поставь бронью» (`kcxz.31`, D5): on
+     * a channel «Без плана» the post would stay a draft with a time, so the
+     * post's own mode becomes «Бронь» first, under the same lock — what the
+     * screen does with «Для этого поста → Бронь» and then «Поставить на».
+     * A reserve never queues, so this needs no consent.
+     */
+    consent: QueueConsentV1 & { reserve?: boolean } = {}
   ): Promise<PieceAdaptationPlaceResponseV1> {
+    const queueAllowed = consent.queueAllowed !== false;
     const wanted = trimmed(input?.date);
     if (!wanted) throw workspaceError('ADAPTATION_SCHEDULE_DATE_REQUIRED', language);
     const when = new Date(wanted);
@@ -4529,6 +4627,7 @@ export class PieceService {
     ) {
       throw workspaceError('ADAPTATION_NOT_DRAFT', language);
     }
+    if (!queueAllowed && state === 'QUEUE') throw queueNeedsConsent(language);
 
     const iso = when.toISOString();
     const integrationId = post.integration.id;
@@ -4540,6 +4639,7 @@ export class PieceService {
       state === 'DRAFT' &&
       (await this.planModeFor(store, organizationId, pieceId, integrationId)) === 'autopilot'
     ) {
+      if (!queueAllowed) throw queueNeedsConsent(language);
       refusal = (await this.queueRefusal(organizationId, post, language))?.text ?? null;
       validated = true;
     }
@@ -4548,7 +4648,7 @@ export class PieceService {
     // снимаются с очереди только тогда, когда выбранная действительно встаёт
     // в очередь (F9), и только по правилу одной очереди (`queueGate`, F1, F5).
     const decided = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
-      const mode = await this.planModeFor(db, organizationId, pieceId, integrationId);
+      let mode = await this.planModeFor(db, organizationId, pieceId, integrationId);
       const variants = await db.channelVariants(organizationId, pieceId, integrationId);
       const mine = variants.find((one) => one.id === adaptationId);
       const mineState = upperState(mine?.post?.state);
@@ -4560,6 +4660,33 @@ export class PieceService {
           !(mineState === 'QUEUE' && canReplaceQueued(mine.post, nowInLock)))
       ) {
         throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+      }
+      // Decided on what the lock reads, not on the checks above: the mode or
+      // the post may have changed since (review W2 F2). Thrown here, the lock
+      // writes nothing.
+      if (!queueAllowed && (mineState === 'QUEUE' || mode === 'autopilot')) {
+        throw queueNeedsConsent(language);
+      }
+      // «Поставь бронью» on a channel «Без плана»: this post's own mode
+      // becomes «Бронь», as the post settings write it (`planPostUnderLock`).
+      // Without the tag store the post stays a draft, and the answer says so.
+      if (consent.reserve === true && mode === 'draft' && mineState === 'DRAFT' && db.writePieceTags) {
+        const locked = db.lockPieceTags
+          ? await db.lockPieceTags(organizationId, pieceId)
+          : { tags: db.pieceTags ? await db.pieceTags(organizationId, pieceId) : null };
+        if (locked) {
+          const settings = mergePostSettings(
+            postSettingsOf(locked.tags, integrationId),
+            { planMode: 'reserve' },
+            this.now().toISOString()
+          );
+          await db.writePieceTags(
+            organizationId,
+            pieceId,
+            withPostSettings(locked.tags, integrationId, settings)
+          );
+          mode = 'reserve';
+        }
       }
       let status: 'reserved' | 'queued' | 'draft' = 'reserved';
       let plan: PlanModeV1 | undefined;
@@ -4966,6 +5093,16 @@ export class PieceService {
           'Поиск не дал источников с текстом. Черновик не изменён.'
         );
     }
+    // Запреты аватара (`l7tm`): проверка стиля обязана их видеть. Не
+    // прочитались — проверка идёт без них, отказывать из-за этого нечем.
+    const neverSay =
+      input.mode === 'slop' || input.mode === 'both'
+        ? neverSayList(
+            await Promise.resolve(
+              this.pieces.reviewNeverSay?.(organizationId, adaptationId)
+            ).catch(() => undefined)
+          )
+        : [];
     const reviewed = await reviewOnceV3(
       organizationId,
       {
@@ -4973,6 +5110,7 @@ export class PieceService {
         title,
         instruction: input.instruction,
         mode: input.mode,
+        ...(neverSay.length ? { neverSay } : {}),
         core: core?.text ?? piece.body,
         personText: core?.personText ?? '',
         facts: core ? selectedFactsBrief(core.brief).facts : [],
@@ -5091,6 +5229,26 @@ export class PieceService {
    * запрет: удаляется запись заготовки и строки адаптаций, а посты в каналах
    * остаются — как и при архиве.
    */
+  /**
+   * What an approval card names before a piece is deleted (the agent chat,
+   * correctness review W1 F1): its code and title, read in this organization
+   * only. `null` when the organization has no such piece.
+   */
+  async approvalSubject(
+    organizationId: string,
+    pieceId: string
+  ): Promise<{ id: string; code: string; title: string } | null> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) return null;
+    const order = await this.pieces.listPieceIds(organizationId);
+    const index = order.findIndex((row) => row.id === pieceId);
+    return {
+      id: piece.id,
+      code: materialCode(index < 0 ? order.length : index),
+      title: piece.title,
+    };
+  }
+
   async delete(organizationId: string, pieceId: string): Promise<void> {
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
@@ -5429,6 +5587,23 @@ export class PieceService {
         materialAsk: openMaterialAskOf(tags, integration.id),
       };
     });
+  }
+
+  /**
+   * Whether the piece page asks «Какую ссылку поставить в пост?» right now —
+   * the same reading as `detail`, for a write that answers it
+   * (`content-factory-next-kcxz.37`).
+   */
+  private async linkQuestionAsked(
+    organizationId: string,
+    piece: { id: string; tags?: unknown },
+    core: ZagotovkaCoreV1
+  ): Promise<boolean> {
+    const [integrations, adaptations] = await Promise.all([
+      this.pieces.listIntegrations(organizationId),
+      this.pieces.adaptationsByPiece(organizationId, [piece.id]),
+    ]);
+    return this.linkQuestionOf(core, integrations, adaptations, piece.tags);
   }
 
   /**

@@ -392,6 +392,69 @@ const sum = (values: Array<number | undefined>): number | null => {
 };
 
 /**
+ * One request to a search engine that is not a text model — Tavily, Exa
+ * (`content-factory-next-ia7s`, D15 of the W2 walk). The OpenRouter web
+ * plugin is a text call and reaches the ledger through the transport instead,
+ * so it is never recorded here as well.
+ *
+ * Only what the engine itself reported is kept: Exa's `costDollars.total` is
+ * dollars and goes to `costUsd`; Tavily's `usage.credits` is not dollars and is
+ * never converted into them. A price the provider did not state is not
+ * invented here.
+ */
+export interface SearchCallUsage {
+  /** The engine the request went to: `tavily`, `exa`. */
+  engine: string;
+  /** Dollars the engine reported for this request. */
+  costUsd?: number;
+  /** Credits the engine reported for this request (Tavily). */
+  credits?: number;
+  /** The request reached the engine and got no usable answer. */
+  failed?: boolean;
+  /** It left and no answer came back in time, so it may have been billed. */
+  possiblyBilled?: boolean;
+}
+
+/**
+ * The search part of an operation as one readable line, per engine in the
+ * order first asked: `search tavily requests=2 credits=4; exa requests=1`.
+ *
+ * `AiUsageRecord` has no column for a request count or for credits, and the
+ * schema is not changed for this, so the line goes to the free-text
+ * `serviceTier` column — beside the model's tier when there is one — rather
+ * than into a token or dollar column it would falsify.
+ */
+const searchSummary = (searches: readonly SearchCallUsage[]) => {
+  const engines = new Map<
+    string,
+    { requests: number; failed: number; credits: number[] }
+  >();
+  for (const search of searches) {
+    const entry = engines.get(search.engine) ?? {
+      requests: 0,
+      failed: 0,
+      credits: [],
+    };
+    entry.requests += 1;
+    if (search.failed) entry.failed += 1;
+    if (typeof search.credits === 'number') entry.credits.push(search.credits);
+    engines.set(search.engine, entry);
+  }
+  return `search ${[...engines]
+    .map(([engine, { requests, failed, credits }]) =>
+      [
+        engine,
+        `requests=${requests}`,
+        ...(failed ? [`failed=${failed}`] : []),
+        ...(credits.length
+          ? [`credits=${credits.reduce((a, b) => a + b, 0)}`]
+          : []),
+      ].join(' ')
+    )
+    .join('; ')}`;
+};
+
+/**
  * Every served call of one admitted operation.
  *
  * An operation is one ledger row but may be several calls: a review that
@@ -404,8 +467,14 @@ const sum = (values: Array<number | undefined>): number | null => {
 export class TextUsageLedger {
   readonly calls: TextCallUsage[] = [];
 
+  readonly searches: SearchCallUsage[] = [];
+
   record(call: TextCallUsage) {
     this.calls.push(call);
+  }
+
+  recordSearch(call: SearchCallUsage) {
+    this.searches.push(call);
   }
 
   /**
@@ -415,6 +484,46 @@ export class TextUsageLedger {
    * «the model that answered» — else from the furthest failed attempt.
    */
   columns(): TextUsageColumns | undefined {
+    const text = this.textColumns();
+    if (!this.searches.length) return text;
+    const summary = searchSummary(this.searches);
+    const searchCost = sum(this.searches.map((call) => call.costUsd));
+    const searchFailures = this.searches.filter((call) => call.failed);
+    const searchPossiblyBilled = searchFailures.some(
+      (call) => call.possiblyBilled === true
+    );
+    if (!text) {
+      // Search only: the admission named the generation model, which did not
+      // answer anything here. The engine that did answer is the honest model.
+      const served = this.searches.filter((call) => !call.failed);
+      const answered = served[served.length - 1];
+      return {
+        ...(searchFailures.length
+          ? { possiblyBilled: searchPossiblyBilled }
+          : {}),
+        ...(answered ? { model: answered.engine } : {}),
+        serviceTier: summary,
+        costUsd: searchCost,
+      };
+    }
+    const possiblyBilled =
+      text.possiblyBilled !== undefined || searchFailures.length
+        ? { possiblyBilled: text.possiblyBilled === true || searchPossiblyBilled }
+        : {};
+    return {
+      ...text,
+      ...possiblyBilled,
+      serviceTier: text.serviceTier ? `${text.serviceTier}; ${summary}` : summary,
+      costUsd:
+        text.costUsd === null || text.costUsd === undefined
+          ? searchCost
+          : searchCost === null
+          ? text.costUsd
+          : text.costUsd + searchCost,
+    };
+  }
+
+  private textColumns(): TextUsageColumns | undefined {
     if (!this.calls.length) return undefined;
     const served = this.calls.filter((call) => !call.failed);
     const pool = served.length ? served : this.calls;

@@ -140,7 +140,9 @@ GPG, а без них восстановление всё равно не соб
    `contentfactory_mastra_runtime`, `listmonk`); таблиц — `contentfactory` 74,
    `contentfactory_mastra` 29 (все `mastra_*`), `temporal` 37,
    `temporal_visibility` 3, `listmonk` 16; строк `User` 5, `Organization` 5,
-   как в боевой на момент снятия копии.
+   как в боевой на момент снятия копии. Число `contentfactory_mastra` верно
+   до обновления хранилища Mastra; после шага R3 раздела «Обновление хранилища
+   Mastra: 29 → 45 таблиц» в production-deploy.md репетиция ожидает **45**.
 6. Уборка: `docker rm -f`, `docker volume rm`, `shred -u dump.sql` — дамп несёт
    SCRAM-верификаторы паролей всех ролей, оставлять его на диске нельзя.
 

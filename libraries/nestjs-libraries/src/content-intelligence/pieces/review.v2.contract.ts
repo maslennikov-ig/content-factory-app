@@ -2,6 +2,7 @@ import type {
   AdaptationReviewSnapshot,
   AdaptationReviewSource,
 } from './adaptation-review.contract';
+import { startsSentence } from '../text-quality/repeated-wording';
 export const REVIEW_VERSION = 'adaptation-review/v2' as const;
 export type ReviewChange = {
   id: string;
@@ -126,15 +127,126 @@ const brokenSide = (
  * Сшивает две части, снимая лишние пробелы на стыке — но только если стык
  * был цел до правки (`wasWhole`): свой двойной пробел автор оставляет себе.
  */
-const stitch = (left: string, right: string, wasWhole: boolean): string => {
-  if (!wasWhole) return left + right;
+const stitchParts = (left: string, right: string): [string, string] => {
   let side = brokenSide(left.at(-1), right[0]);
   while (side) {
     if (side === 'left') left = left.slice(0, -1);
     else right = right.slice(1);
     side = brokenSide(left.at(-1), right[0]);
   }
-  return left + right;
+  return [left, right];
+};
+
+const stitch = (left: string, right: string, wasWhole: boolean): string =>
+  wasWhole ? stitchParts(left, right).join('') : left + right;
+
+/** Знак после слова внутри предложения: запятая слабее всех. */
+const PAUSE = /^[,;:]$/u;
+/** Знак, который сильнее запятой и остаётся на стыке. */
+const STRONGER = /^[.;:!?…]$/u;
+
+/**
+ * Вырезанное вводное слово уносит с собой и свои запятые (`kcxz.31`, D4).
+ *
+ * Живой стенд 27.09.2026: из «и это, безусловно, открывает» правка убрала
+ * «безусловно» и оставила «и это,, открывает». На стыке, который сломала
+ * правка, две запятые — пара вокруг вырезанного слова, уходят обе; запятая
+ * после «;» или «:» уходит; запятая, «;» или «:» перед более сильным знаком
+ * («правы, безусловно.») уходит, сильный остаётся. Стык, сломанный до
+ * правки, не трогается.
+ */
+const stitchRemoval = (left: string, right: string, wasWhole: boolean): string => {
+  if (!wasWhole) return left + right;
+  let [head, tail] = stitchParts(left, right);
+  const mark = head.at(-1);
+  const next = tail[0];
+  if (mark === undefined || next === undefined || !PAUSE.test(mark)) return head + tail;
+  if (mark === ',' && next === ',') {
+    head = head.slice(0, -1);
+    tail = tail.slice(1);
+  } else if (next === ',') {
+    tail = tail.slice(1);
+  } else if (STRONGER.test(next)) {
+    head = head.slice(0, -1);
+  } else {
+    return head + tail;
+  }
+  return stitchParts(head, tail).join('');
+};
+
+/** Строка до отрывка пуста: перед ним только начало текста или строки. */
+const LINE_HEAD_GAP = /(?:^|\n)[ \t\u00A0]*$/u;
+/** Строка после отрывка пуста: за ним только конец строки или текста. */
+const LINE_TAIL_GAP = /^[ \t\u00A0]*(?:\n|$)/u;
+/** Разрыв перед строкой: переносы и пробелы пустых строк, но не хвост прошлой. */
+const HEAD_BREAK = /(?:\n[ \t\u00A0]*)*[ \t\u00A0]*$/u;
+/** Разрыв после строки: переносы и пустые строки, но не отступ следующей. */
+const TAIL_BREAK = /^[ \t\u00A0]*(?:\n(?:[ \t\u00A0]*(?=\n|$))?)*/u;
+const newlines = (gap: string) => gap.split('\n').length - 1;
+
+/**
+ * Удаление, которое забрало строку целиком, забирает и её перенос
+ * (`kcxz.35`, F7).
+ *
+ * Живой прогон 27.09.2026: правка «Переписать…» удалила последний абзац, и
+ * пост кончился на `.\n\n` — пустой абзац, которого автор не писал. Посреди
+ * текста то же удаление оставило бы четыре переноса подряд вместо двух.
+ *
+ * Если отрывок занимал строку целиком, стык сшивается одним разрывом —
+ * большим из двух, что стояли по его сторонам, чтобы граница абзаца не
+ * стала переносом строки. Удалённый первый блок уносит разрыв после себя,
+ * удалённый последний — разрыв перед собой; хвост, которым текст кончался
+ * (например, один `\n`), остаётся. Отрывок не на всю строку — `null`, и
+ * стык чинит `stitchRemoval`.
+ */
+const removeLines = (before: string, after: string): string | null => {
+  if (!LINE_HEAD_GAP.test(before) || !LINE_TAIL_GAP.test(after)) return null;
+  const headGap = before.match(HEAD_BREAK)?.[0] ?? '';
+  const tailGap = after.match(TAIL_BREAK)?.[0] ?? '';
+  const head = before.slice(0, before.length - headGap.length);
+  const tail = after.slice(tailGap.length);
+  if (!head) return tail;
+  if (!tail) return head + tailGap;
+  return head + '\n'.repeat(Math.max(newlines(headGap), newlines(tailGap))) + tail;
+};
+
+/**
+ * Что осталось на шве от вырезанного начала предложения: пробелы и одна
+ * запятая или тире с пробелами после.
+ */
+const SEAM_LEAD = /^[ \t\u00A0]*(?:(?:,|[—–]|-(?=[ \t\u00A0]))[ \t\u00A0]*)?/u;
+/** Открывающие кавычки и скобки перед первой буквой. */
+const OPENING = /^[«"“„'(\[]*/u;
+
+/** Первая буква — заглавная; слово вида «iPhone» не трогается. */
+const capitalised = (text: string): string => {
+  const lead = text.match(OPENING)?.[0] ?? '';
+  const char = text.slice(lead.length).match(/^\p{L}/u)?.[0];
+  if (!char || char === char.toUpperCase() || char !== char.toLowerCase()) return text;
+  const next = text.slice(lead.length + char.length).match(/^\p{L}/u)?.[0];
+  if (next && next !== next.toLowerCase()) return text;
+  return lead + char.toUpperCase() + text.slice(lead.length + char.length);
+};
+
+/**
+ * Вырезанное начало предложения (`kcxz.38`, R3).
+ *
+ * Живой стенд 27.09.2026: правка убрала «В современном быстро меняющемся
+ * мире», и предложение началось со строчной — «такие короткие записи…». Если
+ * отрывок стоял в начале предложения (начало текста, строки или после
+ * «.!?…» и пробела), а за ним в той же строке продолжается текст, со шва
+ * снимаются оставшиеся запятая или тире, и первая буква остатка становится
+ * заглавной. `null` — отрывок не в начале предложения или за ним ничего нет.
+ */
+const removeSentenceHead = (
+  before: string,
+  after: string,
+  wasWhole: boolean
+): string | null => {
+  if (!startsSentence(before)) return null;
+  const rest = after.slice(after.match(SEAM_LEAD)?.[0].length ?? 0);
+  if (!rest || rest[0] === '\n' || rest[0] === '\r') return null;
+  return stitchRemoval(before, capitalised(rest), wasWhole);
 };
 
 /**
@@ -160,7 +272,13 @@ const spliceTidy = (
   const after = text.slice(end);
   const headWhole = brokenSide(before.at(-1), text[start]) === null;
   const tailWhole = brokenSide(text[end - 1], after[0]) === null;
-  if (!replacement) return stitch(before, after, headWhole && tailWhole);
+  if (!replacement) {
+    const lines = removeLines(before, after);
+    if (lines !== null) return lines;
+    const head = removeSentenceHead(before, after, headWhole && tailWhole);
+    if (head !== null) return head;
+    return stitchRemoval(before, after, headWhole && tailWhole);
+  }
   const joined = stitch(before, replacement, headWhole);
   return stitch(joined, after, tailWhole);
 };

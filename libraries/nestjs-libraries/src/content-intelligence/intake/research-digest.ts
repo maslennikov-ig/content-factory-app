@@ -183,6 +183,7 @@ export const researchDigestPrompt = (
           '- This task carries NO author claims. Return `verdicts` as an empty array. Never invent a claim, a claim key or a verdict.',
         ]),
     `- Findings: up to ${RESEARCH_DIGEST_FINDING_CAPS[input.level]} claims the sources make about the subject${hasClaims ? ' that the author did not make' : ''}, each in your own words in ${contentLanguageNames[input.language]}, each with its verbatim quote. Prefer numbers, dates, names and outcomes. One finding per source unless a source carries several distinct facts.`,
+    '- A finding is a claim about the subject, never about the source itself. Never emit the page’s own publication, acceptance, update or retrieval date, its byline, its imprint or any other metadata about the page or the document as a finding.',
     ...(hasClaims
       ? []
       : [
@@ -506,6 +507,86 @@ export const bareKey = (value: unknown): string =>
     .replace(/\]$/, '')
     .trim();
 
+/* ------------------------------------------------------- source metadata */
+
+const MONTHS =
+  '(?:(?:январ|феврал|март|апрел|июн|июл|август|сентябр|октябр|ноябр|декабр)\\p{L}*|ма[яйе]|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)(?!\\p{L})\\.?';
+/** Даты во всех видах, в каких модель их пересказывает: «5 июня 2025 года», «June 5, 2025», «2025-06-05», «05.06.2025». */
+const DATE_EXPRESSIONS = new RegExp(
+  [
+    '\\d{4}-\\d{1,2}-\\d{1,2}',
+    '\\d{1,2}[./]\\d{1,2}[./]\\d{2,4}',
+    `\\d{1,2}(?:\\s*[-–—]\\s*\\d{1,2})?\\s+${MONTHS}`,
+    `${MONTHS}\\s+\\d{1,2}(?:st|nd|rd|th)?(?!\\d)`,
+    '(?:19|20)\\d{2}(?!\\d)\\s*(?:г\\.|год\\p{L}*)?',
+  ].join('|'),
+  'giu'
+);
+/**
+ * Слова о жизни самого документа: вышел, датирован, обновлён. Только такие
+ * слова вместе со «статьёй» или «материалом» означают страницу источника.
+ */
+const METADATA_EVENT =
+  /(?<!\p{L})(?:опубликован\p{L}*|публикаци\p{L}*|датирован\p{L}*|датой|дата|обновл[её]н\p{L}*|обновлени\p{L}*|размещ[её]н\p{L}*|выходн\p{L}*\s+данн\p{L}*|published|publication|updated|dated|posted|last\s+modified|byline|imprint)(?!\p{L})/iu;
+/**
+ * «Принят», «поступил» — тоже о документе, но и о законе, стандарте,
+ * решении: «Закон принят в 2023 году» — факт темы
+ * (`content-factory-next-kcxz.38`, P3-5). Такое слово считается, только
+ * когда строка прямо указывает на саму страницу.
+ */
+const ADOPTION_EVENT =
+  /(?<!\p{L})(?:принят\p{L}*|поступил\p{L}*|received|accepted)(?!\p{L})/iu;
+/** Строка прямо говорит о странице источника, а не о теме. */
+const PAGE_REFERENCE =
+  /(?<!\p{L})(?:на\s+странице|страниц\p{L}*|выходн\p{L}*\s+данн\p{L}*|дата\s+(?:публикации|обновления|размещения)|(?:эт|данн|настоящ)\p{L}*\s+(?:стать|материал|публикаци)\p{L}*|this\s+(?:page|article|post|paper|material)|the\s+(?:page|post|paper)|web\s*page|publication\s+date)(?!\p{L})/iu;
+/**
+ * «Статья», «материал», «публикация» без указателя: так называют и страницу,
+ * и статью закона, и строительные материалы.
+ */
+const LOOSE_REFERENCE =
+  /(?<!\p{L})(?:материал\p{L}*|стать\p{L}*|публикаци\p{L}*|the\s+(?:article|material))(?!\p{L})/iu;
+/** Закон, стандарт, норматив: при них «статья» — часть закона, а не страница. */
+const LEGAL_SUBJECT =
+  /(?<!\p{L})(?:закон\p{L}*|кодекс\p{L}*|гост\p{L}*|стандарт\p{L}*|постановлени\p{L}*|указ(?:а|ом|е|у|ы|ов)?|приказ\p{L}*|регламент\p{L}*|норматив\p{L}*|снип|санпин|директив\p{L}*|конвенци\p{L}*|law|laws|act|statute|standard|regulation|directive|bill)(?!\p{L})/iu;
+/** Глагол, которым источник что-то утверждает о теме: такая строка — факт, даже с датой. */
+const CLAIM_VERB =
+  /(?<!\p{L})(?:утвержда\p{L}*|показ\p{L}*|выяв\p{L}*|сообща\p{L}*|связыва\p{L}*|пиш\p{L}*|предлага\p{L}*|предложен\p{L}*|рекоменд\p{L}*|отмеча\p{L}*|счита\p{L}*|описыва\p{L}*|объясня\p{L}*|призыва\p{L}*|доказыва\p{L}*|вырос\p{L}*|снизил\p{L}*|argu\p{L}*|claim\p{L}*|finds|found|shows?|showed|reports?\s+that|says|suggests?|recommends?|notes?\s+that)(?!\p{L})/iu;
+
+/**
+ * Строка, которая говорит только о самом источнике — когда страница вышла,
+ * принята или обновлена, — а не о теме (`content-factory-next-tbuj`).
+ *
+ * Живой прогон W2 27.09.2026 (D13): карточка фактов предложила «На странице
+ * представлен аналитический отчёт …, датированный 5 июня 2025 года» и «В
+ * приведённых выходных данных указано, что материал был принят 10 июня и
+ * опубликован 11 июня 2026 года» — обе с пометкой «подтверждено», потому что
+ * цитата честно стояла в выходных данных страницы. Такая строка отбрасывается,
+ * когда все три условия сходятся: она говорит о жизни документа
+ * (опубликован, датирован, принят, обновлён), указывает на саму страницу
+ * (страница, материал, статья, выходные данные), и после вычета дат в ней не
+ * остаётся ни числа, ни глагола утверждения. «Статья 2024 года утверждает,
+ * что …» и «Отчёт, опубликованный в 2025 году, показал рост на 40%» остаются.
+ *
+ * «Принят» и голые «статья», «материал» есть и у законов, стандартов и
+ * стройматериалов (kcxz.38, P3-5): «принят» считается только рядом с прямым
+ * указанием на страницу (на странице, выходные данные, эта статья), а голая
+ * «статья» — только с «опубликован/датирован/обновлён» и без закона или
+ * стандарта в той же строке.
+ */
+export const isSourceMetadataStatement = (statement: string): boolean => {
+  const text = oneLine(statement);
+  if (!text) return false;
+  const aboutPage =
+    PAGE_REFERENCE.test(text)
+      ? METADATA_EVENT.test(text) || ADOPTION_EVENT.test(text)
+      : LOOSE_REFERENCE.test(text) &&
+        METADATA_EVENT.test(text) &&
+        !LEGAL_SUBJECT.test(text);
+  if (!aboutPage) return false;
+  if (CLAIM_VERB.test(text)) return false;
+  return !/\d/.test(text.replace(DATE_EXPRESSIONS, ' '));
+};
+
 /**
  * Ответ модели становится вердиктами и находками детерминированно.
  *
@@ -514,6 +595,7 @@ export const bareKey = (value: unknown): string =>
  * - `conflicting` без `original`, которого нет в утверждении, или без
  *   `replacement` → `unverified`;
  * - находка без дословной цитаты → отброшена;
+ * - находка о самом источнике (дата публикации страницы) → отброшена молча;
  * - неизвестный `evidenceId` или `claimKey` → отброшен;
  * - не больше `RESEARCH_DIGEST_FINDING_CAPS[level]` находок, по одной на
  *   формулировку.
@@ -636,6 +718,8 @@ export const settleResearchDigest = (
       continue;
     }
     if (!statement) continue;
+    // Дата публикации страницы — не факт о теме (`tbuj`).
+    if (isSourceMetadataStatement(statement)) continue;
     if (!quoteIsVerbatim(raw.quote, textOf(source))) {
       rejected.findings += 1;
       continue;

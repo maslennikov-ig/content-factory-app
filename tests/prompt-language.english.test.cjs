@@ -38,6 +38,7 @@ describe('prompts are English for a Russian input (97dq.97)', () => {
       '@contentfactory/nestjs-libraries/openai/ai.clients': { getChatModel: async () => null },
     });
     const v15 = loadWithMocks(`${ci}/pieces/core-write-prompt.v15.ts`);
+    const v16 = loadWithMocks(`${ci}/pieces/core-write-prompt.v16.ts`);
     const fact = (statement, extra = {}) => ({
       statement, sourceUrl: null, factId: null, evidenceId: null,
       origin: 'input', kind: 'own', verified: false, status: 'unverified', ...extra,
@@ -74,10 +75,10 @@ describe('prompts are English for a Russian input (97dq.97)', () => {
     // Both avatar policies of «Решите за меня» (`97dq.99`).
     for (const delegatedPolicy of ['knowledge', 'examples']) {
       const prompt = coreWrite.corePrompt({ ...input, delegatedPolicy });
-      expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+      expect(prompt).toContain('PROMPT VERSION: core-write/v16');
       expect(prompt).toContain('write the core and every decision in Russian');
       expect(prompt).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.person);
-      expect(prompt).toContain(v15.CORE_WRITE_HANDED_V15[delegatedPolicy]);
+      expect(prompt).toContain(v16.CORE_WRITE_HANDED_V16[delegatedPolicy]);
       expect(cyrillicOutsideData(prompt, FORBIDDEN_RU)).toEqual([]);
     }
 
@@ -88,6 +89,12 @@ describe('prompts are English for a Russian input (97dq.97)', () => {
 
     expect(cyrillicOutsideData(v15.CORE_WRITE_REPAIR_V15)).toEqual([]);
     expect(cyrillicOutsideData(v15.CORE_WRITE_META_REPAIR_V15)).toEqual([]);
+    // v16 (`wffi`): the gap rule and its block title are English too.
+    const gaps = coreWrite.corePrompt({ ...input, delegatedPolicy: 'knowledge' });
+    expect(gaps).toContain(v16.CORE_WRITE_GAPS_V16);
+    expect(gaps).toContain(v16.CORE_WRITE_BLOCK_TITLES_V16.gaps);
+    expect(cyrillicOutsideData(v16.CORE_WRITE_GAPS_V16)).toEqual([]);
+    expect(cyrillicOutsideData(v16.CORE_WRITE_HANDED_V16.knowledge)).toEqual([]);
   });
 
   test('post length trim: English instructions, the post named Russian', () => {

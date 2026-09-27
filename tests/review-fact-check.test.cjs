@@ -991,10 +991,11 @@ test('the v3 prompt stays frozen at v4 while the review sends v6', async () => {
     },
     usage
   );
-  // С 22.09.2026 (`97dq.33`) проверка идёт преемником v6; v5 остаётся для
+  // С 22.09.2026 (`97dq.33`) проверка идёт преемником v6 (с 27.09 — v8, затем v9 —
+  // `kcxz.35`, `kcxz.38`); v5 остаётся для
   // записанных ответов и проверяется наборами выше.
   expect(reviewCalls()[0].body.messages[0].content).toContain(
-    'PROMPT VERSION: adaptation-review-prompt/v6'
+    'PROMPT VERSION: adaptation-review-prompt/v9'
   );
 });
 

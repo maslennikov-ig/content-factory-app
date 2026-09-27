@@ -1,0 +1,1 @@
+<div class="kc mini"><span class="kind">%%cal%%В плане</span><span class="sm" style="flex:1;min-width:0">Чт, 2 октября · 19:30</span><span class="pill info">%%lock%%Бронь</span><span class="btn quiet dense">Справа%%right%%</span></div>

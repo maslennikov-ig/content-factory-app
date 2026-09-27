@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "total": 33,
+  "total": 30,
   "sourceRoots": [
     "apps/frontend/src",
     "libraries/react-shared-libraries/src"
   ],
   "rootTotals": {
-    "apps/frontend/src": 22,
+    "apps/frontend/src": 19,
     "libraries/react-shared-libraries/src": 11
   },
   "allowances": {
@@ -16,22 +16,6 @@
         "category": "missing-capability",
         "reason": "Admin filters are a bare address box and a bare checkbox outside any form provider; the shared Input needs one and there is no shared checkbox for the other.",
         "followUp": "Give the admin filter bar shared controls that work outside a form provider"
-      }
-    },
-    "apps/frontend/src/components/agents/agent.input.tsx": {
-      "button": {
-        "count": 2,
-        "category": "third-party-adapter",
-        "reason": "CopilotKit input controls retain the provider adapter's interaction contract.",
-        "followUp": "no follow-up needed"
-      }
-    },
-    "apps/frontend/src/components/agents/agent.textarea.tsx": {
-      "textarea": {
-        "count": 1,
-        "category": "third-party-adapter",
-        "reason": "The Copilot textarea owns imperative auto-resize behavior.",
-        "followUp": "no follow-up needed"
       }
     },
     "apps/frontend/src/components/auth/nayner.auth.button.tsx": {

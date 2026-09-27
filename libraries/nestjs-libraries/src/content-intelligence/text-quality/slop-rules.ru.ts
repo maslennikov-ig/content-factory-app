@@ -528,6 +528,7 @@ export const RU_RULES: SlopRule[] = [
       'задаёт вектор',
       `неизгладим${W}* след`,
       `нов${W}* эру`,
+      `открыва${W}* нов${W}* (?:горизонт${W}*|возможност${W}*)`,
     ]),
     hint: {
       ru: 'Раздутая значимость. Замените на то, что произошло на самом деле.',
@@ -612,7 +613,14 @@ export const RU_RULES: SlopRule[] = [
     id: 'stock-opening',
     severity: 'warn',
     kind: 'regex',
-    pattern: phrases(STOCK_OPENING),
+    // Узоры — только здесь, а не в `STOCK_OPENING`: тот список уходит в
+    // промпт словами. «В современном быстро меняющемся мире» раньше
+    // проходило мимо «в современном мире» (`content-factory-next-l7tm`).
+    pattern: phrases([
+      ...STOCK_OPENING,
+      `в современн${W}* (?:${W}+ ){1,3}мире`,
+      `в (?:(?:быстро|стремительно|постоянно) )?(?:меняющ|изменяющ)${W}* мире`,
+    ]),
     hint: {
       ru: 'Дежурный зачин. Первая фраза — уже факт, а не разгон.',
       en: 'A stock opening. The first sentence is already a fact, not a run-up.',

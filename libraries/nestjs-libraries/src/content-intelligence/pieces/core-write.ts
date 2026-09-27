@@ -28,18 +28,27 @@ import { contentFromIntent } from '../intake/intake-content';
   avatar (`voice.delegatedPolicy`: knowledge by default, invented examples
   opt-in). Modules v3–v14 stay importable and untouched for receipts.
 */
+/*
+  The author's own material is never decided for them (`wffi`,
+  `core-write/v16`): under the default policy a handed question about it is a
+  gap the core is written around, not a question the model answers. Modules
+  v3–v15 stay importable and untouched for receipts.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V15,
-  CORE_WRITE_ENRICH_LEAD_V15,
-  CORE_WRITE_META_REPAIR_V15,
+  CORE_WRITE_BLOCK_TITLES_V16,
+  CORE_WRITE_ENRICH_LEAD_V16,
+  CORE_WRITE_META_REPAIR_V16,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V15,
-  coreWriteSystemV15,
-} from './core-write-prompt.v15';
-import type { DelegatedPolicyV1 } from '../brand-profile/delegated-policy';
+  CORE_WRITE_REPAIR_V16,
+  coreWriteSystemV16,
+} from './core-write-prompt.v16';
+import {
+  DEFAULT_DELEGATED_POLICY,
+  type DelegatedPolicyV1,
+} from '../brand-profile/delegated-policy';
 import { personTextWithoutAdded } from './core-edit';
 import { metaSpeechIn } from '../text-quality/meta-speech';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v15';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v16';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -174,6 +183,31 @@ export type CoreDelegatedV1 = {
   key: string;
   question: string;
   authorMaterial: boolean;
+};
+
+/**
+ * Which handed questions the model may decide, and which are gaps
+ * (`content-factory-next-wffi`, W2 recheck 27.09.2026, N3).
+ *
+ * The owner's rule: decide for the person, but never invent the person's own
+ * experience. A question about the author's material (their episode, their
+ * period, their numbers) under the default `knowledge` policy is not handed
+ * to the model: answered «in general terms» it came back as hedged filler in
+ * a first-person post. It becomes a gap the core is written around, and no
+ * decision can come back for it. Only the avatar's explicit `examples`
+ * opt-in lets the model answer it with an illustrative example.
+ */
+export const handedQuestionsOf = (
+  delegated: readonly CoreDelegatedV1[],
+  policy: DelegatedPolicyV1 | undefined
+): { handed: CoreDelegatedV1[]; gaps: CoreDelegatedV1[] } => {
+  const invents = (policy ?? DEFAULT_DELEGATED_POLICY) === 'examples';
+  const handed: CoreDelegatedV1[] = [];
+  const gaps: CoreDelegatedV1[] = [];
+  for (const item of delegated) {
+    (item.authorMaterial && !invents ? gaps : handed).push(item);
+  }
+  return { handed, gaps };
 };
 
 /** Решение модели по отданному вопросу, уже проверенное здесь. */
@@ -326,7 +360,7 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V15;
+  const words = CORE_WRITE_BLOCK_TITLES_V16;
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -354,7 +388,10 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const decisions = input.answers.filter(
     (answer) => answer.origin === 'model' && editorialAnswerText(answer.text)
   );
-  const delegated = input.delegated ?? [];
+  const { handed: delegated, gaps } = handedQuestionsOf(
+    input.delegated ?? [],
+    input.delegatedPolicy
+  );
   const proposal = (field: 'thesis' | 'position' | 'audience') =>
     brief.origins?.[field] === 'model' ? ` (${words.modelProposal})` : '';
 
@@ -497,9 +534,10 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV15(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV16(input.language, forbiddenPhrasesRule(input.language), {
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
+      gaps: gaps.length > 0,
       // Decisions from an earlier round are handed questions too: a rebuild
       // or an enrichment keeps the policy the first core was written under.
       handed: delegated.length > 0 || decisions.length > 0,
@@ -548,6 +586,10 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
           }`
       )
     ),
+    fenced(
+      words.gaps,
+      gaps.map((item) => `[${item.key}] ${item.question}`)
+    ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
     rebuild
       ? fenced(
@@ -556,7 +598,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
           rebuild.text.split(/\n\s*\n/u)
         )
       : '',
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V15 : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V16 : '',
     enrichment
       ? fenced(words.existing, [input.existingCore as string])
       : '',
@@ -669,7 +711,11 @@ export async function writeCoreWithDecisions(
   deps: CoreWriteDepsV1
 ): Promise<{ core: ZagotovkaCoreV1; decisions: CoreDecisionV1[] }> {
   const grounded = coreGrounded(input);
-  const delegated = input.delegated ?? [];
+  // Only what may be decided comes back as a decision: a gap never does.
+  const delegated = handedQuestionsOf(
+    input.delegated ?? [],
+    input.delegatedPolicy
+  ).handed;
   let decided: unknown = null;
   const slop = (text: string): SlopReportV1 | null =>
     text && deps.slopCheck
@@ -731,7 +777,7 @@ export async function writeCoreWithDecisions(
         const copied = copiedRuns(result);
         if (copied.length) {
           const quoted = copied.map((run) => `«${run.text}»`).join(', ');
-          antiCopyHint = `${CORE_WRITE_REPAIR_V15}${quoted}`;
+          antiCopyHint = `${CORE_WRITE_REPAIR_V16}${quoted}`;
           result = await rewrite(antiCopyHint, result);
         }
         // Речь о тексте вместо текста (`97dq.90`): одна перепись.
@@ -748,7 +794,7 @@ export async function writeCoreWithDecisions(
           const before = result;
           const decidedBefore = decided;
           const beforeRuns = copiedRuns(before).length;
-          const metaHint = `${CORE_WRITE_META_REPAIR_V15}${meta.map((hit) => `«${hit}»`).join(', ')}`;
+          const metaHint = `${CORE_WRITE_META_REPAIR_V16}${meta.map((hit) => `«${hit}»`).join(', ')}`;
           const next = await rewrite(
             antiCopyHint ? `${antiCopyHint}\n\n${metaHint}` : metaHint,
             before

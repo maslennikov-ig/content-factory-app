@@ -19,6 +19,7 @@ ADR фиксирует решение, которое будет дорого и
 | [0009](0009-external-services-allowed-when-justified.md) | Разрешить внешние сервисы, когда это обосновано и обоснование записано |
 | [0010](0010-cloud-first-agpl-saas.md) | Поставлять Content Factory как управляемый Cloud-first AGPL SaaS |
 | [0011](0011-style-reference-legal-frame.md) | Взять манеру письма, а не имя: правовая рамка стилевого ориентира |
+| [0012](0012-agent-harness.md) | Агентная обвязка: реестр действий, AI SDK поверх Mastra, свой контроллер |
 
 ## Когда нужен ADR
 

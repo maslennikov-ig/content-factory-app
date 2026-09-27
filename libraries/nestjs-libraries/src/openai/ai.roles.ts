@@ -37,6 +37,12 @@
  *  - `judge` — weighing a draft against the workspace's voice.
  *  - `review` — explicit cliche removal or alignment with a piece.
  *  - `image` — generating a picture.
+ *  - `agent` — the chat's conductor choosing tools and answering in a line
+ *    or two (`content-factory-next-kcxz.7`, ADR-0012 §6). Not writing: the
+ *    text a person reads is written by the capabilities it calls, each under
+ *    its own role. Unset, it falls back to the text model like every other
+ *    text role — on this instance `openai/gpt-6-luna` on the flex chain, the
+ *    model the spike found as accurate as a forty times dearer one.
  */
 export const AI_ROLES = [
   'classify',
@@ -46,6 +52,7 @@ export const AI_ROLES = [
   'judge',
   'review',
   'image',
+  'agent',
 ] as const;
 
 export type AiRole = (typeof AI_ROLES)[number];
@@ -127,7 +134,7 @@ const ROLE_BY_OPERATION: Record<string, AiRole> = {
   image_generation: 'image',
   web_research: 'research',
   copilot_chat: 'draft',
-  agent: 'draft',
+  agent: 'agent',
   autopost: 'draft',
   content_classification: 'classify',
   brand_profile_assist: 'extract',

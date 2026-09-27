@@ -343,6 +343,32 @@ module.exports = {
       addVariant('child-hover', '& > *:hover');
     },
 
+    /**
+     * Two columns side by side only where their container has the room
+     * (`kcxz.16`). The piece screen opens both as a page and inside the
+     * agent's ~672px artifact panel; on a wide window `lg:` alone split the
+     * panel into two cramped columns, because `lg:` reads the window.
+     *
+     * `split-container` marks the element whose width decides; `split:`
+     * matches when its content box is at least 640px. Call sites stack it
+     * with the screen they had — `lg:split:grid-cols-…` — so the full page
+     * keeps its switch at 1024px, and the panel (≈560px inside at 1440px)
+     * stays one column. 640 sits between those two: the page at a 1024px
+     * window with the default navigation measures ≈710px.
+     *
+     * A named variant rather than `[@container_split_(min-width:640px)]:`
+     * retyped per class: one threshold, one place.
+     */
+    function ({ addVariant, addUtilities }) {
+      addUtilities({
+        '.split-container': {
+          'container-type': 'inline-size',
+          'container-name': 'split',
+        },
+      });
+      addVariant('split', '@container split (min-width: 640px)');
+    },
+
     // The ten typography tokens of DESIGN.md, as one class each. Tailwind's
     // `fontSize` scale cannot carry a family, and these tokens are a family
     // plus size plus weight plus leading plus tracking together — splitting

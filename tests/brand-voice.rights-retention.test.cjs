@@ -411,3 +411,53 @@ describe('the erasure runs on its own rather than on a page view', () => {
     expect(calls).toEqual(['purge']);
   });
 });
+
+/**
+ * kcxz.29 D7: the agent asks whether the avatar can be switched on before it
+ * shows the consent card. The answer comes from the same decisions the
+ * activation makes, so «ready» here is never followed by a refusal there.
+ */
+describe('activation readiness answers what the activation would', () => {
+  const V2 = ['WHO_SPEAKS', 'TONE', 'AUDIENCE', 'SENTENCE_LENGTH', 'NEVER_SAY', 'TOPICS'];
+
+  test('manual: not started, then lines missing, then ready — and the activation agrees each time', async () => {
+    const { service } = harness();
+    const activate = () =>
+      service.activateProposal(admin, {
+        consentGiven: true,
+        mode: 'manual',
+        version: 2,
+        avatarName: 'Игорь',
+      });
+
+    expect(await service.activationBlocker(admin, 'manual')).toMatchObject({
+      code: 'VOICE_PROFILE_NOT_FOUND',
+    });
+    await expect(activate()).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND' });
+
+    for (const key of V2.slice(0, -1)) {
+      await service.manualField(admin, { key, text: `Строка ${key}` });
+    }
+    const missing = await service.activationBlocker(admin, 'manual');
+    expect(missing).toMatchObject({ code: 'VOICE_FIELDS_INCOMPLETE' });
+    await expect(activate()).rejects.toMatchObject({ code: missing.code });
+
+    await service.manualField(admin, { key: V2[V2.length - 1], text: 'Работа без созвонов' });
+    expect(await service.activationBlocker(admin, 'manual')).toBeNull();
+    await expect(activate()).resolves.toBeDefined();
+  });
+
+  test('assist: nothing analysed is «not found», never «ready»', async () => {
+    const { service } = harness();
+    expect(await service.activationBlocker(admin, 'assist')).toMatchObject({
+      code: 'VOICE_PROFILE_NOT_FOUND',
+    });
+  });
+
+  test('a member is refused before anything is read', async () => {
+    const { service } = harness();
+    await expect(service.activationBlocker(member, 'manual')).rejects.toMatchObject({
+      code: 'VOICE_FORBIDDEN',
+    });
+  });
+});

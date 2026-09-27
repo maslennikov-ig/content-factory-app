@@ -26,6 +26,11 @@ export function buildBackendCorsOptions(
       'showorg',
       'impersonate',
       'x-copilotkit-runtime-client-gql-version',
+      // Every agent chat request and the thread history name the zone the
+      // screens use (`AGENT_TIMEZONE_HEADER`). A custom request header makes
+      // the browser ask first; unlisted, it blocks the whole chat on a
+      // frontend of another origin (the stand, a split self-host; review W2 F1).
+      'x-agent-timezone',
     ],
     exposedHeaders: [
       'reload',
@@ -33,6 +38,10 @@ export function buildBackendCorsOptions(
       'activate',
       'approval',
       'x-copilotkit-runtime-client-gql-version',
+      // `POST /agent/chat` names the thread a first message opened; a
+      // frontend on another origin (the stand, a split self-host) must read it
+      // or every message would open a new thread. `AGENT_THREAD_HEADER`.
+      'x-agent-thread-id',
       ...(env.NOT_SECURED ? ['auth', 'showorg', 'impersonate'] : []),
     ],
     origin: [

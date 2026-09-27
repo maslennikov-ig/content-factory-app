@@ -227,18 +227,18 @@ describe('Mastra owner-run migration', () => {
     expect(EXPECTED_TABLES).toHaveLength(29);
   });
 
-  test('records where the 29 names came from and which @mastra/pg version they are true for', () => {
+  // The split moves a product database written by @mastra/pg 1.8.5, so its
+  // 29-name source contract is frozen at that version (premortem kcxz.4, M2).
+  // The current pin is bound to the 45-name upgrade contract instead, in
+  // tests/mastra-upgrade.execution.test.cjs.
+  test('split contract frozen at @mastra/pg 1.8.5 and pointing at the upgrade contract', () => {
     const source = fs.readFileSync(migrationScript, 'utf8');
-    const pinned = JSON.parse(
-      fs.readFileSync(path.join(root, 'package.json'), 'utf8')
-    ).dependencies['@mastra/pg'];
     const documented = source.match(/"@mastra\/pg": "([^"]+)"/)?.[1];
 
-    // The caret range means a minor bump can change the table set with nothing
-    // in the scripts to explain it, so the comment has to name the version it
-    // was read from and stay in step with package.json.
-    expect(documented).toBe(pinned);
+    expect(documented).toBe('^1.8.5');
+    expect(source).toContain('frozen at that version on purpose');
     expect(source).toContain('When `@mastra/pg` moves');
+    expect(source).toContain('deploy/production/upgrade-mastra-storage.sh');
   });
 
   test('is proved by a local disposable-container run that is referenced, not orphaned', () => {

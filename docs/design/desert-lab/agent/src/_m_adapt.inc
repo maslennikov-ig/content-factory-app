@@ -1,0 +1,1 @@
+<div class="kc mini cur"><span class="kind"><span class="tg">%%tgp%%</span>Адаптация</span><span class="sm" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">AiDevTeam · 612 знаков</span><span class="cap" style="color:var(--cf-accent)">открыто справа</span></div>

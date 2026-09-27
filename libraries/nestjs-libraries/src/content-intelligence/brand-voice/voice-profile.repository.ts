@@ -388,10 +388,19 @@ export class VoiceProfileRepository {
    * one", which is exactly what happened.
    */
   async manualDraft(
-    organizationId: string
+    organizationId: string,
+    profileId?: string
   ): Promise<BrandProfileVersionRecordV1 | null> {
+    // Scoped to the avatar when the caller knows which one: a space holds
+    // several avatars, and the newest pointer in the space may belong to a
+    // neighbour — whose draft would then collect this avatar's lines and be
+    // what «включить» switched on (`content-factory-next-kcxz.33`).
     const pointer = (await this.client().brandProfileAuditEvent.findFirst({
-      where: { organizationId, action: MANUAL_DRAFT_OPENED },
+      where: {
+        organizationId,
+        action: MANUAL_DRAFT_OPENED,
+        ...(profileId ? { profileId } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     })) as { versionId?: string | null } | null;
     if (!pointer?.versionId) return null;
@@ -399,7 +408,21 @@ export class VoiceProfileRepository {
       organizationId,
       pointer.versionId
     );
-    return version && version.lifecycle === 'DRAFT' ? version : null;
+    // Drafts written before that fix (kcxz.38, P3-7). Every pointer was
+    // written with the draft's own `profileId`, so the scoped lookup above
+    // already never hands avatar B a draft of avatar A. What it cannot undo
+    // is content: lines typed for B that landed in A's draft stay in A's
+    // draft. They are left there on purpose — telling them apart would be a
+    // guess, and a data migration that rewrites a person's text on a guess is
+    // worse than the defect. They are not hidden either: A's manual form shows
+    // every line of that draft, and it switches on only through the consent
+    // card, after the person has seen them. The profile check below is a
+    // guard for a pointer edited by hand, not a path real data takes.
+    return version &&
+      version.lifecycle === 'DRAFT' &&
+      (!profileId || version.profileId === profileId)
+      ? version
+      : null;
   }
 
   /**

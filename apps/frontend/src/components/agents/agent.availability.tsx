@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode } from 'react';
+import { FC, ReactNode, useRef } from 'react';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useAssistantAvailability } from '@contentfactory/frontend/components/copilot/assistant-availability';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
@@ -16,9 +16,10 @@ import { RestrictedState } from '@contentfactory/frontend/components/ui/surface'
  * мимо общего обработчика отказов, и на экране про него не было ни слова.
  * Человек написал бы агенту и не понял, почему тот молчит.
  *
- * Поэтому решение принимается до монтирования рантайма, а не после его
- * ошибки: пока помощнику нечем ответить, `CopilotKit` в дерево не попадает
- * вовсе — значит, и запроса, который заведомо упадёт, не уходит.
+ * Поэтому решение принимается до разговора, а не после его ошибки: пока
+ * помощнику нечем ответить, разговор (`useChat` в `agent.conversation.tsx`,
+ * `content-factory-next-kcxz.10`) в дерево не попадает вовсе — значит, и
+ * запроса, который заведомо упадёт, не уходит.
  *
  * Слова берутся те же, что говорит раздел «Контент» строкой остатка
  * (`ai_allowance_unavailable`): один отказ — одно предложение, а не два разных
@@ -29,6 +30,17 @@ export const AgentAvailabilityGate: FC<{ children: ReactNode }> = ({
 }) => {
   const t = useT();
   const availability = useAssistantAvailability(true);
+
+  /**
+   * Once the conversation is open it stays mounted (`content-factory-next-
+   * kcxz.29`, D2). The answer of this door is read again whenever the
+   * allowance line or another screen revalidates it; swapping the
+   * conversation for «Проверяем…» on the way would unmount `useChat` and cut
+   * the turn that is streaming. If AI is switched off meanwhile, the server
+   * says so on the next message.
+   */
+  const opened = useRef(false);
+  if (opened.current) return <>{children}</>;
 
   if (availability === 'checking') {
     return (
@@ -60,5 +72,6 @@ export const AgentAvailabilityGate: FC<{ children: ReactNode }> = ({
     );
   }
 
+  opened.current = true;
   return <>{children}</>;
 };

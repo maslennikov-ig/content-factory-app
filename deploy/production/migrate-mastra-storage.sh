@@ -33,21 +33,20 @@ readonly temp_dir="$(mktemp -d)"
 trap 'rm -rf -- "$temp_dir"' EXIT
 readonly schema_sql="$temp_dir/mastra-schema.sql"
 # Where the 29 names come from: they are the `public.mastra_*` tables that
-# `@mastra/pg` creates for this deployment, read off a real source database and
-# true for the version pinned in `package.json` as `"@mastra/pg": "^1.8.5"`
-# (resolved to 1.8.5 in `pnpm-lock.yaml`). The caret means a minor bump can add
-# or rename a table, and this list, the identical list in
+# `@mastra/pg` created for this deployment, read off a real source database and
+# true for the version that was pinned in `package.json` as
+# `"@mastra/pg": "^1.8.5"` when the split ran (21.08.2026).
+# This split contract is frozen at that version on purpose. The split moves a
+# product database that was written by 1.8.5, so its source set stays the 29
+# names whatever the current pin is; the current pin's contract (45 names) and
+# the way from 29 to 45 live in `deploy/production/upgrade-mastra-storage.sh`.
+# This list, the identical list in
 # `scripts/operations/verify-mastra-storage-migration.sh`, and the one in
-# `tests/mastra-migration.execution.test.cjs` would all become wrong at once.
-# `tests/mastra-migration.execution.test.cjs` fails when the three copies drift
-# apart, but nothing can tell you the upstream table set changed.
-# When `@mastra/pg` moves: re-read `SELECT tablename FROM pg_tables WHERE
-# schemaname = 'public' AND tablename LIKE 'mastra\_%' ESCAPE '\' ORDER BY
-# tablename COLLATE "C"` on a database created by the new version, update all
-# three copies together with the version in this comment, and re-run
-# `scripts/operations/verify-mastra-storage-migration.sh`. Do not widen the
-# contract to a prefix match: the exact set is what stops a half-created source
-# schema from being copied into production.
+# `tests/mastra-migration.execution.test.cjs` are kept identical by that test.
+# When `@mastra/pg` moves: do not edit this list; follow the comment at the
+# 45-name list in `deploy/production/upgrade-mastra-storage.sh`. Do not widen
+# the contract to a prefix match: the exact set is what stops a half-created
+# source schema from being copied into production.
 readonly expected_tables="$(cat <<'TABLES'
 mastra_agent_versions
 mastra_agents

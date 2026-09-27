@@ -82,6 +82,13 @@ export const POST_SAVE_REFUSAL_COPY: Record<
     fallback:
       'Another version of this post is already scheduled in this channel. Unschedule it first.',
   },
+  // kcxz.30: the post left the queue (went out, failed) between the read and
+  // the write of a date change, so the move was refused.
+  POST_STATE_CHANGED: {
+    key: 'post_state_changed_refusal',
+    fallback:
+      'This post has just changed state — it may have already gone out. Reload the calendar and try again.',
+  },
   AUTOPOST_V2_CONFLICT: {
     key: 'autopost_rule_changed',
     fallback:

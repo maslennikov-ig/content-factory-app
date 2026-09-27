@@ -54,7 +54,6 @@ class AiProviderNotConfigured extends require('@nestjs/common')
   }
 }
 const getOpenAiClient = jest.fn();
-let capturedAgentOptions;
 let capturedAdapterOptions;
 const webResearch = jest.fn();
 const contentContext = {
@@ -69,28 +68,11 @@ const contentContext = {
   selectionHash: 'selection-1',
 };
 const contexts = { build: jest.fn(async () => contentContext) };
-const brands = { resolve: jest.fn() };
 const aiUsage = {
   executeAiOperation: jest.fn(async (_organizationId, _operation, callback) =>
     callback()
   ),
 };
-const getLocalAgents = jest.fn((options) => {
-  capturedAgentOptions = options;
-  return {};
-});
-class RequestContext {
-  constructor() {
-    this.values = new Map();
-  }
-  set(key, value) {
-    this.values.set(key, value);
-  }
-  get(key) {
-    return this.values.get(key);
-  }
-}
-
 const { CopilotController } = loadTypeScriptModule(
   'apps/backend/src/api/routes/copilot.controller.ts',
   {
@@ -109,13 +91,6 @@ const { CopilotController } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/user/org.from.request': {
       GetOrgFromRequest: noOpDecorator,
     },
-    '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service':
-      { SubscriptionService: class {} },
-    '@ag-ui/mastra': { MastraAgent: { getLocalAgents } },
-    '@contentfactory/nestjs-libraries/chat/mastra.service': {
-      MastraService: class {},
-    },
-    '@mastra/core/di': { RequestContext },
     '@contentfactory/backend/services/auth/permissions/permissions.ability': {
       CheckPolicies: noOpDecorator,
     },
@@ -137,10 +112,6 @@ const { CopilotController } = loadTypeScriptModule(
       {
         ContentContextService: class {},
       },
-    '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service':
-      {
-        BrandProfileContextService: class {},
-      },
     '@contentfactory/backend/services/auth/permissions/permission.exception.class':
       {
         AuthorizationActions: { Create: 'Create' },
@@ -157,26 +128,15 @@ describe('CopilotController provider availability', () => {
       chat: { completions: { stream: jest.fn() } },
       beta: {},
     });
-    capturedAgentOptions = undefined;
     capturedAdapterOptions = undefined;
     contexts.build.mockClear();
     aiUsage.executeAiOperation.mockClear();
   });
 
-  test.each([
-    ['chatAgent', {}],
-    ['agent', { body: { variables: { properties: {} } } }],
-  ])(
+  test.each([['chatAgent', {}]])(
     '%s returns a clear service-unavailable error instead of an empty response',
     async (method, request) => {
-      const controller = new CopilotController(
-        {},
-        {},
-        undefined,
-        aiUsage,
-        contexts,
-        brands
-      );
+      const controller = new CopilotController(undefined, aiUsage, contexts);
       const organization = { id: 'org-without-ai-key' };
 
       await expect(
@@ -193,99 +153,28 @@ describe('CopilotController provider availability', () => {
     }
   );
 
-  test('passes the explicitly selected content language to the chat agent', async () => {
-    hasAiProvider.mockResolvedValue(true);
-    const controller = new CopilotController(
-      {},
-      { mastra: async () => ({}) },
-      undefined,
-      aiUsage,
-      contexts,
-      brands
+  /**
+   * The old agent screen's doors went with it (`content-factory-next-kcxz.8`):
+   * the agent chat is `/agent` now, and `/copilot` keeps the post editor's
+   * helper, the research door and the media picker's credits (with a policy).
+   */
+  test('the old agent doors are gone from /copilot', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '..', 'apps/backend/src/api/routes/copilot.controller.ts'),
+      'utf8'
     );
-
-    await controller.agent(
-      {
-        body: {
-          variables: {
-            properties: {
-              integrations: [],
-              contentLanguage: 'ru',
-            },
-          },
-        },
-      },
-      {},
-      { id: 'org' }
+    const routes = [...source.matchAll(/@(Get|Post|Put|Patch|Delete)\('([^']*)'\)/g)].map(
+      ([, method, route]) => `${method.toUpperCase()} ${route}`
     );
-
-    expect(capturedAgentOptions.requestContext.get('contentLanguage')).toBe(
-      'ru'
-    );
-    expect(
-      JSON.parse(capturedAgentOptions.requestContext.get('contentContext'))
-        .contentContextSnapshotId
-    ).toBe('context-1');
-    expect(
-      capturedAgentOptions.requestContext.get('contentIntelligenceMode')
-    ).toBe('content-intelligence/v1');
-    expect(contexts.build).toHaveBeenCalledTimes(1);
-  });
-
-  test('blocks current-required agent work before AI admission', async () => {
-    hasAiProvider.mockClear();
-    contexts.build.mockResolvedValueOnce({
-      ...contentContext,
-      status: 'BLOCKED_STALE',
-      generationPolicy: 'EVIDENCE_REQUIRED',
-      errorCode: 'CONTENT_EVIDENCE_REQUIRED',
-    });
-    const controller = new CopilotController(
-      {},
-      {},
-      undefined,
-      aiUsage,
-      contexts,
-      brands
-    );
-
-    await expect(
-      controller.agent(
-        {
-          body: {
-            variables: {
-              properties: {
-                contentIntelligence: {
-                  query: 'Current material',
-                  freshnessMode: 'REQUIRE_CURRENT',
-                },
-              },
-            },
-          },
-        },
-        {},
-        { id: 'org-a' }
-      )
-    ).rejects.toMatchObject({
-      status: 409,
-      response: { code: 'CONTENT_EVIDENCE_REQUIRED' },
-    });
-    expect(hasAiProvider).not.toHaveBeenCalled();
-    expect(aiUsage.executeAiOperation).not.toHaveBeenCalled();
+    expect(routes.sort()).toEqual(['GET /credits', 'POST /chat', 'POST /research']);
+    expect(source).not.toMatch(/@ag-ui\/mastra|MastraService|getLocalAgents/);
   });
 
   test('bridges the stable OpenAI chat API into the namespace CopilotKit 1.10 streams', async () => {
     hasAiProvider.mockResolvedValue(true);
     const stableChat = { completions: { stream: jest.fn() } };
     getOpenAiClient.mockResolvedValue({ chat: stableChat, beta: {} });
-    const controller = new CopilotController(
-      {},
-      {},
-      undefined,
-      aiUsage,
-      contexts,
-      brands
-    );
+    const controller = new CopilotController(undefined, aiUsage, contexts);
 
     await expect(
       controller.chatAgent({}, {}, { id: 'organization-a' })
@@ -306,12 +195,9 @@ describe('CopilotController provider availability', () => {
       ],
     });
     const controller = new CopilotController(
-      {},
-      {},
       { research: webResearch },
       aiUsage,
-      contexts,
-      brands
+      contexts
     );
 
     await expect(

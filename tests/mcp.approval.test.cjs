@@ -1,296 +1,123 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const ts = require('typescript');
-
-const repositoryRoot = path.resolve(__dirname, '..');
-
-function loadTypeScriptModule(relativePath, mocks = {}) {
-  const filename = path.join(repositoryRoot, relativePath);
-  const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      experimentalDecorators: true,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-
-  new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports;
-}
-
-const ULTIMATE_LIFETIME = {
-  subscriptionTier: 'ULTIMATE',
-  totalChannels: 1000000,
-  isLifetime: true,
-};
-
-function organization(activatedFlags) {
-  return {
-    id: 'org-1',
-    apiKey: 'encrypted-key',
-    subscription: ULTIMATE_LIFETIME,
-    users: activatedFlags.map((activated) => ({ user: { activated } })),
-  };
-}
+'use strict';
 
 /**
- * Runs `startMcp` against a fake Nest application and returns the Express
- * handlers it registered, so every authenticated MCP entry point can be driven
- * without a server, Mastra, or a database.
+ * MCP between the conductor and its rebuild (`content-factory-next-kcxz.7`,
+ * premortem X1).
+ *
+ * Until 27.09.2026 `startMcp` mounted the six MCP tools of the inherited
+ * agent behind the organization key and OAuth; the approval gate of those
+ * doors was tested here. The conductor replaced that agent and its eleven
+ * Postiz tools, and MCP is rebuilt on the capability registry with per-person
+ * OAuth and a throttler in `kcxz.26`. Until then a lit `MCP_ENABLED` must boot
+ * the backend and mount nothing — neither a crash at boot looking for an
+ * agent that is gone, nor a server with tools that no longer exist.
+ *
+ * `mayUseMcp`, the member rule the rebuild keeps, stays tested as a function.
  */
-async function mountMcp({ org = null, authorization = null } = {}) {
-  const startHTTP = jest.fn().mockResolvedValue(undefined);
-  const startSSE = jest.fn().mockResolvedValue(undefined);
-  const getOrgByApiKey = jest.fn(async () => org);
-  const getOrgByOAuthToken = jest.fn(async () => authorization);
 
-  const organizationService = { getOrgByApiKey };
-  const oauthService = { getOrgByOAuthToken };
-  const mastraService = {
-    mastra: async () => ({
-      getAgent: () => ({ listTools: async () => ({}) }),
-    }),
-  };
+const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
+const warnings = [];
+const load = () =>
+  loadTypeScriptModule('libraries/nestjs-libraries/src/chat/start.mcp.ts', {
+    '@nestjs/common': {
+      Logger: { warn: (message) => warnings.push(message) },
+      INestApplication: class {},
+    },
+    '@contentfactory/nestjs-libraries/user/organization.roles': {
+      isOrganizationEditor: (role) =>
+        ['EDITOR', 'ADMIN', 'SUPERADMIN'].includes(role),
+    },
+  });
+
+async function mountMcp(value) {
+  const { startMcp } = load();
   const routes = new Map();
+  const asked = [];
   const app = {
     get(token) {
-      if (token === organizationServiceToken) return organizationService;
-      if (token === oauthServiceToken) return oauthService;
-      return mastraService;
+      asked.push(token);
+      throw new Error('startMcp must not resolve any provider now');
     },
-    use(pathOrHandler, handler) {
-      const paths = Array.isArray(pathOrHandler)
-        ? pathOrHandler
-        : [pathOrHandler];
-      for (const route of paths) {
-        routes.set(route, handler);
-      }
+    use(route, handler) {
+      routes.set(route, handler);
     },
   };
-
-  const organizationServiceToken = class OrganizationService {};
-  const oauthServiceToken = class OAuthService {};
-
-  const { startMcp } = loadTypeScriptModule(
-    'libraries/nestjs-libraries/src/chat/start.mcp.ts',
-    {
-      '@nestjs/common': { INestApplication: class {} },
-      '@contentfactory/nestjs-libraries/chat/mastra.service': {
-        MastraService: class {},
-      },
-      '@mastra/mcp': {
-        MCPServer: class {
-          startHTTP(...args) {
-            return startHTTP(...args);
-          }
-          startSSE(...args) {
-            return startSSE(...args);
-          }
-        },
-      },
-      '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service':
-        { OrganizationService: organizationServiceToken },
-      '@contentfactory/nestjs-libraries/database/prisma/oauth/oauth.service': {
-        OAuthService: oauthServiceToken,
-      },
-      './async.storage': { runWithContext: (_context, run) => run() },
-      './oauth-middleware': {
-        createOAuthMiddleware: () => async () => ({ proceed: false }),
-      },
-    }
-  );
-
-  await startMcp(app);
-
-  return { routes, startHTTP, startSSE, getOrgByApiKey, getOrgByOAuthToken };
+  const saved = process.env.MCP_ENABLED;
+  if (value === undefined) delete process.env.MCP_ENABLED;
+  else process.env.MCP_ENABLED = value;
+  try {
+    await startMcp(app);
+  } finally {
+    if (saved === undefined) delete process.env.MCP_ENABLED;
+    else process.env.MCP_ENABLED = saved;
+  }
+  return { routes, asked };
 }
 
-function responseDouble() {
-  const sent = [];
-  const res = {
-    setHeader() {},
-    sendStatus(code) {
-      sent.push({ code });
-    },
-    status(code) {
-      return {
-        send(body) {
-          sent.push({ code, body });
-        },
-        json(body) {
-          sent.push({ code, body });
-        },
-      };
-    },
-    json(body) {
-      sent.push({ code: 200, body });
-    },
-  };
-  return { res, sent };
-}
+const authorization = (role, { disabled = false, activated = true } = {}) => ({
+  organizationId: 'org-1',
+  user: {
+    activated,
+    organizations: [
+      { organizationId: 'other-org', role: 'ADMIN', disabled: false },
+      { organizationId: 'org-1', role, disabled },
+    ],
+  },
+});
 
-function requestDouble(overrides = {}) {
-  return {
-    method: 'POST',
-    path: '/',
-    originalUrl: '/mcp',
-    headers: {},
-    rawHeaders: [],
-    params: {},
-    ...overrides,
-  };
-}
-
-describe('MCP approval gate', () => {
-  const originalBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-  beforeAll(() => {
-    process.env.NEXT_PUBLIC_BACKEND_URL = 'https://backend.example';
+describe('MCP until its rebuild on the registry (kcxz.26)', () => {
+  beforeEach(() => {
+    warnings.length = 0;
   });
 
-  afterAll(() => {
-    if (originalBackendUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_BACKEND_URL;
-    } else {
-      process.env.NEXT_PUBLIC_BACKEND_URL = originalBackendUrl;
+  test('MCP is dark unless MCP_ENABLED is true (kcxz.1)', async () => {
+    for (const value of [undefined, 'false', '1', 'TRUE']) {
+      const { routes, asked } = await mountMcp(value);
+      expect(routes.size).toBe(0);
+      expect(asked).toEqual([]);
     }
+    expect(warnings).toEqual([]);
   });
 
-  test('the bearer key of an organization awaiting approval opens no MCP session', async () => {
-    const { routes, startHTTP } = await mountMcp({
-      org: organization([false]),
-    });
-    const { res, sent } = responseDouble();
-
-    await routes.get('/mcp')(
-      requestDouble({ headers: { authorization: 'Bearer enterprise-key' } }),
-      res,
-      () => {}
-    );
-
-    expect(startHTTP).not.toHaveBeenCalled();
-    expect(sent).toEqual([
-      { code: 401, body: 'Invalid API Key or OAuth token' },
+  test('a lit MCP_ENABLED boots, says why in the log and mounts nothing (X1)', async () => {
+    const { routes, asked } = await mountMcp('true');
+    expect(routes.size).toBe(0);
+    expect(asked).toEqual([]);
+    expect(warnings).toEqual([
+      expect.stringContaining('content-factory-next-kcxz.26'),
     ]);
   });
 
-  test('the same key in the streamable path is refused too', async () => {
-    const { routes, startHTTP } = await mountMcp({
-      org: organization([false]),
-    });
-    const { res, sent } = responseDouble();
-
-    await routes.get('/mcp/:id')(
-      requestDouble({ params: { id: 'enterprise-key' } }),
-      res,
-      () => {}
+  test('start.mcp no longer reaches the old agent or its tool list', () => {
+    const source = require('node:fs').readFileSync(
+      require('node:path').resolve(
+        __dirname,
+        '..',
+        'libraries/nestjs-libraries/src/chat/start.mcp.ts'
+      ),
+      'utf8'
     );
+    expect(source).not.toMatch(/getAgent\(|listTools\(|MCP_TOOL_NAMES|MastraService/);
+  });
+});
 
-    expect(startHTTP).not.toHaveBeenCalled();
-    expect(sent).toEqual([{ code: 400, body: 'Invalid API Key' }]);
+describe('who may use MCP when it returns', () => {
+  const { mayUseMcp } = load();
+
+  test('a writer of the workspace may', () => {
+    for (const role of ['EDITOR', 'ADMIN', 'SUPERADMIN']) {
+      expect(mayUseMcp(authorization(role))).toBe(true);
+    }
   });
 
-  test('the same key in the SSE path is refused too', async () => {
-    const { routes, startSSE } = await mountMcp({
-      org: organization([false]),
-    });
-    const { res, sent } = responseDouble();
-
-    await routes.get('/sse/:id')(
-      requestDouble({ params: { id: 'enterprise-key' }, originalUrl: '/sse/x' }),
-      res,
-      () => {}
-    );
-
-    expect(startSSE).not.toHaveBeenCalled();
-    expect(sent).toEqual([{ code: 400, body: 'Invalid API Key' }]);
-  });
-
-  test('an OAuth token minted for a blocked account is refused', async () => {
-    const { routes, startHTTP } = await mountMcp({
-      authorization: {
-        organization: organization([false]),
-        user: { id: 'user-1', activated: false },
-      },
-    });
-    const { res, sent } = responseDouble();
-
-    await routes.get('/mcp')(
-      requestDouble({ headers: { authorization: 'Bearer pos_token' } }),
-      res,
-      () => {}
-    );
-
-    expect(startHTTP).not.toHaveBeenCalled();
-    expect(sent).toEqual([
-      { code: 401, body: 'Invalid API Key or OAuth token' },
-    ]);
-  });
-
-  test('one approved member keeps the key working on every entry point', async () => {
-    const { routes, startHTTP, startSSE } = await mountMcp({
-      org: organization([false, true]),
-    });
-
-    const bearer = responseDouble();
-    await routes.get('/mcp')(
-      requestDouble({ headers: { authorization: 'Bearer enterprise-key' } }),
-      bearer.res,
-      () => {}
-    );
-    expect(bearer.sent).toEqual([]);
-
-    const streamable = responseDouble();
-    await routes.get('/mcp/:id')(
-      requestDouble({ params: { id: 'enterprise-key' } }),
-      streamable.res,
-      () => {}
-    );
-    expect(streamable.sent).toEqual([]);
-
-    const sse = responseDouble();
-    await routes.get('/sse/:id')(
-      requestDouble({ params: { id: 'enterprise-key' }, originalUrl: '/sse/x' }),
-      sse.res,
-      () => {}
-    );
-    expect(sse.sent).toEqual([]);
-
-    expect(startHTTP).toHaveBeenCalledTimes(2);
-    expect(startSSE).toHaveBeenCalledTimes(1);
-  });
-
-  test('an approved OAuth token still opens a session', async () => {
-    const { routes, startHTTP } = await mountMcp({
-      authorization: {
-        organization: organization([true]),
-        user: { id: 'user-1', activated: true },
-      },
-    });
-    const { res, sent } = responseDouble();
-
-    await routes.get('/mcp')(
-      requestDouble({ headers: { authorization: 'Bearer pos_token' } }),
-      res,
-      () => {}
-    );
-
-    expect(sent).toEqual([]);
-    expect(startHTTP).toHaveBeenCalledTimes(1);
+  test('a reading member, a disabled one, an unactivated account or an outsider may not (kcxz.1)', () => {
+    expect(mayUseMcp(authorization('USER'))).toBe(false);
+    expect(mayUseMcp(authorization('EDITOR', { disabled: true }))).toBe(false);
+    expect(mayUseMcp(authorization('EDITOR', { activated: false }))).toBe(false);
+    expect(
+      mayUseMcp({ ...authorization('EDITOR'), organizationId: 'org-2' })
+    ).toBe(false);
+    expect(mayUseMcp({ organizationId: 'org-1', user: null })).toBe(false);
   });
 });

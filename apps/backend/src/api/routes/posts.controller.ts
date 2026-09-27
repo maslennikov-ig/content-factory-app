@@ -368,9 +368,17 @@ export class PostsController {
     @Param('id') id: string,
     @Body() { date, action = 'schedule' }: ChangeDateBodyDto
   ) {
-    // `CF_QUEUE_BUSY` (409, `97dq.67`) reaches the calendar as itself.
+    // `CF_QUEUE_BUSY` (409, `97dq.67`) reaches the calendar as itself, and so
+    // does `POST_STATE_CHANGED` (409, `kcxz.30`). The calendar keeps the
+    // upstream «Reschedule the post» choice for a published or failed card;
+    // the write is still conditional on the state the service reads.
     return this._postsService
-      .changeDate(org.id, id, date, action)
+      .changeDate(org.id, id, date, action, [
+        'QUEUE',
+        'DRAFT',
+        'PUBLISHED',
+        'ERROR',
+      ])
       .catch((error) => safeHttpError(error));
   }
 

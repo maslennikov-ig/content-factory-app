@@ -25,13 +25,14 @@ const CARRIER_DIRECTORY = 'libraries/react-shared-libraries/src/platform';
 
 /**
  * Call sites that reach the asset directly, each showing the platform mark at
- * 48px when a channel has no picture of its own. Both are in the inventory.
+ * 48px when a channel has no picture of its own. It is in the inventory; the
+ * agents' channel list, the second one, left with CopilotKit
+ * (`content-factory-next-kcxz.10`).
  * A fifth route is not grandfathered — it has to go through a carrier or be
  * written down.
  */
 const KNOWN_DIRECT_CALL_SITES = [
   'apps/frontend/src/components/plugs/plugs.tsx',
-  'apps/frontend/src/components/agents/agent.tsx',
 ];
 
 /** Every source file under a directory, without walking into node_modules. */

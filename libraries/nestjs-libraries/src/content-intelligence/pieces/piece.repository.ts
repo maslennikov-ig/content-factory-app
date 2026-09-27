@@ -833,6 +833,47 @@ export class PieceRepository {
   }
 
   /**
+   * Строка NEVER_SAY голоса, от имени которого написан текст проверки
+   * (`content-factory-next-l7tm`).
+   *
+   * У адаптации — версия, записанная при её написании; у сути и у адаптации
+   * без записанной версии — аватар области по умолчанию, тот же, что пишет
+   * суть. Чужая область читается как отсутствующая.
+   */
+  async reviewNeverSay(
+    organizationId: string,
+    adaptationId?: string
+  ): Promise<unknown> {
+    const guardrails = (content: unknown) =>
+      (content as { guardrails?: { prohibitedClaims?: unknown } } | null)
+        ?.guardrails?.prohibitedClaims;
+    if (adaptationId) {
+      const row = await this.client().contentDerivation.findFirst({
+        where: { organizationId, id: adaptationId },
+        select: {
+          brandProfileVersion: {
+            select: { organizationId: true, content: true },
+          },
+        },
+      });
+      const version = row?.brandProfileVersion;
+      if (version && version.organizationId === organizationId)
+        return guardrails(version.content);
+    }
+    const profile = await this.client().projectBrandProfile.findFirst({
+      orderBy: DEFAULT_AVATAR_FIRST,
+      where: { organizationId, deletedAt: null },
+      select: {
+        activeVersion: { select: { organizationId: true, content: true } },
+      },
+    });
+    const version = profile?.activeVersion;
+    return version && version.organizationId === organizationId
+      ? guardrails(version.content)
+      : undefined;
+  }
+
+  /**
    * Черновик адаптации для экрана адаптации (`97dq.37`): строка, её пост и
    * канал поста. Обе связи — через `organizationId`.
    */

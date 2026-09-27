@@ -333,7 +333,20 @@ export interface WebSearchResponse {
     /** The engine's relevance score for this row, 0–1, when it gives one. */
     score?: number;
   }>;
+  /**
+   * What the engine reported this request cost, as it reported it
+   * (`content-factory-next-ia7s`): Exa's `costDollars.total` in dollars,
+   * Tavily's `usage.credits` in credits. Absent when the engine said nothing;
+   * never estimated here.
+   */
+  usage?: { costUsd?: number; credits?: number };
 }
+
+/** A finite, non-negative number, or nothing. */
+const reportedAmount = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
 
 export interface WebSearchClient {
   invoke(
@@ -403,7 +416,9 @@ const publishedAfter = (windowDays?: number): string | undefined =>
 const EXA_USER_LOCATION: Record<string, string> = { russia: 'RU' };
 
 
-interface TavilySearchResponse extends WebSearchResponse {
+interface TavilySearchResponse extends Omit<WebSearchResponse, 'usage'> {
+  /** Present because the client asks for it with `include_usage`. */
+  usage?: { credits?: unknown };
   error?: string;
   status?: unknown;
   code?: unknown;
@@ -483,8 +498,11 @@ export class ExaWebSearch implements WebSearchClient {
         published_date?: unknown;
         score?: unknown;
       }>;
+      costDollars?: { total?: unknown } | null;
     };
+    const costUsd = reportedAmount(body?.costDollars?.total);
     return {
+      ...(costUsd !== undefined ? { usage: { costUsd } } : {}),
       results: (Array.isArray(body?.results) ? body.results : [])
         .map((item) => {
           // The documented Search response uses top-level `text` and
@@ -590,8 +608,10 @@ export class TavilyWebSearch implements WebSearchClient {
       throw error;
     }
 
+    const credits = reportedAmount(response.usage?.credits);
     return {
       ...(response.answer ? { answer: response.answer } : {}),
+      ...(credits !== undefined ? { usage: { credits } } : {}),
       results: (response.results || []).map((result) => ({
         ...(result.title ? { title: result.title } : {}),
         ...(result.url ? { url: result.url } : {}),
@@ -722,6 +742,10 @@ export const getWebSearchClient = async (
             maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), TAVILY_MAX_RESULTS),
             includeAnswer: true,
             includeRawContent: true,
+            // Tavily then reports the credits the request spent, which is the
+            // only spend it states (`content-factory-next-ia7s`). Asking for
+            // it changes nothing about the price.
+            includeUsage: true,
             // An asked-for window wins over the news default: «за последние 30
             // дней» is a narrower claim than «this subject is time-sensitive»,
             // and the caller that named days meant them.

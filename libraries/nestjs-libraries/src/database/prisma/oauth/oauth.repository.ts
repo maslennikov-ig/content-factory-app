@@ -200,7 +200,16 @@ export class OAuthRepository {
           },
         },
         user: {
-          select: { id: true, activated: true },
+          select: {
+            id: true,
+            activated: true,
+            // MCP checks the member's role in the token's workspace
+            // (`content-factory-next-kcxz.1`); every membership is selected
+            // because the filter would need the row's own organization id.
+            organizations: {
+              select: { organizationId: true, role: true, disabled: true },
+            },
+          },
         },
       },
     });

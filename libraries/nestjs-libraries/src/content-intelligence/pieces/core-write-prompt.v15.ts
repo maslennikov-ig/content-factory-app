@@ -73,7 +73,7 @@ export const CORE_WRITE_BLOCK_TITLES_V15 = {
 } as const;
 
 /** The base: what the core is, what it is written from, how. Always rides. */
-const BASE_V15 = (forbiddenPhrases: string): string =>
+export const BASE_V15 = (forbiddenPhrases: string): string =>
   [
     'You are writing the CORE: a neutral, connected text about what this person wants to tell, with no platform and no manner. It is not a post and not a retelling of the brief — it is the ground that texts for different platforms will later be made from, so it must carry everything the person said, developed into connected text. It will be read as finished text, not as a draft or a transcript.',
     '',

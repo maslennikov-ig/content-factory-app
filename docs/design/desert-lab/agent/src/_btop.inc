@@ -1,0 +1,1 @@
+  <div class="topbar"><span class="btn secondary dense">%%menu%%Разговоры</span><span class="lm" style="margin-inline-start:8px">%%TITLE%%</span><span class="sp"></span>%%INC:_allow_line.inc%%<span class="btn quiet dense">%%plus%%Новый разговор</span></div>

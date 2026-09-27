@@ -285,7 +285,7 @@ export function PieceChannelTab({
         than the 360px column it replaced — and gives width back before the
         text column goes under 560px.
       */}
-      <div className="flex min-w-0 flex-col gap-[32px] lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-col gap-[32px] lg:split:flex-row lg:split:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-[16px]">
           {adaptation ? (
             <>
@@ -539,6 +539,7 @@ export function PieceChannelTab({
           }}
           defaultWidth={400}
           reserveMain={592}
+          breakpoint="split"
           className={settable ? undefined : 'hidden'}
           bodyClassName="gap-[16px]"
         >

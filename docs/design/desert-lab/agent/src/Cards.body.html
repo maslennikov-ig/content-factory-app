@@ -1,0 +1,60 @@
+<div style="width:1440px;padding:40px;background:var(--cf-canvas);color:var(--cf-ink);font-family:Geologica,system-ui,sans-serif">
+  <div class="col" style="gap:6px;margin-bottom:32px;max-width:900px">
+    <span class="h2">Карточки чата — общие для всех вариантов</span>
+    <span class="md muted">Каждая карточка берёт экранный компонент, который уже показывает эту вещь, и ведёт на экран ссылкой «Открыть на экране». Ширина — по колонке разговора: 760 (A), 820 (B), 480 (C), 366 (телефон).</span>
+  </div>
+  <div class="sheetgrid">
+    <div class="cell"><div class="meta"><span class="lab">Ход работы · идёт</span><span class="cap">ui/progress.tsx (steps) + шаги стрима intake · шаги объявляются через aria-live</span></div>
+%%INC:_c_progress_run.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Вопрос</span><span class="cap">вопрос intake / ядра · всегда с «Решите за меня»</span></div>
+%%INC:_c_question.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Вопрос · отвечен</span><span class="cap">свёрнутое состояние в истории</span></div>
+%%INC:_c_question_done.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Выбор</span><span class="cap">выбор фактов intake.research · находки, правки проверки</span></div>
+%%INC:_c_selection.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Заготовка</span><span class="cap">вкладка «Ядро» заготовки</span></div>
+%%INC:_c_piece.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Адаптация</span><span class="cap">превью вкладки канала</span></div>
+%%INC:_c_adapt.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Место в плане · бронь</span><span class="cap">календарь / режим плана «Бронь» · бронь без вопроса</span></div>
+%%INC:_c_slot.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Место в плане · запланирован</span><span class="cap">после «Подтвердить» и «да»</span></div>
+%%INC:_c_slot_sched.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Подключение канала</span><span class="cap">onboarding.telegram.tsx · после «да» на подключение</span></div>
+%%INC:_c_connect.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Аватар</span><span class="cap">предложение аватара · согласие ставит только человек, «Решите за меня» здесь нет</span></div>
+%%INC:_c_avatar.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Нужно ваше «да» · удаление</span><span class="cap">новый компонент, один на все подтверждения</span></div>
+%%INC:_c_approval.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Нужно ваше «да» · подключение</span><span class="cap">то же, обратимое действие</span></div>
+%%INC:_c_approval_connect.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Ключ</span><span class="cap">поле ключа из «Настройки → ИИ» · значение уходит в /settings/ai, мимо чата</span></div>
+%%INC:_c_secret.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Не получилось</span><span class="cap">формулировки PIECE_ERROR_CODES / VOICE_ERROR_CODES + следующий шаг</span></div>
+%%INC:_c_error.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Остаток</span><span class="cap">ui/allowance-hint.tsx · карточка — только когда не хватает; строка — всегда над полем ввода</span></div>
+%%INC:_c_allowance.inc%%
+%%INC:_allow_line.inc%%
+    </div>
+    <div class="cell"><div class="meta"><span class="lab">Свёрнутые карточки (вариант C)</span><span class="cap">в чате строка, сама вещь — в рабочей панели</span></div>
+%%INC:_m_progress.inc%%
+%%INC:_m_piece.inc%%
+%%INC:_m_adapt.inc%%
+%%INC:_m_slot.inc%%
+    </div>
+  </div>
+</div>

@@ -45,30 +45,38 @@ export const customFetch = (
             .find((p) => p.includes('impersonate='))
             ?.split('=')[1];
 
+    /*
+     * `content-factory-next-kcxz.29` (D1): headers are one case-insensitive
+     * set, not an object spread. A caller that names its own `content-type`
+     * — the AI SDK chat transport does, in lower case — used to sit beside
+     * our `Content-Type`, and the browser sent both joined as
+     * `application/json, application/json`, which the backend's JSON parser
+     * does not recognise: every agent message arrived with no body. A
+     * `Headers` instance from a caller was dropped outright by the spread.
+     * The order of precedence is unchanged: defaults, then the caller's
+     * headers, then the session's `auth` and `impersonate`.
+     */
+    const headers = new Headers();
+    const orgHeader = showorg || authNonSecuredOrg;
+    if (orgHeader) headers.set('showorg', orgHeader);
+    if (!(options.body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
+    headers.set('Accept', 'application/json');
+    if (loggedAuth) headers.set('auth', loggedAuth);
+    new Headers(options?.headers ?? {}).forEach((value, key) =>
+      headers.set(key, value)
+    );
+    const authHeader = auth || authNonSecuredCookie;
+    if (authHeader) headers.set('auth', authHeader);
+    if (authNonSecuredImpersonate) {
+      headers.set('impersonate', authNonSecuredImpersonate);
+    }
+
     const fetchRequest = await fetch(params.baseUrl + url, {
       ...(secured ? { credentials: 'include' } : {}),
       ...(newRequestObject || options),
-      headers: {
-        ...(showorg
-          ? { showorg }
-          : authNonSecuredOrg
-          ? { showorg: authNonSecuredOrg }
-          : {}),
-        ...(options.body instanceof FormData
-          ? {}
-          : { 'Content-Type': 'application/json' }),
-        Accept: 'application/json',
-        ...(loggedAuth ? { auth: loggedAuth } : {}),
-        ...options?.headers,
-        ...(auth
-          ? { auth }
-          : authNonSecuredCookie
-          ? { auth: authNonSecuredCookie }
-          : {}),
-        ...(authNonSecuredImpersonate
-          ? { impersonate: authNonSecuredImpersonate }
-          : {}),
-      },
+      headers,
       // @ts-ignore
       ...(!options.next && options.cache !== 'force-cache'
         ? { cache: options.cache || 'no-store' }

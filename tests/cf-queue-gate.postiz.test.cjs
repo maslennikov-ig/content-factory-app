@@ -282,7 +282,12 @@ describe('PostsService queue writes from Postiz', () => {
 
     const failed = serviceWith({ 'post-1': 'ERROR', 'post-2': 'QUEUE' }, { state: 'ERROR' });
     await expect(
-      failed.service.changeDate('org-a', 'post-1', FUTURE.toISOString(), 'schedule')
+      failed.service.changeDate('org-a', 'post-1', FUTURE.toISOString(), 'schedule', [
+        'QUEUE',
+        'DRAFT',
+        'PUBLISHED',
+        'ERROR',
+      ])
     ).rejects.toMatchObject({ code: 'CF_QUEUE_BUSY' });
     expect(failed.calls.changeDate).toEqual([]);
   });
@@ -303,7 +308,13 @@ describe('PostsService queue writes from Postiz', () => {
 
   test('review F1: the write gets the gate transaction client', async () => {
     const { service, calls } = serviceWith({ 'post-1': 'DRAFT', 'post-2': 'DRAFT' }, { state: 'ERROR' });
-    await service.changeDate('org-a', 'post-1', FUTURE.toISOString(), 'schedule');
+    // The calendar route's states (`kcxz.30`): a failed card may be re-queued.
+    await service.changeDate('org-a', 'post-1', FUTURE.toISOString(), 'schedule', [
+      'QUEUE',
+      'DRAFT',
+      'PUBLISHED',
+      'ERROR',
+    ]);
     const tx = calls.changeDate[0][5];
     expect(tx && typeof tx.$queryRaw).toBe('function');
   });

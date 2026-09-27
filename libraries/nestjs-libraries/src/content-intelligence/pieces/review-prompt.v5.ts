@@ -55,6 +55,11 @@ export type ReviewPromptInput = {
    * называет эмодзи украшением, и проверка их не убирает. Нет — порог площадки.
    */
   emojiCeiling?: EmojiCeiling | null;
+  /**
+   * Строка NEVER_SAY аватара, от имени которого написана адаптация
+   * (`content-factory-next-l7tm`). Промпты до v7 её не читают.
+   */
+  neverSay?: readonly string[];
 };
 
 /**

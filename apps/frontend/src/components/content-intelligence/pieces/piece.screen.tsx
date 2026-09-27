@@ -199,6 +199,9 @@ export function PieceScreen({
   const link =
     'underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus';
 
+  // `split-container`: the tabs put their columns side by side by this
+  // section's width, not the window's (`kcxz.16`) — inside the agent's panel
+  // the piece stays one column on a wide screen.
   return (
     <section
       data-content-panel="piece"
@@ -206,7 +209,7 @@ export function PieceScreen({
       data-piece-id={piece.id}
       data-piece-tab={active}
       aria-busy={busy}
-      className="flex w-full min-w-0 flex-1 flex-col gap-[20px] p-[16px] md:p-[24px] lg:px-[32px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
+      className="split-container flex w-full min-w-0 flex-1 flex-col gap-[20px] p-[16px] md:p-[24px] lg:px-[32px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
       <nav
         aria-label={t.breadcrumbSection}
@@ -246,8 +249,15 @@ export function PieceScreen({
         {piece.archivedAt ? <Status>{t.archived}</Status> : null}
       </nav>
 
+      {/*
+        Заголовок и действия делят строку по ширине секции, а не окна
+        (`kcxz.31`, D9): в панели агента (≈560px внутри) заголовок стоит
+        своей строкой, а действия — одной строкой под ним; «Все заготовки»
+        там не повторяет хлебную крошку «Заготовки», которая ведёт туда же,
+        и «Удалить» не падает один на третью строку. От 640px — как было.
+      */}
       <div className="flex min-w-0 flex-wrap items-start gap-[16px]">
-        <h1 className="min-w-0 max-w-[60ch] flex-1 cf-heading-lg text-cf-ink [text-wrap:balance]">
+        <h1 className="min-w-0 max-w-[60ch] flex-1 basis-full cf-heading-lg text-cf-ink [text-wrap:balance] split:basis-0">
           {canWrite && onTitleSave ? (
             <Button
               variant="quiet"
@@ -276,7 +286,11 @@ export function PieceScreen({
         <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-[8px]">
           <a
             href="/content?tab=materials"
-            className={buttonClassName({ variant: 'quiet', density: 'dense' })}
+            data-piece-back="true"
+            className={clsx(
+              buttonClassName({ variant: 'quiet', density: 'dense' }),
+              'hidden split:inline-flex'
+            )}
           >
             {t.backToList}
           </a>

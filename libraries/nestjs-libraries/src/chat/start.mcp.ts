@@ -1,286 +1,60 @@
-import { INestApplication } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
-import { MCPServer } from '@mastra/mcp';
-import { randomUUID } from 'crypto';
-import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
-import { OAuthService } from '@contentfactory/nestjs-libraries/database/prisma/oauth/oauth.service';
-import { runWithContext } from './async.storage';
-import { createOAuthMiddleware } from './oauth-middleware';
-const fixAcceptHeader = (req: Request) => {
-  const value = 'application/json, text/event-stream';
-  req.headers.accept = value;
-  const idx = req.rawHeaders.findIndex((h) => h.toLowerCase() === 'accept');
-  if (idx !== -1) {
-    req.rawHeaders[idx + 1] = value;
-  } else {
-    req.rawHeaders.push('Accept', value);
-  }
+import { INestApplication, Logger } from '@nestjs/common';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
+
+/**
+ * MCP is off unless the operator turns it on (`content-factory-next-kcxz.1`).
+ * Until 26.09.2026 it was mounted on every start, with raw `app.use` past
+ * `PoliciesGuard` and the throttler, and it could publish at once and spend
+ * money on media. The agent harness rebuilds it on the capability registry
+ * (`kcxz.26`, `docs/product/agent-harness-spec.md` §4.10); until then it stays
+ * dark by default and narrow when lit.
+ */
+export const isMcpEnabled = (env: NodeJS.ProcessEnv = process.env) =>
+  env.MCP_ENABLED === 'true';
+
+/** What MCP clients show for this server; the rebuild mounts it under this name. */
+export const MCP_SERVER_INFO = {
+  name: 'Content Factory MCP',
+  version: '1.0.0',
+} as const;
+
+/** An OAuth token speaks for one member; only a writer may use MCP. */
+export const mayUseMcp = (authorization: {
+  organizationId?: string;
+  user?: {
+    activated?: boolean;
+    organizations?: {
+      organizationId: string;
+      role: string;
+      disabled: boolean;
+    }[];
+  } | null;
+}) => {
+  if (!authorization.user?.activated) return false;
+  const membership = authorization.user.organizations?.find(
+    (item) => item.organizationId === authorization.organizationId
+  );
+  return !!membership && !membership.disabled && isOrganizationEditor(membership.role);
 };
 
-export const startMcp = async (app: INestApplication) => {
-  const mastraService = app.get(MastraService, { strict: false });
-  const organizationService = app.get(OrganizationService, { strict: false });
-  const oauthService = app.get(OAuthService, { strict: false });
-
-  // MCP authenticates with the very same organization key as the public API,
-  // so it needs the same approval gate: the key is minted before anyone
-  // approves the account, and without this check MCP is a second way in for an
-  // organization `PublicAuthMiddleware` already refuses. A refusal here is
-  // indistinguishable from an unknown key on purpose — MCP has no shape for
-  // "known but not approved", and it tells an unapproved caller nothing.
-  const resolveApiKeyAuth = async (apiKey: string) => {
-    const org = await organizationService.getOrgByApiKey(apiKey);
-    if (!org?.users.some(({ user }) => user.activated)) {
-      return null;
-    }
-    return org;
-  };
-
-  const resolveAuth = async (token: string) => {
-    if (token.startsWith('pos_')) {
-      const authorization = await oauthService.getOrgByOAuthToken(token);
-      if (!authorization) return null;
-      // The token outlives the session that minted it, so blocking the account
-      // has to reach it here as well.
-      if (!authorization.user?.activated) return null;
-      return authorization.organization;
-    }
-    return resolveApiKeyAuth(token);
-  };
-
-  const mastra = await mastraService.mastra();
-  const agent = mastra.getAgent('content-factory');
-  const tools = await agent.listTools();
-
-  const serverConfig = {
-    // Display name shown by MCP clients. The agent key must stay identical to
-    // the one Mastra registers and the one the chat surface asks for.
-    name: 'Content Factory MCP',
-    version: '1.0.0',
-    tools,
-    agents: { 'content-factory': agent },
-  };
-
-  const server = new MCPServer(serverConfig);
-
-  const oauthMiddleware = createOAuthMiddleware({
-    oauth: {
-      resource: new URL('/mcp-oauth', process.env.NEXT_PUBLIC_BACKEND_URL!).toString(),
-      authorizationServers: [process.env.NEXT_PUBLIC_BACKEND_URL!],
-      validateToken: async (token: string) => {
-        const org = await resolveAuth(token);
-        if (!org) {
-          return { valid: false, error: 'invalid_token', errorDescription: 'Invalid API Key or OAuth token' };
-        }
-        return { valid: true, subject: token };
-      },
-    },
-    mcpPath: '/mcp-oauth',
-  });
-
-  if (process.env.OPENAI_APP_CHALLANGE) {
-    app.use('/.well-known/openai-apps-challenge', (req: Request, res: Response) => {
-      res.setHeader('Content-Type', 'text/plain');
-      res.send(process.env.OPENAI_APP_CHALLANGE);
-    });
+/**
+ * Fails closed until the MCP rebuild (`content-factory-next-kcxz.26`,
+ * premortem X1).
+ *
+ * The MCP server listed six of the eleven inherited upstream tools of the old
+ * agent. The conductor replaced that agent and those tools on 27.09.2026
+ * (`kcxz.7`); the MCP tools now come from the capability registry
+ * (`capabilities/mcp.adapter.ts`), mounted with per-person OAuth and a
+ * throttler by `kcxz.26`. Until then a lit `MCP_ENABLED` boots the backend,
+ * says so in the log and mounts nothing — never a server with tools that no
+ * longer exist, never a crash at boot.
+ */
+export const startMcp = async (_app: INestApplication) => {
+  if (!isMcpEnabled()) {
+    return;
   }
-
-  app.use('/.well-known/oauth-protected-resource', async (req: Request, res: Response) => {
-    const url = new URL('/.well-known/oauth-protected-resource', process.env.NEXT_PUBLIC_BACKEND_URL);
-    await oauthMiddleware(req, res, url);
-  });
-
-  app.use('/.well-known/oauth-authorization-server', async (req: Request, res: Response) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'max-age=3600');
-    res.json({
-      issuer: process.env.NEXT_PUBLIC_BACKEND_URL,
-      authorization_endpoint: `${process.env.FRONTEND_URL}/oauth/authorize`,
-      token_endpoint: `${process.env.NEXT_PUBLIC_OVERRIDE_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL}/oauth/token`,
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'],
-      code_challenge_methods_supported: ['S256'],
-      scopes_supported: ['mcp:read', 'mcp:write'],
-    });
-  });
-
-  app.use('/mcp-oauth', async (req: Request, res: Response, next: () => void) => {
-    // Skip if this is the /mcp/:id route
-    if (req.path !== '/' && req.path !== '') {
-      next();
-      return;
-    }
-
-    const url = new URL('/mcp-oauth', process.env.NEXT_PUBLIC_BACKEND_URL);
-
-    const result = await oauthMiddleware(req, res, url);
-    if (!result.proceed) return;
-
-    const token = result.tokenValidation?.subject;
-    const auth = await resolveAuth(token!);
-    if (!auth) {
-      res.status(401).json({ error: 'invalid_token', error_description: 'Could not resolve organization' });
-      return;
-    }
-
-    fixAcceptHeader(req);
-    await runWithContext({ requestId: token!, auth }, async () => {
-      await server.startHTTP({
-        url: url,
-        httpPath: url.pathname,
-        options: {
-          sessionIdGenerator: () => {
-            return randomUUID();
-          },
-          enableJsonResponse: true,
-        },
-        req,
-        res,
-      });
-    });
-  });
-
-  app.use('/mcp', async (req: Request, res: Response, next: () => void) => {
-    // Skip if this is the /mcp/:id route
-    if (req.path !== '/' && req.path !== '') {
-      next();
-      return;
-    }
-
-    // @ts-ignore
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Expose-Headers', '*');
-
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-      return;
-    }
-
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      res.status(401).send('Missing Authorization header');
-      return;
-    }
-
-    // @ts-ignore
-    req.auth = await resolveAuth(token);
-    // @ts-ignore
-    if (!req.auth) {
-      res.status(401).send('Invalid API Key or OAuth token');
-      return;
-    }
-
-    const url = new URL('/mcp', process.env.NEXT_PUBLIC_BACKEND_URL);
-
-    fixAcceptHeader(req);
-    // @ts-ignore
-    await runWithContext({ requestId: token, auth: req.auth }, async () => {
-      await server.startHTTP({
-        url,
-        httpPath: url.pathname,
-        options: {
-          sessionIdGenerator: () => {
-            return randomUUID();
-          },
-          enableJsonResponse: true,
-        },
-        req,
-        res,
-      });
-    });
-  });
-
-  app.use('/mcp/:id', async (req: Request, res: Response) => {
-    // @ts-ignore
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Expose-Headers', '*');
-
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-      return;
-    }
-
-    // @ts-ignore
-    req.auth = await resolveApiKeyAuth(req.params.id);
-    // @ts-ignore
-    if (!req.auth) {
-      res.status(400).send('Invalid API Key');
-      return;
-    }
-
-    const url = new URL(
-      `/mcp/${req.params.id}`,
-      process.env.NEXT_PUBLIC_BACKEND_URL
-    );
-
-    fixAcceptHeader(req);
-    await runWithContext(
-      // @ts-ignore
-      { requestId: req.params.id, auth: req.auth },
-      async () => {
-        await server.startHTTP({
-          url,
-          httpPath: url.pathname,
-          options: {
-            sessionIdGenerator: () => {
-              return randomUUID();
-            },
-            enableJsonResponse: true,
-          },
-          req,
-          res,
-        });
-      }
-    );
-  });
-
-  app.use(['/sse/:id', '/message/:id'], async (req: Request, res: Response) => {
-    // @ts-ignore
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Expose-Headers', '*');
-
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-      return;
-    }
-
-    // @ts-ignore
-    req.auth = await resolveApiKeyAuth(req.params.id);
-    // @ts-ignore
-    if (!req.auth) {
-      res.status(400).send('Invalid API Key');
-      return;
-    }
-
-    const url = new URL(req.originalUrl, process.env.NEXT_PUBLIC_BACKEND_URL);
-
-    await runWithContext(
-      // @ts-ignore
-      { requestId: req.params.id, auth: req.auth },
-      async () => {
-        await new MCPServer(serverConfig).startSSE({
-          url,
-          ssePath: `/sse/${req.params.id}`,
-          messagePath: `/message/${req.params.id}`,
-          req,
-          res,
-        });
-      }
-    );
-  });
+  Logger.warn(
+    'MCP_ENABLED is set, but MCP is being rebuilt on the capability registry (content-factory-next-kcxz.26): nothing is mounted.',
+    'MCP'
+  );
 };

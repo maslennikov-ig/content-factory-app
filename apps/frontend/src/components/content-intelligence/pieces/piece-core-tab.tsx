@@ -284,7 +284,7 @@ export function PieceCoreTab({
   const channelsLink = unavailable.length > 0 || channels.length === 0;
 
   return (
-    <div className="grid min-w-0 gap-[32px] lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+    <div className="grid min-w-0 gap-[32px] lg:split:grid-cols-[minmax(0,1fr)_360px] lg:split:items-start">
       <div className="flex min-w-0 flex-col gap-[16px]">
         {sent ? (
           <Panel

@@ -2123,6 +2123,46 @@ export class VoiceService {
   }
 
   /**
+   * The avatar this request is about, its voice in force and its hand-filled
+   * draft — read together because the draft belongs to the avatar.
+   *
+   * The draft pointer is looked up under the avatar's own profile id. Read
+   * space-wide, the newest pointer could be a neighbour avatar's, and that
+   * draft would collect this avatar's lines and be what activation switched
+   * on (`content-factory-next-kcxz.33`). A space with no profile yet has no
+   * id to scope by and reads space-wide, which is the only draft it can have.
+   *
+   * A named avatar that is not in the space is refused, not read as an empty
+   * form: the screen would otherwise show five blank lines for an avatar that
+   * does not exist, and the first save would create a draft pointing at
+   * nobody (`content-factory-next-kcxz.37`, F8).
+   */
+  private async manualScope(actor: VoiceActor) {
+    const { profile, activeVersion } = await this._profiles.overview(
+      actor.organizationId,
+      actor.avatarId
+    );
+    // The overview reads with drafts, and that read does not filter
+    // `deletedAt`: an avatar deleted in another tab is still found. Named and
+    // deleted is the same refusal as named and missing — otherwise its old
+    // draft is shown, the first saved line goes through `createDraft`'s
+    // restore branch and brings the avatar back, and activation can switch it
+    // on (`content-factory-next-kcxz.38`, P2-2).
+    if (actor.avatarId && (!profile || profile.deletedAt)) {
+      throw new VoiceError(
+        'VOICE_AVATAR_NOT_FOUND',
+        'Такого аватара в пространстве нет: возможно, его удалили в другой вкладке.',
+        actor.avatarId
+      );
+    }
+    const draft = await this._profiles.manualDraft(
+      actor.organizationId,
+      profile?.id ?? actor.avatarId
+    );
+    return { draft, activeVersion };
+  }
+
+  /**
    * The hand-filled voice, read.
    *
    * Nothing is written here, and that is deliberate: a `GET` that created a
@@ -2131,11 +2171,7 @@ export class VoiceService {
    * then the five empty strings are exactly the truth about what is stored.
    */
   async manualProposal(actor: VoiceActor): Promise<VoiceProposalResponseV2> {
-    const draft = await this._profiles.manualDraft(actor.organizationId);
-    const { activeVersion } = await this._profiles.overview(
-      actor.organizationId,
-      actor.avatarId
-    );
+    const { draft, activeVersion } = await this.manualScope(actor);
     const fields = draft
       ? this.fieldsFromContent(draft.content)
       : this.fieldsFromContent(this.strippedVoiceContent(null));
@@ -2164,12 +2200,9 @@ export class VoiceService {
       );
     }
 
-    const { activeVersion } = await this._profiles.overview(
-      actor.organizationId,
-      actor.avatarId
-    );
+    const { draft: found, activeVersion } = await this.manualScope(actor);
     const draft =
-      (await this._profiles.manualDraft(actor.organizationId)) ??
+      found ??
       (await this._profiles.createManualDraft(
         actor.organizationId,
         actor.userId,
@@ -2204,29 +2237,12 @@ export class VoiceService {
     actor: VoiceActor,
     body: VoiceProposalActivateRequestV1 & { version?: 2 }
   ): Promise<VoicePassportResponseV1> {
-    const draft = await this._profiles.manualDraft(actor.organizationId);
-    if (!draft) {
-      throw new VoiceError(
-        'VOICE_PROFILE_NOT_FOUND',
-        'Ручной голос ещё не начат: заполните строки и сохраните их.'
-      );
-    }
+    const { draft, activeVersion } = await this.manualScope(actor);
+    const blocker = this.manualBlocker(draft, body.version);
+    if (blocker || !draft) throw blocker;
 
     const fields = this.fieldsFromContent(draft.content);
-    const required = body.version === 2 ? PROFILE_FIELDS_V2 : PROFILE_FIELDS;
-    const missing = required.filter((key) => !fields[key].trim());
-    if (missing.length) {
-      throw new VoiceError(
-        'VOICE_FIELDS_INCOMPLETE',
-        `Голос нельзя включить, пока пусто строк: ${missing.length}. Заполните их и повторите.`,
-        missing.join(', ')
-      );
-    }
 
-    const { activeVersion } = await this._profiles.overview(
-      actor.organizationId,
-      actor.avatarId
-    );
     await this._profiles.updateDraft(
       actor.organizationId,
       actor.userId,
@@ -2245,6 +2261,97 @@ export class VoiceService {
     );
 
     return this.passport(actor);
+  }
+
+  /** The manual path of `activateProposal`: the name gate, then the draft. */
+  private async activateManualNamed(
+    actor: VoiceActor,
+    body: VoiceProposalActivateRequestV1 & { version?: 2 }
+  ): Promise<VoicePassportResponseV1> {
+    if (body.version === 2 && !body.avatarName?.trim()) {
+      throw new VoiceError(
+        'VOICE_FIELDS_INCOMPLETE',
+        'Аватар нельзя включить без имени. Напишите имя и повторите.'
+      );
+    }
+    const passport = await this.activateManual(actor, body);
+    await this.nameAvatar(actor, body.avatarName);
+    return passport;
+  }
+
+  /**
+   * Why the hand-filled draft cannot be switched on, or `null` when it can.
+   * One decision for the activation and for the readiness question the agent
+   * asks before it shows the consent card (`content-factory-next-kcxz.29`,
+   * D7).
+   */
+  private manualBlocker(
+    draft: Awaited<ReturnType<VoiceProfileRepository['manualDraft']>>,
+    version?: number
+  ): VoiceError | null {
+    if (!draft) {
+      return new VoiceError(
+        'VOICE_PROFILE_NOT_FOUND',
+        'Ручной голос ещё не начат: заполните строки и сохраните их.'
+      );
+    }
+    const fields = this.fieldsFromContent(draft.content);
+    const required = version === 2 ? PROFILE_FIELDS_V2 : PROFILE_FIELDS;
+    const missing = required.filter((key) => !fields[key].trim());
+    if (missing.length) {
+      return new VoiceError(
+        'VOICE_FIELDS_INCOMPLETE',
+        `Голос нельзя включить, пока пусто строк: ${missing.length}. Заполните их и повторите.`,
+        missing.join(', ')
+      );
+    }
+    return null;
+  }
+
+  /** The analysed proposal's own blockers: none to activate, or no portrait. */
+  private proposalBlocker(
+    proposal: Awaited<ReturnType<VoiceService['latestWithProposal']>>['proposal'],
+    usesV2: boolean
+  ): VoiceError | null {
+    if (!proposal) {
+      return new VoiceError(
+        'VOICE_PROFILE_NOT_FOUND',
+        'Предложения голоса нет: сначала запустите разбор.'
+      );
+    }
+    // Read and activation must agree on a legacy portrait. Older rows used
+    // `PROPOSED`; `proposal()` already presents every non-editing portrait as
+    // accepted. Treat the same non-empty value as ready here, while an absent,
+    // blank or actively edited portrait remains unfinished.
+    if (
+      usesV2 &&
+      (!proposal.portrait?.text.trim() || proposal.portrait.status === 'EDITING')
+    ) {
+      return new VoiceError(
+        'VOICE_FIELDS_INCOMPLETE',
+        'Аватар нельзя включить, пока портрет не готов. Завершите правку портрета и повторите.'
+      );
+    }
+    return null;
+  }
+
+  /**
+   * Whether the avatar could be switched on now — everything
+   * `activateProposal` checks except the consent and the name, which the
+   * person gives on the card. `null` when it could; the refusal otherwise.
+   * Asked by the agent before it shows the consent card, so a person is not
+   * asked to consent to something that will then fail (kcxz.29, D7).
+   */
+  async activationBlocker(
+    actor: VoiceActor,
+    mode: VoiceProposalModeV1 = 'assist'
+  ): Promise<VoiceError | null> {
+    this.assertCanManage(actor);
+    if (mode === 'manual') {
+      return this.manualBlocker((await this.manualScope(actor)).draft, 2);
+    }
+    const { measurement, proposal } = await this.latestWithProposal(actor);
+    return this.proposalBlocker(measurement ? proposal : null, true);
   }
 
   /**
@@ -2295,25 +2402,25 @@ export class VoiceService {
     // in a single place. What differs after this line is only where the five
     // fields came from.
     const mode: VoiceProposalModeV1 = body.mode ?? 'assist';
-    if (mode === 'manual') {
-      if (body.version === 2 && !body.avatarName?.trim()) {
-        throw new VoiceError(
-          'VOICE_FIELDS_INCOMPLETE',
-          'Аватар нельзя включить без имени. Напишите имя и повторите.'
-        );
-      }
-      const passport = await this.activateManual(actor, body);
-      await this.nameAvatar(actor, body.avatarName);
-      return passport;
-    }
+    if (mode === 'manual') return this.activateManualNamed(actor, body);
 
-    const { measurement, proposal } = await this.latestWithProposal(actor);
-    if (!measurement || !proposal) {
-      throw new VoiceError(
-        'VOICE_PROFILE_NOT_FOUND',
-        'Предложения голоса нет: сначала запустите разбор.'
-      );
+    const { measurement, proposal: found } = await this.latestWithProposal(actor);
+    const missing = this.proposalBlocker(measurement ? found : null, false);
+    // A request that did not name its path, for an avatar that has no
+    // analysis to activate but does have a hand-filled draft, means that
+    // draft: it is the only voice this avatar could be switched on with, and
+    // «сначала запустите разбор» would be a false instruction to somebody
+    // who chose to write the lines by hand (`content-factory-next-kcxz.33`).
+    // A named `mode: 'assist'` keeps its own refusal.
+    if (
+      missing &&
+      !body.mode &&
+      (await this.manualScope(actor)).draft
+    ) {
+      return this.activateManualNamed(actor, body);
     }
+    if (missing || !measurement || !found) throw missing;
+    const proposal = found;
     // The request opts into the new gates. The marker tells reads which stored
     // shape they have, but an older client must still be able to finish the
     // V1 flow it started against a freshly upgraded server.
@@ -2324,19 +2431,8 @@ export class VoiceService {
         'Аватар нельзя включить без имени. Напишите имя и повторите.'
       );
     }
-    // Read and activation must agree on a legacy portrait. Older rows used
-    // `PROPOSED`; `proposal()` already presents every non-editing portrait as
-    // accepted. Treat the same non-empty value as ready here, while an absent,
-    // blank or actively edited portrait remains unfinished.
-    if (
-      usesV2 &&
-      (!proposal.portrait?.text.trim() || proposal.portrait.status === 'EDITING')
-    ) {
-      throw new VoiceError(
-        'VOICE_FIELDS_INCOMPLETE',
-        'Аватар нельзя включить, пока портрет не готов. Завершите правку портрета и повторите.'
-      );
-    }
+    const portrait = this.proposalBlocker(proposal, usesV2);
+    if (portrait) throw portrait;
 
     const { activeVersion } = await this._profiles.overview(
       actor.organizationId,

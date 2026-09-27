@@ -30,6 +30,7 @@ import {
   searchRouteFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import { currentUsageLedger } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import {
   ContentLanguage,
   contentLanguageNames,
@@ -525,6 +526,8 @@ interface SearchResult {
     nonCitableSnippet?: string;
     score?: number;
   }>;
+  /** What the engine reported this request cost (`ia7s`). */
+  usage?: { costUsd?: number; credits?: number };
 }
 
 interface ProviderSearchResult {
@@ -537,6 +540,45 @@ type SearchAttempt = (
   provider: SearchProvider,
   invoke: () => Promise<SearchResult>
 ) => Promise<SearchResult>;
+
+/**
+ * One search request, written to the usage ledger of the operation it runs in
+ * (`content-factory-next-ia7s`, D15 of the W2 walk: the `web_research` row
+ * carried neither tokens nor cost). What the engine reported is kept as it
+ * reported it; a request that reached the engine and failed is counted too,
+ * and one abandoned at the deadline may have been billed.
+ *
+ * OpenRouter is skipped: its web plugin is a text call, and the shared
+ * transport has already recorded its tokens and cost.
+ */
+const meteredSearch = async (
+  provider: SearchProvider,
+  invoke: () => Promise<SearchResult>
+): Promise<SearchResult> => {
+  if (provider === 'openrouter') return invoke();
+  try {
+    const response = await invoke();
+    const usage = response?.usage;
+    currentUsageLedger()?.recordSearch({
+      engine: provider,
+      ...(typeof usage?.costUsd === 'number' ? { costUsd: usage.costUsd } : {}),
+      ...(typeof usage?.credits === 'number' ? { credits: usage.credits } : {}),
+    });
+    return response;
+  } catch (error) {
+    const timedOut = error instanceof WebSearchDeadlineExceeded;
+    // A refusal before any request (no key, search off) carries no status
+    // and cost nothing; it is not a request.
+    if (timedOut || errorStatus(error) !== undefined) {
+      currentUsageLedger()?.recordSearch({
+        engine: provider,
+        failed: true,
+        possiblyBilled: timedOut,
+      });
+    }
+    throw error;
+  }
+};
 
 /**
  * What the classifier reads, and what identifies the answer in the cache.
@@ -1367,6 +1409,7 @@ Summary: {summary}`
                   callback,
                   'research'
                 ),
+              track: <T>(callback: () => T) => callback(),
               finish: async () => undefined,
             } as UsageScope);
         const tracked: { scope: UsageScope; succeeded: boolean; error?: unknown } = { scope, succeeded: false };
@@ -1387,7 +1430,9 @@ Summary: {summary}`
     const attempt: SearchAttempt = async (provider, invoke) => {
       const tracked = await scopeFor(provider);
       try {
-        const response = await tracked.scope.run(invoke);
+        const response = await tracked.scope.run(() =>
+          meteredSearch(provider, invoke)
+        );
         tracked.succeeded = true;
         return response;
       } catch (error) {
@@ -1398,19 +1443,42 @@ Summary: {summary}`
 
     // Gate the primary source before classification or any provider work. A
     // fallback opens its own source lazily in `attempt`.
-    await scopeFor(primary);
+    const primaryScope = await scopeFor(primary);
     try {
-      const result = await withActiveAiConfig(
-        organizationId,
-        config,
-        () =>
-          this.researchWithinOperation(
-            organizationId,
-            subject,
-            { ...options, level, levelWasExplicit },
-            attempt
-          ),
-        'research'
+      // The classifier and the summary run on the generation key, and their
+      // tokens are part of this search (`content-factory-next-ia7s`): they are
+      // billed to the primary row. Search requests inside `attempt` still go
+      // to the row of the credential that made them.
+      //
+      // Only when the generation key comes from the same source as the
+      // search credential, though (`content-factory-next-kcxz.38`, P2-3). The
+      // row's `usageMode` is the search credential's; an own Tavily key with
+      // the included model key would otherwise put included model spend on a
+      // `workspace_key` row (and the reverse), and `costUsd` would add
+      // OpenRouter dollars to Exa dollars under a credential that paid only
+      // for one of them. With different sources the model calls stay where
+      // they went before ia7s: on the ledger of the operation that asked for
+      // the search, whose admission is the generation key's own.
+      const generationSource: SearchCredentialSource =
+        config.usageMode === 'workspace_key' ? 'own' : 'system';
+      const primarySource = credentialFor(primary)?.source;
+      const track =
+        (primarySource === generationSource
+          ? primaryScope.scope.track
+          : undefined) ?? (<T>(callback: () => T) => callback());
+      const result = await track(() =>
+        withActiveAiConfig(
+          organizationId,
+          config,
+          () =>
+            this.researchWithinOperation(
+              organizationId,
+              subject,
+              { ...options, level, levelWasExplicit },
+              attempt
+            ),
+          'research'
+        )
       );
       this.cache.set(key, result);
       return result;

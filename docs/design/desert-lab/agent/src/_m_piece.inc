@@ -1,0 +1,1 @@
+<div class="kc mini"><span class="kind">%%doc%%Заготовка</span><span class="sm" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Короткая неделя без потери темпа</span><span class="pill ok">ядро</span><span class="btn quiet dense">Справа%%right%%</span></div>

@@ -151,7 +151,6 @@ const EDITOR_DOORS = [
   ['POST', '/sets', 'создать набор'],
   ['POST', '/signatures', 'создать подпись'],
   ['POST', '/autopost', 'завести правило автопоста'],
-  ['POST', '/copilot/agent', 'позвать помощника'],
   ['POST', '/copilot/chat', 'говорить с помощником'],
   [
     'PUT',
@@ -176,7 +175,14 @@ const ADMIN_DOORS = [
 
 const READ_DOORS = [
   ['GET', '/content-intelligence/facts', 'смотреть факты'],
-  ['GET', '/copilot/list', 'смотреть разговоры с помощником'],
+  // The agent chat is every member's (`content-factory-next-kcxz.8`): what a
+  // member may do in it is decided per action by the action's own door, and
+  // the threads are the caller's own.
+  ['POST', '/agent/chat', 'говорить с агентом'],
+  ['GET', '/agent/threads', 'смотреть свои разговоры с агентом'],
+  ['GET', '/agent/threads/:id', 'открыть свой разговор'],
+  ['PATCH', '/agent/threads/:id', 'переименовать свой разговор'],
+  ['DELETE', '/agent/threads/:id', 'удалить свой разговор'],
 ];
 
 describe('the editor writes what the workspace publishes', () => {

@@ -48,6 +48,7 @@ import {
   VoiceVersionRestoreDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/brand-voice.dto';
 import {
+  VOICE_ERROR_CODES,
   VOICE_SAMPLE_FILES_FIELD,
   VOICE_SAMPLE_FILE_LIMITS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -137,6 +138,31 @@ function streamErrorCode(error: unknown): string {
 const canManageVoice = (organization: RequestOrganization): boolean =>
   isOrganizationEditor(organization.users?.[0]?.role);
 
+/**
+ * Avatars are `ProjectBrandProfile` rows, whose ids are UUIDs.
+ *
+ * Checked at the door rather than left to the database: a screen that lost
+ * its avatar id sends `?avatar=undefined`, and Postgres refusing that string
+ * as a uuid used to surface as a bare 500 (`content-factory-next-kcxz.33`).
+ * An id that cannot name an avatar is answered the way an id naming nobody's
+ * avatar already is — `VOICE_AVATAR_NOT_FOUND` — so the screen has one code
+ * to branch on, on the status the contract table gives it.
+ */
+const AVATAR_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+function assertAvatarId(avatarId: string): void {
+  if (AVATAR_ID.test(avatarId)) return;
+  throw new HttpException(
+    {
+      code: 'VOICE_AVATAR_NOT_FOUND',
+      message:
+        'Такого аватара в пространстве нет: адрес не называет ни одного аватара.',
+      subject: avatarId.slice(0, 64),
+    },
+    VOICE_ERROR_CODES.VOICE_AVATAR_NOT_FOUND.status
+  );
+}
+
 @ApiTags('Content intelligence · brand voice')
 @Controller('/content-intelligence/voice')
 export class BrandVoiceController {
@@ -160,6 +186,7 @@ export class BrandVoiceController {
     user?: Pick<User, 'id'>,
     avatarId?: string
   ): VoiceActor {
+    if (avatarId) assertAvatarId(avatarId);
     return {
       organizationId: organization.id,
       userId: user?.id ?? '',

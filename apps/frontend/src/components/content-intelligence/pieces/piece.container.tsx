@@ -46,12 +46,15 @@ import {
   PIECE_TAB_CORE,
   PieceContractError,
   adaptOverrides,
+  adaptationPlace,
   buildAdaptPayload,
   buildAdaptationPatch,
+  DROP_RESERVE,
   buildPostSettingsPayload,
   buildSchedulePayload,
   calendarPath,
   channelOfTab,
+  fetchPieceDetail,
   findSlotUrl,
   pieceTabPath,
   platformName,
@@ -59,7 +62,6 @@ import {
   postOptionsFrom,
   readAdaptEvent,
   readAdaptationPatch,
-  readPieceDetail,
   readPieceTab,
   readPieceWhen,
   readPostSettingsResponse,
@@ -143,11 +145,24 @@ export function PieceContainer({
   adaptPlatform,
   /** `?when=` — дата слота календаря для черновика вкладки `initialTab` (`97dq.50`). */
   initialWhen,
+  /**
+   * Заготовка открыта не своей страницей, а панелью рядом с чатом агента
+   * (`kcxz.10`): вкладка не переписывает адрес, иначе адрес чата сменился бы
+   * на адрес заготовки.
+   */
+  embedded = false,
+  /**
+   * Адаптация, которую открыли из чата (`kcxz.31`): вкладка её канала и её
+   * вариант, когда карточка не назвала канал.
+   */
+  initialAdaptation,
 }: {
   pieceId: string;
   initialTab?: string;
+  initialAdaptation?: string;
   adaptPlatform?: string;
   initialWhen?: string;
+  embedded?: boolean;
 }) {
   const request = useFetch();
   const t = useT();
@@ -161,14 +176,7 @@ export function PieceContainer({
   const url = PIECES_API.detail(pieceId);
   const detail = useSWR<PieceWorkspaceV1>(
     url,
-    async () => {
-      const response = await request(url);
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(refusalMessage(body) || 'piece unavailable');
-      }
-      return readPieceDetail(await response.json());
-    },
+    () => fetchPieceDetail(request, pieceId),
     { revalidateOnFocus: false }
   );
 
@@ -192,10 +200,10 @@ export function PieceContainer({
   const changeTab = useCallback(
     (next: string) => {
       setTab(next);
-      if (typeof window !== 'undefined')
+      if (!embedded && typeof window !== 'undefined')
         window.history.replaceState(null, '', pieceTabPath(pieceId, next));
     },
-    [pieceId]
+    [embedded, pieceId]
   );
 
   /* ---- Стрим адаптации ---------------------------------------------------- */
@@ -387,6 +395,23 @@ export function PieceContainer({
     () => (data ? workspaceChannels(data) : []),
     [data]
   );
+
+  /*
+    Адаптация, открытая из чата по одному id (`kcxz.31`, D8): её вкладка и
+    её вариант, а не «Суть» и не свежая версия канала. Один раз, при первом
+    знании каналов, — дальше вкладку выбирает человек.
+  */
+  useEffect(() => {
+    if (!initialAdaptation || !channels.length) return;
+    const place = adaptationPlace(channels, initialAdaptation);
+    if (!place) return;
+    setChosenVersion((current) => ({
+      ...current,
+      [place.channel.id]: initialAdaptation,
+    }));
+    if (tab === PIECE_TAB_CORE) changeTab(place.channel.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAdaptation, channels.length]);
 
   // Старый адрес `?adapt=<площадка>` — во вкладку первого канала площадки.
   useEffect(() => {
@@ -1844,7 +1869,13 @@ export function PieceContainer({
         onSchedule={() => adaptation && void schedule(adaptation, false, at)}
         onPublishNow={() => adaptation && void schedule(adaptation, true, at)}
         onUnschedule={() => adaptation && void unschedule(adaptation)}
-        onDropPlan={() => void changePostPlan(channel.id, 'draft')}
+        onDropPlan={() =>
+          void changePostPlan(
+            channel.id,
+            DROP_RESERVE.planMode,
+            DROP_RESERVE.expectedChannelMode
+          )
+        }
         onMove={() => adaptation && void move(adaptation, at)}
       />
     );

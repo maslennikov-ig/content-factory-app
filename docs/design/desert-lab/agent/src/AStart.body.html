@@ -1,0 +1,22 @@
+<div class="shell" style="width:1440px;height:900px">
+%%INC:_nav.inc%%
+<aside class="threads" aria-label="Разговоры">
+  <div class="row" style="padding:16px 16px 12px"><span class="h3">Разговоры</span><span class="sp"></span><span class="btn secondary dense">%%plus%%Новый</span></div>
+  <div class="col" style="padding:0 8px;gap:2px"><div class="th on"><span class="t">Новый разговор</span><span class="cap">сейчас</span></div></div>
+  <span class="sp"></span>
+  <span class="cap" style="padding:16px">Разговоры видите только вы. Аватары, заготовки и план — общие для пространства.</span>
+</aside>
+<main class="col" style="flex:1;min-width:0">
+  <div class="topbar"><span class="lm">Новый разговор</span><span class="sp"></span>%%INC:_allow_line.inc%%</div>
+  <div class="col" style="flex:1;padding:56px 24px 24px;align-items:center">
+    <div class="col" style="width:100%;max-width:760px;gap:24px;flex:1">
+      <div class="ai"><span class="mark">Cf</span><div class="say"><span class="h2">С чего начнём?</span><p class="muted">Пространство пока пустое. Предлагаем по порядку — любое можно сказать своими словами.</p></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+%%INC:_starters.inc%%
+      </div>
+      <span class="sp"></span>
+%%INC:_composer.inc%%
+    </div>
+  </div>
+</main>
+</div>

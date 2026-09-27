@@ -1,0 +1,1 @@
+  <div class="topbar" style="padding:0 16px"><span class="btn quiet dense" style="padding:0 8px;font-weight:650">%%TITLE%%%%chev%%</span><span class="sp"></span><span class="btn quiet dense icon" aria-label="Новый разговор">%%plus%%</span></div>

@@ -37,3 +37,15 @@ export const reviewConflict = () =>
     409,
     'Черновик изменился после проверки или уже не является черновиком. Откройте актуальный текст и повторите проверку.'
   );
+
+/**
+ * Whether a write may put a post into the queue by itself (correctness
+ * review W2 F2). The screens' doors may: a person pressed the button there.
+ * The agent chat passes `false` unless the person consented on this very call
+ * — the mode is re-read under the channel lock, so a channel switched to
+ * autopilot between the chat's check and the write keeps a reserve instead.
+ */
+export type QueueConsentV1 = { queueAllowed?: boolean };
+
+/** A placement refused because the queue needs the person's consent (409). */
+export const ADAPTATION_QUEUE_NEEDS_CONSENT = 'ADAPTATION_QUEUE_NEEDS_CONSENT';

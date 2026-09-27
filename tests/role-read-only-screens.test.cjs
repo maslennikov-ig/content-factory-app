@@ -60,7 +60,7 @@ const translation = {
 
 const MENU = 'apps/frontend/src/components/launches/menu/menu.tsx';
 const MEDIA = 'apps/frontend/src/components/media/media.component.tsx';
-const AGENT = 'apps/frontend/src/components/agents/agent.tsx';
+const AGENT_LAYOUT = 'apps/frontend/src/app/(app)/(site)/agents/layout.tsx';
 const TOP_MENU = 'apps/frontend/src/components/layout/top.menu.tsx';
 const WRITE_RIGHT =
   'apps/frontend/src/components/content-intelligence/content-write-right.tsx';
@@ -350,61 +350,42 @@ describe('fn33.90.9 и .90.12 — библиотека медиа читаетс
 
 /* ----------------------------------------------------------------- агент */
 
-const loadAgent = (role) =>
-  loadWithMocks(AGENT, {
-    react: React,
-    clsx: require('clsx'),
-    lodash: require('lodash'),
-    swr: { __esModule: true, default: () => ({ data: [] }) },
-    'react-use-cookie': { __esModule: true, default: () => ['0', () => {}] },
-    'next/link': { __esModule: true, default: Empty },
-    'next/navigation': {
-      useParams: () => ({}),
-      usePathname: () => '/agents',
-      useRouter: () => ({ push: () => {} }),
-    },
-    ...translation,
-    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => () => {} },
-    '@contentfactory/helpers/utils/use.wait.for.class': {
-      useWaitForClass: () => false,
-    },
-    '@contentfactory/react/platform/platform.badge': stub,
-    '@contentfactory/react/platform/platform.symbol': stub,
-    '@contentfactory/react/layout': { OpeningBand: Empty },
-    '@contentfactory/frontend/components/media/media.component': stub,
-    '@contentfactory/frontend/components/launches/launches.component': {
-      SVGLine: Empty,
-    },
-    '@contentfactory/frontend/components/layout/user.context': {
-      useUser: () => ({ role }),
-    },
-  });
-
-describe('fn33.90.6 — экран агента объясняет отказ вместо двух тихих 403', () => {
-  test('Пользователь видит объяснение, а не пустой чат', async () => {
-    const { Agent } = loadAgent('USER');
-    await act(async () => {
-      render(h(Agent, null, h('div', null, 'чат')));
+/*
+ * С `content-factory-next-kcxz.29` (D3, решение владельца 27.09.2026) агент —
+ * для любого участника: дверь чата предлагает роли только то, что роль может,
+ * и отвечает Пользователю, кто сделает остальное. Отказ `fn33.90.6` был
+ * написан для старого экрана, у которого такой двери не было.
+ */
+describe('kcxz.29 D3 — с агентом говорит любой участник', () => {
+  test('экран «Агент» рисуется без проверки роли', async () => {
+    const AgentScreen = () => h('div', null, 'чат');
+    const { default: Layout } = loadWithMocks(AGENT_LAYOUT, {
+      react: React,
+      '@contentfactory/frontend/app/page-title': { pageTitle: () => () => ({}) },
+      '@contentfactory/frontend/components/agents/agent.screen': { AgentScreen },
     });
-
-    expect(document.body.textContent).toContain('The agent writes posts');
-    expect(document.body.textContent).toContain('editor role');
-    // Обстановка вокруг пустоты не рисуется: разговора нет, значит нет и
-    // ленты разговоров.
-    expect(document.body.textContent).not.toContain('чат');
-  });
-
-  test.each([['EDITOR'], ['ADMIN']])('%s получает чат', async (role) => {
-    const { Agent } = loadAgent(role);
     await act(async () => {
-      render(h(Agent, null, h('div', null, 'чат')));
+      render(await Layout({ children: null }));
     });
 
     expect(document.body.textContent).toContain('чат');
-    expect(document.body.textContent).not.toContain('The agent writes posts');
+    expect(source(AGENT_LAYOUT)).not.toMatch(/useUser|isOrganizationEditor|RestrictedState/);
+    expect(
+      fs.existsSync(path.join(root, 'apps/frontend/src/components/agents/agent.tsx'))
+    ).toBe(false);
   });
 
-  test('пункт «Агент» в левом меню Пользователю не показывается', () => {
+  test('пункт «Агент» в левом меню виден Пользователю', () => {
+    const menu = source(TOP_MENU);
+    const item = menu.slice(
+      menu.indexOf("name: t('agent', 'Agent')"),
+      menu.indexOf("name: t('analytics', 'Analytics')")
+    );
+    expect(item).toContain("path: '/agents'");
+    expect(item).not.toContain('requireEditor');
+  });
+
+  test('пункт с requireEditor по-прежнему скрыт от Пользователя', () => {
     const { filterMenu } = loadWithMocks(TOP_MENU, {
       react: React,
       ...translation,
@@ -413,7 +394,7 @@ describe('fn33.90.6 — экран агента объясняет отказ в
       },
     });
 
-    const items = [{ name: 'Agent', path: '/agents', requireEditor: true }];
+    const items = [{ name: 'Editor only', path: '/x', requireEditor: true }];
     expect(filterMenu(items, { role: 'USER' }, false)).toHaveLength(0);
     expect(filterMenu(items, { role: 'EDITOR' }, false)).toHaveLength(1);
     expect(filterMenu(items, { role: 'ADMIN' }, false)).toHaveLength(1);

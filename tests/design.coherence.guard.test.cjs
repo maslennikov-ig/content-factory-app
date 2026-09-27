@@ -214,10 +214,6 @@ const DEAD_KEYS_ALLOWED = {
   'apps/frontend/src/components/content-intelligence/intake/intake.copy.ts': [
     'channelsHint',
     'channelsLabel',
-    'factConflicting',
-    'factNotFound',
-    'factUnverified',
-    'factVerified',
     'factsRestOn',
     'formatAuto',
     'readOnlyTitle',

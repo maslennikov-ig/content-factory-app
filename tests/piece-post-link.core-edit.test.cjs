@@ -155,9 +155,11 @@ const build = (options = {}) => {
         calls.metadata.push(input);
         piece.brief = JSON.parse(JSON.stringify(input.brief));
       },
-      updateCore: async () => {
-        throw new Error('not used here');
-      },
+      updateCore:
+        options.updateCore?.(piece) ??
+        (async () => {
+          throw new Error('not used here');
+        }),
     },
     null,
     null,
@@ -546,7 +548,7 @@ describe('the core is editable after creation, and nothing regenerates silently'
     expect(modelCalls).toHaveLength(1);
     expect(calls.usage).toEqual([['org-a', 'intake', 'draft']]);
     expect(modelCalls[0].prompt).toContain('Клиент звонил в пятницу.');
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v16');
     expect(piece.body).toBe('Суть по всему материалу.');
     expect(piece.brief.materialPending).toBeUndefined();
     // The replaced text had not read the added words: that wait is recorded with it.
@@ -613,7 +615,7 @@ describe('«Пересобрать суть» keeps the decisions and the author
     await service.rebuildCore('org-a', 'piece-1', 'ru');
     const prompt = modelCalls[0].prompt;
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v16');
     // The rule and the block of the previous core, paragraph by paragraph.
     expect(prompt).toContain('A separate rule about the rebuild');
     expect(prompt).toContain('THE PREVIOUS CORE (the text on the page now');
@@ -895,5 +897,98 @@ describe('«Вернуть эту версию»: the wait, the cap and the runn
     release({ text: 'Пересобранная суть.' });
     await running;
     expect(piece.body).toBe('Пересобранная суть.');
+  });
+});
+
+/* ---- kcxz.37 (F9): «Решите за меня» on everything closes the link -------- */
+
+describe('«Решите за меня» on every question answers the link question «Без ссылки» (kcxz.37)', () => {
+  const ASKED = {
+    ...CORE_BRIEF,
+    questions: {
+      round: 1,
+      items: [{ field: 'facts', key: 'ask-1', question: 'Какой случай был у вас?' }],
+      answered: [],
+    },
+  };
+  // The door's write: the row takes what it is given, as the repository does.
+  const writes = (piece) => async (organizationId, pieceId, input) => {
+    Object.assign(piece, { body: input.body, brief: JSON.parse(JSON.stringify(input.brief)) });
+  };
+  const drain = async (service, request) => {
+    const plan = await service.prepareAnswer('org-a', 'piece-1', request, 'ru');
+    const events = [];
+    for await (const event of service.answer('org-a', plan, 'user-1')) events.push(event);
+    return events;
+  };
+
+  test('everything handed over: the asked link question closes with no link, and no model is called', async () => {
+    const { service, piece } = build({ brief: ASKED, updateCore: writes });
+    const events = await drain(service, {});
+
+    expect(events.map((event) => event.name)).toContain('piece');
+    expect(piece.brief.postLink).toEqual({ url: null, origin: 'author', answeredAt: NOW.toISOString() });
+    expect((await service.detail('org-a', 'piece-1', 'ru')).linkQuestion).toBe(false);
+    // The author's own case stays a gap: nothing written for it, nothing paid.
+    expect(modelCalls).toEqual([]);
+  });
+
+  test('a link the person gave stays as it is', async () => {
+    const given = { url: 'https://example.com/offer', origin: 'author', answeredAt: '2026-09-20T00:00:00.000Z' };
+    const { service, piece } = build({ brief: { ...ASKED, postLink: given }, updateCore: writes });
+    await drain(service, {});
+    expect(piece.brief.postLink).toEqual(given);
+  });
+
+  test('an answer in the person’s words leaves the link question to them', async () => {
+    const { service, piece } = build({
+      brief: ASKED,
+      updateCore: writes,
+      models: [{ text: 'Суть с их случаем.' }],
+    });
+    await drain(service, { answers: [{ field: 'facts', key: 'ask-1', text: 'Сорвали релиз в марте.' }] });
+    expect(piece.brief.postLink).toBeUndefined();
+    expect((await service.detail('org-a', 'piece-1', 'ru')).linkQuestion).toBe(true);
+  });
+
+  test('an explicit decide naming every open question is «all» too (kcxz.38, P3-4)', async () => {
+    const both = {
+      ...ASKED,
+      questions: {
+        ...ASKED.questions,
+        items: [...ASKED.questions.items, { field: 'audience', question: 'Для кого пост?' }],
+      },
+    };
+    const { service, piece } = build({ brief: both, updateCore: writes, models: [{ text: 'Суть.', decisions: [] }] });
+    await drain(service, { decide: ['audience'] });
+    expect(piece.brief.postLink).toEqual({ url: null, origin: 'author', answeredAt: NOW.toISOString() });
+  });
+
+  test('a decide naming only some open questions leaves the link to the person (kcxz.38, P3-4)', async () => {
+    const both = {
+      ...ASKED,
+      questions: {
+        ...ASKED.questions,
+        items: [
+          ...ASKED.questions.items,
+          { field: 'audience', question: 'Для кого пост?' },
+          { field: 'goal', question: 'Зачем этот пост?' },
+        ],
+      },
+    };
+    const { service, piece } = build({ brief: both, updateCore: writes, models: [{ text: 'Суть.', decisions: [] }] });
+    await drain(service, { decide: ['audience'] });
+    expect(piece.brief.postLink).toBeUndefined();
+  });
+
+  test('no channel takes links: nothing is answered for a question nobody was asked', async () => {
+    const none = { version: 'channel-writing-profile/v1', linkPolicy: 'none' };
+    const { service, piece } = build({
+      brief: ASKED,
+      updateCore: writes,
+      integrations: [channel('int-tg', 'telegram', none)],
+    });
+    await drain(service, {});
+    expect(piece.brief.postLink).toBeUndefined();
   });
 });

@@ -51,6 +51,7 @@ const AI_ROLES = [
   'judge',
   'review',
   'image',
+  'agent',
 ] as const;
 
 type AiRole = (typeof AI_ROLES)[number];
@@ -292,6 +293,58 @@ export const buildAiSettingsPayload = ({
       ? { searchApiKeys: typedSearchKeys }
       : {}),
   };
+};
+
+/** The settings the door answers with, as much of them as a key save needs. */
+export type StoredAiSettings = Partial<
+  Pick<
+    AiSettings,
+    | 'usageMode'
+    | 'provider'
+    | 'textModel'
+    | 'imageModel'
+    | 'roleModels'
+    | 'searchEnabled'
+    | 'searchTopic'
+    | 'searchDepth'
+  >
+>;
+
+export type TypedKey =
+  | { field: 'workspace-key'; key: string }
+  | { field: 'search-key'; engine: KeyedSearchProvider; key: string };
+
+/**
+ * One key, saved through the same payload this screen sends — for the agent's
+ * key card (`content-factory-next-kcxz.10`), which posts a key straight to
+ * this door so it never passes through the chat.
+ *
+ * The door takes the whole settings, so everything else goes back as stored.
+ * A workspace key means the workspace runs on its own key; when it ran on the
+ * included one, the models shown were the operator's and are not sent (the
+ * `75xn.4` rule above), so the provider's defaults apply.
+ */
+export const buildTypedKeyPayload = (
+  stored: StoredAiSettings,
+  typed: TypedKey
+) => {
+  const ownKey = typed.field === 'workspace-key';
+  const usageMode: UsageMode = ownKey
+    ? 'workspace_key'
+    : stored.usageMode ?? 'included';
+  const keepModels = stored.usageMode === 'workspace_key';
+  return buildAiSettingsPayload({
+    usageMode,
+    provider: stored.provider ?? 'openai',
+    apiKey: ownKey ? typed.key : '',
+    textModel: keepModels ? stored.textModel ?? '' : '',
+    imageModel: keepModels ? stored.imageModel ?? '' : '',
+    roleModels: keepModels ? stored.roleModels ?? {} : {},
+    searchEnabled: stored.searchEnabled ?? true,
+    searchApiKeys: ownKey ? {} : { [typed.engine]: typed.key },
+    searchTopic: stored.searchTopic ?? 'general',
+    searchDepth: stored.searchDepth ?? 'basic',
+  });
 };
 
 /**

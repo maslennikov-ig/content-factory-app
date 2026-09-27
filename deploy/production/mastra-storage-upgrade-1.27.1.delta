@@ -1,0 +1,315 @@
++column:mastra_agent_versions:browser:jsonb:jsonb:YES:
++column:mastra_agent_versions:durable:jsonb:jsonb:YES:
++column:mastra_agent_versions:toolProviders:jsonb:jsonb:YES:
++column:mastra_agents:favoriteCount:integer:int4:YES:
++column:mastra_agents:visibility:text:text:YES:
++column:mastra_ai_spans:entityVersionId:text:text:YES:
++column:mastra_ai_spans:parentEntityVersionId:text:text:YES:
++column:mastra_ai_spans:rootEntityVersionId:text:text:YES:
++column:mastra_background_tasks:agent_id:text:text:NO:
++column:mastra_background_tasks:args:jsonb:jsonb:NO:
++column:mastra_background_tasks:completedAt:timestamp without time zone:timestamp:YES:
++column:mastra_background_tasks:completedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_background_tasks:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_background_tasks:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_background_tasks:error:jsonb:jsonb:YES:
++column:mastra_background_tasks:id:text:text:NO:
++column:mastra_background_tasks:max_retries:integer:int4:NO:
++column:mastra_background_tasks:resource_id:text:text:YES:
++column:mastra_background_tasks:result:jsonb:jsonb:YES:
++column:mastra_background_tasks:retry_count:integer:int4:NO:
++column:mastra_background_tasks:run_id:text:text:NO:
++column:mastra_background_tasks:startedAt:timestamp without time zone:timestamp:YES:
++column:mastra_background_tasks:startedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_background_tasks:status:text:text:NO:
++column:mastra_background_tasks:suspend_payload:jsonb:jsonb:YES:
++column:mastra_background_tasks:suspendedAt:timestamp without time zone:timestamp:YES:
++column:mastra_background_tasks:suspendedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_background_tasks:thread_id:text:text:YES:
++column:mastra_background_tasks:timeout_ms:integer:int4:NO:
++column:mastra_background_tasks:tool_call_id:text:text:NO:
++column:mastra_background_tasks:tool_name:text:text:NO:
++column:mastra_channel_config:data:jsonb:jsonb:NO:
++column:mastra_channel_config:platform:text:text:NO:
++column:mastra_channel_config:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_channel_config:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_channel_installations:agentId:text:text:NO:
++column:mastra_channel_installations:configHash:text:text:YES:
++column:mastra_channel_installations:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_channel_installations:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_channel_installations:data:jsonb:jsonb:NO:
++column:mastra_channel_installations:error:text:text:YES:
++column:mastra_channel_installations:id:text:text:NO:
++column:mastra_channel_installations:platform:text:text:NO:
++column:mastra_channel_installations:status:text:text:NO:
++column:mastra_channel_installations:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_channel_installations:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_channel_installations:webhookId:text:text:YES:
++column:mastra_dataset_items:expectedTrajectory:jsonb:jsonb:YES:
++column:mastra_dataset_items:externalId:text:text:YES:
++column:mastra_dataset_items:organizationId:text:text:YES:
++column:mastra_dataset_items:projectId:text:text:YES:
++column:mastra_dataset_items:scorerIds:jsonb:jsonb:YES:
++column:mastra_dataset_items:toolMocks:jsonb:jsonb:YES:
++column:mastra_dataset_items:unmockedToolPolicy:text:text:YES:
++column:mastra_datasets:candidateId:text:text:YES:
++column:mastra_datasets:candidateKey:text:text:YES:
++column:mastra_datasets:organizationId:text:text:YES:
++column:mastra_datasets:projectId:text:text:YES:
++column:mastra_experiment_results:attempt:integer:int4:YES:
++column:mastra_experiment_results:comment:text:text:YES:
++column:mastra_experiment_results:metadata:jsonb:jsonb:YES:
++column:mastra_experiment_results:organizationId:text:text:YES:
++column:mastra_experiment_results:projectId:text:text:YES:
++column:mastra_experiment_results:toolMockReport:jsonb:jsonb:YES:
++column:mastra_experiments:comparisonId:text:text:YES:
++column:mastra_experiments:experimentSetId:text:text:YES:
++column:mastra_experiments:organizationId:text:text:YES:
++column:mastra_experiments:projectId:text:text:YES:
++column:mastra_experiments:provenance:jsonb:jsonb:YES:
++column:mastra_experiments:runnerAttestation:jsonb:jsonb:YES:
++column:mastra_experiments:scorerIds:jsonb:jsonb:YES:
++column:mastra_experiments:trialIndex:integer:int4:YES:
++column:mastra_experiments:variantId:text:text:YES:
++column:mastra_favorites:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_favorites:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_favorites:entityId:text:text:NO:
++column:mastra_favorites:entityType:text:text:NO:
++column:mastra_favorites:userId:text:text:NO:
++column:mastra_knowledge_activity:action:text:text:NO:
++column:mastra_knowledge_activity:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_activity:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_activity:id:text:text:NO:
++column:mastra_knowledge_activity:recordId:text:text:NO:
++column:mastra_knowledge_activity:recordType:text:text:NO:
++column:mastra_knowledge_activity:scope:jsonb:jsonb:NO:
++column:mastra_knowledge_activity:scopeKey:text:text:NO:
++column:mastra_knowledge_activity:sourceThreadId:text:text:YES:
++column:mastra_knowledge_cursors:agent:text:text:NO:
++column:mastra_knowledge_cursors:lastKnowledgeId:text:text:NO:
++column:mastra_knowledge_cursors:sourceThreadId:text:text:NO:
++column:mastra_knowledge_cursors:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_cursors:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_mentions:recordId:text:text:NO:
++column:mastra_knowledge_mentions:sourceId:text:text:NO:
++column:mastra_knowledge_mentions:sourceType:text:text:NO:
++column:mastra_knowledge_nodes:canonicalName:text:text:NO:
++column:mastra_knowledge_nodes:content:text:text:YES:
++column:mastra_knowledge_nodes:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_nodes:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_nodes:description:text:text:YES:
++column:mastra_knowledge_nodes:id:text:text:NO:
++column:mastra_knowledge_nodes:kind:text:text:YES:
++column:mastra_knowledge_nodes:mergedInto:text:text:YES:
++column:mastra_knowledge_nodes:name:text:text:NO:
++column:mastra_knowledge_nodes:scope:jsonb:jsonb:NO:
++column:mastra_knowledge_nodes:scopeKey:text:text:NO:
++column:mastra_knowledge_nodes:type:text:text:NO:
++column:mastra_knowledge_nodes:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_nodes:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_nodes:version:integer:int4:NO:
++column:mastra_knowledge_records:capturedAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_records:capturedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_records:deletedAt:timestamp without time zone:timestamp:YES:
++column:mastra_knowledge_records:deletedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_records:deletedBy:text:text:YES:
++column:mastra_knowledge_records:id:text:text:NO:
++column:mastra_knowledge_records:maxScope:text:text:YES:
++column:mastra_knowledge_records:metadata:jsonb:jsonb:YES:
++column:mastra_knowledge_records:node:text:text:NO:
++column:mastra_knowledge_records:scope:jsonb:jsonb:NO:
++column:mastra_knowledge_records:scopeKey:text:text:NO:
++column:mastra_knowledge_records:sourceThreadId:text:text:NO:
++column:mastra_knowledge_records:text:text:text:NO:
++column:mastra_knowledge_records:when:timestamp without time zone:timestamp:YES:
++column:mastra_knowledge_records:whenZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_semantic_outbox:attempts:integer:int4:NO:
++column:mastra_knowledge_semantic_outbox:availableAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_semantic_outbox:availableAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_semantic_outbox:claimedAt:timestamp without time zone:timestamp:YES:
++column:mastra_knowledge_semantic_outbox:claimedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_semantic_outbox:claimedBy:text:text:YES:
++column:mastra_knowledge_semantic_outbox:completedAt:timestamp without time zone:timestamp:YES:
++column:mastra_knowledge_semantic_outbox:completedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_semantic_outbox:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_knowledge_semantic_outbox:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_knowledge_semantic_outbox:documentId:text:text:NO:
++column:mastra_knowledge_semantic_outbox:documentType:text:text:NO:
++column:mastra_knowledge_semantic_outbox:id:text:text:NO:
++column:mastra_knowledge_semantic_outbox:idempotencyKey:text:text:NO:
++column:mastra_knowledge_semantic_outbox:operation:text:text:NO:
++column:mastra_knowledge_semantic_outbox:scope:jsonb:jsonb:NO:
++column:mastra_knowledge_semantic_outbox:scopeKey:text:text:NO:
++column:mastra_knowledge_semantic_outbox:status:text:text:NO:
++column:mastra_notifications:agentId:text:text:YES:
++column:mastra_notifications:archivedAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:archivedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:attributes:jsonb:jsonb:YES:
++column:mastra_notifications:coalesceKey:text:text:YES:
++column:mastra_notifications:coalescedCount:integer:int4:NO:
++column:mastra_notifications:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_notifications:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:dedupeKey:text:text:YES:
++column:mastra_notifications:deliverAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:deliverAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:deliveredAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:deliveredAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:deliveredSignalId:text:text:YES:
++column:mastra_notifications:deliveryAttempts:integer:int4:NO:
++column:mastra_notifications:deliveryReason:text:text:YES:
++column:mastra_notifications:discardedAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:discardedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:dismissedAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:dismissedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:id:text:text:NO:
++column:mastra_notifications:kind:text:text:NO:
++column:mastra_notifications:lastDeliveryAttemptAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:lastDeliveryAttemptAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:lastDeliveryError:text:text:YES:
++column:mastra_notifications:metadata:jsonb:jsonb:YES:
++column:mastra_notifications:payload:jsonb:jsonb:YES:
++column:mastra_notifications:priority:text:text:NO:
++column:mastra_notifications:resourceId:text:text:YES:
++column:mastra_notifications:seenAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:seenAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:source:text:text:NO:
++column:mastra_notifications:sourceId:text:text:YES:
++column:mastra_notifications:status:text:text:NO:
++column:mastra_notifications:summary:text:text:NO:
++column:mastra_notifications:summaryAt:timestamp without time zone:timestamp:YES:
++column:mastra_notifications:summaryAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_notifications:summarySignalId:text:text:YES:
++column:mastra_notifications:threadId:text:text:NO:
++column:mastra_notifications:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_notifications:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_schedule_triggers:actual_fire_at:bigint:int8:NO:
++column:mastra_schedule_triggers:error:text:text:YES:
++column:mastra_schedule_triggers:id:text:text:NO:
++column:mastra_schedule_triggers:metadata:jsonb:jsonb:YES:
++column:mastra_schedule_triggers:outcome:text:text:NO:
++column:mastra_schedule_triggers:parent_trigger_id:text:text:YES:
++column:mastra_schedule_triggers:run_id:text:text:YES:
++column:mastra_schedule_triggers:schedule_id:text:text:NO:
++column:mastra_schedule_triggers:scheduled_fire_at:bigint:int8:NO:
++column:mastra_schedule_triggers:trigger_kind:text:text:NO:
++column:mastra_schedules:created_at:bigint:int8:NO:
++column:mastra_schedules:cron:text:text:NO:
++column:mastra_schedules:id:text:text:NO:
++column:mastra_schedules:last_fire_at:bigint:int8:YES:
++column:mastra_schedules:last_run_id:text:text:YES:
++column:mastra_schedules:metadata:jsonb:jsonb:YES:
++column:mastra_schedules:next_fire_at:bigint:int8:NO:
++column:mastra_schedules:owner_id:text:text:YES:
++column:mastra_schedules:owner_type:text:text:YES:
++column:mastra_schedules:status:text:text:NO:
++column:mastra_schedules:target:jsonb:jsonb:NO:
++column:mastra_schedules:timezone:text:text:YES:
++column:mastra_schedules:updated_at:bigint:int8:NO:
++column:mastra_scorer_definitions:organizationId:text:text:YES:
++column:mastra_scorer_definitions:projectId:text:text:YES:
++column:mastra_scorers:batchId:text:text:YES:
++column:mastra_scorers:datasetId:text:text:YES:
++column:mastra_scorers:datasetItemId:text:text:YES:
++column:mastra_scorers:organizationId:text:text:YES:
++column:mastra_scorers:projectId:text:text:YES:
++column:mastra_skill_versions:files:jsonb:jsonb:YES:
++column:mastra_skills:favoriteCount:integer:int4:YES:
++column:mastra_skills:visibility:text:text:YES:
++column:mastra_thread_state:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_thread_state:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_thread_state:threadId:text:text:NO:
++column:mastra_thread_state:type:text:text:NO:
++column:mastra_thread_state:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_thread_state:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_thread_state:value:jsonb:jsonb:NO:
++column:mastra_tool_provider_connections:authorId:text:text:NO:
++column:mastra_tool_provider_connections:connectionId:text:text:NO:
++column:mastra_tool_provider_connections:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_tool_provider_connections:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_tool_provider_connections:label:text:text:YES:
++column:mastra_tool_provider_connections:providerId:text:text:NO:
++column:mastra_tool_provider_connections:scope:text:text:NO:
++column:mastra_tool_provider_connections:toolkit:text:text:NO:
++column:mastra_tool_provider_connections:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_tool_provider_connections:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_workflow_definitions:authorId:text:text:YES:
++column:mastra_workflow_definitions:createdAt:timestamp without time zone:timestamp:NO:
++column:mastra_workflow_definitions:createdAtZ:timestamp with time zone:timestamptz:YES:now()
++column:mastra_workflow_definitions:description:text:text:YES:
++column:mastra_workflow_definitions:graph:jsonb:jsonb:NO:
++column:mastra_workflow_definitions:id:text:text:NO:
++column:mastra_workflow_definitions:inputSchema:jsonb:jsonb:NO:
++column:mastra_workflow_definitions:metadata:jsonb:jsonb:YES:
++column:mastra_workflow_definitions:outputSchema:jsonb:jsonb:NO:
++column:mastra_workflow_definitions:requestContextSchema:jsonb:jsonb:YES:
++column:mastra_workflow_definitions:schedule:jsonb:jsonb:YES:
++column:mastra_workflow_definitions:source:text:text:NO:
++column:mastra_workflow_definitions:stateSchema:jsonb:jsonb:YES:
++column:mastra_workflow_definitions:status:text:text:NO:
++column:mastra_workflow_definitions:updatedAt:timestamp without time zone:timestamp:NO:
++column:mastra_workflow_definitions:updatedAtZ:timestamp with time zone:timestamptz:YES:now()
++constraint:mastra_background_tasks:mastra_background_tasks_pkey:PRIMARY KEY (id)
++constraint:mastra_channel_config:mastra_channel_config_pkey:PRIMARY KEY (platform)
++constraint:mastra_channel_installations:mastra_channel_installations_pkey:PRIMARY KEY (id)
++constraint:mastra_favorites:mastra_favorites_pkey:PRIMARY KEY ("userId", "entityType", "entityId")
++constraint:mastra_knowledge_activity:mastra_knowledge_activity_pkey:PRIMARY KEY (id)
++constraint:mastra_knowledge_cursors:mastra_knowledge_cursors_pkey:PRIMARY KEY ("sourceThreadId", agent)
++constraint:mastra_knowledge_mentions:mastra_knowledge_mentions_pkey:PRIMARY KEY ("sourceType", "sourceId", "recordId")
++constraint:mastra_knowledge_nodes:mastra_knowledge_nodes_pkey:PRIMARY KEY (id)
++constraint:mastra_knowledge_records:mastra_knowledge_records_pkey:PRIMARY KEY (id)
++constraint:mastra_knowledge_semantic_outbox:mastra_knowledge_semantic_outbox_pkey:PRIMARY KEY (id)
++constraint:mastra_schedule_triggers:mastra_schedule_triggers_pkey:PRIMARY KEY (id)
++constraint:mastra_schedules:mastra_schedules_pkey:PRIMARY KEY (id)
++constraint:mastra_thread_state:mastra_thread_state_pkey:PRIMARY KEY ("threadId", type)
++constraint:mastra_tool_provider_connections:mastra_tool_provider_connections_pkey:PRIMARY KEY ("authorId", "providerId", "connectionId")
++constraint:mastra_workflow_definitions:mastra_workflow_definitions_pkey:PRIMARY KEY (id)
++index:mastra_background_tasks:mastra_background_tasks_pkey:CREATE UNIQUE INDEX mastra_background_tasks_pkey ON public.mastra_background_tasks USING btree (id)
++index:mastra_background_tasks:mastra_bg_tasks_agent_status_idx:CREATE INDEX mastra_bg_tasks_agent_status_idx ON public.mastra_background_tasks USING btree (agent_id, status)
++index:mastra_background_tasks:mastra_bg_tasks_status_created_at_idx:CREATE INDEX mastra_bg_tasks_status_created_at_idx ON public.mastra_background_tasks USING btree (status, "createdAt")
++index:mastra_background_tasks:mastra_bg_tasks_thread_idx:CREATE INDEX mastra_bg_tasks_thread_idx ON public.mastra_background_tasks USING btree (thread_id, "createdAt")
++index:mastra_background_tasks:mastra_bg_tasks_tool_call_idx:CREATE INDEX mastra_bg_tasks_tool_call_idx ON public.mastra_background_tasks USING btree (tool_call_id)
++index:mastra_channel_config:mastra_channel_config_pkey:CREATE UNIQUE INDEX mastra_channel_config_pkey ON public.mastra_channel_config USING btree (platform)
++index:mastra_channel_installations:idx_channel_installations_platform_agent:CREATE INDEX idx_channel_installations_platform_agent ON public.mastra_channel_installations USING btree (platform, "agentId")
++index:mastra_channel_installations:idx_channel_installations_webhook:CREATE UNIQUE INDEX idx_channel_installations_webhook ON public.mastra_channel_installations USING btree ("webhookId")
++index:mastra_channel_installations:mastra_channel_installations_pkey:CREATE UNIQUE INDEX mastra_channel_installations_pkey ON public.mastra_channel_installations USING btree (id)
++index:mastra_dataset_items:idx_dataset_items_external_id_history:CREATE INDEX idx_dataset_items_external_id_history ON public.mastra_dataset_items USING btree ("datasetId", "externalId", "datasetVersion")
++index:mastra_dataset_items:idx_dataset_items_org_project:CREATE INDEX idx_dataset_items_org_project ON public.mastra_dataset_items USING btree ("organizationId", "projectId")
++index:mastra_datasets:idx_datasets_candidate:CREATE INDEX idx_datasets_candidate ON public.mastra_datasets USING btree ("candidateKey", "candidateId")
++index:mastra_datasets:idx_datasets_org_project:CREATE INDEX idx_datasets_org_project ON public.mastra_datasets USING btree ("organizationId", "projectId")
++index:mastra_experiment_results:idx_experiment_results_exp_item_attempt:CREATE UNIQUE INDEX idx_experiment_results_exp_item_attempt ON public.mastra_experiment_results USING btree ("experimentId", "itemId", attempt)
++index:mastra_experiment_results:idx_experiment_results_org_project:CREATE INDEX idx_experiment_results_org_project ON public.mastra_experiment_results USING btree ("organizationId", "projectId")
++index:mastra_experiment_results:idx_experiment_results_tags_gin:CREATE INDEX idx_experiment_results_tags_gin ON public.mastra_experiment_results USING gin (tags)
++index:mastra_experiments:idx_experiments_grouping:CREATE INDEX idx_experiments_grouping ON public.mastra_experiments USING btree ("experimentSetId", "comparisonId", "variantId", "trialIndex")
++index:mastra_experiments:idx_experiments_org_project:CREATE INDEX idx_experiments_org_project ON public.mastra_experiments USING btree ("organizationId", "projectId")
++index:mastra_favorites:idx_favorites_entity:CREATE INDEX idx_favorites_entity ON public.mastra_favorites USING btree ("entityType", "entityId")
++index:mastra_favorites:mastra_favorites_pkey:CREATE UNIQUE INDEX mastra_favorites_pkey ON public.mastra_favorites USING btree ("userId", "entityType", "entityId")
++index:mastra_knowledge_activity:idx_knowledge_activity_latest:CREATE INDEX idx_knowledge_activity_latest ON public.mastra_knowledge_activity USING btree (id DESC)
++index:mastra_knowledge_activity:mastra_knowledge_activity_pkey:CREATE UNIQUE INDEX mastra_knowledge_activity_pkey ON public.mastra_knowledge_activity USING btree (id)
++index:mastra_knowledge_cursors:mastra_knowledge_cursors_pkey:CREATE UNIQUE INDEX mastra_knowledge_cursors_pkey ON public.mastra_knowledge_cursors USING btree ("sourceThreadId", agent)
++index:mastra_knowledge_mentions:idx_knowledge_mentions_record:CREATE INDEX idx_knowledge_mentions_record ON public.mastra_knowledge_mentions USING btree ("recordId", "sourceType", "sourceId")
++index:mastra_knowledge_mentions:mastra_knowledge_mentions_pkey:CREATE UNIQUE INDEX mastra_knowledge_mentions_pkey ON public.mastra_knowledge_mentions USING btree ("sourceType", "sourceId", "recordId")
++index:mastra_knowledge_nodes:idx_knowledge_nodes_identity:CREATE UNIQUE INDEX idx_knowledge_nodes_identity ON public.mastra_knowledge_nodes USING btree (type, "scopeKey", "canonicalName")
++index:mastra_knowledge_nodes:idx_knowledge_nodes_scope:CREATE INDEX idx_knowledge_nodes_scope ON public.mastra_knowledge_nodes USING btree ("scopeKey", type)
++index:mastra_knowledge_nodes:mastra_knowledge_nodes_pkey:CREATE UNIQUE INDEX mastra_knowledge_nodes_pkey ON public.mastra_knowledge_nodes USING btree (id)
++index:mastra_knowledge_records:idx_knowledge_records_node_latest:CREATE INDEX idx_knowledge_records_node_latest ON public.mastra_knowledge_records USING btree (node, id DESC)
++index:mastra_knowledge_records:idx_knowledge_records_thread_latest:CREATE INDEX idx_knowledge_records_thread_latest ON public.mastra_knowledge_records USING btree ("sourceThreadId", id DESC)
++index:mastra_knowledge_records:mastra_knowledge_records_pkey:CREATE UNIQUE INDEX mastra_knowledge_records_pkey ON public.mastra_knowledge_records USING btree (id)
++index:mastra_knowledge_semantic_outbox:idx_knowledge_outbox_claim:CREATE INDEX idx_knowledge_outbox_claim ON public.mastra_knowledge_semantic_outbox USING btree (status, "availableAt", "createdAt")
++index:mastra_knowledge_semantic_outbox:idx_knowledge_outbox_idempotency:CREATE UNIQUE INDEX idx_knowledge_outbox_idempotency ON public.mastra_knowledge_semantic_outbox USING btree ("idempotencyKey")
++index:mastra_knowledge_semantic_outbox:mastra_knowledge_semantic_outbox_pkey:CREATE UNIQUE INDEX mastra_knowledge_semantic_outbox_pkey ON public.mastra_knowledge_semantic_outbox USING btree (id)
++index:mastra_notifications:idx_notifications_coalescing:CREATE INDEX idx_notifications_coalescing ON public.mastra_notifications USING btree ("threadId", source, kind, status, "agentId", "resourceId", "dedupeKey", "coalesceKey")
++index:mastra_notifications:idx_notifications_due:CREATE INDEX idx_notifications_due ON public.mastra_notifications USING btree (status, "deliverAt", "summaryAt")
++index:mastra_notifications:idx_notifications_thread_status_updated:CREATE INDEX idx_notifications_thread_status_updated ON public.mastra_notifications USING btree ("threadId", status, "updatedAt")
++index:mastra_schedule_triggers:idx_mastra_schedule_triggers_schedule_fire:CREATE INDEX idx_mastra_schedule_triggers_schedule_fire ON public.mastra_schedule_triggers USING btree (schedule_id, actual_fire_at DESC)
++index:mastra_schedule_triggers:mastra_schedule_triggers_pkey:CREATE UNIQUE INDEX mastra_schedule_triggers_pkey ON public.mastra_schedule_triggers USING btree (id)
++index:mastra_schedules:idx_mastra_schedules_status_next_fire:CREATE INDEX idx_mastra_schedules_status_next_fire ON public.mastra_schedules USING btree (status, next_fire_at)
++index:mastra_schedules:mastra_schedules_pkey:CREATE UNIQUE INDEX mastra_schedules_pkey ON public.mastra_schedules USING btree (id)
++index:mastra_thread_state:mastra_thread_state_pkey:CREATE UNIQUE INDEX mastra_thread_state_pkey ON public.mastra_thread_state USING btree ("threadId", type)
++index:mastra_tool_provider_connections:idx_tool_provider_connections_author:CREATE INDEX idx_tool_provider_connections_author ON public.mastra_tool_provider_connections USING btree ("authorId", "providerId", toolkit)
++index:mastra_tool_provider_connections:mastra_tool_provider_connections_pkey:CREATE UNIQUE INDEX mastra_tool_provider_connections_pkey ON public.mastra_tool_provider_connections USING btree ("authorId", "providerId", "connectionId")
++index:mastra_workflow_definitions:idx_workflow_definitions_status:CREATE INDEX idx_workflow_definitions_status ON public.mastra_workflow_definitions USING btree (status)
++index:mastra_workflow_definitions:mastra_workflow_definitions_pkey:CREATE UNIQUE INDEX mastra_workflow_definitions_pkey ON public.mastra_workflow_definitions USING btree (id)
++index:mastra_workflow_snapshot:mastra_workflow_snapshot_name_createdat_idx:CREATE INDEX mastra_workflow_snapshot_name_createdat_idx ON public.mastra_workflow_snapshot USING btree (workflow_name, "createdAt" DESC)
++index:mastra_workflow_snapshot:mastra_workflow_snapshot_name_status_createdat_idx:CREATE INDEX mastra_workflow_snapshot_name_status_createdat_idx ON public.mastra_workflow_snapshot USING btree (workflow_name, ((snapshot ->> 'status'::text)), "createdAt" DESC)
++index:mastra_workflow_snapshot:mastra_workflow_snapshot_threadid_idx:CREATE INDEX mastra_workflow_snapshot_threadid_idx ON public.mastra_workflow_snapshot USING btree (COALESCE((jsonb_path_query_first(snapshot, '$."context".*?(@."status" == "suspended")."suspendPayload"."__streamState"."messageList"."memoryInfo"."threadId"'::jsonpath) #>> '{}'::text[]), (snapshot #>> '{context,input,messageListState,memoryInfo,threadId}'::text[])))
+-index:mastra_experiment_results:idx_experiment_results_exp_item:CREATE UNIQUE INDEX idx_experiment_results_exp_item ON public.mastra_experiment_results USING btree ("experimentId", "itemId")

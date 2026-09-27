@@ -2322,3 +2322,262 @@ describe('the routes prepare text and reach nothing else', () => {
     expect(handlers.length).toBe(routes.length);
   });
 });
+
+/* ---------------------------------------------------------------------- *
+ * content-factory-next-kcxz.33 — a fully written manual avatar switches on
+ * ---------------------------------------------------------------------- */
+
+describe('a hand-written avatar with every line accepted can be switched on', () => {
+  const SIX = { ...FIVE, TOPICS: 'Снабжение, график, приёмка.' };
+
+  const writeSix = async (service, actor) => {
+    for (const [key, text] of Object.entries(SIX)) {
+      await service.manualField(actor, { key, text });
+    }
+  };
+
+  const namedAvatar = async (service, name) => {
+    const list = await service.createAvatar(admin, { name });
+    return list.avatars.find((one) => one.name === name).id;
+  };
+
+  test('activation without a named path uses the manual draft when there is no analysis', async () => {
+    const { service } = harness();
+    const avatarId = await namedAvatar(service, 'Игорь');
+    const actor = { ...admin, avatarId };
+    await writeSix(service, actor);
+
+    // Exactly the setup of the 27.09 walk: no `mode` in the body.
+    const passport = await service.activateProposal(actor, {
+      version: 2,
+      consentGiven: true,
+      avatarName: 'Игорь',
+    });
+
+    expect(passport.voice).not.toBeNull();
+    expect((await service.manualProposal(actor)).fields.every(
+      (field) => !field.text
+    )).toBe(true);
+  });
+
+  test('a named manual path activates the avatar it is scoped to', async () => {
+    const { service } = harness();
+    const avatarId = await namedAvatar(service, 'Игорь');
+    const actor = { ...admin, avatarId };
+    await writeSix(service, actor);
+
+    const passport = await service.activateProposal(actor, {
+      version: 2,
+      consentGiven: true,
+      mode: 'manual',
+      avatarName: 'Игорь',
+    });
+
+    expect(passport.voice).not.toBeNull();
+  });
+
+  test('a neighbour avatar’s manual draft neither collects nor activates this one', async () => {
+    const { service } = harness();
+    const first = { ...admin, avatarId: await namedAvatar(service, 'Первый') };
+    const second = { ...admin, avatarId: await namedAvatar(service, 'Второй') };
+
+    await service.manualField(first, { key: 'TONE', text: 'Тон первого.' });
+    await writeSix(service, second);
+
+    // The first avatar still holds only its own line…
+    const firstScreen = await service.manualProposal(first);
+    const tone = firstScreen.fields.find((field) => field.key === 'TONE');
+    expect(tone.text).toBe('Тон первого.');
+    expect(
+      firstScreen.fields.find((field) => field.key === 'WHO_SPEAKS').text
+    ).toBe('');
+
+    // …so it cannot be switched on, while the second one can.
+    await expect(
+      service.activateProposal(first, {
+        version: 2,
+        consentGiven: true,
+        mode: 'manual',
+        avatarName: 'Первый',
+      })
+    ).rejects.toMatchObject({ code: 'VOICE_FIELDS_INCOMPLETE' });
+    const passport = await service.activateProposal(second, {
+      version: 2,
+      consentGiven: true,
+      mode: 'manual',
+      avatarName: 'Второй',
+    });
+    expect(passport.voice).not.toBeNull();
+  });
+
+  test('a named assist path with no analysis keeps its own refusal', async () => {
+    const { service } = harness();
+    const actor = { ...admin, avatarId: await namedAvatar(service, 'Игорь') };
+    await writeSix(service, actor);
+
+    await expect(
+      service.activateProposal(actor, {
+        version: 2,
+        consentGiven: true,
+        mode: 'assist',
+        avatarName: 'Игорь',
+      })
+    ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND', status: 404 });
+  });
+});
+
+describe('an avatar id that cannot name an avatar is a 4xx, not a 500', () => {
+  const org = { id: 'org-a', users: [{ role: 'ADMIN' }] };
+  const user = { id: 'user-admin' };
+
+  test.each(['undefined', 'null', 'avatar-1', ' '])(
+    '?avatar=%s is refused at the door before the service is reached',
+    async (avatar) => {
+      let reached = false;
+      const controller = new BrandVoiceController(
+        new Proxy(
+          {},
+          {
+            get: () => async () => {
+              reached = true;
+              throw new Error('the service must not be reached');
+            },
+          }
+        )
+      );
+
+      const refusal = await controller
+        .manualProposalField(org, user, { key: 'TONE', text: 'Тон.' }, avatar)
+        .then(
+          () => null,
+          (error) => error
+        );
+
+      expect(reached).toBe(false);
+      expect(refusal.getStatus()).toBe(404);
+      expect(refusal.getResponse()).toMatchObject({
+        code: 'VOICE_AVATAR_NOT_FOUND',
+      });
+    }
+  );
+
+  test('a uuid and an absent id still reach the service', async () => {
+    const seen = [];
+    const controller = new BrandVoiceController({
+      manualField: async (actor) => {
+        seen.push(actor.avatarId);
+        return { ok: true };
+      },
+    });
+
+    await controller.manualProposalField(
+      org,
+      user,
+      { key: 'TONE', text: 'Тон.' },
+      '180015ba-1323-41a8-b6b0-592781b21811'
+    );
+    await controller.manualProposalField(org, user, { key: 'TONE', text: 'Тон.' });
+
+    expect(seen).toEqual(['180015ba-1323-41a8-b6b0-592781b21811', undefined]);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * content-factory-next-kcxz.37 (F8) — a well-formed id naming no avatar
+ * ---------------------------------------------------------------------- */
+
+describe('a uuid that names no avatar in the space is a 404 on the manual form', () => {
+  const NOBODY = '00000000-0000-4000-8000-000000000000';
+
+  test('reading the manual form is refused, not answered with five empty lines', async () => {
+    const { service } = harness();
+    await service.createAvatar(admin, { name: 'Игорь' });
+
+    await expect(
+      service.manualProposal({ ...admin, avatarId: NOBODY })
+    ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+  });
+
+  test('saving a line for it creates no draft', async () => {
+    const { service, prisma } = harness();
+    await service.createAvatar(admin, { name: 'Игорь' });
+    const before = JSON.stringify(prisma.state);
+
+    await expect(
+      service.manualField({ ...admin, avatarId: NOBODY }, {
+        key: 'TONE',
+        text: 'Тон.',
+      })
+    ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+    expect(JSON.stringify(prisma.state)).toBe(before);
+  });
+
+  test('a real avatar and no avatar at all still read the form', async () => {
+    const { service } = harness();
+    const list = await service.createAvatar(admin, { name: 'Игорь' });
+    const avatarId = list.avatars.find((one) => one.name === 'Игорь').id;
+
+    expect((await service.manualProposal({ ...admin, avatarId })).mode).toBe(
+      'manual'
+    );
+    expect((await service.manualProposal(admin)).mode).toBe('manual');
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * content-factory-next-kcxz.38 (P2-2) — an avatar deleted in another tab
+ * ---------------------------------------------------------------------- */
+
+describe('a soft-deleted avatar is a 404 on the manual form and is never restored', () => {
+  const deletedAvatar = async (service) => {
+    await service.createAvatar(admin, { name: 'Основной' });
+    const list = await service.createAvatar(admin, { name: 'Удалённый' });
+    const avatarId = list.avatars.find((one) => one.name === 'Удалённый').id;
+    const actor = { ...admin, avatarId };
+    // A line typed before the deletion leaves a draft behind, which is
+    // exactly what a stale tab would otherwise show and write into.
+    await service.manualField(actor, { key: 'TONE', text: 'Тон до удаления.' });
+    await service.deleteAvatar(admin, { avatarId });
+    return actor;
+  };
+
+  test('reading the manual form is refused', async () => {
+    const { service } = harness();
+    const actor = await deletedAvatar(service);
+
+    await expect(service.manualProposal(actor)).rejects.toMatchObject({
+      code: 'VOICE_AVATAR_NOT_FOUND',
+      status: 404,
+    });
+  });
+
+  test('saving a line is refused and writes nothing, so the avatar stays deleted', async () => {
+    const { service, prisma } = harness();
+    const actor = await deletedAvatar(service);
+    const before = JSON.stringify(prisma.state);
+
+    await expect(
+      service.manualField(actor, { key: 'WHO_SPEAKS', text: 'Кто говорит.' })
+    ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+    expect(JSON.stringify(prisma.state)).toBe(before);
+    const avatars = (await service.avatars(admin)).avatars;
+    expect(avatars.some((one) => one.id === actor.avatarId)).toBe(false);
+  });
+
+  test.each([{ mode: 'manual' }, {}])(
+    'activation (%o) is refused',
+    async (mode) => {
+      const { service } = harness();
+      const actor = await deletedAvatar(service);
+
+      await expect(
+        service.activateProposal(actor, {
+          version: 2,
+          consentGiven: true,
+          avatarName: 'Удалённый',
+          ...mode,
+        })
+      ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+    }
+  );
+});

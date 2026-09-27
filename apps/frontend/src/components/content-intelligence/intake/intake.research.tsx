@@ -3,9 +3,9 @@
 import { Panel } from '@contentfactory/react/layout';
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
-import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { WorkingLine } from '../../ui/working-line';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
+import { SelectionCheckIcon, SelectionRows } from './selection-rows';
 
 /**
  * Итог ресерча «сделали за вас» — вариант 1, выбранный владельцем 13.09.2026
@@ -78,11 +78,7 @@ export const sourcedResearchFacts = (facts: readonly ResearchOutcomeFact[]) =>
   );
 
 /* Иконки состояний: штрих, 16px, перекрашиваются через currentColor. */
-const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-[16px] shrink-0">
-    <path d="M3.5 8.5l3 3 6-7" />
-  </svg>
-);
+const CheckIcon = SelectionCheckIcon;
 const AlertIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-[16px] shrink-0">
     <path d="M8 3v6M8 12v.01" />
@@ -287,57 +283,30 @@ export function ResearchEvidenceRows({
               {t.researchFoundHint}
             </p>
           ) : null}
-          <ul className="flex min-w-0 flex-col divide-y divide-cf-border">
-            {found.map((fact, index) => (
-              <li
-                key={fact.factKey ?? `${fact.statement}-${index}`}
-                className="flex min-w-0 items-start gap-[12px] py-[8px]"
-              >
-                {editableFound && onToggleFound ? (
-                  <CheckboxField
-                    aria-label={`${t.researchInclude}: ${fact.statement}`}
-                    checked={fact.selected === true}
-                    disabled={busy}
-                    onChange={(event) =>
-                      onToggleFound(
-                        fact.factKey ?? fact.statement,
-                        event.target.checked
-                      )
-                    }
-                    label={<span className="sr-only">{t.researchInclude}</span>}
-                    className="min-h-0 py-0"
-                  />
-                ) : (
-                  <span
-                    className={
-                      fact.selected
-                        ? 'text-cf-accent'
-                        : 'text-cf-ink-muted'
-                    }
-                  >
-                    <CheckIcon />
-                  </span>
-                )}
-                <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
-                    {fact.statement}
+          <SelectionRows
+            includeLabel={t.researchInclude}
+            editable={editableFound}
+            busy={busy}
+            onToggle={onToggleFound}
+            rows={found.map((fact) => {
+              const id = fact.factKey ?? fact.statement;
+              return {
+                id,
+                label: fact.statement,
+                selected: fact.selected === true,
+                detail: fact.quote ? (
+                  <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                    «{fact.quote}»
                   </p>
-                  {fact.quote ? (
-                    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                      «{fact.quote}»
-                    </p>
-                  ) : null}
-                  <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />
-                  {foundErrorMessage &&
-                  foundErrorKey === (fact.factKey ?? fact.statement) ? (
-                    <p role="alert" className="cf-body-sm text-cf-danger">
-                      {foundErrorMessage}
-                    </p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+                ) : null,
+                meta: <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />,
+                error:
+                  foundErrorMessage && foundErrorKey === id
+                    ? foundErrorMessage
+                    : null,
+              };
+            })}
+          />
         </div>
       ) : null}
 

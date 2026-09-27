@@ -534,7 +534,6 @@ const RAW_PALETTE_PATTERN =
 const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/app/(extension)/modal/[style]/[platform]/page.tsx',
   'apps/frontend/src/components/admin/admin-errors.component.tsx',
-  'apps/frontend/src/components/agents/agent.tsx',
   'apps/frontend/src/components/analytics/analytics.component.tsx',
   'apps/frontend/src/components/auth/activate.tsx',
   'apps/frontend/src/components/billing/finish.trial.tsx',

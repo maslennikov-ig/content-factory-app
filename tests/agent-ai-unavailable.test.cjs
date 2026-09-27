@@ -41,7 +41,9 @@ const { SWRConfig } = require('swr');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const GATE = 'apps/frontend/src/components/agents/agent.availability.tsx';
-const CHAT = 'apps/frontend/src/components/agents/agent.chat.tsx';
+const SCREEN = 'apps/frontend/src/components/agents/agent.screen.tsx';
+const CONVERSATION =
+  'apps/frontend/src/components/agents/agent.conversation.tsx';
 
 const gate = loadTypeScriptModule(GATE);
 const variables = loadTypeScriptModule(
@@ -134,7 +136,11 @@ describe('экран «Агент» говорит, что ИИ не подкл�
     // Ни одного ребёнка: приветствие, поле ввода и сам рантайм не появляются.
     expect(document.body.textContent).not.toContain(CHILD_MARK);
     // Ни одного запроса к двери помощника: спрошена только квота, один раз.
-    expect(asked.filter((call) => call.includes('/copilot'))).toEqual([]);
+    expect(
+      asked.filter(
+        (call) => call.includes('/copilot') || call.includes('/agent/')
+      )
+    ).toEqual([]);
     expect(
       asked.filter((call) => call.includes('/settings/ai/allowance')).length
     ).toBe(1);
@@ -208,14 +214,23 @@ describe('экран «Агент» говорит, что ИИ не подкл�
   });
 });
 
-describe('решение принимается до рантайма помощника', () => {
-  const source = fs.readFileSync(path.join(root, CHAT), 'utf8');
+describe('решение принимается до разговора', () => {
+  const screenSource = fs.readFileSync(path.join(root, SCREEN), 'utf8');
 
-  test('CopilotKit стоит внутри проверки, а не рядом с ней', () => {
-    expect(source).toContain('AgentAvailabilityGate');
-    expect(source).toMatch(
-      /<AgentAvailabilityGate>[\s\S]*?<CopilotKit/u
+  /*
+   * С `content-factory-next-kcxz.10` рантайма CopilotKit на экране нет: разговор
+   * — это `useChat` внутри `AgentConversation`, а тот рисуется только из
+   * `SessionView`. Проверка та же — пока звать модель нечем, разговор в дерево
+   * не попадает, и ни один запрос к `/agent/*` не уходит.
+   */
+  test('разговор стоит внутри проверки, а не рядом с ней', () => {
+    expect(screenSource).toContain('AgentAvailabilityGate');
+    expect(screenSource).toMatch(
+      /<AgentAvailabilityGate>[\s\S]*?<SessionView[\s\S]*?<\/AgentAvailabilityGate>/u
     );
+    const conversation = fs.readFileSync(path.join(root, CONVERSATION), 'utf8');
+    expect(conversation).toMatch(/useChat</);
+    expect(conversation).not.toMatch(/@copilotkit/);
   });
 
   test('честная строка та же, что в разделе «Контент», а не вторая её редакция', () => {

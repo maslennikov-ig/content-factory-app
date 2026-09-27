@@ -52,6 +52,7 @@ type Words = {
 /** Устойчивые `id` в том порядке, в каком они стоят на экране. */
 export const HELP_QUESTION_IDS = [
   'where-to-start',
+  'agent-chat',
   'account-pending',
   'telegram-login',
   'telegram-connect',
@@ -99,6 +100,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'С чего начать?',
         answer:
           'Откройте «С чего начать» и пройдите пять шагов в порядке меню: «Аватар» — чьей манерой писать, «Канал» — куда выходят посты, «Заготовка» — суть поста, «Адаптация» — пост для канала, «План» — когда он выйдет. Факт — цена, срок или цифра, на которую опирается пост, — добавляется по желанию. Любой шаг можно отложить кнопкой «Сделаю позже» и вернуться к нему с полосы сверху. Шаги отмечаются сами. Когда все пройдены, пункт уходит из меню и остаётся вкладкой «С чего начать» в «Настройки».',
+      },
+      {
+        id: 'agent-chat',
+        question: 'Что умеет «Агент»?',
+        answer:
+          '«Агент» — это чат, в котором делается то же, что на экранах: заготовка из одной мысли, чужого поста или задания, ответы на её вопросы, адаптация под канал, проверка на штампы, место в плане. Заготовка или адаптация, о которой идёт речь, открывается рядом с чатом. Платные шаги и бронь агент делает сам, а удаление, публикацию сразу, точную дату, перенос и автопилот сначала показывает карточкой и ждёт вашего «Да» или «Нет». «Пользователь» может спросить агента о плане и заготовках, но писать за него агент не будет.',
       },
       {
         id: 'account-pending',
@@ -275,6 +282,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'Where do I start?',
         answer:
           'Open «Where to start» and walk its five steps in menu order: «Avatar» — whose voice to write in, «Channel» — where posts go, «Piece» — the essence of the post, «Adaptation» — the post for the channel, «Plan» — when it goes out. A fact — a price, a deadline or a number the post stands on — is optional. Any step can wait with «Later», and the strip above brings you back. Steps tick themselves off. Once all are done the item leaves the menu and stays as the «Where to start» tab in «Settings».',
+      },
+      {
+        id: 'agent-chat',
+        question: 'What can «Agent» do?',
+        answer:
+          '«Agent» is a chat that does what the screens do: a piece from one thought, someone else’s post or a brief, answers to its questions, an adaptation for a channel, a cliché check, a place in the plan. The piece or adaptation you are talking about opens beside the chat. Paid steps and reservations the agent does on its own; deleting, publishing now, a firm date, a move and autopilot it first shows as a card and waits for your «Yes» or «No». A «User» can ask the agent about the plan and pieces, but the agent will not write for them.',
       },
       {
         id: 'account-pending',

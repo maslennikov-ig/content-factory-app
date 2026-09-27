@@ -1,0 +1,20 @@
+<div class="shell" style="width:1440px">
+%%INC:_nav.inc%%
+<aside class="threads" aria-label="Разговоры">
+  <div class="row" style="padding:16px 16px 12px"><span class="h3">Разговоры</span><span class="sp"></span><span class="btn secondary dense">%%plus%%Новый</span></div>
+  <div class="col" style="padding:0 8px;gap:2px">
+%%INC:_threads_list.inc%%
+  </div>
+</aside>
+<main class="col" style="flex:1;min-width:0">
+  <div class="topbar"><span class="lm">Пост из одной мысли</span><span class="sp"></span>%%INC:_allow_line.inc%%<span class="btn quiet dense icon" aria-label="Ещё">%%dots%%</span></div>
+  <div class="col" style="padding:32px 24px 24px;align-items:center">
+    <div class="conv" style="width:100%;max-width:760px">
+%%INC:_flow.inc%%
+    </div>
+    <div style="width:100%;max-width:760px;margin-top:28px">
+%%INC:_composer.inc%%
+    </div>
+  </div>
+</main>
+</div>

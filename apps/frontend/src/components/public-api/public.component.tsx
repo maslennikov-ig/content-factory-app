@@ -41,69 +41,14 @@ type McpClient = (typeof mcpClients)[number];
 
 const getMcpConfig = (
   client: McpClient,
-  method: 'header' | 'path',
   mcpBase: string,
   apiKey: string,
   t: ReturnType<typeof useT>
 ): { config: string; hint: string } => {
-  const urlWithKey = `${mcpBase}/mcp/${apiKey}`;
   const urlBase = `${mcpBase}/mcp`;
   const bearer = `Bearer ${apiKey}`;
 
   const json = (obj: object) => JSON.stringify(obj, null, 2);
-
-  if (method === 'path') {
-    switch (client) {
-      case 'Claude Code':
-        return {
-          config: `claude mcp add content-factory --transport http "${urlWithKey}"`,
-          hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
-        };
-      case 'Cursor':
-        return {
-          config: json({
-            mcpServers: { 'content-factory': { url: urlWithKey } },
-          }),
-          hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.cursor/mcp.json', interpolation: { escapeValue: false } }),
-        };
-      case 'VS Code / Copilot':
-        return {
-          config: json({
-            servers: { 'content-factory': { type: 'http', url: urlWithKey } },
-          }),
-          hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.vscode/mcp.json', interpolation: { escapeValue: false } }),
-        };
-      case 'Windsurf':
-        return {
-          config: json({
-            mcpServers: { 'content-factory': { serverUrl: urlWithKey } },
-          }),
-          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codeium/windsurf/mcp_config.json', interpolation: { escapeValue: false } }),
-        };
-      case 'Amp':
-        return {
-          config: `amp mcp add content-factory ${urlWithKey}`,
-          hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
-        };
-      case 'Codex':
-        return {
-          config: `# ~/.codex/config.toml\n\n[mcp_servers.content-factory]\nurl = "${urlWithKey}"`,
-          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codex/config.toml', interpolation: { escapeValue: false } }),
-        };
-      case 'Gemini CLI':
-        return {
-          config: json({
-            mcpServers: { 'content-factory': { url: urlWithKey } },
-          }),
-          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.gemini/settings.json', interpolation: { escapeValue: false } }),
-        };
-      case 'Warp':
-        return {
-          config: json({ 'content-factory': { url: urlWithKey } }),
-          hint: t('mcp_hint_warp_settings', 'Settings > MCP Servers > + Add, then paste this config.'),
-        };
-    }
-  }
 
   switch (client) {
     case 'Claude Code':
@@ -234,18 +179,19 @@ const McpSection = ({
 }) => {
   const t = useT();
   const [activeClient, setActiveClient] = useState<McpClient>('Claude Code');
-  const [method, setMethod] = useState<'header' | 'path'>('header');
+  // Remote clients sign in through OAuth; the workspace key never goes into
+  // an address (`content-factory-next-kcxz.1`).
+  const [method, setMethod] = useState<'header' | 'oauth'>('header');
   const [revealed, setRevealed] = useState(false);
 
   const { config, hint } = getMcpConfig(
     activeClient,
-    method,
     mcpBase,
     user.publicApi,
     t
   );
 
-  const remoteUrl = `${mcpBase}/mcp/${user.publicApi}`;
+  const remoteUrl = `${mcpBase}/mcp-oauth`;
   const cliUrl = `${mcpBase}/mcp`;
 
   const maskedConfig = revealed
@@ -254,10 +200,6 @@ const McpSection = ({
         new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
         '*'.repeat(user.publicApi.length)
       );
-
-  const maskedRemoteUrl = revealed
-    ? remoteUrl
-    : remoteUrl.replace(user.publicApi, '*'.repeat(user.publicApi.length));
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -286,9 +228,9 @@ const McpSection = ({
             className="flex gap-[6px]"
             aria-label={t('auth_method', 'Authentication')}
             value={method}
-            onChange={(next) => setMethod(next as 'header' | 'path')}
+            onChange={(next) => setMethod(next as 'header' | 'oauth')}
           >
-            {(['header', 'path'] as const).map((m) => (
+            {(['header', 'oauth'] as const).map((m) => (
               <RadioOption
                 key={m}
                 value={m}
@@ -346,7 +288,7 @@ const McpSection = ({
                 )}
           </div>
           <pre className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-[13px] whitespace-pre-wrap break-all overflow-x-auto leading-[1.6]">
-            {method === 'header' ? maskedConfig : maskedRemoteUrl}
+            {method === 'header' ? maskedConfig : remoteUrl}
           </pre>
           <div className="flex gap-[8px]">
             <Button variant="secondary"

@@ -421,11 +421,11 @@ describe('the Content frame is reviewable without a network', () => {
    const { workMenu, secondaryMenu, adminMenu } = await menuFor('ru');
    expect(workMenu.map((item) => item.path)).toEqual(['/onboarding', '/content?tab=avatars', '/channels', '/content', '/launches', '/analytics']);
    expect(workMenu.map((item) => item.step)).toEqual([0, 1, 2, 3, 4, 5]);
-   // 2q28.26: «Агент», «Плагины» and «Интеграции» are upstream surfaces a
-   // member is not offered; they stay in the list marked `hide`, so the
-   // superadmin sees them marked (97dq.100).
+   // 2q28.26: «Плагины» and «Интеграции» are upstream surfaces a member is
+   // not offered; they stay in the list marked `hide`, so the superadmin sees
+   // them marked (97dq.100). «Агент» is back with kcxz.17.
    expect(secondaryMenu.map((item) => item.path)).toEqual(['/agents', '/media', '/plugs', '/third-party', '/help']);
-   expect(secondaryMenu.filter((item) => item.hide).map((item) => item.path)).toEqual(['/agents', '/plugs', '/third-party']);
+   expect(secondaryMenu.filter((item) => item.hide).map((item) => item.path)).toEqual(['/plugs', '/third-party']);
    expect(adminMenu.map((item) => item.path)).toEqual(['/billing', '/settings']);
  });
 
@@ -471,6 +471,7 @@ test('filterMenu hides gated items from a member and marks them for a superadmin
   const superadmin = menu.filterMenu(items, { role: 'USER', isSuperAdmin: true }, false);
   expect(superadmin.map((item) => item.path)).toEqual(items.map((item) => item.path));
   const marked = superadmin.filter((item) => item.superadminOnly).map((item) => item.path);
-  expect(marked).toEqual(expect.arrayContaining(['/agents', '/third-party', '/billing']));
+  expect(marked).toEqual(expect.arrayContaining(['/third-party', '/billing']));
+  expect(marked).not.toContain('/agents');
   expect(marked).not.toContain('/help');
 });

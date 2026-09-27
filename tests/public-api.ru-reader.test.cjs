@@ -43,7 +43,9 @@ describe('developer settings speak the reader language', () => {
     // are locale keys now, so every interface language gets them.
     expect(source).not.toMatch(/hint: '[^']+'/u);
     const hints = [...source.matchAll(/hint: t\(\s*'(mcp_hint_[a-z_]+)'/gu)];
-    expect(hints.length).toBeGreaterThanOrEqual(16);
+    // One hint per client for the header method; the key-in-address method
+    // and its eight hints are gone (`content-factory-next-kcxz.1`).
+    expect(hints.length).toBeGreaterThanOrEqual(8);
     expect(source).not.toContain('MCP_HINTS_RU');
   });
 });

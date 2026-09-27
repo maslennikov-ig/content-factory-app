@@ -88,6 +88,12 @@ const isWorkflowNotFound = (err: unknown): boolean =>
 const describeWorkflowError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 
+/** Queue-gate refusals: nothing was written, so no workflow is re-synced. */
+const REFUSED_QUEUE_WRITE: ReadonlySet<unknown> = new Set([
+  'CF_QUEUE_BUSY',
+  'POST_STATE_CHANGED',
+]);
+
 @Injectable()
 export class PostsService {
   private storage = UploadFactory.createStorage();
@@ -1185,6 +1191,10 @@ export class PostsService {
    * write share one transaction, so a gate timeout rolls the write back. Any
    * failure other than the refusal itself still brings the workflows in line
    * with the database (review F1): a QUEUE post never stays without one.
+   * A refused write (`CF_QUEUE_BUSY`, or `POST_STATE_CHANGED` from the
+   * conditional write) changed nothing, so it touches no workflow (`kcxz.38`,
+   * review P3-1): re-syncing a post published in the window would stop the
+   * workflow that is still finishing its publish.
    */
   private async gatedQueueWrite<T>(
     orgId: string,
@@ -1194,7 +1204,7 @@ export class PostsService {
     try {
       return await this._postRepository.withCfQueueGate(orgId, ids, write);
     } catch (err: any) {
-      if (err?.code !== 'CF_QUEUE_BUSY') {
+      if (!REFUSED_QUEUE_WRITE.has(err?.code)) {
         await Promise.all(
           ids.map((one) =>
             this.syncPostWorkflow(orgId, one).catch(() => undefined)
@@ -1249,13 +1259,42 @@ export class PostsService {
     return { id, state, workflow };
   }
 
+  /**
+   * `movableFrom` is the set of states a `schedule` move may start from
+   * (`kcxz.30`, review F11). By default only a queued post or a draft moves:
+   * `schedule` writes QUEUE, and a post that was published or failed must not
+   * be put back into the queue by a caller that thought it was still queued.
+   * The calendar route widens it to the upstream «Reschedule the post» choice
+   * the person makes on a published or failed card. Either way the write is
+   * conditional on the state read here, so a post that moved on between this
+   * read and the write is refused with `POST_STATE_CHANGED` (409).
+   */
   async changeDate(
     orgId: string,
     id: string,
     date: string,
-    action: 'schedule' | 'update' = 'schedule'
+    action: 'schedule' | 'update' = 'schedule',
+    movableFrom: readonly State[] = ['QUEUE', 'DRAFT']
   ) {
     const getPostById = await this._postRepository.getPostById(id, orgId);
+    if (!getPostById) {
+      const error: any = new Error(
+        'This post was not found. It may have already been deleted.'
+      );
+      error.code = 'POST_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const readState = getPostById.state as State;
+    if (action === 'schedule' && !movableFrom.includes(readState)) {
+      const error: any = new Error(
+        'This post is no longer scheduled or a draft (it may have just been published). Nothing was moved.'
+      );
+      error.code = 'POST_STATE_CHANGED';
+      error.status = 409;
+      throw error;
+    }
 
     // schedule: Set status to QUEUE and change date (reschedule the post)
     // update: Just change the date without changing the status
@@ -1264,15 +1303,16 @@ export class PostsService {
         orgId,
         id,
         date,
-        getPostById.state === 'DRAFT',
+        readState === 'DRAFT',
         action,
-        tx
+        tx,
+        action === 'schedule' ? readState : undefined
       );
     // `schedule` writes QUEUE for anything that is not a draft; for a CF
     // variant that goes through its piece's one-queue rule (`97dq.67`). A post
     // read as QUEUE is gated too (review F2): whether a sibling took the queue
     // meanwhile is decided under the lock.
-    const queues = action === 'schedule' && getPostById.state !== 'DRAFT';
+    const queues = action === 'schedule' && readState !== 'DRAFT';
     const newDate = queues
       ? await this.gatedQueueWrite(orgId, [id], write)
       : await write();

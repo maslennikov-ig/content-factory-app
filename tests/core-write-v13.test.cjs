@@ -100,8 +100,8 @@ beforeEach(() => {
 describe('core-write/v13 prompt', () => {
   test('its own version; v12 stays for receipts and does not carry the rule', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v16');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v16');
     expect(v14.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v12.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
     expect(v12.coreWriteSystemV12('ru', '')).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);

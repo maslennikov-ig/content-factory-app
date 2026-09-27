@@ -88,8 +88,10 @@ export const clampWidth = (value: number, min: number, max: number) =>
   Math.round(Math.min(max, Math.max(min, value)));
 
 /**
- * Tailwind needs whole class names, so the two layouts are spelled out: with
- * `lg` the side behaviour switches on at 1024px, with `none` it is always on.
+ * Tailwind needs whole class names, so the layouts are spelled out: with
+ * `lg` the side behaviour switches on at 1024px, with `none` it is always on,
+ * with `split` it needs 1024px and a `split-container` ancestor at least
+ * 640px wide (`kcxz.16`: the piece screen inside the agent's panel).
  */
 const LAYOUT = {
   lg: {
@@ -97,6 +99,12 @@ const LAYOUT = {
     side: 'hidden lg:flex',
     hiddenBody: 'lg:hidden',
     rail: 'hidden lg:flex',
+  },
+  split: {
+    root: 'w-full lg:split:w-[var(--cf-side-panel-width)] lg:split:shrink-0',
+    side: 'hidden lg:split:flex',
+    hiddenBody: 'lg:split:hidden',
+    rail: 'hidden lg:split:flex',
   },
   none: {
     root: 'w-[var(--cf-side-panel-width)] shrink-0',
@@ -215,7 +223,7 @@ export function SidePanel({
    * in the content's header through `SidePanelHideButton` (`header`).
    */
   hideButton?: 'row' | 'header';
-  breakpoint?: 'lg' | 'none';
+  breakpoint?: 'lg' | 'split' | 'none';
   className?: string;
   bodyClassName?: string;
   /**

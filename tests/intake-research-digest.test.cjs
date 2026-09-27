@@ -28,6 +28,7 @@ const {
   isHomepageUrl,
   digestSourcesFor,
   researchDigestPrompt,
+  isSourceMetadataStatement,
   RESEARCH_DIGEST_FINDING_CAPS,
   RESEARCH_DIGEST_DEEP_PAGES,
   RESEARCH_DIGEST_PAGE_CHARS,
@@ -450,5 +451,92 @@ describe('correctedBriefField (97dq.42)', () => {
     expect(
       correctedBriefField('Производительность выросла на 40% за год.', [fix], corrected.replace('Производительность не упала. ', ''))
     ).not.toContain('40%');
+  });
+});
+
+describe('дата публикации страницы — не факт о теме (tbuj, D13)', () => {
+  // Две строки живого прогона W2 27.09.2026, обе стояли «подтверждено».
+  const pageDated =
+    'На странице представлен аналитический отчёт об ИИ-инструментах в рабочих коммуникациях, датированный 5 июня 2025 года.';
+  const imprint =
+    'В приведённых выходных данных указано, что материал был принят 10 июня и опубликован 11 июня 2026 года.';
+
+  test.each([
+    pageDated,
+    imprint,
+    'Статья опубликована 3 марта 2025 г.',
+    'Дата публикации материала — 2025-06-05.',
+    'Страница обновлена 05.06.2025.',
+    'The article was published on June 5, 2025 and last updated in 2026.',
+    'This page was posted on 12 Aug 2024.',
+    'Эта статья принята к публикации 10 июня 2026 года.',
+    'Публикация датирована 5 июня 2025 года.',
+  ])('«%s» — сведения об источнике', (statement) => {
+    expect(isSourceMetadataStatement(statement)).toBe(true);
+  });
+
+  test.each([
+    'В статье 2026 года предложено балансировать коммуникацию в распределённой Agile-команде.',
+    'Статья, опубликованная в 2023 году, утверждает, что асинхронные команды реже выгорают.',
+    'Отчёт, опубликованный в июне 2025 года, на странице 12 приводит долю 60% команд.',
+    'Материал 2025 года показывает, что медиана встреч упала до 48 минут в день.',
+    'The article published in 2024 finds that async teams ship 30% faster.',
+    'Исландия провела два испытания между 2015 и 2019 годами.',
+    'В сравнении двух команд по 30 инженеров lead time составил 4,2 дня.',
+    // kcxz.38, P3-5: законы, стандарты и материалы тоже «приняты».
+    'Закон принят в 2023 году.',
+    'Закон принят 10 июня 2025 года; статья вводит штраф.',
+    'Новый ГОСТ на строительные материалы принят 5 июня 2025 года.',
+    'Стандарт ГОСТ Р на кровельные материалы принят в 2021 году и опубликован в 2022 году.',
+    'В статье закона, опубликованного в 2023 году, введён штраф за просрочку.',
+    'В статье 5 закона, принятого в 2023 году, введён штраф.',
+    'The law was accepted in 2023 and the article on fines published in 2024.',
+    '',
+  ])('«%s» — факт о теме, остаётся', (statement) => {
+    expect(isSourceMetadataStatement(statement)).toBe(false);
+  });
+
+  test('разбор отбрасывает такие находки, даже когда цитата стоит в источнике буквально', () => {
+    const journal = {
+      evidenceId: 'ev-journal',
+      url: 'https://ejurnal.example.id/article/view/42',
+      title: 'Async communication in distributed teams',
+      excerpt:
+        'Received: 10 June 2026; Accepted: 10 June 2026; Published: 11 June 2026. Teams that moved status meetings to written updates cut meeting time by 35 percent.',
+      text: null,
+    };
+    const settled = settleResearchDigest(
+      {
+        verdicts: [],
+        findings: [
+          {
+            evidenceId: 'ev-journal',
+            statement: imprint,
+            quote: 'Accepted: 10 June 2026; Published: 11 June 2026',
+          },
+          {
+            evidenceId: 'ev-journal',
+            statement: 'Команды, перенёсшие статусные встречи в письменные сводки, сократили время встреч на 35%.',
+            quote: 'Teams that moved status meetings to written updates cut meeting time by 35 percent.',
+          },
+        ],
+      },
+      { claims: [], sources: [journal], level: 'standard' }
+    );
+    expect(settled.findings.map((finding) => finding.statement)).toEqual([
+      'Команды, перенёсшие статусные встречи в письменные сводки, сократили время встреч на 35%.',
+    ]);
+    expect(settled.rejected.findings).toBe(0);
+  });
+
+  test('промпт прямо запрещает выдавать дату и выходные данные страницы за находку', () => {
+    for (const claimsFor of [claims, []]) {
+      const prompt = researchDigestPrompt(
+        { language: 'ru', level: 'standard', subject: 'Мысль', claims: claimsFor, sources: [autonomy] },
+        digestSourcesFor([autonomy], 'standard')
+      );
+      expect(prompt).toContain('A finding is a claim about the subject, never about the source itself');
+      expect(prompt).toContain('publication, acceptance, update or retrieval date');
+    }
   });
 });

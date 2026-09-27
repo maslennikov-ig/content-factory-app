@@ -38,23 +38,25 @@ describe('agent opening band', () => {
   });
 
   test('lets a column that ends in a divider keep its own bottom margin', () => {
-    // The default gap belongs to the two agent columns that had `mb-[15px]`
-    // before the band was shared. The chat column had no margin at all and a
-    // `border-b`, so inheriting the default put 16px of empty surface between
-    // the divider and the chat. Tailwind prints `.mb-4` after `.mb-0`, so the
-    // call site cannot win by writing `mb-0` beside the default — the primitive
-    // has to stand down, and this proves it does.
-    const chat = source('apps/frontend/src/components/agents/agent.chat.tsx');
-    const band = chat.match(/<OpeningBand className="([^"]*)"/)?.[1] ?? '';
+    // The default gap belongs to columns that had `mb-[15px]` before the band
+    // was shared. The chat column's head carries `border-b`, so inheriting the
+    // default would put 16px of empty surface between the divider and the
+    // conversation. Tailwind prints `.mb-4` after `.mb-0`, so the call site
+    // cannot win by writing `mb-0` beside the default — the primitive has to
+    // stand down, and this proves it does.
+    const head = source('apps/frontend/src/components/agents/agent.threads.tsx');
+    const band = head.match(/<OpeningBand className="([^"]*)"/)?.[1] ?? '';
 
     expect(band).toContain('border-b');
     expect(band.split(/\s+/)).toContain('mb-0');
   });
 
   test('uses the same opening-band primitive for every agents-page column', () => {
+    // Since `content-factory-next-kcxz.10` the columns are the chat (its head
+    // is the conversation switcher) and the work panel beside it.
     const usage = [
-      openingBandUsage('apps/frontend/src/components/agents/agent.tsx', 2),
-      openingBandUsage('apps/frontend/src/components/agents/agent.chat.tsx', 1),
+      openingBandUsage('apps/frontend/src/components/agents/agent.threads.tsx', 1),
+      openingBandUsage('apps/frontend/src/components/agents/agent.panel.tsx', 1),
     ];
 
     expect(usage).toEqual(

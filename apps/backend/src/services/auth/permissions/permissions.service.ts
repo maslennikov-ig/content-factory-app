@@ -25,8 +25,12 @@ import {
  * `organization.roles.ts` and the browser reads the very same function.
  *
  * Everything not in this table is a plan limit and knows nothing about roles.
+ *
+ * Exported for the agent's capability registry (`content-factory-next-kcxz.6`),
+ * which offers the model only the actions a role may use: it reads this table
+ * rather than keeping a second one.
  */
-const ROLE_SECTIONS: Partial<
+export const ROLE_SECTIONS: Partial<
   Record<Sections, (role: OrganizationRole) => boolean>
 > = {
   [Sections.ADMIN]: isOrganizationAdmin,

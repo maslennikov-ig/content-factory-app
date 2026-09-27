@@ -7,6 +7,9 @@
  * preference and the «Агент» and «Плагины» menu entries. For her this is noise, and the product rule is to decide for the
  * person and keep less on screen.
  *
+ * «Агент» came back with release 1 of the agent chat (`content-factory-next-kcxz.17`):
+ * the upstream CopilotKit screen it hid is gone, and the chat now does what the screens do.
+ *
  * This is the one list. The menu and the settings screen read it; nothing is
  * deleted. The code, the routes and the `?tab=` names stay, so a direct
  * address still opens its screen, and bringing a surface back is removing
@@ -19,7 +22,6 @@
 
 /** Menu paths that are not drawn in the sidebar. */
 export const HIDDEN_MENU_PATHS: readonly string[] = [
-  '/agents',
   '/plugs',
   // HeyGen and Reelfarm keys: the same kind of leftover (97dq.100).
   '/third-party',

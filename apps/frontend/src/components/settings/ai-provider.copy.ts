@@ -111,6 +111,7 @@ type Words = {
     judge: RoleWords;
     review: RoleWords;
     image: RoleWords;
+    agent: RoleWords;
   };
   search: {
     /** Что вообще делает этот раздел. */
@@ -218,6 +219,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       image: {
         what: 'Картинки — единственная роль, которой нужен ИИ, умеющий рисовать.',
       },
+      agent: {
+        what: 'Агент в чате ведёт разговор и решает, какое действие продукта позвать; сами тексты пишут роли выше.',
+      },
     },
     search: {
       what: 'Поиск работает всегда. На «Своём ключе» у каждого движка своё поле: сохранённый ключ перекрывает ключ системы только для этого движка и не расходует включённый лимит, пустое поле берёт ключ системы. На «Ключах системы» поиск идёт на ключах системы.',
@@ -324,6 +328,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       },
       image: {
         what: 'Images — the one role that needs a model which can draw.',
+      },
+      agent: {
+        what: 'The chat agent holds the conversation and picks which product action to call; the texts themselves are written by the roles above.',
       },
     },
     search: {

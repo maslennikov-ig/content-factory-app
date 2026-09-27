@@ -1,0 +1,4 @@
+    <div class="starter rec"><span class="t">%%user%%Соберём аватар</span><span class="sm muted">Чьей манерой писать. Пять строк о вас — или по вашим постам, 10–15 минут.</span><span class="cap" style="color:var(--cf-accent)">начать отсюда · шаг 1</span></div>
+    <div class="starter"><span class="t"><span class="tg">%%tgp%%</span>Подключим Telegram</span><span class="sm muted">Бот — администратором канала, одна команда в канал. Сам он ничего не публикует.</span><span class="cap">шаг 2</span></div>
+    <div class="starter"><span class="t">%%pen%%Напишем пост из одной мысли</span><span class="sm muted">Одна фраза — остальное решим сами и спросим не больше двух вопросов.</span><span class="cap">шаг 3</span></div>
+    <div class="starter"><span class="t">%%cal%%Что у нас в плане на неделю</span><span class="sm muted">Брони и запланированное на семь дней — одним списком.</span><span class="cap">шаг 4</span></div>

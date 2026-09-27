@@ -150,7 +150,7 @@ describe('nothing of the token reaches the saved text (fifteenth F3)', () => {
       'utf8'
     );
     const strip = source.indexOf('stripLeftoverAuthorLinkDeep(output)');
-    const persist = source.indexOf('await this.persist(organizationId, plan, output, answers)');
+    const persist = source.indexOf('await this.persist(organizationId, plan, output, answers');
     expect(strip).toBeGreaterThan(0);
     expect(strip).toBeLessThan(persist);
   });

@@ -27,6 +27,9 @@ const mocks = {
 };
 const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v15 = loadWithMocks(`${base}/pieces/core-write-prompt.v15.ts`);
+// The current prompt is v16 (`wffi`): the examples rule is v15's, the
+// knowledge rule no longer answers the author's own material.
+const v16 = loadWithMocks(`${base}/pieces/core-write-prompt.v16.ts`);
 const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
 const v11 = loadWithMocks(`${base}/pieces/core-write-prompt.v11.ts`);
 const policy = loadWithMocks(`${base}/brand-profile/delegated-policy.ts`);
@@ -66,9 +69,9 @@ const DATA = [PERSON, ...forbiddenPhrasesFor('ru')];
 describe('core-write/v15: «Решите за меня» из знаний', () => {
   test('своя версия; v14 и v11 остаются для квитанций', () => {
     expect(v15.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v16');
     expect(v14.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
-    expect(coreWrite.corePrompt(input())).toContain('PROMPT VERSION: core-write/v15');
+    expect(coreWrite.corePrompt(input())).toContain('PROMPT VERSION: core-write/v16');
     // Старые модули не тронуты: правило 97dq.56 в v11 на месте.
     expect(v11.CORE_WRITE_DELEGATED_V11.en).toContain('You do not know it and you do not invent it');
   });
@@ -78,7 +81,7 @@ describe('core-write/v15: «Решите за меня» из знаний', () 
     (delegatedPolicy) => {
       for (const language of ['ru', 'en']) {
         const prompt = coreWrite.corePrompt(input({ language, delegatedPolicy }));
-        expect(prompt).toContain(v15.CORE_WRITE_HANDED_V15[delegatedPolicy]);
+        expect(prompt).toContain(v16.CORE_WRITE_HANDED_V16[delegatedPolicy]);
         expect(prompt).toContain(v15.CORE_WRITE_DELEGATED_V15);
         expect(prompt).toContain(`write the core and every decision in ${language === 'ru' ? 'Russian' : 'English'}`);
         expect(cyrillicOutsideData(prompt, DATA)).toEqual([]);
@@ -90,7 +93,7 @@ describe('core-write/v15: «Решите за меня» из знаний', () 
   test('по умолчанию — знания: правило знаний есть, выдуманный опыт запрещён', () => {
     const prompt = coreWrite.corePrompt(input());
     const rule = v15.CORE_WRITE_HANDED_V15.knowledge;
-    expect(prompt).toContain(rule);
+    expect(prompt).toContain(v16.CORE_WRITE_HANDED_V16.knowledge);
     expect(policy.DEFAULT_DELEGATED_POLICY).toBe('knowledge');
     // Знания: «реши сам» — не «ничего не пиши».
     expect(rule).toContain('Handing a question over does not mean «write nothing about it»');

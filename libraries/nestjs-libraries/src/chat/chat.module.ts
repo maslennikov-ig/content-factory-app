@@ -1,11 +1,23 @@
 import { Global, Module } from '@nestjs/common';
-import { LoadToolsService } from '@contentfactory/nestjs-libraries/chat/load.tools.service';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
-import { toolList } from '@contentfactory/nestjs-libraries/chat/tools/tool.list';
+import { AgentThreadsService } from '@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service';
+import { AGENT_RUN_CLAIM_STORE } from '@contentfactory/nestjs-libraries/chat/conductor/agent-run-claims';
+import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 
+/**
+ * The agent chat's providers (`content-factory-next-kcxz.7`): the Mastra
+ * instance with its conductor, and the personal threads. The capabilities
+ * reach the product's services through `ModuleRef`, so nothing here lists
+ * them.
+ */
 @Global()
 @Module({
-  providers: [MastraService, LoadToolsService, ...toolList],
+  providers: [
+    MastraService,
+    AgentThreadsService,
+    // One answer per suspended run at a time, across instances (review W1 F5).
+    { provide: AGENT_RUN_CLAIM_STORE, useValue: ioRedis },
+  ],
   get exports() {
     return this.providers;
   },

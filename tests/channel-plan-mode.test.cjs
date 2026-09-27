@@ -606,6 +606,8 @@ const stand = (options = {}) => {
   repository.withChannelLock = (_org, _pieceId, _integrationId, work) => {
     calls.locks = (calls.locks || 0) + 1;
     const run = lockChain.then(async () => {
+      // Somebody changes the channel between the checks and the lock (W2 F2).
+      if (options.onLock) options.onLock(channel);
       calls.inLock = true;
       try {
         return await work(repository);
@@ -945,6 +947,28 @@ describe('«Поставить на ЧЧ:ММ»', () => {
     expect(result.placement).toMatchObject({ mode: 'autopilot', status: 'queued', date: SLOT, autopilot: true });
   });
 
+  test('«Без плана»: календарь оставляет черновик со временем, чат «бронью» ставит бронь поста (kcxz.31 D5)', async () => {
+    const screen = stand({ planMode: 'draft' });
+    await screen.generate();
+    screen.at(MIN);
+    const drafted = await screen.service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru');
+    expect(drafted.placement).toMatchObject({ mode: 'draft', status: 'draft', date: SLOT });
+    expect(screen.tags()?.postSettings?.['int-tg']?.planMode ?? null).toBeNull();
+
+    const chat = stand({ planMode: 'draft' });
+    await chat.generate();
+    chat.at(MIN);
+    const reserved = await chat.service.placeAdaptation(
+      'org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru', { queueAllowed: false, reserve: true }
+    );
+    // The post's own mode, written under the lock — the channel keeps «Без плана».
+    expect(chat.tags().postSettings['int-tg'].planMode).toBe('reserve');
+    expect(reserved.placement).toMatchObject({ mode: 'reserve', status: 'reserved', date: SLOT, autopilot: false });
+    expect(reserved.adaptation.plan).toMatchObject({ status: 'reserved', date: SLOT });
+    expect(chat.posts.get('post-1').publishDate.toISOString()).toBe(SLOT);
+    expect(chat.queued()).toEqual([]);
+  });
+
   test('без календаря — честный отказ', async () => {
     const service = new PieceService({ getPiece: async () => pieceRow() }, {}, {});
     await expect(
@@ -1086,6 +1110,113 @@ describe('F5: «Запланировать» не ставит вторую оч
 /* -------------------------------------------------------------------------
  * Второй круг ревью: F7, F8, F11, F13
  * ---------------------------------------------------------------------- */
+
+describe('review W2 F2: чат ставит в очередь только с согласием этого вызова', () => {
+  const SLOT = '2026-09-24T09:00:00.000Z';
+  const NO_CONSENT = { queueAllowed: false };
+  const adaptWith = async (service, consent) => {
+    const prepared = await service.prepareAdapt(
+      'org-a',
+      'piece-1',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    let adaptation = null;
+    for await (const event of service.adapt('org-a', prepared, 'user-1', consent)) {
+      if (event.name === 'adaptation') adaptation = event.adaptation;
+    }
+    return adaptation;
+  };
+
+  test('автопилот без согласия: версия — бронь с причиной, очереди и проверки площадки нет', async () => {
+    const { service, queued, calls } = stand({ planMode: 'autopilot' });
+    const adaptation = await adaptWith(service, NO_CONSENT);
+    expect(queued()).toEqual([]);
+    expect(calls.status).toEqual([]);
+    expect(calls.validate).toEqual([]);
+    expect(adaptation.state).toBe('draft');
+    expect(adaptation.plan).toMatchObject({
+      status: 'reserved',
+      autopilot: false,
+      note: expect.stringContaining('в очередь эту версию не просили ставить'),
+    });
+  });
+
+  test('канал ушёл на автопилот между проверкой и записью — под замком версия остаётся бронью', async () => {
+    const { service, queued, calls } = stand({
+      planMode: 'reserve',
+      onLock: (channel) => {
+        channel.planMode = 'autopilot';
+      },
+    });
+    const adaptation = await adaptWith(service, NO_CONSENT);
+    expect(queued()).toEqual([]);
+    expect(calls.status).toEqual([]);
+    expect(adaptation.plan).toMatchObject({ status: 'reserved', autopilot: false });
+  });
+
+  test('согласие дано — автопилот ставит в очередь, как с экрана', async () => {
+    const { service, queued } = stand({ planMode: 'autopilot' });
+    const adaptation = await adaptWith(service, { queueAllowed: true });
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    expect(adaptation.state).toBe('queued');
+  });
+
+  test('«Поставить на …» без согласия на автопилоте — отказ кодом, ничего не записано', async () => {
+    const { service, calls, posts, at } = stand({ planMode: 'autopilot' });
+    // A draft on an autopilot channel: written without consent, kept a reserve.
+    await adaptWith(service, NO_CONSENT);
+    const before = posts.get('post-1').publishDate.toISOString();
+    at(MIN);
+    await expect(
+      service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru', NO_CONSENT)
+    ).rejects.toMatchObject({ code: 'ADAPTATION_QUEUE_NEEDS_CONSENT', status: 409 });
+    expect(calls.status).toEqual([]);
+    expect(calls.validate).toEqual([]);
+    expect(posts.get('post-1').publishDate.toISOString()).toBe(before);
+    expect(posts.get('post-1').state).toBe('DRAFT');
+  });
+
+  test('«Поставить на …»: режим сменился между проверкой и замком — отказ под замком, ничего не записано', async () => {
+    const lockSwitch = { armed: false };
+    const { generate, service, calls, posts, at } = stand({
+      planMode: 'reserve',
+      onLock: (channel) => {
+        if (lockSwitch.armed) channel.planMode = 'autopilot';
+      },
+    });
+    await generate();
+    const before = posts.get('post-1').publishDate.toISOString();
+    lockSwitch.armed = true;
+    at(MIN);
+    await expect(
+      service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru', NO_CONSENT)
+    ).rejects.toMatchObject({ code: 'ADAPTATION_QUEUE_NEEDS_CONSENT' });
+    expect(calls.status).toEqual([]);
+    expect(posts.get('post-1').publishDate.toISOString()).toBe(before);
+    expect(posts.get('post-1').state).toBe('DRAFT');
+  });
+
+  test('«Поставить на …» без согласия не переносит пост из очереди — перенос идёт через карточку', async () => {
+    const { generate, service, queued, at } = stand({ planMode: 'autopilot' });
+    await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    at(MIN);
+    await expect(
+      service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru', NO_CONSENT)
+    ).rejects.toMatchObject({ code: 'ADAPTATION_QUEUE_NEEDS_CONSENT' });
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+  });
+
+  test('экран без флага — как прежде: «Поставить на …» на автопилоте ставит в очередь', async () => {
+    const { generate, service, queued, at } = stand({ planMode: 'autopilot' });
+    await generate();
+    await generate();
+    at(MIN);
+    await service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru');
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+  });
+});
 
 describe('F8: режим канала читается заново перед постановкой', () => {
   test('автопилот выключили, пока шла генерация, — версия встаёт бронью, очереди нет', async () => {
@@ -1835,6 +1966,72 @@ describe('«Бронь» → как в канале: сервер сверяет
       'utf8'
     );
     expect(dto).toMatch(/@IsIn\(\['draft', 'reserve', 'autopilot'\]\)\s*expectedChannelMode\?/);
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * kcxz.32 N4: «Отменить бронь» в чате и «Снять из плана» на странице — один
+ * ход (`DROP_RESERVE`): «как в канале», если канал держит пост черновиком,
+ * иначе свой «Без плана». Решает замок канала, не страница.
+ * ---------------------------------------------------------------------- */
+
+describe('«Отменить бронь» / «Снять из плана»: как в канале, если это держит пост вне очереди (kcxz.32 N4)', () => {
+  const adapter = () =>
+    loadTypeScriptModule('apps/frontend/src/components/content-intelligence/pieces/pieces.adapter.ts');
+  const drop = (service) =>
+    service.savePostSettings(
+      'org-a',
+      'piece-1',
+      'int-tg',
+      adapter().buildPostSettingsPayload(adapter().DROP_RESERVE),
+      'ru'
+    );
+
+  test('канал «Без плана», у поста своя «Бронь» (живой прогон 27.09): пост снова «как в канале», бронь снята', async () => {
+    const { service, generate, tags, queued, derivations } = stand({
+      planMode: 'draft',
+      tags: { postSettings: { 'int-tg': { planMode: 'reserve' } } },
+    });
+    await generate();
+    expect(derivations[0].plan).toBe('reserve');
+    const saved = await drop(service);
+    expect(saved.settings?.planMode ?? null).toBeNull();
+    expect(tags().postSettings?.['int-tg']?.planMode ?? null).toBeNull();
+    expect(derivations[0].plan).toBe('draft');
+    expect(saved.adaptation.plan).toMatchObject({ status: 'draft', date: null });
+    expect(queued()).toEqual([]);
+  });
+
+  test('канал на «Брони»: «как в канале» вернуло бы бронь — пост хранит свой «Без плана», бронь снята', async () => {
+    const { service, generate, tags, queued, derivations } = stand({ planMode: 'reserve' });
+    await generate();
+    expect(derivations[0].plan).toBe('reserve');
+    const saved = await drop(service);
+    expect(saved.settings.planMode).toBe('draft');
+    expect(tags().postSettings['int-tg'].planMode).toBe('draft');
+    expect(derivations[0].plan).toBe('draft');
+    expect(queued()).toEqual([]);
+  });
+
+  test('канал на автопилоте: пост не встаёт в очередь, держит свой «Без плана»', async () => {
+    const { service, generate, tags, queued } = stand({ planMode: 'autopilot' });
+    await generate();
+    await drop(service);
+    expect(tags().postSettings['int-tg'].planMode).toBe('draft');
+    expect(queued()).toEqual([]);
+  });
+
+  test('страница шлёт тот же ход, что карточка чата', () => {
+    const container = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        '..',
+        'apps/frontend/src/components/content-intelligence/pieces/piece.container.tsx'
+      ),
+      'utf8'
+    );
+    expect(container).not.toContain("changePostPlan(channel.id, 'draft')");
+    expect(container).toMatch(/DROP_RESERVE\.planMode,\s*DROP_RESERVE\.expectedChannelMode/);
   });
 });
 

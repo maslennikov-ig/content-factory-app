@@ -9,7 +9,10 @@ const consumers = [
   'libraries/nestjs-libraries/src/agent/agent.graph.service.ts',
   'libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts',
   'libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts',
-  'libraries/nestjs-libraries/src/chat/load.tools.service.ts',
+  // The agent chat: its model inside the turn's one `agent` admission, and the
+  // admission itself held open by the door (`content-factory-next-kcxz.7/.8`).
+  'libraries/nestjs-libraries/src/chat/mastra.service.ts',
+  'apps/backend/src/api/routes/agent.controller.ts',
   // Вход одной мыслью: два разбора на один вход, своя операция `intake`
   // (`content-factory-next-tu3k.1`).
   'libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts',
@@ -25,7 +28,7 @@ test('every direct AI consumer is behind the explicit operation seam', () => {
       expect.objectContaining({
         relative,
         source: expect.stringMatching(
-          /executeAi(?:Stream)?Operation|beginAiOperationWithConfig|prepareModelExecution/
+          /executeAi(?:Stream)?Operation|beginAiOperation(?:WithConfig)?|prepareModelExecution/
         ),
       })
     );

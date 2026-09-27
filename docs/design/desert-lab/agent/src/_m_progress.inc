@@ -1,0 +1,1 @@
+<div class="kc mini"><span class="kind">%%bolt%%Готово</span><span class="sm" style="flex:1;min-width:0">Написали ядро · 5 шагов · 1 мин 40 с</span><span class="btn quiet dense icon" aria-label="Показать шаги">%%chev%%</span></div>

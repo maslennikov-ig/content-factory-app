@@ -1779,6 +1779,19 @@ export function buildPostSettingsPayload(input: {
   };
 }
 
+/**
+ * «Снять из плана» на странице и «Отменить бронь» в чате (`kcxz.32`, N4) —
+ * один ход: пост возвращается к режиму «как в канале», если канал сам
+ * держит его черновиком («Без плана»); иначе («Бронь», «Автопилот») «как в
+ * канале» вернуло бы его в бронь или в очередь, и пост хранит свой «Без
+ * плана». Решает сервер под замком канала (`followChannelAs`, 97dq.86 F10),
+ * а не страница по режиму, который она видела.
+ */
+export const DROP_RESERVE: Readonly<{ planMode: null; expectedChannelMode: PlanModeWordV1 }> = {
+  planMode: null,
+  expectedChannelMode: 'draft',
+};
+
 /** Ответ `GET …/plan-impact`: сколько написанных постов затронет режим. */
 export function readPlanImpact(value: unknown): { count: number } {
   const record = asRecord(value) ?? {};
@@ -2143,6 +2156,40 @@ export const channelOfTab = (
   tab === PIECE_TAB_CORE
     ? null
     : channels.find((channel) => channel.id === tab) ?? null;
+
+/**
+ * Где стоит адаптация (`kcxz.31`, D8): канал её вкладки и номер варианта —
+ * тот же «Вариант N», что у переключателя версий вкладки (старая — первая).
+ * Карточка чата после проверки или правки знает только `{id, pieceId}`;
+ * остальное — в уже прочитанной заготовке.
+ */
+export const adaptationPlace = (
+  channels: readonly WorkspaceChannel[],
+  adaptationId: string
+): { channel: WorkspaceChannel; variant: number } | null => {
+  for (const channel of channels) {
+    const index = channel.adaptations.findIndex((one) => one.id === adaptationId);
+    if (index >= 0)
+      return { channel, variant: channel.adaptations.length - index };
+  }
+  return null;
+};
+
+/**
+ * Дверь заготовки: один чтец для страницы и для панели агента (`kcxz.31`),
+ * чтобы у ключа `PIECES_API.detail` был один ответ, кто бы его ни перечитал.
+ */
+export const fetchPieceDetail = async (
+  request: (url: string) => Promise<Response>,
+  pieceId: string
+): Promise<PieceWorkspaceV1> => {
+  const response = await request(PIECES_API.detail(pieceId));
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(refusalMessage(body) || 'piece unavailable');
+  }
+  return readPieceDetail(await response.json());
+};
 
 /**
  * Старый адрес `?adapt=<площадка>` — вкладка первого канала этой площадки.

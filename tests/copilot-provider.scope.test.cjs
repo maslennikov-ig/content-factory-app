@@ -33,8 +33,8 @@ const PICK_PLATFORMS =
 
 /**
  * Эти файлы пользуются помощником, но провайдер им даёт родитель: `editor.tsx`
- * рисуется только внутри окна редактора поста, `agent.input.tsx` — только
- * внутри чата агента, у которого свой <CopilotKit>.
+ * рисуется только внутри окна редактора поста. Чат агента с
+ * `content-factory-next-kcxz.10` стоит на `useChat` и CopilotKit не касается.
  *
  * `assistant.popup.tsx` — сама панель помощника
  * (`content-factory-next-fn33.118`): она не потребитель, который решает,
@@ -44,7 +44,6 @@ const PICK_PLATFORMS =
  */
 const PROVIDED_BY_PARENT = [
   'apps/frontend/src/components/new-launch/editor.tsx',
-  'apps/frontend/src/components/agents/agent.input.tsx',
   'apps/frontend/src/components/copilot/assistant.popup.tsx',
 ];
 
@@ -58,14 +57,12 @@ const PROVIDED_BY_PARENT = [
 const COPILOT_KIT_DOOR = 'apps/frontend/src/components/copilot/copilot.provider.tsx';
 
 /**
- * Одно исключение, и оно старое: окно чата с агентом поднимает свой
- * `<CopilotKit>` с другим `runtimeUrl` — рантайм агента, а не общий
- * `/copilot/chat`, — поэтому общей дверью оно не обходится. Список закрыт:
- * новая обёртка сюда не дописывается, она пишется через `<CopilotProvider>`.
+ * Исключений нет. Было одно — окно чата с агентом поднимало свой
+ * `<CopilotKit>` с рантаймом агента; с `content-factory-next-kcxz.10` экран
+ * агента стоит на `useChat` из `@ai-sdk/react`, и исключение ушло вместе с ним.
+ * Список закрыт: новая обёртка пишется через `<CopilotProvider>`.
  */
-const COPILOT_KIT_GRANDFATHERED = [
-  'apps/frontend/src/components/agents/agent.chat.tsx',
-];
+const COPILOT_KIT_GRANDFATHERED = [];
 
 /**
  * Текст без блочных комментариев.

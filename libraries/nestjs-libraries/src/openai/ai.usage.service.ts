@@ -682,6 +682,18 @@ export class AiUsageService {
         runWithUsageLedger(ledger, () =>
           withActiveAiConfig(organizationId, config, callback, role)
         ),
+      /**
+       * Bills calls to this row without taking its configuration
+       * (`content-factory-next-ia7s`). Web research opens the row with the
+       * search key, while its classifier and summary run on the generation
+       * key the caller keeps active; their tokens belong to this operation
+       * all the same, and without this they reached no row at all — or the
+       * row of whatever operation had called the search. The caller tracks
+       * only calls whose key comes from the same source as the row's
+       * credential (`content-factory-next-kcxz.38`): the row has one
+       * `usageMode`, and spend of the other source does not belong on it.
+       */
+      track: <T>(callback: () => T): T => runWithUsageLedger(ledger, callback),
       finish: async (succeeded: boolean, error?: unknown) => {
         if (closed) return;
         closed = true;
@@ -692,6 +704,32 @@ export class AiUsageService {
         }
       },
     };
+  }
+
+  /**
+   * One admission held open across a stream the caller drives itself, with
+   * the workspace's own configuration (`content-factory-next-kcxz.8`).
+   *
+   * The agent chat is the consumer: its turn is one `agent` operation for the
+   * whole SSE response, and the door — not the callback's return — knows how
+   * it ended. A stream that carried an error part, or that the person left,
+   * is closed as failed with the tokens it did spend (premortem U2, U3).
+   * Refusals (no key, allowance spent) are thrown here, before any byte of
+   * the stream is written.
+   */
+  async beginAiOperation(
+    organizationId: string,
+    operation: AiOperation,
+    role?: AiRole
+  ) {
+    this.assertTenant(organizationId);
+    const config = await loadAiConfig(organizationId);
+    return this.beginAiOperationWithConfig(
+      organizationId,
+      operation,
+      config,
+      role ?? roleOf(operation)
+    );
   }
 
   private async executeOperationWithConfig<T>(

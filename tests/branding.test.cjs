@@ -260,17 +260,15 @@ describe('Content Factory brand boundary', () => {
         'libraries/nestjs-libraries/src/database/prisma/subscriptions/pricing.ts'
       )
     ).toContain('featured_plan');
+    // The agent id: declared once and kept from the inherited agent, so the
+    // suspended runs Mastra lists per agent id stay findable
+    // (`content-factory-next-kcxz.7`). The registry and the doors read the
+    // constant, never the string.
+    expect(
+      read('libraries/nestjs-libraries/src/chat/conductor/conductor.context.ts')
+    ).toContain("export const CONDUCTOR_AGENT_ID = 'content-factory';");
     expect(read('libraries/nestjs-libraries/src/chat/mastra.service.ts')).toContain(
-      "'content-factory':"
-    );
-    // The agent key is looked up by string in three separate places; a rename
-    // that missed one would leave the chat surface asking for an agent the
-    // registry does not have.
-    expect(read('libraries/nestjs-libraries/src/chat/start.mcp.ts')).toContain(
-      "getAgent('content-factory')"
-    );
-    expect(read('apps/frontend/src/components/agents/agent.chat.tsx')).toContain(
-      'agent="content-factory"'
+      '[CONDUCTOR_AGENT_ID]:'
     );
   });
 

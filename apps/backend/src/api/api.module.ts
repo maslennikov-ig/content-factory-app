@@ -22,6 +22,7 @@ import { OpenaiService } from '@contentfactory/nestjs-libraries/openai/openai.se
 import { ExtractContentService } from '@contentfactory/nestjs-libraries/openai/extract.content.service';
 import { CodesService } from '@contentfactory/nestjs-libraries/services/codes.service';
 import { CopilotController } from '@contentfactory/backend/api/routes/copilot.controller';
+import { AgentController } from '@contentfactory/backend/api/routes/agent.controller';
 import { PublicController } from '@contentfactory/backend/api/routes/public.controller';
 import { SourceController } from '@contentfactory/backend/api/routes/source.controller';
 import { RootController } from '@contentfactory/backend/api/routes/root.controller';
@@ -81,6 +82,7 @@ const authenticatedController = [
   BillingController,
   NotificationsController,
   CopilotController,
+  AgentController,
   WebhookController,
   SignatureController,
   AutopostController,

@@ -749,30 +749,64 @@ export class PostsRepository {
     });
   }
 
+  /**
+   * `expectedState` makes the write conditional (`kcxz.30`, review F11): the
+   * row is changed only while it is still in the state the caller decided on,
+   * so a post published (or otherwise moved on) between that read and this
+   * write is refused with `POST_STATE_CHANGED` (409) instead of being put back
+   * into the queue. Without it the write is the plain upstream update.
+   */
   async changeDate(
     orgId: string,
     id: string,
     date: string,
     isDraft: boolean,
     action: 'schedule' | 'update' = 'schedule',
-    client?: any
+    client?: any,
+    expectedState?: State
   ) {
-    return (client || this._post.model).post.update({
+    const db = client || this._post.model;
+    const data = {
+      publishDate: dayjs(date).toDate(),
+      // schedule: set state to QUEUE (or DRAFT if it was a draft)
+      // update: don't change the state
+      ...(action === 'schedule'
+        ? {
+            state: (isDraft ? 'DRAFT' : 'QUEUE') as State,
+            releaseId: null,
+            releaseURL: null,
+          }
+        : {}),
+    };
+    if (!expectedState) {
+      return db.post.update({
+        where: {
+          organizationId: orgId,
+          id,
+        },
+        data,
+      });
+    }
+    const { count } = await db.post.updateMany({
       where: {
         organizationId: orgId,
         id,
+        state: expectedState,
       },
-      data: {
-        publishDate: dayjs(date).toDate(),
-        // schedule: set state to QUEUE (or DRAFT if it was a draft)
-        // update: don't change the state
-        ...(action === 'schedule'
-          ? {
-              state: isDraft ? 'DRAFT' : 'QUEUE',
-              releaseId: null,
-              releaseURL: null,
-            }
-          : {}),
+      data,
+    });
+    if (!count) {
+      const error: any = new Error(
+        'This post is no longer scheduled or a draft (it may have just been published). Nothing was moved.'
+      );
+      error.code = 'POST_STATE_CHANGED';
+      error.status = 409;
+      throw error;
+    }
+    return db.post.findFirst({
+      where: {
+        organizationId: orgId,
+        id,
       },
     });
   }
