@@ -26,3 +26,4 @@ export * from './catalogue/adaptation.capabilities';
 export * from './catalogue/plan.capabilities';
 export * from './catalogue/selection';
 export * from './catalogue/avatar.capabilities';
+export * from './catalogue/ai-settings.capabilities';

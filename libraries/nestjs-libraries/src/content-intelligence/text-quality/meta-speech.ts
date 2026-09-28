@@ -21,6 +21,8 @@
  * видит.
  */
 
+import { AUDIENCE_REMARK_PATTERNS } from './audience-remark';
+
 const L = '\\p{L}\\p{Nd}';
 const START = `(?<![${L}])`;
 const END = `(?![${L}])`;
@@ -29,6 +31,9 @@ const phrase = (body: string): RegExp => new RegExp(`${START}(?:${body})${END}`,
 
 /** Обороты, которые в готовом тексте поста не стоят никогда. */
 export const META_SPEECH_PATTERNS: readonly RegExp[] = [
+  // О том, кому адресован сам текст (живой прогон W3, P3-E): адресат — строка
+  // брифа, а не фраза поста.
+  ...AUDIENCE_REMARK_PATTERNS,
   // RU: о прежнем тексте и о поправке.
   phrase('в\\s+перв(?:ом|ой)\\s+(?:описании|версии|варианте|тексте)'),
   phrase('сначала\\s+я\\s+(?:описал[а]?|написал[а]?|сказал[а]?)'),

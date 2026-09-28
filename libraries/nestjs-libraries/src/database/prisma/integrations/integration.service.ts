@@ -139,11 +139,15 @@ export class IntegrationService {
    * «Бронь» (умолчание, в том числе для `NULL`) или «Автопилот». Своя колонка
    * `Integration.planMode`, а не `additionalSettings` — те рисует экран
    * провайдера.
+   *
+   * `chosen` — режим записан человеком, а не прочитан из `NULL` по умолчанию:
+   * только записанный закрывает шаг «План» (`OnboardingRepository.progress`),
+   * и чат по нему решает, выбирать ли режим новому каналу (review W3-21 P2-1).
    */
   async getPlanMode(
     org: string,
     id: string
-  ): Promise<{ integrationId: string; planMode: PlanModeV1 }> {
+  ): Promise<{ integrationId: string; planMode: PlanModeV1; chosen: boolean }> {
     const integration = await this._integrationRepository.getPlanMode(org, id);
     if (!integration) {
       throw new HttpException(
@@ -151,7 +155,11 @@ export class IntegrationService {
         HttpStatus.NOT_FOUND
       );
     }
-    return { integrationId: integration.id, planMode: planModeOf(integration.planMode) };
+    return {
+      integrationId: integration.id,
+      planMode: planModeOf(integration.planMode),
+      chosen: integration.planMode != null,
+    };
   }
 
   async updatePlanMode(
@@ -313,9 +321,13 @@ export class IntegrationService {
     if (body.lengthPolicy === 'range') {
       const range = body.length;
       if (!range) refuse('LENGTH_RANGE_REQUIRED');
-      const { idealMin, idealMax, hardMax } = range!;
-      if (idealMin < CHANNEL_MIN_IDEAL_LENGTH) refuse('IDEAL_MIN_TOO_SMALL');
-      if (idealMax < idealMin) refuse('IDEAL_MAX_BELOW_MIN');
+      const { idealMax, hardMax } = range!;
+      // Минимум необязателен: «до N знаков» — один потолок (разбор W3, F5).
+      const idealMin = range!.idealMin ?? null;
+      if (idealMin !== null && idealMin < CHANNEL_MIN_IDEAL_LENGTH) refuse('IDEAL_MIN_TOO_SMALL');
+      // Порог поста держится и без минимума: верх короче — уже не пост.
+      if (idealMax < CHANNEL_MIN_IDEAL_LENGTH) refuse('IDEAL_MAX_TOO_SMALL');
+      if (idealMin !== null && idealMax < idealMin) refuse('IDEAL_MAX_BELOW_MIN');
       // Потолок площадки — тот, который она примет без картинки: карточка
       // описывает канал целиком, а подпись под картинкой короче у всех.
       if (idealMax > limits.maxLength) refuse('IDEAL_MAX_ABOVE_PROVIDER');
@@ -450,6 +462,50 @@ export class IntegrationService {
 
   updateNameAndUrl(id: string, name: string, url: string) {
     return this._integrationRepository.updateNameAndUrl(id, name, url);
+  }
+
+  /**
+   * «Изменить бота» — the bot's name and picture on the platform itself
+   * (`POST /integrations/:id/nickname`), then in the channel row. Moved here
+   * from the door unchanged (`content-factory-next-kcxz.19`) so the chat's
+   * `channel.bot.rename` calls the same step. `picture` absent — the picture
+   * is left as it is (the chat renames only); the screen always sends one.
+   */
+  async changeNameOnPlatform(
+    org: string,
+    id: string,
+    body: { name: string; picture?: string }
+  ) {
+    const integration = await this.getIntegrationById(org, id);
+    if (!integration) {
+      throw new Error('Invalid integration');
+    }
+
+    const manager = this._integrationManager.getSocialIntegration(
+      integration.providerIdentifier
+    );
+    if (!manager.changeProfilePicture && !manager.changeNickname) {
+      throw new Error('Invalid integration');
+    }
+
+    const { url } =
+      manager.changeProfilePicture && body.picture !== undefined
+        ? await manager.changeProfilePicture(
+            integration.internalId,
+            integration.token,
+            body.picture
+          )
+        : { url: '' };
+
+    const { name } = manager.changeNickname
+      ? await manager.changeNickname(
+          integration.internalId,
+          integration.token,
+          body.name
+        )
+      : { name: '' };
+
+    return this.updateNameAndUrl(id, name, url);
   }
 
   getIntegrationById(org: string, id: string) {

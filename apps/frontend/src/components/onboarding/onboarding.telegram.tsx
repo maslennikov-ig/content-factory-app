@@ -21,9 +21,10 @@ type Words = (typeof onboardingCopy)['ru']['telegram'];
  * mechanics as the connect dialog on «Каналы»: the nonce from
  * `GET /integrations/social/telegram`, the word and the polling from
  * `useTelegramConnect`, and the finishing hop through
- * `/integrations/social/telegram?code=…&state=…`. `redirectUrl=/onboarding`
- * brings the person back here once the channel is saved, where the step
- * reads as done from the workspace itself.
+ * `/integrations/social/telegram?code=…&state=…`. `redirectUrl` (this page
+ * unless the caller names another — the chat's connect card names its
+ * conversation, `kcxz.19`) brings the person back once the channel is saved,
+ * where the step reads as done from the workspace itself.
  *
  * Where the live flow cannot start — no bot configured on this server, or the
  * server refusing the request — the step says so and points at the channels
@@ -99,9 +100,16 @@ function Chip({
 export function OnboardingTelegramGuide({
   words,
   actionLabel,
+  redirectUrl = '/onboarding',
 }: {
   words: Words;
   actionLabel: string;
+  /**
+   * Where the finishing hop brings the person back once the channel is
+   * saved: this page, or the conversation that showed the steps (the chat's
+   * connect card, `kcxz.19`).
+   */
+  redirectUrl?: string;
 }) {
   const { telegramBotName } = useVariables();
   const request = useFetch();
@@ -123,7 +131,7 @@ export function OnboardingTelegramGuide({
     try {
       const response = await request(
         `/integrations/social/telegram?redirectUrl=${encodeURIComponent(
-          '/onboarding'
+          redirectUrl
         )}`
       );
       const body = response.ok ? await response.json() : null;
@@ -136,7 +144,7 @@ export function OnboardingTelegramGuide({
       setOpening(false);
     }
     void connect.start();
-  }, [request, connect]);
+  }, [request, connect, redirectUrl]);
 
   const copyValue = useCallback(
     (value: string) => {

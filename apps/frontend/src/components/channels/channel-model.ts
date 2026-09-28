@@ -72,7 +72,9 @@ export function channelProfileSummary(row: ChannelRow, locale: ChannelsLocale) {
   const length =
     typeof profile.lengthPolicy === 'string'
       ? profile.lengthPolicy === 'auto' ? t.profileAuto : c.providerLimit
-      : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax} ${c.chars}`;
+      : profile.lengthPolicy.idealMin === null
+        ? `${c.upTo} ${profile.lengthPolicy.idealMax} ${c.chars}`
+        : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax} ${c.chars}`;
   const emoji = emojiLevelWord(locale, profile.emojiLevel);
   const link = {
     none: t.profileLinkNone,

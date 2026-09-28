@@ -662,6 +662,63 @@ describe('accepting fields one at a time, and activating what was accepted', () 
     expect(tone.status).toBe('ACCEPTED');
   });
 
+  // Correctness review of the W3 walk fixes, F6: metric keys are said in
+  // words where the proposal is shown, never written back into it — and the
+  // words stay within the stored limits.
+  test('a field action shows metric words and stores the proposal as it was', async () => {
+    const { prisma, service } = await build();
+    const [measurement] = prisma.state.brandVoiceMeasurement.slice(-1);
+    const tone = measurement.metrics.proposal.fields.find((field) => field.key === 'TONE');
+    const head = 'Показатель dashCopula — 59. ';
+    tone.text = head + 'а'.repeat(600 - head.length);
+
+    const after = await service.proposalField(admin, {
+      key: 'WHO_SPEAKS',
+      action: 'SAVE',
+      text: 'Бригадир участка. Пишем от себя.',
+    });
+
+    const shown = after.fields.find((field) => field.key === 'TONE');
+    expect(shown.text).toContain('«ставит тире вместо связки»');
+    expect(shown.text).not.toContain('dashCopula');
+    expect(Array.from(shown.text).length).toBeLessThanOrEqual(600);
+    const [stored] = prisma.state.brandVoiceMeasurement.slice(-1);
+    const storedTone = stored.metrics.proposal.fields.find((field) => field.key === 'TONE');
+    expect(storedTone.text).toBe(head + 'а'.repeat(600 - head.length));
+    expect(
+      stored.metrics.proposal.fields.find((field) => field.key === 'WHO_SPEAKS').text
+    ).toBe('Бригадир участка. Пишем от себя.');
+  });
+
+  // kcxz W3 final live recheck, F-4a: a version activated before the words
+  // rule still holds the statistician's lines; the passport — the avatar
+  // screen and the panel beside the chat — says them in words, and the
+  // stored version keeps its text.
+  test('the passport of a version in force says its statistics in words, stored text untouched', async () => {
+    const { prisma, service } = await build();
+    await service.activateProposal(admin, { consentGiven: true, label: 'Голос 1' });
+    const [version] = prisma.state.versions.filter((row) => row.lifecycle === 'PUBLISHED');
+    const OLD_WHO =
+      'Говорит от первого лица единственного и множественного числа; показатель первого лица по корпусу — 96,4%.';
+    const OLD_STYLE =
+      'Средняя длина предложения по корпусу — 7,8 слова; короткие предложения составляют 53,7%, а разброс длины — 54,6.';
+    const whoTrait = version.content.voice.traits.find((one) => one.name === 'Кто говорит');
+    whoTrait.guidance = OLD_WHO;
+    version.content.voice.sentenceStyle = OLD_STYLE;
+
+    const passport = await service.passport(admin);
+    const shown = Object.values(passport.voice).filter((value) => typeof value === 'string').join(' | ');
+    expect(shown).not.toMatch(/по корпусу|96,4|54,6|разброс/u);
+    expect(passport.voice.sentenceStyle).toBe(
+      'В предложении в среднем по 8 слов; коротких предложений — больше половины.'
+    );
+    expect(passport.voice.whoSpeaks).toBe(
+      'Говорит от первого лица единственного и множественного числа; от первого лица — почти всегда.'
+    );
+    expect(whoTrait.guidance).toBe(OLD_WHO);
+    expect(version.content.voice.sentenceStyle).toBe(OLD_STYLE);
+  });
+
   test('activation without stated consent is refused', async () => {
     const { service } = await build();
 
@@ -949,6 +1006,57 @@ describe('the path that fills the five lines by hand', () => {
     expect(passport.voice.sentenceStyle).toBe(FIVE.SENTENCE_LENGTH);
     // And the numeric pair stays absent, because nothing was measured.
     expect(passport.voice.sentenceLength).toBeUndefined();
+  });
+
+  // kcxz W3 final live recheck, F-6a: the hand-filled path writes six lines,
+  // and the passport showed five — «О чём говорим» could be neither read nor
+  // edited where the others are.
+  test('the sixth line, «О чём говорим», reaches the passport and is edited there', async () => {
+    const { service } = harness({
+      assist: {
+        propose: async () => {
+          throw new Error('a hand-filled voice must never ask a model');
+        },
+      },
+    });
+
+    await writeAll(service, { TOPICS: 'практика команды; ошибки внедрения' });
+    // Six lines activate through V2, as the chat's avatar.activate does.
+    const passport = await service.activateProposal(admin, {
+      version: 2,
+      consentGiven: true,
+      mode: 'manual',
+      label: 'Голос вручную',
+      avatarName: 'Мастерская',
+    });
+    expect(passport.voice.topics).toBe('практика команды; ошибки внедрения');
+
+    const edited = await service.setPassportField(admin, {
+      key: 'TOPICS',
+      text: 'разбор результатов; найм в маленькую команду',
+    });
+    expect(edited.voice.topics).toBe('разбор результатов; найм в маленькую команду');
+    expect(edited.voice.whoSpeaks).toBe(FIVE.WHO_SPEAKS);
+    expect(edited.voice.sentenceStyle).toBe(FIVE.SENTENCE_LENGTH);
+    expect(edited.voice.versionLabel).toBe(passport.voice.versionLabel);
+  });
+
+  test('the empty profile’s placeholder goal is not shown as a sixth line', async () => {
+    const { service } = harness({
+      assist: {
+        propose: async () => {
+          throw new Error('a hand-filled voice must never ask a model');
+        },
+      },
+    });
+
+    await writeAll(service);
+    const passport = await service.activateProposal(admin, {
+      consentGiven: true,
+      mode: 'manual',
+      label: 'Голос вручную',
+    });
+    expect(passport.voice.topics).toBeUndefined();
   });
 
   test('the audience line is read back whole, not cut to its 120-character label', async () => {
@@ -2562,6 +2670,24 @@ describe('a soft-deleted avatar is a 404 on the manual form and is never restore
     expect(JSON.stringify(prisma.state)).toBe(before);
     const avatars = (await service.avatars(admin)).avatars;
     expect(avatars.some((one) => one.id === actor.avatarId)).toBe(false);
+  });
+
+  test('adding samples to it is refused and stores nothing (review W3-18 F2)', async () => {
+    const { service, prisma } = harness();
+    const actor = await deletedAvatar(service);
+    const before = JSON.stringify(prisma.state);
+
+    await expect(
+      service.intake(actor, {
+        origin: 'PASTE',
+        usagePurpose: 'OWN_VOICE',
+        items: [{ title: 'Пост', text: 'Текст, который удалённому аватару не достанется.' }],
+      })
+    ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+    await expect(
+      service.intakeFiles(actor, [], { usagePurpose: 'OWN_VOICE' })
+    ).rejects.toMatchObject({ code: 'VOICE_AVATAR_NOT_FOUND', status: 404 });
+    expect(JSON.stringify(prisma.state)).toBe(before);
   });
 
   test.each([{ mode: 'manual' }, {}])(

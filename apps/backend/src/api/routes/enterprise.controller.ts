@@ -6,6 +6,7 @@ import { IntegrationManager } from '@contentfactory/nestjs-libraries/integration
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import { deleteChannelWithPosts } from '@contentfactory/nestjs-libraries/database/prisma/integrations/delete-channel';
 import {
   SignedParamsBodyDto,
 } from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
@@ -112,18 +113,15 @@ export class EnterpriseController {
         return { success: false };
       }
 
-      const isTherePosts = await this._integrationService.getPostsForChannel(
+      // The shared step (`content-factory-next-kcxz.41`): the channel is
+      // looked up first, and only its own posts go — never the whole post
+      // group, which spans the other channels the post was written for.
+      const deleted = await deleteChannelWithPosts(
+        { integrations: this._integrationService, posts: this._postsService },
         org.id,
         load.id
       );
-      if (isTherePosts.length) {
-        for (const post of isTherePosts) {
-          this._postsService.deletePost(org.id, post.group).catch(() => {});
-        }
-      }
-
-      await this._integrationService.deleteChannel(org.id, load.id);
-      return { success: true };
+      return { success: !!deleted };
     } catch (err) {
       return { success: false };
     }

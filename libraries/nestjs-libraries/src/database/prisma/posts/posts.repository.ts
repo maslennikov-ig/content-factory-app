@@ -552,6 +552,58 @@ export class PostsRepository {
     });
   }
 
+  /**
+   * The root posts of one channel that are not deleted — what deleting the
+   * channel removes, and the one count the chat says for it (`channel.open`,
+   * the delete card; review W3-19 P3-8). Sorted by id, so the delete card can
+   * bind «Да» to exactly this set (P3-1).
+   */
+  channelRootPosts(orgId: string, integrationId: string) {
+    // `integrationId: undefined` is «any channel» to Prisma (`fn33.90.3`).
+    if (!integrationId) {
+      throw new Error('channelRootPosts requires a channel id');
+    }
+    return this._post.model.post.findMany({
+      where: {
+        organizationId: orgId,
+        integrationId,
+        deletedAt: null,
+        parentPostId: null,
+      },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  /**
+   * Deletes every post of one channel, and only that channel's
+   * (review W3-19 P2-1). A post group spans every channel the composer
+   * wrote it for (`manage.modal.tsx`: one `group` for all selected
+   * channels), so deleting by group — `deletePost` — would take the other
+   * channels' posts with it. Narrowed by `integrationId`, the way
+   * `dropDraftPosts` narrows (`2q28.39`): the thread items of this channel
+   * go with their root; the other channels' rows in the same group stay live
+   * and keep their own workflows. Returns the root ids it deleted, whose
+   * publishing workflows the caller stops.
+   */
+  async deleteChannelPosts(orgId: string, integrationId: string) {
+    if (!integrationId) {
+      throw new Error('deleteChannelPosts requires a channel id');
+    }
+    const roots = await this.channelRootPosts(orgId, integrationId);
+    await this._post.model.post.updateMany({
+      where: {
+        organizationId: orgId,
+        integrationId,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+    return roots.map((root: { id: string }) => root.id);
+  }
+
   async getPostsByGroup(orgId: string, group: string) {
     const [posts, origins] = await Promise.all([
       this._post.model.post.findMany({

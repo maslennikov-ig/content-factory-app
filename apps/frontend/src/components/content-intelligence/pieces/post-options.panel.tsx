@@ -13,8 +13,10 @@ import {
   FORMAT_PREFERENCES,
   HASHTAG_POLICIES,
   LENGTH_PRESET_ORDER,
+  LENGTH_PRESETS,
   LINK_POLICIES,
   PROFILE_NOTES_MAX,
+  customLengthOf,
   type ChannelWritingProfileV1,
   type StoredEmojiLevel,
   type LengthPreset,
@@ -57,6 +59,9 @@ export type PostAvatarOption = { id: string; label: string };
 export type SettingsScope = 'channel' | 'post';
 
 export type SaveStateV1 = 'idle' | 'saving' | 'saved' | 'failed';
+
+/** Значение списка «Длина» для своего диапазона карточки канала (R-2). */
+const CUSTOM_LENGTH = 'custom';
 
 /** Пресеты длины по возрастанию: «короче» и «длиннее» считаются по ним. */
 const LENGTH_STEPS: readonly LengthPreset[] = ['short', 'ideal', 'long', 'max'];
@@ -239,6 +244,24 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
   };
 
   /*
+    Свой диапазон карточки канала (перепроверка W3, R-2): «до 800» из чата
+    показывается как есть — «Свой: до 800», а не ближайшим пресетом. Выбор
+    пресета пишет его числа, даже если это ближайший; сохранение соседнего
+    поля свой диапазон не трогает (`profilePatchOfOptions`).
+  */
+  const customLength = channelProps
+    ? customLengthOf(channelProps.profile.lengthPolicy)
+    : null;
+  const chooseLength = (value: string) => {
+    if (value === CUSTOM_LENGTH) return;
+    if (!channelProps) return choose('length', value);
+    const preset = value as LengthPreset;
+    channelProps.onProfileChange({
+      lengthPolicy: preset === 'auto' ? 'auto' : { ...LENGTH_PRESETS[preset] },
+    });
+  };
+
+  /*
     Эмодзи — бегунок плотности (`97dq.96`). Деление канала — это «как в
     канале». Канал на `auto` стоит на «Средне» только нарисованным: выбрать
     «Средне» — это выбор, а не «как в канале».
@@ -333,14 +356,27 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
         helpLabel={ti.profileHintFor(label)}
         hint={inChannel ? t.asInChannel(null) : null}
         note={field === 'links' ? ti.profileLinkSource : null}
-        value={inChannel && channelValue ? channelValue : options[field]}
+        value={
+          field === 'length' && customLength
+            ? CUSTOM_LENGTH
+            : inChannel && channelValue
+              ? channelValue
+              : options[field]
+        }
         changed={isChanged}
         muted={inChannel}
         disabled={disabled}
-        onChange={(value) => choose(field, value)}
+        onChange={(value) =>
+          field === 'length' ? chooseLength(value) : choose(field, value)
+        }
       >
         {marks && !channelValue ? (
           <option value="channel">{t.asInChannel(null)}</option>
+        ) : null}
+        {field === 'length' && customLength ? (
+          <option value={CUSTOM_LENGTH}>
+            {ti.profileLengthCustom(customLength.min, customLength.max)}
+          </option>
         ) : null}
         {values.map((value) => (
           <option key={value} value={value}>

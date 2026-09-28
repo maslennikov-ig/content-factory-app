@@ -211,6 +211,13 @@ export type CapabilityDeclaration<
    * before anything is spent and point the model at the open card.
    */
   proposes?: (input: z.infer<TInput>) => string | null;
+  /**
+   * `paid` class, optional: the run says it spent nothing — a stored result
+   * returned, too little to work on. The turn's paid slot is given back, so
+   * the next paid step the person asked for in the same message still runs
+   * (review W3-18 F4).
+   */
+  spentNothing?: (output: TOutput) => boolean;
   /** The short answer for the model. Long texts stay on the card, by id. */
   summarize: (output: TOutput) => Record<string, unknown>;
   /** The persisted card payload, `null` when there is nothing to show. */

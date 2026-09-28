@@ -140,10 +140,13 @@ function ChannelDetail({
   row,
   locale,
   reload,
+  embedded = false,
 }: {
   row: ChannelRow;
   locale: ChannelsLocale;
   reload: () => void;
+  /** Beside the agent chat: no way back to the list, the panel has its own. */
+  embedded?: boolean;
 }) {
   const t = channelsCopy[locale];
   const user = useUser();
@@ -167,12 +170,14 @@ function ChannelDetail({
       reload={reload}
       renderActions={(menu, actions) => (
         <>
-          <div>
-            <ButtonLink href="/channels" variant="quiet" density="dense">
-              <span className="table:hidden">{t.backMobile}</span>
-              <span className="hidden table:inline">{t.back}</span>
-            </ButtonLink>
-          </div>
+          {embedded ? null : (
+            <div>
+              <ButtonLink href="/channels" variant="quiet" density="dense">
+                <span className="table:hidden">{t.backMobile}</span>
+                <span className="hidden table:inline">{t.back}</span>
+              </ButtonLink>
+            </div>
+          )}
           <header className="flex flex-wrap items-center gap-4">
             <ChannelAvatar row={row} />
             <div className="min-w-0 flex-1">
@@ -410,19 +415,34 @@ function ChannelDetail({
   );
 }
 
-export function ChannelScreen() {
+/**
+ * `/channels/[id]`, and the same screen beside the agent chat (`kcxz.19`):
+ * `channelId` names the channel there, `embedded` drops the page's padding
+ * and its way back to the list.
+ */
+export function ChannelScreen({
+  channelId,
+  embedded = false,
+}: { channelId?: string; embedded?: boolean } = {}) {
   const params = useParams<{ id: string }>();
+  const id = channelId ?? params?.id;
   const { language } = useVariables();
   const locale: ChannelsLocale = language.startsWith('ru') ? 'ru' : 'en';
   const t = channelsCopy[locale];
   const { data, isLoading, error, mutate } = useIntegrationList();
   const rows: ChannelRow[] = data ?? [];
-  const row = rows.find((item) => item.id === params.id);
+  const row = rows.find((item) => item.id === id);
   const reload = () => {
     void mutate();
   };
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-auto bg-cf-canvas p-5">
+    <div
+      className={
+        embedded
+          ? 'flex min-w-0 flex-1 flex-col gap-5'
+          : 'flex min-w-0 flex-1 flex-col gap-5 overflow-auto bg-cf-canvas p-5'
+      }
+    >
       {error ? (
         <ErrorState
           title={t.error}
@@ -451,6 +471,7 @@ export function ChannelScreen() {
             row={row}
             locale={locale}
             reload={reload}
+            embedded={embedded}
           />
         </CalendarContext.Provider>
       )}

@@ -1,3 +1,4 @@
+import { proposalInWords, voiceLineInWords } from './metric-words';
 import type { VoiceSampleFileIntakeResponseV2 } from './voice-intake-v2.contract';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
@@ -619,6 +620,31 @@ export class VoiceService {
     }
   }
 
+  /**
+   * Texts are stored only for an avatar that is there.
+   *
+   * `corpusScope` reads the profile with drafts, and that read does not
+   * filter `deletedAt`: an avatar deleted in another tab is still found, and
+   * texts sent to it would land in a corpus nobody can see; an id naming no
+   * avatar scopes to nothing and the texts would go to the whole space. Both
+   * are the same refusal as `manualScope`'s (review W3-18 F2) — the chat's
+   * composer falls back to the default avatar on it and says so.
+   */
+  private async assertNamedAvatarLive(actor: VoiceActor): Promise<void> {
+    if (!actor.avatarId) return;
+    const { profile } = await this._profiles.overview(
+      actor.organizationId,
+      actor.avatarId
+    );
+    if (!profile || profile.deletedAt) {
+      throw new VoiceError(
+        'VOICE_AVATAR_NOT_FOUND',
+        'Такого аватара в пространстве нет: возможно, его удалили в другой вкладке.',
+        actor.avatarId
+      );
+    }
+  }
+
   async intake(
     actor: VoiceActor,
     body: VoiceSampleIntakeRequestV1
@@ -629,6 +655,7 @@ export class VoiceService {
       body
     );
     this.assertPasteBatchWithinCeiling(body.items);
+    await this.assertNamedAvatarLive(actor);
     const reference = body.usagePurpose === 'STYLE_REFERENCE';
 
     const prepared = prepareSamples(
@@ -760,6 +787,7 @@ export class VoiceService {
       body.usagePurpose,
       body
     );
+    await this.assertNamedAvatarLive(actor);
     const reference = body.usagePurpose === 'STYLE_REFERENCE';
 
     const read = await parseUploadedFiles(files, {
@@ -1647,11 +1675,17 @@ export class VoiceService {
       await this.corpusScope(actor)
     );
     if (!measurement) return { measurement: null, proposal: null };
+    // The proposal as stored — metric keys and all. Words are for display
+    // only (correctness review F6): a field action writes this object back,
+    // so a conversion here rewrote every stored proposal on its first touch.
     return { measurement, proposal: metricsOf(measurement).proposal ?? null };
   }
 
   async proposal(actor: VoiceActor): Promise<VoiceProposalResponseV2> {
-    const { measurement, proposal } = await this.latestWithProposal(actor);
+    const { measurement, proposal: stored } = await this.latestWithProposal(actor);
+    // A metric's key in a line is said in words where it is shown (W3 walk
+    // P3-I): the screen and the chat read the proposal here.
+    const proposal = stored ? proposalInWords(stored) : null;
     if (!measurement) {
       const corpus = await this.corpusFor(actor);
       return {
@@ -2441,7 +2475,9 @@ export class VoiceService {
     const habits = metricsOf(measurement).postHabits;
     const layout = metricsOf(measurement).postLayout;
     const content = this.contentFrom(
-      proposal,
+      // The voice the person reads and writes with is said in words; the
+      // stored proposal keeps its own text (F6).
+      proposalInWords(proposal),
       activeVersion?.content ?? null,
       await this.examplesFor(actor, measurement),
       habits?.length
@@ -2590,6 +2626,14 @@ export class VoiceService {
     return name || need;
   }
 
+  /** «О чём говорим» as one line, without the empty profile's placeholder. */
+  private static topicsLine(content: BrandProfileContentV1): string {
+    const placeholder = new Set(EMPTY_CONTENT.project.contentGoals ?? []);
+    return (content.project.contentGoals ?? [])
+      .filter((goal) => goal && !placeholder.has(goal))
+      .join('; ');
+  }
+
   async passport(actor: VoiceActor): Promise<VoicePassportResponseV1> {
     const { activeVersion } = await this._profiles.overview(
       actor.organizationId,
@@ -2611,15 +2655,24 @@ export class VoiceService {
     const trait = (name: string) =>
       content.voice.traits?.find((one) => one.name === name)?.guidance ?? '';
 
+    // The lines of a version in force are said in words where they are read
+    // — the avatar screen and the panel beside the chat both read this door
+    // (final recheck F-4a). A version activated before the words rule keeps
+    // its stored text; only what is shown changes.
     return {
       state: 'default',
       voice: {
-        whoSpeaks: trait(FIELD_TO_TRAIT.WHO_SPEAKS!),
-        tone: trait(FIELD_TO_TRAIT.TONE!),
-        audience: VoiceService.audienceLine(content),
+        whoSpeaks: voiceLineInWords(trait(FIELD_TO_TRAIT.WHO_SPEAKS!)),
+        tone: voiceLineInWords(trait(FIELD_TO_TRAIT.TONE!)),
+        audience: voiceLineInWords(VoiceService.audienceLine(content)),
         neverSay: content.guardrails.prohibitedClaims ?? [],
         ...(content.voice.sentenceStyle
-          ? { sentenceStyle: content.voice.sentenceStyle }
+          ? { sentenceStyle: voiceLineInWords(content.voice.sentenceStyle) }
+          : {}),
+        // The sixth line (final recheck F-6a); the empty profile's
+        // placeholder goal is not a line anybody wrote.
+        ...(VoiceService.topicsLine(content)
+          ? { topics: VoiceService.topicsLine(content) }
           : {}),
         ...(content.voice.addressForm === 'ty' || content.voice.addressForm === 'vy'
           ? { addressForm: content.voice.addressForm }
@@ -3395,11 +3448,14 @@ export class VoiceService {
     body: VoiceAvatarCreateRequestV1
   ): Promise<VoiceAvatarsResponseV1> {
     this.assertCanManage(actor);
-    await this._profiles.createAvatar(actor.organizationId, actor.userId, {
+    const created = (await this._profiles.createAvatar(actor.organizationId, actor.userId, {
       ...(body.name === undefined ? {} : { name: body.name }),
       ...(body.kind === undefined ? {} : { kind: body.kind }),
-    });
-    return this.avatars(actor);
+    })) as { id?: unknown } | null | undefined;
+    const answer = await this.avatars(actor);
+    return typeof created?.id === 'string'
+      ? { ...answer, createdAvatarId: created.id }
+      : answer;
   }
 
   async updateAvatar(

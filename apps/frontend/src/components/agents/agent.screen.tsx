@@ -20,6 +20,9 @@ import { AgentConversation } from './agent.conversation';
 import { ArtifactColumn, ArtifactSheet, WorkspaceSteps } from './agent.panel';
 import { THREADS_KEY, ThreadSwitcher, useAgentThreads } from './agent.threads';
 import { screenTimeZone } from './agent.transport';
+import { AGENT_START_PARAM, startDraftStep } from './agent.starters';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 
 /**
  * The «Агент» screen, `/agents` (`content-factory-next-kcxz.10`; spec §6;
@@ -109,6 +112,55 @@ export function AgentScreen() {
   const [starter, setStarter] = useState<string | null>(null);
   const wide = useWide();
 
+  // «Сделать в чате» from «С чего начать» (`kcxz.21`; review W3-21 P2-2):
+  // `/agents/new?start=<step>` opens a new conversation with the step's
+  // starter written into the composer. Nothing is sent: a link is weaker
+  // intent than a press, so the person presses send. The parameter is read
+  // once and dropped from the address; it fills the composer only on a new
+  // conversation, for a step this role may run and the workspace still has
+  // open (`startDraftStep`) — otherwise it is ignored. Read from `window`,
+  // not `useSearchParams`, which would need a Suspense boundary around the
+  // whole screen.
+  const [requested, setRequested] = useState<string | null>(null);
+  const [draft, setDraft] = useState<string | null>(null);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (!query.has(AGENT_START_PARAM)) return;
+    const step = query.get(AGENT_START_PARAM);
+    query.delete(AGENT_START_PARAM);
+    const rest = query.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${rest ? `?${rest}` : ''}`
+    );
+    if (!routeId) setRequested(step);
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const user = useUser();
+  const onboarding = useOnboardingProgress();
+  useEffect(() => {
+    if (requested === null || !user || !onboarding.answered) return;
+    const step = startDraftStep(requested, {
+      newThread: !current.current.threadId,
+      role: user.role,
+      progress: onboarding.progress,
+    });
+    setRequested(null);
+    if (step) setDraft(words.start.starters[step]);
+  }, [requested, user, onboarding.answered, onboarding.progress, words]);
+  const onDraftUsed = useCallback(() => setDraft(null), []);
+
+  // With AI unavailable the conversation is not mounted, so a starter from
+  // the work panel would wait for it — keeping «Сделать в чате» disabled and
+  // then sending on its own if availability changed later (review W3-21
+  // P3-4). A press then is dropped, never kept.
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+  useEffect(() => {
+    if (aiUnavailable && starter !== null) setStarter(null);
+  }, [aiUnavailable, starter]);
+
   useEffect(() => {
     setArtifact(null);
     setTitle(null);
@@ -173,7 +225,7 @@ export function AgentScreen() {
             onRemoved={startNew}
             words={words}
           />
-          <AgentAvailabilityGate>
+          <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
             <SessionView
               key={session.key}
               session={session}
@@ -184,6 +236,8 @@ export function AgentScreen() {
               onArtifactRemoved={closeArtifact}
               starter={starter}
               onStarterUsed={() => setStarter(null)}
+              draft={draft}
+              onDraftUsed={onDraftUsed}
               words={words}
             />
           </AgentAvailabilityGate>
@@ -195,8 +249,10 @@ export function AgentScreen() {
             words={words}
             empty={
               <WorkspaceSteps
-                busy={starter !== null}
-                onStarter={(step) => setStarter(words.start.starters[step])}
+                busy={starter !== null && !aiUnavailable}
+                onStarter={(step) => {
+                  if (!aiUnavailable) setStarter(words.start.starters[step]);
+                }}
                 words={words}
               />
             }
@@ -228,6 +284,8 @@ function SessionView({
   onArtifactRemoved,
   starter,
   onStarterUsed,
+  draft,
+  onDraftUsed,
   words,
 }: {
   session: Session;
@@ -238,6 +296,8 @@ function SessionView({
   onArtifactRemoved: () => void;
   starter: string | null;
   onStarterUsed: () => void;
+  draft: string | null;
+  onDraftUsed: () => void;
   words: AgentWords;
 }) {
   const request = useFetch();
@@ -303,6 +363,8 @@ function SessionView({
       onArtifactRemoved={onArtifactRemoved}
       starter={starter}
       onStarterUsed={onStarterUsed}
+      draft={draft}
+      onDraftUsed={onDraftUsed}
       words={words}
     />
   );

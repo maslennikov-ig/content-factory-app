@@ -88,7 +88,8 @@ module.exports = {
       channelId: 'c1',
       variant: 1,
       state: 'draft',
-      asked: 2,
+      answeredOnCard: 2,
+      openQuestions: { count: 0 },
     });
     expect(JSON.stringify(answer.outputs)).not.toContain('Текст поста');
     expect(run.storedPartTypes).toContain('data-adaptation');

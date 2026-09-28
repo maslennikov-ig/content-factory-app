@@ -755,6 +755,8 @@ export async function runAssistV2({
 
   return {
     observations,
+    // Stored as the model wrote it; metric keys are said in words where the
+    // proposal is shown (`proposalInWords`, correctness review F6).
     proposal: {
       ...reduced.value,
       fields,

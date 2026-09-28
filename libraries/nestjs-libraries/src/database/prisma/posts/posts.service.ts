@@ -789,6 +789,29 @@ export class PostsService {
     return { error: true };
   }
 
+  /** Root post ids of one channel, not deleted (review W3-19 P3-1, P3-8). */
+  async channelPostIds(orgId: string, integrationId: string): Promise<string[]> {
+    const roots = await this._postRepository.channelRootPosts(orgId, integrationId);
+    return roots.map((root: { id: string }) => root.id);
+  }
+
+  /**
+   * Deletes one channel's posts, only that channel's (review W3-19 P2-1),
+   * then stops the publishing workflow of each deleted root post. The rows
+   * are marked first, so a workflow that fires before it is stopped finds
+   * its post deleted (`post-fire-guard.ts`). Stopping is not awaited, as
+   * the door never waited for it: the channel goes at once.
+   */
+  async deleteChannelPosts(orgId: string, integrationId: string): Promise<string[]> {
+    const roots = await this._postRepository.deleteChannelPosts(orgId, integrationId);
+    void (async () => {
+      for (const postId of roots) {
+        await this.stopPostWorkflows(postId);
+      }
+    })();
+    return roots;
+  }
+
   async countPostsFromDay(orgId: string, date: Date) {
     return this._postRepository.countPostsFromDay(orgId, date);
   }

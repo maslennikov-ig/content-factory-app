@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  KEY_OWNER_NAMES,
+  keyOwnerOf,
+} from '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import {
   AiProvider,
   INSTANCE_AI_DEFAULTS_ID,
+  isAiProvider,
   OPENROUTER_BASE_URL,
   SearchProvider,
   loadAiConfig,
@@ -180,6 +185,12 @@ export class AiProviderService {
     return {
       usageMode: config.usageMode,
       provider: config.provider,
+      /**
+       * The provider the workspace's own key is filed under, in either mode
+       * (review W3-20 F1). On «Ключи системы» `provider` above is the
+       * operator's; a caller that means the workspace's own key reads this.
+       */
+      workspaceProvider: config.workspaceProvider ?? null,
       textModel: config.textModel,
       imageModel: config.imageModel,
       roleModels: config.roleModels,
@@ -242,7 +253,8 @@ export class AiProviderService {
     organizationId: string,
     body: {
       usageMode?: 'included' | 'workspace_key';
-      provider: AiProvider;
+      /** Absent: leave the stored provider (a mode switch, a search key). */
+      provider?: AiProvider;
       apiKey?: string;
       textModel?: string;
       imageModel?: string;
@@ -259,8 +271,75 @@ export class AiProviderService {
     const workspaceSettings = body.usageMode !== 'included';
     const current = await this._prisma.aiProviderSetting?.findUnique?.({
       where: { organizationId },
-      select: { searchProvider: true, searchApiKeys: true, searchApiKey: true },
+      select: {
+        provider: true,
+        apiKey: true,
+        searchProvider: true,
+        searchApiKeys: true,
+        searchApiKey: true,
+      },
     });
+    /**
+     * A stored key keeps the provider it was saved for (review W3-20 F1; the
+     * owner's rule: a key never reaches another engine's endpoint, and no
+     * mutable field re-anchors one — `content-factory-next-search-key-mutable-anchor`).
+     *
+     * The provider changes only together with a new key, or while no key is
+     * stored. A request that names another provider without a key — the
+     * settings screen's mode switch on «Ключи системы» carried the operator's
+     * provider, the chat's `ai.mode` did the same — leaves the stored one,
+     * and with it the models, which belong to the provider they were named
+     * for. Without this, «Свой ключ» after «Ключи системы» sent the
+     * workspace's OpenAI key to OpenRouter whenever the operator ran there.
+     */
+    const storedProvider = isAiProvider(current?.provider)
+      ? current.provider
+      : undefined;
+    const keyStored = !!current?.apiKey;
+    const typedKey = workspaceSettings && !!body.apiKey;
+    const provider: AiProvider | undefined = !workspaceSettings
+      ? undefined
+      : typedKey
+      ? body.provider ?? storedProvider ?? 'openai'
+      : keyStored && storedProvider
+      ? storedProvider
+      : body.provider;
+    // The models in the request were chosen for the provider it named.
+    const modelsApply =
+      workspaceSettings &&
+      (body.provider === undefined || body.provider === provider);
+    // A provider that changes takes its own defaults unless the request names
+    // models for it: the old provider's ids mean nothing to the new one.
+    const providerChanges =
+      provider !== undefined && provider !== (storedProvider ?? 'openai');
+    const clearsModels = providerChanges && !!current;
+
+    /**
+     * A key whose prefix names another provider or engine than the one it is
+     * filed under is refused, never saved (review W3-20 F2): an `sk-or-…`
+     * saved as OpenAI would go to `api.openai.com`. Only an unmistakable
+     * prefix refuses; a key with none is filed as asked.
+     */
+    const mismatch = (key: string, target: string) => {
+      const owner = keyOwnerOf(key);
+      return owner && owner !== target ? owner : null;
+    };
+    const wrongAiKey =
+      typedKey && provider ? mismatch(body.apiKey as string, provider) : null;
+    const wrongSearchKey = SEARCH_PROVIDERS.map((engine) => {
+      const typed = body.searchApiKeys?.[engine];
+      return typed ? mismatch(typed, engine) : null;
+    }).find(Boolean);
+    const wrong = wrongAiKey ?? wrongSearchKey;
+    if (wrong) {
+      throw new HttpException(
+        {
+          code: 'AI_KEY_PROVIDER_MISMATCH',
+          message: `This is a ${KEY_OWNER_NAMES[wrong]} key; it is not saved for another provider.`,
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
     /**
      * Which engine a key sent in this request belongs to.
      *
@@ -299,11 +378,14 @@ export class AiProviderService {
     // explicitly emptied one means "clear it".
     const data = {
       ...(body.usageMode ? { usageMode: body.usageMode } : {}),
-      ...(workspaceSettings ? { provider: body.provider } : {}),
-      ...(workspaceSettings && body.textModel !== undefined
+      ...(provider && provider !== storedProvider ? { provider } : {}),
+      ...(clearsModels
+        ? { textModel: null, imageModel: null, roleModels: {} as AiRoleModels }
+        : {}),
+      ...(modelsApply && body.textModel !== undefined
         ? { textModel: body.textModel || null }
         : {}),
-      ...(workspaceSettings && body.imageModel !== undefined
+      ...(modelsApply && body.imageModel !== undefined
         ? { imageModel: body.imageModel || null }
         : {}),
       /**
@@ -312,7 +394,7 @@ export class AiProviderService {
        * null check anywhere above it. Parsed on the way in as well as on the
        * way out, so a role this build does not know cannot be written at all.
        */
-      ...(workspaceSettings && body.roleModels !== undefined
+      ...(modelsApply && body.roleModels !== undefined
         ? { roleModels: parseRoleModels(body.roleModels) as AiRoleModels }
         : {}),
       ...(workspaceSettings && body.apiKey

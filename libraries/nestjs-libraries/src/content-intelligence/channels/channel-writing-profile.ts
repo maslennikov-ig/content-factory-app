@@ -262,11 +262,15 @@ export const parseLengthPolicy = (
     return fallback;
   }
   const stored = value as Record<string, unknown>;
-  const idealMin = positiveInteger(stored.idealMin);
+  // `idealMin: null` — «до N знаков» без минимума (разбор W3, F5): потолок
+  // есть, нижней границы человек не ставил. Отсутствующий минимум — старая
+  // или битая запись, она по-прежнему уходит в `fallback`.
+  const noMinimum = stored.idealMin === null;
+  const idealMin = noMinimum ? null : positiveInteger(stored.idealMin);
   const idealMax = positiveInteger(stored.idealMax);
-  // Пара, а не два поля: диапазон с одной границей — не диапазон, а полчисла,
-  // и промпт из него собрать нечего.
-  if (!idealMin || !idealMax || idealMin > idealMax) return fallback;
+  // Верх обязателен: без него промпт собрать не из чего; минимум — если
+  // назван, то не выше верха.
+  if (!idealMax || (!noMinimum && (!idealMin || idealMin > idealMax))) return fallback;
   const hardMax = positiveInteger(stored.hardMax);
   return {
     idealMin,

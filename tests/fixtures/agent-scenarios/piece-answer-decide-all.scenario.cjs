@@ -33,12 +33,17 @@ module.exports = {
       code: 'cnt-1',
       questions: 0,
       leftToAuthor: ['Какой случай был у вас?'],
+      // W3 recheck R-6: counted, and quoted even when a limit stops the turn.
+      leftToAuthorCount: 1,
       note: expect.stringContaining('Do not say they were decided'),
     });
     // release check 27.09 P3-b: the agent must quote the question and say the
-    // person can add their own experience in their own words.
+    // person can add their own experience in their own words; word for word,
+    // as given (final recheck F-3b).
     expect(turn.outputs[0].output.summary.note).toEqual(
-      expect.stringMatching(/quotes each question verbatim.*own experience.*in their own words/)
+      expect.stringMatching(
+        /quotes each question in «» word for word as given here — not shortened, not retold.*own experience.*in their own words — also when a limit stops the turn/
+      )
     );
     expect(turn.admissions).toEqual([
       ['agent', 'agent', 'user-1', 'succeeded'],

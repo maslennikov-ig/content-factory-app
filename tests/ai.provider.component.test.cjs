@@ -57,6 +57,10 @@ const Field = ({ label, children, disableForm: _disableForm, ...props }) =>
 const component = loadTypeScriptModule(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
+    // Import-free (`secret-shapes.ts`), loaded as it is.
+    '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes': require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/chat/conductor/secret-shapes.ts'
+    ),
     swr: {
       __esModule: true,
       default: () => ({ data: settings, mutate: jest.fn() }),

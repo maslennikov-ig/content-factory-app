@@ -82,9 +82,10 @@ const serve = ({
   avatars = [],
   planMode = 'reserve',
   written = 0,
+  initial = DEFAULT_PROFILE,
 } = {}) => {
   calls = [];
-  let profile = DEFAULT_PROFILE;
+  let profile = initial;
   let isStored = stored;
   let getCount = 0;
   global.fetch = async (url, init = {}) => {
@@ -567,5 +568,54 @@ describe('«План» of the channel (97dq.57, 97dq.70, 2q28.19)', () => {
     });
     expect(document.querySelector('[data-channel-plan-apply]')).toBeNull();
     expect(screen.getByLabelText('План').value).toBe('draft');
+  });
+});
+
+// W3 recheck R-2: a range saved from the chat («до 800» → 500–800, or no
+// minimum at all) is shown as it is, and saving another field keeps it.
+describe('a custom range on the channel card', () => {
+  const custom = (lengthPolicy) => ({ ...DEFAULT_PROFILE, lengthPolicy });
+  const lengthSelect = () => screen.getByLabelText('Длина');
+  const saveAndReadBody = async () => {
+    const before = calls.filter((call) => call.method === 'PUT' && call.url === URL).length;
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === 'PUT' && call.url === URL)).toHaveLength(before + 1)
+    );
+    return calls.filter((call) => call.method === 'PUT' && call.url === URL).at(-1).body;
+  };
+
+  test('shows «Свой: 500–800» and keeps it when another field is saved', async () => {
+    serve({ initial: custom({ idealMin: 500, idealMax: 800, hardMax: 800 }) });
+    draw();
+    await ready();
+    expect(lengthSelect().value).toBe('custom');
+    expect(lengthSelect().selectedOptions[0].textContent).toBe('Свой: 500–800');
+    fireEvent.change(slider(), { target: { value: '0' } });
+    const body = await saveAndReadBody();
+    expect(body.emojiLevel).toBe('none');
+    expect(body.length).toEqual({ idealMin: 500, idealMax: 800, hardMax: 800 });
+    await waitFor(() => expect(lengthSelect().selectedOptions[0].textContent).toBe('Свой: 500–800'));
+  });
+
+  test('a range with no minimum reads «Свой: до 800»; a preset chosen writes its numbers, the nearest one too', async () => {
+    serve({ initial: custom({ idealMin: null, idealMax: 800, hardMax: 800 }) });
+    draw();
+    await ready();
+    expect(lengthSelect().selectedOptions[0].textContent).toBe('Свой: до 800');
+    // «500–1000» is the nearest preset; choosing it is still a change.
+    fireEvent.change(lengthSelect(), { target: { value: 'ideal' } });
+    expect(lengthSelect().value).toBe('ideal');
+    expect(Array.from(lengthSelect().options).map((node) => node.value)).not.toContain('custom');
+    const body = await saveAndReadBody();
+    expect(body.length).toEqual({ idealMin: 500, idealMax: 1000, hardMax: 1500 });
+  });
+
+  test('a preset range is still read as its preset, with no «Свой»', async () => {
+    serve();
+    draw();
+    await ready();
+    expect(lengthSelect().value).toBe('ideal');
+    expect(Array.from(lengthSelect().options).map((node) => node.value)).not.toContain('custom');
   });
 });

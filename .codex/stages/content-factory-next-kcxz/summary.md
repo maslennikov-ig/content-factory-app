@@ -1,4 +1,4 @@
-# Stage summary — `content-factory-next-kcxz` (agent chat), after W0 + W1 + W2 and release 1
+# Stage summary — `content-factory-next-kcxz` (agent chat), after W0–W3 code and release 1
 
 State on 27.09.2026 night: owner «Исправь все найденные проблемы и доделай до конца. Даю тебе все
 разрешения.» — every open finding of W2 fixed and proven live (`evidence/live-stand-w2-2026-09-27/`
@@ -6,6 +6,37 @@ State on 27.09.2026 night: owner «Исправь все найденные пр
 `evidence/correctness-review-followups-2026-09-27.md`), then release 1 (`.17`: «Агент» back in the menu,
 help answer, Mastra 29 → 45). Closed with it: `.30`, `.32`–`.38`, `l7tm`, `tbuj`, `ia7s`, `wffi`. Next: W3
 `.18`–`.21`.
+
+## W3 (28.09) — avatar, channels, AI settings, onboarding from the chat (code done, not released)
+
+Owner 28.09 «Давай третью волну, W3 с kcxz.18». Each stream: worker → independent correctness review →
+fix round (reviews `evidence/correctness-review-w3-{18,19,20,21}.md`, each with «## Fixes»). Decisions for
+the owner are in spec §5.3 (avatar), §5.4 (channels), §5.5 (AI settings), §5.6 (onboarding). Main points:
+
+- Sample files attached in the chat go from the browser to the avatar door; the model reads a bounded
+  receipt; the composer names the target avatar. Own voice only from the chat.
+- Deleting a channel removes only that channel's posts (screen, chat, public API, enterprise — `.41`);
+  delete approval bound to the post ids.
+- AI key only through the key card (browser → `/settings/ai`); pasted keys stripped in the composer and at
+  the chat/MCP doors; guard searches the exact sent key values. **F1 (P1) also on the settings screen in
+  production:** a mode switch could re-file the workspace key under the operator's provider — fixed in
+  `AiProviderService.updateSettings`; a read-only production check is written in the W3-20 review
+  (not run — needs the owner's word).
+- «Сделать в чате» pre-fills the composer (never auto-sends); «Бронь» set only for a channel connected in
+  this conversation whose mode was never chosen (`planModeChosen`).
+- MCP plan/channel times need an IANA zone (`.42`).
+- Deferred: `.39` (two simultaneous analyses both paid), `.40` (failed analysis reads «running» 20 min).
+- Receipt 28.09 (not a release receipt): Jest 566/9257, node:test 122/0, Python OK, backend tsc clean.
+- Owner 28.09 «Разрешаю всё: прогон, проверку базы и выпуск». Production F1 check: one own key, owner
+  openrouter = stored provider — no bad row (`evidence/production-check-f1-2026-09-28.md`).
+- Live stand (production keys, shredded after): walk 45 ops/0.045 USD, recheck 19/0.020, final recheck
+  14/0.015 (`evidence/live-stand-w3-2026-09-28/` + `recheck-…`, `final-recheck-…`); review of the walk fixes
+  `evidence/correctness-review-w3-walk-fixes.md`. Every P2/P3 fixed before release 2. Telegram connect on the
+  stand went to the polling step (no bot on the stand); the human step was simulated by SQL.
+- Deterministic pins added: last step of a turn is text-only (`conductor.steps.ts`, counted per stream so a
+  resumed run is not tools-off) plus a controller closing line; step cap 6 → 7 (ADR 0012 §7); manual lines in
+  one call; audience self-address removed from cores and adaptations (`audience-remark.ts`); metric words and
+  statistics shown in plain words (display only).
 
 ## Decisions (owner)
 

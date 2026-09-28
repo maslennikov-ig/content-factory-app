@@ -25,6 +25,13 @@ const { questionCardId: CARD } = require('./helpers/agent-capabilities.cjs').loa
 const { approvalContentFingerprint } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
   'approval-summary.ts'
 );
+/**
+ * What «Нет» on an approval card leaves in the thread (W3 walk P3-K), and what
+ * the model reads about it on that request only (correctness review F9).
+ */
+const { DECLINED_ON_CARD, DECLINED_STORED } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
+  '../conductor/agent-chat.request.ts'
+);
 /** The id of the avatar card `pendingQuestion` leaves waiting (review W2 F3). */
 const QUESTION_CARD = CARD({ question: 'Включить?' });
 
@@ -351,7 +358,7 @@ describe('U4: opening the screen spends nothing; each model-running request open
       fingerprintOf('piece_delete', { pieceId: 'p1' })
     );
     expect(approval.params.requestContext.get('cf.paidLimit')).toBe(2);
-    expect(approval.params.maxSteps).toBe(6);
+    expect(approval.params.maxSteps).toBe(7);
     // The question: resumed by its run and its pinned call (review W1 F7),
     // with the ordinary paid cap (F3).
     expect(resume.params).toMatchObject({
@@ -383,10 +390,13 @@ describe('S5: the turn is built by the server', () => {
     expect(agentId).toBe('content-factory');
     expect(onError).toEqual(expect.any(Function));
     expect(Object.keys(params).sort()).toEqual(
-      ['abortSignal', 'maxSteps', 'memory', 'messages', 'requestContext'].sort()
+      ['abortSignal', 'maxSteps', 'memory', 'messages', 'prepareStep', 'requestContext'].sort()
     );
+    // The last step of the cap speaks (W3 walk P2-B): built by the server.
+    expect(params.prepareStep({ stepNumber: 6, systemMessages: [] })).toMatchObject({ toolChoice: 'none' });
+    expect(params.prepareStep({ stepNumber: 5, systemMessages: [] })).toBeUndefined();
     expect(params.memory).toEqual({ thread: 'thread-a-1', resource: RESOURCE_A });
-    expect(params.maxSteps).toBe(6);
+    expect(params.maxSteps).toBe(7);
     expect(params.requestContext.get('mastra__resourceId')).toBe(RESOURCE_A);
     expect(params.requestContext.get('cf.role')).toBe('EDITOR');
     expect(params.requestContext.get('cf.paidLimit')).toBe(1);
@@ -991,11 +1001,17 @@ describe('kcxz.32: an earlier card, an open proposal', () => {
             toolCallId: 'call-1',
             state: 'approval-responded',
             input: { pieceId: 'p1' },
-            approval: { id: 'run-approve-1::call-1', approved: false },
+            // What «Нет» did, in the server's words (W3 walk P3-K); the fact
+            // only, since Mastra stores it with the tool result (review F9).
+            approval: { id: 'run-approve-1::call-1', approved: false, reason: DECLINED_STORED },
           },
         ],
       },
     ]);
+    // What to say about it is a system note of this request, not stored.
+    const noted = params.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} });
+    expect(noted.systemMessages).toEqual([{ role: 'system', content: DECLINED_ON_CARD }]);
+    expect(noted.toolChoice).toBeUndefined();
     // «Нет» grants nothing and keeps the ordinary cap.
     expect(params.requestContext.get('cf.approvals')).toBe('');
     expect(params.requestContext.get('cf.paidLimit')).toBe(1);

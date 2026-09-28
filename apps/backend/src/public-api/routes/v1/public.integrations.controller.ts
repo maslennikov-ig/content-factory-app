@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpException,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -23,6 +24,7 @@ import { Organization } from '@prisma/client';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import { deleteChannelWithPosts } from '@contentfactory/nestjs-libraries/database/prisma/integrations/delete-channel';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
@@ -413,17 +415,19 @@ export class PublicIntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
   ) {
-    const isTherePosts = await this._integrationService.getPostsForChannel(
+    // The step the screen and the chat share (`content-factory-next-kcxz.41`):
+    // the channel is looked up first, and only its own posts go — a post
+    // group spans every channel it was written for, so deleting by group
+    // took the copies on other channels with it.
+    const deleted = await deleteChannelWithPosts(
+      { integrations: this._integrationService, posts: this._postsService },
       org.id,
       id
     );
-    if (isTherePosts.length) {
-      for (const post of isTherePosts) {
-        this._postsService.deletePost(org.id, post.group).catch(() => {});
-      }
+    if (!deleted) {
+      throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
     }
-
-    return this._integrationService.deleteChannel(org.id, id);
+    return deleted.channel;
   }
 
   @Get('/integration-settings/:id')

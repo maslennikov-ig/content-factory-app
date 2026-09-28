@@ -9,23 +9,23 @@ import {
   type ReactNode,
 } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
+import { useRevalidateUnder } from './agent.revalidate';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { CfMark } from '@contentfactory/frontend/components/ui/brand/cf-mark';
 import { WorkingLine } from '@contentfactory/frontend/components/ui/working-line';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 import {
-  ONBOARDING_STEP_KEYS,
-  stepIsDone,
-  type OnboardingStepKey,
-} from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
-import {
   AGENT_DOORS,
+  AGENT_SAMPLES_PART_TYPE,
   AGENT_TIMEZONE_HEADER,
   approvalWaits,
   artifactKey,
+  createdAvatarOf,
   artifactsOf,
+  avatarCallsOf,
+  channelCallsOf,
   errorCodeOf,
   pendingCardId,
   pieceTouchesOf,
@@ -33,8 +33,10 @@ import {
   questionWaits,
   readThreadHistory,
   readDoorError,
+  readAttachedText,
   readMessageBlocks,
   readProgressPart,
+  readSamplesPart,
   removedArtifactsOf,
   reopenApprovalAnswer,
   toolNameOf,
@@ -45,7 +47,12 @@ import {
   type AgentMessage,
   type AgentPendingRun,
 } from './agent.contract';
-import { stageWordFor, type AgentWords } from './agent.copy';
+import { errorWordsFor, stageWordFor, type AgentWords } from './agent.copy';
+import { sendSamplesTo } from './agent.samples';
+import { AVATAR_ROUTES, mapAvatars } from '@contentfactory/frontend/components/brand-voice/voice-avatars.adapter';
+import { readVoice } from '@contentfactory/frontend/components/brand-voice/voice-profile.adapter';
+import { VOICE_API_BASE } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   ApprovalCard,
   ArtifactLine,
@@ -57,17 +64,19 @@ import {
   QuestionClosedLine,
 } from './agent.cards';
 import { SecretCard } from './agent.secret-card';
+import { ChannelConnectCard } from './agent.channel-card';
 import { SelectionCard } from './agent.selection-card';
 import { InterviewCard } from './agent.interview-card';
 import { PlanCard } from './agent.plan-card';
 import { AgentMarkdown } from './agent.markdown';
-import { AgentComposer, type ComposerSubmit } from './agent.composer';
+import { AgentComposer, type ComposerSubmit, type SamplesTarget } from './agent.composer';
 import { ALLOWANCE_API } from '@contentfactory/frontend/components/ui/allowance-hint';
 import { THREADS_KEY } from './agent.threads';
 import { createAgentTransport, screenTimeZone } from './agent.transport';
 import { PIECES_API } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
-import { starterAllowed } from './agent.starters';
+import { startersFor, type AgentStarter } from './agent.starters';
+import { channelWaitsForAdmin } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
 import { AgentGlyph } from './agent.icons';
 
 /**
@@ -90,13 +99,6 @@ import { AgentGlyph } from './agent.icons';
  * is still streaming is `aria-busy`, so a screen reader hears it once, whole,
  * rather than token by token.
  */
-
-const STARTER_ORDER: readonly OnboardingStepKey[] = [
-  'avatar',
-  'channel',
-  'piece',
-  'plan',
-];
 
 /** The same run of the server's list: its id and its call. */
 const sameRun = (one: AgentPendingRun, other: AgentPendingRun) =>
@@ -133,6 +135,8 @@ export function AgentConversation({
   onArtifactRemoved,
   starter,
   onStarterUsed,
+  draft = null,
+  onDraftUsed,
   words,
 }: {
   threadId: string | null;
@@ -149,10 +153,17 @@ export function AgentConversation({
   /** A starter chosen outside the conversation (the work panel). */
   starter: string | null;
   onStarterUsed: () => void;
+  /**
+   * Words to put into the composer, not to send: «Сделать в чате» from
+   * «С чего начать» (review W3-21 P2-2). The person presses send.
+   */
+  draft?: string | null;
+  onDraftUsed?: () => void;
   words: AgentWords;
 }) {
   const request = useFetch();
   const { mutate } = useSWRConfig();
+  const revalidateUnder = useRevalidateUnder();
   const thread = useRef(threadId);
   useEffect(() => {
     if (threadId) thread.current = threadId;
@@ -291,6 +302,18 @@ export function AgentConversation({
     (message: ComposerSubmit) => {
       clearError();
       approvalFailed.current = false;
+      if (message.samples) {
+        // The receipt of files already added to an avatar (`kcxz.18`): the
+        // chat door reads it as a line of data, never a file.
+        void sendMessage({
+          parts: [
+            ...(message.text ? [{ type: 'text' as const, text: message.text }] : []),
+            { type: AGENT_SAMPLES_PART_TYPE, data: message.samples },
+            ...message.files,
+          ],
+        });
+        return;
+      }
       void sendMessage(
         message.text
           ? { text: message.text, files: message.files }
@@ -489,6 +512,70 @@ export function AgentConversation({
   }, [openKey, removed]);
   const latest = artifacts[artifacts.length - 1];
   const latestKey = latest ? `${latest.kind}:${latest.id}` : null;
+
+  /*
+    Sample files attached in the chat (`kcxz.18`) go to the avatar the
+    composer names (review W3-18 F2): the one the person picked there, else
+    the avatar this conversation created last, else the workspace default.
+    A card left by a read (a proposal, the lines by hand) does not choose it.
+  */
+  const role = useUser()?.role ?? null;
+  const editor = isOrganizationEditor(role);
+  const created = useMemo(() => createdAvatarOf(messages, removed), [messages, removed]);
+  const createdId = created?.id ?? null;
+  /** The person's own pick; `undefined` — not picked since the last avatar made here. */
+  const [picked, setPicked] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    setPicked(undefined);
+    // A new avatar made here joins the list the composer offers.
+    if (createdId) void mutate(AVATAR_ROUTES.list);
+  }, [createdId, mutate]);
+  const avatarList = useSWR(
+    editor ? AVATAR_ROUTES.list : null,
+    () => readVoice(request, AVATAR_ROUTES.list),
+    { revalidateOnFocus: false }
+  );
+  const samplesTarget = useMemo<SamplesTarget>(() => {
+    const rows = mapAvatars(avatarList.data).avatars;
+    const fallback = rows.find((one) => one.isDefault) ?? null;
+    const named = (one: { name: string | null }) =>
+      one.name ?? words.composer.samplesUnnamed;
+    const options = rows
+      .filter((one) => one.id !== fallback?.id)
+      .map((one) => ({ id: one.id, label: named(one) }));
+    const wanted = picked !== undefined ? picked : createdId;
+    // Just made here, not in the list yet: named from its card.
+    if (wanted && wanted !== fallback?.id && !options.some((one) => one.id === wanted)) {
+      options.push({ id: wanted, label: created?.name ?? words.composer.samplesUnnamed });
+    }
+    return {
+      // Not named until the list is read: «первому аватару» would be a guess.
+      known: avatarList.data !== undefined,
+      options,
+      value: wanted && wanted !== fallback?.id ? wanted : null,
+      defaultName: fallback ? named(fallback) : null,
+      onChange: setPicked,
+    };
+  }, [avatarList.data, created, createdId, picked, words]);
+  const sendSamples = useCallback(
+    async (files: File[], avatarId: string | null) => {
+      const sent = await sendSamplesTo(request, files, {
+        avatarId,
+        locale: words.locale,
+      });
+      // The avatar screen beside the chat reads its samples again.
+      revalidateUnder(VOICE_API_BASE);
+      return sent;
+    },
+    [revalidateUnder, request, words.locale]
+  );
+  const describeSamplesFailure = useCallback(
+    ({ code }: { code: string | null }) => {
+      const known = errorWordsFor(words, code, true);
+      return known.known ? `${known.what} ${known.next}` : words.composer.samplesFailed;
+    },
+    [words]
+  );
   const shownKey = useRef<string | null>(null);
   useEffect(() => {
     if (!latest || latestKey === shownKey.current) return;
@@ -514,6 +601,34 @@ export function AgentConversation({
     }
     for (const pieceId of again) void mutate(PIECES_API.detail(pieceId));
   }, [mutate, touches]);
+
+  // A finished channel action (`kcxz.19`): the channel screen beside the chat
+  // and a connect card read the channels again. What the thread loaded with
+  // is already current.
+  const channelCalls = useMemo(() => channelCallsOf(messages), [messages]);
+  const channelSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (channelSeen.current === null || channelCalls === channelSeen.current) {
+      channelSeen.current = channelCalls;
+      return;
+    }
+    channelSeen.current = channelCalls;
+    revalidateUnder('/integrations/');
+  }, [channelCalls, revalidateUnder]);
+
+  // A finished avatar action (W3 walk P2-A): the avatar screen beside the
+  // chat and the composer's avatar list read the avatars again, as channels
+  // do above. What the thread loaded with is already current.
+  const avatarCalls = useMemo(() => avatarCallsOf(messages), [messages]);
+  const avatarSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (avatarSeen.current === null || avatarCalls === avatarSeen.current) {
+      avatarSeen.current = avatarCalls;
+      return;
+    }
+    avatarSeen.current = avatarCalls;
+    revalidateUnder(VOICE_API_BASE);
+  }, [avatarCalls, revalidateUnder]);
 
   // The last line of each piece in the conversation (`kcxz.31`, D12): an
   // earlier line's count of open questions is from its own moment, and a
@@ -543,9 +658,16 @@ export function AgentConversation({
 
   const user = useUser();
   const onboarding = useOnboardingProgress();
-  const recommended = ONBOARDING_STEP_KEYS.find(
-    (step) => !stepIsDone(step, onboarding.progress)
-  );
+  // Chosen from the workspace once it answered (spec §6.1, `kcxz.21`); an
+  // error counts as an answer, and then every open step is offered.
+  const starters = onboarding.answered
+    ? startersFor(onboarding.progress, user?.role ?? null)
+    : null;
+  // No channel and this role cannot connect one: say who does, instead of a
+  // starter that ends in a refusal (review W3-21 P3-2/P3-3).
+  const channelByAdmin =
+    onboarding.answered &&
+    channelWaitsForAdmin(onboarding.progress, user?.role ?? null);
 
   const lastAssistant = [...messages]
     .reverse()
@@ -770,12 +892,32 @@ export function AgentConversation({
             </Note>
           );
         }
+        // The paid limit of one message is a designed stop, not a failure
+        // (W3 recheck R-5): a quiet line under the step, and the agent's own
+        // words say what is done and what is left.
+        if (block.code === 'PAID_CAP_REACHED') {
+          return (
+            <Note key={block.key} tone="neutral">
+              {words.error.paidCapNote(block.title)}
+            </Note>
+          );
+        }
         return (
           <ErrorCard
             key={block.key}
             title={block.title}
             code={block.code}
             refusal
+            words={words}
+          />
+        );
+      case 'connect':
+        return (
+          <ChannelConnectCard
+            key={block.key}
+            connect={block.connect}
+            threadId={thread.current}
+            onOpen={(artifact) => onArtifact(artifact, 'asked')}
             words={words}
           />
         );
@@ -827,8 +969,8 @@ export function AgentConversation({
         >
           {!messages.length ? (
             <StartHere
-              role={user?.role ?? null}
-              recommended={recommended ?? null}
+              starters={starters}
+              channelByAdmin={channelByAdmin}
               onStart={(step) =>
                 send({ text: words.start.starters[step], files: [] })
               }
@@ -888,8 +1030,14 @@ export function AgentConversation({
             queued={queued !== null}
             onSubmit={submit}
             onStop={() => void stop()}
+            uploadSamples={sendSamples}
+            samplesTarget={samplesTarget}
+            samplesAllowed={editor}
+            describeFailure={describeSamplesFailure}
             words={words}
             autoFocus={!messages.length}
+            draft={draft}
+            onDraftUsed={onDraftUsed}
           />
         </div>
       </div>
@@ -907,11 +1055,26 @@ function UserMessage({
   const parts = message.parts as unknown as Array<
     Record<string, unknown> & { type: string }
   >;
+  // An attached text file and a samples receipt travel as the server's
+  // data wrapper; they are drawn as the files' line, not as words (`kcxz.18`).
+  const attached = parts.map((part) =>
+    part.type === 'text'
+      ? readAttachedText(String(part.text ?? ''))
+      : readSamplesPart(part)
+  );
   const text = parts
-    .map((part) => (part.type === 'text' ? String(part.text ?? '') : ''))
+    .map((part, index) =>
+      part.type === 'text' && !attached[index] ? String(part.text ?? '') : ''
+    )
     .join('\n')
     .trim();
-  const files = parts.filter((part) => part.type === 'file');
+  const files = parts.flatMap((part, index) => {
+    const read = attached[index];
+    if (read) return [{ name: read.name, samples: read.samples ?? null }];
+    return part.type === 'file'
+      ? [{ name: String(part.filename ?? part.mediaType ?? ''), samples: null }]
+      : [];
+  });
   return (
     <div className="flex min-w-0 flex-col items-end gap-[4px]">
       <span className="sr-only">{words.conversation.you}:</span>
@@ -927,7 +1090,9 @@ function UserMessage({
         >
           <AgentGlyph name="clip" size={12} />
           <span className="min-w-0 truncate">
-            {String(file.filename ?? file.mediaType ?? '')}
+            {file.samples
+              ? words.conversation.samplesAdded(file.name, file.samples.accepted)
+              : file.name}
           </span>
         </span>
       ))}
@@ -935,23 +1100,25 @@ function UserMessage({
   );
 }
 
-/** An empty thread: say where to start, one step recommended (spec §6.1). */
+/**
+ * An empty thread: say where to start. The starters are the open steps of
+ * «С чего начать» the role can run, in menu order, the first one leading
+ * (spec §6.1, `kcxz.21`; roles `kcxz.31`, D14). Until the workspace answers
+ * only the words show, so no button appears and then vanishes.
+ */
 function StartHere({
-  role,
-  recommended,
+  starters,
+  channelByAdmin = false,
   onStart,
   words,
 }: {
-  /** Only the starters this role can run are offered (`kcxz.31`, D14). */
-  role: string | null;
-  recommended: OnboardingStepKey | null;
-  onStart: (step: 'avatar' | 'channel' | 'piece' | 'plan') => void;
+  starters: AgentStarter[] | null;
+  /** No channel yet, and an administrator has to connect it. */
+  channelByAdmin?: boolean;
+  onStart: (step: AgentStarter) => void;
   words: AgentWords;
 }) {
   const w = words.start;
-  const offered = STARTER_ORDER.filter((step) => starterAllowed(step, role));
-  const lead =
-    recommended && offered.includes(recommended) ? recommended : offered[0];
   return (
     <div className="flex min-w-0 items-start gap-[12px]">
       <span className="pt-[4px]">
@@ -963,25 +1130,31 @@ function StartHere({
           <p className="max-w-[65ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {w.lead}
           </p>
+          {channelByAdmin ? (
+            <p
+              data-agent-start-note="channel-by-admin"
+              className="max-w-[65ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {w.channelByAdmin}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-col items-start gap-[8px]">
-          {offered.map((step) => {
-            const key = step as 'avatar' | 'channel' | 'piece' | 'plan';
-            return (
+        {starters?.length ? (
+          <div className="flex flex-col items-start gap-[8px]">
+            {starters.map((step, index) => (
               <Button
                 key={step}
                 type="button"
                 density="dense"
-                variant={step === lead ? 'primary' : 'secondary'}
-                onClick={() => onStart(key)}
+                variant={index === 0 ? 'primary' : 'secondary'}
+                onClick={() => onStart(step)}
               >
-                {w.starters[key]}
+                {w.starters[step]}
               </Button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
-

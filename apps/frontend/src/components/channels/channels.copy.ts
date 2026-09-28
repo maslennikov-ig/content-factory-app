@@ -101,6 +101,7 @@ export const channelsCopy = {
     disable: 'Выключить',
     remove: 'Удалить',
     chars: 'знаков',
+    upTo: 'до',
     providerLimit: 'длина по правилам площадки',
   },
   en: {
@@ -194,6 +195,7 @@ export const channelsCopy = {
     disable: 'Disable',
     remove: 'Delete',
     chars: 'characters',
+    upTo: 'up to',
     providerLimit: 'platform length rules',
   },
 } as const;

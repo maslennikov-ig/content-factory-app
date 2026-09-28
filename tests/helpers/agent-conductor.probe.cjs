@@ -48,6 +48,7 @@ const scripted = (steps, seen = { calls: [] }) => {
         .join('\n'),
       prompt: JSON.stringify(options.prompt),
       tools: (options.tools || []).map((tool) => tool.name),
+      toolChoice: options.toolChoice?.type ?? null,
     });
     const plan = steps[step] || [['text', 'Готово.']];
     step += 1;
@@ -191,7 +192,13 @@ const stepCap = async () => {
   await agent.generate('листай каналы без конца', {
     requestContext: contextFor(IDENTITY),
   });
-  return { modelCalls: seen.calls.length, snapshotReads: calls.snapshotReads };
+  return {
+    modelCalls: seen.calls.length,
+    snapshotReads: calls.snapshotReads,
+    toolChoices: seen.calls.map((call) => call.toolChoice),
+    lastSystem: seen.calls.at(-1)?.system ?? '',
+    earlierSystem: seen.calls.at(-2)?.system ?? '',
+  };
 };
 
 const firstTurn = async (identity) => {
@@ -229,7 +236,7 @@ const doorPipeline = async () => {
   const { model, seen } = scripted([
     [['tool', 'piece_delete', { pieceId: 'p1' }]],
     [['text', 'Удалили заготовку cnt-1.']],
-    [['tool', 'avatar_activate', { avatarId: 'a1', mode: 'assist' }]],
+    [['tool', 'avatar_activate', { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1', mode: 'assist' }]],
     [['text', 'Аватар включён.']],
   ]);
   const storage = new InMemoryStore();

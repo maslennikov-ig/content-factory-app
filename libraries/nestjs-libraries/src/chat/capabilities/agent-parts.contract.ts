@@ -24,8 +24,25 @@
 /** The AI SDK UI stream contract. Pinned, never the library default. */
 export const AGENT_STREAM_VERSION = 'v7' as const;
 
-/** What the chat draws for a result, and the suffix of its `data-*` part. */
-export const CARD_KINDS = ['workspace', 'channels', 'piece', 'avatar', 'adaptation', 'plan'] as const;
+/**
+ * What the chat draws for a result, and the suffix of its `data-*` part.
+ * `channel-connect` (`kcxz.19`) is drawn in the conversation itself — the
+ * Telegram steps or the platform's button, which the person acts on — and
+ * never opens beside the chat; so is `secret` (`kcxz.20`), the key field the
+ * browser posts straight to the AI settings door. Every other kind is a thing
+ * the panel opens.
+ */
+export const CARD_KINDS = [
+  'workspace',
+  'channels',
+  'piece',
+  'avatar',
+  'adaptation',
+  'plan',
+  'channel',
+  'channel-connect',
+  'secret',
+] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
 /** The part name of a persisted card. */
@@ -81,7 +98,53 @@ export type AgentCardPayloads = {
     at?: string | null;
     state: PlanSlotState;
   };
+  /**
+   * One channel (`kcxz.19`): the panel opens the channel's own screen by id
+   * — its writing card, plan mode, posting times and recent posts.
+   */
+  channel: { kind: 'channel'; id: string; name?: string; provider?: string };
+  /**
+   * Connecting a channel (`kcxz.19`, spec §6.2 «Channel connect»): `id` is
+   * the platform (`telegram`, `linkedin`…). `flow` says what the card draws:
+   * `telegram` — the onboarding's three steps (the bot as an admin,
+   * `/connect <word>`, the channel appearing by itself), `oauth` — a button
+   * that opens the platform's window, as «Каналы» does. The word, the nonce
+   * and every token stay in the browser and the platform: none rides here.
+   * `known` are the channels of that platform already there when the card was
+   * made, so the card can tell the one that arrived; `since` (ISO) is when
+   * it was made: only a channel created after it, within the card's window,
+   * is credited (review W3-19 P3-3).
+   */
+  'channel-connect': {
+    kind: 'channel-connect';
+    id: string;
+    provider: string;
+    name: string;
+    flow: ChannelConnectFlow;
+    known: string[];
+    since: string;
+  };
+  /**
+   * The key card (`kcxz.20`, spec §1.5, §6.2 «Secret»): which field, never a
+   * value. `id` is `workspace-key` or `search-key:<engine>`. The person types
+   * the key into the card and the browser posts it to `POST /settings/ai`
+   * itself; nothing about the key comes back into the conversation.
+   */
+  secret:
+    | { kind: 'secret'; id: 'workspace-key'; field: 'workspace-key' }
+    | {
+        kind: 'secret';
+        id: `search-key:${SecretSearchEngine}`;
+        field: 'search-key';
+        engine: SecretSearchEngine;
+      };
 };
+/** The search engines whose key the key card takes (`kcxz.20`). */
+export const SECRET_SEARCH_ENGINES = ['tavily', 'exa'] as const;
+export type SecretSearchEngine = (typeof SECRET_SEARCH_ENGINES)[number];
+/** How a platform is connected from the chat (`kcxz.19`). */
+export const CHANNEL_CONNECT_FLOWS = ['telegram', 'oauth'] as const;
+export type ChannelConnectFlow = (typeof CHANNEL_CONNECT_FLOWS)[number];
 /**
  * Where a post stands in the plan: `reserve` — holds a time and goes out only
  * once confirmed; `scheduled` — queued, goes out by itself; `draft` — a draft
@@ -302,6 +365,34 @@ export const AGENT_ATTACHMENT_MAX_BYTES = 5242880;
 export const AGENT_TEXT_ATTACHMENT_MAX_BYTES = 262144;
 /** Every attachment of one message together, decoded: 10 MB. */
 export const AGENT_ATTACHMENTS_TOTAL_MAX_BYTES = 10485760;
+
+/*
+ * Samples attached in the chat (`kcxz.18`). A sample file or a Telegram
+ * `result.json` never passes through the model: the composer uploads it from
+ * the browser straight to the avatar screen's door (`POST
+ * /content-intelligence/voice/samples/files`, the same request the samples
+ * screen sends) and the message carries only this receipt — what went to which
+ * avatar and how many texts were accepted. The door turns it into a text part
+ * the model reads as untrusted data (file names are the person's), and a
+ * reloaded thread shows it as the files' line.
+ */
+export const AGENT_SAMPLES_PART_TYPE = 'data-avatar-samples' as const;
+/** Files of one upload: `VOICE_SAMPLE_FILE_LIMITS.maxFilesPerBatch`. */
+export const AGENT_SAMPLES_MAX_FILES = 10;
+/** Distinct refusal reasons a receipt names, each with its count. */
+export const AGENT_SAMPLES_MAX_REASONS = 20;
+export type AgentSamplesUploadV1 = {
+  /** The avatar the texts went to; `null` — the workspace default (or none yet). */
+  avatarId: string | null;
+  /** The file names, as the person's browser named them. */
+  files: string[];
+  /** Texts added to the avatar's samples. */
+  accepted: number;
+  /** Texts or files not taken, by the door's reason (`DUPLICATE`, `TOO_SHORT`…). */
+  refused: Array<{ reason: string; count: number }>;
+  /** A Telegram export: posts taken of those that could be. */
+  telegram: Array<{ name: string; selected: number; eligible: number }>;
+};
 
 /**
  * Answers one approval request may carry (correctness review W1 F4). Mastra

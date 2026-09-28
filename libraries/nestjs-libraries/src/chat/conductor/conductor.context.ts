@@ -23,8 +23,12 @@ import type { CapabilityIdentity } from '../capabilities/capability.types';
  */
 export const CONDUCTOR_AGENT_ID = 'content-factory';
 
-/** Caps of one turn (spike Q5, ADR-0012 §7). */
-export const CONDUCTOR_MAX_STEPS = 6;
+/**
+ * Caps of one turn (spike Q5, ADR-0012 §7). Seven since the W3 live walk
+ * (28.09.2026, P2-B): the last step of a turn is kept for words
+ * (`lastStepSpeaks`), so seven keeps the six working steps the cap had.
+ */
+export const CONDUCTOR_MAX_STEPS = 7;
 /** The transport's chain owns retries (`ai.text-chain.ts`). */
 export const CONDUCTOR_MAX_RETRIES = 0;
 export { PAID_CALLS_PER_TURN, PAID_CALLS_HARD_LIMIT };

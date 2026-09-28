@@ -273,6 +273,8 @@ export function mapPassport(response: unknown): {
       ...(typeof voice.sentenceStyle === 'string' && voice.sentenceStyle
         ? { sentenceStyle: voice.sentenceStyle }
         : {}),
+      // The sixth line, «О чём говорим» (final recheck F-6a).
+      ...(typeof voice.topics === 'string' && voice.topics ? { topics: voice.topics } : {}),
       versionLabel: asString(voice.versionLabel),
       activeSince: asString(voice.activeSince),
       // Only an explicit `examples` turns the switch on (`97dq.99`): an older

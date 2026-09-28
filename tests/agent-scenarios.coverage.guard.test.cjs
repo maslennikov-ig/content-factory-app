@@ -49,7 +49,7 @@ describe('recorded scenario coverage of the capability registry', () => {
  * reported «0 questions» for four.
  */
 describe('the scenario world speaks the services’ own events', () => {
-  test('every event the world yields is one `IntakeService` or `PieceService` yields', () => {
+  test('every event the world yields is one `IntakeService`, `PieceService` or `VoiceService` yields', () => {
     const fs = require('node:fs');
     const path = require('node:path');
     const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
@@ -59,18 +59,23 @@ describe('the scenario world speaks the services’ own events', () => {
     // (`researchReadyEvent`): a returned event literal counts on the service side.
     // So is an event literal typed as the stream's event and yielded later
     // (`persist` builds `adaptation` as `const event: PieceAdaptEventV1`).
+    // The avatar analysis queues its AI calls and yields them from the queue
+    // (`whileProposing`: `queue.push({ name: 'call', … })`, kcxz.18).
     const built = (text) =>
       new Set(
         [
           ...text.matchAll(/return \{\s*name: '([a-z-]+)'/g),
           ...text.matchAll(/: [A-Za-z]+EventV\d+ = \{\s*name: '([a-z-]+)'/g),
+          ...text.matchAll(/queue\.push\(\{\s*name: '([a-z-]+)'/g),
         ].map((match) => match[1])
       );
-    // The world's two generators: the intake (`IntakeService.run`) and the
-    // piece's answers (`PieceService.answer`, kcxz.12).
+    // The world's generators: the intake (`IntakeService.run`), the piece's
+    // answers (`PieceService.answer`, kcxz.12) and the avatar analysis
+    // (`VoiceService.analysisStream`, kcxz.18).
     const sources = [
       read('libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts'),
       read('libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts'),
+      read('libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice.service.ts'),
     ];
     const service = new Set(sources.flatMap((text) => [...names(text), ...built(text)]));
     const world = names(read('tests/fixtures/agent-scenarios/world.cjs'));

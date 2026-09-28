@@ -36,7 +36,8 @@ describe('agent capability registry', () => {
 
   test('the first release proves every class a tool can carry', () => {
     const classes = new Set(catalogue.map((capability) => capability.risk));
-    for (const risk of ['read', 'write', 'paid', 'confirm', 'input']) {
+    // `secret` since kcxz.20: the key card.
+    for (const risk of ['read', 'write', 'paid', 'confirm', 'input', 'secret']) {
       expect(classes.has(risk)).toBe(true);
     }
   });
@@ -126,14 +127,44 @@ describe('agent capability registry', () => {
         capability.risk !== 'read' && offered.has(registry.toolNameOf(capability.id))
     );
     expect(leaking.map((capability) => capability.id)).toEqual([]);
-    // …and the reads still reach every member.
-    for (const capability of byClass('read')) {
+    // …and the reads still reach every member, but the AI settings: their
+    // doors are the administrator's (kcxz.20).
+    for (const capability of byClass('read').filter((entry) => entry.group !== 'ai-settings')) {
       expect(offered.has(registry.toolNameOf(capability.id))).toBe(true);
     }
   });
 
-  test('EDITOR is offered every capability of the first release', () => {
+  /**
+   * The life of a channel — connecting it, its posting times, its bot,
+   * switching it off, deleting it — is an administrator's on the screens
+   * (`integrations.controller.ts`, 03.09 audit), so from the chat too
+   * (`kcxz.19`). Everything else of the catalogue is an editor's.
+   */
+  /**
+   * The AI settings are the administrator's too (`/settings/ai`, kcxz.20):
+   * an editor is not offered even their reads.
+   */
+  const ADMIN_ONLY = [
+    'channel.times',
+    'channel.connect',
+    'channel.bot.rename',
+    'channel.disable',
+    'channel.delete',
+    'ai.settings',
+    'ai.usage',
+    'ai.mode',
+    'ai.key.enter',
+    'ai.key.clear',
+    'ai.search_key.clear',
+  ];
+
+  test('EDITOR is offered every capability but the channel’s life and the AI settings, which are ADMIN’s', () => {
     expect(registry.activeCapabilityToolNames(catalogue, 'EDITOR')).toEqual(
+      catalogue
+        .filter((capability) => !ADMIN_ONLY.includes(capability.id))
+        .map((capability) => registry.toolNameOf(capability.id))
+    );
+    expect(registry.activeCapabilityToolNames(catalogue, 'ADMIN')).toEqual(
       catalogue.map((capability) => registry.toolNameOf(capability.id))
     );
   });

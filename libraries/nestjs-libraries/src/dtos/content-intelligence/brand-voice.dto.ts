@@ -17,7 +17,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { PROFILE_FIELDS, PROFILE_FIELDS_V2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import { PROFILE_FIELDS_V2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import { MAX_MESSAGES } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/telegram-export';
 import { STYLE_SCALE_KEYS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brand-voice.types';
 import {
@@ -264,9 +264,10 @@ export class VoicePassportFieldDto {
     `{ key, text }` или обращение `{ addressForm }`. Пока `addressForm` не
     прислан, дверь та же, что была: `key` и `text` обязательны.
   */
+  // Six lines, «О чём говорим» (`TOPICS`) among them (final recheck F-6a).
   @ValidateIf((body: VoicePassportFieldDto) => isPassportLine(body))
-  @IsIn(PROFILE_FIELDS as unknown as string[])
-  key?: (typeof PROFILE_FIELDS)[number];
+  @IsIn(PROFILE_FIELDS_V2 as unknown as string[])
+  key?: (typeof PROFILE_FIELDS_V2)[number];
 
   @ValidateIf((body: VoicePassportFieldDto) => isPassportLine(body))
   @IsString()

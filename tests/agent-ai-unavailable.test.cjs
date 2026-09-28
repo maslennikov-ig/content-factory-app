@@ -226,7 +226,7 @@ describe('решение принимается до разговора', () => 
   test('разговор стоит внутри проверки, а не рядом с ней', () => {
     expect(screenSource).toContain('AgentAvailabilityGate');
     expect(screenSource).toMatch(
-      /<AgentAvailabilityGate>[\s\S]*?<SessionView[\s\S]*?<\/AgentAvailabilityGate>/u
+      /<AgentAvailabilityGate[^>]*>[\s\S]*?<SessionView[\s\S]*?<\/AgentAvailabilityGate>/u
     );
     const conversation = fs.readFileSync(path.join(root, CONVERSATION), 'utf8');
     expect(conversation).toMatch(/useChat</);

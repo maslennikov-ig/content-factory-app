@@ -728,14 +728,15 @@ describe('a voice line is edited where it is read', () => {
     expect(source).toMatch(/VOICE_ROUTES\.passportField/);
   });
 
-  test('each of the five lines carries its own edit', async () => {
+  // Six since «О чём говорим» joined the passport (kcxz W3 final recheck F-6a).
+  test('each of the six lines carries its own edit', async () => {
     renderTab();
     await screen.findByText(PASSPORT.voice.whoSpeaks);
 
     const edits = screen.getAllByRole('button', {
       name: new RegExp(`^${copy.voiceCopy.ru.passportEdit}:`),
     });
-    expect(edits).toHaveLength(5);
+    expect(edits).toHaveLength(6);
   });
 
   test('saving one line writes that line and nothing else', async () => {

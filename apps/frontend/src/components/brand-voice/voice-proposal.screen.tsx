@@ -8,7 +8,7 @@ import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
-import { sampleNumber, voiceCopy, type VoiceLocale } from './voice-copy';
+import { VOICE_LINE_KEYS, sampleNumber, voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
  * The proposal: five fields on the left, the reason for each on the right.
@@ -90,14 +90,7 @@ export type VoiceProposalState =
   | 'disabled'
   | 'long-content';
 
-const FIELD_ORDER: readonly ProposalFieldKey[] = [
-  'WHO_SPEAKS',
-  'TONE',
-  'AUDIENCE',
-  'SENTENCE_LENGTH',
-  'NEVER_SAY',
-  'TOPICS',
-];
+const FIELD_ORDER: readonly ProposalFieldKey[] = VOICE_LINE_KEYS;
 
 /**
  * The texts an observation rests on, as the numbers the sample table shows.
@@ -398,7 +391,7 @@ export function VoiceProposalScreen({
 
           {FIELD_ORDER.map((key) => {
             /**
-             * Five lines, always, because five is what a voice is.
+             * Every line, always (six, `VOICE_LINE_KEYS`).
              *
              * Observations are tied to counted metrics, and nothing counts
              * «кто говорит» or «к кому обращаемся» — so the model can never

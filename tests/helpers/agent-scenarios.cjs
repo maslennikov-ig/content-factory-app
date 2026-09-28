@@ -10,7 +10,8 @@
  * - `covers`: the capability ids it drives end to end (the coverage guard
  *   reads this, and the scenario suite checks the model really called each);
  * - `role` (default `EDITOR`) and `world` (overrides of the base rows);
- * - `turns`: requests to `POST /agent/chat`, in order — `{ say }` a message,
+ * - `turns`: requests to `POST /agent/chat`, in order — `{ say }` a message
+ *   (with `samples`: the receipt of files the composer uploaded, kcxz.18),
  *   `{ approve: true | false }` an answer on the last approval card (or, with
  *   `approveCardOfTurn: n`, on the card of turn n further up), sent the way
  *   the screen sends it,

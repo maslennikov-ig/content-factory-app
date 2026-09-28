@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useUser } from '../layout/user.context';
-import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import type { ProfileFieldV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import {
   VoicePassportScreen,
   type DelegatedPolicy,
@@ -265,7 +265,7 @@ export function VoiceProfileContainer({
    * is nothing in either answer this container could have constructed.
    */
   const editField = useCallback(
-    (key: ProfileField, text: string) =>
+    (key: ProfileFieldV2, text: string) =>
       void mutation(async () => {
         setPassportSaved(false);
         const next = await readVoice(

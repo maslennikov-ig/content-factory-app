@@ -22,6 +22,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
 import { DeleteIntegrationDto } from '@contentfactory/nestjs-libraries/dtos/integrations/delete.integration.dto';
+import { deleteChannelWithPosts } from '@contentfactory/nestjs-libraries/database/prisma/integrations/delete-channel';
 import { IntegrationTimeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { PlugDto } from '@contentfactory/nestjs-libraries/dtos/plugs/plug.dto';
 import { RefreshToken } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
@@ -285,38 +286,12 @@ export class IntegrationsController {
     @Param('id') id: string,
     @Body() body: { name: string; picture: string }
   ) {
-    const integration = await this._integrationService.getIntegrationById(
-      org.id,
-      id
-    );
-    if (!integration) {
-      throw new Error('Invalid integration');
-    }
-
-    const manager = this._integrationManager.getSocialIntegration(
-      integration.providerIdentifier
-    );
-    if (!manager.changeProfilePicture && !manager.changeNickname) {
-      throw new Error('Invalid integration');
-    }
-
-    const { url } = manager.changeProfilePicture
-      ? await manager.changeProfilePicture(
-          integration.internalId,
-          integration.token,
-          body.picture
-        )
-      : { url: '' };
-
-    const { name } = manager.changeNickname
-      ? await manager.changeNickname(
-          integration.internalId,
-          integration.token,
-          body.name
-        )
-      : { name: '' };
-
-    return this._integrationService.updateNameAndUrl(id, name, url);
+    // The screen always sends a picture; the chat's `channel.bot.rename`
+    // calls the same service step with a name only (kcxz.19).
+    return this._integrationService.changeNameOnPlatform(org.id, id, {
+      name: body.name,
+      picture: body.picture,
+    });
   }
 
   @Get('/:id')
@@ -571,29 +546,18 @@ export class IntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @Body() body: DeleteIntegrationDto
   ) {
-    const id = body.id;
-    // The channel must exist in this workspace before a single post is
-    // touched: with `id` missing, Prisma reads `integrationId: undefined` as
-    // no condition at all, and the loop below erased every post of the
-    // workspace (`content-factory-next-fn33.90.3`).
-    const channel = await this._integrationService.getIntegrationById(
+    // The channel is looked up before a single post is touched
+    // (`content-factory-next-fn33.90.3`); the step is shared with the chat's
+    // `channel.delete` (kcxz.19), so the fence lives in one place.
+    const deleted = await deleteChannelWithPosts(
+      { integrations: this._integrationService, posts: this._postService },
       org.id,
-      id
+      body.id
     );
-    if (!channel) {
+    if (!deleted) {
       throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
     }
-    const isTherePosts = await this._integrationService.getPostsForChannel(
-      org.id,
-      id
-    );
-    if (isTherePosts.length) {
-      for (const post of isTherePosts) {
-        this._postService.deletePost(org.id, post.group).catch((err) => {});
-      }
-    }
-
-    return this._integrationService.deleteChannel(org.id, id);
+    return deleted.channel;
   }
 
   @Get('/plug/list')

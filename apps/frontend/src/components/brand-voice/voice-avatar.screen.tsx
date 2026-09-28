@@ -66,7 +66,19 @@ const copy = {
   },
 } as const;
 
-export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
+export function VoiceAvatarScreen({
+  avatarId,
+  followChat = false,
+}: {
+  avatarId: string;
+  /**
+   * Opened beside the agent chat (W3 live walk 28.09.2026, P2-A): the wizard
+   * goes to what the chat has made ready — a proposal, or lines written by
+   * hand — instead of stopping on «Продолжить». The page itself keeps its
+   * stops.
+   */
+  followChat?: boolean;
+}) {
   const router = useRouter();
   const request = useFetch();
   const { language } = useVariables();
@@ -215,6 +227,8 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
             ) : null}
             <VoiceWizardContainer
               avatarId={avatarId}
+              // «Собрать голос заново» wins over following the chat (F7).
+              openReady={followChat && !rebuilding}
               onAnalysingChange={setAnalysing}
               onAnalysisStart={() => setWizardSession(true)}
               onActivated={() => {

@@ -181,13 +181,14 @@ describe('beforeToolCall', () => {
     const create = (context) =>
       hookCall('piece.create', { text: 'мысль человека' }, context);
 
-    test('one paid action per turn; the second is declined with «ask the person»', async () => {
+    test('one paid action per turn; the second is declined with «say what is left, «дальше»» (W3 walk P2-D)', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
       const context = requestContextFor(registry);
       await expect(hooks.beforeToolCall(create(context))).resolves.toBeUndefined();
       const second = await hooks.beforeToolCall(create(context));
       expect(second.output.code).toBe('PAID_CAP_REACHED');
-      expect(second.output.reason).toMatch(/ask the person/);
+      expect(second.output.reason).toMatch(/Напишите «дальше» — продолжим/);
+      expect(second.output.reason).toMatch(/do not ask whether to continue/);
     });
 
     test('three parallel paid calls in one step: exactly one proceeds', async () => {

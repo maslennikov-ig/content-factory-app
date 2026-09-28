@@ -51,6 +51,12 @@ const SERVICE_MODULES = {
   '@contentfactory/nestjs-libraries/database/prisma/webhooks/webhooks.service':
     'WebhooksService',
   '@contentfactory/nestjs-libraries/openai/ai.usage.service': 'AiUsageService',
+  // The platforms and how each connects (`channel.connect`, kcxz.19).
+  '@contentfactory/nestjs-libraries/integrations/integration.manager':
+    'IntegrationManager',
+  // The AI settings doors' service (`ai.*`, kcxz.20).
+  '@contentfactory/nestjs-libraries/openai/ai.provider.service':
+    'AiProviderService',
 };
 const services = Object.fromEntries(
   Object.entries(SERVICE_MODULES).map(([request, name]) => [
@@ -323,7 +329,7 @@ const fixtures = () => ({
         getIntegrationsForChannelList: async () => [
           { id: 'c1', name: INJECTION, providerIdentifier: 'telegram', disabled: false },
         ],
-        getPlanMode: async (_organizationId, id) => ({ integrationId: id, planMode: 'reserve' }),
+        getPlanMode: async (_organizationId, id) => ({ integrationId: id, planMode: 'reserve', chosen: true }),
       },
       VoiceService: {
         avatars: async () => ({
@@ -617,7 +623,7 @@ const fixtures = () => ({
   },
   ...planFixtures(),
   'avatar.activate': {
-    input: { avatarId: 'a1', mode: 'assist' },
+    input: { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1', mode: 'assist' },
     resumeData: { consentGiven: true, avatarName: 'Игорь' },
     services: {
       VoiceService: {
@@ -626,7 +632,216 @@ const fixtures = () => ({
       },
     },
   },
+  ...avatarFixtures(),
+  ...channelFixtures(),
+  ...aiSettingsFixtures(),
 });
+
+/**
+ * The avatar group (`kcxz.18`): every name, line, title and rule a person or
+ * the AI wrote is the injected text, so each summary must carry it wrapped.
+ */
+const AVATAR_A = 'a1a1a1a1-0000-4000-8000-000000000001';
+const AVATAR_B = 'a2a2a2a2-0000-4000-8000-000000000002';
+const avatarFixtures = () => {
+  const readiness = { ready: true, sampleCount: 3, charCount: 1800, missingChars: 0, missingSamples: 0 };
+  const list = (extra = []) => ({
+    avatars: [
+      { id: AVATAR_A, name: INJECTION, kind: 'PERSON', isDefault: true, analysed: true },
+      { id: AVATAR_B, name: INJECTION, kind: 'BRAND', isDefault: false, analysed: true },
+      ...extra,
+    ],
+    defaultAvatarId: AVATAR_A,
+    limit: 8,
+    canManage: true,
+  });
+  const proposal = { outcome: 'ready', fields: [{ key: 'TONE', text: INJECTION, status: 'ACCEPTED' }], observations: [], portrait: { text: INJECTION } };
+  const learning = { pending: 6, minPairs: 5, rules: [{ id: 'r-1', text: INJECTION, pairs: 5 }], lastRunAt: null };
+  const voice = (more = {}) => ({
+    VoiceService: {
+      avatars: async () => list(),
+      overview: async () => ({ hasVoice: true, readiness }),
+      analysis: async () => ({ outcome: 'insufficient', readiness }),
+      assertAnalysisAllowed: () => undefined,
+      analysisStream: async function* () {
+        yield { name: 'started', samples: 3, planned: 3 };
+        yield { name: 'done', analysis: { outcome: 'ready', sampleCount: 3 } };
+      },
+      proposal: async () => proposal,
+      manualProposal: async () => ({ ...proposal, mode: 'manual' }),
+      proposalField: async () => proposal,
+      manualField: async () => ({ ...proposal, mode: 'manual' }),
+      samples: async () => ({ samples: [{ code: 'smp-01', title: INJECTION, origin: 'PASTE', charCount: 600 }], readiness }),
+      intake: async () => ({ accepted: [{ title: INJECTION }], rejected: [{ title: INJECTION, reason: 'TOO_SHORT' }], readiness }),
+      learning: async () => learning,
+      learnFromEdits: async () => learning,
+      createAvatar: async () => ({
+        ...list([{ id: 'a3a3a3a3-0000-4000-8000-000000000003', name: INJECTION, kind: 'PERSON', isDefault: false, analysed: false }]),
+        createdAvatarId: 'a3a3a3a3-0000-4000-8000-000000000003',
+      }),
+      updateAvatar: async () => list(),
+      setDefaultAvatar: async () => list(),
+      deleteSamples: async () => ({ samples: [] }),
+      deleteAvatar: async () => list(),
+      forgetLearnedRule: async () => learning,
+      deleteProfile: async () => ({}),
+      ...more,
+    },
+  });
+  return {
+    'avatar.list': { input: {}, services: voice() },
+    'avatar.overview': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.proposal': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.manual': { input: {}, services: voice() },
+    'avatar.samples': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.learning': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.create': { input: { kind: 'person', name: 'Игорь' }, services: voice() },
+    'avatar.rename': { input: { avatarId: AVATAR_A, name: 'Игорь' }, services: voice() },
+    'avatar.default': { input: { avatarId: AVATAR_B }, services: voice() },
+    'avatar.bind': {
+      input: { avatarId: AVATAR_A, channelId: 'c1' },
+      services: {
+        ...voice(),
+        IntegrationService: {
+          getWritingProfile: async () => ({
+            profile: { lengthPolicy: 'auto', emojiLevel: 'few', linkPolicy: 'end', hashtagPolicy: 'none', ctaKind: 'auto', formatPreference: 'auto', notes: INJECTION },
+          }),
+          updateWritingProfile: async () => ({ profile: { notes: INJECTION } }),
+        },
+      },
+    },
+    'avatar.samples.add': { input: { samples: [{ text: 'Мой пост о созвонах без повестки и о том, что из них выходит.' }] }, services: voice() },
+    'avatar.proposal.field': { input: { field: 'TONE', action: 'accept' }, services: voice() },
+    'avatar.manual.field': { input: { avatarId: AVATAR_A, lines: [{ field: 'TONE', text: 'Спокойно' }] }, services: voice() },
+    'avatar.analyse': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.learn': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.samples.delete': { input: { avatarId: AVATAR_A, codes: ['smp-01'] }, services: voice() },
+    'avatar.delete': { input: { avatarId: AVATAR_A, successorId: AVATAR_B }, services: voice() },
+    'avatar.rule.forget': { input: { avatarId: AVATAR_A, ruleId: 'r-1' }, services: voice() },
+    'avatar.retire': { input: { avatarId: AVATAR_A }, services: voice() },
+  };
+};
+
+/**
+ * Channels (`kcxz.19`): one Telegram channel whose name the platform set, its
+ * writing card with words people typed, and the platforms as the add-channel
+ * screen reads them.
+ */
+const channelFixtures = () => {
+  const row = {
+    id: 'c1',
+    name: INJECTION,
+    providerIdentifier: 'telegram',
+    disabled: false,
+    refreshNeeded: false,
+    inBetweenSteps: false,
+    postingTimes: JSON.stringify([{ time: 360 }]),
+    _count: { posts: 2 },
+  };
+  const profile = {
+    lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: null },
+    emojiLevel: 'few',
+    linkPolicy: 'end',
+    hashtagPolicy: 'none',
+    ctaKind: 'auto',
+    formatPreference: 'auto',
+    notes: INJECTION,
+  };
+  const integrations = (more = {}) => ({
+    IntegrationService: {
+      getIntegrationsForChannelList: async () => [row],
+      getWritingProfile: async () => ({ integrationId: 'c1', profile, stored: true, provider: { maxLength: 4096 } }),
+      updateWritingProfile: async () => ({ integrationId: 'c1', profile, stored: true }),
+      getPlanMode: async () => ({ integrationId: 'c1', planMode: 'reserve', chosen: true }),
+      updatePlanMode: async (_org, id, planMode) => ({ integrationId: id, planMode }),
+      setTimes: async () => ({}),
+      getChannelPosts: async () => ({
+        total: 1,
+        posts: [{ id: 'post-1', content: `<p>${INJECTION}</p>`, publishDate: '2026-09-20T07:00:00.000Z', state: 'PUBLISHED' }],
+      }),
+      changeNameOnPlatform: async () => ({ name: 'Бот' }),
+      disableChannel: async () => undefined,
+      getIntegrationById: async () => row,
+      deleteChannel: async () => row,
+      ...more,
+    },
+    PostsService: {
+      channelPostIds: async () => ['post-1', 'post-2'],
+      deleteChannelPosts: async () => ['post-1', 'post-2'],
+    },
+    IntegrationManager: {
+      getAllIntegrations: async () => ({
+        social: [
+          { identifier: 'telegram', name: 'Telegram', isWeb3: true },
+          { identifier: 'linkedin', name: 'LinkedIn' },
+          { identifier: 'discord', name: 'Discord' },
+        ],
+      }),
+      getSocialIntegration: () => ({ changeNickname: async () => ({ name: 'Бот' }) }),
+    },
+  });
+  return {
+    'channel.open': { input: { channelId: 'c1' }, services: integrations() },
+    'channel.posts': { input: { channelId: 'c1' }, services: integrations() },
+    'channel.writing': { input: { channelId: 'c1', emojiLevel: 'none', addressForm: 'vy' }, services: integrations() },
+    'channel.plan': { input: { channelId: 'c1', planMode: 'draft' }, services: integrations() },
+    'channel.times': { input: { channelId: 'c1', times: ['09:00', '18:30'] }, services: integrations() },
+    'channel.autopilot': { input: { channelId: 'c1' }, services: integrations() },
+    'channel.connect': { input: { provider: 'telegram' }, services: integrations() },
+    'channel.bot.rename': { input: { channelId: 'c1', name: 'Бот' }, services: integrations() },
+    'channel.disable': { input: { channelId: 'c1' }, services: integrations() },
+    'channel.delete': { input: { channelId: 'c1' }, services: integrations() },
+  };
+};
+
+/**
+ * The AI settings (`kcxz.20`): the settings door's answer, with a model id
+ * and a member's name typed by people — the only free words it carries.
+ */
+const aiSettingsFixtures = () => {
+  const settings = (more = {}) => ({
+    usageMode: 'workspace_key',
+    provider: 'openrouter',
+    textModel: INJECTION,
+    imageModel: null,
+    roleModels: { agent: INJECTION },
+    hasKey: true,
+    includedAvailable: true,
+    includedMonthlyOperations: 300,
+    includedUsedOperations: 10,
+    includedRemainingOperations: 290,
+    includedUnlimited: false,
+    includedRestrictionReason: null,
+    usageByMember: [{ userId: 'user-2', email: 'member@example.test', name: INJECTION, operations: 3 }],
+    usageByRole: [{ role: 'agent', operations: 3 }],
+    searchEnabled: true,
+    searchProvider: 'tavily',
+    searchTaskProviders: {},
+    searchKeys: { tavily: true, exa: true, openrouter: false },
+    workspaceSearchKeys: { tavily: true, exa: true, openrouter: false },
+    ...more,
+  });
+  const services = {
+    AiProviderService: {
+      getSettings: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return settings();
+      },
+      updateSettings: async (_org, body) => settings({ usageMode: body.usageMode }),
+      clearKey: async () => settings({ hasKey: false }),
+      clearSearchKey: async (_org, engine) =>
+        settings({ workspaceSearchKeys: { tavily: engine !== 'tavily', exa: engine !== 'exa', openrouter: false } }),
+    },
+  };
+  return {
+    'ai.settings': { input: {}, services },
+    'ai.usage': { input: {}, services },
+    'ai.mode': { input: { mode: 'included' }, services },
+    'ai.key.enter': { input: { field: 'tavily' }, services },
+    'ai.key.clear': { input: {}, services },
+    'ai.search_key.clear': { input: { engine: 'exa' }, services },
+  };
+};
 
 /** A resolver the way Nest's `ModuleRef` would answer, by class name. */
 const servicesFrom = (map) => (token) => {

@@ -11,7 +11,28 @@ import {
   type CapabilityDeclaration,
 } from './capability.types';
 import { readDoorPolicies } from './door-policy';
-import { avatarActivate } from './catalogue/avatar.capabilities';
+import {
+  avatarActivate,
+  avatarAnalyse,
+  avatarBind,
+  avatarCreate,
+  avatarDefault,
+  avatarDelete,
+  avatarLearn,
+  avatarLearning,
+  avatarList,
+  avatarManual,
+  avatarManualField,
+  avatarOverview,
+  avatarProposal,
+  avatarProposalField,
+  avatarRename,
+  avatarRetire,
+  avatarRuleForget,
+  avatarSamples,
+  avatarSamplesAdd,
+  avatarSamplesDelete,
+} from './catalogue/avatar.capabilities';
 import {
   adaptationDelete,
   adaptationEdit,
@@ -30,7 +51,27 @@ import {
   pieceResearch,
   pieceRewrite,
 } from './catalogue/core.capabilities';
+import {
+  channelAutopilot,
+  channelBotRename,
+  channelConnect,
+  channelDelete,
+  channelDisable,
+  channelOpen,
+  channelPlan,
+  channelPosts,
+  channelTimes,
+  channelWriting,
+} from './catalogue/channel.capabilities';
 import { channelsList, workspaceSnapshot } from './catalogue/overview.capabilities';
+import {
+  aiKeyClear,
+  aiKeyEnter,
+  aiMode,
+  aiSearchKeyClear,
+  aiSettings,
+  aiUsage,
+} from './catalogue/ai-settings.capabilities';
 import {
   planAhead,
   planApply,
@@ -53,11 +94,12 @@ import {
 } from './catalogue/piece.capabilities';
 
 /**
- * The catalogue (`content-factory-next-kcxz.6`, spec §5.2). W1 proves every
+ * The catalogue (`content-factory-next-kcxz.6`, spec §5.2). W1 proved every
  * risk class but `secret` end to end at the unit level; the rest of the
  * catalogue lands group by group in its own tasks (`kcxz.12`: content intake,
  * questions, list, open, archive; `kcxz.13`: the core; `kcxz.14`: adaptations;
- * `kcxz.15`: the plan).
+ * `kcxz.15`: the plan; `kcxz.18`: avatars; `kcxz.19`: channels; `kcxz.20`:
+ * AI settings, the first `secret` capability).
  */
 export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   workspaceSnapshot as CapabilityDeclaration,
@@ -92,7 +134,42 @@ export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   planPublishNow as CapabilityDeclaration,
   planMove as CapabilityDeclaration,
   planApply as CapabilityDeclaration,
+  avatarList as CapabilityDeclaration,
+  avatarOverview as CapabilityDeclaration,
+  avatarProposal as CapabilityDeclaration,
+  avatarManual as CapabilityDeclaration,
+  avatarSamples as CapabilityDeclaration,
+  avatarLearning as CapabilityDeclaration,
+  avatarCreate as CapabilityDeclaration,
+  avatarRename as CapabilityDeclaration,
+  avatarDefault as CapabilityDeclaration,
+  avatarBind as CapabilityDeclaration,
+  avatarSamplesAdd as CapabilityDeclaration,
+  avatarProposalField as CapabilityDeclaration,
+  avatarManualField as CapabilityDeclaration,
+  avatarAnalyse as CapabilityDeclaration,
+  avatarLearn as CapabilityDeclaration,
   avatarActivate as CapabilityDeclaration,
+  avatarSamplesDelete as CapabilityDeclaration,
+  avatarDelete as CapabilityDeclaration,
+  avatarRuleForget as CapabilityDeclaration,
+  avatarRetire as CapabilityDeclaration,
+  channelOpen as CapabilityDeclaration,
+  channelPosts as CapabilityDeclaration,
+  channelWriting as CapabilityDeclaration,
+  channelPlan as CapabilityDeclaration,
+  channelTimes as CapabilityDeclaration,
+  channelAutopilot as CapabilityDeclaration,
+  channelConnect as CapabilityDeclaration,
+  channelBotRename as CapabilityDeclaration,
+  channelDisable as CapabilityDeclaration,
+  channelDelete as CapabilityDeclaration,
+  aiSettings as CapabilityDeclaration,
+  aiUsage as CapabilityDeclaration,
+  aiMode as CapabilityDeclaration,
+  aiKeyEnter as CapabilityDeclaration,
+  aiKeyClear as CapabilityDeclaration,
+  aiSearchKeyClear as CapabilityDeclaration,
 ];
 
 /**

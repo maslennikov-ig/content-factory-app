@@ -1,5 +1,6 @@
 import type { RequestContext } from '@mastra/core/request-context';
 import type { ToolHooks } from '@mastra/core/tools';
+import { CONTINUE_LINE, type StepLanguage } from '../conductor/conductor.steps';
 import { approvalFingerprint } from './approval-fingerprint';
 import { approvalContentDigest, approvalContentFingerprint } from './approval-summary';
 import {
@@ -66,8 +67,8 @@ import type { CapabilityServices } from './mastra.adapter';
  * one paid step per message of the person, two when the request carries their
  * «Да» on a card. Their next message runs the next step.
  */
-export const paidCapReason = (limit: number) =>
-  `Nothing more was spent: one message of the person runs at most ${PAID_CALLS_PER_TURN} paid step (${PAID_CALLS_HARD_LIMIT} right after their «Да» on a card), and this one has used its ${limit}. Say what is done, then ask the person whether to continue — their next message runs the next paid step.`;
+export const paidCapReason = (limit: number, language: StepLanguage = 'ru') =>
+  `Nothing more was spent: one message of the person runs at most ${PAID_CALLS_PER_TURN} paid step (${PAID_CALLS_HARD_LIMIT} right after their «Да» on a card), and this one has used its ${limit}. Say in one line what is done and what is left — quote any questions left to the person in «», word for word as the tool gave them — and end with «${CONTINUE_LINE[language]}»; do not ask whether to continue — their next message runs the next paid step.`;
 
 export type CapabilityGate = {
   check(door: CapabilityDoor, identity: CapabilityIdentity): Promise<DoorVerdict>;
@@ -128,7 +129,7 @@ export const admitCapabilityCall = async (
   if (capability.risk === 'paid' && options.countPaid) {
     const reserved = reservePaidSlot(requestContext);
     if (!reserved.ok) {
-      return refusal('PAID_CAP_REACHED', paidCapReason(reserved.limit));
+      return refusal('PAID_CAP_REACHED', paidCapReason(reserved.limit, identity.language));
     }
     slot = true;
   }
@@ -149,7 +150,7 @@ export const admitCapabilityCall = async (
     if (!digest || !hasApproval(requestContext, approvalContentFingerprint(toolName, input, digest))) {
       return refusal(
         'APPROVAL_CONTENT_CHANGED',
-        'What the person approved is no longer what would go out: the post text, its picture or the number of posts changed after the card was shown. Nothing was done. Call the tool again so the person sees it as it is now; do not change it yourself.'
+        'What the person approved is no longer what would go out: the post text, its picture, the number of posts or the avatar it acts on changed after the card was shown. Nothing was done. Call the tool again so the person sees it as it is now; do not change it yourself.'
       );
     }
   }

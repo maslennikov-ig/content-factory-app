@@ -1,5 +1,6 @@
 import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
 import { intakeCopy } from '@contentfactory/frontend/components/content-intelligence/intake/intake.copy';
+import { onboardingCopy } from '@contentfactory/frontend/components/onboarding/onboarding.copy';
 import { piecesCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.copy';
 import type { SuggestedQuestionsWords } from '@contentfactory/frontend/components/content-intelligence/intake/questions.card';
 import type { AgentArtifactKind } from './agent.contract';
@@ -24,6 +25,8 @@ const NO_LONGER_WAITING = {
 type ErrorWords = { what: string; next: string };
 
 type AgentWords = {
+  /** The language of these words; the requests they go with use it too. */
+  locale: AgentCopyLocale;
   screenLabel: string;
   threads: {
     label: string;
@@ -52,8 +55,13 @@ type AgentWords = {
       channel: string;
       piece: string;
       adaptation: string;
+      /** The fifth step: a post into the plan as a reserve. */
       plan: string;
+      /** The everyday read, once nothing is left to set up. */
+      week: string;
     };
+    /** No channel yet and this role cannot connect one (review W3-21 P3-2). */
+    channelByAdmin: string;
   };
   conversation: {
     label: string;
@@ -61,6 +69,8 @@ type AgentWords = {
     agent: string;
     thinking: string;
     attached: (name: string) => string;
+    /** Files the composer added to an avatar's samples (`kcxz.18`). */
+    samplesAdded: (name: string, accepted: number) => string;
   };
   composer: {
     label: string;
@@ -78,6 +88,24 @@ type AgentWords = {
     tooBigTogether: (megabytes: number) => string;
     unsupported: (name: string) => string;
     keyboard: string;
+    /** A Telegram export or a document goes to the avatar's samples (`kcxz.18`). */
+    samplesChip: string;
+    samplesSending: string;
+    samplesNotAllowed: (name: string) => string;
+    samplesFailed: string;
+    /** Which avatar gets the attached samples, changeable (review W3-18 F2). */
+    samplesTarget: string;
+    /** The workspace default, named when it is known. */
+    samplesTargetDefault: (name: string | null) => string;
+    /** No avatar yet: the first one takes the texts. */
+    samplesTargetFirst: string;
+    samplesUnnamed: string;
+    /** The chosen avatar is gone; the texts went to the default one. */
+    samplesFellBack: (name: string | null) => string;
+    /** Uploads wait for the agent's answer to end (review W3-18 F6). */
+    samplesHeld: string;
+    /** A key pasted into the message: removed, nothing sent (`kcxz.20`). */
+    keyPasted: string;
   };
   card: {
     openOnScreen: string;
@@ -114,6 +142,11 @@ type AgentWords = {
     sending: string;
     sent: string;
     approved: string;
+    /**
+     * «Да» on connecting a channel (W3 walk P3-J): the chat connected nothing,
+     * it showed the card the person connects on — «сделали» said otherwise.
+     */
+    approvedConnect: string;
     declined: string;
     /** Reloaded after the card closed elsewhere (another tab, a finished run). */
     closed: string;
@@ -138,6 +171,8 @@ type AgentWords = {
     decide: string;
     answered: string;
     consentLabel: string;
+    /** The same tick for a brand's avatar (W3 walk P3-G). */
+    consentLabelBrand: string;
     nameLabel: string;
     namePlaceholder: string;
     activate: string;
@@ -201,6 +236,9 @@ type AgentWords = {
       search: string;
       writing: string;
       done: string;
+      /** The avatar's analysis (`kcxz.18`): the counting, then the AI's proposal. */
+      measuring: string;
+      proposing: string;
     };
   };
   error: {
@@ -212,16 +250,29 @@ type AgentWords = {
     codes: Readonly<Record<string, ErrorWords>>;
     code: (code: string) => string;
     retry: string;
+    /** The paid limit of one message under its step: a stop, not a failure (R-5). */
+    paidCapNote: (title: string | null) => string;
   };
   secret: {
     kind: string;
     workspaceTitle: string;
     searchTitle: (engine: string) => string;
     workspaceLead: string;
+    /** The AI key card on «Ключи системы»: saving it switches the mode. */
+    workspaceLeadSystem: string;
     searchLead: string;
+    /** A search key card on «Ключи системы»: the own keys sleep there. */
+    searchAsleep: string;
     field: string;
     placeholder: string;
     placeholderStored: string;
+    /**
+     * Which provider the AI key is saved for (review W3-20 F2): read from the
+     * key's prefix where it names one, else the workspace's own provider.
+     */
+    savesFor: (provider: string) => string;
+    /** A key whose prefix names another provider or engine: not saved. */
+    wrongKey: (owner: string, expected: string) => string;
     save: string;
     saving: string;
     notNow: string;
@@ -232,6 +283,27 @@ type AgentWords = {
     continue: string;
     continueText: string;
     dismissed: string;
+  };
+  /**
+   * Connecting a channel in the chat (`kcxz.19`): the Telegram steps are the
+   * onboarding's own words (`onboardingCopy.telegram`); these frame them and
+   * say the platform button and the result.
+   */
+  connect: {
+    kind: string;
+    telegramTitle: string;
+    oauthTitle: (platform: string) => string;
+    oauthLead: (platform: string) => string;
+    oauthAction: (platform: string) => string;
+    oauthFailed: string;
+    /** The platform's return: the account belongs to another workspace (412). */
+    returnPrecondition: string;
+    /** The platform's return with its own words (406). */
+    returnFailed: (message: string) => string;
+    checking: string;
+    connected: (name: string) => string;
+    connectedLead: string;
+    openChannel: string;
   };
   panel: {
     label: string;
@@ -246,6 +318,7 @@ type AgentWords = {
 
 export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
   ru: {
+    locale: 'ru',
     screenLabel: 'Агент',
     threads: {
       label: 'Разговоры',
@@ -275,8 +348,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         channel: 'Подключим Telegram',
         piece: 'Напишем пост из одной мысли',
         adaptation: 'Сделаем адаптацию для канала',
-        plan: 'Что у нас в плане на неделю',
+        plan: 'Поставим пост в план бронью',
+        week: 'Что у нас в плане на неделю',
       },
+      channelByAdmin:
+        'Каналы подключает администратор. Когда он подключит Telegram, здесь можно будет сделать адаптацию и поставить пост в план.',
     },
     conversation: {
       label: 'Разговор',
@@ -284,6 +360,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       agent: 'Агент',
       thinking: 'Думаем…',
       attached: (name) => `Приложено: ${name}`,
+      samplesAdded: (name, accepted) =>
+        `${name} — в образцы аватара: ${accepted} ${ruPlural(accepted, 'текст', 'текста', 'текстов')}`,
     },
     composer: {
       label: 'Сообщение агенту',
@@ -303,8 +381,24 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       tooBigTogether: (megabytes) =>
         `Вместе файлы больше ${megabytes} МБ — уберите какой-нибудь.`,
       unsupported: (name) =>
-        `«${name}» не приложить: берём тексты (.txt, .md, .json) и картинки.`,
+        `«${name}» не приложить: берём тексты (.txt, .md, .json), картинки, а в образцы аватара — экспорт Telegram (result.json), .docx и .pdf.`,
       keyboard: 'Enter — отправить, Shift+Enter — новая строка',
+      samplesChip: 'в образцы аватара',
+      samplesSending: 'Добавляем тексты в образцы аватара…',
+      samplesNotAllowed: (name) =>
+        `«${name}» — это образцы для аватара, а добавлять их может редактор или администратор.`,
+      samplesFailed:
+        'Файлы не дошли до образцов аватара. Ничего не отправили — попробуйте ещё раз.',
+      samplesTarget: 'Образцы — в аватар',
+      samplesTargetDefault: (name) =>
+        name ? `По умолчанию — «${name}»` : 'Аватар по умолчанию',
+      samplesTargetFirst: 'Образцы достанутся первому аватару пространства.',
+      samplesUnnamed: 'Без имени',
+      samplesFellBack: (name) =>
+        `${name ? `Аватара «${name}»` : 'Выбранного аватара'} больше нет — образцы ушли в аватар по умолчанию.`,
+      samplesHeld: 'Образцы отправим, когда агент закончит ответ.',
+      keyPasted:
+        'В сообщении был ключ — мы убрали его и ничего не отправили: ключи в чат не пишут. Ключ вводит администратор пространства — в карточке «Ключ» (попросите «введи ключ») или в «Настройки → ИИ».',
     },
     card: {
       openOnScreen: 'Открыть на экране',
@@ -343,6 +437,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       sending: 'Отправляем ответ',
       sent: 'ответ отправлен',
       approved: 'сделали',
+      // One dash after the action, not two (W3 recheck R-8): «Подключить
+      // канал — шаги на карточке ниже»; the steps card follows this line.
+      approvedConnect: 'шаги на карточке ниже',
       declined: 'не стали',
       closed: NO_LONGER_WAITING.ru,
     },
@@ -358,6 +455,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       yours:
         'Вопросы заготовки — ваши: ответьте в чате или на карточке, или скажите «Решите за меня».',
       consentLabel: 'Это моя манера — можно писать от моего имени',
+      consentLabelBrand: 'Это голос нашего бренда — можно писать от его имени',
       nameLabel: 'Имя аватара',
       namePlaceholder: 'Например, Игорь',
       activate: 'Включить аватар',
@@ -402,9 +500,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         search: 'Ищем недостающие факты…',
         writing: 'Пишем…',
         done: 'Готово',
+        measuring: 'Считаем длину фраз, пунктуацию и повторы…',
+        proposing: 'Составляем предложение голоса…',
       },
     },
     error: {
+      paidCapNote: (title) =>
+        `${title ? `${title} — ` : ''}следующим сообщением: за одно сообщение один платный шаг.`,
       kind: 'Не получилось',
       generic: {
         what: 'Не получилось довести до конца.',
@@ -497,11 +599,83 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         VOICE_FIELDS_INCOMPLETE: {
           what: 'Аватар ещё не готов: заполнены не все его строки.',
-          next: 'Допишите пустые строки на экране аватара — потом включим.',
+          next: 'Напишите недостающие строки здесь, в чате, или на экране аватара — потом включим.',
         },
         VOICE_PROFILE_NOT_FOUND: {
           what: 'Включать пока нечего: у аватара нет ни разбора, ни заполненных строк.',
           next: 'Добавьте образцы своих текстов или заполните строки вручную.',
+        },
+        VOICE_FORBIDDEN: {
+          what: 'Менять аватары может редактор или администратор.',
+          next: 'Попросите их — а посмотреть аватар на экране может каждый.',
+        },
+        VOICE_REFERENCE_DISABLED: {
+          what: 'В этом пространстве путь «по образцу чужого стиля» выключен.',
+          next: 'Добавьте свои тексты или заполните строки вручную.',
+        },
+        VOICE_VERSION_NOT_FOUND: {
+          what: 'Такой версии голоса нет.',
+          next: 'Откройте версии на экране аватара.',
+        },
+        VOICE_VERSION_CONFLICT: {
+          what: 'Голос аватара только что изменили в другом месте — ничего не перезаписали.',
+          next: 'Откройте аватар заново и повторите.',
+        },
+        VOICE_SAMPLE_NOT_FOUND: {
+          what: 'Такого образца нет — возможно, его уже удалили.',
+          next: 'Посмотрите список образцов аватара.',
+        },
+        VOICE_SAMPLE_UNREADABLE: {
+          what: 'Этот текст не прочитался как образец.',
+          next: 'Вставьте его обычным текстом или приложите другой файл.',
+        },
+        VOICE_UPLOAD_REJECTED: {
+          what: 'Файлы не приняли: их слишком много или они слишком большие сразу.',
+          next: 'Отправьте их по частям — до 10 файлов и 40 МБ за раз.',
+        },
+        VOICE_PAYLOAD_TOO_LARGE: {
+          what: 'Слишком много текста за один раз.',
+          next: 'Разделите вставку на несколько сообщений.',
+        },
+        VOICE_ANALYSIS_FAILED: {
+          what: 'Разбор не удалось завершить.',
+          next: 'Попробуйте ещё раз чуть позже.',
+        },
+        VOICE_ASSIST_UNAVAILABLE: {
+          what: 'ИИ не ответил — предложение голоса не составлено. Числа разбора сохранены.',
+          next: 'Запустите разбор ещё раз, когда будете готовы: это около пяти минут.',
+        },
+        VOICE_ASSIST_UNGROUNDED: {
+          what: 'ИИ предложил строки, которые не опираются на ваши тексты, — мы их не взяли.',
+          next: 'Запустите разбор ещё раз или заполните строки вручную.',
+        },
+        VOICE_AVATAR_NOT_FOUND: {
+          what: 'Такого аватара нет — возможно, его удалили.',
+          next: 'Посмотрите список аватаров.',
+        },
+        VOICE_AVATAR_LIMIT: {
+          what: 'Аватаров уже столько, сколько можно в одном пространстве.',
+          next: 'Удалите ненужный или переименуйте существующий.',
+        },
+        VOICE_AVATAR_NOT_ANALYSED: {
+          what: 'Этот аватар ещё не пишет: у него нет включённого голоса.',
+          next: 'Сначала разберите образцы или заполните строки и включите его.',
+        },
+        VOICE_AVATAR_SUCCESSOR_REQUIRED: {
+          what: 'Этот аватар пишет по умолчанию — без преемника его не удалить.',
+          next: 'Назовите аватар, который его заменит.',
+        },
+        VOICE_LEARN_NOT_ENOUGH: {
+          what: 'Правок пока мало, чтобы учиться: одна-две — это настроение, а не привычка.',
+          next: 'Поправьте ещё несколько черновиков этого аватара.',
+        },
+        VOICE_LEARN_UNAVAILABLE: {
+          what: 'Обучение на правках сейчас недоступно.',
+          next: 'Попробуйте позже.',
+        },
+        VOICE_LEARN_RULE_NOT_FOUND: {
+          what: 'Такого правила у аватара нет — возможно, его уже забыли.',
+          next: 'Посмотрите, чему аватар научился.',
         },
         AI_PROVIDER_REJECTED: {
           what: 'ИИ отказался отвечать: настройки ИИ пространства не подходят.',
@@ -515,6 +689,47 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Заготовка не написалась.',
           next: 'Попробуйте ещё раз или начните её в «Контенте».',
         },
+        CHANNEL_NOT_FOUND: {
+          what: 'Такого канала в пространстве нет — возможно, его уже удалили.',
+          next: 'Посмотрите список каналов.',
+        },
+        CHANNEL_WRITING_PROFILE_INVALID: {
+          what: 'Карточка канала не сохранилась: площадка не примет такие правила.',
+          next: 'Назовите другую длину или другой аватар — остальное осталось как было.',
+        },
+        CHANNEL_WRITING_EMPTY: {
+          what: 'Не названо, что поменять в карточке канала.',
+          next: 'Скажите, что писать иначе: длину, эмодзи, ссылки, хэштеги, призыв, аватар или обращение.',
+        },
+        CHANNEL_PROVIDER_UNKNOWN: {
+          what: 'Такой площадки у нас нет.',
+          next: 'Список площадок — на экране «Каналы».',
+        },
+        CHANNEL_CONNECT_ON_SCREEN: {
+          what: 'Эта площадка подключается через свою форму.',
+          next: 'Подключите её на экране «Каналы».',
+        },
+        CHANNEL_BOT_RENAME_UNSUPPORTED: {
+          what: 'Эта площадка не даёт переименовать бота отсюда.',
+          next: 'Имя бота меняется в настройках самой площадки.',
+        },
+        // Настройки ИИ из чата (kcxz.20).
+        AI_SEARCH_KEY_ON_SYSTEM_KEYS: {
+          what: 'На «Ключах системы» поиск идёт на ключах системы — свой ключ поиска здесь не нужен.',
+          next: 'Он понадобится, если перейти на «Свой ключ».',
+        },
+        AI_KEYS_ON_SYSTEM_KEYS: {
+          what: 'На «Ключах системы» свои ключи спят, и отсюда их не удаляют.',
+          next: 'Перейдите на «Свой ключ», если нужно убрать ключ.',
+        },
+        AI_KEY_NOT_STORED: {
+          what: 'Такого ключа не сохранено — удалять нечего.',
+          next: 'Посмотрите, какие ключи сохранены, в «Настройки → ИИ».',
+        },
+        AI_SYSTEM_KEYS_UNAVAILABLE: {
+          what: 'Ключи системы на этом сервере не настроены.',
+          next: 'Пространство остаётся на своём ключе.',
+        },
       },
       code: (code) => `код ${code}`,
       // «Одно имя — один ключ»: повтор после отказа везде один.
@@ -526,11 +741,18 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       searchTitle: (engine) => `Ключ поиска ${engine}`,
       workspaceLead:
         'С ним пространство пишет своим ключом. Ключ уходит прямо в «Настройки → ИИ» — в чат, в память и в журнал он не попадает, и мы его не увидим.',
+      workspaceLeadSystem:
+        'Сейчас пространство на «Ключах системы». Сохраните ключ — и оно перейдёт на «Свой ключ» и будет писать за свой счёт. Ключ уходит прямо в «Настройки → ИИ» — в чат, в память и в журнал он не попадает, и мы его не увидим.',
       searchLead:
         'Нужен, чтобы искать факты своим ключом. Ключ уходит прямо в «Настройки → ИИ» — в чат, в память и в журнал он не попадает, и мы его не увидим.',
+      searchAsleep:
+        'Пространство на «Ключах системы»: поиск идёт на ключах системы, а свой ключ поиска здесь не нужен. Он понадобится после перехода на «Свой ключ».',
       field: 'Ключ',
       placeholder: 'Вставьте ключ',
       placeholderStored: 'Ключ уже сохранён — вставьте новый, чтобы заменить',
+      savesFor: (provider) => `Сохраним как ключ ${provider}`,
+      wrongKey: (owner, expected) =>
+        `Это ключ ${owner}, а здесь нужен ключ ${expected} — такой ключ не сохраняем.`,
       save: 'Сохранить в настройках',
       saving: 'Сохраняем ключ',
       notNow: 'Не сейчас',
@@ -543,18 +765,36 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       continueText: 'Ключ сохранил в настройках, продолжаем.',
       dismissed: 'Отложили — ключ можно ввести в «Настройки → ИИ».',
     },
+    connect: {
+      kind: 'Подключение канала',
+      telegramTitle: 'Три шага в Telegram',
+      oauthTitle: (platform) => `Канал ${platform}`,
+      oauthLead: (platform) =>
+        `Откроется окно ${platform}: войдите и разрешите доступ. Потом вы вернётесь в этот разговор.`,
+      oauthAction: (platform) => `Открыть ${platform}`,
+      oauthFailed: 'Окно площадки не открылось. Попробуйте ещё раз или подключите канал на экране «Каналы».',
+      returnPrecondition:
+        'Канал не подключился: этот аккаунт уже подключали к другому пространству, а на пробном периоде так нельзя. Завершите пробный период в «Оплате» и подключите снова.',
+      returnFailed: (message) => `Канал не подключился. Площадка ответила: «${message}». Попробуйте ещё раз или подключите на экране «Каналы».`,
+      checking: 'Смотрим, появился ли канал',
+      connected: (name) => `Подключили «${name}»`,
+      connectedLead: 'Канал на месте. Напишите в чат, что дальше, — например, как в нём писать.',
+      openChannel: 'Открыть канал',
+    },
     panel: {
       label: 'Рабочая панель',
       close: 'Закрыть панель',
       workspaceTitle: 'Что есть в пространстве',
       emptyLead:
         'Здесь откроется то, над чем работаем: аватар, канал, заготовка, план. Пока — что уже есть.',
-      doInChat: 'Сделать в чате',
+      // «Одно имя — один ключ»: the same words as on «С чего начать».
+      doInChat: onboardingCopy.ru.doInChat,
       loading: 'Смотрим, что уже есть',
       failed: 'Не удалось узнать, что уже есть в пространстве.',
     },
   },
   en: {
+    locale: 'en',
     screenLabel: 'Agent',
     threads: {
       label: 'Conversations',
@@ -583,8 +823,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         channel: 'Connect Telegram',
         piece: 'Write a post from one thought',
         adaptation: 'Adapt a piece for a channel',
-        plan: 'What is in the plan this week',
+        plan: 'Put a post into the plan as a reserve',
+        week: 'What is in the plan this week',
       },
+      channelByAdmin:
+        'An administrator connects channels. Once Telegram is connected, you can adapt a piece and put a post into the plan here.',
     },
     conversation: {
       label: 'Conversation',
@@ -592,6 +835,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       agent: 'Agent',
       thinking: 'Thinking…',
       attached: (name) => `Attached: ${name}`,
+      samplesAdded: (name, accepted) =>
+        `${name} — to the avatar's samples: ${accepted} ${accepted === 1 ? 'text' : 'texts'}`,
     },
     composer: {
       label: 'Message to the agent',
@@ -611,8 +856,24 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       tooBigTogether: (megabytes) =>
         `Together the files are over ${megabytes} MB — remove one.`,
       unsupported: (name) =>
-        `“${name}” cannot be attached: we take texts (.txt, .md, .json) and pictures.`,
+        `“${name}” cannot be attached: we take texts (.txt, .md, .json), pictures, and for the avatar's samples a Telegram export (result.json), .docx and .pdf.`,
       keyboard: 'Enter sends, Shift+Enter starts a new line',
+      samplesChip: "to the avatar's samples",
+      samplesSending: "Adding the texts to the avatar's samples…",
+      samplesNotAllowed: (name) =>
+        `“${name}” is for an avatar's samples, and those are added by an editor or an administrator.`,
+      samplesFailed:
+        "The files did not reach the avatar's samples. Nothing was sent — try again.",
+      samplesTarget: 'Samples go to',
+      samplesTargetDefault: (name) =>
+        name ? `The default — “${name}”` : 'The default avatar',
+      samplesTargetFirst: "The samples go to the workspace's first avatar.",
+      samplesUnnamed: 'No name',
+      samplesFellBack: (name) =>
+        `${name ? `Avatar “${name}”` : 'The chosen avatar'} is gone — the samples went to the default avatar.`,
+      samplesHeld: 'We send the samples when the agent has finished answering.',
+      keyPasted:
+        'The message held a key — we took it out and sent nothing: keys are never written into the chat. An administrator of the workspace enters it — on the Key card (ask to “enter a key”) or in Settings → AI.',
     },
     card: {
       openOnScreen: 'Open on screen',
@@ -651,6 +912,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       sending: 'Sending the answer',
       sent: 'answer sent',
       approved: 'done',
+      approvedConnect: 'the steps are on the card below',
       declined: 'not done',
       closed: NO_LONGER_WAITING.en,
     },
@@ -666,6 +928,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       yours:
         'The piece’s questions are yours: answer here or on the card, or say “Decide for me”.',
       consentLabel: 'This is my manner — you may write in my name',
+      consentLabelBrand: 'This is our brand’s voice — you may write in its name',
       nameLabel: 'Avatar name',
       namePlaceholder: 'For example, Igor',
       activate: 'Switch the avatar on',
@@ -710,9 +973,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         search: 'Looking for missing facts…',
         writing: 'Writing…',
         done: 'Done',
+        measuring: 'Counting sentence length, punctuation and repeats…',
+        proposing: 'Writing the voice proposal…',
       },
     },
     error: {
+      paidCapNote: (title) =>
+        `${title ? `${title} — ` : ''}in your next message: one paid step per message.`,
       kind: 'Did not work',
       generic: {
         what: 'We could not finish this.',
@@ -773,7 +1040,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         PAID_CAP_REACHED: {
           what: 'One paid step per message; up to two right after your “Yes” on a card.',
-          next: 'Say “go on” and we continue.',
+          next: 'Write “next” — we\'ll continue.',
         },
         APPROVAL_MISMATCH: {
           what: 'Your yes was for a different action — nothing was done.',
@@ -805,11 +1072,83 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         VOICE_FIELDS_INCOMPLETE: {
           what: 'The avatar is not ready yet: some of its lines are empty.',
-          next: 'Fill in the empty lines on the avatar screen, then we switch it on.',
+          next: 'Write the missing lines here in the chat or on the avatar screen, then we switch it on.',
         },
         VOICE_PROFILE_NOT_FOUND: {
           what: 'There is nothing to switch on yet: the avatar has neither an analysis nor filled lines.',
           next: 'Add samples of your texts or fill in the lines by hand.',
+        },
+        VOICE_FORBIDDEN: {
+          what: 'Avatars are changed by an editor or an administrator.',
+          next: 'Ask one of them — anyone can look at an avatar on its screen.',
+        },
+        VOICE_REFERENCE_DISABLED: {
+          what: 'Writing “in somebody else’s style” is switched off in this workspace.',
+          next: 'Add your own texts or fill in the lines by hand.',
+        },
+        VOICE_VERSION_NOT_FOUND: {
+          what: 'There is no such voice version.',
+          next: 'Open the versions on the avatar screen.',
+        },
+        VOICE_VERSION_CONFLICT: {
+          what: 'The avatar’s voice was just changed elsewhere — nothing was overwritten.',
+          next: 'Open the avatar again and repeat.',
+        },
+        VOICE_SAMPLE_NOT_FOUND: {
+          what: 'There is no such sample — it may have been deleted.',
+          next: 'Look at the avatar’s list of samples.',
+        },
+        VOICE_SAMPLE_UNREADABLE: {
+          what: 'This text could not be read as a sample.',
+          next: 'Paste it as plain text or attach another file.',
+        },
+        VOICE_UPLOAD_REJECTED: {
+          what: 'The files were not taken: too many or too large at once.',
+          next: 'Send them in parts — up to 10 files and 40 MB at a time.',
+        },
+        VOICE_PAYLOAD_TOO_LARGE: {
+          what: 'Too much text at once.',
+          next: 'Split it into several messages.',
+        },
+        VOICE_ANALYSIS_FAILED: {
+          what: 'The analysis could not be finished.',
+          next: 'Try again a little later.',
+        },
+        VOICE_ASSIST_UNAVAILABLE: {
+          what: 'The AI did not answer, so there is no voice proposal. The analysis numbers are saved.',
+          next: 'Run the analysis again when you are ready: it takes about five minutes.',
+        },
+        VOICE_ASSIST_UNGROUNDED: {
+          what: 'The AI proposed lines your texts do not support — we did not take them.',
+          next: 'Run the analysis again or fill in the lines by hand.',
+        },
+        VOICE_AVATAR_NOT_FOUND: {
+          what: 'There is no such avatar — it may have been deleted.',
+          next: 'Look at the list of avatars.',
+        },
+        VOICE_AVATAR_LIMIT: {
+          what: 'This workspace already has as many avatars as it can.',
+          next: 'Delete one you do not need or rename an existing one.',
+        },
+        VOICE_AVATAR_NOT_ANALYSED: {
+          what: 'This avatar does not write yet: it has no voice switched on.',
+          next: 'Analyse its samples or fill in its lines first, then switch it on.',
+        },
+        VOICE_AVATAR_SUCCESSOR_REQUIRED: {
+          what: 'This avatar is the default one — it cannot be deleted without a successor.',
+          next: 'Name the avatar that takes its place.',
+        },
+        VOICE_LEARN_NOT_ENOUGH: {
+          what: 'Too few edits to learn from: one or two are a mood, not a habit.',
+          next: 'Edit a few more drafts of this avatar.',
+        },
+        VOICE_LEARN_UNAVAILABLE: {
+          what: 'Learning from edits is not available right now.',
+          next: 'Try later.',
+        },
+        VOICE_LEARN_RULE_NOT_FOUND: {
+          what: 'The avatar has no such rule — it may already be forgotten.',
+          next: 'Look at what the avatar learned.',
         },
         AI_PROVIDER_REJECTED: {
           what: 'AI refused to answer: the workspace AI settings do not fit.',
@@ -823,6 +1162,47 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'The piece was not written.',
           next: 'Try again or start it in Content.',
         },
+        CHANNEL_NOT_FOUND: {
+          what: 'There is no such channel in the workspace — it may have been deleted.',
+          next: 'Look at the list of channels.',
+        },
+        CHANNEL_WRITING_PROFILE_INVALID: {
+          what: 'The channel card was not saved: the platform would not take these rules.',
+          next: 'Name another length or another avatar — the rest stayed as it was.',
+        },
+        CHANNEL_WRITING_EMPTY: {
+          what: 'Nothing to change in the channel card was named.',
+          next: 'Say what to write differently: length, emoji, links, hashtags, call to action, avatar or address.',
+        },
+        CHANNEL_PROVIDER_UNKNOWN: {
+          what: 'We have no such platform.',
+          next: 'The platforms are listed on the Channels screen.',
+        },
+        CHANNEL_CONNECT_ON_SCREEN: {
+          what: 'This platform connects through its own form.',
+          next: 'Connect it on the Channels screen.',
+        },
+        CHANNEL_BOT_RENAME_UNSUPPORTED: {
+          what: 'This platform does not let the bot be renamed from here.',
+          next: 'The bot’s name is changed in the platform’s own settings.',
+        },
+        // AI settings from the chat (kcxz.20).
+        AI_SEARCH_KEY_ON_SYSTEM_KEYS: {
+          what: 'On the system keys search runs on them — an own search key is not needed here.',
+          next: 'It is needed after switching to your own key.',
+        },
+        AI_KEYS_ON_SYSTEM_KEYS: {
+          what: 'On the system keys your own keys are asleep and are not removed from here.',
+          next: 'Switch to your own key if a key should go.',
+        },
+        AI_KEY_NOT_STORED: {
+          what: 'No such key is saved — there is nothing to remove.',
+          next: 'See which keys are saved in Settings → AI.',
+        },
+        AI_SYSTEM_KEYS_UNAVAILABLE: {
+          what: 'System keys are not set up on this server.',
+          next: 'The workspace stays on its own key.',
+        },
       },
       code: (code) => `code ${code}`,
       retry: intakeCopy.en.retry,
@@ -833,11 +1213,18 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       searchTitle: (engine) => `${engine} search key`,
       workspaceLead:
         'With it the workspace writes on its own key. The key goes straight to Settings → AI — never into the chat, the memory or a log, and we never see it.',
+      workspaceLeadSystem:
+        'The workspace is on the system keys now. Save a key and it moves to its own key, at its own cost. The key goes straight to Settings → AI — never into the chat, the memory or a log, and we never see it.',
       searchLead:
         'Needed to look for facts on your own key. The key goes straight to Settings → AI — never into the chat, the memory or a log, and we never see it.',
+      searchAsleep:
+        'The workspace is on the system keys: search runs on them, and an own search key is not needed here. It is needed after switching to your own key.',
       field: 'Key',
       placeholder: 'Paste the key',
       placeholderStored: 'A key is saved — paste a new one to replace it',
+      savesFor: (provider) => `Saved as a ${provider} key`,
+      wrongKey: (owner, expected) =>
+        `This is a ${owner} key, and a ${expected} key is needed here — it is not saved.`,
       save: 'Save in the settings',
       saving: 'Saving the key',
       notNow: 'Not now',
@@ -850,13 +1237,29 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       continueText: 'I saved the key in the settings, carry on.',
       dismissed: 'Put off — the key can be entered in Settings → AI.',
     },
+    connect: {
+      kind: 'Connecting a channel',
+      telegramTitle: 'Three steps in Telegram',
+      oauthTitle: (platform) => `${platform} channel`,
+      oauthLead: (platform) =>
+        `${platform}’s window opens: sign in and allow access. Then you come back to this conversation.`,
+      oauthAction: (platform) => `Open ${platform}`,
+      oauthFailed: 'The platform’s window did not open. Try again or connect the channel on the Channels screen.',
+      returnPrecondition:
+        'The channel was not connected: this account was already connected to another workspace, which a trial does not allow. Finish the trial in Billing and connect again.',
+      returnFailed: (message) => `The channel was not connected. The platform said: “${message}”. Try again or connect it on the Channels screen.`,
+      checking: 'Checking whether the channel arrived',
+      connected: (name) => `Connected “${name}”`,
+      connectedLead: 'The channel is here. Tell the chat what next — for example, how to write in it.',
+      openChannel: 'Open the channel',
+    },
     panel: {
       label: 'Work panel',
       close: 'Close the panel',
       workspaceTitle: 'What the workspace has',
       emptyLead:
         'What we work on opens here: an avatar, a channel, a piece, the plan. For now — what is already there.',
-      doInChat: 'Do it in the chat',
+      doInChat: onboardingCopy.en.doInChat,
       loading: 'Looking at what is there',
       failed: 'Could not find out what the workspace already has.',
     },
@@ -1008,6 +1411,11 @@ export const stageWordFor = (words: AgentWords, stage: string | null) => {
       return stages.writing;
     case 'done':
       return stages.done;
+    case 'voice-started':
+    case 'voice-measured':
+      return stages.measuring;
+    case 'voice-call':
+      return stages.proposing;
     default:
       return words.progress.working;
   }

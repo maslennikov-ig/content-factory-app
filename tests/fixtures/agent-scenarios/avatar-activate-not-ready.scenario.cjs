@@ -1,5 +1,8 @@
 'use strict';
 
+/** The avatar's id: a UUID, as Prisma makes them (review W3-18 F10). */
+const A1 = 'a1a1a1a1-0000-4000-8000-0000000000a1';
+
 /**
  * An avatar that is not ready is not offered for consent (kcxz.29, D7): the
  * live walk of 27.09.2026 asked for consent and a name on an avatar with an
@@ -13,14 +16,14 @@ module.exports = {
   covers: ['avatar.activate'],
   world: {
     avatars: [
-      { id: 'a1', name: null, isDefault: true, analysed: false, kind: 'PERSON', active: false, ready: false },
+      { id: A1, name: null, isDefault: true, analysed: false, kind: 'PERSON', active: false, ready: false },
     ],
   },
   turns: [
     {
       say: 'Включи аватар',
       model: [
-        [['tool', 'avatar_activate', { avatarId: 'a1', mode: 'manual' }]],
+        [['tool', 'avatar_activate', { avatarId: A1, mode: 'manual' }]],
         [['text', 'Аватар ещё не готов: одна строка пуста. Допишите её на экране аватара.']],
       ],
     },
@@ -35,7 +38,7 @@ module.exports = {
       },
     ]);
     expect(run.writes).toEqual([]);
-    expect(run.world.avatars[0]).toMatchObject({ id: 'a1', active: false });
+    expect(run.world.avatars[0]).toMatchObject({ id: A1, active: false });
     expect(run.pendingCards).toEqual([]);
   },
 };

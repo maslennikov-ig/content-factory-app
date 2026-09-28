@@ -8,6 +8,7 @@ import {
 import {
   capabilityContextSchema,
   readCapabilityIdentity,
+  releasePaidSlot,
 } from './capability.context';
 import {
   isProductErrorCode,
@@ -25,6 +26,7 @@ import { roleMayUse } from './door-policy';
 import { runPaidCapability } from './paid-adapter';
 import { questionCardView } from './question-card';
 import { modelSummary } from './untrusted-data';
+import { redactSecretLeaves } from '../conductor/secret-shapes';
 
 /**
  * Native Mastra tools from the registry (`content-factory-next-kcxz.6`,
@@ -118,6 +120,41 @@ export const codedRefusal = (error: unknown) => {
   );
 };
 
+/**
+ * Mastra's own refusal of arguments that do not match the input schema
+ * (`validateToolInput` in `@mastra/core` 1.71) repeats what was sent — «…
+ * received 'sk-…'» and «Provided arguments: {…}» — into the tool result the
+ * model reads and the transcript keeps. A value the model put in the wrong
+ * field would come back to it verbatim (review W3-20 F12, `ai.key.enter`'s
+ * enum). The refusal keeps the paths that failed and drops every value.
+ */
+const INPUT_INVALID = 'CAPABILITY_INPUT_INVALID';
+const isMastraValidationError = (
+  output: unknown
+): output is { error: true; message?: unknown } =>
+  !!output &&
+  typeof output === 'object' &&
+  (output as { error?: unknown }).error === true &&
+  'validationErrors' in (output as object);
+
+export const inputRefusal = (output: { message?: unknown }): CapabilityRefusal => {
+  const message = typeof output.message === 'string' ? output.message : '';
+  const paths = [
+    ...new Set(
+      [...message.matchAll(/^- ([^:\n]{1,80}):/gm)].map(([, path]) => path.trim())
+    ),
+  ];
+  return refusal(
+    INPUT_INVALID,
+    `The arguments do not match this tool’s input${
+      paths.length ? ` (${paths.join(', ')})` : ''
+    }; read its description and call it again with allowed values. Nothing was done.`
+  );
+};
+
+const withoutEchoedInput = (output: unknown) =>
+  isMastraValidationError(output) ? inputRefusal(output) : output;
+
 /** No stack, no file path, no message a service did not mean for people. */
 const publicError = ({ error }: { error?: unknown }) => ({
   code:
@@ -140,7 +177,7 @@ const TOOL_PAYLOAD_TRANSFORM = {
   input: ({ input }: { input?: unknown }) => input ?? {},
   inputDelta: ({ inputTextDelta }: { inputTextDelta?: string }) =>
     inputTextDelta ?? '',
-  output: ({ output }: { output?: unknown }) => output ?? null,
+  output: ({ output }: { output?: unknown }) => withoutEchoedInput(output) ?? null,
   error: publicError,
   // The call waiting for «Да» (and the one declined): its arguments as the
   // model wrote them. Mastra shows this phase in `data-tool-call-approval` and
@@ -179,6 +216,11 @@ export const buildCapabilityTool = (
     context: ToolContextLike
   ): Promise<CapabilityToolOutput | undefined> => {
     if (options.entrance === 'mcp') {
+      // The chat door redacts keys from everything a person sends before the
+      // model or Mastra holds it; an MCP client's arguments reach the
+      // services and the generation models the same way, so their free text
+      // is redacted here, before admission reads it (review W3-20 F12).
+      input = redactSecretLeaves(input);
       const refused = await admitCapabilityCall(
         capability,
         input,
@@ -230,6 +272,16 @@ export const buildCapabilityTool = (
     }
     // Suspended for the person's answer: Mastra resumes the same call.
     if (output === undefined) return undefined;
+    // A paid run that spent nothing gives the turn's slot back; only the
+    // chat's hooks took one (MCP admits with `countPaid: false`).
+    if (
+      options.entrance === 'chat' &&
+      capability.risk === 'paid' &&
+      context?.requestContext &&
+      capability.spentNothing?.(output)
+    ) {
+      releasePaidSlot(context.requestContext);
+    }
 
     const card = capability.cardOf?.(output) ?? null;
     if (card) await emit({ kind: card.kind, data: card });
@@ -265,8 +317,9 @@ export const buildCapabilityTool = (
       },
     },
     // The model reads the short answer; the long text is on the card by id.
-    toModelOutput: (output: CapabilityToolOutput | undefined) => {
-      if (!output) return { type: 'json', value: null };
+    toModelOutput: (raw: CapabilityToolOutput | undefined) => {
+      if (!raw) return { type: 'json', value: null };
+      const output = withoutEchoedInput(raw) as CapabilityToolOutput;
       if (output.ok === false) {
         const refused = output as CapabilityRefusal;
         return {

@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { OnboardingController } from '@contentfactory/backend/api/routes/onboarding.controller';
 import { IntegrationsController } from '@contentfactory/backend/api/routes/integrations.controller';
 import { OnboardingRepository } from '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.repository';
+import {
+  ONBOARDING_STEP_KEYS,
+  channelWaitsForAdmin,
+  nextStepFor,
+  stepIsDone,
+  type OnboardingStepKey,
+} from '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.steps';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { VoiceService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice.service';
@@ -30,8 +37,17 @@ type SnapshotChannel = {
   name: string;
   platform: string;
   disabled: boolean;
-  /** `none` · `reserve` · `autopilot`; `null` when it could not be read. */
+  /**
+   * `draft` («Без плана») · `reserve` («Бронь») · `autopilot`; a channel whose
+   * mode nobody chose reads `reserve`. `null` when it could not be read.
+   */
   planMode: string | null;
+  /**
+   * Somebody chose the mode (the column is written), as opposed to the
+   * `reserve` default; only a chosen mode closes «План» (review W3-21 P2-1).
+   * `null` when it could not be read.
+   */
+  planModeChosen: boolean | null;
 };
 type SnapshotAvatar = {
   id: string;
@@ -46,6 +62,20 @@ type SnapshotAllowance =
 export type WorkspaceSnapshot = {
   /** The onboarding counts (`GET /onboarding/progress`): what exists. */
   counts: Record<string, number>;
+  /**
+   * The five first steps as «С чего начать» ticks them (`kcxz.21`): the same
+   * rules over the same counts (`onboarding.steps.ts`), so the agent never
+   * judges a step by its own reading of the numbers. `next` is the first
+   * open step this person can run now (`nextStepFor`: the role, and no
+   * adaptation or reserve before a channel exists); `null` when none is.
+   * `channelByAdmin`: no channel yet and this role cannot connect one — an
+   * administrator must (review W3-21 P3-2).
+   */
+  onboarding: {
+    done: OnboardingStepKey[];
+    next: OnboardingStepKey | null;
+    channelByAdmin: boolean;
+  };
   pieces: Array<{ id: string; code: string; title: string }>;
   channels?: SnapshotChannel[];
   avatars?: SnapshotAvatar[];
@@ -97,25 +127,31 @@ export const readWorkspaceSnapshot = async (
 
   const channels = channelRows
     ? await Promise.all(
-        channelRows.slice(0, SNAPSHOT_CHANNELS).map(async (row) => ({
-          id: row.id,
-          name: row.name,
-          platform: row.providerIdentifier,
-          disabled: !!row.disabled,
-          planMode:
-            (
-              await settled(() =>
-                ctx
-                  .service(IntegrationService)
-                  .getPlanMode(ctx.organizationId, row.id)
-              )
-            )?.planMode ?? null,
-        }))
+        channelRows.slice(0, SNAPSHOT_CHANNELS).map(async (row) => {
+          const plan = await settled(() =>
+            ctx
+              .service(IntegrationService)
+              .getPlanMode(ctx.organizationId, row.id)
+          );
+          return {
+            id: row.id,
+            name: row.name,
+            platform: row.providerIdentifier,
+            disabled: !!row.disabled,
+            planMode: plan?.planMode ?? null,
+            planModeChosen: plan ? plan.chosen : null,
+          };
+        })
       )
     : undefined;
 
   return {
     counts,
+    onboarding: {
+      done: ONBOARDING_STEP_KEYS.filter((step) => stepIsDone(step, progress)),
+      next: nextStepFor(progress, ctx.role),
+      channelByAdmin: channelWaitsForAdmin(progress, ctx.role),
+    },
     pieces: (list?.pieces ?? [])
       .filter((piece) => !piece.archivedAt)
       .slice(0, SNAPSHOT_PIECES)
@@ -153,7 +189,7 @@ export const workspaceSnapshot = defineCapability({
   group: 'overview',
   label: { ru: 'Что есть в пространстве', en: 'Workspace overview' },
   description:
-    'Read what the workspace has now: counts of channels, avatars, voice samples, facts, pieces, drafts, adaptations and scheduled posts; the pieces in work, the channels with their plan mode, the avatars with the default one, and the AI allowance left. Free. The same snapshot opens every turn; call it again only after something changed in this turn.',
+    'Read what the workspace has now: counts of channels, avatars, voice samples, facts, pieces, drafts, adaptations and scheduled posts; the pieces in work, the channels with their plan mode (`draft` «Без плана», `reserve` «Бронь» — also what a channel reads when nobody chose — or `autopilot`; `planModeChosen` false means nobody chose it yet), the avatars with the default one, and the AI allowance left. Free. The same snapshot opens every turn; call it again only after something changed in this turn.',
   input: z.object({}),
   risk: 'read',
   door: door(OnboardingController, 'progress'),
@@ -178,7 +214,7 @@ export const channelsList = defineCapability({
   group: 'channels',
   label: { ru: 'Каналы', en: 'Channels' },
   description:
-    'List the connected channels with their ids, platform, whether they are switched off or need reconnecting, and how many posts each has. Free. Use it before anything that needs a channel id.',
+    'List the connected channels with their ids, platform, whether they are switched off or need reconnecting, and how many published, queued or failed posts each has (the «Каналы» count; channel.open counts every post, drafts included). Free. Use it before anything that needs a channel id.',
   input: z.object({}),
   risk: 'read',
   door: door(IntegrationsController, 'getIntegrationList'),

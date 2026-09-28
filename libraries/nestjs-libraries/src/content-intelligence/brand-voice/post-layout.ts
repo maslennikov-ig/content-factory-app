@@ -44,6 +44,22 @@ export const POST_LAYOUT_METRIC_KEYS = [
 
 export type PostLayoutMetricKey = (typeof POST_LAYOUT_METRIC_KEYS)[number];
 
+/** What each layout measure is called in words (see `POST_HABIT_WORDS`). */
+export const POST_LAYOUT_WORDS: Record<'ru' | 'en', Record<PostLayoutMetricKey, string>> = {
+  ru: {
+    softBreakRate: 'мягкий перенос строки внутри абзаца',
+    blockBreakRate: 'пустая строка между абзацами',
+    meanBlockChars: 'средняя длина блока',
+    oneSentenceBlockShare: 'доля блоков из одного предложения',
+  },
+  en: {
+    softBreakRate: 'a soft line break inside a paragraph',
+    blockBreakRate: 'a blank line between paragraphs',
+    meanBlockChars: 'average block length',
+    oneSentenceBlockShare: 'share of blocks made of one sentence',
+  },
+};
+
 /** Under this a share is one post's accident rather than a habit. Same bar as post habits. */
 export const MIN_POSTS = 5;
 
@@ -242,17 +258,17 @@ export function renderPostLayout(
   const lines = russian
     ? [
         `постов разобрано: ${layout.sampleCount}`,
-        `softBreakRate · мягкий перенос строки внутри абзаца: ${layout.softBreakRate} на тысячу знаков (${layout.counts.softBreaks} переносов)`,
-        `blockBreakRate · пустая строка между абзацами: ${layout.blockBreakRate} на тысячу знаков (${layout.counts.blockBreaks} пустых строк)`,
-        `meanBlockChars · средняя длина блока: ${layout.meanBlockChars} знаков (${layout.counts.blocks} блоков)`,
-        `oneSentenceBlockShare · доля блоков из одного предложения: ${layout.oneSentenceBlockShare}% (${layout.counts.oneSentenceBlocks} из ${layout.counts.blocks})`,
+        `softBreakRate · ${POST_LAYOUT_WORDS.ru.softBreakRate}: ${layout.softBreakRate} на тысячу знаков (${layout.counts.softBreaks} переносов)`,
+        `blockBreakRate · ${POST_LAYOUT_WORDS.ru.blockBreakRate}: ${layout.blockBreakRate} на тысячу знаков (${layout.counts.blockBreaks} пустых строк)`,
+        `meanBlockChars · ${POST_LAYOUT_WORDS.ru.meanBlockChars}: ${layout.meanBlockChars} знаков (${layout.counts.blocks} блоков)`,
+        `oneSentenceBlockShare · ${POST_LAYOUT_WORDS.ru.oneSentenceBlockShare}: ${layout.oneSentenceBlockShare}% (${layout.counts.oneSentenceBlocks} из ${layout.counts.blocks})`,
       ]
     : [
         `posts analysed: ${layout.sampleCount}`,
-        `softBreakRate · a soft line break inside a paragraph: ${layout.softBreakRate} per thousand characters (${layout.counts.softBreaks} breaks)`,
-        `blockBreakRate · a blank line between paragraphs: ${layout.blockBreakRate} per thousand characters (${layout.counts.blockBreaks} blank lines)`,
-        `meanBlockChars · average block length: ${layout.meanBlockChars} characters (${layout.counts.blocks} blocks)`,
-        `oneSentenceBlockShare · share of blocks made of one sentence: ${layout.oneSentenceBlockShare}% (${layout.counts.oneSentenceBlocks} of ${layout.counts.blocks})`,
+        `softBreakRate · ${POST_LAYOUT_WORDS.en.softBreakRate}: ${layout.softBreakRate} per thousand characters (${layout.counts.softBreaks} breaks)`,
+        `blockBreakRate · ${POST_LAYOUT_WORDS.en.blockBreakRate}: ${layout.blockBreakRate} per thousand characters (${layout.counts.blockBreaks} blank lines)`,
+        `meanBlockChars · ${POST_LAYOUT_WORDS.en.meanBlockChars}: ${layout.meanBlockChars} characters (${layout.counts.blocks} blocks)`,
+        `oneSentenceBlockShare · ${POST_LAYOUT_WORDS.en.oneSentenceBlockShare}: ${layout.oneSentenceBlockShare}% (${layout.counts.oneSentenceBlocks} of ${layout.counts.blocks})`,
       ];
   return lines.join('\n');
 }

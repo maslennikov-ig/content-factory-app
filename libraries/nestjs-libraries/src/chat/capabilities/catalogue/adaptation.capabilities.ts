@@ -18,7 +18,7 @@ import {
   reviewSummary,
   type Reviewed,
 } from './core.capabilities';
-import { codedFailure, eventFailure } from './selection';
+import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion } from './selection';
 import { proposalTarget } from '../capability.context';
 
 /**
@@ -40,10 +40,11 @@ const ADAPT_KINDS = ['post', 'caption', 'article', 'newsletter'] as const;
 
 /* Fields of a post that the person can ask for in words (§3.4 «Для этого поста»). */
 // The five densities and `auto`, as the page's post panel offers them.
-const EMOJI = z.enum([...EMOJI_STOPS, 'auto']);
-const LINKS = z.enum(['none', 'end', 'inline', 'auto']);
-const HASHTAGS = z.enum(['none', 'end_1_3', 'free', 'auto']);
-const CTA = z.enum(['auto', 'none', 'question', 'comment', 'link', 'subscribe', 'reply']);
+// Shared with the channel card's own capability (`channel.writing`, kcxz.19).
+export const EMOJI = z.enum([...EMOJI_STOPS, 'auto']);
+export const LINKS = z.enum(['none', 'end', 'inline', 'auto']);
+export const HASHTAGS = z.enum(['none', 'end_1_3', 'free', 'auto']);
+export const CTA = z.enum(['auto', 'none', 'question', 'comment', 'link', 'subscribe', 'reply']);
 const postFields = {
   emojiLevel: EMOJI.optional().describe('Emoji density, only when the person asked'),
   hashtagPolicy: HASHTAGS.optional().describe('Hashtags, only when the person asked'),
@@ -150,8 +151,10 @@ type Adapted = {
   variant: number;
   /** `queued` when the channel is on autopilot: the post waits in its queue. */
   state: string;
-  /** Interview questions the person was asked in this call. */
+  /** Interview questions the person was asked — and answered — in this call. */
   asked: number;
+  /** Optional questions open under the new post («Материала мало»), as asked (`QUOTED_QUESTION_MAX`). */
+  openQuestions?: string[];
   /** Where the version stands in the channel's plan, and why, when said. */
   plan?: string | null;
   note?: string | null;
@@ -231,12 +234,24 @@ const adaptPass = async (
   return result;
 };
 
-/** Which variant of the channel the new text is: its place among the channel's rows. */
-const variantOf = async (ctx: CapabilityRunContext, id: string, channel: string, written: string) => {
+/**
+ * What the page shows for the new text (W3 recheck R-4): which variant of the
+ * channel it is (its place among the channel's rows) and the optional
+ * questions open under it — «Материала мало» (`97dq.98`) — counted exactly.
+ */
+const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string, written: string) => {
   const detail = await ctx.service(PieceService).detail(ctx.organizationId, id, ctx.language);
   const rows = (detail.adaptations ?? []).filter((row: any) => row.integrationId === channel);
   const index = rows.findIndex((row: any) => row.id === written);
-  return index < 0 ? rows.length : index + 1;
+  const tab = ((detail as any).channels ?? []).find((one: any) => one?.integrationId === channel);
+  const ask = tab?.materialAsk;
+  const questions: string[] =
+    ask && ask.adaptationId === written && Array.isArray(ask.questions)
+      ? ask.questions
+          .map((one: any) => (typeof one?.question === 'string' ? shortQuestion(one.question, QUOTED_QUESTION_MAX) : ''))
+          .filter(Boolean)
+      : [];
+  return { variant: index < 0 ? rows.length : index + 1, openQuestions: questions };
 };
 
 export const pieceAdapt = defineCapability({
@@ -244,7 +259,7 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents on a card, because the post would go out by itself (a «no» ends the call, nothing written). The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card.',
+    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents on a card, because the post would go out by itself (a «no» ends the call, nothing written). The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
     channelId,
@@ -281,13 +296,15 @@ export const pieceAdapt = defineCapability({
       if (pass.kind !== 'adaptation') {
         throw codedFailure('GENERATION_FAILED', 'The adaptation could not be written.');
       }
+      const written = await writtenOf(ctx, input.pieceId, input.channelId, pass.adaptationId);
       return {
         pieceId: input.pieceId,
         adaptationId: pass.adaptationId,
         channel: (pass.channel as Adapted['channel'] | null) ?? { id: input.channelId, name: '', provider: '' },
-        variant: await variantOf(ctx, input.pieceId, input.channelId, pass.adaptationId),
+        variant: written.variant,
         state: pass.state,
         asked,
+        ...(written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
         plan: pass.plan,
         note: pass.note,
       };
@@ -412,7 +429,18 @@ export const pieceAdapt = defineCapability({
           channelId: output.channel.id,
           variant: output.variant,
           state: output.state,
-          asked: output.asked,
+          // Answered on the card in this call: none of them is open now
+          // (W3 recheck R-4 — the agent read `asked: 1` as «one question
+          // waits on the post card»).
+          answeredOnCard: output.asked,
+          // What waits under the post is this, counted exactly and optional.
+          openQuestions: output.openQuestions?.length
+            ? {
+                count: output.openQuestions.length,
+                optional: true,
+                questions: output.openQuestions,
+              }
+            : { count: 0 },
           ...(output.plan ? { plan: output.plan } : {}),
           ...(output.note ? { note: output.note } : {}),
         },
@@ -439,6 +467,8 @@ type StoredProfile = {
   formatPreference: string;
   notes?: string | null;
   brandProfileId?: string | null;
+  /** «Как в аватаре» · на «ты» · на «вы»; sent only when a call names it. */
+  addressForm?: string;
 };
 
 /**
@@ -459,7 +489,8 @@ const profilePayload = (profile: StoredProfile) => {
   };
   if (typeof profile.lengthPolicy === 'string') return { lengthPolicy: profile.lengthPolicy, ...common };
   const { idealMin, idealMax, hardMax } = profile.lengthPolicy as {
-    idealMin: number;
+    /** `null` — «до N знаков», no minimum (review F5). */
+    idealMin: number | null;
     idealMax: number;
     hardMax?: number | null;
   };
@@ -468,6 +499,40 @@ const profilePayload = (profile: StoredProfile) => {
     length: { idealMin, idealMax, ...(typeof hardMax === 'number' ? { hardMax } : {}) },
     ...common,
   };
+};
+
+/**
+ * The channel's writing card with some fields over it, written through the
+ * card's own door (`IntegrationsController.updateWritingProfile`): the stored
+ * card is read first, so what is not named stays as it was
+ * (`rememberedProfilePayload`). One step for «…и запомнить для канала», for
+ * binding an avatar to a channel (`avatar.bind`, kcxz.18) and for the card's
+ * own fields from the chat (`channel.writing`, kcxz.19).
+ */
+export const rememberOnChannel = async (
+  ctx: Pick<CapabilityRunContext, 'organizationId' | 'service'>,
+  channelId: string,
+  /**
+   * The fields to change, or a function of the stored card that names them.
+   * `saved: false` — the card was never saved and `current` is the platform's
+   * defaults, not the person's numbers (final recheck F-2a).
+   */
+  change:
+    | Partial<StoredProfile>
+    | ((current: StoredProfile, card: { saved: boolean }) => Partial<StoredProfile>)
+) => {
+  const integrations = ctx.service(IntegrationService);
+  const read = await integrations.getWritingProfile(ctx.organizationId, channelId);
+  const current = read.profile as unknown as StoredProfile;
+  const overrides =
+    typeof change === 'function' ? change(current, { saved: read.stored !== false }) : change;
+  // The address form has no field on the card's screen; the door keeps the
+  // stored one when the body does not name it, so it goes only when asked
+  // (`channel.writing`, kcxz.19).
+  return integrations.updateWritingProfile(ctx.organizationId, channelId, {
+    ...profilePayload({ ...current, ...overrides }),
+    ...(overrides.addressForm !== undefined ? { addressForm: overrides.addressForm } : {}),
+  } as any);
 };
 
 export const channelWritingRemember = defineCapability({
@@ -481,19 +546,13 @@ export const channelWritingRemember = defineCapability({
   door: door(IntegrationsController, 'updateWritingProfile'),
   untrusted: [],
   run: async (ctx, input) => {
-    const integrations = ctx.service(IntegrationService);
-    const current = (await integrations.getWritingProfile(ctx.organizationId, input.channelId))
-      .profile as unknown as StoredProfile;
-    // `rememberedProfilePayload`: the stored card with the chosen fields over it.
-    const payload = profilePayload({
-      ...current,
+    await rememberOnChannel(ctx, input.channelId, {
       ...(input.emojiLevel ? { emojiLevel: input.emojiLevel } : {}),
       ...(input.hashtagPolicy ? { hashtagPolicy: input.hashtagPolicy } : {}),
       ...(input.linkPolicy ? { linkPolicy: input.linkPolicy } : {}),
       ...(input.ctaKind ? { ctaKind: input.ctaKind } : {}),
       ...(input.avatarId ? { brandProfileId: input.avatarId } : {}),
     });
-    await integrations.updateWritingProfile(ctx.organizationId, input.channelId, payload as any);
     const remembered = ['emojiLevel', 'hashtagPolicy', 'linkPolicy', 'ctaKind', 'avatarId'].filter(
       (key) => (input as Record<string, unknown>)[key] !== undefined
     );

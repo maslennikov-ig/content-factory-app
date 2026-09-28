@@ -225,7 +225,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'avatar-corpus',
         question: 'Что такое аватар и сколько текстов ему нужно?',
         answer:
-          'Аватар — описание того, как вы пишете: ритм, длина фраз, слова, которых вы избегаете. Быстрее всего — «Заполнить вручную»: пять строк о вашей манере, тексты не нужны. Точнее — «Собрать из моих текстов»: нужно от 8 текстов и от 15 000 знаков вместе. Тексты можно взять из «Мои опубликованные посты», из «Выгрузка Telegram Desktop» (файл result.json из «Экспорт истории» в формате JSON), вставить или загрузить файлами.',
+          'Аватар — описание того, как вы пишете: ритм, длина фраз, слова, которых вы избегаете. Быстрее всего — «Заполнить вручную»: шесть строк о вашей манере, тексты не нужны. Точнее — «Собрать из моих текстов»: нужно от 8 текстов и от 15 000 знаков вместе. Тексты можно взять из «Мои опубликованные посты», из «Выгрузка Telegram Desktop» (файл result.json из «Экспорт истории» в формате JSON), вставить или загрузить файлами.',
       },
       {
         id: 'slop-check',
@@ -407,7 +407,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'avatar-corpus',
         question: 'What is an avatar and how many texts does it need?',
         answer:
-          'An avatar describes how you write: rhythm, sentence length, the words you avoid. The quickest way is «Fill it in by hand»: five lines about your manner, no texts needed. More precise is «Build it from my own texts»: it needs at least 8 texts and at least 15,000 characters in total. Texts can come from your published posts, from a Telegram Desktop export (the result.json file from «Export chat history» in JSON), pasted in or uploaded as files.',
+          'An avatar describes how you write: rhythm, sentence length, the words you avoid. The quickest way is «Fill it in by hand»: six lines about your manner, no texts needed. More precise is «Build it from my own texts»: it needs at least 8 texts and at least 15,000 characters in total. Texts can come from your published posts, from a Telegram Desktop export (the result.json file from «Export chat history» in JSON), pasted in or uploaded as files.',
       },
       {
         id: 'slop-check',

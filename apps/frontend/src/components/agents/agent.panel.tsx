@@ -13,6 +13,7 @@ import {
   ONBOARDING_STEP_KEYS,
   doneCount,
   stepIsDone,
+  stepOffered,
   type OnboardingStepKey,
 } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
 import {
@@ -28,14 +29,13 @@ import type { AgentWords } from './agent.copy';
 import { OpenOnScreen, artifactOwnName } from './agent.cards';
 import { AgentGlyph } from './agent.icons';
 import { usePieceArtifact } from './agent.piece-data';
-import { starterAllowed } from './agent.starters';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 
 /**
  * The work panel beside the chat (spec §6.1, canvas C; owner 27.09.2026 «чат
  * плюс артефакт»): what the turn produced, opened as the product's own screen.
  *
- * A piece and an avatar open their real screens here — the same components
+ * A piece, an avatar and a channel open their real screens here — the same components
  * their pages render, so whatever is changed here is saved the way the page
  * saves it. The other kinds show their name and lead to their screen. With
  * nothing open, the panel shows the five steps of «С чего начать», each with
@@ -58,6 +58,14 @@ const VoiceAvatarScreen = dynamic(
     import(
       '@contentfactory/frontend/components/brand-voice/voice-avatar.screen'
     ).then((module) => module.VoiceAvatarScreen),
+  { ssr: false, loading: () => <SkeletonRows rows={4} /> }
+);
+
+const ChannelScreen = dynamic(
+  () =>
+    import('@contentfactory/frontend/components/channels/channel-screen').then(
+      (module) => module.ChannelScreen
+    ),
   { ssr: false, loading: () => <SkeletonRows rows={4} /> }
 );
 
@@ -100,7 +108,14 @@ function ArtifactBody({
     }
   }
   if (artifact.kind === 'avatar') {
-    return <VoiceAvatarScreen key={artifact.id} avatarId={artifact.id} />;
+    // Beside the chat the screen follows what the agent did (W3 walk P2-A):
+    // a proposal the chat made opens as the proposal, not as «Продолжить».
+    return <VoiceAvatarScreen key={artifact.id} avatarId={artifact.id} followChat />;
+  }
+  if (artifact.kind === 'channel') {
+    // The channel page itself (`kcxz.19`): the writing card, the schedule,
+    // the recent posts and the connection, saved the way the page saves them.
+    return <ChannelScreen key={artifact.id} channelId={artifact.id} embedded />;
   }
   return (
     <div className="flex flex-col items-start gap-[12px]">
@@ -190,8 +205,12 @@ export function WorkspaceSteps({
                       {isDone ? onboarding.stateDone : onboarding.stateOpen}
                     </span>
                   </span>
-                  {/* Only what the role can run is offered (`kcxz.31`, D14). */}
-                  {isDone || !starterAllowed(step, role) ? null : (
+                  {/*
+                    Only what the role can run, and not an adaptation or a
+                    reserve before a channel exists (`kcxz.31`, D14; review
+                    W3-21 P3-3) — the chat's starters by the same rule.
+                  */}
+                  {!stepOffered(step, progress, role) ? null : (
                     <Button
                       type="button"
                       density="dense"

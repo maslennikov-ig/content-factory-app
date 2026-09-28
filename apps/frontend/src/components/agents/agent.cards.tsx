@@ -428,7 +428,9 @@ export function ApprovalCard({
   if (settled) {
     const word =
       state === 'approved'
-        ? w.approved
+        ? toolName === 'channel_connect'
+          ? w.approvedConnect
+          : w.approved
         : state === 'declined'
           ? w.declined
           : state === 'closed'
@@ -578,7 +580,10 @@ export function QuestionCard({
   const [sent, setSent] = useState<string | null>(null);
   const [own, setOwn] = useState('');
   const [consent, setConsent] = useState(false);
-  const [name, setName] = useState('');
+  // The avatar's name now, when it has one (W3 walk P3-F).
+  const [name, setName] = useState(
+    question.kind === 'consent' ? (question.presetName ?? '') : ''
+  );
   const ownId = useId();
 
   if (answered) {
@@ -689,7 +694,7 @@ export function QuestionCard({
           />
         ) : null}
         <CheckboxField
-          label={w.consentLabel}
+          label={question.brand ? w.consentLabelBrand : w.consentLabel}
           checked={consent}
           disabled={locked}
           onChange={(event) => setConsent(event.target.checked)}

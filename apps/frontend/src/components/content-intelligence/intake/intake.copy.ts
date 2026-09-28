@@ -237,6 +237,9 @@ export const intakeCopy = {
     profileLengthIdeal: '500–1000',
     profileLengthLong: 'до 1500',
     profileLengthMax: 'до 2500 (форматы)',
+    // Свой диапазон карточки, не пресет (перепроверка W3, R-2).
+    profileLengthCustom: (min: number | null, max: number) =>
+      min === null ? `Свой: до ${max}` : `Свой: ${min}–${max}`,
     profileEmoji: 'Эмодзи',
     /*
       Бегунок плотности (`97dq.96`): пять слов — подписи делений, значение
@@ -494,6 +497,8 @@ export const intakeCopy = {
     profileLengthIdeal: '500–1000',
     profileLengthLong: 'up to 1500',
     profileLengthMax: 'up to 2500 (long forms)',
+    profileLengthCustom: (min: number | null, max: number) =>
+      min === null ? `Custom: up to ${max}` : `Custom: ${min}–${max}`,
     profileEmoji: 'Emoji',
     profileEmojiNone: 'No emoji',
     profileEmojiFew: 'Few',

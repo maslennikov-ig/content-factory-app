@@ -136,3 +136,22 @@ export const needsPerson = () =>
     'INPUT_NEEDS_PERSON',
     'Accepting the result needs the person’s choice on a card in the web chat; nothing was spent.'
   );
+
+/**
+ * A question as the agent may quote it (W3 recheck R-4, R-6): whole when
+ * short, else cut at a word with «…».
+ */
+/**
+ * How long a question the agent is told to quote word for word may be
+ * (`leftToAuthor`, `openQuestions`; kcxz W3 final recheck F-3b). The
+ * questions are one sentence each and fit whole; the bound keeps a runaway
+ * one from filling the tool output.
+ */
+export const QUOTED_QUESTION_MAX = 300;
+
+export const shortQuestion = (text: string, limit = 120) => {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= limit) return clean;
+  const cut = clean.slice(0, limit);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), limit - 20)).trimEnd()}…`;
+};

@@ -1,4 +1,5 @@
 import {
+  CHANNEL_MIN_IDEAL_LENGTH,
   CHANNEL_NOTES_LIMIT,
   TELEGRAM_PROVIDER_IDENTIFIER,
   defaultWritingProfileFor,
@@ -126,17 +127,28 @@ export const scaledLengthRange = (
   policy: ChannelWritingProfileV1['lengthPolicy'],
   length: 'shorter' | 'longer',
   limit: number
-): { idealMin: number; idealMax: number; hardMax: number | null } | null => {
+): { idealMin: number | null; idealMax: number; hardMax: number | null } | null => {
   if (typeof policy !== 'object' || !policy) return null;
   const factor = POST_LENGTH_SCALE[length];
   const scale = (value: number) =>
     Math.max(1, Math.min(limit, Math.round(value * factor)));
   return {
-    idealMin: scale(policy.idealMin),
+    idealMin: policy.idealMin === null ? null : scale(policy.idealMin),
     idealMax: scale(policy.idealMax),
     hardMax: policy.hardMax ? scale(policy.hardMax) : null,
   };
 };
+
+/**
+ * «от A до B» или «до B» (разбор W3, F5): диапазон без минимума — только
+ * потолок, и промпт не называет нижней границы, которой человек не ставил.
+ */
+const rangeWords = (min: number | null, max: number) =>
+  min === null ? `up to ${max}` : `${min} to ${max}`;
+
+/** Нижняя граница для счёта (эмодзи, «коротко ли»): без минимума — порог поста. */
+const rangeFloor = (min: number | null, max: number) =>
+  Math.min(max, min ?? CHANNEL_MIN_IDEAL_LENGTH);
 
 /** Слова человека в инструктивной части — с той же оградой, что заметка карточки. */
 const fenced = (value: string | null | undefined, limit: number): string | null => {
@@ -601,15 +613,18 @@ export function channelLengthTarget(
   const own = options.post?.lengthPolicy;
   if (own) {
     return typeof own === 'object'
-      ? { min: Math.min(limit, own.idealMin), max: Math.min(limit, own.idealMax) }
+      ? {
+          min: Math.min(limit, rangeFloor(own.idealMin, own.idealMax)),
+          max: Math.min(limit, own.idealMax),
+        }
       : null;
   }
   const length = channel.lengthPolicy;
   const postLength = options.post?.length;
   const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
-  if (scaled) return { min: scaled.idealMin, max: scaled.idealMax };
+  if (scaled) return { min: rangeFloor(scaled.idealMin, scaled.idealMax), max: scaled.idealMax };
   return typeof length === 'object'
-    ? { min: length.idealMin, max: length.idealMax }
+    ? { min: rangeFloor(length.idealMin, length.idealMax), max: length.idealMax }
     : null;
 }
 
@@ -675,7 +690,7 @@ export function channelInstructionLines(
         : '';
       lines.push(
         forPost(
-          `aim for ${Math.min(limit, length.idealMin)} to ${Math.min(limit, length.idealMax)} characters${hard}. This outranks any other length given in this prompt.`
+          `aim for ${rangeWords(length.idealMin === null ? null : Math.min(limit, length.idealMin), Math.min(limit, length.idealMax))} characters${hard}. This outranks any other length given in this prompt.`
         )
       );
     } else {
@@ -693,7 +708,7 @@ export function channelInstructionLines(
     */
     const hard = scaled.hardMax ? `, and never past ${scaled.hardMax}` : '';
     lines.push(
-      `For this post the author asked for a ${postLength} text than this channel usually gets: aim for ${scaled.idealMin} to ${scaled.idealMax} characters${hard}. ` +
+      `For this post the author asked for a ${postLength} text than this channel usually gets: aim for ${rangeWords(scaled.idealMin, scaled.idealMax)} characters${hard}. ` +
         'This outranks any other length given in this prompt.'
     );
   } else {
@@ -701,7 +716,7 @@ export function channelInstructionLines(
     if (typeof length === 'object') {
       const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
       lines.push(
-        `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
+        `Readers of this channel expect ${rangeWords(length.idealMin, length.idealMax)} characters${hard}. ` +
           'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
       );
     }

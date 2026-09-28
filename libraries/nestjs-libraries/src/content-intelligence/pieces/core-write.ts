@@ -48,6 +48,8 @@ import {
 } from '../brand-profile/delegated-policy';
 import { personTextWithoutAdded } from './core-edit';
 import { metaSpeechIn } from '../text-quality/meta-speech';
+import { withoutAudienceRemarks } from '../text-quality/audience-remark';
+import { CHANNEL_MIN_IDEAL_LENGTH } from '../channels/channel-writing-profile';
 export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v16';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
@@ -699,6 +701,10 @@ export async function writeCore(
   return (await writeCoreWithDecisions(input, deps)).core;
 }
 
+/** Суть без фразы о том, для кого она (F-3a); короче поста не режется. */
+const withoutCoreAudienceRemarks = (text: string): string =>
+  text ? trimmed(withoutAudienceRemarks(text, { minLength: CHANNEL_MIN_IDEAL_LENGTH })) : text;
+
 /**
  * Суть и решения по отданным вопросам — одним вызовом (`97dq.56`).
  *
@@ -780,8 +786,12 @@ export async function writeCoreWithDecisions(
           antiCopyHint = `${CORE_WRITE_REPAIR_V16}${quoted}`;
           result = await rewrite(antiCopyHint, result);
         }
-        // Речь о тексте вместо текста (`97dq.90`): одна перепись.
-        const meta = result ? metaSpeechIn(stripCitationLabels(result)) : [];
+        // Речь о тексте вместо текста (`97dq.90`): одна перепись. Фраза о
+        // том, для кого текст, снимается ниже без модели (F-3a), и платной
+        // переписи ради неё нет — если снять её можно.
+        const meta = result
+          ? metaSpeechIn(withoutCoreAudienceRemarks(stripCitationLabels(result)))
+          : [];
         if (meta.length) {
           deps.warn?.(`The core talked about its input; rewriting once: ${meta.join(' | ')}`);
           /*
@@ -826,6 +836,22 @@ export async function writeCoreWithDecisions(
   // (`content-factory-next-97dq.40`). Суть человек читает и правит — меток
   // источника в ней не бывает ни при каком ответе.
   text = trimmed(stripCitationLabels(text));
+  /*
+    Для кого текст — строка брифа, а не фраза сути (финальный живой прогон
+    W3, F-3a): «Решите за меня» решил адресата, правило отданных вопросов
+    велит отвечать на них в сути, и суть написала «Я обращаюсь к
+    сотрудникам, которые открывают кофейню…: …» — дальше это ушло в пост.
+    Снимается здесь, без модели, в любой сути, которую написала модель:
+    первой, после ответов, пересобранной. Своё, написанное человеком, и
+    запасная суть из его слов не трогаются.
+  */
+  const cleaned = withoutCoreAudienceRemarks(text);
+  if (cleaned !== text) {
+    deps.warn?.(
+      `The core said whom it is for; removed without the model (${text.length - cleaned.length} characters).`
+    );
+    text = cleaned;
+  }
   if (text) {
     return {
       core: shaped(text, 'model'),

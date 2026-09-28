@@ -29,8 +29,17 @@ import {
   resolveAiProviderLocale,
 } from '@contentfactory/frontend/components/settings/ai-provider.copy';
 import { FieldLabel, LabelledField } from '../ui/field-label';
+import {
+  keyOwnerOf,
+  KEY_OWNER_NAMES,
+  type KeyOwner,
+} from '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes';
 
 type Provider = 'openai' | 'openrouter';
+const PROVIDER_NAMES: Record<Provider, string> = {
+  openai: KEY_OWNER_NAMES.openai,
+  openrouter: KEY_OWNER_NAMES.openrouter,
+};
 type SearchProvider = 'tavily' | 'openrouter' | 'exa';
 type UsageMode = 'included' | 'workspace_key';
 
@@ -152,6 +161,11 @@ interface AiSettings {
   imageModel: string;
   roleModels: RoleModels;
   hasKey: boolean;
+  /**
+   * The provider the workspace's own key is filed under, in either mode
+   * (review W3-20 F1); on «Ключи системы» `provider` is the operator's.
+   */
+  workspaceProvider?: Provider | null;
   searchEnabled: boolean;
   searchProvider: SearchProvider;
   searchTopic: 'general' | 'news';
@@ -295,57 +309,64 @@ export const buildAiSettingsPayload = ({
   };
 };
 
-/** The settings the door answers with, as much of them as a key save needs. */
+/** The settings the door answers with, as much of them as the key card reads. */
 export type StoredAiSettings = Partial<
   Pick<
     AiSettings,
-    | 'usageMode'
-    | 'provider'
-    | 'textModel'
-    | 'imageModel'
-    | 'roleModels'
-    | 'searchEnabled'
-    | 'searchTopic'
-    | 'searchDepth'
+    'usageMode' | 'workspaceProvider' | 'hasKey' | 'workspaceSearchKeys'
   >
 >;
 
 export type TypedKey =
-  | { field: 'workspace-key'; key: string }
+  | { field: 'workspace-key'; key: string; provider: Provider }
   | { field: 'search-key'; engine: KeyedSearchProvider; key: string };
 
 /**
- * One key, saved through the same payload this screen sends — for the agent's
- * key card (`content-factory-next-kcxz.10`), which posts a key straight to
- * this door so it never passes through the chat.
- *
- * The door takes the whole settings, so everything else goes back as stored.
- * A workspace key means the workspace runs on its own key; when it ran on the
- * included one, the models shown were the operator's and are not sent (the
- * `75xn.4` rule above), so the provider's defaults apply.
+ * Which provider a pasted AI key is saved for (review W3-20 F2): the one its
+ * prefix names (`sk-or-` — OpenRouter, any other `sk-` — OpenAI), else the
+ * provider the workspace's own key is filed under. A prefix of another
+ * provider or engine (`sk-ant-`, `tvly-`, …) is refused, never saved: the key
+ * would go to an endpoint that is not its own. The door refuses the same.
  */
-export const buildTypedKeyPayload = (
-  stored: StoredAiSettings,
-  typed: TypedKey
-) => {
-  const ownKey = typed.field === 'workspace-key';
-  const usageMode: UsageMode = ownKey
-    ? 'workspace_key'
-    : stored.usageMode ?? 'included';
-  const keepModels = stored.usageMode === 'workspace_key';
-  return buildAiSettingsPayload({
-    usageMode,
-    provider: stored.provider ?? 'openai',
-    apiKey: ownKey ? typed.key : '',
-    textModel: keepModels ? stored.textModel ?? '' : '',
-    imageModel: keepModels ? stored.imageModel ?? '' : '',
-    roleModels: keepModels ? stored.roleModels ?? {} : {},
-    searchEnabled: stored.searchEnabled ?? true,
-    searchApiKeys: ownKey ? {} : { [typed.engine]: typed.key },
-    searchTopic: stored.searchTopic ?? 'general',
-    searchDepth: stored.searchDepth ?? 'basic',
-  });
+export const aiKeyTarget = (
+  workspaceProvider: Provider | null | undefined,
+  key: string
+): { provider: Provider } | { wrong: KeyOwner } => {
+  const owner = keyOwnerOf(key);
+  if (owner === 'openai' || owner === 'openrouter') return { provider: owner };
+  if (owner) return { wrong: owner };
+  return { provider: workspaceProvider ?? 'openai' };
 };
+
+/** A search key whose prefix names another engine or provider; `null` when it fits. */
+export const wrongSearchKey = (
+  engine: KeyedSearchProvider,
+  key: string
+): KeyOwner | null => {
+  const owner = keyOwnerOf(key);
+  return owner && owner !== engine ? owner : null;
+};
+
+/**
+ * One key, and nothing else — for the agent's key card
+ * (`content-factory-next-kcxz.10`), which posts a key straight to the settings
+ * door so it never passes through the chat.
+ *
+ * Only the key goes (review W3-20 F3): a body rebuilt from a cached answer
+ * carried the mode and the models as they were when the card was drawn, and
+ * a later save could undo a mode switch approved since. The door leaves every
+ * field a body does not name. An AI key names its provider and the mode it
+ * means — a workspace key is the workspace running on its own key; the door
+ * keeps the models when the provider stays and drops them when it changes.
+ */
+export const buildTypedKeyPayload = (typed: TypedKey) =>
+  typed.field === 'workspace-key'
+    ? {
+        usageMode: 'workspace_key' as const,
+        provider: typed.provider,
+        apiKey: typed.key.trim(),
+      }
+    : { searchApiKeys: { [typed.engine]: typed.key.trim() } };
 
 /**
  * Asking first is the whole point of this control, so the order lives in one
@@ -633,6 +654,30 @@ const AiProviderComponent = () => {
   );
 
   /**
+   * The usage-mode switch sends the mode and nothing else (review W3-20 F1).
+   * On «Ключи системы» the form holds the operator's provider and models; the
+   * whole-form autosave sent them back as the workspace's when the person
+   * returned to «Свой ключ», and the workspace's key went to the operator's
+   * provider. The door leaves every field a body does not name.
+   */
+  const saveMode = useCallback(async (next: UsageMode) => {
+    try {
+      const response = await fetch('/settings/ai', {
+        method: 'POST',
+        body: JSON.stringify({ usageMode: next }),
+      });
+      if (!response.ok) throw new Error();
+      await mutate();
+      toaster.show(t('settings_updated', 'Settings updated'), 'success');
+    } catch {
+      toaster.show(
+        t('ai_provider_save_failed', 'Could not save the provider settings'),
+        'warning'
+      );
+    }
+  }, []);
+
+  /**
    * Model ids belong to their provider: `gpt-4.1` is not a valid OpenRouter id,
    * and `openai/gpt-5.6-luna` means nothing to OpenAI. The loaded values are the
    * ones in effect, so keeping them across a provider switch would save a model
@@ -645,6 +690,12 @@ const AiProviderComponent = () => {
     (next: Provider) => {
       setProvider(next);
       const returning = next === data?.provider;
+      // A stored key belongs to the provider it was saved for (review W3-20
+      // F1): the door keeps that provider until a key for the new one comes
+      // with it. So the switch waits for «Сохранить» with the new key, and
+      // the key field says so, instead of an autosave the door would ignore.
+      const waitsForKey =
+        !returning && !!data?.hasKey && formRef.current.usageMode === 'workspace_key';
       const nextText = returning ? data?.textModel || '' : '';
       const nextImage = returning ? data?.imageModel || '' : '';
       // Role ids belong to their provider for exactly the same reason, and a
@@ -654,6 +705,7 @@ const AiProviderComponent = () => {
       setTextModel(nextText);
       setImageModel(nextImage);
       setRoleModels(nextRoles);
+      if (waitsForKey) return;
       autosave({
         provider: next,
         textModel: nextText,
@@ -945,7 +997,7 @@ const AiProviderComponent = () => {
                     ? 'included'
                     : 'workspace_key';
                 setUsageMode(next);
-                autosave({ usageMode: next });
+                void saveMode(next);
               }}
             >
               <option value="included">{t('ai_usage_included')}</option>
@@ -1150,7 +1202,14 @@ const AiProviderComponent = () => {
                   the surface rather than moving into a hint.
                 */
                   helper={
-                    !data?.hasKey
+                    data?.hasKey &&
+                    data.workspaceProvider &&
+                    provider !== data.workspaceProvider
+                      ? words.keyForProvider(
+                          PROVIDER_NAMES[data.workspaceProvider],
+                          PROVIDER_NAMES[provider]
+                        )
+                      : !data?.hasKey
                       ? t(
                           'ai_key_missing_org',
                           'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'

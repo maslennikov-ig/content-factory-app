@@ -87,6 +87,37 @@ export function lengthPresetOf(policy: ChannelLengthPolicyV1): LengthPreset {
 }
 
 /**
+ * Пресет, числа которого совпадают с карточкой все три, — или `null`, когда
+ * у карточки свой диапазон (перепроверка W3, R-2: «до 800» из чата читался
+ * ближайшим «500–1000»). «Длину держит площадка» и «решает модель» — `auto`.
+ */
+export function exactLengthPresetOf(
+  policy: ChannelLengthPolicyV1
+): LengthPreset | null {
+  if (policy === 'auto' || policy === 'provider_max') return 'auto';
+  for (const preset of LENGTH_PRESET_ORDER) {
+    if (preset === 'auto') continue;
+    const numbers = LENGTH_PRESETS[preset];
+    if (
+      numbers.idealMin === policy.idealMin &&
+      numbers.idealMax === policy.idealMax &&
+      numbers.hardMax === (policy.hardMax ?? null)
+    ) {
+      return preset;
+    }
+  }
+  return null;
+}
+
+/** Свой диапазон карточки, если он не пресет: его показывают как есть. */
+export function customLengthOf(
+  policy: ChannelLengthPolicyV1
+): { min: number | null; max: number } | null {
+  if (typeof policy !== 'object' || exactLengthPresetOf(policy)) return null;
+  return { min: policy.idealMin ?? null, max: policy.idealMax };
+}
+
+/**
  * Эмодзи — бегунок плотности словами (`97dq.96`): шкала, чтение старых
  * значений и положение на бегунке живут в `emoji-ceiling.ts` рядом с
  * контрактом, чтобы экран и промпт читали одну шкалу.
@@ -166,7 +197,11 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
         ? length
         : lengthRecord && typeof lengthRecord.idealMax === 'number'
         ? {
-            idealMin: Number(lengthRecord.idealMin) || 0,
+            // `null` — «до N знаков», без минимума (разбор W3, F5).
+            idealMin:
+              lengthRecord.idealMin === null || lengthRecord.idealMin === undefined
+                ? null
+                : Number(lengthRecord.idealMin) || null,
             idealMax: Number(lengthRecord.idealMax),
             hardMax:
               typeof lengthRecord.hardMax === 'number'
@@ -244,7 +279,8 @@ export function readWritingProfileResponse(
  * 'range'])` объект не принимает.
  */
 export type WritingProfileLengthRangePayload = {
-  idealMin: number;
+  /** `null` — без минимума, «до N знаков». */
+  idealMin: number | null;
   idealMax: number;
   hardMax?: number;
 };

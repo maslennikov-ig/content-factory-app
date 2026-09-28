@@ -291,7 +291,11 @@ const { AiProviderService } = loadTypeScriptModule(
         fixedEncryption: (value) => `encrypted:${value}`,
       },
     },
+    '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes': require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/chat/conductor/secret-shapes.ts'
+    ),
     '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+      isAiProvider: (value) => value === 'openai' || value === 'openrouter',
       loadAiConfig: async () => ({
         usageMode: 'included',
         provider: 'openrouter',

@@ -42,11 +42,45 @@ describe('removing a channel names the channel', () => {
     );
     expect(door).toContain('@Body() body: DeleteIntegrationDto');
     expect(door).not.toContain("@Body('id')");
-    const lookup = door.indexOf('getIntegrationById');
-    const posts = door.indexOf('getPostsForChannel');
+    // Since kcxz.19 the door and the chat's `channel.delete` share one step.
+    expect(door).toContain('deleteChannelWithPosts(');
+    expect(door).toContain('HttpStatus.NOT_FOUND');
+    const step = read(
+      'libraries/nestjs-libraries/src/database/prisma/integrations/delete-channel.ts'
+    );
+    const lookup = step.indexOf('getIntegrationById(org');
+    const posts = step.indexOf('deleteChannelPosts(org');
     expect(lookup).toBeGreaterThan(-1);
     expect(lookup).toBeLessThan(posts);
-    expect(door).toContain('HttpStatus.NOT_FOUND');
+  });
+
+  test('the shared step touches no post of a channel that is not there', async () => {
+    const { deleteChannelWithPosts } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/database/prisma/integrations/delete-channel.ts',
+      {}
+    );
+    const deleteChannelPosts = jest.fn(async () => ['p1', 'p2']);
+    const deleteChannel = jest.fn(async () => ({ id: 'itg-1' }));
+    const services = (found) => ({
+      integrations: {
+        getIntegrationById: async () => (found ? { id: 'itg-1' } : null),
+        deleteChannel,
+      },
+      posts: { deleteChannelPosts },
+    });
+    expect(await deleteChannelWithPosts(services(false), 'org-1', 'itg-1')).toBeNull();
+    expect(await deleteChannelWithPosts(services(true), 'org-1', '')).toBeNull();
+    expect(deleteChannelPosts).not.toHaveBeenCalled();
+    expect(deleteChannel).not.toHaveBeenCalled();
+
+    expect(await deleteChannelWithPosts(services(true), 'org-1', 'itg-1')).toEqual({
+      channel: { id: 'itg-1' },
+      posts: 2,
+    });
+    // This channel's posts only, by channel id — never by post group
+    // (review W3-19 P2-1).
+    expect(deleteChannelPosts.mock.calls).toEqual([['org-1', 'itg-1']]);
+    expect(deleteChannel).toHaveBeenCalledWith('org-1', 'itg-1');
   });
 
   test('the repository refuses to group posts for a missing channel id', () => {

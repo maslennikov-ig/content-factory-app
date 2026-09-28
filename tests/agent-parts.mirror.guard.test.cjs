@@ -48,6 +48,14 @@ const MIRRORED = [
   'PLAN_SLOT_STATES',
   // The key a question card's id rides under, and the answer names (W2 F3).
   'AGENT_CARD_ID_KEY',
+  // The receipt of sample files the composer uploaded itself (kcxz.18).
+  'AGENT_SAMPLES_PART_TYPE',
+  'AGENT_SAMPLES_MAX_FILES',
+  'AGENT_SAMPLES_MAX_REASONS',
+  // How the chat connects a platform: the steps or the window (kcxz.19).
+  'CHANNEL_CONNECT_FLOWS',
+  // Which search key the key card takes (kcxz.20).
+  'SECRET_SEARCH_ENGINES',
 ];
 
 /** Exported constants whose value is a literal, a number or a literal array. */

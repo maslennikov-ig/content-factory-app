@@ -865,6 +865,14 @@ export type VoicePassportV1 = {
    * `content.voice.sentenceStyle`; it was simply invisible to its author.
    */
   sentenceStyle?: string;
+  /**
+   * The sixth line, «О чём говорим» (`project.contentGoals`, one line joined
+   * by «; »). The hand-filled path asks for six since W3 walk P3-H, and the
+   * passport showed five: the line steered generation and could be neither
+   * read nor edited where the others are (final recheck F-6a). Absent when
+   * nothing was written — the empty profile's placeholder is not a line.
+   */
+  topics?: string;
   /** «ты» или «вы» (`97dq.38`); отсутствие — «Не задано». */
   addressForm?: 'ty' | 'vy';
   /**
@@ -932,7 +940,8 @@ export type VoiceExamplesRequestV1 = {
  * one edits a voice that already exists and is already consented to.
  */
 export type VoicePassportFieldRequestV1 = {
-  key: ProfileField;
+  /** One of the six lines; `TOPICS` since the final recheck F-6a. */
+  key: ProfileFieldV2;
   text: string;
 };
 
@@ -1421,6 +1430,11 @@ export type VoiceAvatarsResponseV1 = {
   /** Managing avatars is an administrator's right; reading them is not. */
   canManage: boolean;
   notice?: string;
+  /**
+   * The avatar this request created (`POST …/avatars` only), so a caller
+   * names it without diffing the list another editor may change meanwhile.
+   */
+  createdAvatarId?: string;
 };
 
 export type VoiceAvatarCreateRequestV1 = {
@@ -2460,7 +2474,12 @@ export const CHANNEL_WRITING_PROFILE_VERSION = 'channel-writing-profile/v1' as c
 
 export type ChannelLengthPolicyV1 =
   | 'provider_max'
-  | { idealMin: number; idealMax: number; hardMax?: number | null };
+  /**
+   * `idealMin: null` — «до N знаков», без нижней границы (разбор W3, F5 и
+   * R-3): человек назвал только потолок, и карточка не выдумывает минимум.
+   * Нижний порог поста (`CHANNEL_MIN_IDEAL_LENGTH`) тогда только внутренний.
+   */
+  | { idealMin: number | null; idealMax: number; hardMax?: number | null };
 
 export type ChannelWritingProfileV1 = {
   version: typeof CHANNEL_WRITING_PROFILE_VERSION;

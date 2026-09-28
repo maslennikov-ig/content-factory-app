@@ -22,6 +22,8 @@ import { VoiceSamplesScreen, type SampleOriginLabel } from './voice-samples.scre
 import { VoiceAnalysisScreen } from './voice-analysis.screen';
 import { VoiceProposalScreen, type ProposalFieldKey } from './voice-proposal.screen';
 import type { VoiceLocale } from './voice-copy';
+import { AVATAR_ROUTES, mapAvatars } from './voice-avatars.adapter';
+import { readVoice } from './voice-profile.adapter';
 import {
   ANALYSIS_PROGRESS_START,
   ANALYSIS_SILENCE_MS,
@@ -89,6 +91,7 @@ export function VoiceWizardContainer({
   onAnalysisStart,
   onAnalysingChange,
   onActivated,
+  openReady = false,
 }: {
   onAnalysisStart?: () => void;
   onAnalysingChange?: (analysing: boolean) => void;
@@ -105,6 +108,13 @@ export function VoiceWizardContainer({
    * space held one profile.
    */
   avatarId?: string;
+  /**
+   * Go on by itself from the first screen to what is ready (W3 live walk
+   * 28.09.2026, P2-A): a stored proposal opens as the proposal, a
+   * hand-written draft as its form. Beside the agent chat only — the chat
+   * already made the step the «Продолжить» button would make.
+   */
+  openReady?: boolean;
 } = {}) {
   const request = useFetch();
   const { language } = useVariables();
@@ -122,6 +132,34 @@ export function VoiceWizardContainer({
   // What the avatar will be called. Local until activation, which is the one
   // request that can write it (`content-factory-next-fn33.46`).
   const [avatarName, setAvatarName] = useState('');
+  /*
+    The avatar already has a name when it was created by name (in the chat,
+    «Создай аватар «Мастерская»»): the field starts with it, as the chat's
+    consent card does, instead of standing empty beside it (kcxz W3 final
+    recheck). Once the person types, their text is theirs — the list
+    arriving later never overwrites it. The same list and key as the avatar
+    screen and the chat read, so SWR shares the request.
+  */
+  const nameTouched = useRef(false);
+  const avatarList = useSWR(
+    avatarId ? AVATAR_ROUTES.list : null,
+    () => readVoice(request, AVATAR_ROUTES.list),
+    { revalidateOnFocus: false }
+  );
+  const storedName = useMemo(
+    () =>
+      avatarId
+        ? mapAvatars(avatarList.data).avatars.find((one) => one.id === avatarId)?.name ?? ''
+        : '',
+    [avatarId, avatarList.data]
+  );
+  useEffect(() => {
+    if (storedName && !nameTouched.current) setAvatarName(storedName);
+  }, [storedName]);
+  const changeAvatarName = useCallback((next: string) => {
+    nameTouched.current = true;
+    setAvatarName(next);
+  }, []);
   const [intake, setIntake] = useState<IntakeDraft | null>(null);
   /**
    * «Мои опубликованные посты» need a channel to take them from
@@ -400,6 +438,45 @@ export function VoiceWizardContainer({
     },
     [goTo]
   );
+
+  /*
+    Beside the agent chat (W3 live walk, P2-A): what the chat made ready is
+    shown, not a «Продолжить» over it. A stored proposal for these texts opens
+    screen 05 on the analysis path — the same move `onContinue` makes for
+    `proposal`, without paying; else lines written by hand open their form.
+    Only from the first screen, so a person already inside a step is never
+    moved; the reads it waits on are the ones the chat's refresh re-asks.
+  */
+  /*
+    Once per mount, and only while the person has not moved inside the panel
+    themselves (correctness review F7): «Отмена» back to screen 01 stays
+    there instead of bouncing to the form again, and a step the person chose
+    is never taken from them. «Собрать голос заново» mounts the wizard
+    without `openReady` (`VoiceAvatarScreen`), so it starts the rebuild.
+  */
+  const followedChat = useRef(false);
+  const movedBySelf = useRef(false);
+  const movingForChat = useRef(false);
+  useEffect(() => {
+    if (step !== 'empty' && !movingForChat.current) movedBySelf.current = true;
+    movingForChat.current = false;
+  }, [step]);
+  useEffect(() => {
+    if (!openReady || step !== 'empty') return;
+    if (followedChat.current || movedBySelf.current) return;
+    if (resumeStep === 'proposal') {
+      followedChat.current = true;
+      movingForChat.current = true;
+      setChosenPath((current) => current ?? 'own');
+      goTo('proposal');
+      return;
+    }
+    if (manualDraft) {
+      followedChat.current = true;
+      movingForChat.current = true;
+      choosePath('manual');
+    }
+  }, [choosePath, goTo, manualDraft, openReady, resumeStep, step]);
 
   /**
    * The analysis, read line by line, with an end.
@@ -1151,7 +1228,7 @@ export function VoiceWizardContainer({
           onSavePortrait={(text) => void decidePortrait('SAVE', text)}
           onConsentChange={setConsentGiven}
           avatarName={avatarName}
-          onAvatarNameChange={setAvatarName}
+          onAvatarNameChange={changeAvatarName}
           onActivate={() => void activate()}
           onFinish={onActivated}
           onSaveDraft={() => void proposalQuery.mutate()}

@@ -27,8 +27,22 @@ import type { UIMessage } from 'ai';
 
 export const AGENT_STREAM_VERSION = 'v7' as const;
 
-export const CARD_KINDS = ['workspace', 'channels', 'piece', 'avatar', 'adaptation', 'plan'] as const;
+export const CARD_KINDS = [
+  'workspace',
+  'channels',
+  'piece',
+  'avatar',
+  'adaptation',
+  'plan',
+  'channel',
+  'channel-connect',
+  'secret',
+] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
+
+/** How a platform is connected from the chat (`kcxz.19`). */
+export const CHANNEL_CONNECT_FLOWS = ['telegram', 'oauth'] as const;
+export type ChannelConnectFlow = (typeof CHANNEL_CONNECT_FLOWS)[number];
 
 export const PROGRESS_PART_TYPE = 'data-progress' as const;
 
@@ -179,6 +193,22 @@ export const AGENT_APPROVALS_PER_REQUEST = 3;
 /** The approval card's «what and where» line, at most. */
 export const AGENT_APPROVAL_SUMMARY_MAX = 300;
 
+/**
+ * Samples attached in the chat (`kcxz.18`): the composer uploads the files to
+ * the avatar door itself and the message carries only this receipt; the file
+ * body never reaches the chat door or the model.
+ */
+export const AGENT_SAMPLES_PART_TYPE = 'data-avatar-samples' as const;
+export const AGENT_SAMPLES_MAX_FILES = 10;
+export const AGENT_SAMPLES_MAX_REASONS = 20;
+export type AgentSamplesUpload = {
+  avatarId: string | null;
+  files: string[];
+  accepted: number;
+  refused: Array<{ reason: string; count: number }>;
+  telegram: Array<{ name: string; selected: number; eligible: number }>;
+};
+
 /* ---- Doors ----------------------------------------------------------------- */
 
 export const AGENT_DOORS = {
@@ -192,17 +222,18 @@ export type AgentMessage = UIMessage;
 /* ---- Artifacts ------------------------------------------------------------- */
 
 /**
- * Kinds the next waves add (spec §6.2: adaptation, plan slot, channel). The
- * screen already knows where they open, so a kind added on the server is one
- * line in `CARD_KINDS` here, not a second change elsewhere.
+ * Cards drawn in the conversation itself, never opened beside it
+ * (`kcxz.19`): connecting a channel is something the person does on the card
+ * — the Telegram steps or the platform's button — not a thing to look at; so
+ * is typing a key into the key card (`kcxz.20`).
  */
-export const LATER_CARD_KINDS = ['channel'] as const;
+export const INLINE_CARD_KINDS = ['channel-connect', 'secret'] as const;
 
-export type AgentArtifactKind =
-  | CardKind
-  | (typeof LATER_CARD_KINDS)[number];
+export type AgentArtifactKind = Exclude<CardKind, (typeof INLINE_CARD_KINDS)[number]>;
 
-const ARTIFACT_KINDS: readonly string[] = [...CARD_KINDS, ...LATER_CARD_KINDS];
+const ARTIFACT_KINDS: readonly string[] = CARD_KINDS.filter(
+  (kind) => !(INLINE_CARD_KINDS as readonly string[]).includes(kind)
+);
 
 export const isArtifactKind = (value: unknown): value is AgentArtifactKind =>
   typeof value === 'string' && ARTIFACT_KINDS.includes(value);
@@ -275,6 +306,119 @@ const artifactOf = (kind: unknown, data: unknown): AgentArtifact | null => {
     code: stringOf(record.code),
     data: record,
   };
+};
+
+/**
+ * A `channel-connect` card (`kcxz.19`): which platform, how it connects, and
+ * the channels of that platform that were already there, so the card can
+ * name the one that arrived. No word, nonce or token rides here.
+ */
+export type AgentChannelConnect = {
+  provider: string;
+  name: string;
+  flow: ChannelConnectFlow;
+  known: readonly string[];
+  /** When the card was made (ISO); `null` on a card from before the window. */
+  since: string | null;
+};
+
+const readChannelConnect = (data: unknown): AgentChannelConnect | null => {
+  const record = recordOf(data);
+  const provider = stringOf(record.provider) ?? stringOf(record.id);
+  const flow = record.flow === 'telegram' || record.flow === 'oauth' ? record.flow : null;
+  if (!provider || !flow) return null;
+  return {
+    provider,
+    name: stringOf(record.name) ?? provider,
+    flow,
+    known: Array.isArray(record.known)
+      ? record.known.filter((id): id is string => typeof id === 'string')
+      : [],
+    since: stringOf(record.since),
+  };
+};
+
+/**
+ * How long after the card a new channel is still its own (review W3-19
+ * P3-3): long enough for a person who steps away mid-connection, short
+ * enough that a card left in the history does not claim a channel connected
+ * another day. After it the card offers the connection again.
+ */
+export const CONNECT_WINDOW_MS = 6 * 60 * 60 * 1000;
+/** Server clocks may differ a little between the card and the channel row. */
+const CONNECT_SKEW_MS = 60 * 1000;
+
+/** A row of `GET /integrations/list`, as the connect card reads it. */
+export type ConnectListRow = {
+  id: string;
+  name: string;
+  identifier: string;
+  inBetweenSteps?: boolean;
+  refreshNeeded?: boolean;
+  createdAt?: string | null;
+};
+
+const connectSince = (connect: AgentChannelConnect) => {
+  const since = connect.since ? Date.parse(connect.since) : Number.NaN;
+  return Number.isFinite(since) ? since : null;
+};
+
+/** Whether the card may still credit a channel (its window is open). */
+export const connectWindowOpen = (connect: AgentChannelConnect, now: number) => {
+  const since = connectSince(connect);
+  return since !== null && now <= since + CONNECT_WINDOW_MS;
+};
+
+/**
+ * The channel this card connected, or `null` (review W3-19 P3-3): the same
+ * platform, not there when the card was made, created after the card and
+ * within its window, and finished — a two-step connection left at the page
+ * choice (`inBetweenSteps`) or a channel that already needs reconnecting is
+ * not a connected channel. A card without `since` credits nothing. Another
+ * member connecting the same platform inside the window is still credited:
+ * nothing in the list tells the two apart.
+ */
+export const arrivedChannelOf = (
+  connect: AgentChannelConnect,
+  rows: readonly ConnectListRow[]
+): ConnectListRow | null => {
+  const since = connectSince(connect);
+  if (since === null) return null;
+  return (
+    rows.find((row) => {
+      if (row.identifier !== connect.provider || connect.known.includes(row.id)) return false;
+      if (row.inBetweenSteps || row.refreshNeeded) return false;
+      const created = row.createdAt ? Date.parse(row.createdAt) : Number.NaN;
+      return (
+        Number.isFinite(created) &&
+        created >= since - CONNECT_SKEW_MS &&
+        created <= since + CONNECT_WINDOW_MS
+      );
+    }) ?? null
+  );
+};
+
+/**
+ * What the platform's return said, from the chat's own address (review
+ * W3-19 P3-4). The callback page (`continue.integration.tsx`,
+ * `navigateOrShow`) sends a failure to the return address the door answered
+ * with, as `?precondition=true` (412: the account was connected to another
+ * workspace, and a trial cannot take it) or `?msg=<text>` (406); a success
+ * carries `added=<platform>` beside its own `msg`. Today the door names the
+ * return address only on success, so a 412 lands on «Каналы» with its own
+ * dialog and other failures stay on the callback page; this reading keeps
+ * the chat honest if a failure does come back here.
+ */
+export type ConnectReturn =
+  | { kind: 'precondition' }
+  | { kind: 'failed'; message: string };
+
+export const connectReturnOf = (search: string): ConnectReturn | null => {
+  const params = new URLSearchParams(search);
+  if (params.get('added')) return null;
+  if (params.get('precondition')) return { kind: 'precondition' };
+  const message = (params.get('msg') ?? '').trim();
+  return message ? { kind: 'failed', message: message.slice(0, 200) } : null;
 };
 
 /* ---- Threads --------------------------------------------------------------- */
@@ -597,18 +741,40 @@ export const attachmentLimit = (mediaType: AttachmentMediaType) =>
  */
 export const readAttachedText = (
   text: string
-): { name: string; mediaType: string } | null => {
+): { name: string; mediaType: string; samples?: { accepted: number } } | null => {
   if (!text.startsWith('{"untrustedData"')) return null;
   try {
     const wrapper = recordOf(recordOf(JSON.parse(text)).untrustedData);
     const sources = Array.isArray(wrapper.sources) ? wrapper.sources : [];
     if (!sources.includes('uploaded-file')) return null;
     const value = recordOf(wrapper.value);
+    // A samples receipt (`kcxz.18`): files the composer already added to an
+    // avatar, never their text.
+    const upload = recordOf(value.samplesUpload);
+    if (Object.keys(upload).length) {
+      return {
+        name: stringOf(value.attachment) ?? '',
+        mediaType: '',
+        samples: { accepted: numberOf(upload.accepted) },
+      };
+    }
     const mediaType = stringOf(value.mediaType) ?? 'text/plain';
     return { name: stringOf(value.attachment) ?? mediaType, mediaType };
   } catch {
     return null;
   }
+};
+
+/** A receipt as the composer put it into a live message (`AGENT_SAMPLES_PART_TYPE`). */
+export const readSamplesPart = (
+  part: { type: string; data?: unknown }
+): { name: string; samples: { accepted: number } } | null => {
+  if (part.type !== AGENT_SAMPLES_PART_TYPE) return null;
+  const data = recordOf(part.data);
+  const files = Array.isArray(data.files)
+    ? data.files.filter((one): one is string => typeof one === 'string')
+    : [];
+  return { name: files.join(', '), samples: { accepted: numberOf(data.accepted) } };
 };
 
 const URL_PATTERN = /\bhttps?:\/\/[^\s<>"'«»]+[^\s<>"'«».,;:!?)\]]/giu;
@@ -635,6 +801,14 @@ export type AgentQuestion = (
        * button is the consent; the server's words name the channel).
        */
       subject: 'avatar' | 'autopilot';
+      /**
+       * The avatar's name now (W3 walk P3-F): the name field starts with it,
+       * so a name given at creation or a rename a step earlier is not typed
+       * again. `null` — no name yet.
+       */
+      presetName: string | null;
+      /** A brand's voice (W3 walk P3-G): the tick is not «моя манера». */
+      brand: boolean;
     }
   | {
       kind: 'choice';
@@ -744,6 +918,8 @@ const readQuestionShape = (
       consentKey: stringOf(record.answerKey)!,
       nameKey: null,
       subject: record.subject === 'autopilot' ? 'autopilot' : 'avatar',
+      presetName: null,
+      brand: false,
     };
   }
   if (record.kind === 'interview') {
@@ -819,6 +995,8 @@ const readQuestionShape = (
       kind: 'consent',
       subject: 'avatar',
       text,
+      presetName: stringOf(record.avatarName)?.trim() || null,
+      brand: record.avatarKind === 'brand',
       consentKey: consent,
       nameKey:
         properties.find((p) => p.type === 'string' && /name/i.test(p.key))
@@ -881,18 +1059,22 @@ export const choiceAnswer = (
  */
 export const SECRET_PART_TYPE = 'data-secret' as const;
 
+/** The search engines whose key the key card takes (`kcxz.20`). */
+export const SECRET_SEARCH_ENGINES = ['tavily', 'exa'] as const;
+export type SecretSearchEngine = (typeof SECRET_SEARCH_ENGINES)[number];
+
 export type AgentSecretField =
   | { field: 'workspace-key' }
-  | { field: 'search-key'; engine: 'tavily' | 'exa' };
+  | { field: 'search-key'; engine: SecretSearchEngine };
 
 const readSecret = (data: unknown): AgentSecretField | null => {
   const record = recordOf(data);
   if (record.field === 'workspace-key') return { field: 'workspace-key' };
   if (
     record.field === 'search-key' &&
-    (record.engine === 'tavily' || record.engine === 'exa')
+    (SECRET_SEARCH_ENGINES as readonly unknown[]).includes(record.engine)
   ) {
-    return { field: 'search-key', engine: record.engine };
+    return { field: 'search-key', engine: record.engine as SecretSearchEngine };
   }
   return null;
 };
@@ -929,7 +1111,7 @@ export type AgentApprovalState =
 
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
-  | { type: 'file'; key: string; name: string; mediaType: string }
+  | { type: 'file'; key: string; name: string; mediaType: string; samples?: { accepted: number } }
   | {
       type: 'approval';
       key: string;
@@ -982,7 +1164,9 @@ export type AgentBlock =
       title: string | null;
       code: string | null;
     }
-  | { type: 'secret'; key: string; secret: AgentSecretField };
+  | { type: 'secret'; key: string; secret: AgentSecretField }
+  /** Connecting a channel (`kcxz.19`): the card the person acts on. */
+  | { type: 'connect'; key: string; connect: AgentChannelConnect };
 
 type Part = Record<string, unknown> & { type: string };
 
@@ -991,8 +1175,12 @@ const toolNameOfPart = (part: Part): string | null => {
   return part.type.startsWith('tool-') ? part.type.slice('tool-'.length) : null;
 };
 
+/** The persisted `channel-connect` card (`kcxz.19`). */
+export const CONNECT_PART_TYPE = 'data-channel-connect' as const;
+
+/** A deletion, or a learned rule forgotten (`avatar_rule_forget`, kcxz.18). */
 const irreversibleTool = (toolName: string) =>
-  /_delete$|_remove$/.test(toolName);
+  /_delete$|_remove$|_forget$/.test(toolName);
 
 /** A registry tool that answered `{ ok: false, code }` instead of a result. */
 const refusalCode = (output: unknown): string | null => {
@@ -1158,6 +1346,60 @@ export const pieceTouchesOf = (
 };
 
 /**
+ * Finished channel actions of the conversation (`kcxz.19`), counted: when the
+ * count grows, the channel screen beside the chat and a connect card read the
+ * channels again, as `pieceTouchesOf` does for a piece.
+ */
+export const channelCallsOf = (messages: readonly AgentMessage[]): number =>
+  changingCallsOf(messages, 'channel_');
+
+/**
+ * The reads of the avatar and channel groups (`risk: 'read'` in the
+ * registry; `agent-w3-review-fixes` holds the two lists together). They
+ * change nothing, so they do not make the screen beside the chat read again
+ * (correctness review F2): the walk-fix counted every `avatar_*` call, and each
+ * `avatar_overview` re-read the avatar panel mid-edit.
+ */
+export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  'avatar_list',
+  'avatar_overview',
+  'avatar_proposal',
+  'avatar_manual',
+  'avatar_samples',
+  'avatar_learning',
+  'channel_open',
+  'channel_posts',
+]);
+
+/** Finished calls of a group that may have changed something, counted. */
+const changingCallsOf = (messages: readonly AgentMessage[], prefix: string): number => {
+  let count = 0;
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    for (const part of message.parts as unknown as Part[]) {
+      const toolName = toolNameOfPart(part);
+      if (!toolName?.startsWith(prefix) || part.state !== 'output-available') continue;
+      if (READ_ONLY_TOOLS.has(toolName)) continue;
+      if (!refusalCode(part.output)) count += 1;
+    }
+  }
+  return count;
+};
+
+/**
+ * Finished avatar actions of the conversation (W3 live walk 28.09.2026,
+ * P2-A), counted: when the count grows, the avatar screen beside the chat and
+ * the composer's avatar list read the avatars again — as `channelCallsOf`
+ * does for channels. A create, a samples add, an analysis, a line of the
+ * proposal or by hand, a rename, a default, a consent answered: each changed
+ * what the panel shows, and until this it kept «Аватара пока нет» until a
+ * reload. A refused call and a read (`READ_ONLY_TOOLS`) changed nothing and
+ * are not counted.
+ */
+export const avatarCallsOf = (messages: readonly AgentMessage[]): number =>
+  changingCallsOf(messages, 'avatar_');
+
+/**
  * Whether a finished call's output says the person answered its selection
  * card (`kcxz.34`, F4). Only the counts of an answer mark it: a changes card
  * (`reviewSummary`: `offered` with an answered `outcome`; a `stale` one keeps
@@ -1287,6 +1529,24 @@ export const readMessageBlocks = (
     return true;
   };
 
+  // One connect card per platform in a message: the tool's output names it
+  // by id beside the `data-channel-connect` part that carries it.
+  const connects = new Set<string>();
+  const drawnConnects = new Set(
+    parts
+      .filter((part) => part.type === CONNECT_PART_TYPE)
+      .map((part) => readChannelConnect(part.data)?.provider)
+      .filter((provider): provider is string => !!provider)
+  );
+  const pushConnect = (connect: AgentChannelConnect | null, key: string) => {
+    if (!connect) return false;
+    if (!connects.has(connect.provider)) {
+      connects.add(connect.provider);
+      blocks.push({ type: 'connect', key, connect });
+    }
+    return true;
+  };
+
   parts.forEach((part, index) => {
     const key = `${message.id}:${index}`;
 
@@ -1314,6 +1574,11 @@ export const readMessageBlocks = (
     if (part.type === SECRET_PART_TYPE) {
       const secret = readSecret(part.data);
       if (secret) blocks.push({ type: 'secret', key, secret });
+      return;
+    }
+
+    if (part.type === CONNECT_PART_TYPE) {
+      pushConnect(readChannelConnect(part.data), key);
       return;
     }
 
@@ -1447,6 +1712,21 @@ export const readMessageBlocks = (
         });
       }
       const card = recordOf(recordOf(part.output).card);
+      // The connect card itself rides in its `data-channel-connect` part; the
+      // output names only its platform, so it adds nothing (`kcxz.19`).
+      if (card.kind === 'channel-connect') {
+        if (!drawnConnects.has(String(card.id))) {
+          blocks.push({ type: 'done', key, toolName, title });
+        }
+        return;
+      }
+      // The key card rides in its `data-secret` part the same way (`kcxz.20`).
+      if (card.kind === 'secret') {
+        if (!parts.some((one) => one.type === SECRET_PART_TYPE)) {
+          blocks.push({ type: 'done', key, toolName, title });
+        }
+        return;
+      }
       if (!pushArtifact(artifactOf(card.kind, card), key) && !folded) {
         blocks.push({ type: 'done', key, toolName, title, ...(stale ? { stale: true } : {}) });
       }
@@ -1525,13 +1805,43 @@ export const removedArtifactsOf = (
   return removed;
 };
 
+/**
+ * The avatar this conversation made last and did not delete (review W3-18
+ * F2): the one attached sample files go to unless the person picks another.
+ * An avatar card left by a read (a proposal, the lines by hand) or by a
+ * change to an existing avatar does not count — only `avatar_create`.
+ */
+export const createdAvatarOf = (
+  messages: readonly AgentMessage[],
+  removed: ReadonlySet<string> = NOTHING_REMOVED
+): { id: string; name: string | null } | null => {
+  let found: { id: string; name: string | null } | null = null;
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    for (const part of message.parts as unknown as Part[]) {
+      if (toolNameOfPart(part) !== 'avatar_create') continue;
+      if (part.state !== 'output-available' || refusalCode(part.output)) continue;
+      const card = recordOf(recordOf(part.output).card);
+      const id = card.kind === 'avatar' ? stringOf(card.id) : null;
+      if (!id || removed.has(artifactKey({ kind: 'avatar', id }))) continue;
+      found = { id, name: stringOf(recordOf(part.input).name) };
+    }
+  }
+  return found;
+};
+
 /** A thread's name before the server gives one: the first words asked. */
 export const provisionalTitle = (
   messages: readonly AgentMessage[]
 ): string | null => {
   const first = messages.find((message) => message.role === 'user');
   const text = ((first?.parts ?? []) as unknown as Part[])
-    .map((part) => (part.type === 'text' ? String(part.text ?? '') : ''))
+    // An attached file's wrapper is not what the person asked (kcxz.18).
+    .map((part) =>
+      part.type === 'text' && !readAttachedText(String(part.text ?? ''))
+        ? String(part.text ?? '')
+        : ''
+    )
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -1549,4 +1859,8 @@ function recordOf(value: unknown): Record<string, unknown> {
 
 function stringOf(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberOf(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }

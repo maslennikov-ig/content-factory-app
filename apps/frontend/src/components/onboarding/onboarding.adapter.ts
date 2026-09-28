@@ -23,29 +23,18 @@
  * extra: it never blocks the path or the «всё пройдено» state.
  */
 
+import {
+  ONBOARDING_STEP_KEYS,
+  allStepsDone,
+  type OnboardingStepCounts,
+  type OnboardingStepKey,
+} from '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.steps';
+
 export const ONBOARDING_PROGRESS_API = '/onboarding/progress';
 
-export type OnboardingProgress = {
-  channels: number;
+/** The progress answer: the step counts (`onboarding.steps.ts`) and what the screens add. */
+export type OnboardingProgress = OnboardingStepCounts & {
   voiceSamples: number;
-  /** Avatars with an active version, however they were made (fn33.157). */
-  avatars: number;
-  facts: number;
-  /** Chosen facts stored with current CORE pieces, outside `ContentFact`. */
-  pieceFacts: number;
-  /** Заготовки области: `ContentPiece` c `kind='CORE'`, не в архиве. */
-  pieces: number;
-  drafts: number;
-  scheduled: number;
-  /**
-   * Адаптации живых заготовок — строки `ContentDerivation` (2q28.6). Since
-   * the plan wave an adaptation can exist without a post in the calendar
-   * (`postId` is empty until it is planned), so `drafts` alone could leave the
-   * adaptation step open for someone who made one.
-   */
-  adaptations: number;
-  /** Connected channels whose plan mode was chosen explicitly (`Integration.planMode`). */
-  planModes: number;
   /** The live piece touched last, for the adaptation step's links; `null` when none. */
   latestPieceId: string | null;
   /**
@@ -102,22 +91,27 @@ export function readProgress(body: unknown): OnboardingProgress {
 }
 
 /**
- * The five steps, in menu order, and — the same list — the stable keys the
- * on-screen tour reads from `?tour=<key>` (stream S3 of 2q28). One constant,
- * so the tour and the walkthrough cannot drift apart on a key name.
+ * The five steps and what closes each one live in one place the server reads
+ * too (`onboarding.steps.ts`, `kcxz.21`): the agent chat's snapshot and
+ * starters follow the same rules as this walkthrough. Re-exported here, so
+ * the screens keep importing them from their own adapter.
  */
-export const ONBOARDING_TOUR_STEPS = [
-  'avatar',
-  'channel',
-  'piece',
-  'adaptation',
-  'plan',
-] as const;
-
-export type OnboardingStepKey = (typeof ONBOARDING_TOUR_STEPS)[number];
-
-export const ONBOARDING_STEP_KEYS: readonly OnboardingStepKey[] =
-  ONBOARDING_TOUR_STEPS;
+export {
+  ONBOARDING_TOUR_STEPS,
+  ONBOARDING_STEP_KEYS,
+  isOnboardingStepKey,
+  stepIsDone,
+  factIsDone,
+  doneCount,
+  currentStep,
+  allStepsDone,
+  stepAllowed,
+  stepOffered,
+  nextStepFor,
+  channelWaitsForAdmin,
+  type OnboardingStepKey,
+  type OnboardingStepCounts,
+} from '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.steps';
 
 /** The query parameter the tour listens to. */
 export const ONBOARDING_TOUR_PARAM = 'tour';
@@ -198,70 +192,6 @@ export function tourHref(
 }
 
 /**
- * What counts as done, read off one answer.
- *
- * `piece` closes on a заготовка, and on a draft or a scheduled post for a
- * workspace that came the older way (owner, 07.09.2026: «Хотя, по идее, я же
- * создал новую заготовку»). `adaptation` closes on an adaptation of a live
- * piece, or on a draft/scheduled post — the only form an adaptation had
- * before the plan wave. `plan` closes when a post is in the schedule or the
- * person chose how a channel plans (Бронь, Автопилот, Без плана): either one
- * is the decision «когда выйдет» made.
- */
-export function stepIsDone(
-  step: OnboardingStepKey,
-  progress: OnboardingProgress
-): boolean {
-  switch (step) {
-    case 'avatar':
-      // An avatar in use is the voice set, whichever path built it: the
-      // hand-filled one collects no samples at all (fn33.157). Samples alone
-      // are not an avatar (2q28.13): one pasted text ticked this step while
-      // the avatar screen still said «Аватара пока нет».
-      return progress.avatars > 0;
-    case 'channel':
-      return progress.channels > 0;
-    case 'piece':
-      return (
-        progress.pieces > 0 || progress.drafts > 0 || progress.scheduled > 0
-      );
-    case 'adaptation':
-      return (
-        progress.adaptations > 0 ||
-        progress.drafts > 0 ||
-        progress.scheduled > 0
-      );
-    case 'plan':
-      return progress.scheduled > 0 || progress.planModes > 0;
-  }
-}
-
-/**
- * The optional claim: a usable claim in memory or one chosen in a piece.
- * Never part of `doneCount` or `allStepsDone`.
- */
-export function factIsDone(progress: OnboardingProgress): boolean {
-  return progress.facts > 0 || progress.pieceFacts > 0;
-}
-
-export function doneCount(progress: OnboardingProgress): number {
-  return ONBOARDING_STEP_KEYS.filter((step) => stepIsDone(step, progress))
-    .length;
-}
-
-/**
- * The step a person lands on: the first one not done. Skipping back to the
- * first gap is what actually unblocks someone who went out of order.
- */
-export function currentStep(
-  progress: OnboardingProgress
-): OnboardingStepKey | null {
-  return (
-    ONBOARDING_STEP_KEYS.find((step) => !stepIsDone(step, progress)) ?? null
-  );
-}
-
-/**
  * Where «Дальше» and «Сделаю позже» lead from `step`: the next step in menu
  * order, and after the last one the summary. Moving on never ticks anything.
  */
@@ -298,17 +228,6 @@ export function stepDetail(
     default:
       return null;
   }
-}
-
-/**
- * Пройдены ли все пять шагов (необязательный факт не в счёт).
- *
- * Read by the sidebar, which drops «С чего начать» once there is nothing left
- * to start (owner, 07.09.2026). One function rather than a number retyped
- * where the menu is built: the total is the length of the list above.
- */
-export function allStepsDone(progress: OnboardingProgress): boolean {
-  return doneCount(progress) === ONBOARDING_STEP_KEYS.length;
 }
 
 /** Where «С чего начать» lives. */

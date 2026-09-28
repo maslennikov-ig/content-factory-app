@@ -187,6 +187,8 @@ describe('the adaptation interview card', () => {
       text: expect.stringContaining('выйдет сама'),
       consentKey: 'consentGiven',
       nameKey: null,
+      presetName: null,
+      brand: false,
       cardId: null,
     });
     const answers = [];

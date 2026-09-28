@@ -6,7 +6,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { Toggle } from '@contentfactory/react/form/toggle';
-import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import type { ProfileFieldV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
@@ -47,6 +47,12 @@ export type PassportVoice = Readonly<{
   neverSay: readonly string[];
   /** The fifth line the wizard asks for, in the person's own words. */
   sentenceStyle?: string;
+  /**
+   * The sixth, «О чём говорим» — one line, topics joined by «; ». The
+   * hand-filled path writes six lines, and the card showed five (final
+   * recheck F-6a).
+   */
+  topics?: string;
   versionLabel: string;
   activeSince: string;
   /**
@@ -94,7 +100,7 @@ export type VoicePassportState =
   | 'long-content';
 
 /**
- * The five lines, each tied to the field the server knows it by.
+ * The six lines, each tied to the field the server knows it by.
  *
  * The value shown and the value written are read from the same table, so a
  * label can never end up editing a different field than the one under it.
@@ -108,34 +114,40 @@ const FIELD_ORDER = [
   'AUDIENCE',
   'SENTENCE_LENGTH',
   'NEVER_SAY',
-] as const satisfies readonly ProfileField[];
+  'TOPICS',
+] as const satisfies readonly ProfileFieldV2[];
 
-const labelOf = (t: (typeof voiceCopy)[VoiceLocale], key: ProfileField) =>
+type PassportField = (typeof FIELD_ORDER)[number];
+
+const labelOf = (t: (typeof voiceCopy)[VoiceLocale], key: PassportField) =>
   ({
     WHO_SPEAKS: t.passportWhoSpeaks,
     TONE: t.passportTone,
     AUDIENCE: t.passportAudience,
     SENTENCE_LENGTH: t.passportSentenceStyle,
     NEVER_SAY: t.passportNeverSay,
+    TOPICS: t.passportTopics,
   }[key]);
 
-const hintOf = (t: (typeof voiceCopy)[VoiceLocale], key: ProfileField) =>
+const hintOf = (t: (typeof voiceCopy)[VoiceLocale], key: PassportField) =>
   ({
     WHO_SPEAKS: t.passportHintWhoSpeaks,
     TONE: t.passportHintTone,
     AUDIENCE: t.passportHintAudience,
     SENTENCE_LENGTH: t.passportHintSentenceStyle,
     NEVER_SAY: t.passportHintNeverSay,
+    TOPICS: t.passportHintTopics,
   }[key]);
 
 /** What the field holds now, in the one shape the write also takes. */
-const valueOf = (voice: PassportVoice, key: ProfileField): string =>
+const valueOf = (voice: PassportVoice, key: PassportField): string =>
   ({
     WHO_SPEAKS: voice.whoSpeaks,
     TONE: voice.tone,
     AUDIENCE: voice.audience,
     SENTENCE_LENGTH: voice.sentenceStyle ?? '',
     NEVER_SAY: voice.neverSay.join('; '),
+    TOPICS: voice.topics ?? '',
   }[key]);
 
 function Field({
@@ -260,7 +272,7 @@ export function VoicePassportScreen({
    * passport screen, and a member without the right to change a voice must not
    * be shown a button that will refuse them.
    */
-  onEditField?: (key: ProfileField, text: string) => void;
+  onEditField?: (key: ProfileFieldV2, text: string) => void;
   /**
    * «Разрешить ИИ придумывать примеры от моего лица». Saved at once — two
    * positions, cheap and reversible, so it takes no «Сохранить».
@@ -273,7 +285,7 @@ export function VoicePassportScreen({
   const t = voiceCopy[locale];
   const busy = state === 'loading';
   const numbers = new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US');
-  const [editing, setEditing] = useState<ProfileField | null>(null);
+  const [editing, setEditing] = useState<PassportField | null>(null);
   const [adding, setAdding] = useState(false);
   const [example, setExample] = useState('');
 
@@ -345,12 +357,12 @@ export function VoicePassportScreen({
           >
             {FIELD_ORDER.map((key) => {
               const value = valueOf(voice, key);
-              // The fifth line only exists when it was written: a voice
+              // The fifth and sixth lines exist only when written: a voice
               // measured from texts may carry the number below and no
               // sentence, and an empty row would claim otherwise. It stays
               // offered for editing, because writing the missing line is
               // exactly what somebody would want to do here.
-              if (key === 'SENTENCE_LENGTH' && !value && !onEditField) {
+              if ((key === 'SENTENCE_LENGTH' || key === 'TOPICS') && !value && !onEditField) {
                 return null;
               }
               const label = labelOf(t, key);

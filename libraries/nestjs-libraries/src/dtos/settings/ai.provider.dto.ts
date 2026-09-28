@@ -140,9 +140,15 @@ export class AiProviderDto {
   @IsIn(['included', 'workspace_key'])
   usageMode?: 'included' | 'workspace_key';
 
+  /**
+   * Absent means «leave the stored provider»: a mode switch and a search key
+   * name none (review W3-20 F1, F3). A stored key keeps its provider unless a
+   * new key comes with the request (`AiProviderService.updateSettings`).
+   */
   @IsString()
+  @IsOptional()
   @IsIn(['openai', 'openrouter'])
-  provider: 'openai' | 'openrouter';
+  provider?: 'openai' | 'openrouter';
 
   /**
    * Omitted or empty means "keep the stored key". The settings screen never

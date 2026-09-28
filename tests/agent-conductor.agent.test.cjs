@@ -19,6 +19,7 @@ const path = require('node:path');
 const { loadCapabilityModule } = require('./helpers/agent-capabilities.cjs');
 
 const conductor = loadCapabilityModule('../conductor/conductor.context.ts');
+const { LAST_STEP_NOTE } = loadCapabilityModule('../conductor/conductor.steps.ts');
 const { UNTRUSTED_DATA_RULE } = loadCapabilityModule('untrusted-data.ts');
 
 let report;
@@ -47,9 +48,19 @@ describe('limits of one turn (premortem A2, ADR-0012 §7)', () => {
     expect(outcomes.filter((outcome) => outcome?.code === 'PAID_CAP_REACHED')).toHaveLength(1);
   });
 
-  test('a model that never stops is asked six times: step 7 never runs', () => {
+  test('a model that never stops is asked seven times: step 8 never runs', () => {
     expect(report.stepCap.modelCalls).toBe(conductor.CONDUCTOR_MAX_STEPS);
-    expect(conductor.CONDUCTOR_MAX_STEPS).toBe(6);
+    expect(conductor.CONDUCTOR_MAX_STEPS).toBe(7);
+  });
+
+  test('the last step of the cap runs with no tools and is told to say what is done and left (W3 walk P2-B)', () => {
+    const choices = report.stepCap.toolChoices;
+    expect(choices.slice(0, -1).every((choice) => choice !== 'none')).toBe(true);
+    expect(choices.at(-1)).toBe('none');
+    expect(report.stepCap.lastSystem).toContain(LAST_STEP_NOTE);
+    expect(report.stepCap.earlierSystem).not.toContain(LAST_STEP_NOTE);
+    // The instructions are still there beside the note: appended, not replaced.
+    expect(report.stepCap.lastSystem).toContain('You are the assistant inside Content Factory');
   });
 
   test('the workspace is read once per turn, however many steps it takes', () => {
@@ -77,6 +88,16 @@ describe('what the model is offered', () => {
   test('a USER is not shown write tools only to be refused by them (spec §4.2)', () => {
     expect([...report.userTurn.tools].sort()).toEqual(
       [
+        // Avatars are read by every member (kcxz.18); nothing that changes one.
+        'avatar_learning',
+        'avatar_list',
+        'avatar_manual',
+        'avatar_overview',
+        'avatar_proposal',
+        'avatar_samples',
+        // A channel and its posts are read by every member (kcxz.19).
+        'channel_open',
+        'channel_posts',
         'channels_list',
         'piece_list',
         'piece_open',
@@ -131,12 +152,12 @@ describe('the /agent/chat pipeline with a scripted model', () => {
   test('a question card reaches the browser with its payload and is resumed by runId', () => {
     const { door } = report;
     expect(door.suspendedPayload).toMatchObject({
-      avatarId: 'a1',
+      avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1',
       canDecideForPerson: false,
       question: expect.stringContaining('Включить'),
     });
     expect(door.resumedTypes).toEqual(expect.arrayContaining(['data-avatar', 'tool-output-available']));
-    expect(door.activated).toEqual([{ avatarId: 'a1', consent: true }]);
+    expect(door.activated).toEqual([{ avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1', consent: true }]);
     expect(door.pendingAtEnd).toBe(0);
     expect(door.errors).toEqual([]);
   });

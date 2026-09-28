@@ -176,6 +176,11 @@ describe('the card contract the screen mirrors', () => {
       'data-avatar',
       'data-adaptation',
       'data-plan',
+      // A channel beside the chat, and connecting one in the conversation (kcxz.19).
+      'data-channel',
+      'data-channel-connect',
+      // The key card, drawn in the conversation (kcxz.20).
+      'data-secret',
     ]);
   });
 });

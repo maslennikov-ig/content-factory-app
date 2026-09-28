@@ -15,9 +15,54 @@
  * admission or writes its own ledger row is what the scenario then reads.
  */
 
+const { loadTypeScriptModule } = require('../../helpers/load-ts-module.cjs');
+
+/**
+ * The real count behind «С чего начать» and the agent's snapshot
+ * (`kcxz.21`): `OnboardingRepository.progress` itself, asked over the world's
+ * rows seen as the tables it reads (`progressTables` below). A step the chat
+ * closes is then closed by the very rules the screens are ticked by.
+ */
+const { OnboardingRepository } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/database/prisma/onboarding/onboarding.repository.ts',
+  {
+    '@nestjs/common': { Injectable: () => (target) => target },
+    '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+      PrismaRepository: class PrismaRepository {},
+    },
+  }
+);
+
+/**
+ * The service reads a channel's plan mode through this function
+ * (`IntegrationService.getPlanMode`): `NULL` is «Бронь». The fake applies the
+ * same one, not a copy, so the snapshot a scenario sees is the one
+ * production gives (review W3-21 P2-1).
+ */
+const { CHANNEL_MIN_IDEAL_LENGTH, defaultWritingProfileFor } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
+);
+const { planModeOf } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/adaptation-plan.ts'
+);
+
 const ORGANIZATION_ID = 'org-1';
 /** The scenario clock (the runner's `now`): «сейчас» of «Опубликовать сейчас». */
 const NOW = '2026-09-27T10:00:00.000Z';
+
+/**
+ * The lines an avatar is filled with by hand: six, as the service's
+ * `activationBlocker` asks for them (`PROFILE_FIELDS_V2`, W3 walk P3-H).
+ */
+const MANUAL_LINES = ['WHO_SPEAKS', 'TONE', 'AUDIENCE', 'SENTENCE_LENGTH', 'NEVER_SAY', 'TOPICS'];
+/** What the AI proposes when a scenario says nothing else. */
+const DEFAULT_PROPOSAL = [
+  { key: 'WHO_SPEAKS', text: '', status: 'UNDECIDED' },
+  { key: 'TONE', text: 'Спокойно и по делу.', status: 'ACCEPTED' },
+  { key: 'AUDIENCE', text: '', status: 'UNDECIDED' },
+  { key: 'SENTENCE_LENGTH', text: 'Короткие фразы.', status: 'ACCEPTED' },
+  { key: 'NEVER_SAY', text: 'Без канцелярита.', status: 'ACCEPTED' },
+];
 
 const baseRows = () => ({
   pieces: [
@@ -111,6 +156,131 @@ const createWorld = (overrides = {}) => {
     if (!channel) throw Object.assign(new Error('Канала нет.'), { code: 'PIECE_CHANNEL_UNKNOWN' });
     return channel;
   };
+  /* ---- Avatars (kcxz.18) ---------------------------------------------- */
+  let nextSample = 1;
+  const voiceError = (code, message) => Object.assign(new Error(message), { name: 'VoiceError', code });
+  /** The avatar a voice request is about: the one named, else the default. */
+  const voiceAvatar = (actor) => {
+    if (actor.avatarId) {
+      const named = rows.avatars.find((one) => one.id === actor.avatarId);
+      if (!named) throw voiceError('VOICE_AVATAR_NOT_FOUND', 'Такого аватара в пространстве нет.');
+      return named;
+    }
+    return rows.avatars.find((one) => one.isDefault) ?? null;
+  };
+  /** Three texts and 1500 characters make a corpus the analysis reads. */
+  const readinessOf = (avatar) => {
+    const samples = avatar?.samples ?? [];
+    const charCount = samples.reduce((sum, one) => sum + (one.charCount ?? 0), 0);
+    return {
+      ready: samples.length >= 3 && charCount >= 1500,
+      charCount,
+      sampleCount: samples.length,
+      missingChars: Math.max(0, 1500 - charCount),
+      missingSamples: Math.max(0, 3 - samples.length),
+      requiredSamples: 3,
+      confidence: 'NORMAL',
+      confidenceReasons: [],
+    };
+  };
+  /** A row of the avatars list, as `VoiceService.avatars` draws one. */
+  const avatarRow = (avatar) => ({
+    id: avatar.id,
+    name: avatar.name ?? null,
+    kind: avatar.kind ?? 'PERSON',
+    isDefault: !!avatar.isDefault,
+    analysed: !!avatar.analysed,
+    // The fields the scenarios set and read back (kcxz.29 D12 reads `active`).
+    ...(avatar.active !== undefined ? { active: avatar.active } : {}),
+    ...(avatar.ready !== undefined ? { ready: avatar.ready } : {}),
+    ...(avatar.run ? { sampleCount: avatar.run.corpus.length } : {}),
+    createdAt: '27.09.26',
+  });
+
+  /* ---- AI settings (kcxz.20) ------------------------------------------ */
+  /**
+   * The workspace's AI settings row: the defaults below under what the
+   * scenario names in `world.ai`. Made on first use, so the state of the
+   * scenarios that never read it stays as it was.
+   */
+  let aiReady = false;
+  const aiRow = () => {
+    if (!aiReady) {
+      aiReady = true;
+      rows.ai = { ...aiDefaults(), ...(rows.ai ?? {}) };
+    }
+    return rows.ai;
+  };
+  const aiDefaults = () => ({
+      usageMode: 'workspace_key',
+      // The workspace's own provider (the stored row), and the operator's —
+      // what «Ключи системы» run on (review W3-20 F1).
+      provider: 'openrouter',
+      operatorProvider: 'openrouter',
+      apiKey: null,
+      textModel: 'openai/gpt-5-mini',
+      imageModel: null,
+      roleModels: { agent: 'openai/gpt-5-mini' },
+      searchEnabled: true,
+      searchProvider: 'tavily',
+      searchTaskProviders: {},
+      ownSearchKeys: {},
+      // The operator's keys behind «Ключи системы» and behind an empty field.
+      systemSearchKeys: { tavily: true },
+      includedAvailable: true,
+      monthly: 300,
+      used: 120,
+      usageByMember: [
+        { userId: 'user-1', email: 'owner@example.test', name: 'Анна Петрова', operations: 90 },
+        { userId: 'user-2', email: 'editor@example.test', name: null, operations: 25 },
+        { userId: null, email: null, name: null, operations: 5 },
+      ],
+      usageByRole: [
+        { role: 'agent', operations: 70 },
+        { role: 'writer', operations: 50 },
+      ],
+  });
+  /** `AiProviderService.getSettings`: presence flags, never a key. */
+  const aiSettingsOf = (row) => {
+    const included = row.usageMode === 'included';
+    const own = Object.fromEntries(
+      ['tavily', 'exa'].map((engine) => [engine, !!row.ownSearchKeys?.[engine]])
+    );
+    return {
+      usageMode: row.usageMode,
+      // As the real service answers: on «Ключи системы» the provider in
+      // effect is the operator's; the workspace's own is `workspaceProvider`.
+      provider: included ? row.operatorProvider : row.provider,
+      workspaceProvider: row.provider,
+      textModel: row.textModel,
+      imageModel: row.imageModel,
+      roleModels: row.roleModels,
+      hasKey: !!row.apiKey,
+      workspaceKeyConfigured: !!row.apiKey,
+      includedAvailable: row.includedAvailable,
+      includedMonthlyOperations: row.monthly,
+      includedUnlimited: false,
+      includedUsedOperations: row.used,
+      includedRemainingOperations: Math.max(0, row.monthly - row.used),
+      includedRestrictionReason: row.includedAvailable ? null : 'managed_unavailable',
+      usageByMember: row.usageByMember,
+      usageByRole: row.usageByRole,
+      searchEnabled: row.searchEnabled,
+      searchProvider: row.searchProvider,
+      searchTaskProviders: row.searchTaskProviders,
+      hasSearchKey: true,
+      // On «Ключи системы» only the operator's set; on its own key an empty
+      // field falls back to it.
+      searchKeys: {
+        tavily: included ? !!row.systemSearchKeys.tavily : own.tavily || !!row.systemSearchKeys.tavily,
+        exa: included ? !!row.systemSearchKeys.exa : own.exa || !!row.systemSearchKeys.exa,
+        openrouter: false,
+      },
+      workspaceSearchKeys: { ...own, openrouter: false },
+      searchFallbackAvailable: false,
+    };
+  };
+
   /** «Ко всем N»: the channel's written drafts whose plan the mode would change. */
   const toApply = (integrationId) => {
     const mode = channelOf(integrationId).planMode;
@@ -135,18 +305,111 @@ const createWorld = (overrides = {}) => {
     };
   };
 
+  /**
+   * The world's rows as the tables `OnboardingRepository.progress` counts
+   * (`kcxz.21`). Each query shape the repository sends is answered by the
+   * rule the database would apply; any other shape fails the scenario, so a
+   * changed count cannot pass here by accident.
+   *
+   * - `integration`: the channels (a deleted one has left `rows.channels` for
+   *   `rows.deletedChannels`), not disabled; `planMode` as written — `null`
+   *   is «never chosen».
+   * - `projectBrandProfile`: avatars switched on (`active`), the active version.
+   * - `brandVoiceSample`: the avatars' samples that still hold text.
+   * - `contentPiece`: live pieces (every world piece is a `CORE` one).
+   * - `contentDerivation`: adaptations of live pieces.
+   * - `post`: an adaptation with a post (`postId`), by its state.
+   */
+  const progressTables = () => {
+    const same = (where) => {
+      if (where?.organizationId !== ORGANIZATION_ID) {
+        throw new Error(`progress counted for organization ${where?.organizationId}`);
+      }
+    };
+    const shape = (table, where, keys) => {
+      const extra = Object.keys(where).filter((key) => !keys.includes(key));
+      if (extra.length) throw new Error(`${table}: unexpected filter ${extra.join(', ')}`);
+    };
+    const livePieces = () =>
+      rows.pieces.filter((piece) => !piece.archivedAt && (piece.kind ?? 'CORE') === 'CORE');
+    const piecesWhere = (where) => {
+      same(where);
+      shape('contentPiece', where, ['organizationId', 'kind', 'archivedAt']);
+      if (where.kind !== 'CORE' || where.archivedAt !== null) throw new Error('contentPiece: unexpected filter');
+      return livePieces();
+    };
+    const postState = { draft: 'DRAFT', queued: 'QUEUE', published: 'PUBLISHED' };
+    const posts = () =>
+      (rows.adaptations ?? []).filter((row) => row.postId).map((row) => postState[row.state] ?? 'DRAFT');
+    return {
+      model: {
+        integration: {
+          count: async ({ where }) => {
+            same(where);
+            shape('integration', where, ['organizationId', 'deletedAt', 'disabled', 'planMode']);
+            return rows.channels.filter(
+              (channel) =>
+                !channel.disabled && (!('planMode' in where) || (channel.planMode ?? null) !== null)
+            ).length;
+          },
+        },
+        brandVoiceSample: {
+          count: async ({ where }) => {
+            same(where);
+            return rows.avatars.flatMap((avatar) => avatar.samples ?? []).filter(
+              (sample) => (sample.charCount ?? 0) > 0
+            ).length;
+          },
+        },
+        projectBrandProfile: {
+          count: async ({ where }) => {
+            same(where);
+            shape('projectBrandProfile', where, ['organizationId', 'deletedAt', 'activeVersionId']);
+            return rows.avatars.filter((avatar) => avatar.active === true).length;
+          },
+        },
+        contentFact: {
+          count: async ({ where }) => {
+            same(where);
+            return (rows.facts ?? []).filter(
+              (fact) => !['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'].includes(fact.status)
+            ).length;
+          },
+        },
+        contentPiece: {
+          count: async ({ where }) => piecesWhere(where).length,
+          findMany: async ({ where }) => piecesWhere(where).map((piece) => ({ brief: piece.brief ?? null })),
+          // The piece touched last: the newest row stands for it here.
+          findFirst: async ({ where }) => {
+            const last = piecesWhere(where).at(-1);
+            return last ? { id: last.id } : null;
+          },
+        },
+        post: {
+          count: async ({ where }) => {
+            same(where);
+            shape('post', where, ['organizationId', 'deletedAt', 'state']);
+            const wanted = typeof where.state === 'string' ? [where.state] : where.state.in;
+            return posts().filter((state) => wanted.includes(state)).length;
+          },
+        },
+        contentDerivation: {
+          count: async ({ where }) => {
+            same(where);
+            shape('contentDerivation', where, ['organizationId', 'piece']);
+            const live = new Set(livePieces().map((piece) => piece.id));
+            return (rows.adaptations ?? []).filter((row) => live.has(row.pieceId)).length;
+          },
+        },
+      },
+    };
+  };
+
   const servicesFor = ({ usage }) => ({
     OnboardingRepository: {
       progress: async (organizationId) => {
         scoped('OnboardingRepository.progress', organizationId);
-        const live = rows.pieces.filter((piece) => !piece.archivedAt);
-        return {
-          channels: rows.channels.length,
-          avatars: rows.avatars.length,
-          pieces: live.length,
-          drafts: 0,
-          latestPieceId: live.at(-1)?.id ?? null,
-        };
+        return new OnboardingRepository(progressTables()).progress(organizationId);
       },
     },
     PieceService: {
@@ -188,6 +451,22 @@ const createWorld = (overrides = {}) => {
           adaptations: (rows.adaptations ?? [])
             .filter((row) => row.pieceId === pieceId)
             .map((row) => ({ ...row })),
+          // «Материала мало» under a channel's newest post (`materialAsks`:
+          // questions by channel id), as the page's channel tabs carry it.
+          channels: Object.entries(rows.materialAsks ?? {}).map(([integrationId, questions]) => {
+            const mine = (rows.adaptations ?? []).filter(
+              (row) => row.pieceId === pieceId && row.integrationId === integrationId
+            );
+            return {
+              integrationId,
+              materialAsk: mine.length
+                ? {
+                    adaptationId: mine.at(-1).id,
+                    questions: questions.map((question, index) => ({ key: `ask-${index + 1}`, question })),
+                  }
+                : null,
+            };
+          }),
         };
       },
       archive: async (organizationId, pieceId, archived) => {
@@ -737,8 +1016,11 @@ const createWorld = (overrides = {}) => {
     IntegrationService: {
       getIntegrationsForChannelList: async (organizationId) => {
         scoped('IntegrationService.getIntegrationsForChannelList', organizationId);
-        return rows.channels.map(({ posts, planMode, profile, ...channel }) => ({
+        // `times` are the stored slots (minutes after UTC midnight), as the
+        // repository keeps them in `postingTimes` (kcxz.19).
+        return rows.channels.map(({ posts, planMode, profile, times, ...channel }) => ({
           ...channel,
+          postingTimes: JSON.stringify((times ?? []).map((time) => ({ time }))),
           _count: { posts },
         }));
       },
@@ -746,13 +1028,59 @@ const createWorld = (overrides = {}) => {
         scoped('IntegrationService.getWritingProfile', organizationId);
         const channel = rows.channels.find((one) => one.id === id);
         if (!channel) throw notFound('channel');
-        return { integrationId: id, profile: JSON.parse(JSON.stringify(channel.profile ?? {})) };
+        // A card never saved reads as the platform's defaults, as
+        // `resolveChannelWritingProfile` answers it — the real ones (a
+        // Telegram card's 500–1000/1500 among them), so a scenario sees the
+        // numbers the stand shows (final recheck F-2a).
+        const defaults = defaultWritingProfileFor(channel.providerIdentifier, 'ru');
+        return {
+          integrationId: id,
+          profile: JSON.parse(JSON.stringify(channel.profile ?? defaults)),
+          stored: !!channel.profile,
+          provider: { maxLength: 4096 },
+        };
       },
       updateWritingProfile: async (organizationId, id, body) => {
         scoped('IntegrationService.updateWritingProfile', organizationId);
         const channel = rows.channels.find((one) => one.id === id);
         if (!channel) throw notFound('channel');
         requests.push(['channel.writing-profile', id, JSON.parse(JSON.stringify(body))]);
+        // The service's floor for a range (`CHANNEL_MIN_IDEAL_LENGTH`, the
+        // real constant) and the platform's ceiling, as its own refusals
+        // (`HttpException` with a code in the response).
+        const refuse = (reason) =>
+          Object.assign(new Error('Unprocessable'), {
+            getResponse: () => ({ code: 'CHANNEL_WRITING_PROFILE_INVALID', reason }),
+          });
+        if (
+          body.lengthPolicy === 'range' &&
+          body.length?.idealMin != null &&
+          body.length.idealMin < CHANNEL_MIN_IDEAL_LENGTH
+        ) {
+          throw refuse('IDEAL_MIN_TOO_SMALL');
+        }
+        if (body.lengthPolicy === 'range' && body.length?.idealMax < CHANNEL_MIN_IDEAL_LENGTH) {
+          throw refuse('IDEAL_MAX_TOO_SMALL');
+        }
+        if (body.lengthPolicy === 'range' && body.length?.idealMax > 4096) {
+          throw refuse('IDEAL_MAX_ABOVE_PROVIDER');
+        }
+        if (
+          body.lengthPolicy === 'range' &&
+          body.length?.hardMax != null &&
+          body.length.hardMax < body.length.idealMax
+        ) {
+          throw refuse('HARD_MAX_BELOW_IDEAL_MAX');
+        }
+        const { length, lengthPolicy, ...rest } = body;
+        channel.profile = {
+          ...(channel.profile ?? {}),
+          ...rest,
+          lengthPolicy:
+            lengthPolicy === 'range'
+              ? { idealMin: length.idealMin ?? null, idealMax: length.idealMax, hardMax: length.hardMax ?? null }
+              : lengthPolicy,
+        };
         writes.push(['channel.profile.updated', id]);
         return { integrationId: id, profile: body };
       },
@@ -760,19 +1088,110 @@ const createWorld = (overrides = {}) => {
         scoped('IntegrationService.getPlanMode', organizationId);
         const channel = rows.channels.find((one) => one.id === id);
         if (!channel) throw notFound('channel');
-        return { integrationId: id, planMode: channel.planMode };
+        return {
+          integrationId: id,
+          planMode: planModeOf(channel.planMode),
+          chosen: channel.planMode != null,
+        };
       },
+      // `PUT /integrations/:id/plan-mode` (kcxz.19).
+      updatePlanMode: async (organizationId, id, planMode) => {
+        scoped('IntegrationService.updatePlanMode', organizationId);
+        const channel = rows.channels.find((one) => one.id === id);
+        if (!channel) throw notFound('channel');
+        requests.push(['channel.plan-mode', id, planMode]);
+        channel.planMode = planMode;
+        writes.push(['channel.plan-mode', id, planMode]);
+        return { integrationId: id, planMode };
+      },
+      // `POST /integrations/:id/time`: the whole list, as the time table sends it.
+      setTimes: async (organizationId, id, body) => {
+        scoped('IntegrationService.setTimes', organizationId);
+        const channel = rows.channels.find((one) => one.id === id);
+        if (!channel) throw notFound('channel');
+        requests.push(['channel.time', id, JSON.parse(JSON.stringify(body))]);
+        channel.times = body.time.map((slot) => slot.time);
+        writes.push(['channel.times', id]);
+        return {};
+      },
+      // `GET /integrations/:id/posts`: the channel page's recent posts.
+      getChannelPosts: async (organizationId, id, limit) => {
+        scoped('IntegrationService.getChannelPosts', organizationId);
+        const channel = rows.channels.find((one) => one.id === id);
+        if (!channel) throw notFound('channel');
+        const posts = (rows.channelPosts ?? []).filter((post) => post.integrationId === id);
+        return {
+          total: posts.length,
+          posts: posts.slice(0, limit).map(({ integrationId, ...post }) => post),
+        };
+      },
+      // `POST /integrations/:id/nickname`, the service step (kcxz.19).
+      changeNameOnPlatform: async (organizationId, id, body) => {
+        scoped('IntegrationService.changeNameOnPlatform', organizationId);
+        const channel = rows.channels.find((one) => one.id === id);
+        if (!channel) throw notFound('channel');
+        requests.push(['channel.nickname', id, JSON.parse(JSON.stringify(body))]);
+        channel.name = body.name;
+        writes.push(['channel.renamed', id, body.name]);
+        return { id, name: body.name };
+      },
+      disableChannel: async (organizationId, id) => {
+        scoped('IntegrationService.disableChannel', organizationId);
+        const channel = rows.channels.find((one) => one.id === id);
+        if (channel) channel.disabled = true;
+        writes.push(['channel.disabled', id]);
+      },
+      // The steps `DELETE /integrations` takes (`delete-channel.ts`). A
+      // deleted channel stays as a row with `deletedAt`, as in the database:
+      // the list does not show it, the door's lookup by id still finds it.
+      getIntegrationById: async (organizationId, id) => {
+        scoped('IntegrationService.getIntegrationById', organizationId);
+        return (
+          rows.channels.find((one) => one.id === id) ??
+          (rows.deletedChannels ?? []).find((one) => one.id === id) ??
+          null
+        );
+      },
+      deleteChannel: async (organizationId, id) => {
+        scoped('IntegrationService.deleteChannel', organizationId);
+        const channel =
+          rows.channels.find((one) => one.id === id) ??
+          (rows.deletedChannels ?? []).find((one) => one.id === id);
+        rows.channels = rows.channels.filter((one) => one.id !== id);
+        if (channel) rows.deletedChannels = [...(rows.deletedChannels ?? []).filter((one) => one.id !== id), channel];
+        writes.push(['channel.deleted', id]);
+        return channel;
+      },
+    },
+    // The platforms as `GET /integrations` lists them for the add-channel
+    // screen, with the flags it reads (kcxz.19).
+    IntegrationManager: {
+      getAllIntegrations: async () => ({
+        social: [
+          { identifier: 'telegram', name: 'Telegram', isWeb3: true, isExternal: false, isChromeExtension: false },
+          { identifier: 'linkedin', name: 'LinkedIn', isWeb3: false, isExternal: false, isChromeExtension: false },
+          { identifier: 'mastodon', name: 'Mastodon', isWeb3: false, isExternal: true, isChromeExtension: false },
+          { identifier: 'discord', name: 'Discord', isWeb3: false, isExternal: false, isChromeExtension: false },
+        ],
+      }),
+      getSocialIntegration: (identifier) =>
+        // Discord renames its bot; Slack's `changeNickname` only echoes the name.
+        identifier === 'discord' || identifier === 'slack' ? { changeNickname: async () => ({ name: '' }) } : {},
     },
     VoiceService: {
       avatars: async ({ organizationId }) => {
         scoped('VoiceService.avatars', organizationId);
         return {
-          avatars: rows.avatars.map((avatar) => ({ ...avatar })),
-          defaultAvatarId: rows.avatars.find((avatar) => avatar.isDefault)?.id ?? null,
+          state: rows.avatars.length ? 'default' : 'empty',
+          avatars: rows.avatars.map(avatarRow),
+          defaultAvatarId: rows.avatars.find((avatar) => avatar.isDefault && avatar.analysed)?.id ?? null,
+          limit: 8,
+          canManage: true,
         };
       },
       // What the activation would refuse, asked before the consent card
-      // (kcxz.29, D7). An avatar row with `ready: false` has empty lines.
+      // (kcxz.29, D7). An avatar row with `ready: false` has empty lines;
+      // the hand-written path also refuses while one of its five is empty.
       activationBlocker: async (actor, mode) => {
         scoped('VoiceService.activationBlocker', actor.organizationId);
         const avatar = actor.avatarId
@@ -784,9 +1203,13 @@ const createWorld = (overrides = {}) => {
             code: 'VOICE_PROFILE_NOT_FOUND',
           });
         }
-        return avatar.ready === false
+        const manualGaps =
+          mode === 'manual' && avatar.manual
+            ? MANUAL_LINES.filter((key) => !String(avatar.manual[key] ?? '').trim()).length
+            : 0;
+        return avatar.ready === false || manualGaps
           ? Object.assign(
-              new Error(`Голос нельзя включить (${mode}), пока пусто строк: 1.`),
+              new Error(`Голос нельзя включить (${mode}), пока пусто строк: ${manualGaps || 1}.`),
               { name: 'VoiceError', code: 'VOICE_FIELDS_INCOMPLETE' }
             )
           : null;
@@ -805,8 +1228,293 @@ const createWorld = (overrides = {}) => {
         writes.push(['avatar.activated', avatar.id, body.mode ?? null]);
         return { state: {}, voice: { name: avatar.name } };
       },
+      /* ---- The rest of the avatar screen's doors (kcxz.18) ------------------ */
+      overview: async (actor) => {
+        scoped('VoiceService.overview', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        return {
+          hasVoice: avatar?.active === true,
+          state: avatar?.active ? 'default' : 'empty',
+          readiness: readinessOf(avatar),
+        };
+      },
+      analysis: async (actor) => {
+        scoped('VoiceService.analysis', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        const run = avatar?.run;
+        if (!run) return { outcome: 'insufficient', readiness: readinessOf(avatar) };
+        const now = (avatar.samples ?? []).map((one) => one.code).sort().join(',');
+        return {
+          outcome: 'ready',
+          sampleCount: run.corpus.length,
+          hasProposal: run.proposal === true,
+          corpusChanged: now !== run.corpus.slice().sort().join(','),
+          // `recent`: a run started a minute ago, still finishing on the server.
+          measuredAt:
+            run.measuredAt === 'recent'
+              ? new Date(Date.now() - 60_000).toISOString()
+              : run.measuredAt,
+        };
+      },
+      assertAnalysisAllowed: (actor) => {
+        scoped('VoiceService.assertAnalysisAllowed', actor.organizationId);
+        if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Разбор — право редактора.');
+      },
+      // The streaming door's generator: the arithmetic is stored first, then
+      // one `text_generation` operation per AI call, then the proposal.
+      analysisStream: async function* (actor, body) {
+        scoped('VoiceService.analysisStream', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        requests.push(['voice.analysis', avatar?.id ?? null, { ...body }]);
+        yield { name: 'started', samples: 0, planned: 0 };
+        const readiness = readinessOf(avatar);
+        if (!readiness.ready) {
+          yield { name: 'done', analysis: { outcome: 'insufficient', readiness } };
+          return;
+        }
+        const corpus = avatar.samples.map((one) => one.code);
+        yield { name: 'started', samples: corpus.length, planned: corpus.length };
+        avatar.run = { corpus, proposal: false, measuredAt: new Date().toISOString() };
+        writes.push(['avatar.measured', avatar.id, corpus.length]);
+        yield { name: 'measured', measurementId: `m-${avatar.id}`, sampleCount: corpus.length, charCount: readiness.charCount, wordCount: 0, sentenceCount: 0 };
+        await usage.executeAiOperation(actor.organizationId, 'text_generation', async () => 'map');
+        yield { name: 'call', stage: 'map', index: 1, total: 1, ok: true };
+        if (rows.assistFails) {
+          throw voiceError('VOICE_ASSIST_UNAVAILABLE', 'Агентный слепок недоступен: ИИ не ответил. Числа разбора сохранены.');
+        }
+        avatar.run.proposal = true;
+        avatar.fields = (rows.proposalFields ?? DEFAULT_PROPOSAL).map((one) => ({ ...one }));
+        writes.push(['avatar.proposed', avatar.id]);
+        yield { name: 'done', analysis: { outcome: 'ready', sampleCount: corpus.length } };
+      },
+      proposal: async (actor) => {
+        scoped('VoiceService.proposal', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        if (!avatar?.run) return { outcome: 'insufficient', readiness: readinessOf(avatar) };
+        return {
+          outcome: 'ready',
+          state: 'default',
+          mode: 'assist',
+          portrait: { text: 'Портрет.', status: 'ACCEPTED', observationRefs: [] },
+          fields: (avatar.fields ?? []).map((one) => ({ ...one, observationRefs: [] })),
+          observations: [{ ref: 'o1' }, { ref: 'o2' }],
+        };
+      },
+      proposalField: async (actor, body) => {
+        scoped('VoiceService.proposalField', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        requests.push(['voice.proposal.field', avatar?.id ?? null, { ...body }]);
+        const field = (avatar?.fields ?? []).find((one) => one.key === body.key);
+        if (!field) {
+          if (body.action !== 'SAVE' || !body.text) throw voiceError('VOICE_PROFILE_NOT_FOUND', `Поле ${body.key} не предложено.`);
+          avatar.fields.push({ key: body.key, text: body.text, status: 'ACCEPTED' });
+        } else {
+          if (body.action === 'SAVE' && body.text) field.text = body.text;
+          field.status = 'ACCEPTED';
+        }
+        writes.push(['avatar.proposal.field', avatar.id, body.key, body.action]);
+        return servicesFor({ usage }).VoiceService.proposal(actor);
+      },
+      manualProposal: async (actor) => {
+        scoped('VoiceService.manualProposal', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        return {
+          outcome: 'ready',
+          state: 'default',
+          mode: 'manual',
+          fields: MANUAL_LINES.map((key) => ({
+            key,
+            text: String(avatar?.manual?.[key] ?? ''),
+            status: avatar?.manual?.[key] ? 'ACCEPTED' : 'UNDECIDED',
+          })),
+          observations: [],
+        };
+      },
+      manualField: async (actor, body) => {
+        scoped('VoiceService.manualField', actor.organizationId);
+        if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Нет прав.');
+        const avatar = voiceAvatar(actor);
+        // A line the panel's form changed meanwhile (`manualFieldConflicts`):
+        // the draft's revision check refuses it (correctness review F4).
+        if ((rows.manualFieldConflicts ?? []).includes(body.key)) {
+          throw voiceError('VOICE_REVISION_CONFLICT', 'Черновик изменился, пока строка сохранялась.');
+        }
+        requests.push(['voice.manual.field', avatar?.id ?? null, { ...body }]);
+        avatar.manual = { ...(avatar.manual ?? {}), [body.key]: body.text };
+        writes.push(['avatar.manual.field', avatar.id, body.key]);
+        return servicesFor({ usage }).VoiceService.manualProposal(actor);
+      },
+      samples: async (actor) => {
+        scoped('VoiceService.samples', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        return {
+          state: avatar?.samples?.length ? 'default' : 'empty',
+          samples: (avatar?.samples ?? []).map((one) => ({ ...one })),
+          sources: [],
+          readiness: readinessOf(avatar),
+        };
+      },
+      intake: async (actor, body) => {
+        scoped('VoiceService.intake', actor.organizationId);
+        if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Нет прав.');
+        const avatar = voiceAvatar(actor);
+        requests.push(['voice.intake', avatar?.id ?? null, JSON.parse(JSON.stringify(body))]);
+        const accepted = [];
+        const rejected = [];
+        for (const item of body.items) {
+          if (item.text.trim().length < 40) {
+            rejected.push({ title: item.title, reason: 'TOO_SHORT' });
+            continue;
+          }
+          const row = {
+            id: `s-${nextSample}`,
+            code: `smp-${String(nextSample++).padStart(2, '0')}`,
+            title: item.title,
+            origin: body.origin,
+            usagePurpose: body.usagePurpose,
+            charCount: item.text.length,
+          };
+          avatar.samples = [...(avatar.samples ?? []), row];
+          accepted.push(row);
+        }
+        writes.push(['avatar.samples.added', avatar.id, accepted.length]);
+        return { accepted, rejected, readiness: readinessOf(avatar) };
+      },
+      deleteSamples: async (actor, body) => {
+        scoped('VoiceService.deleteSamples', actor.organizationId);
+        const all = rows.avatars.flatMap((one) => one.samples ?? []);
+        for (const code of body.codes) {
+          if (!all.some((one) => one.code === code)) {
+            throw voiceError('VOICE_SAMPLE_NOT_FOUND', `Образец ${code} не найден.`);
+          }
+        }
+        for (const avatar of rows.avatars) {
+          avatar.samples = (avatar.samples ?? []).filter((one) => !body.codes.includes(one.code));
+        }
+        writes.push(['avatar.samples.deleted', body.codes.slice()]);
+        return servicesFor({ usage }).VoiceService.samples(actor);
+      },
+      createAvatar: async (actor, body) => {
+        scoped('VoiceService.createAvatar', actor.organizationId);
+        if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Нет прав.');
+        const id = `00000000-0000-4000-8000-${String(rows.avatars.length + 100).padStart(12, '0')}`;
+        rows.avatars.push({
+          id,
+          name: body.name ?? null,
+          kind: body.kind ?? 'PERSON',
+          isDefault: !rows.avatars.length,
+          analysed: false,
+          active: false,
+          samples: [],
+        });
+        writes.push(['avatar.created', id, body.kind ?? 'PERSON']);
+        return { ...(await servicesFor({ usage }).VoiceService.avatars(actor)), createdAvatarId: id };
+      },
+      updateAvatar: async (actor, body) => {
+        scoped('VoiceService.updateAvatar', actor.organizationId);
+        const avatar = voiceAvatar({ ...actor, avatarId: body.avatarId });
+        avatar.name = body.name;
+        writes.push(['avatar.renamed', avatar.id, body.name]);
+        return servicesFor({ usage }).VoiceService.avatars(actor);
+      },
+      setDefaultAvatar: async (actor, body) => {
+        scoped('VoiceService.setDefaultAvatar', actor.organizationId);
+        const avatar = voiceAvatar({ ...actor, avatarId: body.avatarId });
+        if (!avatar.analysed) throw voiceError('VOICE_AVATAR_NOT_ANALYSED', 'Аватар ещё не пишет.');
+        for (const one of rows.avatars) one.isDefault = one.id === avatar.id;
+        writes.push(['avatar.default', avatar.id]);
+        return servicesFor({ usage }).VoiceService.avatars(actor);
+      },
+      deleteAvatar: async (actor, body) => {
+        scoped('VoiceService.deleteAvatar', actor.organizationId);
+        const avatar = voiceAvatar({ ...actor, avatarId: body.avatarId });
+        const successor = body.successorId
+          ? voiceAvatar({ ...actor, avatarId: body.successorId })
+          : null;
+        if (avatar.isDefault && rows.avatars.length > 1 && !successor) {
+          throw voiceError('VOICE_AVATAR_SUCCESSOR_REQUIRED', 'Назовите преемника.');
+        }
+        if (successor) {
+          successor.samples = [...(successor.samples ?? []), ...(avatar.samples ?? [])];
+          if (avatar.isDefault) successor.isDefault = true;
+        }
+        rows.avatars = rows.avatars.filter((one) => one.id !== avatar.id);
+        writes.push(['avatar.deleted', avatar.id, successor?.id ?? null]);
+        return servicesFor({ usage }).VoiceService.avatars(actor);
+      },
+      learning: async (actor) => {
+        scoped('VoiceService.learning', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        return {
+          pending: avatar?.edits ?? 0,
+          rules: (avatar?.rules ?? []).map((one) => ({ ...one })),
+          minPairs: 5,
+          maxRules: 12,
+          canLearn: actor.canManage,
+          lastRunAt: avatar?.lastRunAt ?? null,
+        };
+      },
+      learnFromEdits: async (actor) => {
+        scoped('VoiceService.learnFromEdits', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        if ((avatar.edits ?? 0) < 5) {
+          throw voiceError('VOICE_LEARN_NOT_ENOUGH', `Правок пока ${avatar.edits ?? 0} из 5.`);
+        }
+        await usage.executeAiOperation(actor.organizationId, 'text_generation', async () => 'rules');
+        avatar.rules = [...(avatar.rules ?? []), { id: `r-${(avatar.rules ?? []).length + 1}`, text: 'Короче вступление.', pairs: avatar.edits, learnedAt: NOW }];
+        avatar.edits = 0;
+        avatar.lastRunAt = NOW;
+        writes.push(['avatar.learned', avatar.id]);
+        return servicesFor({ usage }).VoiceService.learning(actor);
+      },
+      forgetLearnedRule: async (actor, body) => {
+        scoped('VoiceService.forgetLearnedRule', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        if (!(avatar.rules ?? []).some((one) => one.id === body.ruleId)) {
+          throw voiceError('VOICE_LEARN_RULE_NOT_FOUND', 'Такого правила нет.');
+        }
+        avatar.rules = avatar.rules.filter((one) => one.id !== body.ruleId);
+        writes.push(['avatar.rule.forgotten', avatar.id, body.ruleId]);
+        return servicesFor({ usage }).VoiceService.learning(actor);
+      },
+      deleteProfile: async (actor) => {
+        scoped('VoiceService.deleteProfile', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        avatar.active = false;
+        avatar.analysed = false;
+        writes.push(['avatar.retired', avatar.id]);
+        return { state: 'empty' };
+      },
     },
     PostsService: {
+      // A channel's root posts, not deleted: a post is an adaptation row's
+      // `postId` on that channel (review W3-19 P3-8).
+      channelPostIds: async (organizationId, integrationId) => {
+        scoped('PostsService.channelPostIds', organizationId);
+        if (!integrationId) throw new Error('channelRootPosts requires a channel id');
+        return [
+          ...new Set(
+            (rows.adaptations ?? [])
+              .filter((row) => row.integrationId === integrationId && row.postId)
+              .map((row) => row.postId)
+          ),
+        ].sort();
+      },
+      // Only this channel's posts (`delete-channel.ts`, review W3-19 P2-1).
+      deleteChannelPosts: async (organizationId, integrationId) => {
+        scoped('PostsService.deleteChannelPosts', organizationId);
+        if (!integrationId) throw new Error('deleteChannelPosts requires a channel id');
+        const ids = [
+          ...new Set(
+            (rows.adaptations ?? [])
+              .filter((row) => row.integrationId === integrationId && row.postId)
+              .map((row) => row.postId)
+          ),
+        ].sort();
+        rows.adaptations = (rows.adaptations ?? []).filter((row) => row.integrationId !== integrationId || !row.postId);
+        for (const id of ids) writes.push(['post.deleted', id]);
+        return ids;
+      },
       // `/analytics/ahead`: reserves and queued posts from today, by channel.
       getPlanAhead: async (organizationId, query) => {
         scoped('PostsService.getPlanAhead', organizationId);
@@ -887,6 +1595,52 @@ const createWorld = (overrides = {}) => {
         return { publishDate: row.date };
       },
     },
+    /*
+     * The AI settings doors' service (kcxz.20), answering as
+     * `AiProviderService` does: `getSettings` says whether a key is stored,
+     * never the key. `rows.ai.apiKey` / `rows.ai.ownSearchKeys` stand for the
+     * encrypted columns; a scenario's `before` puts a key there the way the
+     * browser's key card posts it to `POST /settings/ai` itself.
+     */
+    AiProviderService: {
+      getSettings: async (organizationId) => {
+        scoped('AiProviderService.getSettings', organizationId);
+        return aiSettingsOf(aiRow());
+      },
+      updateSettings: async (organizationId, body) => {
+        scoped('AiProviderService.updateSettings', organizationId);
+        // What reached the service: a key here would be a key through the chat.
+        requests.push(['ai.settings', body]);
+        const row = aiRow();
+        const own = body.usageMode !== 'included';
+        if (body.usageMode) row.usageMode = body.usageMode;
+        // The service's rule: a stored key keeps its provider; the provider
+        // changes only with a new key, or while none is stored.
+        if (own && body.provider && (body.apiKey || !row.apiKey)) row.provider = body.provider;
+        if (own && body.apiKey) row.apiKey = body.apiKey;
+        for (const [engine, key] of Object.entries(body.searchApiKeys ?? {})) {
+          if (key) row.ownSearchKeys = { ...row.ownSearchKeys, [engine]: key };
+        }
+        writes.push(['ai.settings', body.usageMode ?? null]);
+        return aiSettingsOf(row);
+      },
+      clearKey: async (organizationId) => {
+        scoped('AiProviderService.clearKey', organizationId);
+        aiRow().apiKey = null;
+        writes.push(['ai.key.cleared', 'workspace']);
+        return aiSettingsOf(aiRow());
+      },
+      clearSearchKey: async (organizationId, provider) => {
+        scoped('AiProviderService.clearSearchKey', organizationId);
+        const row = aiRow();
+        const left = { ...row.ownSearchKeys };
+        if (provider) delete left[provider];
+        else for (const engine of Object.keys(left)) delete left[engine];
+        row.ownSearchKeys = left;
+        writes.push(['ai.key.cleared', provider ?? 'all']);
+        return aiSettingsOf(row);
+      },
+    },
     AiUsageService: {
       // What the snapshot line shows; the admissions themselves go through
       // the real service the door holds.
@@ -906,7 +1660,7 @@ const createWorld = (overrides = {}) => {
     /** What the scenario asserts on: the rows as they are now. */
     state: () =>
       JSON.parse(
-        JSON.stringify({ ...rows, switchModeAfterRead: undefined, nextPiece: undefined, snapshots: undefined, researchFacts: undefined, intakeQuestions: undefined, coreSnapshots: undefined, coreResearchFacts: undefined, proposals: undefined, reviewChanges: undefined, adaptQuestions: undefined, queueBusy: undefined, queueBusyPosts: undefined, unscheduleBeforeMove: undefined })
+        JSON.stringify({ ...rows, switchModeAfterRead: undefined, nextPiece: undefined, snapshots: undefined, researchFacts: undefined, intakeQuestions: undefined, coreSnapshots: undefined, coreResearchFacts: undefined, proposals: undefined, reviewChanges: undefined, adaptQuestions: undefined, queueBusy: undefined, queueBusyPosts: undefined, unscheduleBeforeMove: undefined, assistFails: undefined, proposalFields: undefined })
       ),
   };
 };

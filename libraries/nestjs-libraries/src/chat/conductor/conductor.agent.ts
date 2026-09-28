@@ -28,6 +28,7 @@ import {
   conductorContextSchema,
 } from './conductor.context';
 import { conductorInstructions } from './conductor.instructions';
+import { lastStepSpeaks } from './conductor.steps';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
 import {
   conductorInputProcessors,
@@ -49,8 +50,9 @@ import {
  * - the workspace snapshot at the start of every turn, inside the instruction
  *   and wrapped as data;
  * - group know-how as skills; secrets redacted by processors both ways;
- * - caps: 6 steps, `maxRetries: 0`; paid 1 (hard 2) is the hooks' job; a
- *   step refused only for an open card of proposed changes ends the turn.
+ * - caps: 7 steps, the last one text-only (`lastStepSpeaks`, W3 walk P2-B),
+ *   `maxRetries: 0`; paid 1 (hard 2) is the hooks' job; a step refused only
+ *   for an open card of proposed changes ends the turn.
  *
  * It holds no Nest dependency: `MastraService` passes the service resolver,
  * the policy gate and the model, so a test can build the same agent with a
@@ -149,10 +151,13 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     ...(deps.memory ? { memory: deps.memory } : {}),
     maxRetries: CONDUCTOR_MAX_RETRIES,
     // Mastra adds `stepCountIs(maxSteps)` to these conditions; a request's own
-    // `maxSteps` keeps the stop after an open-card refusal (kcxz.38, R5).
+    // `maxSteps` keeps the stop after an open-card refusal (kcxz.38, R5). The
+    // door passes `prepareStep` for its own `maxSteps`; this one is for a
+    // caller that keeps the ordinary cap.
     defaultOptions: {
       maxSteps: CONDUCTOR_MAX_STEPS,
       stopWhen: stopAfterOpenProposalRefusal as any,
+      prepareStep: lastStepSpeaks(CONDUCTOR_MAX_STEPS) as any,
     },
     inputProcessors: conductorInputProcessors(),
     outputProcessors: conductorOutputProcessors(),

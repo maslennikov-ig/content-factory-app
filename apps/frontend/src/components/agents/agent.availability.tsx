@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useRef } from 'react';
+import { FC, ReactNode, useEffect, useRef } from 'react';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useAssistantAvailability } from '@contentfactory/frontend/components/copilot/assistant-availability';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
@@ -25,9 +25,15 @@ import { RestrictedState } from '@contentfactory/frontend/components/ui/surface'
  * (`ai_allowance_unavailable`): один отказ — одно предложение, а не два разных
  * объяснения одного и того же состояния в двух местах продукта.
  */
-export const AgentAvailabilityGate: FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const AgentAvailabilityGate: FC<{
+  children: ReactNode;
+  /**
+   * Told whether the gate is showing «ИИ не подключён» instead of the
+   * conversation, so the screen does not keep a starter for a conversation
+   * that is not there (review W3-21 P3-4).
+   */
+  onUnavailable?: (unavailable: boolean) => void;
+}> = ({ children, onUnavailable }) => {
   const t = useT();
   const availability = useAssistantAvailability(true);
 
@@ -40,6 +46,10 @@ export const AgentAvailabilityGate: FC<{ children: ReactNode }> = ({
    * says so on the next message.
    */
   const opened = useRef(false);
+  const unavailable = !opened.current && availability === 'unavailable';
+  useEffect(() => {
+    onUnavailable?.(unavailable);
+  }, [onUnavailable, unavailable]);
   if (opened.current) return <>{children}</>;
 
   if (availability === 'checking') {

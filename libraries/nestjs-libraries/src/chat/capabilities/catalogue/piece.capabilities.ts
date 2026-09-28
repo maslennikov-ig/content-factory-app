@@ -25,6 +25,8 @@ import {
   factAnswer,
   factOptions,
   factSelection,
+  QUOTED_QUESTION_MAX,
+  shortQuestion,
   type FactSelection,
   type ResearchLevel,
 } from './selection';
@@ -430,7 +432,11 @@ export const pieceAnswer = defineCapability({
             (one) => one.key === question.key && one.origin === 'model' && !one.text?.trim()
           )
         );
-        if (gaps.length) answered.leftToAuthor = gaps.map((question) => question.question);
+        if (gaps.length) {
+          answered.leftToAuthor = gaps.map((question) =>
+            shortQuestion(question.question, QUOTED_QUESTION_MAX)
+          );
+        }
         const link = named.core?.postLink;
         if (!linkBefore && link && link.url === null) answered.postLink = 'none';
       }
@@ -453,7 +459,8 @@ export const pieceAnswer = defineCapability({
     ...(output.leftToAuthor?.length
       ? {
           leftToAuthor: output.leftToAuthor,
-          note: 'These ask for the author’s own experience; nothing was invented for them and the core goes around them. Do not say they were decided. Add one sentence to your reply that quotes each question verbatim in «» and says the person can add their own experience there in their own words; the core stays general until then.',
+          leftToAuthorCount: output.leftToAuthor.length,
+          note: `These ${output.leftToAuthor.length} ask for the author’s own experience; nothing was invented for them and the core goes around them. Do not say they were decided. Your reply quotes each question in «» word for word as given here — not shortened, not retold and says the person can add their own experience there in their own words — also when a limit stops the turn right after this; the core stays general until then.`,
         }
       : {}),
     ...(output.postLink

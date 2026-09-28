@@ -485,7 +485,7 @@ const renderWizard = async (server, options) => {
   const { VoiceWizardContainer } = mount(server, options);
   let view;
   await act(async () => {
-    view = render(React.createElement(VoiceWizardContainer));
+    view = render(React.createElement(VoiceWizardContainer, options?.props));
   });
   await act(async () => {});
   return view;
@@ -1610,6 +1610,81 @@ describe('the voice wizard on live data', () => {
     // Straight onto the hand-filled form, with the saved lines in it.
     expect(surface('proposal')).not.toBeNull();
     expect(document.body.textContent).toContain('Мастерская');
+  });
+
+  /* W3 live walk 28.09.2026, P2-A: beside the chat the wizard follows it. */
+  test('beside the chat a stored proposal opens as the proposal by itself, with no run', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 8, charCount: 15206 }),
+      }),
+      [`GET ${VOICE_API}/analysis`]: storedRun(),
+      [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
+    });
+    await renderWizard(server, { props: { openReady: true } });
+    await act(async () => {});
+
+    expect(surface('proposal')).not.toBeNull();
+    expect(surface('proposal').textContent).toContain('Предложение для TONE');
+    expect(screen.queryByRole('button', { name: 'Открыть предложение' })).toBeNull();
+    expect(streamCalls(server)).toEqual([]);
+  });
+
+  test('beside the chat lines written by hand open their form by itself', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+      [`GET ${VOICE_API}/proposal/manual`]: () => manualEnvelope({ WHO_SPEAKS: 'Мастерская' }),
+    });
+    await renderWizard(server, { props: { openReady: true } });
+    await act(async () => {});
+
+    expect(surface('proposal')).not.toBeNull();
+    expect(document.body.textContent).toContain('Мастерская');
+  });
+
+  // Correctness review F7: the panel follows the chat only while the person
+  // has not moved inside it. «Отменить» on the paths goes back to screen 01
+  // and stays there, even when the chat has written lines meanwhile.
+  test('beside the chat, a person who moved inside the panel is not moved again', async () => {
+    let release;
+    const later = new Promise((resolve) => {
+      release = resolve;
+    });
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+      // The chat's lines arrive while the person is on the paths screen.
+      [`GET ${VOICE_API}/proposal/manual`]: () => later,
+    });
+    await renderWizard(server, { props: { openReady: true } });
+    await click(screen.getByRole('button', { name: 'Создать аватар' }));
+    expect(surface('paths')).not.toBeNull();
+    await act(async () => {
+      release(manualEnvelope({ WHO_SPEAKS: 'Мастерская' }));
+    });
+    await act(async () => {});
+    expect(surface('paths')).not.toBeNull();
+    await click(screen.getByRole('button', { name: 'Отменить' }));
+    await act(async () => {});
+    expect(surface('proposal')).toBeNull();
+    expect(openWizard(screen)).toBeTruthy();
+  });
+
+  test('beside the chat, with nothing ready, screen 01 stays', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+      [`GET ${VOICE_API}/proposal/manual`]: manualEnvelope(),
+    });
+    await renderWizard(server, { props: { openReady: true } });
+
+    expect(surface('proposal')).toBeNull();
+    expect(openWizard(screen)).toBeTruthy();
   });
 
   test('an untouched manual draft is not announced', async () => {

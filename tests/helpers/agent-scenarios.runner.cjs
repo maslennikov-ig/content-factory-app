@@ -73,24 +73,51 @@ const usage = {
  * report to no ledger, or to another one (correctness review W1 F8).
  */
 const scriptedModel = (currentUsageLedger) => {
-  const state = { queue: [], calls: [], turn: 0 };
+  // `inputs`: everything each model call read, whole (kcxz.20, the secrets
+  // guard) — kept apart from `calls` so the report stays small.
+  // `ignoreToolChoice`: a provider that calls tools under `toolChoice: none`
+  // (W3 walk P2-B, the door's own closing line); set per scenario.
+  const state = { queue: [], calls: [], turn: 0, inputs: [], ignoreToolChoice: false };
   const next = (options) => {
+    state.inputs.push(JSON.stringify({ prompt: options.prompt, tools: options.tools ?? [] }));
     currentUsageLedger()?.record({
       attempt: 1,
       model: 'scripted',
       promptTokens: 1,
       completionTokens: 1,
     });
+    const toolChoice = options.toolChoice?.type ?? null;
     state.calls.push({
       turn: state.turn,
+      toolChoice,
       tools: (options.tools || []).map((tool) => tool.name).sort(),
       system: options.prompt
         .filter((message) => message.role === 'system')
         .map((message) => message.content)
         .join('\n'),
+      // What the model read of the person's last message (kcxz.18: a samples
+      // receipt, never a file body).
+      user: (() => {
+        const last = options.prompt.filter((message) => message.role === 'user').at(-1);
+        const content = last?.content;
+        return typeof content === 'string'
+          ? content
+          : (content ?? [])
+              .map((part) => (part.type === 'text' ? part.text : `[${part.type}]`))
+              .join('\n');
+      })(),
     });
-    const plan = state.queue.shift() || [['text', 'Готово.']];
-    const content = plan.map(([kind, a, b], index) =>
+    const scripted = state.queue.shift() || [['text', 'Готово.']];
+    // A provider does not call tools under `toolChoice: none` (W3 walk P2-B).
+    const plan =
+      toolChoice === 'none' && !state.ignoreToolChoice
+        ? scripted.filter(([kind]) => kind !== 'tool')
+        : scripted;
+    // `['finish', reason]`: the step ends with that reason whatever it holds —
+    // a reasoning model cut at its budget (`length`), an empty last step
+    // (`stop`) (correctness review F1).
+    const finishAs = plan.find(([kind]) => kind === 'finish')?.[1];
+    const content = plan.filter(([kind]) => kind !== 'finish').map(([kind, a, b], index) =>
       kind === 'tool'
         ? {
             type: 'tool-call',
@@ -103,9 +130,11 @@ const scriptedModel = (currentUsageLedger) => {
     const tools = content.some((part) => part.type === 'tool-call');
     return {
       content,
-      finishReason: tools
-        ? { unified: 'tool-calls', raw: 'tool_calls' }
-        : { unified: 'stop', raw: 'stop' },
+      finishReason: finishAs
+        ? { unified: finishAs, raw: finishAs }
+        : tools
+          ? { unified: 'tool-calls', raw: 'tool_calls' }
+          : { unified: 'stop', raw: 'stop' },
     };
   };
   const model = {
@@ -272,6 +301,9 @@ const stand = (scenario) => {
         toolName,
         args
       ),
+    // As `MastraService.samplesAvatarKnown` (review W3-18 F3).
+    samplesAvatarKnown: (identity, avatarId) =>
+      registry.avatarInWorkspace(serviceOf, identity, avatarId),
     // As `MastraService.approvalContent` (review W2 F4).
     approvalContent: (identity, toolName, args) =>
       registry.approvalContentDigest(
@@ -317,7 +349,7 @@ const stand = (scenario) => {
     new AgentThreadsService(mastraService),
     aiUsage
   );
-  return { controller, mastra, conductor, world, table, state };
+  return { controller, mastra, conductor, world, table, state, storage };
 };
 
 const summarizeParts = (parts, names = new Map()) => {
@@ -420,8 +452,15 @@ const replayClient = async (before, sse, body) => {
       },
     });
   } else {
-    const text = body.messages[0].parts.find((part) => part.type === 'text')?.text ?? '';
-    await chat.sendMessage({ text });
+    const parts = body.messages[0].parts;
+    // A message with more than words (a samples receipt, kcxz.18) is sent
+    // the way the screen sends it: its parts.
+    if (parts.some((part) => part.type !== 'text')) {
+      await chat.sendMessage({ parts });
+    } else {
+      const text = parts.find((part) => part.type === 'text')?.text ?? '';
+      await chat.sendMessage({ text });
+    }
   }
   return {
     status: chat.status,
@@ -437,7 +476,7 @@ const replayClient = async (before, sse, body) => {
  * — the SDK names the message the card is in, and the screen's transport
  * builds the body from it. `door` answers each request as the backend would.
  */
-const screenApproval = async ({ before, threadId, approvalId, approved, door }) => {
+const screenApproval = async ({ before, threadId, approvalId, approved, reason, door }) => {
   const messages = before ? screenContract.readThreadHistory(before).messages : [];
   const transport = createAgentTransport({
     request: (_url, init) => door(JSON.parse(String(init.body))),
@@ -445,7 +484,8 @@ const screenApproval = async ({ before, threadId, approvalId, approved, door }) 
     onThread: () => undefined,
   });
   const chat = new AbstractChat({ transport, state: new ReplayState(messages) });
-  await chat.addToolApprovalResponse({ id: approvalId, approved });
+  // `reason`: a decline reason, as a client other than the screen may send one.
+  await chat.addToolApprovalResponse({ id: approvalId, approved, ...(reason ? { reason } : {}) });
   await chat.sendMessage();
   return {
     status: chat.status,
@@ -454,8 +494,85 @@ const screenApproval = async ({ before, threadId, approvalId, approved, door }) 
   };
 };
 
+/**
+ * Everything Mastra's storage holds — threads, messages, working memory,
+ * suspended runs' snapshots, traces and log records — as one text
+ * (kcxz.20, the secrets guard).
+ */
+const storedText = (storage) => {
+  const dbs = new Set(
+    Object.values(storage.stores ?? {})
+      .map((store) => store?.db)
+      .filter(Boolean)
+  );
+  return JSON.stringify([...dbs], (_key, value) =>
+    value instanceof Map ? [...value.entries()] : value instanceof Set ? [...value] : value
+  );
+};
+
+/**
+ * What the process wrote while a scenario played: the Nest logger, Mastra's
+ * and any `console` call land on stdout or stderr (kcxz.20, the secrets
+ * guard). The report itself is written after, unwatched.
+ */
+const watchLogs = () => {
+  const lines = [];
+  const restore = [];
+  for (const stream of [process.stdout, process.stderr]) {
+    const write = stream.write;
+    stream.write = (chunk, ...rest) => {
+      lines.push(String(chunk));
+      return typeof rest.at(-1) === 'function' ? (rest.at(-1)(), true) : true;
+    };
+    restore.push(() => (stream.write = write));
+  }
+  for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
+    const original = console[method];
+    console[method] = (...args) => lines.push(args.map(String).join(' '));
+    restore.push(() => (console[method] = original));
+  }
+  return { lines, stop: () => restore.forEach((undo) => undo()) };
+};
+
+/**
+ * The literal keys a scenario sent (`pastedKeys`) found in a text, by their
+ * index — independent of the detector (review W3-20 F5): a key the shapes
+ * miss is invisible to `secretShapesIn` by construction, never to this.
+ */
+const literalKeysIn = (keys, text) =>
+  keys.map((key, index) => (text.includes(key) ? index : -1)).filter((index) => index >= 0);
+
+/** The key shapes found in a text, by name (`conductor.secrets.ts`). */
+const secretShapesIn = (conductor, text) =>
+  conductor.SECRET_SHAPES.filter(({ pattern }) =>
+    new RegExp(pattern.source, pattern.flags.replace('g', '')).test(text)
+  ).map(({ name }) => name);
+
+/** The snapshot line of a model call's instruction, unwrapped; `null` without one. */
+const openingSnapshot = (call) => {
+  const line = call?.system
+    .split('\n')
+    .find((candidate) => candidate.startsWith('{"untrustedData"'));
+  if (!line) return null;
+  try {
+    return JSON.parse(line).untrustedData.value;
+  } catch {
+    return null;
+  }
+};
+
 const play = async (scenario) => {
-  const { controller, mastra, conductor, world, table, state } = stand(scenario);
+  const logs = watchLogs();
+  try {
+    return await playWatched(scenario, logs);
+  } finally {
+    logs.stop();
+  }
+};
+
+const playWatched = async (scenario, logs) => {
+  const { controller, mastra, conductor, world, table, state, storage } = stand(scenario);
+  state.ignoreToolChoice = scenario.ignoreToolChoice === true;
   const organization = { ...ORGANIZATION, users: [{ role: scenario.role ?? 'EDITOR' }] };
   // `x-agent-timezone` as the screen's transport sends it (kcxz.15); absent
   // unless the scenario names one, so the saved offset is the fallback.
@@ -475,7 +592,23 @@ const play = async (scenario) => {
       body = {
         ...(threadId ? { threadId } : {}),
         messages: [
-          { id: `msg-user-${index + 1}`, role: 'user', parts: [{ type: 'text', text: turn.say }] },
+          {
+            id: `msg-user-${index + 1}`,
+            role: 'user',
+            parts: [
+              ...(turn.say ? [{ type: 'text', text: turn.say }] : []),
+              // The receipt of files the composer already uploaded (kcxz.18).
+              ...(turn.samples ? [{ type: 'data-avatar-samples', data: turn.samples }] : []),
+              // Text files attached to the message, inline as the composer
+              // sends them (kcxz.20, review W3-20 F5).
+              ...(turn.files ?? []).map((file) => ({
+                type: 'file',
+                mediaType: 'text/plain',
+                filename: file.name,
+                url: `data:text/plain;base64,${Buffer.from(file.text, 'utf8').toString('base64')}`,
+              })),
+            ],
+          },
         ],
       };
     } else if (turn.approve !== undefined) {
@@ -549,6 +682,7 @@ const play = async (scenario) => {
         threadId,
         approvalId: card?.approvalId,
         approved: turn.approve,
+        reason: turn.reason,
         door: async (sent) => {
           sentBodies.push(sent);
           await door(sent);
@@ -583,6 +717,21 @@ const play = async (scenario) => {
       thread: res.headers['x-agent-thread-id'] ?? null,
       ended: res.writableEnded,
       modelCalls: state.calls.filter((call) => call.turn === index).length,
+      // Each model step of this request (W3 walk P2-B): its tool choice and
+      // whether it read the last step's note.
+      steps: state.calls
+        .filter((call) => call.turn === index)
+        .map((call) => ({
+          toolChoice: call.toolChoice,
+          lastStepNote: call.system.includes(conductor.LAST_STEP_NOTE),
+        })),
+      // Whether a model step of this request read what «Нет» means (P3-K).
+      readDecline: state.calls.some(
+        (call, at) => call.turn === index && state.inputs[at].includes(conductor.DECLINED_ON_CARD)
+      ),
+      // The workspace snapshot this request opened with (kcxz.21): what the
+      // model was told exists, the onboarding steps included.
+      opening: openingSnapshot(state.calls.find((call) => call.turn === index)),
       admissions: table.rows
         .slice(rowsBefore)
         .map((row) => [row.operation, row.role, row.userId, row.status]),
@@ -606,9 +755,52 @@ const play = async (scenario) => {
   const history = threadId
     ? await controller.getThread(organization, USER, threadId, zone).catch(() => null)
     : null;
+  // The secrets guard (kcxz.20, spec §1.5, §4.10): which key shapes each
+  // record holds. `sent` is what the scenario itself sent to the door — the
+  // pasted key — so a guard that finds it there and nowhere else is not blind.
+  const dumped = storedText(storage);
+  const secrets = {
+    sent: secretShapesIn(conductor, JSON.stringify(turns.map((turn) => turn.sentBodies))),
+    model: secretShapesIn(conductor, state.inputs.join('\n')),
+    stored: secretShapesIn(conductor, dumped),
+    stream: secretShapesIn(conductor, turns.map((turn) => turn.sse).join('\n')),
+    history: secretShapesIn(conductor, JSON.stringify(history)),
+    requests: secretShapesIn(conductor, JSON.stringify(world.requests)),
+    logs: secretShapesIn(conductor, logs.lines.join('\n')),
+  };
+  const pasted = scenario.pastedKeys ?? [];
+  const literal = {
+    // Attached files leave as base64 `data:` URLs: read them as their text.
+    sent: literalKeysIn(
+      pasted,
+      JSON.stringify(turns.map((turn) => turn.sentBodies)).replace(
+        /data:text\/plain;base64,([A-Za-z0-9+/=]+)/g,
+        (_match, payload) => Buffer.from(payload, 'base64').toString('utf8')
+      )
+    ),
+    model: literalKeysIn(pasted, state.inputs.join('\n')),
+    stored: literalKeysIn(pasted, dumped),
+    stream: literalKeysIn(pasted, turns.map((turn) => turn.sse).join('\n')),
+    history: literalKeysIn(pasted, JSON.stringify(history)),
+    requests: literalKeysIn(pasted, JSON.stringify(world.requests)),
+    logs: literalKeysIn(pasted, logs.lines.join('\n')),
+    world: literalKeysIn(pasted, JSON.stringify(world.state())),
+  };
   return {
     threadId,
     turns,
+    secrets,
+    literal,
+    // The storage dump is the conversation, not an empty store; a redacted
+    // key leaves its marker there.
+    storedKeyMarker: dumped.includes('[KEY]'),
+    storedMessages: dumped.includes('msg-user-'),
+    // What a «Нет» leaves in the thread (correctness review F9): the fact is
+    // stored with the tool result, the note of what to say is not.
+    storedDecline: {
+      fact: dumped.includes(conductor.DECLINED_STORED),
+      note: dumped.includes(conductor.DECLINED_ON_CARD),
+    },
     world: world.state(),
     writes: world.writes,
     reads: world.reads,
@@ -627,6 +819,8 @@ const play = async (scenario) => {
     history,
     firstCall: state.calls[0] ?? null,
     modelCalls: state.calls.length,
+    // The person's last message as each model call read it.
+    prompts: state.calls.map((call) => ({ turn: call.turn, user: call.user })),
     pending,
     storedPartTypes,
   };

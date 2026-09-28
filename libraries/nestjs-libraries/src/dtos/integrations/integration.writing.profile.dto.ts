@@ -39,9 +39,11 @@ import {
  * формы в другую делает сервис.
  */
 export class ChannelLengthRangeDto {
+  /** `null` или отсутствие — «до N знаков», без нижней границы (разбор W3, F5). */
+  @IsOptional()
   @IsInt()
   @Min(CHANNEL_MIN_IDEAL_LENGTH)
-  idealMin: number;
+  idealMin?: number | null;
 
   @IsInt()
   @Min(CHANNEL_MIN_IDEAL_LENGTH)

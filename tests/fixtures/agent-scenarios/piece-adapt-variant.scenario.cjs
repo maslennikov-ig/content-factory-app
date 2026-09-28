@@ -56,7 +56,7 @@ module.exports = {
       ],
       ['piece.adapt', 'p1', screen.buildAdaptPayload({ integrationId: 'c1', kind: 'post' })],
     ]);
-    expect(first.outputs[0].output.summary).toMatchObject({ adaptationId: 'a2', variant: 2, asked: 0 });
+    expect(first.outputs[0].output.summary).toMatchObject({ adaptationId: 'a2', variant: 2, answeredOnCard: 0 });
     expect(second.outputs[0].output.summary).toMatchObject({ adaptationId: 'a3', variant: 3 });
     // The old text stays: three rows for one channel.
     expect(run.world.adaptations.map((row) => row.id)).toEqual(['a1', 'a2', 'a3']);

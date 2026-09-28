@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useId,
   useState,
   type ClipboardEvent,
@@ -10,8 +11,13 @@ import {
 import type { FileUIPart } from 'ai';
 import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { Select } from '@contentfactory/react/form/select';
 import { FileInput } from '@contentfactory/react/form/file-input';
 import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
+import {
+  containsSecretShape,
+  withoutSecretShapes,
+} from '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes';
 import {
   AGENT_ATTACHMENT_MAX_FILES,
   AGENT_ATTACHMENTS_TOTAL_MAX_BYTES,
@@ -19,9 +25,16 @@ import {
   attachmentLimit,
   attachmentMediaType,
   linksIn,
+  type AgentSamplesUpload,
 } from './agent.contract';
 import type { AgentWords } from './agent.copy';
 import { AgentGlyph } from './agent.icons';
+import {
+  SAMPLES_ACCEPT,
+  SAMPLES_LIMITS,
+  isSamplesFile,
+  type SamplesSent,
+} from './agent.samples';
 
 /**
  * The composer (`content-factory-next-kcxz.10`, canvas C): text, pasted links
@@ -31,9 +44,40 @@ import { AgentGlyph } from './agent.icons';
  * Enter sends, Shift+Enter breaks the line. While the agent works the field
  * stays open: the next message waits and goes as soon as the turn ends, and
  * the send button becomes «Остановить».
+ *
+ * A Telegram export or a document (`kcxz.18`) is marked «в образцы аватара»
+ * and on sending goes from here straight to the avatar's samples; the message
+ * carries only the receipt, never the file (`agent.samples.ts`). The line
+ * under the files names that avatar and lets the person pick another (review
+ * W3-18 F2); while the agent is answering, the files wait for the turn to end
+ * rather than change the corpus an analysis may be reading (F6).
+ *
+ * A message that holds a key shape is not sent (`kcxz.20`): the key is taken
+ * out of the field and the notice sends the person to the key card.
  */
 
-export type ComposerSubmit = { text: string; files: FileUIPart[] };
+/** Which avatar the attached samples go to, and the others to pick from. */
+export type SamplesTarget = {
+  /** The avatars were read: the line may name them. */
+  known: boolean;
+  /** The avatars of the workspace, named for the person. */
+  options: ReadonlyArray<{ id: string; label: string }>;
+  /** The chosen avatar; `null` — the workspace default. */
+  value: string | null;
+  /** The default avatar's name, when there is one. */
+  defaultName: string | null;
+  onChange: (avatarId: string | null) => void;
+};
+
+export type ComposerSubmit = {
+  text: string;
+  files: FileUIPart[];
+  /** Sample files already added to an avatar: the receipt, not the files. */
+  samples?: AgentSamplesUpload;
+};
+
+/** A refusal of the samples upload, in the words the screen has for it. */
+export type SamplesFailure = { code: string | null; message: string | null };
 
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -59,8 +103,14 @@ export function AgentComposer({
   queued,
   onSubmit,
   onStop,
+  uploadSamples,
+  samplesTarget,
+  samplesAllowed = true,
+  describeFailure,
   words,
   autoFocus,
+  draft = null,
+  onDraftUsed,
 }: {
   /** The agent is answering. */
   busy: boolean;
@@ -68,25 +118,79 @@ export function AgentComposer({
   queued: boolean;
   onSubmit: (message: ComposerSubmit) => void;
   onStop: () => void;
+  /** Sends sample files to the target avatar's door; the receipt comes back. */
+  uploadSamples?: (files: File[], avatarId: string | null) => Promise<SamplesSent>;
+  /** Where attached samples go; absent — the workspace default, unnamed. */
+  samplesTarget?: SamplesTarget;
+  /** The role may add samples (the door's `Sections.EDITOR`). */
+  samplesAllowed?: boolean;
+  /** The sentence for a refused upload, from the product's error words. */
+  describeFailure?: (failure: SamplesFailure) => string;
   words: AgentWords;
   autoFocus?: boolean;
+  /**
+   * Words to write into the field once, left for the person to send or edit
+   * («Сделать в чате», review W3-21 P2-2). Never sent from here.
+   */
+  draft?: string | null;
+  onDraftUsed?: () => void;
 }) {
   const w = words.composer;
   const [text, setText] = useState('');
+  useEffect(() => {
+    if (draft === null) return;
+    setText(draft);
+    onDraftUsed?.();
+  }, [draft, onDraftUsed]);
   const [files, setFiles] = useState<File[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  /** A line that is not a refusal: the samples went to the default instead. */
+  const [info, setInfo] = useState<string | null>(null);
+  /** Sample files wait for the agent's answer to end (F6). */
+  const [held, setHeld] = useState(false);
   const noticeId = useId();
   const hintId = useId();
+  const targetId = useId();
 
   const links = linksIn(text);
-  const canSend = (text.trim().length > 0 || files.length > 0) && !queued;
+  const hasSamples = files.some(isSamplesFile);
+  const canSend =
+    (text.trim().length > 0 || files.length > 0) && !queued && !uploading && !held;
 
   const addFiles = useCallback(
     (incoming: readonly File[]) => {
+      setInfo(null);
       const next = [...files];
-      let total = next.reduce((sum, file) => sum + file.size, 0);
+      const chatFiles = () => next.filter((file) => !isSamplesFile(file));
+      const sampleFiles = () => next.filter(isSamplesFile);
+      let total = chatFiles().reduce((sum, file) => sum + file.size, 0);
+      let samplesTotal = sampleFiles().reduce((sum, file) => sum + file.size, 0);
       for (const file of incoming) {
-        if (next.length >= AGENT_ATTACHMENT_MAX_FILES) {
+        // A Telegram export or a document goes to the avatar's samples, under
+        // the avatar door's own ceilings (`kcxz.18`).
+        if (isSamplesFile(file)) {
+          if (!samplesAllowed || !uploadSamples) {
+            setNotice(w.samplesNotAllowed(file.name));
+            continue;
+          }
+          if (sampleFiles().length >= SAMPLES_LIMITS.maxFiles) {
+            setNotice(w.tooMany(SAMPLES_LIMITS.maxFiles));
+            continue;
+          }
+          if (file.size > SAMPLES_LIMITS.maxFileBytes) {
+            setNotice(w.tooBig(file.name, SAMPLES_LIMITS.maxFileBytes / 1024));
+            continue;
+          }
+          if (samplesTotal + file.size > SAMPLES_LIMITS.maxBatchBytes) {
+            setNotice(w.tooBigTogether(SAMPLES_LIMITS.maxBatchBytes / 1024 / 1024));
+            continue;
+          }
+          samplesTotal += file.size;
+          next.push(file);
+          continue;
+        }
+        if (chatFiles().length >= AGENT_ATTACHMENT_MAX_FILES) {
           setNotice(w.tooMany(AGENT_ATTACHMENT_MAX_FILES));
           break;
         }
@@ -109,13 +213,54 @@ export function AgentComposer({
       }
       setFiles(next);
     },
-    [files, w]
+    [files, samplesAllowed, uploadSamples, w]
   );
 
-  const submit = useCallback(async () => {
-    if (!canSend) return;
+  const send = useCallback(async () => {
+    // A key pasted by mistake never leaves the page (`kcxz.20`, spec §1.5):
+    // it is taken out of the field, nothing is sent, and the line says where
+    // a key goes. The door redacts one again for any other client.
+    if (containsSecretShape(text)) {
+      setText(withoutSecretShapes(text));
+      setInfo(null);
+      setNotice(w.keyPasted);
+      return;
+    }
+    const samplesFiles = files.filter(isSamplesFile);
+    let samples: AgentSamplesUpload | undefined;
+    if (samplesFiles.length && uploadSamples) {
+      // Sent first, from here: a refusal keeps the files and the words, and
+      // nothing goes to the chat (no message is spent on a failed upload).
+      setUploading(true);
+      setNotice(null);
+      setInfo(null);
+      const target = samplesTarget?.value ?? null;
+      try {
+        const sent = await uploadSamples(samplesFiles, target);
+        samples = sent.receipt;
+        if (sent.fellBack) {
+          setInfo(
+            w.samplesFellBack(
+              samplesTarget?.options.find((one) => one.id === target)?.label ?? null
+            )
+          );
+          samplesTarget?.onChange(null);
+        }
+      } catch (error) {
+        const failure = error as { code?: unknown; message?: unknown };
+        setNotice(
+          describeFailure?.({
+            code: typeof failure?.code === 'string' ? failure.code : null,
+            message: typeof failure?.message === 'string' ? failure.message : null,
+          }) ?? w.samplesFailed
+        );
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
     const parts = await Promise.all(
-      files.map(async (file) => {
+      files.filter((file) => !isSamplesFile(file)).map(async (file) => {
         // Checked when it was added; the list only ever holds taken files.
         const mediaType = attachmentMediaType(file) ?? 'text/plain';
         return {
@@ -126,11 +271,28 @@ export function AgentComposer({
         };
       })
     );
-    onSubmit({ text: text.trim(), files: parts });
+    onSubmit({ text: text.trim(), files: parts, ...(samples ? { samples } : {}) });
     setText('');
     setFiles([]);
     setNotice(null);
-  }, [canSend, files, onSubmit, text]);
+  }, [describeFailure, files, onSubmit, samplesTarget, text, uploadSamples, w]);
+
+  const submit = useCallback(async () => {
+    if (!canSend) return;
+    // Samples sent while the agent answers would change the corpus an
+    // analysis in this turn may be reading: they wait for the turn (F6).
+    if (busy && hasSamples && uploadSamples) {
+      setHeld(true);
+      return;
+    }
+    await send();
+  }, [busy, canSend, hasSamples, send, uploadSamples]);
+
+  useEffect(() => {
+    if (!held || busy) return;
+    setHeld(false);
+    void send();
+  }, [busy, held, send]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -170,6 +332,11 @@ export function AgentComposer({
               >
                 <AgentGlyph name="clip" size={12} />
                 <span className="min-w-0 truncate">{file.name}</span>
+                {isSamplesFile(file) ? (
+                  <span className="shrink-0 cf-label-sm text-cf-ink-muted">
+                    {w.samplesChip}
+                  </span>
+                ) : null}
                 <Button
                   iconOnly
                   type="button"
@@ -197,6 +364,35 @@ export function AgentComposer({
             ))}
           </ul>
         ) : null}
+        {hasSamples && uploadSamples && samplesTarget?.known ? (
+          samplesTarget.options.length || samplesTarget.defaultName !== null ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
+              <label htmlFor={targetId} className="shrink-0 cf-body-sm text-cf-ink-muted">
+                {w.samplesTarget}
+              </label>
+              <Select
+                standalone
+                disableForm
+                density="dense"
+                id={targetId}
+                value={samplesTarget.value ?? ''}
+                disabled={uploading || held}
+                fieldClassName="min-w-0 flex-1 sm:flex-none"
+                className="w-full min-w-0 sm:w-auto [&>option]:text-cf-ink"
+                onChange={(event) => samplesTarget.onChange(event.target.value || null)}
+              >
+                <option value="">{w.samplesTargetDefault(samplesTarget.defaultName)}</option>
+                {samplesTarget.options.map((one) => (
+                  <option key={one.id} value={one.id}>
+                    {one.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : (
+            <p className="cf-caption text-cf-ink-muted">{w.samplesTargetFirst}</p>
+          )
+        ) : null}
         <label className="sr-only" htmlFor={`${hintId}-field`}>
           {w.label}
         </label>
@@ -220,7 +416,11 @@ export function AgentComposer({
             label={w.attach}
             variant="quiet"
             multiple
-            accept={ATTACHMENT_ACCEPT}
+            accept={
+              samplesAllowed && uploadSamples
+                ? `${ATTACHMENT_ACCEPT},${SAMPLES_ACCEPT}`
+                : ATTACHMENT_ACCEPT
+            }
             onFiles={addFiles}
           />
           <span className="hidden min-w-0 flex-1 truncate cf-caption text-cf-ink-muted sm:inline">
@@ -246,6 +446,20 @@ export function AgentComposer({
         <p id={hintId} className="sr-only">
           {w.keyboard}
         </p>
+        {uploading ? (
+          <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
+            {w.samplesSending}
+          </p>
+        ) : held ? (
+          <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
+            {w.samplesHeld}
+          </p>
+        ) : null}
+        {info && !notice ? (
+          <p role="status" className="cf-caption text-cf-ink-muted">
+            {info}
+          </p>
+        ) : null}
         {notice ? (
           <p id={noticeId} role="status" className="cf-caption text-cf-danger">
             {notice}

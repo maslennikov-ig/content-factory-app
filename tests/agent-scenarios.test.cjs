@@ -23,14 +23,18 @@ const scenarios = loadScenarios();
 let report;
 
 beforeAll(() => {
+  // The runner plays every scenario in one child process: ~80 s alone, over
+  // 240 s when the machine is busy (the release receipt of 28.09 timed out
+  // while another project was building). Generous, because a timeout here is
+  // the host's load, not a defect.
   report = JSON.parse(
     execFileSync(
       process.execPath,
       [path.join(__dirname, 'helpers', 'agent-scenarios.runner.cjs')],
-      { encoding: 'utf8', timeout: 90_000, maxBuffer: 32 * 1024 * 1024 }
+      { encoding: 'utf8', timeout: 900_000, maxBuffer: 64 * 1024 * 1024 }
     )
   );
-}, 120_000);
+}, 960_000);
 
 describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s', (id, scenario) => {
   const run = () => {
@@ -83,6 +87,37 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
       run().turns.flatMap((turn) => turn.toolCalls.map((call) => call.toolName))
     );
     for (const capability of scenario.covers) expect(called).toContain(toolNameOf(capability));
+  });
+
+  /**
+   * The secrets guard (kcxz.20, spec §1.5, §4.10, A4): no key shape of
+   * `secret-shapes.ts` in anything the model read, anything Mastra stored
+   * (messages, working memory, run snapshots, traces, log records), the
+   * stream the browser got, the thread a reload reads, what the services
+   * were asked, or what the process logged — in every recorded scenario,
+   * including the one that pastes keys into the chat (`ai-key-pasted`).
+   */
+  test('no key shape in the model’s input, storage, the stream, the history, service requests or the log', () => {
+    const played = run();
+    const { sent, ...after } = played.secrets;
+    expect(after).toEqual({ model: [], stored: [], stream: [], history: [], requests: [], logs: [] });
+    // A conversation was stored (a request refused at the door stores none).
+    if (played.storedPartTypes.length) expect(played.storedMessages).toBe(true);
+    if (sent.length) expect(played.storedKeyMarker).toBe(true);
+  });
+
+  /**
+   * The same guard, independent of the detector (review W3-20 F5): the exact
+   * keys the scenario sent (`pastedKeys`) left the client and are found
+   * nowhere after the door — not in the model's input, the storage, the
+   * stream, the history, the service requests, the log, or the workspace's
+   * rows. A key the shapes miss would slip past the guard above; not this one.
+   */
+  test('no key the scenario sent, literally, anywhere after the door', () => {
+    const played = run();
+    const { sent, ...after } = played.literal;
+    expect(sent).toEqual((scenario.pastedKeys ?? []).map((_key, index) => index));
+    expect(after).toEqual({ model: [], stored: [], stream: [], history: [], requests: [], logs: [], world: [] });
   });
 
   test(scenario.title, () => scenario.check(run()));

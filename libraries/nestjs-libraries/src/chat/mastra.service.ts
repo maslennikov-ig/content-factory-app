@@ -20,6 +20,7 @@ import {
   describeApprovalCall,
 } from '@contentfactory/nestjs-libraries/chat/capabilities/approval-summary';
 import type { CapabilityIdentity } from '@contentfactory/nestjs-libraries/chat/capabilities/capability.types';
+import { avatarInWorkspace } from '@contentfactory/nestjs-libraries/chat/capabilities/catalogue/avatar.capabilities';
 import { createConductorMemory } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
 
 /**
@@ -110,6 +111,11 @@ export class MastraService {
     args: unknown
   ): Promise<string | null> {
     return approvalContentDigest(CAPABILITY_CATALOGUE, this.service, identity, toolName, args);
+  }
+
+  /** Whether a samples receipt's avatar is the caller's (review W3-18 F3). */
+  samplesAvatarKnown(identity: CapabilityIdentity, avatarId: string): Promise<boolean> {
+    return avatarInWorkspace(this.service, identity, avatarId);
   }
 
   /** The label of a registry tool in the caller's language (kcxz.29, D5). */

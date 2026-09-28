@@ -40,6 +40,11 @@ import {
  */
 
 export type AiProvider = 'openai' | 'openrouter';
+
+export const AI_PROVIDERS: readonly AiProvider[] = ['openai', 'openrouter'];
+
+export const isAiProvider = (value: unknown): value is AiProvider =>
+  AI_PROVIDERS.includes(value as AiProvider);
 export type AiUsageMode = 'included' | 'workspace_key';
 export type SearchTopic = 'general' | 'news';
 export type SearchDepth = 'basic' | 'advanced';
@@ -107,6 +112,16 @@ export interface AiConfig {
    * screen asks of a dormant key is whether there is one.
    */
   workspaceSearchKeys: Partial<Record<SearchProvider, boolean>>;
+  /**
+   * The provider the workspace's own key is saved for, in either mode; `null`
+   * when the workspace has saved no settings.
+   *
+   * On «Ключи системы» `provider` is the operator's, and a caller that sent it
+   * back as the workspace's re-filed the workspace's key under another
+   * provider: its `sk-proj-…` then went to OpenRouter (review W3-20 F1). This
+   * is the anchor a key belongs to, not the provider in effect.
+   */
+  workspaceProvider?: AiProvider | null;
   includedAvailable: boolean;
   search: WebSearchConfig;
   /**
@@ -532,6 +547,7 @@ export const loadAiConfig = async (
     workspaceKeyConfigured: false,
     workspaceSearchKeyConfigured: false,
     workspaceSearchKeys: {},
+    workspaceProvider: null,
     includedAvailable: !!includedKey,
   };
 
@@ -570,6 +586,7 @@ export const loadAiConfig = async (
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: searchKeyPresence,
+          workspaceProvider: isAiProvider(stored.provider) ? stored.provider : null,
           includedAvailable: !!includedKey,
           /**
            * The tenant's routing is deliberately not read here, for the same
@@ -602,6 +619,7 @@ export const loadAiConfig = async (
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: searchKeyPresence,
+          workspaceProvider: provider,
           includedAvailable: !!includedKey,
           search,
         };

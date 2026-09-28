@@ -18,6 +18,22 @@ import {
   VOICE_SAMPLE_PASTE_LIMITS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
+/**
+ * The lines of a voice, in the order the form shows them (W3 live walk
+ * 28.09.2026, P3-H): six since TOPICS joined the hand-filled form. The path
+ * card counts this list; the prose that says «шесть строк» («С чего начать»,
+ * the help, the chat's skill) is held to its length by
+ * `tests/agent-w3-walk-fixes.test.cjs`.
+ */
+export const VOICE_LINE_KEYS = [
+  'WHO_SPEAKS',
+  'TONE',
+  'AUDIENCE',
+  'SENTENCE_LENGTH',
+  'NEVER_SAY',
+  'TOPICS',
+] as const;
+
 export type VoiceLocale = 'ru' | 'en';
 
 /**
@@ -131,10 +147,10 @@ export const voiceCopy = {
       'Вы сами описываете свою манеру: как говорите, какой длины фразы, чего избегаете. Ничего не читаем и не разбираем.',
     manualTime: '10–15 мин',
     manualNeeds: 'нет',
-    // Five, because five is what the form asks for. The card promised eight
-    // while the wizard had no manual step at all; a number nobody could check
-    // stayed wrong for as long as the path led nowhere.
-    manualFields: '5',
+    // What the form asks for, counted off the form's own list. The card
+    // promised eight while the wizard had no manual step at all, then five
+    // while the form asked six (W3 walk P3-H).
+    manualFields: String(VOICE_LINE_KEYS.length),
     ownTitle: 'Собрать из моих текстов',
     ownBody:
       'Читаем то, что вы уже написали, и показываем вашу собственную манеру числами. Вы соглашаетесь или правите.',
@@ -585,6 +601,7 @@ export const voiceCopy = {
     passportTone: 'Каким тоном',
     passportAudience: 'К кому обращаемся',
     passportNeverSay: 'Что никогда не говорим',
+    passportTopics: 'О чём говорим',
     passportSentenceLength: 'Средняя длина фразы',
     passportSentenceStyle: 'Длина фраз',
     passportDash: 'Тире вместо связки',
@@ -639,6 +656,8 @@ export const voiceCopy = {
       'Какой длины фразы вы пишете, своими словами. Число рядом посчитано по вашим текстам; эта строка — то, что вы хотите от ИИ.',
     passportHintNeverSay:
       'Обороты, которых в тексте быть не должно. Перечисляйте через точку с запятой: «мы рады сообщить; уникальное предложение».',
+    passportHintTopics:
+      'Темы, о которых пишет аватар. Перечисляйте через точку с запятой: «практика команды; ошибки внедрения».',
     passportHintExamples:
       'Несколько ваших настоящих текстов уходят в промпт как образец манеры. Это самая сильная часть аватара: показать оказывается точнее, чем описать.',
     // «Решите за меня» из знаний ИИ (`97dq.99`): переключатель аватара.
@@ -953,7 +972,7 @@ export const voiceCopy = {
       'You describe your own manner: how you speak, how long your sentences run, what you avoid. Nothing is read and nothing is analysed.',
     manualTime: '10–15 min',
     manualNeeds: 'no',
-    manualFields: '5',
+    manualFields: String(VOICE_LINE_KEYS.length),
     ownTitle: 'Build it from my own texts',
     ownBody:
       'We read what you have already written and show your own manner as numbers. You accept it or edit it.',
@@ -1325,6 +1344,7 @@ export const voiceCopy = {
     passportTone: 'In what tone',
     passportAudience: 'Who is addressed',
     passportNeverSay: 'What is never said',
+    passportTopics: 'What they write about',
     passportSentenceLength: 'Average phrase length',
     passportSentenceStyle: 'Phrase length',
     passportDash: 'Dash instead of a copula',
@@ -1371,6 +1391,8 @@ export const voiceCopy = {
       'How long your sentences run, in your own words. The number beside it is measured from your texts; this line is what you want from the AI.',
     passportHintNeverSay:
       'Turns of phrase that must not appear. List them separated by semicolons: "we are pleased to announce; unique offer".',
+    passportHintTopics:
+      'The topics this avatar writes about. Separate them with semicolons: “team practice; adoption mistakes”.',
     passportHintExamples:
       'A few of your real texts go into the prompt as a sample of manner. This is the strongest part of an avatar: showing turns out to be more precise than describing.',
     passportInventExamples: 'Let the AI invent examples in my voice',

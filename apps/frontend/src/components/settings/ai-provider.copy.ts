@@ -96,6 +96,11 @@ type Words = {
   rolesSummaryAll: string;
   rolesSummarySome: (routed: number, total: number) => string;
   /** Одна строка в «?» у каждого главного поля (`97dq.62`). */
+  /**
+   * Под полем ключа, когда провайдер сменён, а сохранённый ключ — от прежнего
+   * (review W3-20 F1): ключ не уходит к чужому провайдеру, смена ждёт ключа.
+   */
+  keyForProvider: (stored: string, next: string) => string;
   fields: {
     provider: string;
     key: string;
@@ -188,6 +193,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     rolesSummaryAll: 'Отдельный ИИ на задачу · у всех тот же, что для текста',
     rolesSummarySome: (routed, total) =>
       `Отдельный ИИ на задачу · свой у ${routed} из ${total}`,
+    keyForProvider: (stored, next) =>
+      `Сохранённый ключ — от ${stored}, к ${next} он не уйдёт. Вставьте ключ ${next} и нажмите «Сохранить» — тогда пространство перейдёт на ${next}.`,
     fields: {
       provider: 'Чей ИИ пишет тексты и рисует картинки: OpenAI или OpenRouter.',
       key: 'Ключ вашего аккаунта у провайдера. Хранится только для этого пространства и больше не показывается.',
@@ -300,6 +307,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     rolesSummaryAll: 'A separate AI per task · all use the text one',
     rolesSummarySome: (routed, total) =>
       `A separate AI per task · ${routed} of ${total} set`,
+    keyForProvider: (stored, next) =>
+      `The saved key is a ${stored} key and does not go to ${next}. Paste a ${next} key and press Save — then the workspace moves to ${next}.`,
     fields: {
       provider: 'Whose AI writes the texts and draws the images: OpenAI or OpenRouter.',
       key: 'Your account key at the provider. Kept for this workspace only and never shown again.',

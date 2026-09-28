@@ -18,6 +18,7 @@ import {
   stepDetail,
   stepHref,
   stepIsDone,
+  stepOffered,
   tourHref,
   type OnboardingProgress,
   type OnboardingStepKey,
@@ -25,6 +26,8 @@ import {
 import { useOnboardingProgress } from './use-onboarding-progress';
 import { onboardingCopy, resolveOnboardingLocale } from './onboarding.copy';
 import { OnboardingTelegramGuide } from './onboarding.telegram';
+import { useUser } from '../layout/user.context';
+import { agentStartHref } from '../agents/agent.starters';
 
 /**
  * «С чего начать» — variant B «Один шаг на экране» of the 25.09.2026 canvas,
@@ -125,6 +128,7 @@ export function OnboardingWalkthrough({
   const t = onboardingCopy[resolveOnboardingLocale(language)];
 
   const { progress, answered, loading, error } = useOnboardingProgress();
+  const role = useUser()?.role ?? null;
 
   /*
     The step on the screen. `null` until the workspace answers, then pinned to
@@ -396,6 +400,22 @@ export function OnboardingWalkthrough({
                   The tour (stream S3) reads `?tour=<key>` on the target
                   screen; this page only makes the address.
                 */}
+                  {/*
+                    «Сделать в чате» (spec §6.1, `kcxz.21`): a new agent
+                    conversation with this step's starter in the composer —
+                    only while the step is offered to this role, by the same
+                    rule as the chat's own starters (`kcxz.31`, D14; review
+                    W3-21 P3-3: not before a channel exists).
+                  */}
+                  {stepOffered(step, progress, role) && (
+                    <Link
+                      href={agentStartHref(step)}
+                      data-onboarding-chat={step}
+                      className={buttonClassName({ variant: 'secondary' })}
+                    >
+                      {t.doInChat}
+                    </Link>
+                  )}
                   <Link
                     href={tourHref(step, progress)}
                     data-onboarding-tour={step}

@@ -24,7 +24,10 @@ import {
   AuthorizationActions,
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
-import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationEditor,
+  type OrganizationRole,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/backend-strings';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
@@ -45,6 +48,8 @@ import {
   notPending,
   openProposalTargets,
   parseAgentChatBody,
+  samplesReceiptRefused,
+  DECLINED_ON_CARD,
   verifyPendingAnswer,
 } from '@contentfactory/nestjs-libraries/chat/conductor/agent-chat.request';
 import {
@@ -61,6 +66,11 @@ import {
   logConductorError,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.errors';
 import { normaliseThreadTitle } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
+import {
+  STEP_CAP_CLOSING,
+  closingLineWatch,
+  lastStepSpeaks,
+} from '@contentfactory/nestjs-libraries/chat/conductor/conductor.steps';
 import { AgentChatThrottleGuard } from './agent-chat.throttle';
 
 /**
@@ -141,6 +151,16 @@ const sanitisedPart = (part: any) => {
   return part;
 };
 
+/** The step-cap closing line as UI message stream parts. */
+const closingLine = (language: 'ru' | 'en') => {
+  const id = `cf-closing-${randomUUID()}`;
+  return [
+    { type: 'text-start', id },
+    { type: 'text-delta', id, delta: STEP_CAP_CLOSING[language] },
+    { type: 'text-end', id },
+  ];
+};
+
 const failedPart = (part: any) =>
   part?.type === 'error' ||
   (part?.type === 'finish' && part?.finishReason === 'error');
@@ -199,6 +219,8 @@ export class AgentController {
         | { runId: string; toolCallId: string; resumeData: Record<string, unknown> }
         | undefined;
       let newThreadTitleFrom: string | undefined;
+      /** System lines of this request only, never stored (review F9). */
+      let stepNotes: string[] = [];
       /** Texts whose card of proposed changes waits in the thread (kcxz.32, N2). */
       let openProposals: string[] = [];
       /** The calls this request answers, marked answered once it streams. */
@@ -207,6 +229,17 @@ export class AgentController {
         calls: Array<{ toolCallId: string; card?: string }>;
       } | null = null;
       if (input.mode === 'message') {
+        // A samples receipt is the report of an upload only an editor can
+        // make, to an avatar of this workspace (review W3-18 F3).
+        if (input.samplesAvatarId !== undefined) {
+          if (!isOrganizationEditor(identity.role)) throw samplesReceiptRefused();
+          if (
+            input.samplesAvatarId &&
+            !(await this.mastraService.samplesAvatarKnown(identity, input.samplesAvatarId))
+          ) {
+            throw samplesReceiptRefused();
+          }
+        }
         threadId = input.threadId ?? randomUUID();
         // Somebody else's thread is refused here; a new one is created only
         // once the turn is admitted, so a refused turn leaves no empty thread.
@@ -239,6 +272,7 @@ export class AgentController {
           ...(await this.contentBoundApprovals(identity, verified)),
         ];
         messages = verified.approvalMessage ? [verified.approvalMessage] : [];
+        if (verified.declined) stepNotes = [DECLINED_ON_CARD];
         answered = {
           runId: verified.runId,
           calls:
@@ -319,6 +353,10 @@ export class AgentController {
                 requestContext: requestContext as any,
                 memory: { thread: threadId, resource: resourceId },
                 maxSteps,
+                // The last step of this request's cap speaks (W3 walk P2-B),
+                // counted from this request's first step; what a «Нет» means
+                // is read on every step of it and never stored (review F9).
+                prepareStep: lastStepSpeaks(maxSteps, stepNotes, { resumed: input.mode !== 'message' }),
                 abortSignal: abort.signal,
               } as any,
             })) as unknown as ReadableStream<any>;
@@ -346,10 +384,19 @@ export class AgentController {
           }
 
           reader = stream.getReader();
+          // Ended with no words and no card after its last tool (W3 walk
+          // P2-B; review F1, F10 — each approval leg judged on its own): the
+          // door's own closing line, before the part that ends it.
+          const silence = closingLineWatch(answered?.calls.map((call) => call.toolCallId));
           while (!abort.signal.aborted) {
             const { done, value } = await reader.read();
             if (done) break;
             if (failedPart(value)) failed = true;
+            if (silence.before(value)) {
+              for (const part of closingLine(identity.language)) {
+                res.write(`data: ${JSON.stringify(part)}\n\n`);
+              }
+            }
             if (value?.type === 'tool-input-available' && value.toolCallId) {
               calls.set(value.toolCallId, {
                 toolName: value.toolName,

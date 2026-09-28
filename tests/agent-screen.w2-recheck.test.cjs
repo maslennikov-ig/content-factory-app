@@ -14,6 +14,9 @@
  */
 
 const React = require('react');
+const STEPS = require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/database/prisma/onboarding/onboarding.steps.ts'
+);
 const { JSDOM } = require('jsdom');
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -144,6 +147,10 @@ const loadConversation = (chat, request) =>
     '@contentfactory/frontend/components/onboarding/onboarding.adapter': {
       ONBOARDING_STEP_KEYS: ['avatar', 'channel', 'piece', 'adaptation', 'plan'],
       stepIsDone: () => false,
+      // Every step open, and a channel assumed: only the role decides here.
+      stepAllowed: STEPS.stepAllowed,
+      stepOffered: (step, _progress, role) => STEPS.stepAllowed(step, role),
+      channelWaitsForAdmin: () => false,
     },
     '@contentfactory/frontend/components/layout/user.context': {
       useUser: () => ({ role: 'EDITOR' }),
@@ -531,6 +538,34 @@ describe('N2 — a proposal applied after its text changed', () => {
     await drawConversation({ messages: [person, message], pending: [] });
     expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
     expect(document.body.textContent).toContain(ru.error.codes.PROPOSAL_CARD_OPEN.what);
+  });
+});
+
+describe('W3 recheck R-5 — the paid limit is a stop, not a failure', () => {
+  test('`PAID_CAP_REACHED` is a neutral line under its step, not the red «Не получилось» card', async () => {
+    const message = {
+      id: 'm1',
+      role: 'assistant',
+      parts: [
+        {
+          type: 'tool-piece_adapt',
+          toolCallId: 'call-2',
+          state: 'output-available',
+          title: 'Адаптировать под канал',
+          input: {},
+          output: { ok: false, code: 'PAID_CAP_REACHED', reason: 'x' },
+        },
+        { type: 'text', text: 'Заготовка готова; адаптация осталась. Напишите «дальше» — продолжим.' },
+      ],
+    };
+    await drawConversation({ messages: [person, message], pending: [] });
+    expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
+    expect(document.body.textContent).not.toContain(ru.error.kind);
+    expect(document.body.textContent).toContain(ru.error.paidCapNote('Адаптировать под канал'));
+    expect(ru.error.paidCapNote('Адаптировать под канал')).toBe(
+      'Адаптировать под канал — следующим сообщением: за одно сообщение один платный шаг.'
+    );
+    expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.next).toBe('Write “next” — we\'ll continue.');
   });
 });
 

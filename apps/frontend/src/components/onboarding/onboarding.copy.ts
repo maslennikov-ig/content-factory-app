@@ -72,6 +72,8 @@ type Words = {
    */
   waitNote: (forward: string, later: string) => string;
   showOnScreen: string;
+  /** Opens the agent chat with the step's starter (`kcxz.21`). */
+  doInChat: string;
   openChannels: string;
   openLatestPiece: string;
   back: string;
@@ -136,6 +138,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     waitNote: (forward, later) =>
       `Кнопка «${forward}» станет доступна, когда шаг будет сделан. «${later}» — перейти, ничего не отмечая.`,
     showOnScreen: 'Показать на экране',
+    doInChat: 'Сделать в чате',
     openChannels: 'Открыть каналы',
     openLatestPiece: 'Открыть последнюю заготовку',
     back: 'Назад',
@@ -212,7 +215,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Аватар',
         title: 'Скажите, чьей манерой писать',
         why: 'Без аватара черновики выходят ровным текстом без лица.',
-        todo: `Быстрее всего — «Заполнить вручную»: пять строк о том, как вы пишете, 10–15 минут, тексты не нужны. «Собрать из моих текстов» точнее, но просит от ${MIN_CORPUS_SAMPLES} текстов и от ${corpusChars(
+        todo: `Быстрее всего — «Заполнить вручную»: шесть строк о том, как вы пишете, 10–15 минут, тексты не нужны. «Собрать из моих текстов» точнее, но просит от ${MIN_CORPUS_SAMPLES} текстов и от ${corpusChars(
           'ru'
         )} знаков.`,
         action: 'Открыть «Аватар»',
@@ -288,6 +291,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     waitNote: (forward, later) =>
       `"${forward}" opens once the step is done. "${later}" moves on without ticking anything.`,
     showOnScreen: 'Show me on the screen',
+    doInChat: 'Do it in the chat',
     openChannels: 'Open channels',
     openLatestPiece: 'Open the latest piece',
     back: 'Back',
@@ -345,7 +349,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Avatar',
         title: 'Say whose voice to write in',
         why: 'Without an avatar drafts come out even and faceless.',
-        todo: `Fastest is "Fill it in by hand": five lines about how you write, 10–15 minutes, no texts needed. "Build it from my own texts" is more precise but needs at least ${MIN_CORPUS_SAMPLES} texts and ${corpusChars(
+        todo: `Fastest is "Fill it in by hand": six lines about how you write, 10–15 minutes, no texts needed. "Build it from my own texts" is more precise but needs at least ${MIN_CORPUS_SAMPLES} texts and ${corpusChars(
           'en'
         )} characters.`,
         action: 'Open "Avatar"',

@@ -14,7 +14,7 @@ module.exports = {
       say: 'Что у нас есть?',
       model: [
         [['tool', 'workspace_snapshot', {}]],
-        [['text', 'У нас одна заготовка, один канал и аватар.']],
+        [['text', 'У нас одна заготовка и один канал; аватар ещё не включён.']],
       ],
     },
   ],
@@ -26,7 +26,11 @@ module.exports = {
       .find((candidate) => candidate.startsWith('{"untrustedData"'));
     const opening = JSON.parse(line).untrustedData.value;
     expect(opening).toMatchObject({
-      counts: { channels: 1, avatars: 1, pieces: 1 },
+      // The counts of «С чего начать» (`OnboardingRepository.progress` over
+      // the world's rows, kcxz.21): the draft avatar is not switched on, so it
+      // is listed but not counted, and the avatar step is the one left first.
+      counts: { channels: 1, avatars: 0, pieces: 1, planModes: 1 },
+      onboarding: { done: ['channel', 'piece', 'plan'], next: 'avatar' },
       pieces: [{ id: 'p1', code: 'cnt-1', title: 'Про созвоны' }],
       channels: [{ id: 'c1', planMode: 'reserve' }],
       defaultAvatarId: 'a1',
@@ -43,6 +47,6 @@ module.exports = {
     expect(turn.data).toEqual([]);
     expect(run.writes).toEqual([]);
     expect(run.admissions).toEqual([['agent', 'agent', 'user-1', 'succeeded']]);
-    expect(turn.text).toBe('У нас одна заготовка, один канал и аватар.');
+    expect(turn.text).toBe('У нас одна заготовка и один канал; аватар ещё не включён.');
   },
 };

@@ -15,6 +15,9 @@
  */
 
 const fs = require('node:fs');
+const STEPS = require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/database/prisma/onboarding/onboarding.steps.ts'
+);
 const path = require('node:path');
 const React = require('react');
 const { JSDOM } = require('jsdom');
@@ -125,6 +128,10 @@ const loadConversation = ({ chat, request, mutate, role = 'EDITOR' }) =>
     '@contentfactory/frontend/components/onboarding/onboarding.adapter': {
       ONBOARDING_STEP_KEYS: ['avatar', 'channel', 'piece', 'adaptation', 'plan'],
       stepIsDone: () => false,
+      // Every step open, and a channel assumed: only the role decides here.
+      stepAllowed: STEPS.stepAllowed,
+      stepOffered: (step, _progress, role) => STEPS.stepAllowed(step, role),
+      channelWaitsForAdmin: () => false,
     },
     '@contentfactory/frontend/components/layout/user.context': {
       useUser: () => ({ role }),
@@ -362,22 +369,37 @@ describe('D14 — only the starters the role can run', () => {
   const starters = () =>
     [...document.querySelectorAll('button')].map((button) => button.textContent);
 
-  test('a USER is offered the plan, not the write starters', async () => {
+  // Nothing done (`stepIsDone` is false here): the open steps the role can
+  // run, in menu order (kcxz.21); a USER, who can run none, gets the
+  // everyday read.
+  test('a USER is offered the plan read, not the write starters', async () => {
     await drawConversation({ messages: [], pending: [], role: 'USER', request: async () => ({ ok: false }) });
-    expect(starters()).toEqual([ru.start.starters.plan]);
+    expect(starters()).toEqual([ru.start.starters.week]);
   });
 
   test('an EDITOR writes but does not connect a channel; an ADMIN does both', async () => {
     await drawConversation({ messages: [], pending: [], role: 'EDITOR', request: async () => ({ ok: false }) });
-    expect(starters()).toEqual([ru.start.starters.avatar, ru.start.starters.piece, ru.start.starters.plan]);
+    expect(starters()).toEqual([
+      ru.start.starters.avatar,
+      ru.start.starters.piece,
+      ru.start.starters.adaptation,
+      ru.start.starters.plan,
+    ]);
     cleanup();
     await drawConversation({ messages: [], pending: [], role: 'ADMIN', request: async () => ({ ok: false }) });
-    expect(starters()).toHaveLength(4);
+    expect(starters()).toEqual([
+      ru.start.starters.avatar,
+      ru.start.starters.channel,
+      ru.start.starters.piece,
+      ru.start.starters.adaptation,
+      ru.start.starters.plan,
+    ]);
   });
 
   test('the work panel’s steps follow the same rule', () => {
     const panel = source('apps/frontend/src/components/agents/agent.panel.tsx');
-    expect(panel).toContain('isDone || !starterAllowed(step, role) ? null');
+    // Review W3-21 P3-3: the same `stepOffered` as the chat's starters.
+    expect(panel).toContain('!stepOffered(step, progress, role) ? null');
   });
 });
 

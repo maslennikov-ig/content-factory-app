@@ -51,6 +51,33 @@ export const POST_HABIT_METRIC_KEYS = [
 
 export type PostHabitMetricKey = (typeof POST_HABIT_METRIC_KEYS)[number];
 
+/**
+ * What each habit is called in words — the prompt's metric lines and the
+ * proposal a person reads (`metric-words.ts`, W3 live walk P3-I) say the same.
+ */
+export const POST_HABIT_WORDS: Record<'ru' | 'en', Record<PostHabitMetricKey, string>> = {
+  ru: {
+    opensWithAdmission: 'начинает с признания своей ошибки',
+    opensWithNumber: 'начинает с числа',
+    opensWithQuestion: 'начинает с вопроса',
+    endsWithCallToAction: 'заканчивает призывом',
+    carriesLink: 'даёт ссылку',
+    carriesOwnMeasurement: 'приносит собственные измерения',
+    postLength: 'обычная длина поста',
+    emojiRate: 'эмодзи',
+  },
+  en: {
+    opensWithAdmission: 'opens by admitting a mistake',
+    opensWithNumber: 'opens with a number',
+    opensWithQuestion: 'opens with a question',
+    endsWithCallToAction: 'ends with a call to action',
+    carriesLink: 'carries a link',
+    carriesOwnMeasurement: 'brings its own measurements',
+    postLength: 'usual post length',
+    emojiRate: 'emoji',
+  },
+};
+
 /** Under this a share is one post's accident rather than a habit. */
 export const MIN_POSTS = 5;
 
@@ -416,25 +443,25 @@ export function renderPostHabits(
   const lines = russian
     ? [
         `постов разобрано: ${habits.sampleCount}`,
-        `opensWithAdmission · начинает с признания своей ошибки: ${of('opensWithAdmission')}`,
-        `opensWithNumber · начинает с числа: ${of('opensWithNumber')}`,
-        `opensWithQuestion · начинает с вопроса: ${of('opensWithQuestion')}`,
-        `endsWithCallToAction · заканчивает призывом: ${of('endsWithCallToAction')}`,
-        `carriesLink · даёт ссылку: ${of('carriesLink')}`,
-        `carriesOwnMeasurement · приносит собственные измерения (число рядом с единицей): ${of('carriesOwnMeasurement')}`,
-        `postLength · обычная длина поста: ${habits.length.median} знаков (${habits.length.low}–${habits.length.high}), ${SHAPE_WORDS.ru[habits.length.shape]}`,
-        `emojiRate · эмодзи: ${habits.emoji.perThousandChars} на тысячу знаков, ${ROLE_WORDS.ru[habits.emoji.role]}`,
+        `opensWithAdmission · ${POST_HABIT_WORDS.ru.opensWithAdmission}: ${of('opensWithAdmission')}`,
+        `opensWithNumber · ${POST_HABIT_WORDS.ru.opensWithNumber}: ${of('opensWithNumber')}`,
+        `opensWithQuestion · ${POST_HABIT_WORDS.ru.opensWithQuestion}: ${of('opensWithQuestion')}`,
+        `endsWithCallToAction · ${POST_HABIT_WORDS.ru.endsWithCallToAction}: ${of('endsWithCallToAction')}`,
+        `carriesLink · ${POST_HABIT_WORDS.ru.carriesLink}: ${of('carriesLink')}`,
+        `carriesOwnMeasurement · ${POST_HABIT_WORDS.ru.carriesOwnMeasurement} (число рядом с единицей): ${of('carriesOwnMeasurement')}`,
+        `postLength · ${POST_HABIT_WORDS.ru.postLength}: ${habits.length.median} знаков (${habits.length.low}–${habits.length.high}), ${SHAPE_WORDS.ru[habits.length.shape]}`,
+        `emojiRate · ${POST_HABIT_WORDS.ru.emojiRate}: ${habits.emoji.perThousandChars} на тысячу знаков, ${ROLE_WORDS.ru[habits.emoji.role]}`,
       ]
     : [
         `posts analysed: ${habits.sampleCount}`,
-        `opensWithAdmission · opens by admitting a mistake: ${of('opensWithAdmission')}`,
-        `opensWithNumber · opens with a number: ${of('opensWithNumber')}`,
-        `opensWithQuestion · opens with a question: ${of('opensWithQuestion')}`,
-        `endsWithCallToAction · ends with a call to action: ${of('endsWithCallToAction')}`,
-        `carriesLink · carries a link: ${of('carriesLink')}`,
-        `carriesOwnMeasurement · brings its own measurements (a figure beside a unit): ${of('carriesOwnMeasurement')}`,
-        `postLength · usual post length: ${habits.length.median} characters (${habits.length.low}–${habits.length.high}), ${SHAPE_WORDS.en[habits.length.shape]}`,
-        `emojiRate · emoji: ${habits.emoji.perThousandChars} per thousand characters, ${ROLE_WORDS.en[habits.emoji.role]}`,
+        `opensWithAdmission · ${POST_HABIT_WORDS.en.opensWithAdmission}: ${of('opensWithAdmission')}`,
+        `opensWithNumber · ${POST_HABIT_WORDS.en.opensWithNumber}: ${of('opensWithNumber')}`,
+        `opensWithQuestion · ${POST_HABIT_WORDS.en.opensWithQuestion}: ${of('opensWithQuestion')}`,
+        `endsWithCallToAction · ${POST_HABIT_WORDS.en.endsWithCallToAction}: ${of('endsWithCallToAction')}`,
+        `carriesLink · ${POST_HABIT_WORDS.en.carriesLink}: ${of('carriesLink')}`,
+        `carriesOwnMeasurement · ${POST_HABIT_WORDS.en.carriesOwnMeasurement} (a figure beside a unit): ${of('carriesOwnMeasurement')}`,
+        `postLength · ${POST_HABIT_WORDS.en.postLength}: ${habits.length.median} characters (${habits.length.low}–${habits.length.high}), ${SHAPE_WORDS.en[habits.length.shape]}`,
+        `emojiRate · ${POST_HABIT_WORDS.en.emojiRate}: ${habits.emoji.perThousandChars} per thousand characters, ${ROLE_WORDS.en[habits.emoji.role]}`,
       ];
   return lines.join('\n');
 }

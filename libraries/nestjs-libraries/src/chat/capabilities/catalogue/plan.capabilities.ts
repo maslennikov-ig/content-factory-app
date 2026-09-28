@@ -15,6 +15,7 @@ import {
 } from '../capability.types';
 import { codedFailure } from './selection';
 import { localDayStart, localTime } from '../person-time';
+import { namedTimeZone, namedTimeZoneInput } from './named-zone';
 
 /**
  * The plan (spec §5.2 «План», `kcxz.15`): what is ahead, the calendar for a
@@ -64,6 +65,29 @@ const day = z
  * browser's, else the saved offset, else UTC) — a primitive of the identity.
  */
 const personZone = (ctx: { timeZone?: string }) => ctx.timeZone || 'UTC';
+
+/**
+ * The zone of a call that reads or says local times (`kcxz.42`, the rule of
+ * `channel.times`): the web chat keeps the identity's; over MCP the call names
+ * an IANA zone, since the fallback there (saved offset or UTC) knows no summer
+ * time. The context comes back with that zone, so every time the run says is
+ * in it.
+ */
+const withPlanZone = <C extends Pick<CapabilityRunContext, 'entrance' | 'timeZone'>>(
+  ctx: C,
+  named: string | undefined,
+  nothingDone: string
+): C => ({
+  ...ctx,
+  timeZone: namedTimeZone(ctx, named, {
+    prefix: 'PLAN',
+    subject: 'Plan days and times',
+    nothingDone,
+  }),
+});
+const NOTHING_READ = 'Nothing was read.';
+const NOTHING_CHANGED = 'Nothing was changed.';
+const ZONE_NOTE = ' `timeZone` (IANA) only when the person named another zone; required over MCP.';
 
 const isoOf = (value: unknown): string | null => {
   if (!(typeof value === 'string' || value instanceof Date)) return null;
@@ -198,14 +222,15 @@ export const planAhead = defineCapability({
   group: 'plan',
   label: { ru: 'Что впереди', en: 'What is ahead' },
   description:
-    'Read the plan ahead, as «План» and Analytics → «Производство» count it: posts reserved («в плане») and queued («в очереди») from today, how far the plan reaches, how many days in a row hold a post, published in the last 7 days — for the workspace and per channel. Free. Days are in the person’s zone.',
-  input: z.object({ channelIds }),
+    'Read the plan ahead, as «План» and Analytics → «Производство» count it: posts reserved («в плане») and queued («в очереди») from today, how far the plan reaches, how many days in a row hold a post, published in the last 7 days — for the workspace and per channel. Free. Days are in the person’s zone.' +
+    ZONE_NOTE,
+  input: z.object({ channelIds, timeZone: namedTimeZoneInput }),
   risk: 'read',
   door: door(AnalyticsController, 'getPlanAhead'),
   // Channel names are set on the platform.
   untrusted: ['workspace-text'],
   run: async (ctx, input) => {
-    const zone = personZone(ctx);
+    const zone = personZone(withPlanZone(ctx, input.timeZone, NOTHING_READ));
     const ids = input.channelIds ?? [];
     // `planAheadUrl`: the ids sorted, omitted when none; the zone of the reader.
     const ahead = (await ctx.service(PostsService).getPlanAhead(ctx.organizationId, {
@@ -253,14 +278,15 @@ export const planCalendar = defineCapability({
   group: 'plan',
   label: { ru: 'Календарь', en: 'Calendar' },
   description:
-    'Read the calendar for a range of days (at most 62), as the «Календарь» screen shows it: every post with its time, state (DRAFT with a plan is a reserve, QUEUE goes out by itself, PUBLISHED, ERROR), its channel and the piece it came from. Free. Days are in the person’s zone; one channel with `channelId`.',
-  input: z.object({ from: day, to: day, channelId: channelId.optional() }),
+    'Read the calendar for a range of days (at most 62), as the «Календарь» screen shows it: every post with its time, state (DRAFT with a plan is a reserve, QUEUE goes out by itself, PUBLISHED, ERROR), its channel and the piece it came from. Free. Days are in the person’s zone; one channel with `channelId`.' +
+    ZONE_NOTE,
+  input: z.object({ from: day, to: day, channelId: channelId.optional(), timeZone: namedTimeZoneInput }),
   risk: 'read',
   door: door(PostsController, 'getPosts'),
   // Channel names from the platform, piece titles from pasted texts.
   untrusted: ['workspace-text'],
   run: async (ctx, input) => {
-    const zone = personZone(ctx);
+    const zone = personZone(withPlanZone(ctx, input.timeZone, NOTHING_READ));
     const start = localDayStart(input.from, zone);
     // The last second before the next day starts: a fall-back day has 25
     // hours, a spring-forward day 23 (review W2 F15).
@@ -315,13 +341,14 @@ export const planReady = defineCapability({
   group: 'plan',
   label: { ru: 'Готовые адаптации', en: 'Ready adaptations' },
   description:
-    'List adaptations that can go into the plan or move in it, as the calendar’s «Что публикуем» picker does: ids (what plan.place, plan.schedule, plan.publish_now, plan.move and plan.unschedule take), the piece code and title, the channel, and the slot — free, reserved («в плане») or queued, with its time. Free.',
-  input: z.object({ channelIds }),
+    'List adaptations that can go into the plan or move in it, as the calendar’s «Что публикуем» picker does: ids (what plan.place, plan.schedule, plan.publish_now, plan.move and plan.unschedule take), the piece code and title, the channel, and the slot — free, reserved («в плане») or queued, with its time. Free.' +
+    ZONE_NOTE,
+  input: z.object({ channelIds, timeZone: namedTimeZoneInput }),
   risk: 'read',
   door: door(ContentPieceController, 'readyAdaptations'),
   untrusted: ['workspace-text'],
   run: async (ctx, input) => {
-    const zone = personZone(ctx);
+    const zone = personZone(withPlanZone(ctx, input.timeZone, NOTHING_READ));
     const ready = (await ctx
       .service(PieceService)
       .readyAdaptations(
@@ -364,13 +391,15 @@ export const planPlace = defineCapability({
   group: 'plan',
   label: { ru: 'Поставить бронь', en: 'Reserve a time' },
   description:
-    'Put an adaptation into the plan at a time as a reserve («Бронь»), as «Поставить на ЧЧ:ММ» in the calendar does. Runs without asking: a reserve does not go out by itself and can be cancelled. On a channel «Без плана» this post’s own mode becomes «Бронь» first (`postMode: reserve` in the result; the channel keeps its mode). Refused on an autopilot channel (a reserve there would join the queue) and for a post already scheduled — offer plan.schedule or plan.move, which the person approves. Returns the state and the time in the person’s zone: report exactly that `state` (`reserve` — «бронь», `draft` — a draft with a time, not a reserve).',
-  input: z.object({ pieceId, adaptationId, at }),
+    'Put an adaptation into the plan at a time as a reserve («Бронь»), as «Поставить на ЧЧ:ММ» in the calendar does. Runs without asking: a reserve does not go out by itself and can be cancelled. On a channel «Без плана» this post’s own mode becomes «Бронь» first (`postMode: reserve` in the result; the channel keeps its mode). Refused on an autopilot channel (a reserve there would join the queue) and for a post already scheduled — offer plan.schedule or plan.move, which the person approves. Returns the state and the time in the person’s zone: report exactly that `state` (`reserve` — «бронь», `draft` — a draft with a time, not a reserve). `at` is the time the person named — never one you picked; an adaptation piece.adapt already answered with `plan: reserved` is in the plan at the channel’s own slot, so call this for it only when the person asked for a time.' +
+    ZONE_NOTE,
+  input: z.object({ pieceId, adaptationId, at, timeZone: namedTimeZoneInput }),
   risk: 'write',
   card: 'plan',
   door: door(ContentPieceController, 'placeAdaptation'),
   untrusted: [],
-  run: async (ctx, input): Promise<Slot> => {
+  run: async (asked, input): Promise<Slot> => {
+    const ctx = withPlanZone(asked, input.timeZone, NOTHING_CHANGED);
     const { row } = await storedAdaptation(ctx, input.pieceId, input.adaptationId);
     if (!row?.integrationId) throw adaptationMissing();
     if (row.state === 'queued') {
@@ -441,13 +470,15 @@ export const planUnschedule = defineCapability({
   group: 'plan',
   label: { ru: 'Снять с расписания', en: 'Take off the schedule' },
   description:
-    'Take a scheduled post off the schedule («Снять с расписания»): it goes back to a reserve at the same time and will not go out by itself. Runs without asking. Only a queued post; a published one stays published.',
-  input: z.object({ pieceId, adaptationId }),
+    'Take a scheduled post off the schedule («Снять с расписания»): it goes back to a reserve at the same time and will not go out by itself. Runs without asking. Only a queued post; a published one stays published.' +
+    ZONE_NOTE,
+  input: z.object({ pieceId, adaptationId, timeZone: namedTimeZoneInput }),
   risk: 'write',
   card: 'plan',
   door: door(ContentPieceController, 'unscheduleAdaptation'),
   untrusted: [],
-  run: async (ctx, input): Promise<Slot> => {
+  run: async (asked, input): Promise<Slot> => {
+    const ctx = withPlanZone(asked, input.timeZone, NOTHING_CHANGED);
     const { row } = await storedAdaptation(ctx, input.pieceId, input.adaptationId);
     if (!row) throw adaptationMissing();
     const written = (await ctx

@@ -72,7 +72,42 @@ describe('native Mastra tools', () => {
       'plan_publish_now',
       'plan_move',
       'plan_apply',
+      'avatar_list',
+      'avatar_overview',
+      'avatar_proposal',
+      'avatar_manual',
+      'avatar_samples',
+      'avatar_learning',
+      'avatar_create',
+      'avatar_rename',
+      'avatar_default',
+      'avatar_bind',
+      'avatar_samples_add',
+      'avatar_proposal_field',
+      'avatar_manual_field',
+      'avatar_analyse',
+      'avatar_learn',
       'avatar_activate',
+      'avatar_samples_delete',
+      'avatar_delete',
+      'avatar_rule_forget',
+      'avatar_retire',
+      'channel_open',
+      'channel_posts',
+      'channel_writing',
+      'channel_plan',
+      'channel_times',
+      'channel_autopilot',
+      'channel_connect',
+      'channel_bot_rename',
+      'channel_disable',
+      'channel_delete',
+      'ai_settings',
+      'ai_usage',
+      'ai_mode',
+      'ai_key_enter',
+      'ai_key_clear',
+      'ai_search_key_clear',
     ]);
     for (const [name, tool] of Object.entries(tools)) expect(tool.id).toBe(name);
   });
@@ -179,11 +214,14 @@ describe('one capability of each class, end to end', () => {
     expect(parts).toEqual([]);
     expect(output.summary.untrustedData.value).toEqual({
       counts: { channels: 1, pieces: 1, drafts: 0 },
+      // «С чего начать» over the same counts (kcxz.21): a missing count is
+      // not done, so only the channel and the piece are.
+      onboarding: { done: ['channel', 'piece'], next: 'avatar', channelByAdmin: false },
       pieces: [{ id: 'p1', code: 'cnt-1', title: INJECTION }],
       // The rest of spec §4.6 (`content-factory-next-kcxz.7`): channels with
       // their plan mode, avatars with the default one, the allowance left.
       channels: [
-        { id: 'c1', name: INJECTION, platform: 'telegram', disabled: false, planMode: 'reserve' },
+        { id: 'c1', name: INJECTION, platform: 'telegram', disabled: false, planMode: 'reserve', planModeChosen: true },
       ],
       avatars: [{ id: 'a1', name: INJECTION, isDefault: true, analysed: true }],
       defaultAvatarId: 'a1',
@@ -215,6 +253,54 @@ describe('one capability of each class, end to end', () => {
       { type: 'data-piece', data: { kind: 'piece', id: 'p1', title: 'Новое имя' } },
     ]);
     expect(output.card).toEqual({ kind: 'piece', id: 'p1' });
+  });
+
+  test('secret: the key card names the field; the model hears only that it is shown (kcxz.20)', async () => {
+    const calls = [];
+    const services = {
+      AiProviderService: {
+        getSettings: async (organizationId) => {
+          calls.push(['getSettings', organizationId]);
+          return { usageMode: 'workspace_key', provider: 'openai', hasKey: true, workspaceSearchKeys: { exa: false } };
+        },
+        updateSettings: async () => {
+          throw new Error('the key card posts from the browser, never from the tool');
+        },
+      },
+    };
+    const capability = find('ai.key.enter');
+    expect(capability.risk).toBe('secret');
+    // Only a field name can be passed: there is nowhere to type a key.
+    expect(registry.freeTextPaths(capability.input)).toEqual([]);
+    const tool = build('ai.key.enter', services);
+    const { output, parts, model } = await executeTool(tool, { field: 'exa' }, {
+      requestContext: requestContextFor(registry, { ...IDENTITY, role: 'ADMIN' }),
+    });
+    expect(calls).toEqual([['getSettings', 'org-1']]);
+    expect(parts).toEqual([
+      {
+        type: 'data-secret',
+        data: { kind: 'secret', id: 'search-key:exa', field: 'search-key', engine: 'exa' },
+      },
+    ]);
+    expect(model.value).toEqual({
+      ok: true,
+      summary: {
+        field: 'exa',
+        shown: 'card',
+        stored: false,
+        next: 'The person types the key into the card; it never reaches you. Wait for them to say it is saved, then read ai.settings.',
+      },
+      card: { kind: 'secret', id: 'search-key:exa' },
+    });
+    expect(output.ok).toBe(true);
+    // Refused on «Ключи системы»: the own search keys sleep there (97dq.6).
+    const asleep = build('ai.key.enter', {
+      AiProviderService: { getSettings: async () => ({ usageMode: 'included', provider: 'openai' }) },
+    });
+    const refused = await executeTool(asleep, { field: 'tavily' }, { requestContext: requestContextFor(registry) });
+    expect(refused.output).toMatchObject({ ok: false, code: 'AI_SEARCH_KEY_ON_SYSTEM_KEYS' });
+    expect(refused.parts).toEqual([]);
   });
 
   test('a service refusal keeps its code for the model', async () => {
@@ -335,11 +421,11 @@ describe('one capability of each class, end to end', () => {
       const { calls, asked, services } = voice(refusal);
       const { output, suspended } = await executeTool(
         build('avatar.activate', services),
-        { avatarId: 'a1', mode: 'manual' },
+        { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1', mode: 'manual' },
         { requestContext: requestContextFor(registry) }
       );
       expect(asked).toEqual([
-        [{ organizationId: 'org-1', userId: 'user-1', canManage: true, avatarId: 'a1' }, 'manual'],
+        [{ organizationId: 'org-1', userId: 'user-1', canManage: true, avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1' }, 'manual'],
       ]);
       expect(suspended).toEqual([]);
       expect(calls).toEqual([]);
@@ -352,7 +438,7 @@ describe('one capability of each class, end to end', () => {
       const { calls, services } = voice();
       const { output, suspended } = await executeTool(
         build('avatar.activate', services),
-        { avatarId: 'a1' },
+        { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1' },
         { requestContext: requestContextFor(registry) }
       );
       expect(output).toBeUndefined();
@@ -360,8 +446,12 @@ describe('one capability of each class, end to end', () => {
       expect(suspended).toEqual([
         {
           question: expect.stringContaining('право писать этим голосом'),
-          avatarId: 'a1',
+          avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1',
           mode: 'assist',
+          // The avatar could not be read here: the card asks for a name, as
+          // before, and the consent is not blocked (W3 walk P3-F, P3-G).
+          avatarName: null,
+          avatarKind: 'person',
           canDecideForPerson: false,
         },
       ]);
@@ -372,7 +462,7 @@ describe('one capability of each class, end to end', () => {
       const { calls, services } = voice();
       const { suspended } = await executeTool(
         build('avatar.activate', services),
-        { avatarId: 'a1', consentGiven: true },
+        { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1', consentGiven: true },
         { requestContext: requestContextFor(registry) }
       );
       expect(suspended).toHaveLength(1);
@@ -383,7 +473,7 @@ describe('one capability of each class, end to end', () => {
       const { calls, services } = voice();
       const { output, parts } = await executeTool(
         build('avatar.activate', services),
-        { avatarId: 'a1' },
+        { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1' },
         {
           requestContext: requestContextFor(registry),
           resumeData: { consentGiven: true, avatarName: 'Игорь' },
@@ -391,14 +481,20 @@ describe('one capability of each class, end to end', () => {
       );
       expect(calls).toEqual([
         [
-          { organizationId: 'org-1', userId: 'user-1', canManage: true, avatarId: 'a1' },
+          { organizationId: 'org-1', userId: 'user-1', canManage: true, avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1' },
           { version: 2, consentGiven: true, avatarName: 'Игорь', mode: undefined },
         ],
       ]);
-      expect(output.summary).toEqual({ avatarId: 'a1', activated: true });
+      // W3 recheck R-1: the answer says the consent is done and nothing waits.
+      expect(output.summary).toEqual({
+        avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1',
+        activated: true,
+        ...(output.summary.name ? { name: output.summary.name } : {}),
+        message: expect.stringContaining('nothing waits for a confirmation'),
+      });
       // Named as the person named it on the card (kcxz.29, D12).
       expect(parts).toEqual([
-        { type: 'data-avatar', data: { kind: 'avatar', id: 'a1', name: 'Игорь' } },
+        { type: 'data-avatar', data: { kind: 'avatar', id: 'a1a1a1a1-0000-4000-8000-0000000000a1', name: 'Игорь' } },
       ]);
     });
 
@@ -406,11 +502,15 @@ describe('one capability of each class, end to end', () => {
       const { calls, services } = voice();
       const { output } = await executeTool(
         build('avatar.activate', services),
-        { avatarId: 'a1' },
+        { avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1' },
         { requestContext: requestContextFor(registry), resumeData: { consentGiven: false } }
       );
       expect(calls).toEqual([]);
-      expect(output.summary).toEqual({ avatarId: 'a1', activated: false });
+      expect(output.summary).toEqual({
+        avatarId: 'a1a1a1a1-0000-4000-8000-0000000000a1',
+        activated: false,
+        message: expect.stringContaining('the avatar stays off'),
+      });
     });
   });
 });
@@ -456,6 +556,32 @@ describe('MCP tools from the same registry', () => {
       'plan_ready',
       'plan_place',
       'plan_unschedule',
+      // Avatars (kcxz.18): reads, changes and the paid runs; activating,
+      // deleting, forgetting and retiring ask on a card and stay web-only.
+      'avatar_list',
+      'avatar_overview',
+      'avatar_proposal',
+      'avatar_manual',
+      'avatar_samples',
+      'avatar_learning',
+      'avatar_create',
+      'avatar_rename',
+      'avatar_default',
+      'avatar_bind',
+      'avatar_samples_add',
+      'avatar_proposal_field',
+      'avatar_manual_field',
+      'avatar_analyse',
+      'avatar_learn',
+      'channel_open',
+      'channel_posts',
+      'channel_writing',
+      'channel_plan',
+      'channel_times',
+      // AI settings (kcxz.20): the reads only; the mode, the key card and
+      // removing a key stay web-only.
+      'ai_settings',
+      'ai_usage',
     ]);
     // MCP has no question card: the intake's facts choice is not offered there.
     expect(mcpTools('ADMIN').piece_create.suspendSchema).toBeUndefined();
@@ -475,6 +601,14 @@ describe('MCP tools from the same registry', () => {
       'plan_ahead',
       'plan_calendar',
       'plan_ready',
+      'avatar_list',
+      'avatar_overview',
+      'avatar_proposal',
+      'avatar_manual',
+      'avatar_samples',
+      'avatar_learning',
+      'channel_open',
+      'channel_posts',
     ]);
   });
 

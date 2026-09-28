@@ -120,6 +120,7 @@ describe('group know-how as skills (ADR-0012 amendment §6)', () => {
       'channels',
       'content',
       'plan',
+      'ai-settings',
     ]);
     for (const skill of CONDUCTOR_SKILL_SPECS) {
       expect(skill.name).toMatch(/^[a-z][a-z-]*$/);
