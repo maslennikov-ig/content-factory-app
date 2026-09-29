@@ -3,7 +3,6 @@ import { MantineWrapper } from '@contentfactory/react/helpers/mantine.wrapper';
 export const dynamic = 'force-dynamic';
 import '../global.scss';
 import 'react-tooltip/dist/react-tooltip.css';
-import '@copilotkit/react-ui/styles.css';
 import LayoutContext from '@contentfactory/frontend/components/layout/layout.context';
 import { ReactNode } from 'react';
 import { appMono, appSans } from '@contentfactory/frontend/styles/fonts';

@@ -27,6 +27,10 @@ export type AiOperation =
   | 'text_generation'
   | 'image_generation'
   | 'web_research'
+  /**
+   * Legacy: the post editor's CopilotKit helper, removed with `kcxz.28`. Kept
+   * because past usage rows carry it; nothing new records it.
+   */
   | 'copilot_chat'
   | 'agent'
   | 'autopost'
@@ -305,7 +309,7 @@ export type AiAllowanceView =
    * тогда, когда выдавать было нечего. Человеку, который ничего не тратил,
    * говорили, что лимит кончился.
    *
-   * Это ровно то условие, при котором `/copilot/chat` и любая платная дверь
+   * Это ровно то условие, при котором `/agent/chat` и любая платная дверь
    * отвечают 503 `AI_SELECTED_CREDENTIAL_UNAVAILABLE`: у выбранного режима нет
    * ключа. Счётчиков здесь нет, потому что считать нечего.
    */

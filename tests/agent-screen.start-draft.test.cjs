@@ -302,3 +302,77 @@ describe('startDraftStep — the screen’s decision', () => {
     expect(decide('plan')).toBeNull();
   });
 });
+
+/**
+ * «Спросить агента» from the post window (`content-factory-next-kcxz.28`):
+ * `/agents/new?from=editor` takes the hand-over the window left in
+ * `sessionStorage`, writes the request into the composer of a new
+ * conversation and sends nothing. The words never travel in the address.
+ */
+describe('«Спросить агента» fills the composer from the post window and sends nothing', () => {
+  const handoff = load('apps/frontend/src/components/agents/agent.handoff.ts');
+  const FROM = agentWordsFor('ru').panel.fromEditor;
+  const leave = (value) => handoff.writeEditorHandoff(window.sessionStorage, value);
+
+  beforeEach(() => window.sessionStorage.clear());
+
+  test('a post from a piece: named by the piece and the channel; parameter and hand-over gone', async () => {
+    leave({ piece: 'Весенний запуск', code: 'cnt-07', channel: 'Кофейня', text: 'текст поста' });
+    await open(handoff.AGENT_FROM_EDITOR_HREF);
+    expect(field().value).toBe(FROM.piece('Весенний запуск', 'cnt-07', 'Кофейня'));
+    // The code names the piece where two share a title (review W6-28 F3).
+    expect(field().value).toBe('Про пост из заготовки «Весенний запуск» (cnt-07) для канала «Кофейня»: ');
+    expect(world.sent).toEqual([]);
+    expect(world.submitted).toEqual([]);
+    expect(window.location.search).toBe('');
+    expect(window.sessionStorage.getItem(handoff.EDITOR_HANDOFF_KEY)).toBeNull();
+  });
+
+  test('a post written by hand: its text, with the offer to make a piece of it', async () => {
+    leave({ piece: null, channel: null, text: 'Первый абзац\n\nВторой абзац' });
+    await open(handoff.AGENT_FROM_EDITOR_HREF);
+    expect(field().value).toBe('Сделай из этого текста заготовку и пост:\n\nПервый абзац\n\nВторой абзац');
+    expect(world.sent).toEqual([]);
+  });
+
+  test('an empty window: the «one thought» request', async () => {
+    leave({ piece: null, channel: 'Кофейня', text: '' });
+    await open(handoff.AGENT_FROM_EDITOR_HREF);
+    expect(field().value).toBe(FROM.empty('Кофейня'));
+  });
+
+  test('the person sends it with the composer’s own button', async () => {
+    leave({ piece: 'Весенний запуск', channel: null, text: '' });
+    await open(handoff.AGENT_FROM_EDITOR_HREF);
+    await act(async () => {
+      fireEvent.change(field(), { target: { value: `${field().value}сделай короче` } });
+    });
+    await act(async () => {
+      fireEvent.submit(document.querySelector('form'));
+    });
+    expect(world.submitted).toEqual(['Про пост из заготовки «Весенний запуск»: сделай короче']);
+    expect(world.sent).toEqual([]);
+  });
+
+  test('without a hand-over, and with words in the address, the field stays empty', async () => {
+    await open('/agents/new?from=editor&text=%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82');
+    expect(field().value).toBe('');
+    expect(world.sent).toEqual([]);
+  });
+
+  test('a hand-over is not read without the mark in the address', async () => {
+    leave({ piece: 'Весенний запуск', channel: null, text: '' });
+    await open('/agents/new');
+    expect(field().value).toBe('');
+    expect(window.sessionStorage.getItem(handoff.EDITOR_HANDOFF_KEY)).not.toBeNull();
+  });
+
+  test('ignored on an existing conversation, and the hand-over is spent', async () => {
+    world.routeId = 't1';
+    leave({ piece: 'Весенний запуск', channel: null, text: '' });
+    await open('/agents/t1?from=editor');
+    expect(field().value).toBe('');
+    expect(window.location.search).toBe('');
+    expect(window.sessionStorage.getItem(handoff.EDITOR_HANDOFF_KEY)).toBeNull();
+  });
+});

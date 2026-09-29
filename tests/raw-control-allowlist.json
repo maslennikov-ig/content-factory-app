@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "total": 30,
+  "total": 28,
   "sourceRoots": [
     "apps/frontend/src",
     "libraries/react-shared-libraries/src"
   ],
   "rootTotals": {
-    "apps/frontend/src": 19,
+    "apps/frontend/src": 17,
     "libraries/react-shared-libraries/src": 11
   },
   "allowances": {
@@ -40,14 +40,6 @@
         "category": "missing-capability",
         "reason": "The adaptation state cell needs a tone per state and a dashed border for «ещё нет»; the shared Button has no state-cell variant, and stacking its variant classes under the cell's own would make two rules fight over one border.",
         "followUp": "Give the shared Button a state-cell variant and move the cell onto it (content-factory-next-tu3k.9.9)"
-      }
-    },
-    "apps/frontend/src/components/copilot/assistant.popup.tsx": {
-      "button": {
-        "count": 2,
-        "category": "third-party-adapter",
-        "reason": "CopilotKit styles the popup toggle and the header close by the classes copilotKitButton / copilotKitHeaderCloseButton on a bare <button>; the shared Button would layer its own scale and colour over the library contract. Both carry translated aria-labels (fn33.118).",
-        "followUp": "no follow-up needed"
       }
     },
     "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {

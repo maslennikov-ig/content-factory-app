@@ -33,6 +33,12 @@ export interface AddEditModalProps {
   mutate: () => void;
   padding?: string;
   customClose?: () => void;
+  /**
+   * Opened inside the browser extension's frame (`standalone.modal.tsx`):
+   * nothing may leave the frame for another screen, so «Спросить агента» is
+   * not offered there (review W6-28 F2).
+   */
+  extension?: boolean;
   duplicateOfPostId?: string;
   onlyValues?: Array<{
     content: string;

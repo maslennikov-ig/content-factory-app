@@ -6,8 +6,6 @@ import {
   resolveComposeLocale,
 } from '@contentfactory/frontend/components/new-launch/compose.copy';
 import { FC, useCallback } from 'react';
-import { Editor, Transforms } from 'slate';
-import { ReactEditor } from 'slate-react';
 const originalMap = {
   a: '𝗮',
   b: '𝗯',

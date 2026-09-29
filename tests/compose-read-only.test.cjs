@@ -242,8 +242,9 @@ describe('fn33.90.10 — окно поста передаёт запрет вс�
     expect(manage).toMatch(/aria-describedby=\{[\s\S]*?COMPOSE_BLOCK_REASON_NOTE_ID/);
   });
 
-  test('помощник и удаление поста Пользователю не предлагаются', () => {
-    expect(manage).toContain('assistantAvailable && canWritePosts');
+  test('«Спросить агента» и удаление поста Пользователю не предлагаются', () => {
+    // Помощник окна ушёл с `kcxz.28`; его место заняла кнопка в чат агента.
+    expect(manage).toContain('agentAvailable && canWritePosts');
     expect(manage).toContain('existingData?.integration && canWritePosts');
   });
 });

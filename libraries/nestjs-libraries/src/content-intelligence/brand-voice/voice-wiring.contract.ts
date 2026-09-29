@@ -511,9 +511,9 @@ export const VOICE_SAMPLE_FILE_LIMITS = {
  * of its own rather than to express's undeclared default.
  *
  * `content-factory-next-vme.10` found the gap: every JSON route but two gets
- * express's own 100 KB body limit, `main.ts` raised it for `/copilot` and
- * `/posts` and forgot the route this contract's own `items[].text` promises
- * two hundred thousand characters on. Cyrillic past roughly forty-five
+ * express's own 100 KB body limit, `main.ts` raised it for `/copilot` (until
+ * `kcxz.28` removed `/copilot/chat`) and `/posts` and forgot the route this
+ * contract's own `items[].text` promises two hundred thousand characters on. Cyrillic past roughly forty-five
  * thousand characters already crossed 100 KB in UTF-8, so the wizard's own
  * paste field failed on an ordinary-length post — as a bare 413 with no body,
  * shown to a person as «неизвестная ошибка» on an action the product told

@@ -12,7 +12,7 @@ import {
   writeRightFromRole,
 } from '../content-write-right';
 import { resolveContentLocale } from '../content-section.copy';
-import { useAssistantAvailability } from '../../copilot/assistant-availability';
+import { useAssistantAvailability } from '../../agents/assistant-availability';
 import { IntakeScreen } from './intake.screen';
 import { intakeCopy } from './intake.copy';
 import {

@@ -458,8 +458,9 @@ site: переданные снаружи `bg-*` и `border-*` встают на
 
 Чат плюс артефакт (`content-factory-next-kcxz.10`, решение владельца 27.09.2026,
 вариант C холста `docs/design/desert-lab/agent/`). Живёт в `components/agents/`.
-Разговор идёт на `useChat` из `@ai-sdk/react`; CopilotKit на экране больше нет,
-помощник окна поста (`components/copilot/*`) — отдельный потребитель. Всё, что
+Разговор идёт на `useChat` из `@ai-sdk/react`. CopilotKit в репозитории больше
+нет: помощник окна поста (`components/copilot/*` — окно, поле с дополнением,
+провайдер) снят с `kcxz.28`, окно поста зовёт этот экран. Всё, что
 экран знает о проводе, — в одном файле `agent.contract.ts`; карточки читают
 только его блоки.
 
@@ -484,6 +485,9 @@ site: переданные снаружи `bg-*` и `border-*` встают на
 | `ArtifactColumn`, `ArtifactSheet`, `WorkspaceSteps` | `agents/agent.panel.tsx` | Рабочая панель: от 1280 px колонка рядом с чатом, ниже — лист диалогом (ловушка фокуса, Escape). Заготовка, аватар и канал открываются настоящими экранами (`PieceContainer embedded`, `VoiceAvatarScreen`, `ChannelScreen channelId embedded` — `kcxz.19`); пусто — пять шагов «С чего начать» с «Сделать в чате». Адаптация и место в плане открывают экран заготовки на вкладке своего канала (`initialTab`, у места — ещё `initialWhen`), тот же, что по «Открыть на экране» (`kcxz.16`). «Медиатека» открывается самим `MediaBox standalone`, свежие сверху (`kcxz.25`). |
 | `AgentMarkdown` | `agents/agent.markdown.tsx` | Слова агента в markdown **только React-элементами**, без `dangerouslySetInnerHTML`: абзацы, списки, жирный, курсив, код, ссылки `http(s)`/`mailto`. Для чужого текста в другом месте — тоже он. |
 | `AgentGlyph` | `agents/agent.icons.tsx` | Пиктограммы экрана с холста, `currentColor`, декоративные. |
+| `useAssistantAvailability`, `useAssistantAvailable` | `agents/assistant-availability.ts` | «Есть ли модели чем ответить» по двери остатка квоты (`ALLOWANCE_API`, один ключ SWR со строкой остатка). Экран «Агент», раздел «Контент» и кнопка «Спросить агента». Жил в `components/copilot/`, переехал с `kcxz.28`. |
+| `AskAgentButton` | `new-launch/ask-agent.button.tsx` | **«Спросить агента» в окне поста** (`kcxz.28`), на месте помощника CopilotKit: `Button quiet`, подтверждение ухода как у «К заготовке», передача через `agent.handoff.ts`, новый разговор. Показывается, когда агенту есть чем ответить, человеку, который пишет посты, не в наборах и не в предпросмотре. Подпись — `composeCopy.askAgent`. |
+| `writeEditorHandoff`, `takeEditorHandoff`, `editorHandoffFrom`, `editorDraft` | `agents/agent.handoff.ts` | Передача «что за пост» из окна поста в поле ввода чата: заготовка, один канал, текст поста без заготовки. Через `sessionStorage` и метку `?from=editor`, не через адрес; берётся один раз, **никогда не отправляется** — как «Сделать в чате». Слова — `agentCopy.panel.fromEditor`. |
 
 ## Одно имя — один ключ (22.09.2026)
 

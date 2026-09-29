@@ -17,7 +17,7 @@ import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
 import { PiecesContainer } from './pieces/pieces.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
-import { useAssistantAvailability } from '../copilot/assistant-availability';
+import { useAssistantAvailability } from '../agents/assistant-availability';
 import {
   TOUR_REVEALS_ATTR,
   type TourRevealsState,

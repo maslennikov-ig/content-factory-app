@@ -21,6 +21,7 @@ import { ArtifactColumn, ArtifactSheet, WorkspaceSteps } from './agent.panel';
 import { THREADS_KEY, ThreadSwitcher, useAgentThreads } from './agent.threads';
 import { screenTimeZone } from './agent.transport';
 import { AGENT_START_PARAM, startDraftStep } from './agent.starters';
+import { AGENT_FROM_EDITOR, AGENT_FROM_PARAM, editorDraft, takeEditorHandoff } from './agent.handoff';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 
@@ -126,17 +127,27 @@ export function AgentScreen() {
   // whole screen.
   const [requested, setRequested] = useState<string | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
+  // «Спросить агента» from the post window (`kcxz.28`) arrives the same way:
+  // `?from=editor` names the hand-over the window left in `sessionStorage`,
+  // and the words go into the composer of a new conversation, never sent.
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    if (!query.has(AGENT_START_PARAM)) return;
+    const fromEditor = query.get(AGENT_FROM_PARAM) === AGENT_FROM_EDITOR;
+    if (!query.has(AGENT_START_PARAM) && !fromEditor) return;
     const step = query.get(AGENT_START_PARAM);
     query.delete(AGENT_START_PARAM);
+    if (fromEditor) query.delete(AGENT_FROM_PARAM);
     const rest = query.toString();
     window.history.replaceState(
       null,
       '',
       `${window.location.pathname}${rest ? `?${rest}` : ''}`
     );
+    if (fromEditor) {
+      const handoff = takeEditorHandoff(window.sessionStorage);
+      if (!routeId && handoff) setDraft(editorDraft(words.panel.fromEditor, handoff));
+      return;
+    }
     if (!routeId) setRequested(step);
     // Once, on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps

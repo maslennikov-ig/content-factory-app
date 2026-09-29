@@ -9,16 +9,9 @@ import { MantineWrapper } from '@contentfactory/react/helpers/mantine.wrapper';
 import { ToolTip } from '@contentfactory/frontend/components/layout/top.tip';
 
 /**
- * Оболочка страницы предпросмотра `/p/[id]` и модалки расширения.
- *
- * Здесь стоял `<CopilotKit>` вокруг всего содержимого, и ни один потребитель
- * помощника под ним не жил: страница предпросмотра только показывает пост.
- * Провайдер `@copilotkit/react-core@1.10.6` при монтировании безусловно шлёт
- * `availableAgents` на `runtimeUrl`, то есть каждое открытие публичной ссылки
- * стоило запроса к рантайму, а у области с настроенным поставщиком моделей —
- * платного вызова. Редактор поста, который модалка расширения открывает,
- * помощника получает от `manage.modal.tsx` — тот поднимает `<CopilotProvider>`
- * сам, и с уходом обёртки отсюда ничего не теряет.
+ * Оболочка страницы предпросмотра `/p/[id]` и модалки расширения: только
+ * пользователь, всплывающие подсказки и уведомления. `<CopilotKit>`, который
+ * стоял здесь раньше, ушёл вместе с библиотекой (`content-factory-next-kcxz.28`).
  */
 export const PreviewWrapper = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();

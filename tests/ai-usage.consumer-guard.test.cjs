@@ -3,7 +3,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const consumers = [
-  'apps/backend/src/api/routes/copilot.controller.ts',
+  // `copilot.controller.ts` left the list with `POST /copilot/chat`
+  // (`content-factory-next-kcxz.28`): its remaining doors call no model.
   'libraries/nestjs-libraries/src/openai/openai.service.ts',
   'libraries/nestjs-libraries/src/openai/web.research.service.ts',
   'libraries/nestjs-libraries/src/agent/agent.graph.service.ts',

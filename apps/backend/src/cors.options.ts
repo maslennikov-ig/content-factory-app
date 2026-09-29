@@ -10,13 +10,12 @@ export function buildBackendCorsOptions(
   env: NodeJS.ProcessEnv
 ): CorsOptions {
   return {
-    // Unconditional, including under NOT_SECURED. The CopilotKit provider sets
-    // `credentials="include"` in the markup and never asks whether the
-    // deployment is secured (agent.chat.tsx, layout.component.tsx,
-    // preview.wrapper.tsx), and a browser drops a credentialed response whole
-    // unless it sees `Access-Control-Allow-Credentials`. Making this
-    // conditional silently kills the AI chat and the agents on every
-    // NOT_SECURED stack. It stays safe because `origin` below is an explicit
+    // Unconditional, including under NOT_SECURED. A credentialed request from
+    // a frontend of another origin (the stand, a split self-host) is dropped
+    // whole by the browser unless it sees `Access-Control-Allow-Credentials`,
+    // and making this conditional once silently killed the AI chat on every
+    // NOT_SECURED stack (the CopilotKit provider, gone with `kcxz.28`, sent
+    // `credentials="include"` regardless). It stays safe because `origin` below is an explicit
     // allowlist rather than a wildcard.
     credentials: true,
     allowedHeaders: [
@@ -25,7 +24,6 @@ export function buildBackendCorsOptions(
       'auth',
       'showorg',
       'impersonate',
-      'x-copilotkit-runtime-client-gql-version',
       // Every agent chat request and the thread history name the zone the
       // screens use (`AGENT_TIMEZONE_HEADER`). A custom request header makes
       // the browser ask first; unlisted, it blocks the whole chat on a
@@ -37,7 +35,6 @@ export function buildBackendCorsOptions(
       'onboarding',
       'activate',
       'approval',
-      'x-copilotkit-runtime-client-gql-version',
       // `POST /agent/chat` names the thread a first message opened; a
       // frontend on another origin (the stand, a split self-host) must read it
       // or every message would open a new thread. `AGENT_THREAD_HEADER`.

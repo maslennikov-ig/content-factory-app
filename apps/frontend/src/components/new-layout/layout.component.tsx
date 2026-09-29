@@ -103,14 +103,6 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
         because it exists to answer it.
       */}
       <PageTitleLanguage />
-      {/*
-        Помощника здесь нет намеренно: его провайдер здоровается с рантаймом
-        сразу при монтировании, поэтому вокруг всего приложения он стоил бы
-        запроса к модели на каждой загрузке страницы
-        (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
-        Провайдер монтируют экраны, которые помощником пользуются —
-        `components/copilot/copilot.provider.tsx`.
-      */}
       <MantineWrapper>
         <ToolTip />
         <Toaster />

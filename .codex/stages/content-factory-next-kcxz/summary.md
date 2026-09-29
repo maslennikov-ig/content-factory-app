@@ -1,4 +1,4 @@
-# Stage summary — `content-factory-next-kcxz` (agent chat), after W0–W3 code and release 1
+# Stage summary — `content-factory-next-kcxz` (agent chat), through release 3
 
 State on 27.09.2026 night: owner «Исправь все найденные проблемы и доделай до конца. Даю тебе все
 разрешения.» — every open finding of W2 fixed and proven live (`evidence/live-stand-w2-2026-09-27/`
@@ -59,6 +59,38 @@ Decisions for the owner are in spec §5.7 (ideas), §5.8 (facts, texts, analytic
 - Full suite 28.09 on 6 W4 commits: Jest 573/575 suites (9801/9803) — the two reds (a main.ts import mock,
   the word «модель» in a new copy line) fixed at root and re-run green; node:test 122/0; Python OK. No live
   stand walk yet (needs the owner's word on production keys).
+
+## Release 3 (29.09) — owner decisions of W4, avatar bugs, MCP (W5), released
+
+Owner 28.09 «Давай сразу всё реализуем и выкатим… всё до завершения доведёт». Each stream: worker →
+independent correctness review → fix round (re-review where a P1/P2 or a High was found).
+
+- Owner decisions 28.09 on the W4 open items: MCP adds facts as the person's word — left as is (§5.8);
+  «Свежо до» is the named day whole in the person's zone, one shared function for the facts door, the dormant
+  form and the chat (`fact-valid-until.ts`, `.43`; no migration; a past day is refused for every caller; a
+  known fact can be re-dated through the chat while in work); one picture = one AI operation — the picture
+  prompt runs inside the single `image_generation` admission, on the editor's window and in the chat (`.44`);
+  lead actions: **in the web chat `ideas.archive`/`.dismiss`/`.take` always ask on a card** (`.45`, §5.7) —
+  two review rounds showed that a grant read from the person's words (action + named lead) kept admitting
+  bypasses («Отклони все, кроме «Футбол»», short attacker-chosen titles), so one press is the price; dismiss
+  takes a batch of ≤10 on one card, one transaction; the side panel's «Взять в работу» needs no card; MCP
+  unchanged (the client approves). Every card of one step now carries its words (was: only the first).
+- Avatar: one analysis per avatar at a time (Redis claim with owner token, 120 s renewed; `VOICE_ANALYSIS_RUNNING`,
+  the screen waits for the other run) and a run that failed after saving its numbers reads as failed
+  (`proposalFailedAt` in `metrics`), `.39`/`.40`; AI proposals keep `deviations` (lost since 25.08).
+- MCP (`.26`): `/mcp` Streamable HTTP, stateless, on the registry; per-person OAuth (RFC 9728/8414 metadata,
+  DCR for public clients, PKCE S256, resource binding, 1 h access / 30 d refresh with rotation and replay
+  revocation), role re-read per request, USER reads only, confirm/input/secret excluded; org API key refused;
+  per-token throttle; paid calls admitted under the OAuth person; the connect block and «Отключить» in
+  «Настройки → Одобренные приложения» for every member; guide `docs/operations/mcp-connect.md`. New tables
+  `McpOAuthClient`, `McpOAuthGrant` (pointed psql, applied on production 29.09).
+- Live stand with production keys: walk 41 ops / 0.043 USD, recheck 9 ops / 0.013 USD
+  (`evidence/live-stand-w4-2026-09-29/`); every P2/P3 fixed before the receipt.
+- **Release 3:** production `9d2b8ba85a2f` (source `0bb9f8880`), rollback `47a57ed3fe9f`,
+  `MCP_ENABLED="true"`, Mastra 45 unchanged — `evidence/release-3-2026-09-29.md`.
+- Open: real Claude/ChatGPT connection not yet tried by a person (the protocol version each speaks is not
+  stated in their docs; the SDK client flow is proven); the grant rule (`Deny` etc.) and the consent throttle
+  are per person; the chat's run claims still wait on Redis without a bound. Next: W6 `.28` (CopilotKit).
 
 ## Decisions (owner)
 

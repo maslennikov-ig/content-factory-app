@@ -40,21 +40,6 @@ function loadTypeScriptModule(relativePath, mocks) {
 }
 
 const noOpDecorator = () => () => undefined;
-const hasAiProvider = jest.fn();
-const requireActiveAiConfig = jest.fn();
-class AiProviderNotConfigured extends require('@nestjs/common')
-  .ServiceUnavailableException {
-  constructor() {
-    super({
-      statusCode: 503,
-      code: 'AI_SELECTED_CREDENTIAL_UNAVAILABLE',
-      message:
-        'AI is unavailable for the selected mode. Ask the operator to configure included credentials, or have a workspace administrator configure workspace_key credentials.',
-    });
-  }
-}
-const getOpenAiClient = jest.fn();
-let capturedAdapterOptions;
 const webResearch = jest.fn();
 const contentContext = {
   contractVersion: 'content-context/v1',
@@ -68,43 +53,18 @@ const contentContext = {
   selectionHash: 'selection-1',
 };
 const contexts = { build: jest.fn(async () => contentContext) };
-const aiUsage = {
-  executeAiOperation: jest.fn(async (_organizationId, _operation, callback) =>
-    callback()
-  ),
-};
+const subscriptions = { checkCredits: jest.fn(async () => ({ credits: 7 })) };
 const { CopilotController } = loadTypeScriptModule(
   'apps/backend/src/api/routes/copilot.controller.ts',
   {
-    '@copilotkit/runtime': {
-      CopilotRuntime: class {},
-      OpenAIAdapter: class {
-        constructor(options) {
-          capturedAdapterOptions = options;
-        }
-      },
-      copilotRuntimeNodeHttpEndpoint: jest.fn(() => jest.fn(() => 'handled')),
-      copilotRuntimeNextJSAppRouterEndpoint: jest.fn(() => ({
-        handleRequest: jest.fn(() => 'handled'),
-      })),
-    },
     '@contentfactory/nestjs-libraries/user/org.from.request': {
       GetOrgFromRequest: noOpDecorator,
     },
     '@contentfactory/backend/services/auth/permissions/permissions.ability': {
       CheckPolicies: noOpDecorator,
     },
-    '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
-      hasAiProvider,
-      AiProviderNotConfigured,
-      requireActiveAiConfig,
-    },
-    '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
-      AiUsageService: class {},
-    },
-    '@contentfactory/nestjs-libraries/openai/ai.clients': {
-      getOpenAiClient,
-    },
+    '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service':
+      { SubscriptionService: class {} },
     '@contentfactory/nestjs-libraries/openai/web.research.service': {
       WebResearchService: class {},
     },
@@ -115,71 +75,55 @@ const { CopilotController } = loadTypeScriptModule(
     '@contentfactory/backend/services/auth/permissions/permission.exception.class':
       {
         AuthorizationActions: { Create: 'Create' },
-        Sections: { AI: 'AI' },
+        Sections: { AI: 'AI', EDITOR: 'EDITOR' },
       },
   }
 );
 
-describe('CopilotController provider availability', () => {
+const SOURCE = fs.readFileSync(
+  path.resolve(__dirname, '..', 'apps/backend/src/api/routes/copilot.controller.ts'),
+  'utf8'
+);
+
+describe('CopilotController', () => {
   beforeEach(() => {
-    hasAiProvider.mockResolvedValue(false);
-    requireActiveAiConfig.mockResolvedValue({ textModel: 'text-model' });
-    getOpenAiClient.mockResolvedValue({
-      chat: { completions: { stream: jest.fn() } },
-      beta: {},
-    });
-    capturedAdapterOptions = undefined;
     contexts.build.mockClear();
-    aiUsage.executeAiOperation.mockClear();
+    subscriptions.checkCredits.mockClear();
   });
-
-  test.each([['chatAgent', {}]])(
-    '%s returns a clear service-unavailable error instead of an empty response',
-    async (method, request) => {
-      const controller = new CopilotController(undefined, aiUsage, contexts);
-      const organization = { id: 'org-without-ai-key' };
-
-      await expect(
-        controller[method](request, {}, organization)
-      ).rejects.toMatchObject({
-        status: 503,
-        response: {
-          statusCode: 503,
-          code: 'AI_SELECTED_CREDENTIAL_UNAVAILABLE',
-          message:
-            'AI is unavailable for the selected mode. Ask the operator to configure included credentials, or have a workspace administrator configure workspace_key credentials.',
-        },
-      });
-    }
-  );
 
   /**
-   * The old agent screen's doors went with it (`content-factory-next-kcxz.8`):
-   * the agent chat is `/agent` now, and `/copilot` keeps the post editor's
-   * helper, the research door and the media picker's credits (with a policy).
+   * The old agent screen's doors went with it (`content-factory-next-kcxz.8`),
+   * and the post editor's CopilotKit helper `POST /copilot/chat` with W6
+   * (`content-factory-next-kcxz.28`). `/copilot` keeps the research door and
+   * the media picker's credits (with a policy, D8).
    */
-  test('the old agent doors are gone from /copilot', () => {
-    const source = fs.readFileSync(
-      path.resolve(__dirname, '..', 'apps/backend/src/api/routes/copilot.controller.ts'),
-      'utf8'
-    );
-    const routes = [...source.matchAll(/@(Get|Post|Put|Patch|Delete)\('([^']*)'\)/g)].map(
+  test('only the credits and research doors are left on /copilot', () => {
+    const routes = [...SOURCE.matchAll(/@(Get|Post|Put|Patch|Delete)\('([^']*)'\)/g)].map(
       ([, method, route]) => `${method.toUpperCase()} ${route}`
     );
-    expect(routes.sort()).toEqual(['GET /credits', 'POST /chat', 'POST /research']);
-    expect(source).not.toMatch(/@ag-ui\/mastra|MastraService|getLocalAgents/);
+    expect(routes.sort()).toEqual(['GET /credits', 'POST /research']);
+    expect(SOURCE).not.toMatch(/@ag-ui\/mastra|MastraService|getLocalAgents/);
+    expect(SOURCE).not.toMatch(/@copilotkit|copilotRuntime|beta\.chat|copilot_chat/);
   });
 
-  test('bridges the stable OpenAI chat API into the namespace CopilotKit 1.10 streams', async () => {
-    hasAiProvider.mockResolvedValue(true);
-    const stableChat = { completions: { stream: jest.fn() } };
-    getOpenAiClient.mockResolvedValue({ chat: stableChat, beta: {} });
-    const controller = new CopilotController(undefined, aiUsage, contexts);
+  test('the credits door still answers the media picker, for the caller’s organization', async () => {
+    const controller = new CopilotController(undefined, contexts, subscriptions);
+    const organization = { id: 'organization-a' };
 
-    await expect(
-      controller.chatAgent({}, {}, { id: 'organization-a' })
-    ).resolves.toBe('handled');
-    expect(capturedAdapterOptions.openai.beta.chat).toBe(stableChat);
+    await expect(controller.calculateCredits(organization, 'ai_videos')).resolves.toEqual({
+      credits: 7,
+    });
+    expect(subscriptions.checkCredits).toHaveBeenCalledWith(organization, 'ai_videos');
+
+    await controller.calculateCredits(organization, undefined);
+    expect(subscriptions.checkCredits).toHaveBeenLastCalledWith(organization, 'ai_images');
+    // The picker's own request is unchanged (`ai.video.tsx`).
+    const picker = fs.readFileSync(
+      path.resolve(__dirname, '..', 'apps/frontend/src/components/launches/ai.video.tsx'),
+      'utf8'
+    );
+    expect(picker).toMatch(/\/copilot\/credits\?type=ai_videos/);
+    expect(SOURCE).toMatch(/@Get\('\/credits'\)\s*\n\s*@CheckPolicies\(\[AuthorizationActions\.Create, Sections\.AI\]\)/);
   });
 
   test('returns cited web research to the editor for the current organization', async () => {
@@ -196,8 +140,8 @@ describe('CopilotController provider availability', () => {
     });
     const controller = new CopilotController(
       { research: webResearch },
-      aiUsage,
-      contexts
+      contexts,
+      subscriptions
     );
 
     await expect(

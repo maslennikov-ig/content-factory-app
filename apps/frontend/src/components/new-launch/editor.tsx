@@ -34,8 +34,6 @@ import {
 import { UpDownArrow } from '@contentfactory/frontend/components/launches/up.down.arrow';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
-import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
-import { useHasCopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { useDropzone } from 'react-dropzone';
 import { useUppyUploader } from '@contentfactory/frontend/components/media/new.uploader';
 import { Dashboard } from '@uppy/react';
@@ -176,47 +174,6 @@ const InterceptUnderlineShortcut = Extension.create({
   },
 });
 
-/**
- * Всё, что редактор рассказывает помощнику, — одним узлом
- * (`content-factory-next-fn33.28.11`).
- *
- * Хуки `useCopilotReadable` и `useCopilotAction` стояли в теле самого
- * редактора, а хуки не бывают условными. Пока провайдер помощника поднимался
- * всегда, это было незаметно; с тех пор как окно перестало поднимать
- * помощника без ключа AI, безусловный вызов упал бы исключением библиотеки
- * «Remember to wrap your app in a <CopilotKit>».
- *
- * Поэтому связь с помощником живёт отдельным узлом: он рисуется только под
- * поднятым провайдером и ничего не рисует собой. Условие переехало с хука на
- * узел — единственное место, где условие вообще законно.
- */
-const EditorCopilotBridge: FC<{
-  contents: string[];
-  onSetPosts: (value: string[]) => void;
-}> = ({ contents, onSetPosts }) => {
-  useCopilotReadable({
-    description: 'Current content of posts',
-    value: contents,
-  });
-
-  useCopilotAction({
-    name: 'setPosts',
-    description: 'a thread of posts',
-    parameters: [
-      {
-        name: 'content',
-        type: 'string[]',
-        description: 'a thread of posts',
-      },
-    ],
-    handler: async ({ content }) => {
-      onSetPosts(content);
-    },
-  });
-
-  return null;
-};
-
 export const EditorWrapper: FC<{
   totalPosts: number;
   value: string;
@@ -236,9 +193,6 @@ export const EditorWrapper: FC<{
   readOnly?: boolean;
 }> = ({ readOnly }) => {
   const t = useT();
-  // Поднялся ли помощник над окном: без ключа AI окно его не поднимает, и
-  // рассказывать тогда некому (`content-factory-next-fn33.28.11`).
-  const hasCopilot = useHasCopilotProvider();
   const {
     setGlobalValueText,
     setInternalValueText,
@@ -257,8 +211,6 @@ export const EditorWrapper: FC<{
     isCreateSet,
     deleteGlobalValue,
     deleteInternalValue,
-    setGlobalValue,
-    setInternalValue,
     setInternalDelay,
     setGlobalDelay,
     internalFromAll,
@@ -293,8 +245,6 @@ export const EditorWrapper: FC<{
       isCreateSet: state.isCreateSet,
       deleteGlobalValue: state.deleteGlobalValue,
       deleteInternalValue: state.deleteInternalValue,
-      setGlobalValue: state.setGlobalValue,
-      setInternalValue: state.setInternalValue,
       setGlobalDelay: state.setGlobalDelay,
       setInternalDelay: state.setInternalDelay,
       totalChars: state.totalChars,
@@ -332,28 +282,6 @@ export const EditorWrapper: FC<{
 
     return global;
   }, [internal, global]);
-
-  const setValue = useCallback(
-    (value: string[]) => {
-      const newValue = value.map((p, index) => {
-        return {
-          id: makeId(10),
-          delay: 0,
-          ...(items?.[index]?.media
-            ? { media: items[index].media }
-            : { media: [] }),
-          content: p,
-          usedCitationIds: items?.[index]?.usedCitationIds || [],
-        };
-      });
-      if (internal) {
-        return setInternalValue(current, newValue);
-      }
-
-      return setGlobalValue(newValue);
-    },
-    [internal, items]
-  );
 
   /*
     Здесь стоял `changeCitations` — рука человека на списке цитат. С
@@ -494,12 +422,6 @@ export const EditorWrapper: FC<{
           'bg-newSettings rounded-[12px]'
       )}
     >
-      {hasCopilot && (
-        <EditorCopilotBridge
-          contents={items.map((p) => p.content)}
-          onSetPosts={setValue}
-        />
-      )}
       {isCreateSet && current !== 'global' && (
         <>
           <div className="text-center absolute w-full h-full left-0 top-0 items-center justify-center flex z-[101] flex-col gap-[16px]">

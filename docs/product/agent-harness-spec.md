@@ -188,9 +188,44 @@ New doors under `/agent` (the old `/copilot/agent` and the thread doors are remo
 screen): `POST /agent/chat` (message or resume), `GET /agent/threads`, `GET /agent/threads/:id`,
 `PATCH`/`DELETE /agent/threads/:id` — all scoped to the caller.
 
-The post-editor helper (`/copilot/chat`, `components/copilot/*`) is a separate consumer of
-CopilotKit; W6 decides whether it moves onto this agent or goes, and the CopilotKit dependency is
-removed when its last user is gone.
+The post-editor helper (`/copilot/chat`, `components/copilot/*`) was the last consumer of
+CopilotKit; W6 (`kcxz.28`, 29.09.2026) moved its useful part onto this agent and removed the rest.
+
+What it did for a person, read from the code before removal:
+
+- **Popup in the post window** — «Your Assistant» in the window's footer (writers only, only when
+  the allowance door said a model can answer), opening CopilotKit's popup. The model saw the post's
+  parts and the channel list and had three actions: `setPosts` (replace every part's text in place),
+  `addOrRemovePlatform` / `setSelectedIntegration` (pick channels). Its instructions still named
+  upstream's `addPostContentFor{num}` functions that no longer existed.
+- **Autocomplete** — `CopilotTextarea` suggestions in three plain fields: signature, autopost rule
+  text, plug text; only when the provider was up.
+- **Door** — `POST /copilot/chat`: CopilotKit runtime 1.10.6 + `OpenAIAdapter` on the
+  organization's client (a `beta.chat` shim for OpenAI SDK 6), the active text model, one
+  `copilot_chat` admission (role `draft`) per request, policy `AI` + `EDITOR`, 503 without a key.
+  No stand or production walk recorded a successful turn; they recorded only the 503 without a key.
+
+Decided for the owner (reversible, say if wrong):
+
+- The post window gets one entry, **«Спросить агента»**, in the helper's place and under the same
+  conditions (plus not in sets or preview). It confirms leaving like «К заготовке», closes the
+  window and opens a new agent conversation with the request **written into the composer, never
+  sent** (the «Сделать в чате» rule). The description travels in `sessionStorage` behind
+  `?from=editor`, not in the address, so a crafted link cannot fill a composer
+  (`agents/agent.handoff.ts`).
+- A post made from a piece is named by the piece and its one channel («Про пост из заготовки «X»
+  для канала «Y»: »); the agent finds the adaptation and edits, reviews or illustrates it, and
+  `adaptation.edit` writes the post. A post written by hand has no piece to work on, so the request
+  is to make one from its text (up to 4000 characters); an empty window gets the «one thought»
+  request. No live text editing of the open window from the chat.
+- Autocomplete goes without a replacement: the three fields are the plain shared `Textarea` they
+  already were without a model.
+- Removed: the popup, the assisted field, the provider, `POST /copilot/chat` and its runtime, the
+  `x-copilotkit-runtime-client-gql-version` CORS header, `/copilot/{*splat}`'s 50 MB body limit,
+  the popup styles and the four `@copilotkit/*` packages (with them every `@ag-ui/*` package left
+  the lockfile). `GET /copilot/credits` (media picker, D8) and `POST /copilot/research` stay.
+  The `copilot_chat` operation name stays in the usage types: past usage rows carry it.
+  `tests/copilotkit-removed.guard.test.cjs` keeps it out.
 
 ### 4.5 Mastra version
 
@@ -1325,6 +1360,8 @@ onboarding steps in menu order without a separate wizard. «С чего нача
 Built in `kcxz.21` (§5.6): the starters are the open steps in menu order by the same rules as «С чего
 начать» (none that needs a channel before one exists), then «Напишем пост из одной мысли» and «Что у нас в
 плане на неделю»; «Сделать в чате» fills the composer and the person sends.
+The post window's «Спросить агента» (`kcxz.28`, §4.4) opens a new conversation the same way: the
+request naming the post is in the composer, and the person sends it.
 
 ### 6.2 Cards
 

@@ -15,11 +15,11 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   }, [params]);
   return (
     <div
-      className={`hideCopilot ${style} h-[100vh] w-full text-textColor flex flex-1 flex-col !bg-none`}
+      className={`standaloneLayout ${style} h-[100vh] w-full text-textColor flex flex-1 flex-col !bg-none`}
     >
       <style>
         {`
-          #add-edit-modal, .hideCopilot {
+          #add-edit-modal, .standaloneLayout {
             background: transparent !important;
           }
           html body.dark, html {

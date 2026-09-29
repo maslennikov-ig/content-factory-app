@@ -551,7 +551,9 @@ describe('main.ts mounts the real limiter rather than restating its numbers', ()
   });
 
   test('the existing 50 MB routes are untouched', () => {
-    expect(mainSource).toMatch(/'\/copilot\/\{\*splat\}', '\/posts'/u);
+    // `/copilot/{*splat}` left it with `POST /copilot/chat`
+    // (`content-factory-next-kcxz.28`); the post doors keep theirs.
+    expect(mainSource).toMatch(/app\.use\(\['\/posts'\], /u);
     expect(mainSource).toMatch(/limit: '50mb'/u);
   });
 });

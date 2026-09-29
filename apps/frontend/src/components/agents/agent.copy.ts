@@ -4,6 +4,7 @@ import { onboardingCopy } from '@contentfactory/frontend/components/onboarding/o
 import { piecesCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.copy';
 import type { SuggestedQuestionsWords } from '@contentfactory/frontend/components/content-intelligence/intake/questions.card';
 import type { AgentArtifactKind } from './agent.contract';
+import type { EditorDraftWords } from './agent.handoff';
 
 /**
  * Слова экрана «Агент» (`content-factory-next-kcxz.10`), два языка рядом с
@@ -356,6 +357,11 @@ type AgentWords = {
      * request put into the composer, never sent.
      */
     writeFromLead: (title: string) => string;
+    /**
+     * «Спросить агента» from the post window (`kcxz.28`): the request put
+     * into the composer, never sent (`agent.handoff.ts`).
+     */
+    fromEditor: EditorDraftWords;
   };
 };
 
@@ -1004,6 +1010,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       loading: 'Смотрим, что уже есть',
       failed: 'Не удалось узнать, что уже есть в пространстве.',
       writeFromLead: (title: string) => `Напиши заготовку по взятому поводу «${title}»`,
+      fromEditor: {
+        piece: (piece: string, code: string | null, channel: string | null) =>
+          `Про пост из заготовки «${piece}»${code ? ` (${code})` : ''}${channel ? ` для канала «${channel}»` : ''}: `,
+        text: (text: string, channel: string | null) =>
+          `Сделай из этого текста заготовку и пост${channel ? ` для канала «${channel}»` : ''}:\n\n${text}`,
+        empty: (channel: string | null) =>
+          `Напишем пост${channel ? ` для канала «${channel}»` : ''} из одной мысли: `,
+      },
     },
   },
   en: {
@@ -1644,6 +1658,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       loading: 'Looking at what is there',
       failed: 'Could not find out what the workspace already has.',
       writeFromLead: (title: string) => `Write a piece from the taken lead “${title}”`,
+      fromEditor: {
+        piece: (piece: string, code: string | null, channel: string | null) =>
+          `About the post from the piece “${piece}”${code ? ` (${code})` : ''}${channel ? ` for the channel “${channel}”` : ''}: `,
+        text: (text: string, channel: string | null) =>
+          `Make a piece and a post${channel ? ` for the channel “${channel}”` : ''} from this text:\n\n${text}`,
+        empty: (channel: string | null) =>
+          `Let’s write a post${channel ? ` for the channel “${channel}”` : ''} from one thought: `,
+      },
     },
   },
 };

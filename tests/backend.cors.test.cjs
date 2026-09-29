@@ -31,8 +31,8 @@ function preflight(
   options,
   origin,
   {
-    path: requestPath = '/copilot/chat',
-    headers: requested = 'content-type,x-copilotkit-runtime-client-gql-version',
+    path: requestPath = '/agent/chat',
+    headers: requested = 'content-type',
   } = {}
 ) {
   return new Promise((resolve, reject) => {
@@ -78,7 +78,7 @@ function preflight(
 }
 
 describe('backend CORS', () => {
-  test('accepts a credentialed CopilotKit preflight for the cookie session', async () => {
+  test('accepts a credentialed agent chat preflight for the cookie session', async () => {
     const origin = 'http://localhost:4200';
     const response = await preflight(
       buildBackendCorsOptions({
@@ -94,11 +94,9 @@ describe('backend CORS', () => {
   });
 
   test('still grants credentials in header-authenticated local mode', async () => {
-    // The CopilotKit provider hardcodes credentials="include" and never asks
-    // whether the deployment is secured, so dropping the credentialed mode
-    // here takes the AI chat and the agents down on every NOT_SECURED stack:
-    // a browser discards a credentialed response that arrives without
-    // Access-Control-Allow-Credentials.
+    // Dropping the credentialed mode here once took the AI chat down on every
+    // NOT_SECURED stack: a browser discards a credentialed response that
+    // arrives without Access-Control-Allow-Credentials.
     const origin = 'http://localhost:4200';
     const options = buildBackendCorsOptions({
       FRONTEND_URL: origin,
@@ -143,6 +141,14 @@ describe('backend CORS', () => {
         .split(',')
         .map((one) => one.trim());
       expect(allowed).toEqual(expect.arrayContaining(['content-type', AGENT_TIMEZONE_HEADER]));
+    }
+  });
+
+  test('kcxz.28: the CopilotKit runtime header left with /copilot/chat', () => {
+    for (const env of [{ FRONTEND_URL: 'http://localhost:4200' }, { FRONTEND_URL: 'http://localhost:4200', NOT_SECURED: 'true' }]) {
+      const options = buildBackendCorsOptions(env);
+      const named = [...options.allowedHeaders, ...options.exposedHeaders].map((one) => one.toLowerCase());
+      expect(named.filter((one) => one.includes('copilotkit'))).toEqual([]);
     }
   });
 

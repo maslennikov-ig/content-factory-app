@@ -151,7 +151,6 @@ const EDITOR_DOORS = [
   ['POST', '/sets', 'создать набор'],
   ['POST', '/signatures', 'создать подпись'],
   ['POST', '/autopost', 'завести правило автопоста'],
-  ['POST', '/copilot/chat', 'говорить с помощником'],
   [
     'PUT',
     '/integrations/:id/writing-profile',

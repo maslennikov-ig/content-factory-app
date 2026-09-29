@@ -50,12 +50,8 @@ import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import { capitalize } from 'lodash';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
-import { AssistantPopup } from '@contentfactory/frontend/components/copilot/assistant.popup';
-import {
-  CopilotProvider,
-  useAssistantAvailable,
-  useHasCopilotProvider,
-} from '@contentfactory/frontend/components/copilot/copilot.provider';
+import { useAssistantAvailable } from '@contentfactory/frontend/components/agents/assistant-availability';
+import { AskAgentButton } from '@contentfactory/frontend/components/new-launch/ask-agent.button';
 import { DummyCodeComponent } from '@contentfactory/frontend/components/new-launch/dummy.code.component';
 import {
   SettingsIcon,
@@ -74,86 +70,15 @@ import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { translateValidationMessage } from '@contentfactory/frontend/components/new-launch/validation-message.text';
 
 
-/**
- * Что окно помнит поверх подъёма помощника.
- *
- * Помощник поднимается провайдером над содержимым окна, а появление провайдера
- * пересобирает поддерево: React меняет место детей в дереве, и обычный
- * `useState` внутри окна начался бы заново. Для открытых настроек канала это
- * не мелочь — они захлопнулись бы посреди работы, — поэтому значение живёт
- * выше провайдера и подъём переживает. Всё остальное окно держит в общем
- * хранилище (`store.ts`), которому дерево React вообще не указ.
- *
- * Второе такое значение — «подтверждения проверены» — ушло отсюда 07.09.2026
- * вместе с самими воротами (`content-factory-next-m2eg.17`).
- */
-type ComposeSession = {
-  /** Помощника позвали: только с этого момента поднимается провайдер. */
-  assistantOpen: boolean;
-  openAssistant: () => void;
-  showSettings: boolean;
-  setShowSettings: (value: boolean) => void;
-};
-
-/**
- * Помощник монтируется у окна редактора поста, а не вокруг всего приложения:
- * его провайдер обращается к рантайму сразу при монтировании, поэтому в общей
- * оболочке это был запрос к модели на каждой загрузке любой страницы
- * (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
- */
 export const ManageModal: FC<AddEditModalProps> = (props) => {
-  /**
-   * `content-factory-next-fn33.99`: и в самом окне провайдер поднимается не
-   * при открытии, а когда помощника позвали.
-   *
-   * Библиотека шлёт `availableAgents` на монтировании безусловно, поэтому
-   * «окно открыли» стоило запроса — у пространства с настроенным поставщиком
-   * моделей платного — каждому, кто просто пишет пост. Решение то же, каким
-   * помощник ушёл с оболочки приложения: провайдер стоит там, где им
-   * пользуются, а теперь ещё и тогда, когда им пользуются.
-   */
-  const [assistantOpen, setAssistantOpen] = useState(false);
-  const openAssistant = useCallback(() => setAssistantOpen(true), []);
   const [showSettings, setShowSettings] = useState(false);
-
-  const session: ComposeSession = {
-    assistantOpen,
-    openAssistant,
-    showSettings,
-    setShowSettings,
-  };
-
-  const content = <ManageModalContent {...props} session={session} />;
-
-  if (!assistantOpen) {
-    return content;
-  }
-
-  /**
-   * `requireAvailable` — потому что у пространства без ключа AI каждое открытие
-   * окна давало `POST /copilot/chat -> 503` и строку в консоли
-   * (`content-factory-next-fn33.28.11`). Помощник, которого нельзя позвать, не
-   * поднимается вовсе, и запрос не уходит.
-   */
-  return <CopilotProvider requireAvailable>{content}</CopilotProvider>;
-};
-
-const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = (
-  props
-) => {
   const t = useT();
-  const { assistantOpen, openAssistant, showSettings, setShowSettings } =
-    props.session;
   /**
-   * Есть ли помощнику чем ответить. Тот же вопрос и та же дверь остатка квоты,
-   * которые задаёт провайдер: кнопка, за которой ничего не поднимется, — это
-   * ещё один мёртвый контрол в окне, где владелец их уже читал.
+   * Есть ли агенту чем ответить — та же дверь остатка квоты, что у экрана
+   * «Агент»: кнопка, за которой ничего не ответит, — это ещё один мёртвый
+   * контрол в окне, где владелец их уже читал.
    */
-  const assistantAvailable = useAssistantAvailable(true);
-  // Поднялся ли помощник над этим окном. У пространства без ключа AI он не
-  // поднимается вовсе, и тогда рисовать его панель было бы обещанием
-  // собеседника, которого нет (`content-factory-next-fn33.28.11`).
-  const hasCopilot = useHasCopilotProvider();
+  const agentAvailable = useAssistantAvailable(true);
   const { language } = useVariables();
   /**
    * Два языка, а не шестнадцать, — как у всех голосовых экранов.
@@ -171,7 +96,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
   const modal = useModals();
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
-  const { addEditSets, mutate, customClose, dummy } = props;
+  const { addEditSets, mutate, customClose, dummy, extension } = props;
 
   /**
    * Ссылки исследования по-прежнему уезжают вместе с постом, но окно их
@@ -1102,21 +1027,19 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
 
             {/*
-              Кнопка помощника: она и есть то нажатие, которым поднимается
-              провайдер (`content-factory-next-fn33.99`). До нажатия помощника
-              в дереве нет, поэтому нет и его собственной круглой кнопки —
-              вместо неё стоит эта, из того же ряда стандартных контролов.
-              Пропадает она только там, где помощника нельзя позвать: там его и
-              раньше было не позвать, просто это было видно не сразу.
+              «Спросить агента» (`content-factory-next-kcxz.28`): помощник на
+              CopilotKit, который правил текст прямо в окне, ушёл; его работу
+              делает чат агента над заготовкой и адаптацией. Кнопка открывает
+              новый разговор с уже написанной просьбой — отправляет человек.
+              Её нет там, где агенту нечем ответить, у того, кто не пишет
+              посты, в наборах и предпросмотре, откуда уходить в чат незачем,
+              и в рамке расширения, из которой уйти некуда (review W6-28 F2).
             */}
-            {!assistantOpen && assistantAvailable && canWritePosts && (
-              <Button
-                type="button"
-                variant="quiet"
-                onClick={openAssistant}
-              >
-                {t('your_assistant', 'Your Assistant')}
-              </Button>
+            {agentAvailable && canWritePosts && !addEditSets && !dummy && !extension && (
+              <AskAgentButton
+                label={composeCopy[voiceLocale].askAgent}
+                close={() => (customClose ? customClose() : modal.closeAll())}
+              />
             )}
           </div>
           <div className="pe-[20px] flex items-center justify-end gap-[8px]">
@@ -1241,24 +1164,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
           </div>
         </div>
       </div>
-      {hasCopilot && (
-      <AssistantPopup
-        defaultOpen={true}
-        hitEscapeToClose={false}
-        clickOutsideToClose={true}
-        instructions={`
-You are an assistant that help the user to schedule their social media posts,
-Here are the things you can do:
-- Add a new comment / post to the list of posts
-- Delete a comment / post from the list of posts
-- Add content to the comment / post
-- Activate or deactivate the comment / post
-
-Post content can be added using the addPostContentFor{num} function.
-After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} function.
-`}
-      />
-      )}
     </div>
   );
 };

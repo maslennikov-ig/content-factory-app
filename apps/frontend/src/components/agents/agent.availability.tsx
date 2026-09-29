@@ -2,7 +2,7 @@
 
 import { FC, ReactNode, useEffect, useRef } from 'react';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { useAssistantAvailability } from '@contentfactory/frontend/components/copilot/assistant-availability';
+import { useAssistantAvailability } from '@contentfactory/frontend/components/agents/assistant-availability';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
 
 /**

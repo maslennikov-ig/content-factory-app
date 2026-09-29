@@ -4,13 +4,12 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { Button } from '@contentfactory/react/form/button';
 import clsx from 'clsx';
+import { Textarea } from '@contentfactory/react/form/textarea';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import { TopTitle } from '@contentfactory/frontend/components/launches/helpers/top.title.component';
 import { array, boolean, object, string } from 'yup';
 import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
-import { AssistedTextarea } from '@contentfactory/frontend/components/copilot/assisted.textarea';
 import { Select } from '@contentfactory/react/form/select';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
@@ -218,29 +217,21 @@ const AddOrRemoveSignature: FC<{
           </Button>
 
           <div className="relative bg-cf-surface-subtle">
-            {/*
-  Помощник монтируется у самого поля, а не вокруг всего приложения: его
-  провайдер обращается к рантайму сразу при монтировании
-  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`), и не
-  монтируется вовсе там, где отвечать некому: без ключа AI это был
-  `POST /copilot/chat -> 503` на каждом открытии (`content-factory-next-fn33.28.16`).
-*/}
-            <CopilotProvider requireAvailable>
-              <AssistedTextarea
-                className={clsx(
-                  '!min-h-40 !max-h-80 p-2 overflow-x-hidden bg-bigStrip outline-none'
-                )}
-                value={text}
-                onChange={(e) => {
-                  form.setValue('content', e.target.value);
-                }}
-                placeholder={t(
-                  'signature_placeholder',
-                  'Write your signature...'
-                )}
-                purpose={`Assist me in writing social media signature`}
-              />
-            </CopilotProvider>
+            <Textarea
+              standalone
+              disableForm
+              className={clsx(
+                'w-full p-2 overflow-x-hidden bg-bigStrip outline-none'
+              )}
+              value={text}
+              onChange={(e) => {
+                form.setValue('content', e.target.value);
+              }}
+              placeholder={t(
+                'signature_placeholder',
+                'Write your signature...'
+              )}
+            />
           </div>
 
           <Select

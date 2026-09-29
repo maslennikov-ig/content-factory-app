@@ -51,7 +51,7 @@ describe('D2 — a streaming turn is never unmounted by the availability check',
       '@contentfactory/react/translation/get.transation.service.client': {
         useT: () => (_key, fallback) => fallback,
       },
-      '@contentfactory/frontend/components/copilot/assistant-availability': {
+      '@contentfactory/frontend/components/agents/assistant-availability': {
         useAssistantAvailability: () => availability.current,
       },
       '@contentfactory/frontend/components/ui/surface': {

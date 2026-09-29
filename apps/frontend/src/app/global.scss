@@ -547,47 +547,6 @@ h3 {
 .mantine-Paper-root {
   outline: none !important;
 }
-//
-//:root {
-//  --copilot-kit-primary-color: #612ad5 !important;
-//  --copilot-kit-background-color: #0b0f1c !important;
-//  --copilot-kit-separator-color: #1f2941 !important;
-//  --copilot-kit-contrast-color: #ffffff !important;
-//  --copilot-kit-secondary-contrast-color: #ffffff !important;
-//  --copilot-kit-secondary-color: #000 !important;
-//  --copilot-kit-response-button-background-color: #000 !important;
-//  --copilot-kit-response-button-color: #fff !important;
-//}
-
-//.copilotKitWindow {
-//  @apply bg-customColor3 #{!important};
-//}
-
-//.copilotKitButtonIconOpen svg {
-//  display: none !important;
-//}
-//
-//.copilotKitButtonIconOpen:after {
-//  @apply text-textColor;
-//  content: '';
-//  display: block;
-//  position: relative;
-//  z-index: 1;
-//  object-fit: contain;
-//  background: url('/magic.svg') no-repeat center center / contain;
-//  width: 30px;
-//  height: 30px;
-//}
-//
-//.copilotKitPopup {
-//  right: -2rem !important;
-//  bottom: 2rem !important;
-//}
-//
-//.copilotKitWindow {
-//  /*right: -5rem !important;*/
-//}
-
 .trz {
   transform: translateZ(0);
 }
@@ -745,27 +704,6 @@ h3 {
 
 .medium-tags .react-tags__tag {
   margin: 0;
-}
-
-.hideCopilot .copilotKitPopup {
-  display: none !important;
-}
-
-// Строка «Powered by CopilotKit» под полем ввода помощника
-// (`content-factory-next-fn33.118`). Пропа, который её убирает, в
-// `@copilotkit/react-ui@1.10.6` нет: `Input.tsx` считает её видимость как
-// `!copilotApiConfig.publicApiKey` — то есть показывает её всем, у кого нет
-// ключа облака CopilotKit. Библиотека пишет `display: block` и
-// `visibility: visible` прямо в атрибут `style`, поэтому правило перебивает
-// его через `!important`; это единственное место, где `.poweredBy`
-// встречается.
-// Собственное правило библиотеки `.poweredBy{display:block!important}` идёт
-// в сборке позже этого файла, и при равной специфичности побеждает оно
-// (прогон 05.09). Селектор сильнее — окно помощника плюс подпись.
-.copilotKitWindow .poweredBy,
-.copilotKitPopup .poweredBy,
-.poweredBy.poweredBy {
-  display: none !important;
 }
 
 html[dir='rtl'] .rbox {
@@ -959,29 +897,12 @@ html[dir='rtl'] [dir='ltr'] {
   filter: blur(5px);
 }
 
-.agent {
-  .copilotKitInputContainer {
-    padding: 0 24px !important;
-  }
-
-  .copilotKitInput {
-    width: 100% !important;
-  }
-}
 .rm-bg .b2 {
   padding-top: 0 !important;
 }
 .rm-bg .b1 {
   background: transparent !important;
   gap: 0 !important;
-}
-
-.copilotKitMessage img {
-  width: 200px;
-}
-
-.copilotKitMessage a {
-  color: var(--new-btn-text) !important;
 }
 
 @keyframes marquee-up {

@@ -163,8 +163,7 @@ if (!packageOptions) { can(action, section); continue; }
 | Проверить похожесть на голос | `POST /brand-voice/text-check` | — | 0 | 0 | бесплатно по устройству |
 | Поиск в вебе, витрина «Откуда факты» | `POST /sources/search` | `web_research`/`research` | 1 | 1–2 модели + 1–2 Tavily | `Sections.AI` |
 | Написать пост в редакторе | `POST /posts/generator` | `agent` (+`web_research`) | 1–2 | 4–8 (+1–2 на поиск) | `POSTS_PER_MONTH` |
-| Чат-помощник | `POST /copilot/chat` | `copilot_chat`/`draft` | 1 на запрос (Mastra — на ход) | 1 и больше | `Sections.AI` |
-| Агент пишет пост | `POST /copilot/agent` | `agent`/`draft` | 1 на запрос | 1 и больше | `Sections.AI` |
+| Агент (чат «Агент», MCP) | `POST /agent/chat`; MCP `/mcp` | `agent`/`agent` на ход чата; платные действия — своими операциями, как их двери | 1 на ход (у MCP хода нет — только операции действий) | 1–7 шагов модели | `Sections.AI`; `/copilot/chat` и `/copilot/agent` сняты (`kcxz.28`, `kcxz.10`), старые строки учёта `copilot_chat` остаются |
 | Разбить на тред | `POST /posts/separate-posts` | `text_generation`/`extract` | 1 | 1 + до 4 на длинный кусок | **нет** |
 | Сгенерировать картинку | `POST /media/generate-image[-with-prompt]` | `image_generation`/`image` (с `-with-prompt` внутри неё ещё вызов `draft`, промпт картинки; с 28.09.2026 одна операция, `kcxz.44`) | 1 | 1–2 | `image_generation_count` — единственный настоящий счётчик |
 | Картинка внутри генерации поста | внутри графа | внутри `agent` | 0 | N картинок | **никак** (`agent.graph.service.ts`, `getImageModel` напрямую) |

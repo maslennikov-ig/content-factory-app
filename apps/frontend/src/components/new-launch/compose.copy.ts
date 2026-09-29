@@ -139,6 +139,8 @@ export const composeCopy = {
      * было сказано нигде.
      */
     postNowHint: 'в канал сразу, минуя расписание',
+    /** Кнопка окна поста: чат агента с уже написанной просьбой (`kcxz.28`). */
+    askAgent: 'Спросить агента',
     keepScheduledAt: (time: string) => `оставить в расписании на ${time}`,
     addToCalendarHint: 'поставить в календарь на выбранное время',
     /**
@@ -193,6 +195,7 @@ export const composeCopy = {
       'Your published posts that share words with this one. AI sees the same list and may point back at one of them when it fits.',
     morePublishingActions: 'Other ways to send this',
     postNowHint: 'straight to the channel, skipping the schedule',
+    askAgent: 'Ask the agent',
     keepScheduledAt: (time: string) => `keep it scheduled for ${time}`,
     addToCalendarHint: 'put it on the calendar at the chosen time',
     toolbarBold: 'Bold',

@@ -21,9 +21,8 @@ import { Select } from '@contentfactory/react/form/select';
 import { PickPlatforms } from '@contentfactory/frontend/components/launches/helpers/pick.platform.component';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
+import { Textarea } from '@contentfactory/react/form/textarea';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
-import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
-import { AssistedTextarea } from '@contentfactory/frontend/components/copilot/assisted.textarea';
 import { Slider } from '@contentfactory/react/form/slider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -234,7 +233,6 @@ export const AddOrEditWebhook: FC<{
     },
   });
   const generateContent = form.watch('generateContent');
-  const contentLanguage = form.watch('language');
   const content = form.watch('content');
   const url = form.watch('url');
   const syncLast = form.watch('syncLast');
@@ -432,31 +430,21 @@ export const AddOrEditWebhook: FC<{
                 <div className={`text-[14px] mb-[6px]`}>
                   {t('post_content', 'Post content')}
                 </div>
-                {/*
-  Помощник монтируется у самого поля, а не вокруг всего приложения: его
-  провайдер обращается к рантайму сразу при монтировании
-  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`), и не
-  монтируется вовсе там, где отвечать некому: без ключа AI это был
-  `POST /copilot/chat -> 503` на каждом открытии (`content-factory-next-fn33.28.16`).
-*/}
-                <CopilotProvider requireAvailable>
-                  <AssistedTextarea
-                    className={clsx(
-                      '!min-h-40 !max-h-80 p-2 overflow-x-hidden bg-customColor2 outline-none mb-[16px] border-fifth border rounded-[4px]'
-                    )}
-                    value={content}
-                    onChange={(e) => {
-                      form.setValue('content', e.target.value);
-                    }}
-                    placeholder={t(
-                      'write_your_post_placeholder',
-                      'Write your post...'
-                    )}
-                    purpose={`Assist me in writing a social media post. Write every human-readable part of the post in ${
-                      contentLanguage === 'ru' ? 'Russian' : 'English'
-                    }.`}
-                  />
-                </CopilotProvider>
+                <Textarea
+                  standalone
+                  disableForm
+                  className={clsx(
+                    'w-full p-2 overflow-x-hidden bg-customColor2 outline-none mb-[16px] border-fifth border rounded-[4px]'
+                  )}
+                  value={content}
+                  onChange={(e) => {
+                    form.setValue('content', e.target.value);
+                  }}
+                  placeholder={t(
+                    'write_your_post_placeholder',
+                    'Write your post...'
+                  )}
+                />
               </>
             )}
             <Select

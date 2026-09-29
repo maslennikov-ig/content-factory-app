@@ -133,6 +133,7 @@ const ROLE_BY_OPERATION: Record<string, AiRole> = {
   text_generation: 'draft',
   image_generation: 'image',
   web_research: 'research',
+  // Legacy (`kcxz.28`): past usage rows only.
   copilot_chat: 'draft',
   agent: 'agent',
   autopost: 'draft',

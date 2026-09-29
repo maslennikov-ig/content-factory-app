@@ -18,9 +18,8 @@ import {
   useFormContext,
 } from 'react-hook-form';
 import { Input } from '@contentfactory/react/form/input';
-import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
-import { AssistedTextarea } from '@contentfactory/frontend/components/copilot/assisted.textarea';
 import clsx from 'clsx';
+import { Textarea } from '@contentfactory/react/form/textarea';
 import { string, object } from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Slider } from '@contentfactory/react/form/slider';
@@ -44,31 +43,23 @@ export const TextArea: FC<{
   return (
     <>
       <textarea className="hidden" {...all}></textarea>
-      {/*
-  Помощник монтируется у самого поля, а не вокруг всего приложения: его
-  провайдер обращается к рантайму сразу при монтировании
-  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`), и не
-  монтируется вовсе там, где отвечать некому: без ключа AI это был
-  `POST /copilot/chat -> 503` на каждом открытии (`content-factory-next-fn33.28.16`).
-*/}
-      <CopilotProvider requireAvailable>
-        <AssistedTextarea
-          placeholder={props.placeHolder}
-          value={value}
-          className={clsx(
-            '!min-h-40 !max-h-80 p-[24px] overflow-hidden bg-customColor2 outline-none rounded-[4px] border-fifth border'
-          )}
-          onChange={(e) => {
-            onChange({
-              target: {
-                name: props.name,
-                value: e.target.value,
-              },
-            });
-          }}
-          purpose={`Assist me in writing social media posts.`}
-        />
-      </CopilotProvider>
+      <Textarea
+        standalone
+        disableForm
+        placeholder={props.placeHolder}
+        value={value}
+        className={clsx(
+          'w-full p-[24px] overflow-hidden bg-customColor2 outline-none rounded-[4px] border-fifth border'
+        )}
+        onChange={(e) => {
+          onChange({
+            target: {
+              name: props.name,
+              value: e.target.value,
+            },
+          });
+        }}
+      />
 
       <div className="text-red-400 text-[12px]">
         {form?.formState?.errors?.[props.name]?.message as string}

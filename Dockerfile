@@ -72,12 +72,9 @@ COPY var/docker/entrypoint.sh /usr/local/bin/content-factory-entrypoint
 RUN chmod +x /usr/local/bin/content-factory-entrypoint
 
 ENV NODE_ENV=production
-# CopilotKit reports to a Segment endpoint of its own the moment its runtime is
-# built, which happens as soon as an organization has a model key. Setting this
-# in the image as well as in .env means the switch cannot be lost by editing a
-# file on the server. `DO_NOT_TRACK` is the same request in the form several
-# other libraries understand.
-ENV COPILOTKIT_TELEMETRY_DISABLED=true
+# `DO_NOT_TRACK` asks every library that understands it not to report usage.
+# Set in the image so editing a file on the server cannot lose it. (The
+# CopilotKit switch beside it left with the library, `kcxz.28`.)
 ENV DO_NOT_TRACK=1
 EXPOSE 5000
 
