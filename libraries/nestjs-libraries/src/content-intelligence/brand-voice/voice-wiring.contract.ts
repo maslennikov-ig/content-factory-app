@@ -130,6 +130,13 @@ export const VOICE_ERROR_CODES = {
    */
   VOICE_PAYLOAD_TOO_LARGE: { status: 413, screenState: 'error' },
   VOICE_ANALYSIS_FAILED: { status: 500, screenState: 'error' },
+  /**
+   * Another analysis of the same avatar is running — the chat and the screen
+   * at once, a second tab, an MCP client (`content-factory-next-kcxz.39`).
+   * Refused before anything is read or paid for; the running one finishes
+   * and is stored as usual.
+   */
+  VOICE_ANALYSIS_RUNNING: { status: 409, screenState: 'error' },
   /** The model was asked and did not answer. Never a blank profile. */
   VOICE_ASSIST_UNAVAILABLE: { status: 502, screenState: 'error' },
   /** It answered without a quote from the corpus, twice. */
@@ -635,6 +642,12 @@ export type VoiceAnalysisResponseV1 =
       hasProposal?: boolean;
       corpusChanged?: boolean;
       measuredAt?: string;
+      /**
+       * The run that saved these numbers ended without a proposal
+       * (`content-factory-next-kcxz.40`): not «still finishing», whatever
+       * `measuredAt` says, so the rerun is offered at once.
+       */
+      proposalFailed?: boolean;
     };
 
 /**
@@ -3244,6 +3257,11 @@ export type AdaptationV1 = {
   body?: string | null;
   postId?: string | null;
   mediaId?: string | null;
+  /**
+   * The picture with the address its thumbnail needs, read from the post
+   * (W4 walk P3-F): whoever set it — the screen or the chat.
+   */
+  image?: { id: string; path: string };
   state: AdaptationStateV1;
   /** ISO — `publishDate` поста. */
   date?: string | null;

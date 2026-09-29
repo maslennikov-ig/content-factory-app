@@ -8,6 +8,7 @@ import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/m
 import { VideoManager } from '@contentfactory/nestjs-libraries/videos/video.manager';
 import { VideoDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.dto';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
+import { generatedPictureName } from '@contentfactory/nestjs-libraries/database/prisma/media/image-prompt';
 import {
   AuthorizationActions,
   Sections,
@@ -33,28 +34,104 @@ export class MediaService {
     return this._mediaRepository.getMediaById(org, id);
   }
 
+  /**
+   * One picture, one AI operation and one image credit row (taken back when
+   * drawing fails). With `generatePromptFirst` the description is turned
+   * into a picture prompt first, inside the same `image_generation`
+   * operation (owner 28.09.2026, `content-factory-next-kcxz.44`).
+   */
   async generateImage(
     prompt: string,
     org: Organization,
     generatePromptFirst?: boolean
   ) {
     try {
-      const generating = await this._subscriptionService.useCredit(
+      return await this._subscriptionService.useCredit(
         org,
         'ai_images',
-        async () => {
-          if (generatePromptFirst) {
-            prompt = await this._openAi.generatePromptForPicture(org.id, prompt);
-            console.log('Prompt:', prompt);
-          }
-          return this._openAi.generateImage(org.id, prompt);
-        }
+        () =>
+          generatePromptFirst
+            ? this._openAi.generateImageFromDescription(org.id, prompt)
+            : this._openAi.generateImage(org.id, prompt)
       );
-
-      return generating;
     } catch (err) {
       throw generationError(err);
     }
+  }
+
+  /**
+   * Whether the workspace may generate a picture now. The inherited image credits
+   * (`pricing[tier].image_generation_count` a month) are a limit only where
+   * billing is configured (`STRIPE_PUBLISHABLE_KEY`); without it — our
+   * instance — the credit row is only a count and the allowance of AI
+   * operations is what limits generation. One rule for the doors and the chat.
+   */
+  async imageCreditsLeft(org: Organization) {
+    const total = await this._subscriptionService.checkCredits(org);
+    return !(process.env.STRIPE_PUBLISHABLE_KEY && total.credits <= 0);
+  }
+
+  /**
+   * A generated picture saved into the workspace's media library — what
+   * `POST /media/generate-image-with-prompt` answers, and what the chat's
+   * `media.generate` calls (`content-factory-next-kcxz.25`). `false`: the
+   * image credits are spent (checked before anything is admitted or paid).
+   *
+   * `describe` is the door's picture-prompt step: a model call turns the
+   * description into a renderer prompt before the image is drawn, inside the
+   * one `image_generation` operation — one AI operation and one image credit
+   * row a picture (`kcxz.44`).
+   */
+  async generateImageIntoLibrary(
+    org: Organization,
+    prompt: string,
+    describe = true
+  ) {
+    if (!(await this.imageCreditsLeft(org))) return false;
+    const image = await this.generateImage(prompt, org, describe);
+    let file: string;
+    try {
+      file = await this.storage.uploadSimple('data:image/png;base64,' + image);
+    } catch (error) {
+      // The operation is paid by now; the refusal is passed on as it is.
+      throw generationError(error);
+    }
+    // Named by the first words it was asked to show, so the library's search
+    // finds it (review W4-25 F11); the stored name stays the file's own.
+    return this.saveFile(
+      org.id,
+      file.split('/').pop() as string,
+      file,
+      generatedPictureName(prompt)
+    );
+  }
+
+  /**
+   * `generateImageIntoLibrary` for a caller that holds only the workspace id
+   * (the agent's capability, whose identity carries primitives only): the
+   * subscription is read as the web request's organization carries it
+   * (`getOrgsByUserId`'s include, review W4-25 F8), so the credits rule reads
+   * the same tier and window as the door.
+   */
+  async generateImageIntoLibraryFor(organizationId: string, prompt: string) {
+    const subscription =
+      await this._subscriptionService.getSubscriptionAsOrganizationCarries(
+        organizationId
+      );
+    return this.generateImageIntoLibrary(
+      { id: organizationId, subscription } as unknown as Organization,
+      prompt
+    );
+  }
+
+  /** The library's newest items, for a reader that needs no page math. */
+  recentMedia(org: string, search?: string) {
+    return this._mediaRepository.getMedia(org, 1, search);
+  }
+
+  /** Library items of the workspace by id, deleted ones not included. */
+  mediaInWorkspace(org: string, ids: string[]) {
+    return this._mediaRepository.getLiveMediaByIds(org, ids);
   }
 
   saveFile(org: string, fileName: string, filePath: string, originalName?: string) {

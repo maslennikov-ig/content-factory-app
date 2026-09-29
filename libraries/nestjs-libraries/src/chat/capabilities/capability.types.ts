@@ -170,7 +170,15 @@ export type CapabilityDeclaration<
     emit: CapabilityEmit
   ) => Promise<TOutput | undefined>;
   /**
-   * `confirm` class, required: the approval card's «what and where», read from
+   * `write` class, web chat only (`kcxz.45`, spec §5.7): an action a line of
+   * outside text the model read (a lead's title) could talk it into. In the
+   * web chat every call shows the approval card — native Mastra approval —
+   * and runs only on «Да» bound to its arguments, as `confirm` does. Over MCP
+   * it stays plain `write`: the client's own tool approval decides there.
+   */
+  asksInWebChat?: true;
+  /**
+   * `confirm` class, and an `asksInWebChat` one, required: the approval card's «what and where», read from
    * the workspace for the stored arguments (the entity by id, in the caller's
    * organization) — never words the model wrote. One line in the caller's
    * language. Shown to the person only; the model never reads it.
@@ -223,6 +231,13 @@ export type CapabilityDeclaration<
   /** The persisted card payload, `null` when there is nothing to show. */
   cardOf?: (output: TOutput) => CardReference | null;
 };
+
+/**
+ * Whether a call of this capability may wait for «Да» on an approval card in
+ * the web chat: `confirm`, and `asksInWebChat` (`kcxz.45`).
+ */
+export const mayAskApproval = (capability: Pick<CapabilityDeclaration, 'risk' | 'asksInWebChat'>) =>
+  capability.risk === 'confirm' || !!capability.asksInWebChat;
 
 /** Keeps the generic parameters of one declaration while typing the list. */
 export const defineCapability = <TInput extends z.AnyZodObject, TOutput>(

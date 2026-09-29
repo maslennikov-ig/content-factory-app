@@ -14,20 +14,10 @@ import {
   resolveAudienceAnalyticsState,
   type AudienceMetric,
 } from './audience.analytics.view';
-
-const allowedIntegrations = [
-  'facebook',
-  'instagram',
-  'instagram-standalone',
-  'linkedin-page',
-  'tiktok',
-  'youtube',
-  'gmb',
-  'pinterest',
-  'telegram',
-  'threads',
-  'x',
-] as const;
+import {
+  audiencePeriodsOf,
+  hasAudienceAnalytics,
+} from '@contentfactory/nestjs-libraries/integrations/audience-analytics.rules';
 
 type AnalyticsIntegration = {
   id: string;
@@ -55,11 +45,13 @@ export const PlatformAnalytics = () => {
     const response = await fetch('/integrations/list');
     if (!response.ok) throw new Error('analytics integrations');
     const result = await response.json();
+    // Which channels have audience analytics: one rule with the chat's
+    // `analytics.channel` (`kcxz.24`).
     return (result.integrations as AnalyticsIntegration[]).filter(
       (integration) =>
-        allowedIntegrations.includes(
-          integration.identifier as (typeof allowedIntegrations)[number]
-        ) && !(integration.identifier === 'x' && disableXAnalytics)
+        hasAudienceAnalytics(integration.identifier, {
+          disableX: !!disableXAnalytics,
+        })
     );
   }, [fetch, disableXAnalytics]);
 
@@ -86,24 +78,11 @@ export const PlatformAnalytics = () => {
     sortedIntegrations.find((integration) => integration.id === currentId) ??
     sortedIntegrations[0];
 
-  const options = useMemo(() => {
-    if (!currentIntegration) return [];
-    const supported = [7];
-    if (currentIntegration.identifier !== 'telegram') supported.push(30);
-    if (
-      [
-        'facebook',
-        'linkedin-page',
-        'pinterest',
-        'youtube',
-        'x',
-        'gmb',
-      ].includes(currentIntegration.identifier)
-    ) {
-      supported.push(90);
-    }
-    return supported;
-  }, [currentIntegration]);
+  const options = useMemo(
+    () =>
+      currentIntegration ? audiencePeriodsOf(currentIntegration.identifier) : [],
+    [currentIntegration]
+  );
   const selectedDays = options.includes(days) ? days : options[0] ?? 7;
 
   const loadMetrics = useCallback(async () => {

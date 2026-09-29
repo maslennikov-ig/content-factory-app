@@ -56,6 +56,7 @@ import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage
 import { ResearchQuotaService } from '@contentfactory/nestjs-libraries/content-intelligence/research/research-quota.service';
 import { RESEARCH_QUOTA_STORE } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { INTAKE_SNAPSHOT_STORE } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake-snapshot.store';
+import { VOICE_ANALYSIS_LOCK_STORE, redisAnalysisLockStore } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/analysis-lock';
 import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
@@ -113,6 +114,12 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     // The intake's first-pass snapshot lives in the same Redis for an hour
     // (`content-factory-next-75xn.19`); same reason for the token.
     { provide: INTAKE_SNAPSHOT_STORE, useValue: ioRedis },
+    // One analysis per avatar at a time (`kcxz.39`); same Redis, same reason.
+    // Owned claim over the same Redis (review W4-39-40 F3).
+    {
+      provide: VOICE_ANALYSIS_LOCK_STORE,
+      useFactory: () => redisAnalysisLockStore(ioRedis),
+    },
     ResearchQuotaService,
     UsersService,
     UsersRepository,

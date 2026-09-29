@@ -43,6 +43,7 @@ model Organization {
   webhooks                   Webhooks[]
   oauthApp                   OAuthApp[]
   oauthAuthorizations        OAuthAuthorization[]
+  mcpOAuthGrants             McpOAuthGrant[]
   aiProvider                 AiProviderSetting?
   aiUsageRecords             AiUsageRecord[]
   productEvents              ProductEvent[]
@@ -168,6 +169,7 @@ model User {
   newsletterDeliveryLeaseId        String?
   newsletterDeliveryLeaseExpiresAt DateTime?
   oauthAuthorizations              OAuthAuthorization[]
+  mcpOAuthGrants                   McpOAuthGrant[]
   productEvents                    ProductEvent[]
   identities                       UserIdentity[]
   // The chat this account's administrator has proven ownership of, by sending
@@ -1059,6 +1061,60 @@ model OAuthAuthorization {
   @@index([userId])
   @@index([organizationId])
   @@index([revokedAt])
+}
+
+/// An external assistant that registered itself for MCP (RFC 7591,
+/// `content-factory-next-kcxz.26`): Claude, ChatGPT or a local client. Public
+/// client only — no secret; PKCE S256 proves the code's owner. Kept apart from
+/// `OAuthApp`, which is one workspace's own third-party app with a secret.
+model McpOAuthClient {
+  id           String          @id @default(uuid())
+  clientId     String          @unique
+  name         String
+  /// Exact https redirects, or loopback ones matched without the port.
+  redirectUris String[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  grants       McpOAuthGrant[]
+
+  @@index([createdAt])
+}
+
+/// One person's MCP connection in one workspace (`kcxz.26`). Only hashes of
+/// the code and tokens are stored. The role is never kept here: `/mcp` reads
+/// it from the membership on every request.
+model McpOAuthGrant {
+  id                 String         @id @default(uuid())
+  clientId           String
+  userId             String
+  organizationId     String
+  /// The MCP URL the code and tokens are bound to (RFC 8707 `resource`).
+  resource           String
+  scope              String
+  redirectUri        String
+  codeHash           String?        @unique
+  codeChallenge      String?
+  codeExpiresAt      DateTime?
+  /// Set when the code is exchanged; the hash stays, so a replay is recognised
+  /// and revokes what the code produced (RFC 6749 §4.1.2).
+  codeUsedAt         DateTime?
+  accessTokenHash    String?        @unique
+  accessExpiresAt    DateTime?
+  refreshTokenHash   String?        @unique
+  refreshExpiresAt   DateTime?
+  /// The refresh token this one replaced: presenting it again revokes the grant.
+  rotatedRefreshHash String?        @unique
+  revokedAt          DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  client             McpOAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([organizationId])
+  @@index([clientId])
+  @@index([createdAt])
 }
 
 /// One avatar. A space may hold several, and one of them is the default.

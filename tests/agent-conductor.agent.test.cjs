@@ -99,6 +99,17 @@ describe('what the model is offered', () => {
         'channel_open',
         'channel_posts',
         'channels_list',
+        // Subscriptions and leads are read by every member (kcxz.23).
+        'ideas_list',
+        'ideas_queue',
+        // Facts, own texts on a topic and analytics are read by every
+        // member (kcxz.24); the cliché check is an editor's.
+        'facts_list',
+        'texts_related',
+        'analytics_production',
+        'analytics_channel',
+        // The media library is read by every member (kcxz.25).
+        'media_library',
         'piece_list',
         'piece_open',
         'plan_ahead',

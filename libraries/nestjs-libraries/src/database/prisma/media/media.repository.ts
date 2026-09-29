@@ -45,6 +45,24 @@ export class MediaRepository {
     });
   }
 
+  /**
+   * Live items of the workspace among `ids` — the chat door checks a media
+   * receipt with it (`content-factory-next-kcxz.25`): an id of another
+   * workspace, or one deleted, is simply not in the answer. The door builds
+   * the receipt the model reads from these rows (review W4-25 F3): the stored
+   * name and path say what the file really is.
+   */
+  getLiveMediaByIds(org: string, ids: string[]) {
+    return this._media.model.media.findMany({
+      where: {
+        id: { in: ids },
+        organizationId: org,
+        deletedAt: null,
+      },
+      select: { id: true, name: true, originalName: true, path: true },
+    });
+  }
+
   deleteMedia(org: string, id: string) {
     return this._media.model.media.update({
       where: {

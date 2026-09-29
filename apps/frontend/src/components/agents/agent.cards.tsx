@@ -18,6 +18,7 @@ import {
 } from './agent.contract';
 import { errorWordsFor, type AgentWords } from './agent.copy';
 import { AgentGlyph, type AgentGlyphName } from './agent.icons';
+import { pictureAvailable } from './agent.media';
 import { usePieceArtifact } from './agent.piece-data';
 
 /**
@@ -184,6 +185,9 @@ const ARTIFACT_GLYPH: Record<AgentArtifactKind, AgentGlyphName> = {
   channels: 'channels',
   channel: 'channels',
   plan: 'calendar',
+  ideas: 'spark',
+  facts: 'list',
+  media: 'image',
 };
 
 /**
@@ -380,17 +384,28 @@ export function DoneLine({
  * on the product screen.
  */
 const SCHEDULE_TOOLS: readonly string[] = ['plan_schedule', 'plan_move', 'plan_apply'];
+/**
+ * Lead actions say what is really left (W4 walk P3-E): the screen has no way
+ * back from «Не надо» or «Взять в работу»; an unsubscribed feed or topic is
+ * revived by subscribing again.
+ */
+const LEAD_NOTES = {
+  ideas_dismiss: 'dismiss',
+  ideas_take: 'take',
+  ideas_archive: 'archive',
+} as const;
+type LeadNote = (typeof LEAD_NOTES)[keyof typeof LEAD_NOTES];
 export const approvalNoteOf = (
   toolName: string | null | undefined,
   irreversible: boolean
-): 'delete' | 'publish' | 'schedule' | 'undo' =>
+): 'delete' | 'publish' | 'schedule' | 'undo' | LeadNote =>
   irreversible
     ? 'delete'
     : toolName === 'plan_publish_now'
       ? 'publish'
       : toolName && SCHEDULE_TOOLS.includes(toolName)
         ? 'schedule'
-        : 'undo';
+        : (toolName && LEAD_NOTES[toolName as keyof typeof LEAD_NOTES]) || 'undo';
 
 export function ApprovalCard({
   title,
@@ -505,7 +520,15 @@ export function ApprovalCard({
         </Note>
       ) : (
         <Note tone="neutral">
-          {note === 'schedule' ? w.scheduleNote : w.reversibleNote}
+          {note === 'schedule'
+            ? w.scheduleNote
+            : note === 'dismiss'
+              ? w.dismissNote
+              : note === 'take'
+                ? w.takeNote
+                : note === 'archive'
+                  ? w.archiveNote
+                  : w.reversibleNote}
         </Note>
       )}
     </AgentCard>
@@ -565,6 +588,7 @@ export function QuestionCard({
   stale = false,
   busy,
   onAnswer,
+  keepPicture,
   words,
 }: {
   title: string | null;
@@ -574,10 +598,17 @@ export function QuestionCard({
   stale?: boolean;
   busy: boolean;
   onAnswer: (resumeData: Record<string, unknown>) => void;
+  /**
+   * Puts a picture this page showed the agent into the library (`media.keep`,
+   * 28.09); `null` — the page no longer holds it.
+   */
+  keepPicture?: (pictureKey: string) => Promise<{ id: string } | null>;
   words: AgentWords;
 }) {
   const w = words.question;
   const [sent, setSent] = useState<string | null>(null);
+  /** A refused library upload of `media.keep`: the card stays for a retry. */
+  const [failure, setFailure] = useState<string | null>(null);
   const [own, setOwn] = useState('');
   const [consent, setConsent] = useState(false);
   // The avatar's name now, when it has one (W3 walk P3-F).
@@ -602,6 +633,83 @@ export function QuestionCard({
     onAnswer(resumeData);
   };
   const locked = busy || sent !== null;
+
+  if (question.kind === 'keep-picture') {
+    // The page that showed the agent this picture still holds it — or not,
+    // after a reload. The button is the person's consent to a library write
+    // every member sees; the upload is the library's own request.
+    const picture = pictureAvailable(question.pictureKey);
+    const keep = async () => {
+      setSent('yes');
+      setFailure(null);
+      try {
+        const saved = keepPicture ? await keepPicture(question.pictureKey) : null;
+        onAnswer(saved ? { kept: true, mediaId: saved.id } : { kept: false, gone: true });
+      } catch {
+        setSent(null);
+        setFailure(w.keepPictureFailed);
+      }
+    };
+    return (
+      <AgentCard
+        cardKind="question"
+        glyph="image"
+        kind={w.kind}
+        title={title}
+        label={`${w.kind}: ${question.text}`}
+        footer={
+          picture ? (
+            <>
+              <Button
+                type="button"
+                density="dense"
+                disabled={locked}
+                loading={sent === 'yes'}
+                loadingLabel={w.sending}
+                data-agent-keep-picture="yes"
+                onClick={() => void keep()}
+              >
+                {w.keepPicture}
+              </Button>
+              <Button
+                type="button"
+                density="dense"
+                variant="quiet"
+                disabled={locked}
+                loading={sent === 'no'}
+                loadingLabel={w.sending}
+                onClick={() => send('no', { kept: false })}
+              >
+                {w.keepPictureSkip}
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              density="dense"
+              variant="secondary"
+              disabled={locked}
+              loading={sent === 'gone'}
+              loadingLabel={w.sending}
+              onClick={() => send('gone', { kept: false, gone: true })}
+            >
+              {w.keepPictureGoneAnswer}
+            </Button>
+          )
+        }
+      >
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{question.text}</p>
+        <p className="cf-caption text-cf-ink-muted [overflow-wrap:anywhere]">
+          {picture ? w.keepPictureName(picture.name) : w.keepPictureGone}
+        </p>
+        {failure ? (
+          <p role="status" className="cf-caption text-cf-danger">
+            {failure}
+          </p>
+        ) : null}
+      </AgentCard>
+    );
+  }
 
   if (question.kind === 'consent' && question.subject === 'autopilot') {
     // Writing into an autopilot channel (`kcxz.14`): the server's words name

@@ -16,6 +16,7 @@ import {
   reservePaidSlot,
 } from './capability.context';
 import {
+  mayAskApproval,
   refusal,
   toolNameOf,
   type CapabilityDeclaration,
@@ -48,6 +49,7 @@ import type { CapabilityServices } from './mastra.adapter';
  * 2. `confirm`: the approval the person gave is for exactly this tool and these
  *    arguments (fingerprint), and — for a capability that declares
  *    `approvalContent` — for what goes out as it is stored now (review W2 F4);
+ * 2a. `asksInWebChat`, web chat only (`kcxz.45`): the same fingerprint;
  * 3. `paid`: a free paid slot in this turn — 1, or 2 on an explicit
  *    continuation, never more;
  * 4. the door's `@CheckPolicies`, re-evaluated now with `PermissionsService`
@@ -87,6 +89,8 @@ export const admitCapabilityCall = async (
     capabilities?: readonly CapabilityDeclaration[];
     /** The call carries the person's answer on its own card (a resume). */
     resuming?: boolean;
+    /** The web chat's hooks: `asksInWebChat` applies (never over MCP). */
+    webChat?: boolean;
   }
 ): Promise<CapabilityRefusal | null> => {
   const identity = readCapabilityIdentity(requestContext);
@@ -115,12 +119,15 @@ export const admitCapabilityCall = async (
 
   const toolName = toolNameOf(capability.id);
   const confirm = capability.risk === 'confirm';
-  if (confirm) {
+  const asksHere = !!options.webChat && !!capability.asksInWebChat;
+  if (confirm || asksHere) {
     const print = approvalFingerprint(toolName, input);
     if (!hasApproval(requestContext, print)) {
       return refusal(
         'APPROVAL_MISMATCH',
-        'The person did not approve this exact action. Ask again with the approval card; do not retry with other arguments.'
+        confirm
+          ? 'The person did not approve this exact action. Ask again with the approval card; do not retry with other arguments.'
+          : 'The person did not approve this exact action on its card; nothing was done. Call it again so the card is shown; do not retry with other arguments or by other means.'
       );
     }
   }
@@ -195,7 +202,7 @@ export const createCapabilityHooks = (
         input,
         contextOf(context),
         gate,
-        { countPaid: true, services, capabilities, resuming: resumingIn(context) }
+        { countPaid: true, services, capabilities, resuming: resumingIn(context), webChat: true }
       );
       return refused ? { proceed: false, output: refused } : undefined;
     },
@@ -213,7 +220,7 @@ export const createCapabilityHooks = (
         const opened = opens((wrapped && typeof wrapped === 'object' ? wrapped : summary) as Record<string, unknown>);
         if (opened) markQuestionsOpened(requestContext, opened);
       }
-      if (capability.risk !== 'confirm') return;
+      if (!mayAskApproval(capability)) return;
       // Spent whether the call succeeded or threw: one «Да», one call. The
       // content-bound print of the same call goes with it.
       consumeApproval(requestContext, approvalFingerprint(toolName, input));

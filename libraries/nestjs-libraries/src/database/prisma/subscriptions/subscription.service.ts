@@ -21,6 +21,13 @@ export class SubscriptionService {
     );
   }
 
+  /** The subscription as the web request's organization carries it (W4-25 F8). */
+  getSubscriptionAsOrganizationCarries(organizationId: string) {
+    return this._subscriptionRepository.getSubscriptionAsOrganizationCarries(
+      organizationId
+    );
+  }
+
   useCredit<T>(
     organization: Organization,
     type = 'ai_images',

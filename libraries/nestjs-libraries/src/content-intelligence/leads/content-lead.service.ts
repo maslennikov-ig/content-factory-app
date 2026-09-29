@@ -169,7 +169,8 @@ export class ContentLeadService {
   private async startPeriodicCheck(
     organizationId: string,
     subscriptionId: string,
-    checkIntervalMinutes: number
+    checkIntervalMinutes: number,
+    options: { firstCheckDelayed?: boolean } = {}
   ) {
     try {
       const client = this.temporal?.client.getRawClient();
@@ -178,6 +179,13 @@ export class ContentLeadService {
         workflowId: workflowIdFor(subscriptionId),
         taskQueue: 'main',
         args: [{ organizationId, subscriptionId, checkIntervalMinutes }],
+        // The workflow checks on its first iteration. Started by a manual
+        // check, that iteration would run a second search beside the click's
+        // own (review W4-23 F11): Temporal's own `startDelay` holds the start
+        // for one interval, so the workflow's contract stays as it is.
+        ...(options.firstCheckDelayed
+          ? { startDelay: Math.max(1, checkIntervalMinutes) * 60_000 }
+          : {}),
         // A start against an id that is already Running just attaches to
         // it — cheap and idempotent, which is what lets the manual check
         // path call this again as a recovery, not only `createSubscription`.
@@ -318,22 +326,42 @@ export class ContentLeadService {
       await this.repository.getAutoPost(organizationId, input.linkedAutoPostId);
     }
     const checkIntervalMinutes = input.checkIntervalMinutes ?? 1440;
-    const subscription = await this.repository.createSubscription(
+    const fields = {
+      displayName,
+      // The wording as it was typed, only trimmed. The schema keeps this
+      // column apart from `canonicalUrl` precisely so the derived key can be
+      // normalised without the product rewording what a person asked for —
+      // and it is this text, not the key, that the search is made with.
+      query: input.kind === 'TOPIC' ? query : null,
+      checkIntervalMinutes,
+      linkedAutoPostId: input.linkedAutoPostId || null,
+    };
+    /**
+     * Subscribing again to what was unsubscribed revives the archived row
+     * (review W4-23 F3). The unique index `(organizationId, kind,
+     * canonicalUrl)` counts archived rows too, so a new row was refused as
+     * `SUBSCRIPTION_CONFLICT` — on the screen and in the chat — for a
+     * subscription neither could see. The same row keeps its id, so the leads
+     * it brought keep their statuses (a declined one stays declined) and
+     * `lastCheckedAt` keeps the manual-check minute honest. A revive that
+     * lost a race falls through to `create`, which then refuses honestly.
+     */
+    const archived = await this.repository.findSubscriptionByKey(
       organizationId,
-      actorUserId,
-      {
-        kind: input.kind,
-        displayName,
-        canonicalUrl,
-        // The wording as it was typed, only trimmed. The schema keeps this
-        // column apart from `canonicalUrl` precisely so the derived key can be
-        // normalised without the product rewording what a person asked for —
-        // and it is this text, not the key, that the search is made with.
-        query: input.kind === 'TOPIC' ? query : null,
-        checkIntervalMinutes,
-        linkedAutoPostId: input.linkedAutoPostId || null,
-      }
+      input.kind,
+      canonicalUrl
     );
+    const revived =
+      archived && archived.deletedAt
+        ? await this.repository.reviveSubscription(organizationId, archived.id, fields)
+        : null;
+    const subscription =
+      revived ??
+      (await this.repository.createSubscription(organizationId, actorUserId, {
+        kind: input.kind,
+        canonicalUrl,
+        ...fields,
+      }));
     await this.startPeriodicCheck(
       organizationId,
       subscription.id,
@@ -439,10 +467,15 @@ export class ContentLeadService {
     }
 
     if (options.ensurePeriodicCheck) {
+      // Restarted from a click that checks right now: the workflow's first
+      // iteration waits one interval instead of searching a second time
+      // alongside this check (review W4-23 F11). Attaching to a running
+      // workflow is unchanged.
       await this.startPeriodicCheck(
         organizationId,
         subscriptionId,
-        subscription.checkIntervalMinutes
+        subscription.checkIntervalMinutes,
+        { firstCheckDelayed: true }
       );
     }
 
@@ -550,7 +583,9 @@ export class ContentLeadService {
         lastErrorCode: null,
         lastCheckedAt: now,
       });
-      return { checked: true, created };
+      // A topic answered from the research cache searched nothing and spent
+      // nothing (review W4-23 F4); the chat says so instead of «spent».
+      return { checked: true, created, ...(result.fromCache ? { fromCache: true as const } : {}) };
     } catch (error) {
       const code =
         error instanceof SourceRegistryError
@@ -573,6 +608,24 @@ export class ContentLeadService {
     return { leads: rows.map(presentLead) };
   }
 
+  /**
+   * One lead of the workspace, as the queue presents it
+   * (`content-factory-next-kcxz.23`): the chat's `piece.create` reads the
+   * lead it writes from here, by id, instead of taking the lead's words from
+   * the model. A lead of another workspace is `LEAD_NOT_FOUND`.
+   */
+  async getLead(organizationId: string, leadId: string) {
+    return presentLead(await this.repository.getLead(organizationId, leadId));
+  }
+
+  /**
+   * Whether the workspace has — or had — this subscription. An archived one
+   * counts: the leads it brought stay in the queue (review W4-23 F9).
+   */
+  async subscriptionKnown(organizationId: string, subscriptionId: string) {
+    return !!(await this.repository.findSubscriptionAnyState(organizationId, subscriptionId));
+  }
+
   async dismissLead(organizationId: string, leadId: string, actorUserId: string) {
     const row = await this.repository.dismissLead(
       organizationId,
@@ -581,6 +634,14 @@ export class ContentLeadService {
       this.now()
     );
     return presentLead(row);
+  }
+
+  /**
+   * «Не надо» for a batch (`kcxz.45`, the chat's one card): all or nothing,
+   * already-declined leads are a no-op (`ContentLeadRepository.dismissLeads`).
+   */
+  dismissLeads(organizationId: string, leadIds: readonly string[], actorUserId: string) {
+    return this.repository.dismissLeads(organizationId, leadIds, actorUserId, this.now());
   }
 
   /**

@@ -52,6 +52,10 @@ const MIRRORED = [
   'AGENT_SAMPLES_PART_TYPE',
   'AGENT_SAMPLES_MAX_FILES',
   'AGENT_SAMPLES_MAX_REASONS',
+  // The receipt of pictures the composer put into the media library (kcxz.25).
+  'AGENT_MEDIA_PART_TYPE',
+  'AGENT_MEDIA_MAX_FILES',
+  'AGENT_MEDIA_TYPES',
   // How the chat connects a platform: the steps or the window (kcxz.19).
   'CHANNEL_CONNECT_FLOWS',
   // Which search key the key card takes (kcxz.20).

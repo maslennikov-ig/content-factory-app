@@ -37,15 +37,26 @@ describe('developer settings speak the reader language', () => {
     for (const call of calls) expect(call).toMatch(/locale=\{locale\}/u);
   });
 
-  test('every client hint goes through translation', () => {
+  test('the MCP steps go through translation; no per-client key config is left', () => {
     const source = fs.readFileSync(path.join(root, componentPath), 'utf8');
-    // The hints used to be English literals with a Russian side table; they
-    // are locale keys now, so every interface language gets them.
+    // The per-client hints configured the workspace key in a header; MCP takes
+    // OAuth only (`content-factory-next-kcxz.26`) and moved to «Одобренные
+    // приложения», which every member sees (live walk W4 P2-A).
     expect(source).not.toMatch(/hint: '[^']+'/u);
-    const hints = [...source.matchAll(/hint: t\(\s*'(mcp_hint_[a-z_]+)'/gu)];
-    // One hint per client for the header method; the key-in-address method
-    // and its eight hints are gone (`content-factory-next-kcxz.1`).
-    expect(hints.length).toBeGreaterThanOrEqual(8);
+    expect(source).not.toMatch(/mcp_hint_|mcp-oauth|McpSection|Authorization: \$\{|headers: \{ Authorization/u);
+    const section = fs.readFileSync(
+      path.join(root, 'apps/frontend/src/components/approved-apps/mcp-connect.section.tsx'),
+      'utf8'
+    );
+    const steps = [...section.matchAll(/t\(\s*'(mcp_connect_step_[a-z]+)'/gu)].map(([, key]) => key);
+    expect(steps).toEqual(['mcp_connect_step_claude', 'mcp_connect_step_chatgpt', 'mcp_connect_step_allow']);
+    const ru = JSON.parse(
+      fs.readFileSync(
+        path.join(root, 'libraries/react-shared-libraries/src/translation/locales/ru/translation.json'),
+        'utf8'
+      )
+    );
+    for (const key of steps) expect(ru[key]).toMatch(/[а-яё]/u);
     expect(source).not.toContain('MCP_HINTS_RU');
   });
 });

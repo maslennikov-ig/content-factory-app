@@ -108,6 +108,7 @@ import { IntegrationManager } from '@contentfactory/nestjs-libraries/integration
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { ContentLeadRepository } from '../leads/content-lead.repository';
+import { pieceLeadSource } from '../leads/lead-intake';
 import { briefTitle } from '../brief/content-brief.compose';
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
@@ -981,11 +982,9 @@ export class IntakeService {
   ): Promise<PieceLeadSourceV1 | null> {
     if (!leadId || !this.leads) return null;
     try {
-      const lead = await this.leads.getLead(organizationId, leadId);
-      const url = trimmed(lead?.sourceUrl);
-      if (!url) return null;
-      const title = trimmed(lead?.title);
-      return { leadId, url, ...(title ? { title } : {}) };
+      // One reading of a lead's source line, shared with the chat's scenario
+      // world (`lead-intake.ts`, kcxz.23).
+      return pieceLeadSource(leadId, await this.leads.getLead(organizationId, leadId));
     } catch (error) {
       this.logger.warn(
         `Intake could not read the lead a piece came from: ${describeError(error)}`

@@ -282,7 +282,7 @@ describe('F2: the chat re-reads the screens beside it without clearing them', ()
     expect(screen.shown()).toBe('first');
   });
 
-  test('reads change nothing, so they re-read nothing; the list is the registry’s reads', () => {
+  test('reads change nothing, so the change counts leave them out; the list is the registry’s reads', () => {
     const done = (toolName) => ({
       type: `tool-${toolName}`,
       toolCallId: `call-${toolName}`,
@@ -296,9 +296,45 @@ describe('F2: the chat re-reads the screens beside it without clearing them', ()
     expect(contract.channelCallsOf([message(['channel_open', 'channel_posts', 'channel_writing'])])).toBe(1);
     const registry = loadCapabilityModule('index.ts');
     const reads = registry.CAPABILITY_CATALOGUE.filter(
-      (capability) => capability.risk === 'read' && /^(avatar|channel)\./.test(capability.id)
+      (capability) => capability.risk === 'read' && /^(avatar|channel|ideas|facts|media)\./.test(capability.id)
     ).map((capability) => capability.id.replace(/\./g, '_'));
     expect([...contract.READ_ONLY_TOOLS].sort()).toEqual(reads.sort());
+  });
+
+  test('W4 walk P2-B: a finished read re-reads the panel it opens, for every group; a refused one does not', () => {
+    const done = (toolName, output = { ok: true }) => ({
+      type: `tool-${toolName}`,
+      toolCallId: `call-${toolName}-${Math.random()}`,
+      state: 'output-available',
+      input: {},
+      output,
+    });
+    const message = (parts) => ({ id: 'm', role: 'assistant', parts });
+    const messages = [
+      message([
+        done('ideas_queue'),
+        done('ideas_list'),
+        done('ideas_dismiss'),
+        done('facts_list'),
+        done('media_library'),
+        done('channel_open'),
+        done('avatar_overview'),
+        done('ideas_queue', { ok: false, code: 'SUBSCRIPTION_NOT_FOUND', reason: 'x' }),
+      ]),
+    ];
+    expect(contract.panelReadsOf(messages, 'ideas_')).toBe(2);
+    expect(contract.panelReadsOf(messages, 'facts_')).toBe(1);
+    expect(contract.panelReadsOf(messages, 'media_')).toBe(1);
+    expect(contract.panelReadsOf(messages, 'channel_')).toBe(1);
+    expect(contract.panelReadsOf(messages, 'avatar_')).toBe(1);
+    // The conversation adds them to each group's count, one hook for all.
+    const conversation = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '../apps/frontend/src/components/agents/agent.conversation.tsx'),
+      'utf8'
+    );
+    for (const prefix of ['channel_', 'avatar_', 'ideas_', 'facts_', 'media_']) {
+      expect(conversation).toContain(`panelReadsOf(messages, '${prefix}')`);
+    }
   });
 });
 

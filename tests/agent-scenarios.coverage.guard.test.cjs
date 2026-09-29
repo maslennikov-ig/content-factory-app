@@ -19,7 +19,9 @@ describe('recorded scenario coverage of the capability registry', () => {
     expect(capabilityIds.length).toBeGreaterThan(0);
     for (const scenario of scenarios) {
       expect(scenario.id).toMatch(/^[a-z0-9-]+$/);
-      expect(scenario.covers.length).toBeGreaterThan(0);
+      // A capability, or a skill whose know-how the scenario proves (the
+      // «help» answers, kcxz.24: not a capability, a Mastra skill).
+      expect(scenario.covers.length + (scenario.skills ?? []).length).toBeGreaterThan(0);
       expect(typeof scenario.check).toBe('function');
     }
     expect(new Set(scenarios.map((scenario) => scenario.id)).size).toBe(scenarios.length);
@@ -33,6 +35,26 @@ describe('recorded scenario coverage of the capability registry', () => {
     const { unknown, unscripted } = coverageGaps(capabilityIds, scenarios);
     expect(unknown).toEqual([]);
     expect(unscripted).toEqual([]);
+  });
+
+  test('a scenario that proves a skill names a real one and activates it (kcxz.24)', () => {
+    const { CONDUCTOR_SKILL_SPECS } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
+      '../conductor/conductor.skills.ts'
+    );
+    const names = new Set(CONDUCTOR_SKILL_SPECS.map((skill) => skill.name));
+    const proving = scenarios.filter((scenario) => (scenario.skills ?? []).length);
+    expect(proving.map((scenario) => scenario.id)).toContain('help-answer');
+    for (const scenario of proving) {
+      const activated = scenario.turns.flatMap((turn) =>
+        (turn.model || []).flatMap((step) =>
+          step.filter(([kind, name]) => kind === 'tool' && name === 'skill').map(([, , input]) => input.name)
+        )
+      );
+      for (const skill of scenario.skills) {
+        expect(names.has(skill)).toBe(true);
+        expect(activated).toContain(skill);
+      }
+    }
   });
 
   test('the guard itself: a capability without a scenario is named', () => {

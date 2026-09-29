@@ -15,6 +15,9 @@ module.exports = {
   covers: ['adaptation.rewrite', 'adaptation.edit', 'adaptation.image', 'adaptation.delete'],
   world: {
     adaptations: [ROW],
+    // The picture is a library item of this workspace (kcxz.25: the world
+    // reads it as `PieceRepository.findMedia` does).
+    media: [{ id: 'm7', name: 'm7.png', originalName: 'обложка.png', path: 'https://cdn.example/m7.png' }],
     reviewChanges: [{ id: 'w1', basket: 'show', excerpt: 'Текст', replacement: 'Короткий текст', why: 'Короче' }],
   },
   turns: [

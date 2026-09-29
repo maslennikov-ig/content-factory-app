@@ -42,6 +42,16 @@ import {
   OAuthController,
   OAuthAuthorizedController,
 } from '@contentfactory/backend/api/routes/oauth.controller';
+import {
+  McpOAuthConsentController,
+  McpOAuthController,
+  McpOAuthMetadataController,
+} from '@contentfactory/backend/api/routes/mcp-oauth.controller';
+import { McpController } from '@contentfactory/backend/api/routes/mcp.controller';
+import { McpBearerMiddleware } from '@contentfactory/backend/services/auth/mcp.bearer.middleware';
+import { McpOAuthRepository } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.repository';
+import { McpOAuthService } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.service';
+import { McpServers } from '@contentfactory/nestjs-libraries/chat/start.mcp';
 import { AnnouncementsController } from '@contentfactory/backend/api/routes/announcements.controller';
 import { AdminController } from '@contentfactory/backend/api/routes/admin.controller';
 import { AuthProviderManager } from '@contentfactory/backend/services/auth/providers/providers.manager';
@@ -91,6 +101,7 @@ const authenticatedController = [
   OAuthAppController,
   ApprovedAppsController,
   OAuthAuthorizedController,
+  McpOAuthConsentController,
   AnnouncementsController,
   AdminController,
   ProductEventsController,
@@ -123,6 +134,11 @@ const authenticatedController = [
     EnterpriseController,
     NoAuthIntegrationsController,
     OAuthController,
+    // MCP (`content-factory-next-kcxz.26`): discovery, registration and
+    // tokens take no session; `/mcp` takes only its own bearer (below).
+    McpOAuthMetadataController,
+    McpOAuthController,
+    McpController,
     ...authenticatedController,
   ],
   providers: [
@@ -147,6 +163,10 @@ const authenticatedController = [
     PublicGrowthRepository,
     PublicGrowthService,
     PublicGrowthEventsGuard,
+    McpOAuthRepository,
+    McpOAuthService,
+    McpServers,
+    McpBearerMiddleware,
     { provide: PUBLIC_GROWTH_SERVICE, useExisting: PublicGrowthService },
   ],
   get exports() {
@@ -156,5 +176,6 @@ const authenticatedController = [
 export class ApiModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(AuthMiddleware).forRoutes(...authenticatedController);
+    consumer.apply(McpBearerMiddleware).forRoutes(McpController);
   }
 }

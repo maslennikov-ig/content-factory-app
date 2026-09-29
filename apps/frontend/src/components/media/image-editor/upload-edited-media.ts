@@ -13,6 +13,21 @@ export async function uploadEditedMedia(
   signal?: AbortSignal
 ): Promise<UploadedMedia> {
   validateExportPayload(blob);
+  return uploadLibraryMedia(fetcher, blob, filename, signal);
+}
+
+/**
+ * One file into the media library through the library's own request
+ * (`POST /media/upload-simple`), its answer checked. The image editor's export
+ * and a picture attached in the agent chat (`agents/agent.media.ts`,
+ * `content-factory-next-kcxz.25`) both go through here.
+ */
+export async function uploadLibraryMedia(
+  fetcher: Fetcher,
+  blob: Blob,
+  filename: string,
+  signal?: AbortSignal
+): Promise<UploadedMedia> {
   const body = new FormData();
   body.append('file', blob, filename);
   const response = await fetcher('/media/upload-simple', {

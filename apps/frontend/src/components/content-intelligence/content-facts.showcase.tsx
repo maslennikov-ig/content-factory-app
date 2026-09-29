@@ -23,6 +23,7 @@ import {
   copyFactUrl,
   emptyFactCopyDraft,
   failureNotice,
+  factMomentOver,
   isUsableFact,
   jsonReader,
   readFactsEnvelope,
@@ -60,9 +61,9 @@ import {
  * (`content-facts.container.tsx`) already calls.
  *
  * It is a witness, not a workbench (§3: «витрина, а не верстак»). There is no
- * form here — a fact is written in the brief, where the question «чем
- * подтвердишь» is actually asked (`content-facts.container.tsx`, embedded by
- * `content-factory-next-odb8.2`). Two actions live here instead: СНЯТЬ, which
+ * form here — a fact is added by telling the agent in the chat (`facts.add`;
+ * the brief's form, `content-facts.container.tsx`, left the screens with the
+ * manual brief on 22.09). Two actions live here instead: СНЯТЬ, which
  * this screen only has to *show* — `RETRACTED`/`SUPERSEDED`/`TOMBSTONED`
  * already exist and already leave a fact out of a brief
  * (`UNUSABLE_FACT_STATUSES`) — and КОПИРОВАТЬ И ПОПРАВИТЬ, whose whole reason
@@ -82,12 +83,10 @@ type GroundingFilter = (typeof GROUNDING_FILTERS)[number];
 export const factsShowcaseCopy = {
   ru: {
     title: 'Откуда факты',
-    // content-factory-next-fn33.61: вкладки «Что пишем» на полосе нет —
-    // в полосе стоят Аватары, Откуда идеи, Бриф, Материалы, Откуда факты
-    // (`content-section.tabs.ts`). Форма добавления факта живёт на вкладке
-    // «Бриф», в блоке «Или запомните новый факт»; английская строка ниже
-    // называла её правильно всё это время.
-    body: 'Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Добавляют факты там, где пишут: во вкладке «Новая заготовка».',
+    // W4 live walk 29.09.2026, P2-C: the fact form left every screen with the
+    // manual brief (9118ba212, 22.09); a fact is added by telling the agent
+    // (`facts.add`), which also asks «до какого дня».
+    body: 'Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Новый факт добавляют в чате с агентом: «Запомни факт: …».',
     searchLabel: 'Искать по словам',
     searchHint:
       'Ищет по утверждению, теме и значению. Найдётся то, где встречаются все слова.',
@@ -102,7 +101,7 @@ export const factsShowcaseCopy = {
     retractedHidden: 'Скрыты',
     retractedShown: 'Показаны',
     shown: (visible: number, total: number) => `Показано ${visible} из ${total}`,
-    empty: 'Фактов пока нет. Их добавляют во вкладке «Новая заготовка», в момент письма.',
+    empty: 'Фактов пока нет. Скажите агенту в чате: «Запомни факт: …» — он запишет его сюда.',
     emptyFiltered: 'Ничего не найдено. Измените фильтры или поиск.',
     loading: 'Загружаем список фактов',
     listFallback: 'Список фактов не загрузился. Попробуйте ещё раз.',
@@ -154,7 +153,7 @@ export const factsShowcaseCopy = {
   },
   en: {
     title: 'Where facts come from',
-    body: 'What the product treats as true about your business and where it took that from. Whatever is not here does not go into a text. Facts are added where writing happens: the New piece tab.',
+    body: 'What the product treats as true about your business and where it took that from. Whatever is not here does not go into a text. A new fact is added in the chat with the agent: “Remember a fact: …”.',
     searchLabel: 'Search by words',
     searchHint:
       'Searches the claim, the topic and the value. A row matches when every word is in it.',
@@ -169,7 +168,7 @@ export const factsShowcaseCopy = {
     retractedHidden: 'Hidden',
     retractedShown: 'Shown',
     shown: (visible: number, total: number) => `Showing ${visible} of ${total}`,
-    empty: 'No facts yet. They are added on the New piece tab, while writing.',
+    empty: 'No facts yet. Tell the agent in the chat: “Remember a fact: …” — it writes it here.',
     emptyFiltered: 'Nothing matches. Try different filters or search.',
     loading: 'Loading the facts',
     listFallback: 'The fact list did not load. Try again.',
@@ -356,6 +355,11 @@ export function FactRowView({
   }
 
   const grounding = fact.grounding;
+  // «Свежо до» over: the brief no longer takes it (walk recheck observation).
+  // The screen's own marker, the one a retracted row wears; the row keeps its
+  // actions — «Копировать и поправить» copies it without the passed day.
+  const expired =
+    !!fact.freshUntil && factMomentOver(new Date(fact.freshUntil));
   const groundingDate = formatDate(grounding.observedAt, locale);
   const groundingMeta =
     grounding.method === 'OWN_MATERIAL'
@@ -388,6 +392,14 @@ export function FactRowView({
           {fact.needsLook && (
             <span className="cf-caption text-cf-ink-muted">
               {t.searchNotConfirmed}
+            </span>
+          )}
+          {expired && (
+            <span
+              data-content-fact-expired="true"
+              className="cf-caption text-cf-ink-muted"
+            >
+              {t.notInWork}
             </span>
           )}
           {grounding.excerpt && (

@@ -302,6 +302,7 @@ import {
   type PieceAdaptationPlaceRequestV1,
   type PieceAdaptationPlaceResponseV1,
 } from './adaptation-workspace.contract';
+import { adaptationPictureOf } from './adaptation-picture';
 import { PIECE_POSTS_PORT, type PiecePostsPort } from './piece-posts.port';
 import type { BrandProfileSelectionV1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 
@@ -5493,6 +5494,7 @@ export class PieceService {
     const dated = state === 'published' || state === 'queued';
     const platform = providerOfPlatform(row.platform);
     const body = row.body ?? null;
+    const picture = adaptationPictureOf(row.post?.image, row.mediaId);
     return {
       id: row.id,
       pieceId,
@@ -5506,6 +5508,7 @@ export class PieceService {
       body,
       postId: row.postId ?? null,
       mediaId: row.mediaId ?? null,
+      ...(picture ? { image: picture } : {}),
       state: state ?? 'draft',
       date: dated ? isoOf(row.post?.publishDate) : null,
       url: row.post?.releaseURL ?? null,

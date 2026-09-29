@@ -1,5 +1,5 @@
 import { DefaultChatTransport } from 'ai';
-import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
+import { screenTimeZone } from '@contentfactory/frontend/components/layout/set.timezone';
 import {
   AGENT_DOORS,
   AGENT_THREAD_HEADER,
@@ -25,19 +25,11 @@ import {
 type ProductFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 /**
- * The zone the screens read and write times in — exactly theirs, not the
- * machine's (review W2 F5): `getTimezone()` of `set.timezone.tsx`, the zone
- * chosen in the profile (`localStorage.timezone`), else dayjs's guess of the
- * browser's. The calendar and the plan use the same helper. The server checks
- * it and falls back on the saved offset, then UTC.
+ * The zone the screens read and write times in (`screenTimeZone`, now beside
+ * `getTimezone()` in `set.timezone.tsx`, where the fact form reads it too —
+ * `kcxz.43`). Re-exported: the chat's screens import it from here.
  */
-export const screenTimeZone = (): string => {
-  try {
-    return getTimezone() || '';
-  } catch {
-    return '';
-  }
-};
+export { screenTimeZone };
 
 /**
  * The SDK's transport, with one addition (`kcxz.32`, D2): the stream of an

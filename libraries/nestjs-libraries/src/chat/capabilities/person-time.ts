@@ -23,6 +23,21 @@ export const resolveTimeZone = (value: unknown): string | null => {
   }
 };
 
+/**
+ * The first zone `Intl` knows among the candidates, in order, or `''`
+ * (`kcxz.43` review F5): the screens' one fallback for a profile zone that
+ * cannot be read — the profile's (`localStorage.timezone`), else the
+ * browser's. `screenTimeZone()` answers with it, so the facts form and the
+ * chat's `x-agent-timezone` read a day in the same zone.
+ */
+export const firstKnownZone = (...candidates: unknown[]): string => {
+  for (const candidate of candidates) {
+    const zone = resolveTimeZone(candidate);
+    if (zone) return zone;
+  }
+  return '';
+};
+
 const two = (value: number) => String(value).padStart(2, '0');
 
 /** `User.timezone` (standard offset in minutes) as an offset zone; `null` when unusable. */
@@ -91,11 +106,31 @@ export const localTime = (iso: unknown, zone: string, language: 'ru' | 'en'): st
   return `${parts.weekday} ${parts.day}.${parts.month} ${parts.hour}:${parts.minute} (${zoneLabel(zone, moment)})`;
 };
 
-/** The first instant of a `YYYY-MM-DD` day in the zone. */
+const dayAt = (at: number, zone: string) => localClock(new Date(at), zone).slice(0, 10);
+
+/**
+ * The first instant of a `YYYY-MM-DD` day in the zone: the first moment whose
+ * local date is that day. Local midnight read with each offset the zone has
+ * within a day of it; the earliest that is that day while the millisecond
+ * before is not. Where summer time starts at midnight (America/Santiago,
+ * America/Havana) local 00:00 never happens and the day starts at 01:00 — the
+ * switch itself (review of kcxz.43, F1); where the clock goes back to a
+ * repeated 00:00 the first of the two.
+ */
 export const localDayStart = (key: string, zone: string): Date => {
   const [year, month, date] = key.split('-').map(Number);
   const midnight = Date.UTC(year, month - 1, date);
-  // The offset of the day's midnight, read twice so a switch at night lands right.
+  const offsets = new Set(
+    [midnight - 86_400_000, midnight, midnight + 86_400_000].map((at) =>
+      zoneOffsetMinutes(zone, new Date(at))
+    )
+  );
+  const starts = [...offsets]
+    .map((offset) => midnight - offset * 60_000)
+    .filter((at) => dayAt(at, zone) === key && dayAt(at - 1, zone) !== key)
+    .sort((a, b) => a - b);
+  if (starts.length) return new Date(starts[0]);
+  // Not reached for a real zone; the offset of the day's midnight, read twice.
   const first = midnight - zoneOffsetMinutes(zone, new Date(midnight)) * 60_000;
   return new Date(midnight - zoneOffsetMinutes(zone, new Date(first)) * 60_000);
 };

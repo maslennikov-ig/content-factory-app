@@ -23,6 +23,7 @@ import {
   type RiskClass,
 } from './capability.types';
 import { roleMayUse } from './door-policy';
+import { failedUnspent } from './catalogue/selection';
 import { runPaidCapability } from './paid-adapter';
 import { questionCardView } from './question-card';
 import { modelSummary } from './untrusted-data';
@@ -152,7 +153,8 @@ export const inputRefusal = (output: { message?: unknown }): CapabilityRefusal =
   );
 };
 
-const withoutEchoedInput = (output: unknown) =>
+/** Also applied by the MCP server's own call path (`mcp.adapter.ts`, `kcxz.26`). */
+export const withoutEchoedInput = (output: unknown) =>
   isMastraValidationError(output) ? inputRefusal(output) : output;
 
 /** No stack, no file path, no message a service did not mean for people. */
@@ -267,7 +269,20 @@ export const buildCapabilityTool = (
           : await invoke();
     } catch (error) {
       const refused = codedRefusal(error);
-      if (refused) return refused;
+      if (refused) {
+        // A paid run refused before it spent anything (`unspentFailure`)
+        // gives the turn's slot back, as a run that answers `spentNothing`
+        // does (review W4-23 F2).
+        if (
+          options.entrance === 'chat' &&
+          capability.risk === 'paid' &&
+          context?.requestContext &&
+          failedUnspent(error)
+        ) {
+          releasePaidSlot(context.requestContext);
+        }
+        return refused;
+      }
       throw error;
     }
     // Suspended for the person's answer: Mastra resumes the same call.
@@ -300,6 +315,9 @@ export const buildCapabilityTool = (
     inputSchema: capability.input,
     requestContextSchema: capabilityContextSchema,
     ...(capability.risk === 'confirm' ? { requireApproval: true } : {}),
+    // kcxz.45: in the web chat a lead action always asks (a lead's title is
+    // outside text); over MCP the client's own tool approval stays.
+    ...(options.entrance === 'chat' && capability.asksInWebChat ? { requireApproval: true } : {}),
     // MCP has no question card: a capability that can decide for the person
     // runs on without asking there (`ctx.suspend` absent).
     ...(options.entrance === 'chat' &&

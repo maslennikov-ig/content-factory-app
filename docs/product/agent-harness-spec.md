@@ -283,12 +283,108 @@ the half-done object with a «Продолжить» card. Temporal workflows st
 
 - Untrusted content (pasted foreign posts, search results, leads, uploaded files, channel posts) is
   wrapped as data, as `renderContentContext` does now. The worst an injected instruction can make the
-  agent do without a card is a reserve, which is cancellable (§1.2).
+  agent do without a card is a reserve, which is cancellable (§1.2). Unsubscribing, «Не надо» and «Взять в
+  работу» always ask on a card in the web chat (`kcxz.45`, §5.7).
 - Messages render as sanitised markdown; no `dangerouslySetInnerHTML`.
 - Secrets: §1.5, guarded by a test that greps messages/memory/traces fixtures for key shapes.
 - Tracing, if enabled, stays in our own storage with the sensitive-data filter; no cloud exporter.
 - MCP: §1.7, role check through the same registry, throttler, per-user OAuth; the always-on raw
-  mount (D1) is fixed first in W0.
+  mount (D1) is fixed first in W0. Built in W5 (`kcxz.26`, 29.09.2026), below.
+
+**MCP entrance (`kcxz.26`, 29.09.2026).** Code: `chat/start.mcp.ts` (servers), `capabilities/mcp.adapter.ts`
+(tools), `api/routes/mcp.controller.ts`, `mcp-oauth.controller.ts`, `mcp.throttle.ts`,
+`services/auth/mcp.bearer.middleware.ts`, `database/prisma/oauth/mcp-oauth.{rules,service,repository}.ts`.
+Version facts: `evidence/mcp-w5-docs-2026-09-28.md`. Connecting: `docs/operations/mcp-connect.md`.
+
+- **Transport.** One Nest route, `/mcp`: Streamable HTTP, stateless (`MCPServer.startHTTP` with
+  `serverless: true` — no session in the process to take over, no sticky routing), POST only: GET and
+  DELETE answer 405, and there is no SSE, no `/sse`, `/message`, `/mcp-oauth` or key-in-address path
+  (404). Protocol: the SDK's legacy default (2025-11-25 and older); 2026-07-28 waits for a test that
+  proves its body survives Nest's parser. Dark unless `MCP_ENABLED="true"` and the public URLs are set
+  (`MCP_URL` or `NEXT_PUBLIC_BACKEND_URL`, and `FRONTEND_URL`): every MCP route answers 404 otherwise,
+  and the MCP block in Settings is not drawn (`mcpEnabled` = `MCP_ENABLED` and those URLs, R5). JSON body
+  ceiling of `/mcp` = the pasted-text intake's (4 MB), parsed only after the token was looked up and is
+  live (`createMcpBodyParser`; the bearer middleware reuses that answer); anything else — no token,
+  another credential, an unknown `mcpa_` — gets Nest's 100 KB parser (413 above it) and the 401 (F4, R2).
+- **Who gets in.** Only an MCP OAuth access token (`mcpa_…`): live, not revoked, bound to this server's
+  `${BACKEND}/mcp`, held by an activated, unblocked person whose membership is not disabled. The role is
+  read from the membership on every request, never from the token: a demoted member gets the smaller list
+  on their next request, a disabled one a 401. The workspace API key and third-party `pos_` tokens never
+  open MCP (premortem X3); `AuthMiddleware` and `PublicAuthMiddleware` do not run on `/mcp`. A refusal is
+  a 401 with `WWW-Authenticate: Bearer resource_metadata="${BACKEND}/.well-known/oauth-protected-resource/mcp"`,
+  answered after the throttler has counted it per client address.
+- **Identity.** The bearer check builds the capability identity by the chat's rules (interface language;
+  no browser, so the saved offset or UTC, §5.4) and passes it in `req.auth.extra`; `mapAuthInfoToUser`
+  writes it into the tool call's `RequestContext`. The token itself goes nowhere downstream.
+- **Tools.** The tool list the web chat offers that role, minus `confirm`, `input` and `secret` — a USER
+  gets the reads only. One `MCPServer` per distinct role list and language, built on first use.
+  Per-call refusal stays inside `execute` (`admitCapabilityCall`, door policies re-read). Around
+  `@mastra/mcp`'s own call path: its argument pre-check (which echoes «Provided arguments») is made to
+  pass, and core's refusal becomes `CAPABILITY_INPUT_INVALID` with the failing paths only; a thrown error
+  or an error-shaped result becomes the chat's refusal (a product code with its sentence, else
+  `CAPABILITY_FAILED`), never a message, stack or path — logged on our side (review W5-26 (c)).
+- **Accounting (X2).** Everything a `/mcp` request does runs as the OAuth person (`runAsActingUser`), so a
+  paid call's own admission is written under them; `countPaid: false` and no per-turn cap (MCP has no
+  turn); no `agent` admission (no model runs on our side). Each `tools/call` logs the tool, workspace,
+  person and role — never the arguments. Throttle: 60 requests a minute per workspace + person + grant
+  (`McpThrottleGuard`), refused requests per client address; registration 10 an hour and tokens 120 a
+  minute per client address. **By design (review W5-26 F8):** the bucket is per grant, so a person with N
+  connections gets N×60 a minute; the allowance bounds what paid calls cost.
+- **Authorization server** — an extension of the product's OAuth, not `server-legacy`; the third-party
+  app flow (`/oauth/authorize`, `/oauth/token`, `OAuthApp`) is unchanged:
+  - discovery: `/.well-known/oauth-protected-resource` (and `/mcp`; RFC 9728) and
+    `/.well-known/oauth-authorization-server` (RFC 8414), also at the RFC's suffixed locations for a
+    backend base with a path (`…/oauth-authorization-server/api`, `…/oauth-protected-resource/api/mcp`);
+  - `POST /oauth/mcp/register` (RFC 7591): public clients only (`token_endpoint_auth_method: none`),
+    1–5 redirects of at most 512 characters, each `https` or loopback `http`, metadata ≤ 4 KB; client ids
+    `mcp_…`. Each registration deletes clients older than 24 h that never got a single grant row (F3,
+    R1): a client a person ever consented to stays, revoked included, so an assistant that kept its
+    `client_id` reconnects after «Отключить». A client swept between the consent's check and the
+    decision is refused in words (`invalid_client`), not a 500;
+  - consent: the product's `/oauth/authorize` page routes an `mcp_` client to
+    `GET/POST /oauth/mcp/authorize` behind the session; it shows the client's name, the redirect host and
+    the workspace, and an Allow must name that workspace back (`workspace_id`, else 409 shown as «the
+    workspace was switched in another tab», F5, R4; Deny is never blocked); decisions are throttled to 20
+    a minute per person; PKCE S256
+    is required, `resource` (if named) must be this MCP URL, the answer carries `iss` (RFC 9207); a
+    superadmin impersonating a member cannot connect as them. A request refused after its redirect is
+    known is shown with the host and a link back, never followed by the page (F2); the browser moves only
+    after Allow or Deny. A person not signed in signs in and returns to the page (`returnUrl`);
+  - `POST /oauth/mcp/token`, form-urlencoded or JSON: `authorization_code` (PKCE verified, redirect and
+    resource bound, code single-use, 10 min). A second exchange of a code that is still live and whose
+    verifier matches — sequential, or the loser of two parallel ones — revokes what it produced (RFC 6749
+    §4.1.2; F6, R3); a leaked code without the verifier, or after its ten minutes, revokes nothing. A
+    client that retries the token request after a network error therefore loses the connection and
+    authorizes again — the RFC's choice, kept;
+    `refresh_token` (rotated on every use; the rotated-away
+    token presented again revokes the connection). Access 1 h, refresh 30 days. A refresh is refused to a
+    person who lost access;
+  - storage: `McpOAuthClient`, `McpOAuthGrant` (SHA-256 hashes of code and tokens only), additive SQL
+    `deploy/production/mcp-oauth-schema-apply.sql`;
+  - **Where a person finds it** (live walk W4 P2-A, decided for the owner): Settings → «Одобренные
+    приложения», visible to every member, carries the MCP block — the address, «Подключить Claude или
+    ChatGPT» with the guide — and the person's connections with «Отключить» (`/user/approved-apps`, ids
+    `mcp:<grant>`). «Разработчики» (the API key) is visible to administrators only; both tabs left
+    `HIDDEN_SETTINGS_TABS`. The list re-reads when the tab or window comes back, so a connection finished
+    in the consent tab shows without a reload (walk review F4). One word for revoking, on the button and in
+    its dialog, for every approved app: «Отключить» / «Disconnect» (walk recheck P3-a);
+  - **housekeeping** (walk review F3), on each registration: a grant whose code was never exchanged goes
+    after 24 h; a revoked grant, or one whose refresh token expired, goes 30 days after
+    (`MCP_DEAD_GRANT_TTL_MS` — replays of its code or rotated token are recognised until then); then a
+    client with no grant row left, older than 24 h, goes. A client with any grant stays, so an assistant
+    that kept its `client_id` reconnects after a disconnect (R1), until its last grant is swept;
+  - an oversized `/mcp` body is a 413 logged as a warning, with or without a token (walk recheck), not
+    Nest's error log — a stranger can send one.
+- **Decided for the owner (reversible, say if wrong):** any member may connect (a USER gets reads only), as
+  any member may approve a third-party app; scopes are `mcp` and `offline_access` only — the role, not a
+  scope, decides; no CIMD yet (DCR only; Claude and ChatGPT fall back to DCR); no revocation endpoint —
+  the person revokes in «Одобренные приложения»; no OpenID Connect discovery document (no ID tokens, no
+  JWKS; the SDK reads RFC 8414 first); no key configs for MCP anywhere; failure logs go through the chat's
+  key redaction (R6).
+- **Edge route.** With the backend under `/api`, the RFC 8414 location of the issuer `https://host/api` is
+  `https://host/.well-known/oauth-authorization-server/api`. The in-image nginx passes
+  `^~ /.well-known/oauth-` to the backend with the path kept (`var/docker/nginx.conf`, review W5-26 F1;
+  guarded by `tests/mcp-discovery.nginx.test.cjs`).
 
 ## 5. Capability catalogue (first release)
 
@@ -298,7 +394,7 @@ the half-done object with a «Продолжить» card. Temporal workflows st
 |---|---|---|
 | `read` | runs | runs |
 | `write` | runs; reversible changes (create, edit, archive, reserve, unschedule) | runs |
-| `paid` | runs without asking (§1.2); asks only when the allowance cannot cover it or the per-turn cap is reached | runs within the same caps |
+| `paid` | runs without asking (§1.2); asks only when the allowance cannot cover it or the per-turn cap is reached | runs, bounded by the allowance (or the own key) and the per-token throttler; no per-turn cap — MCP has no turn (`kcxz.26`, §4.10) |
 | `confirm` | approval card with what, where and the consequence (§1.2 deletes and connects, §1.4 external effects) | excluded |
 | `input` | a card the **person** must fill: consent to activate an avatar, a choice only they can make (facts to keep, review changes); always with «Решите за меня» where the product can decide | excluded, or the MCP client's own elicitation later |
 | `secret` | secret card; value goes straight to the door | excluded |
@@ -309,7 +405,8 @@ Doors are the ones the screens call (inventory of 2026-09-26); the registry name
 
 | Group | Capabilities | Risk |
 |---|---|---|
-| Overview | workspace snapshot; allowance; answer from «Помощь» (`docs/product/help-faq.md`) | read |
+| Overview | workspace snapshot; allowance | read |
+| | answer from «Помощь» (`docs/product/help-faq.md`): the `help` skill, not a capability (§5.8) | skill |
 | Avatar | list; create (person/brand); add samples by paste, own posts, file or Telegram export attached in the chat; analyse (stream, resume); read/edit the proposal field by field; manual five lines; rename; set default; bind to a channel | write / paid (analyse) |
 | | activate (needs the person's consent) | input |
 | | learn from edits | paid |
@@ -319,23 +416,25 @@ Doors are the ones the screens call (inventory of 2026-09-26); the registry name
 | | autopilot; rename the bot on the platform; disable; delete (removes every post of the channel) | confirm |
 | Content | intake «Свой текст · Чужой пост · Задание», research level on request, fact selection at the research pause | paid + input |
 | | answer the piece's questions or delegate them («Решите за меня») | paid |
-| | list, open, rename, archive pieces; edit the core by hand; append material; restore a core version; «Свои тексты по теме»; free cliché check | read / write |
+| | list, open, rename, archive pieces; edit the core by hand; append material; restore a core version; «Свои тексты по теме»; free cliché check (§5.8) | read / write |
 | | rebuild the core; research the core; review/rewrite the core or an adaptation («Убрать следы ИИ», «Проверить факты», «Переписать…») | paid |
 | | accept research findings or review changes, choose a title variant | input |
 | | adapt to a channel (channel choice, the adaptation interview, overrides, «…и запомнить для канала»); hand edit; set an image | paid / write |
 | | delete an adaptation or a piece | confirm |
 | Plan | what is ahead; calendar for a range; ready adaptations; place an adaptation as a reserve; unschedule | read / write |
 | | schedule at a date, «Опубликовать сейчас», move a scheduled post, «Ко всем N» | confirm |
-| Ideas | subscriptions (feed or topic): list, add, archive; lead queue; «Не надо»; «Взять в работу» → intake with the lead | read / write |
-| | «Проверить сейчас» | paid |
-| Facts | list; add a fact | read / write |
+| Ideas | subscriptions: list, add a feed, archive; lead queue; «Не надо»; «Взять в работу» → intake with the lead (§5.7) | read / write |
+| | add a topic subscription (a standing daily web search; owner 27.09) | confirm |
+| | «Проверить сейчас» (a topic searches; a feed is free and gives the paid step back) | paid |
+| Facts | list; add a fact; restore a retracted fact (§5.8) | read / write |
 | | retract a fact | confirm |
-| Media | library; upload an attachment; set it on an adaptation | read / write |
-| | generate an image | paid |
+| Media | library; upload an attachment (a receipt, web chat only); set it on an adaptation (§5.9) | read / write |
+| | generate an image (§5.9) | paid |
+| | look at an attached picture, saved nowhere; put a shown picture into the library through the person's page (`media.keep`, web chat only; §5.9) | input |
 | AI settings (admin) | read settings without secrets; switch «Ключи системы» / «Свой ключ»; per-member usage | read / write |
 | | enter a model or search key | secret |
 | | clear a key | confirm |
-| Analytics | «Производство»; per-channel analytics | read |
+| Analytics | «Производство»; per-channel analytics (§5.8) | read |
 
 ### 5.3 Avatar in the chat (`kcxz.18`, 28.09.2026)
 
@@ -365,6 +464,33 @@ the channel card's `IntegrationsController.updateWritingProfile`). Decided for t
   proposal is returned (`spent: false`), a run still finishing is left alone (`running`), and a stored
   run without a proposal is rerun only with `rerun: true`, after the person's yes. A run is read to its
   end even when the chat drops, as the door keeps writing to a closed response.
+- **One analysis per avatar at a time** (`kcxz.39`, review W3-18 F5, decided for the owner). Until a
+  run saves its numbers (a few seconds) the resume rule still reads `samples`, so the screen and the
+  chat, two tabs or MCP could each start and pay. `VoiceService.analysisStream` — the one run behind the
+  screen's stream, `POST /analysis`, the free recount and `avatar.analyse` — now claims
+  (organization, resolved avatar) first (`brand-voice/analysis-lock.ts`), before the corpus is read or a
+  model asked. The claim's rule (review W4-39-40 F3–F5): **owned** — `SET key <token> EX NX`, release
+  and renewal compare the token (Lua), so a run that outlived its claim never frees the next one's;
+  **short and renewed** — two minutes, renewed every 40 s while the run goes, so a dead process frees the
+  avatar within two minutes, and a refused start never touches the claim; **bounded** — a store that does
+  not answer in 5 s (Redis down) refuses the start as `VOICE_ANALYSIS_FAILED` («не удалось проверить …
+  ничего не потрачено»), not a hang. A second start is refused with `VOICE_ANALYSIS_RUNNING` (409). The
+  screen does not stop there (F1): it waits for the other run as for a run left mid-way (polling
+  `GET …/analysis`, «Разбор идёт на сервере»), also through the two minutes in which nothing may be
+  stored yet, and opens its result when it lands; its own ru/en words (`wizardCopy.analysisRunning`)
+  remain for any other surface that shows the code. The chat answers it as `running`, `spent: false`,
+  and the paid step goes back. Refused, not queued or joined: the running one stores its result where
+  both sides read it.
+- **A run that ended without its proposal is not «still finishing»** (`kcxz.40`, review F9, decided for
+  the owner). When a run saved its numbers and then did not reach `done` — the model did not answer, a
+  write failed, the reader stopped — `proposalFailedAt` is written into the measurement's `metrics`
+  JSON (no schema change), `GET …/analysis` says `proposalFailed: true`, and `resumeStepFor` reads it
+  as `analysis`: the numbers and the rerun at once, inside the window too, for the screen and the chat
+  alike. A process that dies mid-run writes no mark; the 20-minute window still ends it, as before. A
+  run is settled the moment its proposal is stored, so a reader that stops at `done` never marks — or
+  overwrites — the row holding a paid proposal (review W4-39-40 F2). The stored proposal also keeps the
+  measurement's `deviations` (F6): since 25.08.2026 the rewrite had dropped them, and every voice made
+  from an AI proposal lost its «against the norm» directions.
 - **Asking first:** deleting samples, deleting an avatar (successor named on the card), forgetting a
   learned rule (shown as final, like a deletion) and taking the voice out of use (shown as undoable on the
   avatar screen). MCP gets reads, changes and the two paid runs; not these, not activation. «Да» is bound
@@ -429,6 +555,13 @@ the channel card's `IntegrationsController.updateWritingProfile`). Decided for t
 - **The manual form's name starts with the avatar's name** (final recheck): an avatar created by name
   in the chat opens its form with «Как назвать аватар» filled from the avatar list, as the consent card
   is; once the person types, their text stays.
+- **The analysis's state comes from the tool, not the conversation** (W4 live walk 29.09.2026, P3-H). The
+  model once answered «Разбор уже выполняется» to «запусти разбор» without calling anything — true then,
+  but taken from its own earlier words. The skill and `avatar.analyse`'s description now say to call it
+  (or `avatar.overview`) whenever the person asks to run or re-run it and to report its answer: `running`,
+  or `VOICE_ANALYSIS_RUNNING` from the lock, spending nothing. Recorded as model behaviour: no cheap
+  deterministic pin exists — a tool call cannot be forced from the words of a message, and the lock at the
+  door already keeps a second paid run from starting whatever the model says.
 
 ### 5.4 Channels in the chat (`kcxz.19`, 28.09.2026)
 
@@ -674,6 +807,507 @@ own. That channel was inserted by a stand fixture, not connected in the conversa
 «Бронь» only on a channel connected in this conversation while `planModeChosen` is false — so this is the
 rule working, not a gap.
 
+### 5.7 Ideas in the chat (`kcxz.23`, 28.09.2026)
+
+Eight capabilities in `catalogue/idea.capabilities.ts`, each on the `ContentLeadController` door the «Откуда
+идеи» tab calls, so the doors decide who may: the two reads are anyone's, the rest an editor's. `ideas.list`
+(read, `listSubscriptions`), `ideas.queue` (read, `queue`); `ideas.feed.add` (write, `createSubscription`),
+`ideas.topic.add` (confirm, `createSubscription`), `ideas.archive` (write, `archiveSubscription`),
+`ideas.check` (paid, `check`), `ideas.dismiss` (write, `dismiss`, up to 10 leads), `ideas.take` (write,
+`accept`); archive, dismiss and take ask on a card in the web chat (`kcxz.45`). MCP gets
+all but `ideas.topic.add`. Decided for the owner (reversible):
+
+- **Risk by what really runs.** A topic check is `WebResearchService.research(task: 'discovery')`: one
+  `web_research` operation (the search, and the relevance judge's model call inside it) on the workspace's
+  allowance or own key, without a research level, so the deep-search quota is not touched. A feed check
+  reads the address and spends nothing. Adding a topic starts its first check at once and then one a day
+  until unsubscribed, so it asks on a card (owner, 27.09) that says so and what each check costs; a feed is
+  added without asking. «Проверить сейчас» is `paid` and runs without asking; a feed check, a topic
+  check that never searched (paused, checking off, search not configured, allowance refused), and a topic
+  answered from the research cache (`WebResearchResult.fromCache`, carried through the gateway and the
+  service; review W4-23 F4) are `spentNothing` and give the message's paid step back. `spent` stays an
+  upper bound for one case: a check that failed after admission but before the search reads `CHECK_FAILED`.
+- **A refusal before any spend gives the paid step back** (review W4-23 F2). A paid capability that
+  refuses before it reads or searches anything throws `unspentFailure` (or marks the service's refusal
+  with `markUnspent`), and the chat adapter releases the slot as it does for `spentNothing`. So:
+  `piece.create` on `IDEAS_LEAD_NOT_TAKEN`, `LEAD_NOT_FOUND`, `INTAKE_TEXT_MISSING`,
+  `INTAKE_TEXT_TOO_LONG`; `ideas.check` on `SUBSCRIPTION_NOT_FOUND` and the service's manual-check limit
+  (`CHECK_TOO_SOON`, a minute, in the person's language). «Напиши» before «возьми» ends with the piece
+  written in the same turn; «проверь и напиши» still writes after a `CHECK_TOO_SOON`.
+- **A manual check that restarts the periodic check** (the door's recovery path) starts the workflow with
+  Temporal's `startDelay` of one interval, so its first iteration does not search a second time beside the
+  click's own search (review W4-23 F11). The workflow itself is unchanged; creating a subscription still
+  starts it at once.
+- **Fewer choices.** The chat never asks how often (the door's daily default) or what to call it: a feed is
+  named after its site, a topic after itself, unless the person names one. Topic or feed is picked from
+  what the person gave (words or an address). Unsubscribing, «Не надо» and «Взять в работу» ask on a card in
+  the web chat (see «…always ask in the web chat» below, `kcxz.45`); the screen's own confirmation stays on
+  the screen.
+- **«Взять в работу» is the screen's two steps in one turn:** `ideas.take` through the accept door, then
+  `piece.create` with the new `sourceLeadId`. The piece is written from the lead the server reads by id in
+  the caller's workspace — its title, excerpt and address, joined by `leadIntakeText`
+  (`leads/lead-intake.ts`), the function the screen's `leadToIntakePrefill` now calls too — and the intake
+  keeps the lead's address as the piece's source (`pieceLeadSource`, the same file, used by
+  `IntakeService`). `text` carries only words the person added; the lead and the words together keep the
+  door's 20 000-character limit (`INTAKE_TEXT_TOO_LONG`; review W4-23 F8). A lead not taken yet is refused
+  (`IDEAS_LEAD_NOT_TAKEN`) before anything is spent, so a piece never comes from a lead still in the queue;
+  `ideas.take` must answer before `piece.create` is called, never in the same step.
+- **The lead's text enters as the screen's intake does** (review W4-23 F6, decided for the owner): taken
+  without an extra question, as «Свой текст» — the kind the screen's field sends the same prefill with — so a
+  piece written from a lead is the same in the chat and on «Контент». What the chat adds is the one thing the
+  screen had and the chat did not: the person seeing the text. The `piece.create` answer carries `fromLead`
+  (the lead id and what went in), and the description and the skill have the agent say in one line which
+  lead the piece was written from, by the title `ideas.take` or `ideas.queue` gave. Reframing lead text as
+  material would make the chat's pieces differ from the screen's; left for the intake, if ever, for both.
+- **Titles, excerpts and reasons of leads reach the model as untrusted data** (`lead`); subscription names
+  and topics as `workspace-text`. The add tools echo only what their own call wrote.
+- **The screen.** `ideas.list`, `ideas.queue` and every change open the `ideas` card: the «Откуда идеи» tab
+  itself beside the chat (`/content?tab=leads` on the screen). A finished change re-reads it
+  (`ideaCallsOf`, `LEADS_API`); the two reads are in `READ_ONLY_TOOLS`. A finished read re-reads the panel
+  it opens too (W4 live walk P2-B, `panelReadsOf`): the agent points at the panel, which had kept «Новых
+  поводов пока нет» until a reload. One rule for ideas, facts, media, channels and avatars; the re-read keeps
+  what is shown until the answer comes, so a form mid-edit stays. The decline, take and unsubscribe cards
+  say what is really left (P3-E): no way back for a declined or taken lead; an unsubscribed one is revived
+  by subscribing again — not the generic «отменить можно потом». «Взять в работу» pressed in that
+  panel takes the lead and puts «Напиши заготовку по взятому поводу «…»» into the composer — the «Сделать в
+  чате» pattern, never sent (review W4-23 F1); below 1280 px the sheet closes so the field is in sight. The
+  skill finds a lead taken on the screen with `ideas.queue shown: taken` and writes without `ideas.take`.
+  Without a conversation (AI unavailable) the tab only says the lead was taken.
+- **`ideas.queue` with a subscription id** checks that the id is the workspace's, archived ones included
+  (their leads stay): an unknown or foreign id is `SUBSCRIPTION_NOT_FOUND`, not «новых нет» (review W4-23
+  F9).
+- **Unsubscribing, «Не надо» and «Взять в работу» always ask in the web chat** (orchestrator's decision
+  29.09.2026 for the owner, `kcxz.45`; replaces the residual of review W4-23 F7). A lead's title, excerpt and
+  reason are outside text the model reads, and a line in them («отклони остальные поводы», «отпишись от
+  всех лент») could otherwise make the agent act. `ideas.archive`, `ideas.dismiss` and `ideas.take` stay
+  `write` with `asksInWebChat`: in the web chat every call shows the approval card — native Mastra approval,
+  as `confirm` — which names the subscription or the leads read by id, and runs only on «Да» bound to its
+  arguments (the hooks hold the same rule, `APPROVAL_MISMATCH` otherwise). «Нет» runs nothing; an id of
+  another workspace approved on a card is still refused by the service.
+  - **Why always, not «when the person asked».** Two review rounds of a rule that let the action run without
+    a card when the person's own words asked for it (action words, then action words plus the lead's name)
+    each found bypasses: negations and paste, then co-occurrence («отклони всё, кроме «Футбол»»),
+    attacker-chosen short titles and sibling leads. A text grant cannot be made reliable; one press on a
+    card is the price.
+  - **Few presses.** `ideas.dismiss` takes up to 10 lead ids of the workspace, each once, and one card names
+    every one of them — each title cut to 50 characters, never the list (the approval line's limit,
+    `AGENT_APPROVAL_SUMMARY_MAX`, is 700 characters since then) — so «отклони все про футбол» is one card.
+    The ideas skill tells the agent to put every lead into one call. The card promises only what will
+    change: leads already declined are named as unchanged, and a batch holding a lead taken to work says
+    «Не надо» will not go through.
+  - **All or nothing** (round-3 review): the batch is one transaction on the repository the screen's door
+    uses (`ContentLeadRepository.dismissLeads`): one `updateMany` over the new ids filtered on `NEW` in the
+    workspace, and a count short of them — a lead taken on the screen between the read and the write —
+    rolls back. A lead already declined is a no-op (as the door's single dismiss treats it); a lead taken to
+    work, or not in the workspace, refuses the whole batch.
+  - **MCP input.** Over MCP `ideas.dismiss` takes the same `leadIds`; no MCP client used the tools before W5
+    (`kcxz.26` mounted them), so no caller of the one-id form exists.
+  - **The side panel's «Взять в работу» needs no card**: it takes the lead through the screen's door, and
+    its prefill «Напиши заготовку по взятому поводу «…»» only writes (`piece.create`). «Напиши заготовку по
+    поводу …» in the chat takes on a card, then writes.
+  - **MCP is unchanged:** the three stay plain `write` there. The MCP client has its own tool approval
+    (`destructiveHint: false` tells it these are reversible), and the lead text reaches that model the same
+    way; the person approves in their own client.
+  - **`ideas.feed.add` and `ideas.check` stay without a card.** A feed added from injected text costs
+    nothing, shows in «Откуда идеи» and is one «Отписаться» away; its leads are untrusted data like every
+    lead. A check is paid but capped at one per message and runs only on the workspace's own
+    subscriptions.
+  - **Proof:** `tests/agent-lead-actions-ask.test.cjs` (always a card in the chat, none over MCP, «Да» bound
+    to the batch, the batch rules, the card's words); scenarios `idea-injected-lead-no-card` (an injected
+    lead, «покажи поводы», three calls → three cards with their words, «Нет» on each, nothing changed),
+    `idea-dismiss-asked` (two leads, one card, «Да» declines both), `idea-take-card-approved`,
+    `tests/content-lead.dismiss-batch.test.cjs` (all or nothing, a concurrent take rolls back, already
+    declined is a no-op),
+    `idea-panel-take-injected-title` (the panel's prefill writes; the injected take and «Не надо» wait),
+    `idea-archive-dismiss`, `idea-foreign-ids` (a foreign id approved on a card is refused).
+- **Proof.** The scenario world runs the real `ContentLeadService` over the real `ContentLeadRepository`
+  (asked over the world's rows as the Prisma tables it reads, with the schema's unique indexes) and the real
+  `LeadTopicGateway` (window, junk and judge rules) over a search that admits its own `web_research`
+  operation; only the feed reader, the search engine and Temporal are fake. The fake Temporal runs the
+  periodic check's first iteration when a subscription is created, outside the turn's admission, as the
+  worker does (review W4-23 F5). `idea-topic-to-piece` is the acceptance: тема → «Да» → the automatic first
+  check finds the lead → «проверь сейчас» is `CHECK_TOO_SOON` → the queue → «Взять в работу» → заготовка с
+  адресом источника.
+- **Subscribing again to what was unsubscribed revives the archived row** (review W4-23 F3; the open item
+  of the first version). `ContentLeadService.createSubscription` finds the row on the unique key
+  `(organizationId, kind, canonicalUrl)` archived or not and revives an archived one — `deletedAt` null,
+  `ACTIVE`, no last problem, the new name, topic and schedule — then starts its periodic check. The same id
+  keeps its leads' statuses (declined stays declined) and `lastCheckedAt`. The screen and the chat share
+  it; a live duplicate is still `SUBSCRIPTION_CONFLICT`.
+
+Open: the topic card quotes 60 characters of a topic and does not say when web search is not configured
+(review W4-23 F10) — written against the card's former 300-character limit (700 since `kcxz.45`); not
+reworded yet.
+
+Fixed: a step with several approval calls showed its second and later cards live without their words
+(review kcxz.45 F5). The door holds such a card until Mastra's companion `data-tool-call-approval` part
+names its call, then adds the words and records what the card sends out (scenario
+`approval-second-card-words`).
+
+### 5.8 Facts, materials, analytics and help in the chat (`kcxz.24`, 28.09.2026)
+
+Eight capabilities and one skill. `catalogue/fact.capabilities.ts` on the `ContentContextController` doors
+«Откуда факты» calls: `facts.list` (read, `listFacts`), `facts.add` (write, `createFact`), `facts.retract`
+(confirm, `retractFact`), `facts.restore` (write, `restoreFact`). `catalogue/text.capabilities.ts`:
+`texts.related` (read, `ContentMaterialController.related` — «Свои тексты по теме») and `text.slop_check`
+(read, `ContentTextQualityController.check` — the free «Проверка на штампы»). `catalogue/analytics.capabilities.ts`
+on `AnalyticsController`: `analytics.production` (read, `getProductionAnalytics`) and `analytics.channel`
+(read, `getIntegration`). Nothing of this existed in the catalogue before: the adaptation's paid «Убрать следы
+ИИ» (`adaptation.review`) and the piece's own checks stay as they were. The doors decide who may: facts are
+read by any member and changed by an editor (owner 05.09.2026, `fn33.90`); own texts and analytics are any
+member's; the cliché check is an editor's (its door's policy — a reader has no draft). MCP gets all but
+`facts.retract`. Decided for the owner (reversible):
+
+- **Retract asks, restore does not.** «Снять» is `confirm`, as the catalogue row says: its card quotes the
+  fact, read by id in the caller's workspace (`ContentFactService.fact`, a new by-id read — the list stops at
+  a hundred), and «Да» is bound to that fact and its status (`approvalContent`), so a fact retracted or
+  restored before the answer shows the card again (`APPROVAL_CONTENT_CHANGED`). «Вернуть» is the undo and
+  runs without a card, through the restore door and its re-evaluation; a fact replaced by a corrected copy
+  cannot come back (`CONTENT_CONTEXT_FACT_SUPERSEDED`), as on the screen. Since review W4-24 F1 the
+  repository also refuses «Снять» on a replaced fact with the same code (the card says nothing will change),
+  and «Вернуть» checks the lineage, not only the status: a retracted fact that has a live correction
+  (`supersedesFactId`) stays out — the screen and the chat alike.
+- **A fact is added with one field.** The person's statement verbatim; the claim key is filed from its words
+  by the fact form's own function (`claimKeyFromStatement`, moved from `content-facts.adapter.ts` to
+  `context/fact-claim-key.ts`, which the form now imports), the value is the whole claim, the language is the
+  interface's — the form's defaults (`buildFactCreatePayload`). No questions: `validUntil` only when the
+  person said until when it holds (then «CURRENT»). The named day is the last day it holds, whole: stored as
+  that day's last moment in the person's time zone (W4-24 F4) — the fact form's «Свежо до» reads the same way
+  since 28.09.2026 (below). A day that is not a
+  calendar day is `FACT_DATE_INVALID`, one already over `FACT_DATE_PAST`; the service now refuses an
+  impossible date with `CONTENT_CONTEXT_INPUT_INVALID` for both paths instead of letting the database fail.
+  A fact the person states is their own word and is in work at once. The same statement again is the same
+  fact (the service's dedupe key; `ContentFactService.addFact` finds it before writing): the answer says
+  `existed: true` and gives the stored last day and state, not the ones asked (W4-24 F2). **A new day is
+  told to the agent** (owner 29.09.2026, walk review F1): the same statement with a new `validUntil` sets
+  that day on a fact in work (`ContentFactRepository.redateFact`, status recomputed; `redated: true`); a
+  retracted or replaced fact keeps its own and the answer says so (`validUntilAsked`), and a fact grounded in
+  material keeps its material's freshness. A
+  statement retracted before stays retracted and the answer says `facts.restore` brings it back; one
+  replaced by a correction says so and stays out; one removed for good (`TOMBSTONED`) is `FACT_REMOVED` —
+  the form's add leaves such a row untouched too. Copy-and-correct and evidence links stay on the screen.
+- **Retracted facts are not listed unasked**, as «Откуда факты» hides them («Снятые: Скрыты»); `retracted:
+  true` shows them. Statements reach the model as untrusted data (`workspace-text`, `search-result`).
+  `inWork` is the brief builder's own rule for the fact's record (`context/fact-admission.ts`,
+  `factRecordAdmission`, which `ContentContextBuilder.build` now calls): verified, confirmed and not past its
+  day; otherwise `notInWorkBecause` (`retracted`, `superseded`, `conflicted`, `unverified`, `expired`).
+  Evidence freshness is still weighed only when a text is written. Facts in work come first, newest first,
+  and `capped: true` says the catalogue read reached its hundred rows (`FACT_LIST_LIMIT`) — narrow by `q`
+  (W4-24 F5, F10).
+- **The screen.** Every facts capability opens the `facts` card: «Откуда факты» itself
+  (`ContentFactsShowcase`, `/content?tab=provenance`) beside the chat; a finished change re-reads it
+  (`factCallsOf`, `FACTS_API`); `facts_list` is in `READ_ONLY_TOOLS`. The four hand copies of «re-read the
+  screen when a group's finished actions grow» became one hook (`useRevalidateWhenCountGrows`,
+  `agent.revalidate.ts`) used by channels, avatars, ideas and facts.
+- **«Свои тексты по теме»** answers the workspace's own posts that went out with an address, best match first,
+  5 unless asked (the door allows 10), narrowed to a channel's platform when one is named. No card: the
+  answer is a few titles and links. The posts reach the model as untrusted data (`channel-post`).
+- **The cliché check** runs the door's own `slopCheck` on the text the person gave, with the named channel's
+  platform thresholds. The rules are the text's language: its script decides when it clearly can (mostly
+  Cyrillic or mostly Latin, 20 letters at least), else the interface's; an optional `language` overrides, and
+  the answer says which ran; hints stay in the person's language (W4-24 F9 — the post window keeps the
+  interface's language by design: it checks what the person writes); it answers the verdict, the score and up to 15
+  findings with their hint, and changes nothing. An adaptation's own check stays on its card; the paid pass
+  is «Убрать следы ИИ». The text is treated as a pasted foreign post (untrusted `foreign-post`).
+- **Analytics are the page's two tabs, and only they.** The inventory of `AnalyticsController`: `/production`
+  («Производство», used by the page), `/:integration` (a channel's audience, used by the page), `/ahead`
+  (already `plan.ahead`) and `/post/:postId` (a post's statistics in the calendar's preview) — the last is not
+  in the catalogue; a post's numbers are asked on its preview. «Производство» defaults to 30 days, as the
+  page. A channel's audience: which platforms have it, which periods each answers and the one number a metric
+  shows moved from `platform.analytics.tsx` / `audience.analytics.view.tsx` into
+  `integrations/audience-analytics.rules.ts`, which the page now imports too. The chat asks 7 days unless the
+  person named a longer period, and a platform that does not answer that long gets the longest it answers
+  (Telegram: 7) — never a question. A platform without analytics is refused before the platform is asked
+  (`ANALYTICS_NOT_AVAILABLE`), as is a channel switched off, waiting to be reconnected or not fully connected
+  (`ANALYTICS_CHANNEL_OFF`; `inBetweenSteps` since W4-24 F8). Failure reasons (the platforms' words) and
+  channel names reach the model as untrusted data.
+- **The chat never refreshes a channel** (owner decision, decided for the person; W4-24 F3). The chat and MCP
+  call the door's step `IntegrationService.checkAnalytics` with `{ mayRefresh: false }`: an expired token is
+  `ANALYTICS_CHANNEL_NEEDS_RECONNECT` before the platform is asked; a platform answering «refresh the token»
+  is the same refusal after one request, with no retry; any other platform failure is
+  `ANALYTICS_UNAVAILABLE`, never an empty list. No token is rotated, no channel is marked for reconnection,
+  nobody is notified — the words point to «Аналитика» and to reconnecting the channel. The analytics page
+  and the public API call the step as before (refresh, `[]` on a failure).
+- **«Помощь» is a skill, not a capability** (ADR-0012 amendment §6: help answers are disclosed as needed).
+  The `help` skill carries the answers as two references, `references/ru.md` and `references/en.md`, built
+  from `help/help-faq.questions.ts` — the questions and answers moved there from `help.copy.ts`, which the
+  /help screen now reads, so the chat and the screen answer from one source (`help-faq.md` stays the text of
+  record, held word for word by `tests/help.screen.test.cjs`). The agent sees the skill's description every
+  turn and reads the answers with `skill_read` only when a question needs them. It answers in its own words,
+  keeps the labels in «» as written, says so when the answers have nothing, and offers to do the thing in the
+  chat when a tool does it. The skill is not offered over MCP (skills are the web chat's).
+- **Proof.** Twelve recorded scenarios: `fact-list-add`, `fact-add-known`, `fact-retract-restore`,
+  `fact-retract-superseded`, `fact-retract-declined`, `fact-retract-changed`, `fact-foreign-ids`,
+  `fact-reader-offered-reads`, `text-related-slop-check`, `analytics-production-channel`,
+  `analytics-channel-refusals` and `help-answer` (a scenario may now prove a skill: `skills`, held by the
+  coverage guard). The world runs the real `ContentFactService` over the real `ContentFactRepository` (asked
+  over the world's facts as the Prisma table), the real `ContentMaterialService.listRelated` over the real
+  `TextSearchService` index, the real `slopCheck`, the real `PostsService.getProductionAnalytics` over the
+  world's rows as its repository read, and the real `IntegrationService.checkAnalytics` (loaded by
+  `tests/helpers/integration-service.module.cjs`) with only the platform, the refresh, Redis and the snapshot
+  store standing in — a refresh, a reconnection mark or a notification would be a write. Behaviour tests in
+  `tests/agent-review-w4-24.test.cjs`: the shared analytics step with and without refreshing, «Снять» and
+  «Вернуть» through the service, `factCallsOf` and `useRevalidateWhenCountGrows`.
+
+Owner decisions 28.09.2026 (were open for the owner):
+- **Facts from MCP stay as they are** (W4-24 F6). `facts.add` and `facts.restore` stay `write` and reach MCP:
+  an external agent with the workspace's key adds facts stamped as the person's word («ваше слово»,
+  `VERIFIED`) and brings back a fact the person retracted, without a card — the key is the person's own
+  authority. The alternatives (MCP adds as `UNVERIFIED` with an `mcp` provenance, both left out of MCP, or
+  `facts.restore` confirm-class) are not built.
+- **«Свежо до» on the facts screen is the chat's rule** (`kcxz.43`). The day named in the form is the last
+  day the fact holds, whole, in the person's time zone: the form sends that day's last moment
+  (`buildFactCreatePayload(draft, timeZone)`), as `facts.add` stores it. One function for both,
+  `content-intelligence/context/fact-valid-until.ts` (`factValidUntilMoment` — the day to its last moment,
+  `null` for a day that is not a calendar day; `factValidUntilDay` — a stored moment back to the day it was
+  named, so an end-of-day row reads as that day, not the next; `factToday`); the form imports it as it
+  imports `fact-claim-key.ts`. Decided for the owner: the screen's zone is the calendar's, the one the chat
+  sends as `x-agent-timezone` — `screenTimeZone()` (moved from `agent.transport.ts` to `set.timezone.tsx`
+  beside `getTimezone()`, the chat imports it from there). One fallback for both (review F5): a profile zone
+  `Intl` does not know, or storage that cannot be read, gives the browser's own zone (`firstKnownZone` in
+  `person-time.ts`), so the chat's header and the form never read a day in different zones. One check for
+  both too (review F4, `factDayProblem`): a day that is not a calendar day or is already over in that zone
+  is refused — the chat answers `FACT_DATE_INVALID` / `FACT_DATE_PAST`, the form says so under the field in
+  its own language («Этот день уже прошёл — факт сразу устарел бы…») and does not send. The day's last moment
+  is the next local day's first moment less 1 ms, right also where summer time starts or ends at midnight
+  (America/Santiago, America/Havana; `localDayStart`, review F1 — the chat's plan times read days with it
+  too). Copy-and-correct takes no date (the copy keeps its fact's), so nothing else on the screen writes
+  `freshUntil`. **Rows the form wrote before are not migrated** (owner: not without need, review F3): they
+  hold 00:00 UTC of the named day and leave the brief at that moment — early on the named day in a zone ahead
+  of UTC (at 03:00 in Moscow), where they are shown as that day; the evening before in a zone behind UTC,
+  where they are shown as the day before. Behaviour tests: `tests/fact-valid-until.test.cjs` (the shared
+  function, a zone where the UTC date differs, the round trip over summer-time switches at 02:00/03:00 and at
+  midnight, the day check, the zone fallback, the form's payload and `facts.add` storing the same moment) and
+  `tests/content-intelligence.facts-door.test.cjs` (the form refuses a past day and sends nothing; a future
+  day travels as its last moment).
+- **The door refuses a past «Свежо до» too** (W4 live walk 29.09.2026, P3-D): `POST
+  /content-intelligence/facts` stored a fact fresh until a day already over. `ContentFactService` now
+  refuses a `freshUntil` moment that has passed (`factMomentOver`, the same shared file) with
+  `CONTENT_CONTEXT_INPUT_INVALID` and words, for every caller of the door; the form and the chat still
+  refuse the day first. The words are in the fact's language — the form's interface, the chat's person
+  («День «Свежо до» уже прошёл…» / «The «Fresh until» day is already over…», walk recheck P3-b). Test:
+  `tests/fact-fresh-until-door.test.cjs`.
+- **«Копировать и поправить» of an expired fact** (owner 29.09.2026, walk review F1): a «Свежо до» already
+  over is not copied — the copy holds until the person names a new day to the agent (a «Действует сейчас»
+  copy becomes «Не устаревает», as a fact added without a day); a day still ahead is copied as it is
+  (`ContentFactRepository.copyFact`). Test: `tests/fact-copy-redate.test.cjs`.
+- **An expired fact on «Откуда факты»** (walk recheck observation) wears the screen's own marker «в работу не
+  идёт» / «not used in drafts» beside its source line, the one a retracted row wears — no new design; it keeps
+  its actions, so it can be copied and corrected.
+- **Facts are added in the chat** (W4 live walk P2-C). The fact form with «Свежо до»
+  (`ContentFactsContainer`) left every screen with the manual brief (22.09, `9118ba212`); only the
+  interface-review stand mounts it. «Откуда факты» said facts are added «во вкладке «Новая заготовка»»,
+  which has no fact form; it now says a new fact is added by telling the agent («Запомни факт: …»), in
+  both languages. The shared day rule stays, for the door and any caller. Decided for the owner: no new
+  «Сделать в чате» link — that link fills the composer only for the onboarding steps (`?start=`), and a
+  second kind of link for one sentence is not worth it.
+- **«Производство» with nothing published** (W4 walk P3-G): `analytics.production` answers
+  `averageLeadTimeHours: null` with a `leadTimeNote` when nothing went out, never 0 — the model had said
+  «Среднее время… — 0 часов».
+
+### 5.9 Media in the chat (`kcxz.25`, 28.09.2026)
+
+Three capabilities in `catalogue/media.capabilities.ts`, each on the `MediaController` door the screens call,
+and one receipt. `media.library` (read, `getMedia` — any member), `media.generate` (paid,
+`generateImageFromText`, i.e. `POST /media/generate-image-with-prompt` — an editor's) and `media.keep` (input,
+`uploadSimple` — an editor's; below). A library picture goes on a post through the existing `adaptation.image`
+(kcxz.14), by id; nothing new sets a picture. MCP gets `media.library` and `media.generate`; the receipt and
+`media.keep` are the web chat's (an MCP client has no composer and no page holding a picture). Video stays out
+(§1.8).
+
+**Owner decision 28.09.2026 — «агент видит картинки».** The agent must see pictures pasted or attached in the
+chat. Two paths, decided for the person, no choice screen:
+
+- **Shown to the agent — the default.** A picture attached or pasted in the composer (PNG, JPEG, WebP or GIF) is
+  compressed by the media library uploader's own compressor (`media/library-image-compression.ts`: the same
+  `CompressionWrapper` plugin and options, 1000 px, GIFs as they are; review W4-25 F6) and goes to the model
+  inline, in the message that carries it, under the door's own bounds (an inline data URL of an allowed type,
+  5 MB a picture, 10 MB and five files a message). **It is saved nowhere.** The chat door turns it into a line
+  of untrusted data — its name, its type, a server-made reference and the key the browser keeps it under — and
+  that line is all the message, the memory, a run snapshot and a reload ever hold; the bytes stay with the
+  request (`conductor/conductor.pictures.ts`: held under the request's own server-made id
+  `CONDUCTOR_REQUEST_ID_KEY` — never under the thread, so two requests of one thread, a second tab or a double
+  send, neither see nor let go each other's pictures — and dropped in the door's `finally`; review W4-25 vision
+  F3) and the `ViewedPicturesProcessor` puts the picture back beside its line in the prompt Mastra sends to the
+  provider (`processLLMRequest`, `@mastra/core` 1.71: a rewrite of the outgoing prompt only, never persisted to
+  the message list or memory; the request context carries only the request's id, because Mastra persists it in
+  snapshots). **Decided for the owner (review W4-25 vision F4): the picture goes to the model on the first
+  model step of the request only**; the later steps of the same answer read its line alone — the model has
+  already looked and keeps what matters in its own words, and the line tells it so. The turn stays one `agent`
+  operation, and it never carries the pictures more than once (at most 10 MB of input, not seven times that).
+  A later message does not show it again. Any role may show a picture, a reader included. The
+  composer says it under the files: «ИИ посмотрит картинку в этом сообщении и нигде её не сохранит.» (and to an
+  editor: «Нужна для поста — скажите, и агент положит её в медиатеку.»); a reloaded thread shows «<name> — ИИ
+  посмотрел, не сохранили».
+- **For a post — into the library, then `adaptation.image`.** When the person wants a shown picture on a post
+  («поставь её к посту»), the agent calls `media.keep` with the picture's `pictureKey`. The model never uploads
+  bytes and the server never had them after the request: the page that showed the picture still holds it
+  (`agents/agent.media.ts`, in memory, forgotten on a reload) and the card «Положить эту картинку в медиатеку
+  пространства? Её увидят все участники…» uploads it through the library's own door (`POST
+  /media/upload-simple`, `uploadLibraryMedia`, compressed) when the person presses «В медиатеку» — the button is
+  the consent to a library write every member sees — and answers with the library id. The server checks that
+  answer like a receipt (a live picture of this workspace, `mediaReceiptInWorkspace`; else
+  `ADAPTATION_MEDIA_UNKNOWN`, nothing kept), and the agent puts it on the post with `adaptation.image` without
+  asking. A page that no longer holds the picture answers so, and the agent asks for it again. `media.keep` is
+  offered only to a role that may upload (editor); a reader is told pictures go into the library through an
+  editor.
+- **The receipt path stays** for a picture an editor switches to «в медиатеку» on its chip before sending
+  (`kcxz.25`): it is uploaded from the browser through the same library door before the message, and the message
+  carries only a receipt (`data-media-upload`: library ids, names, types, at most five). The chat door accepts
+  only that bounded shape, refuses it unless the role may upload (editor) and every id is a live library item of
+  the caller's workspace and a picture (`mediaReceiptInWorkspace`: deleted items, other workspaces' and videos
+  out), and **rebuilds the line the model reads from the library's own rows** — the name as uploaded and the type
+  of the file the server stored (detected by its bytes) — so the browser's names and types are never what the
+  model is told (review W4-25 F3). A failed upload sends nothing; the composer keeps the words and the files, and
+  a retry uploads only the pictures not yet saved (review W4-25 F5). A picture uploaded before the chat door then
+  refuses the message stays in the library. The line under such a picture says who sees it: «Картинки «в
+  медиатеку» лягут в медиатеку пространства — их увидят все участники. ИИ их не увидит: только названия, чтобы
+  поставить к посту.»
+- **What the door takes, and how a refusal is worded** (review W4-25 vision F1, F5). `POST /agent/chat` has its
+  own JSON ceiling, sized from its bounds: 10 MB of pictures as base64 plus 1 MB of envelope, about 14.3 MB
+  (`apps/backend/src/api/routes/agent-chat.body.ts`, mounted in `main.ts` ahead of Nest's parser; the thread
+  doors keep express's 100 KB). A body over it is refused `413` with `AGENT_BAD_REQUEST`, never express's bare
+  413. The application's Nginx takes 2 GB and the host's Caddy block sets no limit. A picture is taken by its
+  bytes, not its label: the door reads the PNG, JPEG, GIF or WebP signature and passes the picture on under that
+  type (a JPEG named `.png` goes as JPEG); bytes that are none of them are refused `AGENT_BAD_REQUEST`. When the
+  provider refuses the model step that carried the pictures for its content (400, 413, 415, 422 — a model
+  without image input, a variant it does not read), the turn ends with `AGENT_PICTURE_NOT_SEEN`: «ИИ не смог
+  посмотреть картинку: выбранная модель не принимает картинки или не эту.» — not the settings' refusal
+  `AI_PROVIDER_REJECTED`, which stays for a refused key or model and for a refusal of a later step. A capability
+  check of the configured model is not built: the refusal is the signal.
+- **Saved nowhere, as checked** (review W4-25 vision F2, F6, F7, F12). Real providers echo the request they sent
+  (`request.body`, the base64 included) and Mastra 1.71 keeps it on its step records; the scripted model of the
+  scenarios now does the same, and the scenarios watch every snapshot write, not only the final storage.
+  Neither a suspended run's snapshot (`media-picture-keep-paused`: a picture shown and the `media.keep` card
+  waiting) nor the thread, a reload, the usage rows or the log holds the picture — so no stripping of
+  `request.body` was added. The log is scanned as the console prints it (`util.format`): Mastra logs a
+  provider's error with the request it quoted, and the prompt's messages are two levels down, printed as
+  `[Array]` (`media-picture-not-seen`). This rests on the console's inspection depth; a logger that prints
+  deeper must drop `requestBodyValues`. Mastra's observability is not configured, so no tracing span records
+  the prompt; `tests/agent-media.test.cjs` fails when `mastra.service.ts` or a manifest adds it, and enabling it
+  must come with a span processor that drops file parts. The picture prompt of `media.generate` is no longer
+  printed to stdout (an inherited `console.log`).
+- **The page's side** (review W4-25 vision F8–F10). The page registers a shown picture's key only once the
+  message really leaves (a refused size check registers none), keeps the last twenty, and after «В медиатеку»
+  keeps the library entry instead of the picture: a retry of a card whose answer failed reuses it and uploads no
+  second copy. A card answer that says «kept» names a library id (the door refuses `{ kept: true }` without one or
+  with an id of another shape; `media.keep` treats such an answer as a failure, never as «declined»). The id the
+  browser answers is checked like a receipt — a live picture of this workspace — and not tied to the shown
+  picture: the answer can only name what an editor of this workspace could name in a receipt anyway, so the
+  binding would add no protection; if the person switched workspace in another tab between showing and keeping,
+  the upload lands in that workspace's library and the answer is refused `ADAPTATION_MEDIA_UNKNOWN` (accepted,
+  review W4-25 vision F10).
+- Texts (`.txt`, `.md`, `.json`) stay attachments the agent reads, and a Telegram export or a document still goes
+  to the avatar's samples.
+
+- **What generation costs: one picture, one AI operation** (owner decision 28.09.2026, `kcxz.44`). The door the
+  post editor's «Сгенерировать картинку» window calls writes a picture prompt from the description and draws it
+  inside **one `image_generation` operation** of the workspace's allowance or own key
+  (`OpenaiService.generateImageFromDescription`), admitted once, before the prompt call, apart from the chat
+  turn (the paid adapter), plus one Postiz image credit row (`useCredit('ai_images')`, taken back if drawing
+  fails — unchanged). Until 28.09 the picture prompt was a `text_generation` operation of its own, so a picture
+  cost two. Decided for the owner (reversible): the prompt step is kept, not removed — the chat's description is often the
+  post's own text, and the step turns it into what to draw; it runs on the text model (role `draft`, named,
+  as before) inside the image operation. The usage row is honest about what ran: operation `image_generation`,
+  role `image`, the model column names the image model — the drawing is recorded in the operation's ledger as
+  its own call (`final`), which names the row's model, tier and attempt whatever attempt the picture prompt's
+  text chain reached, and a drawing that failed names the image model that refused (review F2; a prompt call
+  that failed before any drawing names the text model, which is what ran) — and the tokens and cost are the
+  picture prompt's — the image endpoint reports
+  none, as before, so `costUsd` is a lower bound. `POST /media/generate-image` (no prompt step) was one
+  operation and stays so. The credits are a **limit only
+  where billing is configured** (`STRIPE_PUBLISHABLE_KEY`; our instance has none — there they are a count);
+  with billing and none left the door answers `false` before anything is admitted, and the chat says
+  `MEDIA_IMAGE_CREDITS_EXHAUSTED`. The rule and the library write are one function for the door and the chat
+  (`MediaService.imageCreditsLeft`, `generateImageIntoLibrary`; the controller now calls them instead of its own
+  copy), and the window's body is one function too (`media/image-prompt.ts` `imagePromptBody`, the styles list).
+  The chat reads the subscription as the web request's organization carries it
+  (`getSubscriptionAsOrganizationCarries`: the same four fields, no `deletedAt` filter; review W4-25 F8), so the
+  tier and its monthly window are the door's. A generated picture is saved with a name of the first six words it
+  was asked to show (`generatedPictureName`, e.g. «кофейня утром Созвоны без повестки съедают.png»), for the
+  door and the chat alike, so the library's search — which reads that name — finds it (review W4-25 F11).
+- **One operation, so one left is enough** (`kcxz.44`; replaces review W4-25 F1's «two operations, admitted
+  only when both fit»). `media.generate` makes no allowance pre-check of its own: the one admission is the
+  check, and it runs before the picture prompt is written, so its refusal — no credentials
+  (`AI_SELECTED_CREDENTIAL_UNAVAILABLE`), the allowance spent (`AI_INCLUDED_QUOTA_EXHAUSTED`, e.g. another tab
+  spent the last operation), a busy ledger (`AI_ADMISSION_CONTENDED`) — comes before any provider request:
+  nothing is spent, the credit row is taken back, and the message's paid step is given back. The codes
+  `MEDIA_ALLOWANCE_SHORT` (one operation left) and `MEDIA_IMAGE_NOT_DRAWN` (prompt paid, drawing refused) are
+  gone with their words: the first cannot be true and the second cannot happen, so the service no longer
+  marks an error as spent (`aiOperationSpent` removed).
+  `/copilot/credits` stays for the Postiz media picker (D8, unchanged).
+- **Decided for the person: «сделай картинку к посту» asks nothing.** With the piece and the adaptation named,
+  the post's own text (read by id, first 1 500 characters) is the description; the person's own words, when
+  they gave any, come first; the style is the window's default («Realistic») unless they named one. Then the
+  agent puts the new picture on the post with `adaptation.image`, in the same turn, without asking — the skill
+  and the description say so. A picture only for the library (a description, no post) is generated too.
+- **Only a refusal before any spend gives the paid step back** (§5.7, review W4-23 F2): nothing to draw from
+  (`MEDIA_PROMPT_MISSING`), an adaptation or a piece not in the workspace (`ADAPTATION_NOT_FOUND`,
+  `PIECE_NOT_FOUND`), credits spent, and a refusal of the picture's one admission (allowance, credentials, a
+  contended ledger, a configuration refusal). The provider's safety refusal is
+  `MEDIA_IMAGE_REJECTED` (the operation was spent and failed, its credit went back); another
+  coded error is passed on under its own code (review W4-25 F10); an uncoded failure is `MEDIA_IMAGE_FAILED`. None
+  of these gives the step back. Every code a capability answers has words in `agent.copy.ts` in both languages
+  — `ADAPTATION_NOT_FOUND`, `AI_ADMISSION_CONTENDED` and `AI_SELECTED_CREDENTIAL_UNAVAILABLE` added (review
+  W4-25 F4; `MEDIA_ALLOWANCE_SHORT` and `MEDIA_IMAGE_NOT_DRAWN` removed with their codes, `kcxz.44`) — and a
+  guard in `tests/agent-media.test.cjs` fails a new code without them (the codes that had none on 28.09 are
+  listed there) and fails if the two removed codes come back.
+- **Over MCP** `media.generate` is bounded by the allowance (or the own key) and the MCP throttler only: MCP
+  admits with `countPaid: false`, so there is no per-turn paid cap there, as for every paid MCP capability
+  (review W4-25 F9). A per-session picture cap on MCP is not built.
+- **The library reads only ids, names and kinds.** Newest first, 10 unless asked, one door page (18) at most,
+  narrowed by `search`; never a path or a URL. Names are the uploader's and reach the model as untrusted data.
+  A video is told apart by its name (the uploader saves no kind).
+- **The screen.** `media.library` and `media.generate` open the `media` card: «Медиатека» itself beside the chat
+  (`MediaBox standalone`, `/media` on the screen), newest first — so the picture just made or attached is the
+  first there; `adaptation.image` keeps opening the adaptation's channel preview with the picture on it. An
+  upload from the composer and a finished generation re-read the library's pages (`MEDIA_LIBRARY_KEY_PREFIX`,
+  `media/media-library.keys.ts`, the key `MediaBox` now builds with; `mediaCallsOf` +
+  `useRevalidateWhenCountGrows`); `media_library` is in `READ_ONLY_TOOLS`. A `media` skill carries the know-how.
+- **Proof.** Seventeen recorded scenarios: `media-picture-viewed` (a reader shows a picture: the model sees it in
+  the first step of that request only and not in the next message; its bytes are in no stored record, snapshot
+  write, reload, world row, usage row or log line;
+  nothing written, no paid step; `media.keep` not offered), `media-picture-kept-to-post` (shown, then «поставь к
+  посту»: the card, the browser's id, `adaptation.image`), `media-picture-keep-refused` (another workspace's id
+  keeps nothing; a page that lost the picture says so), `media-attachment-to-post` (the acceptance «вложение → картинка поста»),
+  `media-generate-to-post` («генерация списывает операцию»: one `image_generation` row, one
+  credit, stored, saved, set, listed first), `media-generate-credits-spent` (billing on, credits spent — refused,
+  the paid step comes back and the piece is written), `media-generate-rejected`, `media-foreign-ids`,
+  `media-receipt-foreign` (a receipt naming another workspace's or a deleted picture, or a video, is refused at
+  the door, nothing billed or read; the model reads the row's name and type, not the browser's),
+  `media-reader-offered-reads` (USER: reads only, receipt refused), `media-generate-last-operation` (the
+  included allowance, 10 a month and 8 used, counted by the real admission: the turn takes the ninth and the
+  picture the tenth — replaces `media-generate-allowance-short`), `media-generate-prompt-failed` (the provider
+  fails the picture-prompt call after admission: the operation is failed and counted, the credit goes back,
+  `MEDIA_IMAGE_FAILED`, the step is not given back and a retry meets the paid cap; review F6),
+  `media-generate-admission-refused` (the one admission refused: no provider request, credit taken back, step
+  given back — replaces `media-generate-draw-refused`), `media-generate-paid-tier` and
+  `media-generate-paid-tier-spent` (billing on, STANDARD: only this window's credits count),
+  `media-picture-keep-paused` (a picture shown and the `media.keep` card waiting: the provider's echoed request
+  is in no snapshot) and `media-picture-not-seen` (the provider refuses the picture step:
+  `AGENT_PICTURE_NOT_SEEN`; a refused later step: `AI_PROVIDER_REJECTED`). `tests/agent-chat.body-limit.test.cjs`
+  posts about 1 MB and 9 MB of pictures through a real express parser and the real door, and a body over the
+  ceiling, stated or chunked. The world runs
+  the real `MediaService` over the real `MediaRepository` (the world's `media` rows as the Prisma table), the real
+  `SubscriptionService` credits over the real `SubscriptionRepository`, and the real `OpenaiService` admitting
+  its one operation through the scenario's `AiUsageService`; only the provider client and the file storage
+  are fake. The world's adaptation edit resolves the picture with the real `PieceRepository.findMedia` (review
+  W4-25 F7). Behaviour tests: `tests/agent-media.test.cjs` (the receipt's shape and refusals, the rebuilt line,
+  the upload, re-use on retry and compression, the shared prompt body, credits rule, one picture as one
+  `image_generation` admission with the prompt inside it and the row's model and usage, the
+  words guard, the door's picture line and the processor that puts the picture back only in the outgoing prompt,
+  the page's store) and `tests/agent-composer.media.test.cjs` (shown by default with its key, a reader shows too,
+  the switch to the library with its line and the retry, the «В медиатеку» card).
+
+Owner decision 28.09.2026 (was open for the owner): **a picture costs one allowance operation**, for the
+screen and the chat alike (above, `kcxz.44`). The Postiz image credits (20–500 a month by plan) still limit
+generation only with billing on; on our instance the AI allowance is the only limit.
+
+- **A picture the chat puts on a post shows on the post** (W4 live walk P3-F): the piece door named an
+  adaptation's picture by id only, so its thumbnail showed only on the page that had picked it. The door
+  now reads the path from the post's `image` (`adaptationPictureOf`), whoever set it. Generated pictures are
+  named by words only (P3-I): an emoji or a dash at the start of the post is not part of the name.
+
 ## 6. The chat screen
 
 ### 6.1 Layout
@@ -707,6 +1341,8 @@ Each card reuses the screen component that already shows the thing (inventory fi
 | Plan slot | channel, time, reserve/scheduled, «Отменить бронь» | calendar/plan components |
 | Channel connect | Telegram steps or the OAuth button | `onboarding/onboarding.telegram.tsx` |
 | Avatar | portrait lines, consent and activation | avatar proposal view |
+| Ideas | «Откуда идеи»: subscriptions and the leads' queue, beside the chat (`kcxz.23`) | `content-leads.tab.tsx` |
+| Media | «Медиатека»: the library, newest first, beside the chat (`kcxz.25`) | `media/media.component.tsx` `MediaBox standalone` |
 | Approval | what will happen, where, what cannot be undone; «Да» / «Нет» | new, one component |
 | Secret | a key field posting straight to `/settings/ai` | AI settings field |
 | Error | the product's error codes in plain words with the next step | `VOICE_ERROR_CODES`, `PIECE_ERROR_CODES` wording |

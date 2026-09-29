@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   MASTRA_RESOURCE_ID_KEY,
@@ -48,8 +49,16 @@ export const conductorResourceId = (organizationId: string, userId: string) =>
  * Values are primitives only — Mastra persists the context in a suspended
  * run's snapshot.
  */
+/**
+ * A server-made id of this one request (review W4-25 vision F3): the pictures
+ * a message carries are held under it (`conductor.pictures.ts`), so two
+ * requests of one thread never see or release each other's.
+ */
+export const CONDUCTOR_REQUEST_ID_KEY = 'cf.requestId';
+
 export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   ...Object.values(CAPABILITY_CONTEXT_KEYS),
+  CONDUCTOR_REQUEST_ID_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
 ];
@@ -90,6 +99,8 @@ export type ConductorTurn = {
    * the card this request answers (`kcxz.32`, N2).
    */
   openProposals?: readonly string[];
+  /** `CONDUCTOR_REQUEST_ID_KEY`: made by the door, one per request; a fresh one when absent. */
+  requestId?: string;
 };
 
 /**
@@ -117,6 +128,7 @@ export const buildConductorContext = (turn: ConductorTurn) => {
   // Questions put to the person in this request, none yet (kcxz.31, D1).
   context.set(CAPABILITY_CONTEXT_KEYS.questionsOpened, '[]');
   setOpenProposals(context, turn.openProposals ?? []);
+  context.set(CONDUCTOR_REQUEST_ID_KEY, turn.requestId ?? randomUUID());
   for (const fingerprint of turn.approvals ?? []) {
     grantApproval(context, fingerprint);
   }

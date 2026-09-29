@@ -99,6 +99,13 @@ import { phraseDeviation } from './voice-norm.phrasing';
 
 import { normFor } from './voice-norm.sets';
 import { VoiceError } from './voice-errors';
+import {
+  VOICE_ANALYSIS_LOCK_STORE,
+  claimVoiceAnalysis,
+  VoiceAnalysisLockUnavailable,
+  inProcessAnalysisLockStore,
+  type VoiceAnalysisLockStore,
+} from './analysis-lock';
 import { VOICE_CHECK_SILENT } from './voice-check.port';
 import {
   buildMeasurementMetrics,
@@ -381,6 +388,14 @@ const metricsOf = (
   return { scales: (raw ?? {}) as VoiceMeasurementMetricsV1['scales'] };
 };
 
+/** What `analysisStream` needs to know about the run it holds the claim for. */
+type AnalysisRunState = {
+  /** The row the arithmetic was saved to, once it was. */
+  saved: StoredVoiceMeasurement | null;
+  /** The run reached its end — or stored its proposal — and needs no mark. */
+  settled: boolean;
+};
+
 @Injectable()
 export class VoiceService {
   /** Только для проверок, которые обязаны молчать вместо падения. */
@@ -403,8 +418,19 @@ export class VoiceService {
      * без него: место в списке — это то, что ломается у каждого, кто строит
      * его вручную, и таких мест в наборах много.
      */
-    @Optional() private readonly _edits: VoiceEditRepository | null = null
-  ) {}
+    @Optional() private readonly _edits: VoiceEditRepository | null = null,
+    /**
+     * Where «this avatar's analysis is running» is held (`kcxz.39`): the
+     * shared Redis in the application, one process's map without it.
+     */
+    @Optional()
+    @Inject(VOICE_ANALYSIS_LOCK_STORE)
+    analysisLocks: VoiceAnalysisLockStore | null = null
+  ) {
+    this._analysisLocks = analysisLocks ?? inProcessAnalysisLockStore();
+  }
+
+  private readonly _analysisLocks: VoiceAnalysisLockStore;
 
   /* ---------------------------------------------------------------------
    * Policy
@@ -1181,6 +1207,88 @@ export class VoiceService {
     // The next started record fills in the corpus size and planned calls once read.
     yield { name: 'started', samples: 0, planned: 0 };
 
+    /**
+     * One run per avatar at a time (`kcxz.39`), decided here so every door
+     * shares it: the screen, `POST /analysis`, the chat and MCP. The avatar
+     * is the resolved one — the chat's «default» and the screen's named id
+     * are the same claim. Refused before the corpus is read or a model is
+     * asked, so the second start pays nothing.
+     */
+    const scope = await this.corpusScope(actor);
+    let release: Awaited<ReturnType<typeof claimVoiceAnalysis>>;
+    try {
+      release = await claimVoiceAnalysis(
+        this._analysisLocks,
+        actor.organizationId,
+        scope.avatarId ?? null
+      );
+    } catch (error) {
+      // The store did not answer (Redis down): a clear refusal, not a hang,
+      // and nothing is read or paid for (review W4-39-40 F5).
+      if (error instanceof VoiceAnalysisLockUnavailable) {
+        throw new VoiceError(
+          'VOICE_ANALYSIS_FAILED',
+          'Разбор не запущен: не удалось проверить, не идёт ли он уже. Ничего не потрачено — попробуйте чуть позже.'
+        );
+      }
+      throw error;
+    }
+    if (!release) {
+      throw new VoiceError(
+        'VOICE_ANALYSIS_RUNNING',
+        'Разбор этого аватара уже идёт — второй не запущен и ничего не потрачено.'
+      );
+    }
+
+    /**
+     * A run that saved its numbers and then did not reach `done` — the model
+     * refused, a write failed, the reader stopped — is marked on its row
+     * (`kcxz.40`), so the resume rule stops reading it as «still finishing»
+     * and the rerun is offered at once.
+     */
+    const run: AnalysisRunState = { saved: null, settled: false };
+    try {
+      yield* this.analysisRun(actor, body, scope, run);
+      run.settled = true;
+    } finally {
+      // `settled` is also set the moment the proposal is stored, so a reader
+      // that stops at `done` never marks — and never overwrites — the row
+      // that holds a paid proposal (review W4-39-40 F2).
+      if (run.saved && !run.settled) await this.markProposalFailed(actor, run.saved);
+      await release();
+    }
+  }
+
+  /** Records that the run which saved `measurement` ended without a proposal. */
+  private async markProposalFailed(
+    actor: VoiceActor,
+    measurement: StoredVoiceMeasurement
+  ): Promise<void> {
+    try {
+      await this._samples.updateMeasurement(actor.organizationId, measurement.id, {
+        metrics: {
+          ...metricsOf(measurement),
+          proposalFailedAt: this._now().toISOString(),
+        },
+      });
+    } catch (error) {
+      // The run's own refusal is the answer; without the mark the window
+      // still ends it, as before.
+      this.logger.warn(
+        `Voice analysis failure mark was not written: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /** The run itself, under the claim `analysisStream` holds. */
+  private async *analysisRun(
+    actor: VoiceActor,
+    body: VoiceAnalysisRequestV1,
+    scope: Awaited<ReturnType<VoiceService['corpusScope']>>,
+    state: AnalysisRunState
+  ): AsyncGenerator<VoiceAnalysisEventV1> {
     const corpus = await this.corpusFor(actor);
     const inputs = corpus.map(toInput);
     const readiness = corpusReadiness(inputs);
@@ -1215,7 +1323,6 @@ export class VoiceService {
       );
     }
 
-    const scope = await this.corpusScope(actor);
     const point = await this.calibrationFor(
       actor,
       scope.avatarId ?? null,
@@ -1247,6 +1354,7 @@ export class VoiceService {
         avatarId: scope.avatarId ?? null,
       }
     );
+    state.saved = measurement;
 
     // Числа сохранены — и это сказано до того, как спрошена модель, потому
     // что дальше может не ответить никто, а посчитанное всё равно останется.
@@ -1313,12 +1421,19 @@ export class VoiceService {
         byCode.has(observation.sampleCode)
       );
 
-      const metrics = buildMeasurementMetrics(result, { proposal });
+      // The position against the norm stays with the proposal: rebuilt
+      // without it, every voice made from an AI proposal lost its
+      // directions (review W4-39-40 F6).
+      const metrics = buildMeasurementMetrics(result, {
+        proposal,
+        deviations: metricsOf(measurement).deviations,
+      });
       await this._samples.updateMeasurement(
         actor.organizationId,
         measurement.id,
         { metrics }
       );
+      state.settled = true;
       yield {
         name: 'done',
         analysis: this.measurementReady({ ...measurement, metrics }),
@@ -1641,7 +1756,12 @@ export class VoiceService {
   private measurementStanding(
     measurement: StoredVoiceMeasurement,
     corpus: readonly { code: string }[]
-  ): { hasProposal: boolean; corpusChanged: boolean; measuredAt?: string } {
+  ): {
+    hasProposal: boolean;
+    corpusChanged: boolean;
+    measuredAt?: string;
+    proposalFailed?: boolean;
+  } {
     const metrics = metricsOf(measurement);
     const split = Object.keys(measurement.corpusSplit ?? {});
     const measured = new Set([
@@ -1659,6 +1779,7 @@ export class VoiceService {
     return {
       hasProposal: Boolean(proposal?.portrait || proposal?.fields?.length),
       corpusChanged,
+      ...(metrics.proposalFailedAt ? { proposalFailed: true } : {}),
       ...(Number.isNaN(measuredAt.getTime())
         ? {}
         : { measuredAt: measuredAt.toISOString() }),

@@ -116,6 +116,11 @@ const copy = {
     declineAction: 'Не надо',
     acceptedNotice: (title: string) =>
       `«${title}» взято в работу. Открываем «Новую заготовку» — тему и причину впишите туда сами.`,
+    // Beside the chat (review W4-23 F1): the request to write is put into the
+    // composer, not sent; with nowhere to go, only what was done is said.
+    acceptedNoticeChat: (title: string) =>
+      `«${title}» взято в работу. Просьба написать по нему заготовку — в поле чата: отправьте её, когда будете готовы.`,
+    acceptedNoticeTaken: (title: string) => `«${title}» взято в работу.`,
     declineFailed: 'Повод не отклонился. Попробуйте ещё раз.',
     acceptFailed: 'Повод не взялся в работу. Попробуйте ещё раз.',
     subscriptionsLabel: (count: number) => `Подписки · ${count}`,
@@ -228,6 +233,9 @@ const copy = {
     declineAction: 'Not now',
     acceptedNotice: (title: string) =>
       `"${title}" was taken to work. Opening New piece — fill in the thesis and reason there yourself.`,
+    acceptedNoticeChat: (title: string) =>
+      `"${title}" was taken to work. A request to write a piece from it is in the chat field: send it when you are ready.`,
+    acceptedNoticeTaken: (title: string) => `"${title}" was taken to work.`,
     declineFailed: 'The lead was not declined. Try again.',
     acceptFailed: 'The lead was not taken to work. Try again.',
     subscriptionsLabel: (count: number) => `Subscriptions · ${count}`,
@@ -747,6 +755,7 @@ function AddSubscriptionDialog({
 
 export function ContentLeadsTab({
   onNavigateToBrief,
+  takenTo = 'brief',
 }: {
   /**
    * Where «Взять в работу» sends the person, once the lead is spent — and
@@ -755,6 +764,12 @@ export function ContentLeadsTab({
    * about that here would be a second answer to the same question.
    */
   onNavigateToBrief?: (lead: LeadRow) => void;
+  /**
+   * Where that handler takes the lead, for the notice (review W4-23 F1):
+   * «Новая заготовка» on «Контент», or the chat's composer beside the panel.
+   * Without a handler the notice says only that the lead was taken.
+   */
+  takenTo?: 'brief' | 'chat';
 } = {}) {
   const request = useFetch();
   const { language } = useVariables();
@@ -914,7 +929,13 @@ export function ContentLeadsTab({
       try {
         await read(acceptLeadUrl(lead.id), { method: 'POST', body: JSON.stringify({}) });
         await queue.mutate();
-        setNotice(t.acceptedNotice(lead.title));
+        setNotice(
+          !onNavigateToBrief
+            ? t.acceptedNoticeTaken(lead.title)
+            : takenTo === 'chat'
+            ? t.acceptedNoticeChat(lead.title)
+            : t.acceptedNotice(lead.title)
+        );
         onNavigateToBrief?.(lead);
       } catch (error) {
         setLeadFailure(readFailure(error, t.acceptFailed));
@@ -922,7 +943,7 @@ export function ContentLeadsTab({
         setBusyLeadId(null);
       }
     },
-    [read, queue, t, onNavigateToBrief]
+    [read, queue, t, onNavigateToBrief, takenTo]
   );
 
   const listFailure =

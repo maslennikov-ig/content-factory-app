@@ -70,6 +70,8 @@ export type AdaptationRow = {
     releaseURL: string | null;
     publishDate: Date;
     deletedAt: Date | null;
+    /** The post's picture JSON, for its thumbnail's path (W4 walk P3-F). */
+    image?: string | null;
     integration: {
       id: string;
       name: string;
@@ -204,6 +206,7 @@ export class ContentMaterialRepository {
             releaseURL: true,
             publishDate: true,
             deletedAt: true,
+            image: true,
             integration: {
               select: { id: true, name: true, providerIdentifier: true },
             },

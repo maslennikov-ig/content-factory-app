@@ -19,6 +19,8 @@ const WORKSPACE_AS_AREA = /рабоч[а-яё]*\s+област[а-яё]*/iu;
 
 const COPY_FILES = [
   'apps/frontend/src/components/help/help.copy.ts',
+  // The help answers (`kcxz.24`: shared with the agent's «help» skill).
+  'libraries/nestjs-libraries/src/help/help-faq.questions.ts',
   'apps/frontend/src/components/settings/ai-provider.copy.ts',
   'apps/frontend/src/components/onboarding/onboarding.copy.ts',
   'apps/frontend/src/components/channels/channels.copy.ts',

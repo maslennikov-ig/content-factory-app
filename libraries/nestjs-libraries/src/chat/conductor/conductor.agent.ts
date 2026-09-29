@@ -28,6 +28,7 @@ import {
   conductorContextSchema,
 } from './conductor.context';
 import { conductorInstructions } from './conductor.instructions';
+import { ViewedPicturesProcessor } from './conductor.pictures';
 import { lastStepSpeaks } from './conductor.steps';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
 import {
@@ -159,7 +160,9 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       stopWhen: stopAfterOpenProposalRefusal as any,
       prepareStep: lastStepSpeaks(CONDUCTOR_MAX_STEPS) as any,
     },
-    inputProcessors: conductorInputProcessors(),
+    // Pictures to look at go back into the outgoing prompt only (owner
+    // decision 28.09, `conductor.pictures.ts`).
+    inputProcessors: [...conductorInputProcessors(), new ViewedPicturesProcessor()],
     outputProcessors: conductorOutputProcessors(),
   });
 };

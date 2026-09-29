@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useChat } from '@ai-sdk/react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useRevalidateUnder } from './agent.revalidate';
+import { useRevalidateUnder, useRevalidateWhenCountGrows } from './agent.revalidate';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { CfMark } from '@contentfactory/frontend/components/ui/brand/cf-mark';
@@ -18,6 +18,7 @@ import { WorkingLine } from '@contentfactory/frontend/components/ui/working-line
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 import {
   AGENT_DOORS,
+  AGENT_MEDIA_PART_TYPE,
   AGENT_SAMPLES_PART_TYPE,
   AGENT_TIMEZONE_HEADER,
   approvalWaits,
@@ -26,6 +27,10 @@ import {
   artifactsOf,
   avatarCallsOf,
   channelCallsOf,
+  ideaCallsOf,
+  factCallsOf,
+  mediaCallsOf,
+  panelReadsOf,
   errorCodeOf,
   pendingCardId,
   pieceTouchesOf,
@@ -37,6 +42,7 @@ import {
   readMessageBlocks,
   readProgressPart,
   readSamplesPart,
+  readMediaPart,
   removedArtifactsOf,
   reopenApprovalAnswer,
   toolNameOf,
@@ -49,6 +55,12 @@ import {
 } from './agent.contract';
 import { errorWordsFor, stageWordFor, type AgentWords } from './agent.copy';
 import { sendSamplesTo } from './agent.samples';
+import {
+  keepShownPictureInLibrary,
+  uploadToLibrary,
+  type LibrarySaved,
+} from './agent.media';
+import { MEDIA_LIBRARY_KEY_PREFIX } from '@contentfactory/frontend/components/media/media-library.keys';
 import { AVATAR_ROUTES, mapAvatars } from '@contentfactory/frontend/components/brand-voice/voice-avatars.adapter';
 import { readVoice } from '@contentfactory/frontend/components/brand-voice/voice-profile.adapter';
 import { VOICE_API_BASE } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -74,6 +86,8 @@ import { ALLOWANCE_API } from '@contentfactory/frontend/components/ui/allowance-
 import { THREADS_KEY } from './agent.threads';
 import { createAgentTransport, screenTimeZone } from './agent.transport';
 import { PIECES_API } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
+import { LEADS_API } from '@contentfactory/frontend/components/content-intelligence/content-leads.adapter';
+import { FACTS_API } from '@contentfactory/frontend/components/content-intelligence/content-facts.adapter';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { startersFor, type AgentStarter } from './agent.starters';
 import { channelWaitsForAdmin } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
@@ -302,13 +316,15 @@ export function AgentConversation({
     (message: ComposerSubmit) => {
       clearError();
       approvalFailed.current = false;
-      if (message.samples) {
-        // The receipt of files already added to an avatar (`kcxz.18`): the
-        // chat door reads it as a line of data, never a file.
+      if (message.samples || message.media) {
+        // The receipt of files already added to an avatar (`kcxz.18`) or of
+        // pictures already in the media library (`kcxz.25`): the chat door
+        // reads it as a line of data, never a file.
         void sendMessage({
           parts: [
             ...(message.text ? [{ type: 'text' as const, text: message.text }] : []),
-            { type: AGENT_SAMPLES_PART_TYPE, data: message.samples },
+            ...(message.samples ? [{ type: AGENT_SAMPLES_PART_TYPE, data: message.samples }] : []),
+            ...(message.media ? [{ type: AGENT_MEDIA_PART_TYPE, data: message.media }] : []),
             ...message.files,
           ],
         });
@@ -569,6 +585,31 @@ export function AgentConversation({
     },
     [revalidateUnder, request, words.locale]
   );
+  // Pictures go to the media library through its own request (`kcxz.25`);
+  // the library beside the chat reads its pages again.
+  const sendMedia = useCallback(
+    async (files: File[], saved: LibrarySaved) => {
+      try {
+        return await uploadToLibrary(request, files, saved);
+      } finally {
+        revalidateUnder(MEDIA_LIBRARY_KEY_PREFIX);
+      }
+    },
+    [request, revalidateUnder]
+  );
+  // A picture the agent was shown, put into the library when the person
+  // agrees on the `media.keep` card (owner decision 28.09); the library beside
+  // the chat reads its pages again.
+  const keepPicture = useCallback(
+    async (key: string) => {
+      try {
+        return await keepShownPictureInLibrary(request, key);
+      } finally {
+        revalidateUnder(MEDIA_LIBRARY_KEY_PREFIX);
+      }
+    },
+    [request, revalidateUnder]
+  );
   const describeSamplesFailure = useCallback(
     ({ code }: { code: string | null }) => {
       const known = errorWordsFor(words, code, true);
@@ -602,33 +643,40 @@ export function AgentConversation({
     for (const pieceId of again) void mutate(PIECES_API.detail(pieceId));
   }, [mutate, touches]);
 
-  // A finished channel action (`kcxz.19`): the channel screen beside the chat
-  // and a connect card read the channels again. What the thread loaded with
-  // is already current.
-  const channelCalls = useMemo(() => channelCallsOf(messages), [messages]);
-  const channelSeen = useRef<number | null>(null);
-  useEffect(() => {
-    if (channelSeen.current === null || channelCalls === channelSeen.current) {
-      channelSeen.current = channelCalls;
-      return;
-    }
-    channelSeen.current = channelCalls;
-    revalidateUnder('/integrations/');
-  }, [channelCalls, revalidateUnder]);
-
-  // A finished avatar action (W3 walk P2-A): the avatar screen beside the
-  // chat and the composer's avatar list read the avatars again, as channels
-  // do above. What the thread loaded with is already current.
-  const avatarCalls = useMemo(() => avatarCallsOf(messages), [messages]);
-  const avatarSeen = useRef<number | null>(null);
-  useEffect(() => {
-    if (avatarSeen.current === null || avatarCalls === avatarSeen.current) {
-      avatarSeen.current = avatarCalls;
-      return;
-    }
-    avatarSeen.current = avatarCalls;
-    revalidateUnder(VOICE_API_BASE);
-  }, [avatarCalls, revalidateUnder]);
+  // A finished action of a group re-reads the screen beside the chat
+  // (`useRevalidateWhenCountGrows`); what the thread loaded with is already
+  // current. Channels (`kcxz.19`): the channel screen and a connect card.
+  // A finished read of a group opens its panel, which reads again too (W4
+  // walk P2-B, `panelReadsOf`): the agent points at what the panel shows.
+  const channelCalls = useMemo(
+    () => channelCallsOf(messages) + panelReadsOf(messages, 'channel_'),
+    [messages]
+  );
+  useRevalidateWhenCountGrows(channelCalls, '/integrations/');
+  // Avatars (W3 walk P2-A): the avatar screen and the composer's avatar list.
+  const avatarCalls = useMemo(
+    () => avatarCallsOf(messages) + panelReadsOf(messages, 'avatar_'),
+    [messages]
+  );
+  useRevalidateWhenCountGrows(avatarCalls, VOICE_API_BASE);
+  // «Откуда идеи» (`kcxz.23`): its subscriptions and queue.
+  const ideaCalls = useMemo(
+    () => ideaCallsOf(messages) + panelReadsOf(messages, 'ideas_'),
+    [messages]
+  );
+  useRevalidateWhenCountGrows(ideaCalls, LEADS_API);
+  // «Откуда факты» (`kcxz.24`): the facts.
+  const factCalls = useMemo(
+    () => factCallsOf(messages) + panelReadsOf(messages, 'facts_'),
+    [messages]
+  );
+  useRevalidateWhenCountGrows(factCalls, FACTS_API);
+  // «Медиатека» (`kcxz.25`): a picture generated into it.
+  const mediaCalls = useMemo(
+    () => mediaCallsOf(messages) + panelReadsOf(messages, 'media_'),
+    [messages]
+  );
+  useRevalidateWhenCountGrows(mediaCalls, MEDIA_LIBRARY_KEY_PREFIX);
 
   // The last line of each piece in the conversation (`kcxz.31`, D12): an
   // earlier line's count of open questions is from its own moment, and a
@@ -813,6 +861,7 @@ export function AgentConversation({
               block.runId &&
               answerQuestion(block.runId, block.toolCallId, block.question.cardId, resumeData)
             }
+            keepPicture={keepPicture}
             words={words}
           />
         );
@@ -1033,6 +1082,8 @@ export function AgentConversation({
             uploadSamples={sendSamples}
             samplesTarget={samplesTarget}
             samplesAllowed={editor}
+            uploadMedia={sendMedia}
+            mediaAllowed={editor}
             describeFailure={describeSamplesFailure}
             words={words}
             autoFocus={!messages.length}
@@ -1055,12 +1106,13 @@ function UserMessage({
   const parts = message.parts as unknown as Array<
     Record<string, unknown> & { type: string }
   >;
-  // An attached text file and a samples receipt travel as the server's
-  // data wrapper; they are drawn as the files' line, not as words (`kcxz.18`).
+  // An attached text file and a samples or pictures receipt travel as the
+  // server's data wrapper; they are drawn as the files' line, not as words
+  // (`kcxz.18`, `kcxz.25`).
   const attached = parts.map((part) =>
     part.type === 'text'
       ? readAttachedText(String(part.text ?? ''))
-      : readSamplesPart(part)
+      : readSamplesPart(part) ?? readMediaPart(part)
   );
   const text = parts
     .map((part, index) =>
@@ -1070,9 +1122,26 @@ function UserMessage({
     .trim();
   const files = parts.flatMap((part, index) => {
     const read = attached[index];
-    if (read) return [{ name: read.name, samples: read.samples ?? null }];
+    if (read) {
+      return [
+        {
+          name: read.name,
+          samples: 'samples' in read ? read.samples ?? null : null,
+          media: 'media' in read ? read.media ?? null : null,
+          viewed: 'viewed' in read ? read.viewed === true : false,
+        },
+      ];
+    }
+    // A picture shown to the AI rides inline in the live message (28.09).
     return part.type === 'file'
-      ? [{ name: String(part.filename ?? part.mediaType ?? ''), samples: null }]
+      ? [
+          {
+            name: String(part.filename ?? part.mediaType ?? ''),
+            samples: null,
+            media: null,
+            viewed: String(part.mediaType ?? '').startsWith('image/'),
+          },
+        ]
       : [];
   });
   return (
@@ -1092,7 +1161,11 @@ function UserMessage({
           <span className="min-w-0 truncate">
             {file.samples
               ? words.conversation.samplesAdded(file.name, file.samples.accepted)
-              : file.name}
+              : file.media
+                ? words.conversation.mediaAdded(file.name, file.media.count)
+                : file.viewed
+                  ? words.conversation.pictureViewed(file.name)
+                  : file.name}
           </span>
         </span>
       ))}

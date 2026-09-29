@@ -72,7 +72,7 @@ describe('P2-A: the avatar panel reads the avatars again after an avatar action'
     const conversation = source('apps/frontend/src/components/agents/agent.conversation.tsx');
     expect(conversation).toContain('avatarCallsOf(messages)');
     // Re-read without clearing: behaviour in agent-w3-review-fixes (F2).
-    expect(conversation).toMatch(/avatarSeen\.current = avatarCalls;\s*revalidateUnder\(VOICE_API_BASE\)/);
+    expect(conversation).toContain('useRevalidateWhenCountGrows(avatarCalls, VOICE_API_BASE)');
     expect(source('apps/frontend/src/components/agents/agent.panel.tsx')).toContain(
       '<VoiceAvatarScreen key={artifact.id} avatarId={artifact.id} followChat />'
     );
@@ -217,7 +217,9 @@ describe('P3-H: the lines by hand are six, everywhere a person reads it', () => 
     expect(voiceCopy.voiceCopy.en.manualFields).toBe(String(voiceCopy.VOICE_LINE_KEYS.length));
     for (const file of [
       'apps/frontend/src/components/onboarding/onboarding.copy.ts',
-      'apps/frontend/src/components/help/help.copy.ts',
+      // The help answers themselves (`kcxz.24`: moved beside the server so
+      // the agent's «help» skill reads the same ones).
+      'libraries/nestjs-libraries/src/help/help-faq.questions.ts',
     ]) {
       const text = source(file);
       expect(text).not.toMatch(/пять строк|five lines/);

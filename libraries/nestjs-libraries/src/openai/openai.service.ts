@@ -8,6 +8,7 @@ import {
   getOpenAiClient,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import { currentUsageLedger } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 const PicturePrompt = z.object({
   prompt: z.string(),
@@ -30,11 +31,28 @@ export class OpenaiService {
     );
   }
 
-  generatePromptForPicture(organizationId: string, prompt: string) {
+  /**
+   * One picture from a description: the picture prompt is written, then
+   * drawn — one `image_generation` operation, admitted once before the
+   * prompt call (owner 28.09.2026, `content-factory-next-kcxz.44`). The
+   * prompt call used to be a `text_generation` operation of its own, so a
+   * picture cost two operations of the allowance and could be refused
+   * between them with the prompt paid. Its tokens and cost are on the one
+   * row; the model column names the image model that drew
+   * (`generateImageWithinOperation`).
+   */
+  generateImageFromDescription(organizationId: string, description: string) {
     return this.aiUsage.executeAiOperation(
       organizationId,
-      'text_generation',
-      () => this.generatePromptForPictureWithinOperation(organizationId, prompt)
+      'image_generation',
+      async () =>
+        this.generateImageWithinOperation(
+          organizationId,
+          await this.generatePromptForPictureWithinOperation(
+            organizationId,
+            description
+          )
+        )
     );
   }
 
@@ -90,16 +108,37 @@ export class OpenaiService {
   ) {
     // gpt-image models always return base64 (b64_json) and do not accept the
     // `response_format` parameter, unlike the deprecated dall-e-3.
-    const generate = (
-      await (
-        await getOpenAiClient(organizationId)
-      ).images.generate({
-        prompt,
-        model: await getModelForRole(organizationId, 'image'),
-        size: isVertical ? '1024x1536' : '1024x1024',
-      })
-    ).data[0];
+    const model = await getModelForRole(organizationId, 'image');
+    let generate;
+    try {
+      generate = (
+        await (
+          await getOpenAiClient(organizationId)
+        ).images.generate({
+          prompt,
+          model,
+          size: isVertical ? '1024x1536' : '1024x1024',
+        })
+      ).data[0];
+    } catch (error) {
+      // The drawing ran and failed: the row names the image model that
+      // refused. A provider's answer with a status is a refusal; without one
+      // the request may have been billed (the ledger's rule).
+      currentUsageLedger()?.record({
+        attempt: 1,
+        model,
+        final: true,
+        failed: true,
+        possiblyBilled: typeof (error as { status?: unknown })?.status !== 'number',
+      });
+      throw error;
+    }
 
+    // The image endpoint reports nothing to the text ledger; the drawing is
+    // the operation's own call, so the row names the image model that drew
+    // whatever attempt a picture prompt written in it reached (`kcxz.44`,
+    // review F2).
+    currentUsageLedger()?.record({ attempt: 1, model, final: true });
     return generate.b64_json;
   }
 
@@ -112,7 +151,10 @@ export class OpenaiService {
         await (
           await getOpenAiClient(organizationId)
         ).chat.completions.parse({
-          model: await getModelForRole(organizationId),
+          // A text model, named: the call runs inside the `image_generation`
+          // operation, whose own role is `image` (`kcxz.44`). `draft` is what
+          // it ran under as a `text_generation` operation of its own.
+          model: await getModelForRole(organizationId, 'draft'),
           messages: [
             {
               role: 'system',

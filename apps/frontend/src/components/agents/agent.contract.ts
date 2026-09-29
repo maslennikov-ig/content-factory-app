@@ -37,6 +37,9 @@ export const CARD_KINDS = [
   'channel',
   'channel-connect',
   'secret',
+  'ideas',
+  'facts',
+  'media',
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
@@ -63,6 +66,7 @@ export const AGENT_ERROR_CODES = [
   'AI_PROVIDER_BUSY',
   'AI_PROVIDER_TIMEOUT',
   'AI_PROVIDER_REJECTED',
+  'AGENT_PICTURE_NOT_SEEN',
   'AGENT_BLOCKED',
   'AGENT_RUN_NOT_PENDING',
 ] as const;
@@ -139,6 +143,22 @@ export type AgentConsentQuestionPayload = {
 };
 
 /**
+ * The card of `media.keep` (owner decision 28.09.2026, «агент видит
+ * картинки»): the browser that holds the picture it showed the agent puts it
+ * into the media library when the person agrees, and answers
+ * `{ kept: true, mediaId }`, `{ kept: false }` or `{ kept: false, gone: true }`
+ * when the page no longer holds it. No «Решите за меня».
+ */
+export type AgentKeepPictureQuestionPayload = {
+  kind: 'keep-picture';
+  question: string;
+  /** The key the browser keeps the picture under. */
+  pictureKey: string;
+  canDecideForPerson: false;
+  cardId?: string;
+};
+
+/**
  * Where a plan card's post stands (`kcxz.15`): `reserve` goes out only once
  * confirmed, `scheduled` by itself, `draft` has no plan, `published` is out,
  * `error` was sent and did not go out (review W2 F14).
@@ -191,7 +211,8 @@ export const AGENT_ATTACHMENTS_TOTAL_MAX_BYTES = 10485760;
 export const AGENT_APPROVALS_PER_REQUEST = 3;
 
 /** The approval card's «what and where» line, at most. */
-export const AGENT_APPROVAL_SUMMARY_MAX = 300;
+/** 700 since kcxz.45: a «Не надо» card names each of up to ten leads. */
+export const AGENT_APPROVAL_SUMMARY_MAX = 700;
 
 /**
  * Samples attached in the chat (`kcxz.18`): the composer uploads the files to
@@ -207,6 +228,24 @@ export type AgentSamplesUpload = {
   accepted: number;
   refused: Array<{ reason: string; count: number }>;
   telegram: Array<{ name: string; selected: number; eligible: number }>;
+};
+
+/**
+ * Pictures attached in the chat (`kcxz.25`): the composer uploads them to the
+ * media library itself and the message carries only this receipt — library
+ * ids, names, types; the picture never reaches the chat door or the model.
+ */
+export const AGENT_MEDIA_PART_TYPE = 'data-media-upload' as const;
+export const AGENT_MEDIA_MAX_FILES = 5;
+export const AGENT_MEDIA_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+] as const;
+export type ChatPictureType = (typeof AGENT_MEDIA_TYPES)[number];
+export type LibraryUploadReceipt = {
+  media: Array<{ id: string; name: string; type: ChatPictureType }>;
 };
 
 /* ---- Doors ----------------------------------------------------------------- */
@@ -288,6 +327,12 @@ export const artifactHref = (artifact: {
       return `/channels/${id}`;
     case 'channels':
       return '/channels';
+    case 'ideas':
+      return '/content?tab=leads';
+    case 'facts':
+      return '/content?tab=provenance';
+    case 'media':
+      return '/media';
     case 'workspace':
     default:
       return '/onboarding';
@@ -734,6 +779,18 @@ export const attachmentLimit = (mediaType: AttachmentMediaType) =>
     ? AGENT_TEXT_ATTACHMENT_MAX_BYTES
     : AGENT_ATTACHMENT_MAX_BYTES;
 
+/** One line of a person's message that is a file, not words. */
+export type AttachedLine = {
+  name: string;
+  mediaType: string;
+  /** Sample files already added to an avatar (`kcxz.18`). */
+  samples?: { accepted: number };
+  /** Pictures already in the media library (`kcxz.25`). */
+  media?: { count: number };
+  /** A picture shown to the AI in its message, saved nowhere (28.09). */
+  viewed?: boolean;
+};
+
 /**
  * An attached text file as the server hands it to the model: its words inside
  * the untrusted-data wrapper. Read back so a reloaded thread shows the file,
@@ -741,7 +798,7 @@ export const attachmentLimit = (mediaType: AttachmentMediaType) =>
  */
 export const readAttachedText = (
   text: string
-): { name: string; mediaType: string; samples?: { accepted: number } } | null => {
+): AttachedLine | null => {
   if (!text.startsWith('{"untrustedData"')) return null;
   try {
     const wrapper = recordOf(recordOf(JSON.parse(text)).untrustedData);
@@ -750,6 +807,16 @@ export const readAttachedText = (
     const value = recordOf(wrapper.value);
     // A samples receipt (`kcxz.18`): files the composer already added to an
     // avatar, never their text.
+    // A pictures receipt (`kcxz.25`): pictures the composer already put into
+    // the media library, never the pictures.
+    const pictures = recordOf(value.mediaUpload);
+    if (Array.isArray(pictures.media)) {
+      return {
+        name: stringOf(value.attachment) ?? '',
+        mediaType: '',
+        media: { count: pictures.media.length },
+      };
+    }
     const upload = recordOf(value.samplesUpload);
     if (Object.keys(upload).length) {
       return {
@@ -759,6 +826,10 @@ export const readAttachedText = (
       };
     }
     const mediaType = stringOf(value.mediaType) ?? 'text/plain';
+    // A picture shown to the AI (owner decision 28.09.2026): its line.
+    if (stringOf(value.viewedPicture)) {
+      return { name: stringOf(value.attachment) ?? mediaType, mediaType, viewed: true };
+    }
     return { name: stringOf(value.attachment) ?? mediaType, mediaType };
   } catch {
     return null;
@@ -775,6 +846,20 @@ export const readSamplesPart = (
     ? data.files.filter((one): one is string => typeof one === 'string')
     : [];
   return { name: files.join(', '), samples: { accepted: numberOf(data.accepted) } };
+};
+
+/** A pictures receipt as the composer put it into a live message (`AGENT_MEDIA_PART_TYPE`). */
+export const readMediaPart = (
+  part: { type: string; data?: unknown }
+): { name: string; media: { count: number } } | null => {
+  if (part.type !== AGENT_MEDIA_PART_TYPE) return null;
+  const media = Array.isArray(recordOf(part.data).media)
+    ? (recordOf(part.data).media as unknown[])
+    : [];
+  const names = media
+    .map((one) => stringOf(recordOf(one).name))
+    .filter((one): one is string => !!one);
+  return { name: names.join(', '), media: { count: media.length } };
 };
 
 const URL_PATTERN = /\bhttps?:\/\/[^\s<>"'«»]+[^\s<>"'«».,;:!?)\]]/giu;
@@ -834,6 +919,16 @@ export type AgentQuestion = (
       answerKey: string;
       options: AgentSelectionQuestionPayload['options'];
       canDecideForPerson: boolean;
+    }
+  | {
+      /**
+       * `media.keep` (`AgentKeepPictureQuestionPayload`, owner decision
+       * 28.09.2026): this page puts the picture it showed the agent into the
+       * library and answers with its id.
+       */
+      kind: 'keep-picture';
+      text: string;
+      pictureKey: string;
     }
   | {
       /** The adaptation interview (`AgentInterviewQuestionPayload`, `kcxz.14`). */
@@ -921,6 +1016,9 @@ const readQuestionShape = (
       presetName: null,
       brand: false,
     };
+  }
+  if (record.kind === 'keep-picture') {
+    return { kind: 'keep-picture', text, pictureKey: stringOf(record.pictureKey) ?? '' };
   }
   if (record.kind === 'interview') {
     const channel = recordOf(record.channel);
@@ -1111,7 +1209,7 @@ export type AgentApprovalState =
 
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
-  | { type: 'file'; key: string; name: string; mediaType: string; samples?: { accepted: number } }
+  | ({ type: 'file'; key: string } & AttachedLine)
   | {
       type: 'approval';
       key: string;
@@ -1354,11 +1452,12 @@ export const channelCallsOf = (messages: readonly AgentMessage[]): number =>
   changingCallsOf(messages, 'channel_');
 
 /**
- * The reads of the avatar and channel groups (`risk: 'read'` in the
+ * The reads of the avatar, channel, ideas, facts and media groups (`risk: 'read'` in the
  * registry; `agent-w3-review-fixes` holds the two lists together). They
- * change nothing, so they do not make the screen beside the chat read again
- * (correctness review F2): the walk-fix counted every `avatar_*` call, and each
- * `avatar_overview` re-read the avatar panel mid-edit.
+ * change nothing, so the `…CallsOf` counts leave them out (correctness review
+ * F2). They do open the panel beside the chat, which then re-reads its
+ * routes (`panelReadsOf`, W4 walk P2-B) — without dropping what it shows
+ * (`useRevalidateUnder`), so a wizard mid-edit stays mounted.
  */
 export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'avatar_list',
@@ -1369,7 +1468,32 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'avatar_learning',
   'channel_open',
   'channel_posts',
+  'ideas_list',
+  'ideas_queue',
+  'facts_list',
+  'media_library',
 ]);
+
+/**
+ * Finished reads of a group, counted (W4 live walk 29.09.2026, P2-B): a read
+ * opens the group's panel beside the chat, and the agent then points at it
+ * («на карточке открыт полный список»). Leads that arrived while the panel
+ * was open, or facts added elsewhere, stayed unseen until a reload. One rule
+ * for every group: when this count grows, the panel re-reads its routes, as
+ * it does after a change.
+ */
+export const panelReadsOf = (messages: readonly AgentMessage[], prefix: string): number => {
+  let count = 0;
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    for (const part of message.parts as unknown as Part[]) {
+      const toolName = toolNameOfPart(part);
+      if (!toolName?.startsWith(prefix) || part.state !== 'output-available') continue;
+      if (READ_ONLY_TOOLS.has(toolName) && !refusalCode(part.output)) count += 1;
+    }
+  }
+  return count;
+};
 
 /** Finished calls of a group that may have changed something, counted. */
 const changingCallsOf = (messages: readonly AgentMessage[], prefix: string): number => {
@@ -1398,6 +1522,32 @@ const changingCallsOf = (messages: readonly AgentMessage[], prefix: string): num
  */
 export const avatarCallsOf = (messages: readonly AgentMessage[]): number =>
   changingCallsOf(messages, 'avatar_');
+
+/**
+ * Finished «Откуда идеи» actions of the conversation (`kcxz.23`), counted: a
+ * subscription added or dropped, a check, a lead declined or taken — when the
+ * count grows, the ideas screen beside the chat reads its subscriptions and
+ * queue again, as channels and avatars do. Reads are not counted.
+ */
+export const ideaCallsOf = (messages: readonly AgentMessage[]): number =>
+  changingCallsOf(messages, 'ideas_');
+
+/**
+ * Finished «Откуда факты» actions of the conversation (`kcxz.24`), counted: a
+ * fact added, retracted or brought back — when the count grows, the facts
+ * screen beside the chat reads the facts again. Reads are not counted.
+ */
+export const factCallsOf = (messages: readonly AgentMessage[]): number =>
+  changingCallsOf(messages, 'facts_');
+
+/**
+ * Finished media actions of the conversation (`kcxz.25`), counted: a picture
+ * generated into the library — when the count grows, the library beside the
+ * chat reads its pages again. Reading the library is not counted; a picture
+ * put on a post is the piece's (`pieceTouchesOf`).
+ */
+export const mediaCallsOf = (messages: readonly AgentMessage[]): number =>
+  changingCallsOf(messages, 'media_');
 
 /**
  * Whether a finished call's output says the person answered its selection

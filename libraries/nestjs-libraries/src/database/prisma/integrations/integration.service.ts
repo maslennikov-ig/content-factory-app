@@ -43,6 +43,26 @@ import { AnalyticsSnapshotService } from '@contentfactory/nestjs-libraries/integ
 
 dayjs.extend(utc);
 
+/**
+ * A refusal of the non-refreshing analytics read (`checkAnalytics` with
+ * `{ mayRefresh: false }`): a product code the chat shows in the person's
+ * words, distinct from a platform that has nothing to report.
+ */
+export class AnalyticsReadRefusal extends Error {
+  constructor(
+    readonly code: 'ANALYTICS_CHANNEL_NEEDS_RECONNECT' | 'ANALYTICS_UNAVAILABLE',
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+const analyticsNeedsReconnect = () =>
+  new AnalyticsReadRefusal(
+    'ANALYTICS_CHANNEL_NEEDS_RECONNECT',
+    'The channel’s access to the platform has expired; it was not refreshed from here. Nothing was changed.'
+  );
+
 @Injectable()
 export class IntegrationService {
   private storage = UploadFactory.createStorage();
@@ -673,11 +693,26 @@ export class IntegrationService {
     return { success: true };
   }
 
+  /**
+   * A channel's audience analytics, asked of the platform.
+   *
+   * The analytics page calls it as it always has: an expired token is
+   * refreshed (which may rotate it, mark the channel for reconnection and
+   * notify the workspace) and a platform failure reads as no data.
+   *
+   * `{ mayRefresh: false }` is the chat's and MCP's read (`kcxz.24` review F3,
+   * owner decision: decided for the person): nothing about the channel
+   * changes. An expired token, or a platform that asks for a new one, is
+   * refused with `ANALYTICS_CHANNEL_NEEDS_RECONNECT` without refreshing,
+   * retrying or notifying; any other platform failure is
+   * `ANALYTICS_UNAVAILABLE`, never an empty answer.
+   */
   async checkAnalytics(
     org: Organization,
     integration: string,
     date: string,
-    forceRefresh = false
+    forceRefresh = false,
+    { mayRefresh = true }: { mayRefresh?: boolean } = {}
   ): Promise<AnalyticsData[]> {
     const getIntegration = await this.getIntegrationById(org.id, integration);
 
@@ -697,6 +732,7 @@ export class IntegrationService {
       dayjs(getIntegration?.tokenExpiration).isBefore(dayjs()) ||
       forceRefresh
     ) {
+      if (!mayRefresh) throw analyticsNeedsReconnect();
       const data = await this._refreshIntegrationService.refresh(
         getIntegration
       );
@@ -747,6 +783,14 @@ export class IntegrationService {
         );
         return loadAnalytics;
       } catch (e) {
+        if (!mayRefresh) {
+          throw e instanceof RefreshToken
+            ? analyticsNeedsReconnect()
+            : new AnalyticsReadRefusal(
+                'ANALYTICS_UNAVAILABLE',
+                'The platform did not answer for this channel; this is not an empty result. Nothing was changed.'
+              );
+        }
         if (e instanceof RefreshToken) {
           return this.checkAnalytics(org, integration, date, true);
         }

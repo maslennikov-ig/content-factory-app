@@ -112,6 +112,13 @@ export type VoiceMeasurementMetricsV1 = {
   scales: Partial<Record<StyleScaleKey, StyleScaleResult>>;
   proposal?: StoredVoiceProposalV1;
   /**
+   * When the run that saved these numbers ended without its proposal: the
+   * model did not answer, or the run stopped after the save
+   * (`content-factory-next-kcxz.40`). In this column, like the proposal it
+   * stands in for, so no schema change: a row without it is read as before.
+   */
+  proposalFailedAt?: string;
+  /**
    * Samples dropped before counting, with the reason.
    *
    * Stored because `GET /analysis` has to answer the same shape `POST` did.

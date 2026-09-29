@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ContentFactRepository } from './content-fact.repository';
 import { ContentContextError } from './content-context.errors';
+import { factMomentOver } from './fact-valid-until';
 import { searchWords } from '../search-terms';
 import { TextSearchService } from '../search/text-search.service';
 import {
@@ -105,6 +106,17 @@ function needsLookFor(evidenceLinks: any[]): boolean {
   );
 }
 
+type FactInput = {
+  claimKey: string;
+  statement: string;
+  language: 'ru' | 'en';
+  valueText: string;
+  temporalKind: 'CURRENT' | 'DATED' | 'TIMELESS';
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  freshUntil?: string;
+};
+
 @Injectable()
 export class ContentFactService {
   constructor(
@@ -165,6 +177,9 @@ export class ContentFactService {
       temporalKind: fact.temporalKind,
       freshUntil: fact.freshUntil,
       status: fact.status,
+      // What `factRecordAdmission` reads with the status and `freshUntil`:
+      // the chat's `inWork` is the builder's rule, not a guess (W4-24 F5).
+      verifiedAt: fact.verifiedAt ?? null,
       supersedesFactId: fact.supersedesFactId ?? null,
       createdAt: fact.createdAt,
       updatedAt: fact.updatedAt,
@@ -198,20 +213,75 @@ export class ContentFactService {
     }));
   }
 
-  createFact(
+  /**
+   * One fact by id, in this workspace only (`kcxz.24`): `null` when there is
+   * none — another workspace's id reads the same as a missing one.
+   */
+  async fact(
     organizationId: string,
-    actorUserId: string,
-    input: {
-      claimKey: string;
-      statement: string;
-      language: 'ru' | 'en';
-      valueText: string;
-      temporalKind: 'CURRENT' | 'DATED' | 'TIMELESS';
-      effectiveFrom?: string;
-      effectiveTo?: string;
-      freshUntil?: string;
+    factId: string
+  ): Promise<{
+    id: string;
+    statement: string;
+    status: string;
+    verifiedAt: Date | null;
+    freshUntil: Date | null;
+  } | null> {
+    return (await this.repository.findFact(organizationId, factId)) ?? null;
+  }
+
+  createFact(organizationId: string, actorUserId: string, input: FactInput) {
+    const record = this.factRecord(input);
+    // Только что записанное утверждение должно находиться сразу
+    // (`content-factory-next-m2eg.19`). Сброс, а не дозапись: правила сборки
+    // документа живут в одном месте.
+    this.search?.invalidate(organizationId);
+    return this.repository.createFact(organizationId, actorUserId, record);
+  }
+
+  /**
+   * The chat's «добавь факт» (review W4-24 F2): the same record as
+   * `createFact`, answered with the row as stored and whether it was there
+   * before — the same statement is the same fact (the dedupe key), and it
+   * keeps its own status; a new «Свежо до» named for it is set when it is in
+   * work (`redateFact`, walk review F1). The caller says so instead of echoing
+   * what it asked for. A tombstoned row is returned as it is: the caller
+   * refuses it, as the form's upsert leaves it untouched.
+   */
+  async addFact(organizationId: string, actorUserId: string, input: FactInput) {
+    const record = this.factRecord(input);
+    const known = await this.repository.findFactByDedupeKey(
+      organizationId,
+      record.dedupeKey
+    );
+    if (known) {
+      // A new day named for a fact in work is set (owner 29.09.2026, walk
+      // review F1): the person tells the agent the new day. A retracted,
+      // replaced or removed row keeps its own, as before.
+      const asked = record.freshUntil;
+      const stored = known.freshUntil ? new Date(known.freshUntil).getTime() : null;
+      if (asked && stored !== asked.getTime()) {
+        const redated = await this.repository.redateFact(
+          organizationId,
+          actorUserId,
+          known.id,
+          asked,
+          new Date()
+        );
+        if (redated) {
+          this.search?.invalidate(organizationId);
+          return { fact: redated, existed: true as const, redated: true as const };
+        }
+      }
+      return { fact: known, existed: true as const };
     }
-  ) {
+    this.search?.invalidate(organizationId);
+    const fact = await this.repository.createFact(organizationId, actorUserId, record);
+    return { fact, existed: false as const };
+  }
+
+  /** What `createFact` stores: normalised, keyed for dedupe, «ваше слово». */
+  private factRecord(input: FactInput) {
     const claimKey = normalized(input.claimKey).toLocaleLowerCase();
     const valueText = normalized(input.valueText);
     const valueHash = sha256(valueText.toLocaleLowerCase());
@@ -220,9 +290,15 @@ export class ContentFactService {
       : null;
     const effectiveTo = input.effectiveTo ? new Date(input.effectiveTo) : null;
     const freshUntil = input.freshUntil ? new Date(input.freshUntil) : null;
+    // An impossible day (`2026-13-01`) is an invalid date, not a missing one:
+    // refused here with the product code rather than by the database.
+    const invalidDate = [effectiveFrom, effectiveTo, freshUntil].some(
+      (date) => date && Number.isNaN(date.getTime())
+    );
     if (
       !claimKey ||
       !valueText ||
+      invalidDate ||
       (input.temporalKind === 'CURRENT' && !freshUntil) ||
       (effectiveFrom && effectiveTo && effectiveFrom > effectiveTo)
     ) {
@@ -230,6 +306,20 @@ export class ContentFactService {
         'CONTENT_CONTEXT_INPUT_INVALID',
         422,
         'Fact lifecycle dates are invalid'
+      );
+    }
+    // «Свежо до» already over: out of date the moment it is stored (W4 walk
+    // P3-D). The form and the chat refuse the day; this refuses the moment
+    // for every caller of the door.
+    if (freshUntil && factMomentOver(freshUntil)) {
+      // In the language the fact is written in — the form's interface, the
+      // chat's person (walk recheck P3-b).
+      throw new ContentContextError(
+        'CONTENT_CONTEXT_INPUT_INVALID',
+        422,
+        input.language === 'ru'
+          ? 'День «Свежо до» уже прошёл — факт сразу устарел бы; ничего не добавлено.'
+          : 'The «Fresh until» day is already over, so the fact would be out of date at once; nothing was added.'
       );
     }
     const dedupeKey = sha256(
@@ -246,11 +336,7 @@ export class ContentFactService {
     // is not a claim that anything was checked — it is the honest status for
     // a claim that stands on the person's own say-so.
     const now = new Date();
-    // Только что записанное утверждение должно находиться сразу
-    // (`content-factory-next-m2eg.19`). Сброс, а не дозапись: правила сборки
-    // документа живут в одном месте.
-    this.search?.invalidate(organizationId);
-    return this.repository.createFact(organizationId, actorUserId, {
+    return {
       claimKey,
       statement: normalized(input.statement),
       language: input.language,
@@ -263,8 +349,8 @@ export class ContentFactService {
       freshUntil,
       status: 'VERIFIED',
       verifiedAt: now,
-      lastEvaluatedAt: null,
-    });
+      lastEvaluatedAt: null as Date | null,
+    };
   }
 
   linkEvidence(

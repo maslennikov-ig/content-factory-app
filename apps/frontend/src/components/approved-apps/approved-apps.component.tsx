@@ -7,16 +7,20 @@ import { Button } from '@contentfactory/react/form/button';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { McpConnectSection } from './mcp-connect.section';
 
 const useApprovedApps = () => {
   const fetch = useFetch();
   const load = useCallback(async () => {
     return (await fetch('/user/approved-apps')).json();
   }, []);
+  // Re-read when the tab or window comes back (walk review F4): an assistant
+  // connected in another tab — the consent page it opened — shows up here
+  // without a reload, as the MCP block's step 3 promises.
   return useSWR('approved-apps', load, {
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
     revalidateOnReconnect: false,
-    revalidateIfStale: false,
+    revalidateIfStale: true,
   });
 };
 
@@ -30,15 +34,17 @@ export const ApprovedAppsComponent: FC = () => {
     (app: any) => async () => {
       if (
         await deleteDialog(
+          // One word for it, on the button and in the dialog (walk recheck
+          // P3-a): «Отключить».
           t(
-            'are_you_sure_revoke_access',
-            'Are you sure you want to revoke access for {{name}}?',
+            'approved_app_disconnect_confirm',
+            'Disconnect {{name}}? It will lose access to your account.',
             {
               name: app.oauthApp?.name,
               interpolation: { escapeValue: false },
             }
           ),
-          t('revoke', 'Revoke')
+          t('mcp_disconnect', 'Disconnect')
         )
       ) {
         try {
@@ -46,12 +52,15 @@ export const ApprovedAppsComponent: FC = () => {
             method: 'DELETE',
           });
           toaster.show(
-            t('access_revoked', 'Access revoked successfully'),
+            t('approved_app_disconnected', 'Disconnected'),
             'success'
           );
           mutate();
         } catch {
-          toaster.show(t('failed_to_revoke', 'Failed to revoke access'), 'warning');
+          toaster.show(
+            t('approved_app_disconnect_failed', 'Could not disconnect'),
+            'warning'
+          );
         }
       }
     },
@@ -64,6 +73,7 @@ export const ApprovedAppsComponent: FC = () => {
 
   return (
     <div className="flex flex-col gap-[20px]">
+      <McpConnectSection />
       <div className="flex flex-col">
         <h3 className="text-[20px]">
           {t('approved_apps', 'Approved Apps')}
@@ -116,7 +126,9 @@ export const ApprovedAppsComponent: FC = () => {
                   </div>
                 </div>
                 <Button onClick={revokeApp(app)}>
-                  {t('revoke', 'Revoke')}
+                  {/* One word for every approved app, button and dialog
+                      alike (kcxz.26; walk recheck P3-a). */}
+                  {t('mcp_disconnect', 'Disconnect')}
                 </Button>
               </div>
             ))}

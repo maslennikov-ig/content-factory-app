@@ -65,7 +65,8 @@ describe('the web agent is the conductor, with the hooks', () => {
   test('the doors run the conductor through handleChatStream pinned to v7 with onError', () => {
     const code = withoutComments(read('apps/backend/src/api/routes/agent.controller.ts'));
     expect(code).toMatch(/version:\s*AGENT_STREAM_VERSION/);
-    expect(code).toMatch(/onError:\s*conductorOnError/);
+    // With the request's scope: a refused picture step is worded as such (review W4-25 vision F5).
+    expect(code).toMatch(/onError:\s*\(error: unknown\) => conductorOnError\(error, errorScope\)/);
     expect(code).toMatch(/agentId:\s*CONDUCTOR_AGENT_ID/);
     // One admission per model-running request, role `agent`.
     expect(code.match(/beginAiOperation\(/g)).toHaveLength(1);
@@ -181,6 +182,12 @@ describe('the card contract the screen mirrors', () => {
       'data-channel-connect',
       // The key card, drawn in the conversation (kcxz.20).
       'data-secret',
+      // «Откуда идеи» beside the chat (kcxz.23).
+      'data-ideas',
+      // «Откуда факты» beside the chat (kcxz.24).
+      'data-facts',
+      // «Медиатека» beside the chat (kcxz.25).
+      'data-media',
     ]);
   });
 });

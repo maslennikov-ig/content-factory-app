@@ -42,6 +42,13 @@ export type AnalysisStanding = {
   corpusChanged?: boolean;
   hasProposal?: boolean;
   measuredAt?: string;
+  /**
+   * The run that saved these numbers ended without its proposal — the model
+   * did not answer, or the run stopped (`content-factory-next-kcxz.40`).
+   * Without it such a run read as «still finishing» for the whole window,
+   * and a rerun the person asked for was not started.
+   */
+  proposalFailed?: boolean;
 };
 
 export function resumeStepFor(
@@ -51,6 +58,9 @@ export function resumeStepFor(
   if (!reading || reading.outcome !== 'ready') return 'samples';
   if (reading.corpusChanged !== false) return 'samples';
   if (reading.hasProposal) return 'proposal';
+  // A run known to have ended is not waited for: its numbers are shown and
+  // the rerun is offered at once.
+  if (reading.proposalFailed) return 'analysis';
   const measuredAt = reading.measuredAt ? Date.parse(reading.measuredAt) : NaN;
   if (
     Number.isFinite(measuredAt) &&

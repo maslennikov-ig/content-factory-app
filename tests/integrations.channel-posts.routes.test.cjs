@@ -15,6 +15,7 @@ const { plainToInstance } = require('class-transformer');
 const { validateSync } = require('class-validator');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { loadIntegrationService } = require('./helpers/integration-service.module.cjs');
 const { doorsWithPolicies } = require('./helpers/backend-doors.cjs');
 
 const { ChannelPostsQueryDto } = loadTypeScriptModule(
@@ -148,34 +149,7 @@ const HttpException = class HttpException extends Error {
   }
 };
 
-const { IntegrationService } = loadWithMocks(
-  'libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts',
-  {
-    '@nestjs/common': {
-      Injectable: () => (target) => target,
-      Inject: () => () => {},
-      forwardRef: (fn) => fn,
-      HttpException,
-      HttpStatus: { NOT_FOUND: 404, BAD_REQUEST: 400, UNPROCESSABLE_ENTITY: 422 },
-    },
-    '@contentfactory/nestjs-libraries/upload/upload.factory': {
-      UploadFactory: { createStorage: () => ({}) },
-    },
-    '@contentfactory/nestjs-libraries/redis/redis.service': { ioRedis: {} },
-    'nestjs-temporal-core': { TemporalService: class {} },
-    '@contentfactory/nestjs-libraries/database/prisma/notifications/notification.service':
-      { NotificationService: class {} },
-    '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.repository':
-      { AutopostRepository: class {} },
-    '@contentfactory/nestjs-libraries/integrations/refresh.integration.service':
-      { RefreshIntegrationService: class {} },
-    '@contentfactory/nestjs-libraries/integrations/analytics.snapshot.service':
-      { AnalyticsSnapshotService: class {} },
-    '@contentfactory/nestjs-libraries/integrations/integration.manager': {
-      IntegrationManager: class {},
-    },
-  }
-);
+const { IntegrationService } = loadIntegrationService();
 
 const serviceWithChannel = (row, calls = []) =>
   new IntegrationService(

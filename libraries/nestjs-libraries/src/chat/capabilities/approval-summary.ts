@@ -1,6 +1,7 @@
 import { AGENT_APPROVAL_SUMMARY_MAX } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
 import {
+  mayAskApproval,
   toolNameOf,
   type CapabilityDeclaration,
   type CapabilityIdentity,
@@ -40,9 +41,10 @@ export const cleanApprovalSummary = (text: unknown): string | null => {
 };
 
 /**
- * The summary of one pending `confirm` call, or `null` for a tool that is not
- * a registry `confirm` capability. A description that fails, or arguments the
- * schema refuses, fall back to the capability's label: the card still says
+ * The summary of one pending approval call, or `null` for a tool that is not
+ * a registry capability that may ask (`confirm`, or `asksInWebChat` — kcxz.45).
+ * A description that fails, or arguments the schema refuses, fall back to
+ * the capability's label: the card still says
  * what, and the call itself will be refused by its own checks.
  */
 export const describeApprovalCall = async (
@@ -56,7 +58,7 @@ export const describeApprovalCall = async (
   const capability = capabilities.find(
     (candidate) => toolNameOf(candidate.id) === toolName
   );
-  if (!capability || capability.risk !== 'confirm') return null;
+  if (!capability || !mayAskApproval(capability)) return null;
   const label = capability.label[identity.language];
   const parsed = capability.input.safeParse(args ?? {});
   if (!parsed.success || !capability.describeApproval) return label;

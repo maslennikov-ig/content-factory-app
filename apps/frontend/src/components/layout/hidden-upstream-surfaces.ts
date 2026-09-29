@@ -36,8 +36,10 @@ export const HIDDEN_SETTINGS_TABS: readonly string[] = [
   'autopost',
   'sets',
   'signatures',
-  'api',
-  'approved_apps',
+  // «Разработчики» (admins, by its own role rule) and «Одобренные
+  // приложения» (every member) came back with MCP (`kcxz.26`, live walk W4
+  // P2-A): the MCP address and a person's connections with «Отключить» live
+  // there, and a hidden tab left an EDITOR or USER no way to find either.
 ];
 
 /** Rows inside «Глобальные настройки» that are not drawn. */

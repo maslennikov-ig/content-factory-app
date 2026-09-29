@@ -99,8 +99,11 @@ export const SECRET_SHAPES: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   // Telegram bot token: `<bot id>:AA<33 chars>`. The secret half always starts
   // with `AA`, which keeps `12345678:some-long-slug-of-words` text (F11).
   { name: 'telegram-bot-token', pattern: shape('\\b\\d{6,12}:AA[A-Za-z0-9_-]{30,}') },
-  // This product's own OAuth tokens (`start.mcp.ts`).
+  // This product's own third-party OAuth tokens (`oauth.service.ts`).
   { name: 'oauth-token', pattern: shape(`${NOT_IN_PATH}pos_${BODY}{16,}`) },
+  // This product's MCP OAuth access and refresh tokens and codes (`kcxz.26`,
+  // `mcp-oauth.rules.ts`): a prefix and 43 base64url characters.
+  { name: 'mcp-oauth-token', pattern: shape(`${NOT_IN_PATH}mcp[acr]_${BODY}{32,}`) },
   // Exa: a UUID with a key word next to it, before or after (F4).
   {
     name: 'exa-key',

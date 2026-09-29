@@ -7,6 +7,7 @@ import {
   CAPABILITY_GROUPS,
   CARD_KINDS,
   RISK_CLASSES,
+  mayAskApproval,
   toolNameOf,
   type CapabilityDeclaration,
 } from './capability.types';
@@ -73,6 +74,27 @@ import {
   aiUsage,
 } from './catalogue/ai-settings.capabilities';
 import {
+  ideasArchive,
+  ideasCheck,
+  ideasDismiss,
+  ideasFeedAdd,
+  ideasList,
+  ideasQueue,
+  ideasTake,
+  ideasTopicAdd,
+} from './catalogue/idea.capabilities';
+import {
+  factsAdd,
+  factsList,
+  factsRestore,
+  factsRetract,
+} from './catalogue/fact.capabilities';
+import { textSlopCheck, textsRelated } from './catalogue/text.capabilities';
+import {
+  analyticsChannel,
+  analyticsProduction,
+} from './catalogue/analytics.capabilities';
+import {
   planAhead,
   planApply,
   planCalendar,
@@ -83,6 +105,7 @@ import {
   planSchedule,
   planUnschedule,
 } from './catalogue/plan.capabilities';
+import { mediaGenerate, mediaKeep, mediaLibrary } from './catalogue/media.capabilities';
 import {
   pieceAnswer,
   pieceArchive,
@@ -99,7 +122,9 @@ import {
  * catalogue lands group by group in its own tasks (`kcxz.12`: content intake,
  * questions, list, open, archive; `kcxz.13`: the core; `kcxz.14`: adaptations;
  * `kcxz.15`: the plan; `kcxz.18`: avatars; `kcxz.19`: channels; `kcxz.20`:
- * AI settings, the first `secret` capability).
+ * AI settings, the first `secret` capability; `kcxz.23`: ideas; `kcxz.24`:
+ * facts, own texts on a topic, the cliché check, analytics; `kcxz.25`: the
+ * media library and generating a picture).
  */
 export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   workspaceSnapshot as CapabilityDeclaration,
@@ -170,6 +195,25 @@ export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   aiKeyEnter as CapabilityDeclaration,
   aiKeyClear as CapabilityDeclaration,
   aiSearchKeyClear as CapabilityDeclaration,
+  ideasList as CapabilityDeclaration,
+  ideasQueue as CapabilityDeclaration,
+  ideasFeedAdd as CapabilityDeclaration,
+  ideasTopicAdd as CapabilityDeclaration,
+  ideasArchive as CapabilityDeclaration,
+  ideasCheck as CapabilityDeclaration,
+  ideasDismiss as CapabilityDeclaration,
+  ideasTake as CapabilityDeclaration,
+  factsList as CapabilityDeclaration,
+  factsAdd as CapabilityDeclaration,
+  factsRetract as CapabilityDeclaration,
+  factsRestore as CapabilityDeclaration,
+  textsRelated as CapabilityDeclaration,
+  textSlopCheck as CapabilityDeclaration,
+  analyticsProduction as CapabilityDeclaration,
+  analyticsChannel as CapabilityDeclaration,
+  mediaLibrary as CapabilityDeclaration,
+  mediaGenerate as CapabilityDeclaration,
+  mediaKeep as CapabilityDeclaration,
 ];
 
 /**
@@ -235,11 +279,20 @@ export const assertCapabilityRegistry = (
       );
     }
 
-    // The approval card says what and where (spec §5.1): every confirm
-    // capability describes its call, and nothing else pretends to.
-    if ((capability.risk === 'confirm') !== !!capability.describeApproval) {
+    // A card unless the person asked (kcxz.45) is a web-chat guard on a
+    // write action; a confirm one always asks.
+    // Asking in the web chat (kcxz.45) is a guard on a write action; a
+    // confirm one always asks.
+    if (capability.asksInWebChat && capability.risk !== 'write') {
       throw new Error(
-        `Capability ${id}: only the confirm class, and every one of it, describes its approval card.`
+        `Capability ${id}: only a write capability asks in the web chat on top of its class.`
+      );
+    }
+    // The approval card says what and where (spec §5.1): every capability
+    // whose call may wait for «Да» describes it, and nothing else pretends to.
+    if (mayAskApproval(capability) !== !!capability.describeApproval) {
+      throw new Error(
+        `Capability ${id}: only a capability that may ask for approval (confirm, or asking in the web chat), and every one of them, describes its approval card.`
       );
     }
 

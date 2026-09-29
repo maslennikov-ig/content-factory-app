@@ -18,6 +18,7 @@ import { HtmlComponent } from '@contentfactory/frontend/components/layout/html.c
 import { ChangeDirClient } from '@contentfactory/frontend/components/new-layout/change.dir.client';
 import type { Metadata } from 'next';
 import { resolveThemeMode } from '@contentfactory/frontend/app/theme';
+import { mcpUrls } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-urls';
 
 export const metadata: Metadata = {
   title: {
@@ -83,6 +84,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           cloudflareUrl={process.env.CLOUDFLARE_BUCKET_URL || ''}
           mainUrl={process.env.MAIN_URL || ''}
           mcpUrl={process.env.MCP_URL}
+          // Lit and answering: the backend's MCP routes are 404 without these URLs (R5).
+          mcpEnabled={process.env.MCP_ENABLED === 'true' && !!mcpUrls()}
           telegramBotName={process.env.TELEGRAM_BOT_NAME!}
           telegramLoginEnabled={
             !!process.env.TELEGRAM_CLIENT_ID &&

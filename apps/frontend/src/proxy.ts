@@ -337,6 +337,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', nextUrl.href));
   }
 
+  // The OAuth consent page (third-party apps and MCP assistants, `kcxz.26`):
+  // a person who is not signed in comes back to it after signing in, through
+  // the same same-site `returnUrl` the invitation uses.
+  if (nextUrl.pathname === '/oauth/authorize' && !authCookie && !awaitingApproval) {
+    const loginUrl = publicUrl('/auth');
+    loginUrl.searchParams.set(
+      'returnUrl',
+      publicUrl(nextUrl.pathname, nextUrl.search).toString()
+    );
+    return NextResponse.redirect(loginUrl);
+  }
+
   const url = new URL(nextUrl).search;
   if (!nextUrl.pathname.startsWith('/auth') && !authCookie) {
     // 2q28.16: this browser was told the account waits for approval. The

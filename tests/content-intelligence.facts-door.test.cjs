@@ -339,6 +339,43 @@ describe('creating a fact goes through the real contract', () => {
     });
   });
 
+  /*
+   * kcxz.43 review F4: the form refuses a «Свежо до» day already over, as the
+   * chat's `facts.add` does, in the form's language; F2 of the same fix: the
+   * day travels as its last moment in the screen's zone.
+   */
+  test('a «Свежо до» day already over is refused in the person’s language and nothing is sent', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+    await fillMinimum();
+    await type('freshUntil', '2020-01-01');
+    expect(document.body.textContent).toContain('Этот день уже прошёл');
+    const save = screen.getByRole('button', { name: 'Сохранить факт' });
+    expect(save.disabled).toBe(true);
+    await act(async () => {
+      fireEvent.submit(document.querySelector('[data-content-facts-form]'));
+    });
+    expect(calls.filter((call) => call.method === 'POST')).toEqual([]);
+  });
+
+  test('a «Свежо до» day to come travels as that day’s last moment in the screen’s zone', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({ facts: [] }),
+      'POST /content-intelligence/facts': ok({ id: 'fact-new' }),
+    });
+    await renderContainer('en');
+    await fillMinimum();
+    await type('freshUntil', '2099-12-31');
+    expect(document.body.textContent).not.toContain('already over');
+    await click(screen.getByRole('button', { name: 'Save fact' }));
+    const sent = calls.find((call) => call.method === 'POST').body;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const shared = require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/content-intelligence/context/fact-valid-until.ts'
+    );
+    expect(sent.freshUntil).toBe(shared.factValidUntilMoment('2099-12-31', zone));
+  });
+
   test('after creation the list is refreshed and the new id is announced', async () => {
     let listedOnce = false;
     serve({
@@ -456,7 +493,7 @@ describe('the payload builder', () => {
       effectiveFrom: '',
       effectiveTo: '',
       freshUntil: '',
-    });
+    }, 'Europe/Moscow');
     expect(payload).toEqual({
       claimKey: 'pricing|trial_length',
       statement: 'Пробный период — 14 дней.',
@@ -466,7 +503,8 @@ describe('the payload builder', () => {
     });
   });
 
-  test('a filled date travels as the DTO expects it', () => {
+  // kcxz.43: the named day whole, in the screen's zone (tests/fact-valid-until.test.cjs).
+  test('a filled date travels as the last moment of that day in the screen’s zone', () => {
     const payload = adapter.buildFactCreatePayload({
       claimKey: 'pricing|trial_length',
       statement: 'x',
@@ -476,8 +514,8 @@ describe('the payload builder', () => {
       effectiveFrom: '',
       effectiveTo: '',
       freshUntil: '2026-12-31',
-    });
-    expect(payload.freshUntil).toBe('2026-12-31');
+    }, 'Europe/Moscow');
+    expect(payload.freshUntil).toBe('2026-12-31T20:59:59.999Z');
   });
 
   test('the claim key pattern mirrors the DTO exactly', () => {
@@ -556,6 +594,24 @@ const ownWordFact = (overrides = {}) => ({
   needsLook: false,
   evidence: [],
   ...overrides,
+});
+
+describe('an expired «Свежо до» wears the screen’s «not in work» marker (walk recheck)', () => {
+  test('a day passed shows «в работу не идёт»; a day ahead does not', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({
+        facts: [
+          ownWordFact({ id: 'fact-expired', statement: 'Old price.', temporalKind: 'CURRENT', freshUntil: '2020-01-31T20:59:59.999Z' }),
+          ownWordFact({ id: 'fact-ahead', statement: 'New price.', temporalKind: 'CURRENT', freshUntil: '2099-01-31T20:59:59.999Z' }),
+        ],
+      }),
+    });
+    await renderShowcase();
+    const expired = document.querySelector('[data-content-fact-row="fact-expired"]');
+    const ahead = document.querySelector('[data-content-fact-row="fact-ahead"]');
+    expect(expired.querySelector('[data-content-fact-expired]').textContent).toBe('в работу не идёт');
+    expect(ahead.querySelector('[data-content-fact-expired]')).toBeNull();
+  });
 });
 
 describe('«Подтвердить» renders only on a row that still needs a look', () => {

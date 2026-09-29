@@ -30,6 +30,10 @@ describe('key shapes (review W3-20 F4)', () => {
     ['a key broken by a line break', 'sk-or-v1-0123456789abcdef01234567\n89abcdef0123456789abcdef then text', '[KEY] then text'],
     ['a key broken by a space', 'tvly-dev-FAKEFAKE0000FAKE 1111FAKE2222 ок', '[KEY] ок'],
     ['a Telegram bot token', '123456789:AAEhBOweik6ad9r_QXMENQjcrGbqCr4K-ts', '[KEY]'],
+    // MCP OAuth tokens (kcxz.26): access, refresh, code.
+    ['an MCP access token', 'токен mcpa_Xk3v9QpL0aZ-7yN2bR8sT1uV4wE6fG5hJ_cD0eIoKmM', 'токен [KEY]'],
+    ['an MCP refresh token', 'mcpr_Xk3v9QpL0aZ-7yN2bR8sT1uV4wE6fG5hJ_cD0eIoKmM', '[KEY]'],
+    ['an MCP code', 'code=mcpc_Xk3v9QpL0aZ-7yN2bR8sT1uV4wE6fG5hJ_cD0eIoKmM', 'code=[KEY]'],
   ])('%s is redacted', (_name, text, redacted) => {
     expect(shapes.redactSecretShapes(text)).toBe(redacted);
     expect(shapes.containsSecretShape(text)).toBe(true);
@@ -43,6 +47,7 @@ describe('key shapes (review W3-20 F4)', () => {
     ['a code prefix', 'используем re_match_pattern_for_text_lines'],
     ['a slug with sk- inside a word', 'task-management-software-guide-2026 is here'],
     ['ordinary words', 'cnt-12 piece p1 https://t.me/channel sk-8 модель'],
+    ['an MCP client id and a short mcpa_ word', 'client mcp_AbCdEf0123456789AbCdEf01 and mcpa_note'],
   ])('%s is left alone', (_name, text) => {
     expect(shapes.redactSecretShapes(text)).toBe(text);
     expect(shapes.containsSecretShape(text)).toBe(false);

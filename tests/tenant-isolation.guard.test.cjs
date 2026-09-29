@@ -371,6 +371,42 @@ const ALLOWED = new Map([
     'Read on 05.09.2026. Withdraws every grant of one app, and the app is the one `OAuthService.deleteApp` resolved through `getAppByOrgId(orgId)`. Every authorization of that app belongs to it by definition.',
   ],
   [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.findUnique in findByCode`,
+    'MCP (`kcxz.26`): the hash of the presented authorization code is the credential; this lookup is how the server learns whose workspace the code is for, so filtering by the answer would be circular.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.findUnique in findByRefresh`,
+    'MCP (`kcxz.26`): the hash of the presented refresh token is the credential, as for `findByCode`.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.findUnique in findByRotatedRefresh`,
+    'MCP (`kcxz.26`): replay detection by the hash of a refresh token already rotated away; it returns only the grant id, to revoke that grant.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.findUnique in findByAccess`,
+    'MCP (`kcxz.26`): the hash of the presented access token is the credential; this is the lookup that decides the workspace of a `/mcp` request, as `findByAccessToken` does for third-party apps.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.deleteMany in sweepUnused`,
+    'MCP housekeeping (walk review F3): deletes dead grants of every workspace by age alone — a code never exchanged after 24 h, a revoked or refresh-expired grant after 30 days. It reads nothing back and serves no caller\'s workspace, so there is no workspace to name.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.updateMany in consumeCode`,
+    'MCP (`kcxz.26`): spends the code of the grant `findByCode` just returned, by that grant\'s id and the same code hash.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.updateMany in setTokens`,
+    'MCP (`kcxz.26`): writes the token pair of the grant the code or refresh lookup just returned, by its id (and, on rotation, the refresh hash presented).',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.updateMany in revoke`,
+    'MCP (`kcxz.26`): revokes the grant a replayed refresh token or a code lookup resolved, by its id.',
+  ],
+  [
+    `${PRISMA}/oauth/mcp-oauth.repository.ts mcpOAuthGrant.updateMany in revokeOwn`,
+    'MCP (`kcxz.26`): filtered by `userId`, like `revokeAuthorization`: «my approved apps» belongs to a person, and it is their own connection they withdraw.',
+  ],
+  [
     `${PRISMA}/organizations/organization.repository.ts userOrganization.findFirst in getUserOrg`,
     'Reads a membership row by its own id in order to resolve which organisation it is; filtering by the answer would be circular.',
   ],

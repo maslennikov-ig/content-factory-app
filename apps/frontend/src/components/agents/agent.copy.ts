@@ -71,6 +71,10 @@ type AgentWords = {
     attached: (name: string) => string;
     /** Files the composer added to an avatar's samples (`kcxz.18`). */
     samplesAdded: (name: string, accepted: number) => string;
+    /** Pictures the composer put into the media library (`kcxz.25`). */
+    mediaAdded: (name: string, count: number) => string;
+    /** A picture shown to the AI in its message, saved nowhere (28.09). */
+    pictureViewed: (name: string) => string;
   };
   composer: {
     label: string;
@@ -104,6 +108,26 @@ type AgentWords = {
     samplesFellBack: (name: string | null) => string;
     /** Uploads wait for the agent's answer to end (review W3-18 F6). */
     samplesHeld: string;
+    /**
+     * A picture the agent looks at (owner decision 28.09.2026): the chip's
+     * path, and the line under the files — shown to the AI in this message,
+     * saved nowhere.
+     */
+    pictureViewChip: string;
+    pictureViewNote: string;
+    /** For a role that may put pictures into the library: how a post gets one. */
+    pictureViewNoteEditor: string;
+    /** The chip's switch between the two paths, named for a screen reader. */
+    pictureRoute: (name: string, toLibrary: boolean) => string;
+    /** A picture goes to the media library, the message carries its id (`kcxz.25`). */
+    mediaChip: string;
+    /**
+     * Under pictures sent to the library (review W4-25 F2): where they go,
+     * who sees them, and that the AI gets only their names.
+     */
+    mediaNote: string;
+    mediaSending: string;
+    mediaFailed: string;
     /** A key pasted into the message: removed, nothing sent (`kcxz.20`). */
     keyPasted: string;
   };
@@ -128,6 +152,10 @@ type AgentWords = {
     irreversible: string;
     irreversibleNote: string;
     reversibleNote: string;
+    /** «Не надо», «Взять в работу», «Отписаться» (W4 walk P3-E). */
+    dismissNote: string;
+    takeNote: string;
+    archiveNote: string;
     /**
      * `plan.publish_now` (`kcxz.31`, D7): not a deletion, but a post that went
      * out is not taken back from here — the heading and the footnote say so,
@@ -180,6 +208,16 @@ type AgentWords = {
     /** Writing into an autopilot channel (`kcxz.14`): the person's «да». */
     autopilotWrite: string;
     autopilotSkip: string;
+    /**
+     * `media.keep` (owner decision 28.09.2026): this page puts the picture it
+     * showed the agent into the library, or says it no longer holds it.
+     */
+    keepPicture: string;
+    keepPictureSkip: string;
+    keepPictureName: (name: string) => string;
+    keepPictureGone: string;
+    keepPictureGoneAnswer: string;
+    keepPictureFailed: string;
     sending: string;
   };
   /**
@@ -313,6 +351,11 @@ type AgentWords = {
     doInChat: string;
     loading: string;
     failed: string;
+    /**
+     * «Взять в работу» pressed in the ideas panel (review W4-23 F1): the
+     * request put into the composer, never sent.
+     */
+    writeFromLead: (title: string) => string;
   };
 };
 
@@ -362,6 +405,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       attached: (name) => `Приложено: ${name}`,
       samplesAdded: (name, accepted) =>
         `${name} — в образцы аватара: ${accepted} ${ruPlural(accepted, 'текст', 'текста', 'текстов')}`,
+      mediaAdded: (name, count) =>
+        `${name} — ${count === 1 ? 'картинка' : `${count} ${ruPlural(count, 'картинка', 'картинки', 'картинок')}`} в медиатеке`,
+      pictureViewed: (name) => `${name} — ИИ посмотрел, не сохранили`,
     },
     composer: {
       label: 'Сообщение агенту',
@@ -397,6 +443,20 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       samplesFellBack: (name) =>
         `${name ? `Аватара «${name}»` : 'Выбранного аватара'} больше нет — образцы ушли в аватар по умолчанию.`,
       samplesHeld: 'Образцы отправим, когда агент закончит ответ.',
+      pictureViewChip: 'ИИ посмотрит',
+      pictureViewNote: 'ИИ посмотрит картинку в этом сообщении и нигде её не сохранит.',
+      pictureViewNoteEditor:
+        'Нужна для поста — скажите, и агент положит её в медиатеку.',
+      pictureRoute: (name, toLibrary) =>
+        toLibrary
+          ? `«${name}» — в медиатеку. Нажмите, чтобы только показать ИИ`
+          : `«${name}» — только показать ИИ. Нажмите, чтобы положить в медиатеку`,
+      mediaChip: 'в медиатеку',
+      mediaNote:
+        'Картинки «в медиатеку» лягут в медиатеку пространства — их увидят все участники. ИИ их не увидит: только названия, чтобы поставить к посту.',
+      mediaSending: 'Кладём картинки в медиатеку…',
+      mediaFailed:
+        'Картинки не дошли до медиатеки. Сообщение не отправили — попробуйте ещё раз.',
       keyPasted:
         'В сообщении был ключ — мы убрали его и ничего не отправили: ключи в чат не пишут. Ключ вводит администратор пространства — в карточке «Ключ» (попросите «введи ключ») или в «Настройки → ИИ».',
     },
@@ -412,6 +472,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         adaptation: 'Адаптация',
         plan: 'В плане',
         channel: 'Канал',
+        ideas: 'Откуда идеи',
+        facts: 'Откуда факты',
+        media: 'Медиатека',
       },
       done: 'Готово',
       removed: 'удалено',
@@ -428,6 +491,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       irreversibleNote:
         'Вернуть не получится: удалённое не восстанавливается.',
       reversibleNote: 'Отменить можно потом на экране продукта.',
+      dismissNote: 'Отклонённый повод в очередь не вернуть — ни здесь, ни на экране.',
+      takeNote: 'Взятый повод в очередь не вернуть; заготовку по нему можно удалить в «Контенте».',
+      archiveNote: 'Подписаться снова можно в любой момент — подписка оживёт с прежними поводами.',
       publishHeading: 'Сразу в канал',
       publishNote:
         'Вышедший пост отсюда не снять — удалить его можно только в самом канале.',
@@ -462,6 +528,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       notNow: 'Не сейчас',
       autopilotWrite: 'Да, писать',
       autopilotSkip: 'Не писать',
+      keepPicture: 'В медиатеку',
+      keepPictureSkip: 'Не надо',
+      keepPictureName: (name) => `Картинка «${name}»`,
+      keepPictureGone:
+        'Этой картинки на странице уже нет — после перезагрузки она не хранится. Приложите её ещё раз.',
+      keepPictureGoneAnswer: 'Понятно',
+      keepPictureFailed: 'Картинка не дошла до медиатеки. Попробуйте ещё раз.',
       sending: 'Отправляем ответ',
     },
     selection: {
@@ -540,6 +613,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         AI_PROVIDER_TIMEOUT: {
           what: 'ИИ не ответил вовремя.',
           next: 'Попробуйте ещё раз — обычно этого хватает.',
+        },
+        AGENT_PICTURE_NOT_SEEN: {
+          what: 'ИИ не смог посмотреть картинку: подключённый ИИ не принимает картинки или не этот формат.',
+          next: 'Опишите картинку словами или отправьте её «в медиатеку». Администратор может выбрать в «Настройки → ИИ» такой ИИ, который видит картинки.',
         },
         AGENT_BLOCKED: {
           what: 'Остановились: в сообщении что-то похожее на ключ или пароль.',
@@ -641,6 +718,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Разбор не удалось завершить.',
           next: 'Попробуйте ещё раз чуть позже.',
         },
+        VOICE_ANALYSIS_RUNNING: {
+          what: 'Разбор этого аватара уже идёт — на экране аватара или в другом чате. Второй не запускали, ничего не потратили.',
+          next: 'Загляните через несколько минут — результат появится сам.',
+        },
         VOICE_ASSIST_UNAVAILABLE: {
           what: 'ИИ не ответил — предложение голоса не составлено. Числа разбора сохранены.',
           next: 'Запустите разбор ещё раз, когда будете готовы: это около пяти минут.',
@@ -730,6 +811,137 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Ключи системы на этом сервере не настроены.',
           next: 'Пространство остаётся на своём ключе.',
         },
+        // «Откуда идеи» из чата (kcxz.23).
+        SUBSCRIPTION_NOT_FOUND: {
+          what: 'Такой подписки в пространстве нет — возможно, от неё уже отписались.',
+          next: 'Посмотрите список в «Откуда идеи».',
+        },
+        SUBSCRIPTION_CONFLICT: {
+          what: 'На это уже есть подписка — вторую не заводили.',
+          next: 'Поводы от неё приходят в тот же список.',
+        },
+        SUBSCRIPTION_LIMIT: {
+          what: 'Подписок уже столько, сколько можно в одном пространстве.',
+          next: 'Отпишитесь от ненужной и добавьте новую.',
+        },
+        CHECK_TOO_SOON: {
+          what: 'Эту подписку проверяли меньше минуты назад — заново не проверяли и ничего не потратили.',
+          next: 'Подождите минуту и попросите ещё раз.',
+        },
+        LEAD_NOT_FOUND: {
+          what: 'Такого повода в пространстве нет.',
+          next: 'Посмотрите поводы в «Откуда идеи».',
+        },
+        LEAD_NOT_NEW: {
+          what: 'Этот повод уже разобран: его взяли в работу или отклонили.',
+          next: 'Выберите другой из новых поводов.',
+        },
+        INVALID_URL: {
+          what: 'Этот адрес не подходит для подписки.',
+          next: 'Пришлите адрес ленты целиком, с https://.',
+        },
+        INVALID_TOPIC: {
+          what: 'Тема пустая или слишком длинная — до 200 знаков.',
+          next: 'Назовите тему короче.',
+        },
+        IDEAS_LEAD_NOT_TAKEN: {
+          what: 'Этот повод ещё не взят в работу — заготовку не писали и ничего не потратили.',
+          next: 'Скажите «возьми в работу» — возьмём и сразу напишем.',
+        },
+        INTAKE_TEXT_MISSING: {
+          what: 'Писать заготовку не из чего: нет ни слов, ни повода.',
+          next: 'Напишите мысль или назовите повод.',
+        },
+        INTAKE_TEXT_TOO_LONG: {
+          what: 'Вместе с поводом текст длиннее, чем читает заготовка, — не писали и ничего не потратили.',
+          next: 'Сократите то, что добавили к поводу.',
+        },
+        // Факты, свои тексты и аналитика из чата (kcxz.24).
+        FACT_NOT_FOUND: {
+          what: 'Такого факта в пространстве нет.',
+          next: 'Посмотрите факты в «Откуда факты».',
+        },
+        FACT_STATEMENT_EMPTY: {
+          what: 'В факте нет ни слов, ни чисел — ничего не добавили.',
+          next: 'Напишите факт словами: цену, срок или цифру.',
+        },
+        CONTENT_CONTEXT_FACT_SUPERSEDED: {
+          what: 'Этот факт заменён исправленной копией и уже не в работе — старый не снимают и не возвращают, ничего не изменилось.',
+          next: 'В работе остаётся копия; её видно в «Откуда факты».',
+        },
+        FACT_DATE_INVALID: {
+          what: 'Такой даты нет в календаре — факт не добавили.',
+          next: 'Назовите день, до которого факт верен.',
+        },
+        FACT_DATE_PAST: {
+          what: 'Этот день уже прошёл — факт сразу устарел бы, поэтому его не добавили.',
+          next: 'Назовите день, который ещё не наступил, или добавьте факт без срока.',
+        },
+        FACT_REMOVED: {
+          what: 'Этот факт удалён из пространства насовсем — заново его не добавляют, ничего не изменилось.',
+          next: 'Сформулируйте факт по-новому, если он снова верен.',
+        },
+        CONTENT_CONTEXT_NOT_FOUND: {
+          what: 'Факт изменился или пропал, пока шёл запрос, — ничего не сделали.',
+          next: 'Посмотрите факты в «Откуда факты» и попросите ещё раз.',
+        },
+        CONTENT_CONTEXT_INPUT_INVALID: {
+          what: 'В факте неверная дата или нет самого утверждения — ничего не добавили.',
+          next: 'Проверьте формулировку и дату.',
+        },
+        ANALYTICS_NOT_AVAILABLE: {
+          what: 'Эта площадка не отдаёт аналитику аудитории.',
+          next: 'Что вышло и что не вышло, видно в «Производство».',
+        },
+        ANALYTICS_CHANNEL_OFF: {
+          what: 'Канал выключен, ждёт переподключения или его подключение не закончено — площадку не спрашивали.',
+          next: 'Включите, переподключите или допройдите подключение канала в «Каналы».',
+        },
+        ANALYTICS_CHANNEL_NEEDS_RECONNECT: {
+          what: 'Доступ канала к площадке истёк. Из чата его не обновляли, канал не трогали.',
+          next: 'Откройте «Аналитика» или переподключите канал в «Каналы».',
+        },
+        ANALYTICS_UNAVAILABLE: {
+          what: 'Площадка сейчас не ответила. Это не «ноль активности» — данных просто нет.',
+          next: 'Попросите позже или откройте «Аналитика».',
+        },
+        // Медиа из чата (kcxz.25).
+        MEDIA_PROMPT_MISSING: {
+          what: 'Рисовать не из чего: нет ни слов о картинке, ни текста поста — ничего не потратили.',
+          next: 'Скажите, что на картинке, или назовите пост, к которому она.',
+        },
+        MEDIA_IMAGE_CREDITS_EXHAUSTED: {
+          what: 'Картинки по тарифу в этом месяце закончились — ничего не нарисовали и не потратили.',
+          next: 'Возьмите картинку из медиатеки или приложите свою.',
+        },
+        MEDIA_IMAGE_REJECTED: {
+          what: 'ИИ отказался рисовать такую картинку по своим правилам — ничего не сохранили.',
+          next: 'Опишите картинку иначе.',
+        },
+        MEDIA_IMAGE_FAILED: {
+          what: 'Картинка не получилась — в медиатеку ничего не легло.',
+          next: 'Попросите ещё раз чуть позже.',
+        },
+        ADAPTATION_MEDIA_UNKNOWN: {
+          what: 'Такой картинки в медиатеке пространства нет — к посту ничего не поставили.',
+          next: 'Приложите картинку к сообщению или выберите из медиатеки.',
+        },
+        AI_INCLUDED_QUOTA_EXHAUSTED: {
+          what: 'Обращения к ИИ в этом месяце закончились — этот шаг не делали и ничего не потратили.',
+          next: 'Дождитесь обновления лимита или выберите ключ пространства в настройках.',
+        },
+        ADAPTATION_NOT_FOUND: {
+          what: 'Такого поста у этой заготовки нет — ничего не сделали и не потратили.',
+          next: 'Откройте заготовку и назовите пост ещё раз.',
+        },
+        AI_ADMISSION_CONTENDED: {
+          what: 'Учёт обращений к ИИ сейчас занят — шаг не начинали и ничего не потратили.',
+          next: 'Попросите ещё раз через минуту.',
+        },
+        AI_SELECTED_CREDENTIAL_UNAVAILABLE: {
+          what: 'ИИ пока не подключён: нет ни включённого лимита, ни ключа пространства — ничего не потратили.',
+          next: 'Администратор подключает его в «Настройки → Глобальные настройки».',
+        },
       },
       code: (code) => `код ${code}`,
       // «Одно имя — один ключ»: повтор после отказа везде один.
@@ -791,6 +1003,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       doInChat: onboardingCopy.ru.doInChat,
       loading: 'Смотрим, что уже есть',
       failed: 'Не удалось узнать, что уже есть в пространстве.',
+      writeFromLead: (title: string) => `Напиши заготовку по взятому поводу «${title}»`,
     },
   },
   en: {
@@ -837,6 +1050,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       attached: (name) => `Attached: ${name}`,
       samplesAdded: (name, accepted) =>
         `${name} — to the avatar's samples: ${accepted} ${accepted === 1 ? 'text' : 'texts'}`,
+      mediaAdded: (name, count) =>
+        `${name} — ${count === 1 ? 'a picture' : `${count} pictures`} in the media library`,
+      pictureViewed: (name) => `${name} — shown to the AI, not saved`,
     },
     composer: {
       label: 'Message to the agent',
@@ -872,6 +1088,19 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       samplesFellBack: (name) =>
         `${name ? `Avatar “${name}”` : 'The chosen avatar'} is gone — the samples went to the default avatar.`,
       samplesHeld: 'We send the samples when the agent has finished answering.',
+      pictureViewChip: 'the AI will look',
+      pictureViewNote: 'The AI looks at the picture in this message and saves it nowhere.',
+      pictureViewNoteEditor: 'Need it for a post? Say so, and the agent puts it into the media library.',
+      pictureRoute: (name, toLibrary) =>
+        toLibrary
+          ? `“${name}” goes to the media library. Press to only show it to the AI`
+          : `“${name}” is only shown to the AI. Press to put it into the media library`,
+      mediaChip: 'to the media library',
+      mediaNote:
+        'Pictures marked “to the media library” go into the workspace media library — every member sees them. The AI does not see them: only their names, to put one on a post.',
+      mediaSending: 'Putting the pictures into the media library…',
+      mediaFailed:
+        'The pictures did not reach the media library. The message was not sent — try again.',
       keyPasted:
         'The message held a key — we took it out and sent nothing: keys are never written into the chat. An administrator of the workspace enters it — on the Key card (ask to “enter a key”) or in Settings → AI.',
     },
@@ -887,6 +1116,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         adaptation: 'Adaptation',
         plan: 'In the plan',
         channel: 'Channel',
+        ideas: 'Where ideas come from',
+        facts: 'Facts',
+        media: 'Media library',
       },
       done: 'Done',
       removed: 'deleted',
@@ -902,6 +1134,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       irreversible: 'Cannot be undone',
       irreversibleNote: 'There is no way back: what is deleted is gone.',
       reversibleNote: 'You can undo it later on the product screen.',
+      dismissNote: 'A declined lead does not come back to the queue — not here, not on the screen.',
+      takeNote: 'A lead taken to work does not go back to the queue; its piece can be deleted in Content.',
+      archiveNote: 'You can subscribe again any time — the subscription comes back with its leads.',
       publishHeading: 'Straight to the channel',
       publishNote:
         "Once out, the post can't be taken back from here — only deleted in the channel itself.",
@@ -935,6 +1170,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       notNow: 'Not now',
       autopilotWrite: 'Yes, write it',
       autopilotSkip: 'Do not write',
+      keepPicture: 'To the media library',
+      keepPictureSkip: 'No',
+      keepPictureName: (name) => `Picture “${name}”`,
+      keepPictureGone:
+        'This page no longer holds the picture — it is not kept after a reload. Attach it again.',
+      keepPictureGoneAnswer: 'OK',
+      keepPictureFailed: 'The picture did not reach the media library. Try again.',
       sending: 'Sending the answer',
     },
     selection: {
@@ -1013,6 +1255,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         AI_PROVIDER_TIMEOUT: {
           what: 'AI did not answer in time.',
           next: 'Try again — that usually does it.',
+        },
+        AGENT_PICTURE_NOT_SEEN: {
+          what: 'AI could not look at the picture: the chosen model does not take pictures, or not this one.',
+          next: 'Describe the picture in words or send it «to the library». An administrator can choose a model that sees pictures in Settings → AI.',
         },
         AGENT_BLOCKED: {
           what: 'We stopped: the message holds something like a key or a password.',
@@ -1114,6 +1360,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'The analysis could not be finished.',
           next: 'Try again a little later.',
         },
+        VOICE_ANALYSIS_RUNNING: {
+          what: "This avatar's analysis is already running — on the avatar screen or in another chat. A second one was not started; nothing was spent.",
+          next: 'Look again in a few minutes — the result will appear on its own.',
+        },
         VOICE_ASSIST_UNAVAILABLE: {
           what: 'The AI did not answer, so there is no voice proposal. The analysis numbers are saved.',
           next: 'Run the analysis again when you are ready: it takes about five minutes.',
@@ -1203,6 +1453,137 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'System keys are not set up on this server.',
           next: 'The workspace stays on its own key.',
         },
+        // Where ideas come from, in the chat (kcxz.23).
+        SUBSCRIPTION_NOT_FOUND: {
+          what: 'There is no such subscription in this workspace — it may have been dropped.',
+          next: 'See the list in “Where ideas come from”.',
+        },
+        SUBSCRIPTION_CONFLICT: {
+          what: 'This is already subscribed — no second subscription was made.',
+          next: 'Its leads arrive in the same list.',
+        },
+        SUBSCRIPTION_LIMIT: {
+          what: 'The workspace already holds as many subscriptions as it may.',
+          next: 'Unsubscribe from one you do not need, then add the new one.',
+        },
+        CHECK_TOO_SOON: {
+          what: 'This subscription was checked less than a minute ago — not checked again, nothing spent.',
+          next: 'Wait a minute and ask again.',
+        },
+        LEAD_NOT_FOUND: {
+          what: 'There is no such lead in this workspace.',
+          next: 'See the leads in “Where ideas come from”.',
+        },
+        LEAD_NOT_NEW: {
+          what: 'This lead was already handled: taken to work or declined.',
+          next: 'Pick another of the new leads.',
+        },
+        INVALID_URL: {
+          what: 'This address does not work for a subscription.',
+          next: 'Send the whole feed address, with https://.',
+        },
+        INVALID_TOPIC: {
+          what: 'The topic is empty or too long — up to 200 characters.',
+          next: 'Name the topic in fewer words.',
+        },
+        IDEAS_LEAD_NOT_TAKEN: {
+          what: 'This lead was not taken to work yet — no piece was written, nothing spent.',
+          next: 'Say “take it to work” — we take it and write at once.',
+        },
+        INTAKE_TEXT_MISSING: {
+          what: 'There is nothing to write the piece from: no words and no lead.',
+          next: 'Write a thought or name a lead.',
+        },
+        INTAKE_TEXT_TOO_LONG: {
+          what: 'Together with the lead the text is longer than a piece reads — nothing was written or spent.',
+          next: 'Shorten what you added to the lead.',
+        },
+        // Facts, own texts and analytics in the chat (kcxz.24).
+        FACT_NOT_FOUND: {
+          what: 'There is no such fact in this workspace.',
+          next: 'See the facts in “Facts”.',
+        },
+        FACT_STATEMENT_EMPTY: {
+          what: 'The fact has no words or numbers — nothing was added.',
+          next: 'Write the fact in words: a price, a date or a number.',
+        },
+        CONTENT_CONTEXT_FACT_SUPERSEDED: {
+          what: 'This fact was replaced by a corrected copy and is already out of work — the old one is neither retracted nor restored; nothing changed.',
+          next: 'The copy stays in work; it is in “Facts”.',
+        },
+        FACT_DATE_INVALID: {
+          what: 'There is no such day in the calendar — the fact was not added.',
+          next: 'Name the day the fact holds until.',
+        },
+        FACT_DATE_PAST: {
+          what: 'That day is already over — the fact would be out of date at once, so it was not added.',
+          next: 'Name a day still to come, or add the fact without an end date.',
+        },
+        FACT_REMOVED: {
+          what: 'This fact was removed from the workspace for good — it is not added again; nothing changed.',
+          next: 'Word the fact anew if it holds again.',
+        },
+        CONTENT_CONTEXT_NOT_FOUND: {
+          what: 'The fact changed or disappeared while the request ran — nothing was done.',
+          next: 'See the facts in “Facts” and ask again.',
+        },
+        CONTENT_CONTEXT_INPUT_INVALID: {
+          what: 'The fact has an invalid date or no statement — nothing was added.',
+          next: 'Check the wording and the date.',
+        },
+        ANALYTICS_NOT_AVAILABLE: {
+          what: 'This platform gives no audience analytics.',
+          next: 'What went out and what failed is in “Production”.',
+        },
+        ANALYTICS_CHANNEL_OFF: {
+          what: 'The channel is switched off, waits to be reconnected or its connection is not finished — the platform was not asked.',
+          next: 'Switch it on, reconnect it or finish connecting it in “Channels”.',
+        },
+        ANALYTICS_CHANNEL_NEEDS_RECONNECT: {
+          what: 'The channel’s access to the platform has expired. It was not refreshed from the chat; the channel was not touched.',
+          next: 'Open “Analytics” or reconnect the channel in “Channels”.',
+        },
+        ANALYTICS_UNAVAILABLE: {
+          what: 'The platform did not answer just now. This is not “no activity” — there is simply no data.',
+          next: 'Ask again later or open “Analytics”.',
+        },
+        // Media in the chat (kcxz.25).
+        MEDIA_PROMPT_MISSING: {
+          what: 'There is nothing to draw from: no words about the picture and no post text — nothing was spent.',
+          next: 'Say what the picture shows, or name the post it is for.',
+        },
+        MEDIA_IMAGE_CREDITS_EXHAUSTED: {
+          what: 'The pictures of your plan are used up this month — nothing was drawn or spent.',
+          next: 'Take a picture from the media library or attach your own.',
+        },
+        MEDIA_IMAGE_REJECTED: {
+          what: 'The AI refused to draw this picture under its rules — nothing was saved.',
+          next: 'Describe the picture differently.',
+        },
+        MEDIA_IMAGE_FAILED: {
+          what: 'The picture did not come out — nothing went into the media library.',
+          next: 'Ask again a little later.',
+        },
+        ADAPTATION_MEDIA_UNKNOWN: {
+          what: 'There is no such picture in the workspace media library — nothing was put on the post.',
+          next: 'Attach the picture to a message or pick one from the media library.',
+        },
+        AI_INCLUDED_QUOTA_EXHAUSTED: {
+          what: 'The AI allowance of this month is used up — this step did not run and nothing was spent.',
+          next: 'Wait for the allowance to renew or choose the workspace key in the settings.',
+        },
+        ADAPTATION_NOT_FOUND: {
+          what: 'This piece has no such post — nothing was done or spent.',
+          next: 'Open the piece and name the post again.',
+        },
+        AI_ADMISSION_CONTENDED: {
+          what: 'The AI usage ledger is busy right now — the step was not started and nothing was spent.',
+          next: 'Ask again in a minute.',
+        },
+        AI_SELECTED_CREDENTIAL_UNAVAILABLE: {
+          what: 'AI is not connected yet: there is neither an included allowance nor a workspace key — nothing was spent.',
+          next: 'An administrator connects it in Settings → Global Settings.',
+        },
       },
       code: (code) => `code ${code}`,
       retry: intakeCopy.en.retry,
@@ -1262,6 +1643,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       doInChat: onboardingCopy.en.doInChat,
       loading: 'Looking at what is there',
       failed: 'Could not find out what the workspace already has.',
+      writeFromLead: (title: string) => `Write a piece from the taken lead “${title}”`,
     },
   },
 };

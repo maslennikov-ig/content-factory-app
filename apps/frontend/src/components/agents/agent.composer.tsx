@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
   type ClipboardEvent,
   type KeyboardEvent,
@@ -25,6 +26,7 @@ import {
   attachmentLimit,
   attachmentMediaType,
   linksIn,
+  type LibraryUploadReceipt,
   type AgentSamplesUpload,
 } from './agent.contract';
 import type { AgentWords } from './agent.copy';
@@ -35,6 +37,13 @@ import {
   isSamplesFile,
   type SamplesSent,
 } from './agent.samples';
+import { compressLibraryImage } from '@contentfactory/frontend/components/media/library-image-compression';
+import {
+  MEDIA_LIMITS,
+  isLibraryImage,
+  keepShownPicture,
+  type LibrarySaved,
+} from './agent.media';
 
 /**
  * The composer (`content-factory-next-kcxz.10`, canvas C): text, pasted links
@@ -51,6 +60,18 @@ import {
  * under the files names that avatar and lets the person pick another (review
  * W3-18 F2); while the agent is answering, the files wait for the turn to end
  * rather than change the corpus an analysis may be reading (F6).
+ *
+ * A picture (owner decision 28.09.2026, «агент видит картинки») is shown to
+ * the AI by default: it goes inline in the message — compressed by the media
+ * library's own compressor — and is saved nowhere; this page keeps it under a
+ * key the message names, so that when the person wants it on a post the agent
+ * asks (`media.keep`) and the page puts it into the library
+ * (`agent.media.ts`). A role that may upload can switch a picture on its chip
+ * to «в медиатеку» instead (`kcxz.25`): it goes from here straight to the
+ * media library through the library's own request, the message carries only
+ * the receipt — library ids — and a retry does not upload it twice (review
+ * W4-25 F5). The line under the files says which path each takes (F2). Any
+ * role may show a picture; only an editor puts one into the library.
  *
  * A message that holds a key shape is not sent (`kcxz.20`): the key is taken
  * out of the field and the notice sends the person to the key card.
@@ -74,6 +95,8 @@ export type ComposerSubmit = {
   files: FileUIPart[];
   /** Sample files already added to an avatar: the receipt, not the files. */
   samples?: AgentSamplesUpload;
+  /** Pictures already in the media library: the receipt, not the pictures. */
+  media?: LibraryUploadReceipt;
 };
 
 /** A refusal of the samples upload, in the words the screen has for it. */
@@ -106,6 +129,8 @@ export function AgentComposer({
   uploadSamples,
   samplesTarget,
   samplesAllowed = true,
+  uploadMedia,
+  mediaAllowed = true,
   describeFailure,
   words,
   autoFocus,
@@ -124,6 +149,13 @@ export function AgentComposer({
   samplesTarget?: SamplesTarget;
   /** The role may add samples (the door's `Sections.EDITOR`). */
   samplesAllowed?: boolean;
+  /**
+   * Puts pictures into the media library; the receipt comes back (`kcxz.25`).
+   * `saved`: the pictures already there from an earlier try (review W4-25 F5).
+   */
+  uploadMedia?: (files: File[], saved: LibrarySaved) => Promise<LibraryUploadReceipt>;
+  /** The role may upload media (the library doors' `Sections.EDITOR`). */
+  mediaAllowed?: boolean;
   /** The sentence for a refused upload, from the product's error words. */
   describeFailure?: (failure: SamplesFailure) => string;
   words: AgentWords;
@@ -143,8 +175,18 @@ export function AgentComposer({
     onDraftUsed?.();
   }, [draft, onDraftUsed]);
   const [files, setFiles] = useState<File[]>([]);
+  /** Pictures of this message already in the library (review W4-25 F5). */
+  const savedPictures = useRef<LibrarySaved>(new Map());
+  /** Pictures switched to the library; the rest are shown to the AI (28.09). */
+  const [toLibrary, setToLibrary] = useState<ReadonlySet<File>>(() => new Set());
+  const canKeepInLibrary = mediaAllowed && !!uploadMedia;
+  const goesToLibrary = useCallback(
+    (file: File) => isLibraryImage(file) && canKeepInLibrary && toLibrary.has(file),
+    [canKeepInLibrary, toLibrary]
+  );
   const [notice, setNotice] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  /** What is being sent before the message: pictures, then samples. */
+  const [uploading, setUploading] = useState<'media' | 'samples' | null>(null);
   /** A line that is not a refusal: the samples went to the default instead. */
   const [info, setInfo] = useState<string | null>(null);
   /** Sample files wait for the agent's answer to end (F6). */
@@ -155,6 +197,8 @@ export function AgentComposer({
 
   const links = linksIn(text);
   const hasSamples = files.some(isSamplesFile);
+  const viewedPictures = files.filter((file) => isLibraryImage(file) && !goesToLibrary(file));
+  const libraryPictures = files.filter(goesToLibrary);
   const canSend =
     (text.trim().length > 0 || files.length > 0) && !queued && !uploading && !held;
 
@@ -162,8 +206,10 @@ export function AgentComposer({
     (incoming: readonly File[]) => {
       setInfo(null);
       const next = [...files];
-      const chatFiles = () => next.filter((file) => !isSamplesFile(file));
+      const chatFiles = () =>
+        next.filter((file) => !isSamplesFile(file) && !isLibraryImage(file));
       const sampleFiles = () => next.filter(isSamplesFile);
+      const pictures = () => next.filter(isLibraryImage);
       let total = chatFiles().reduce((sum, file) => sum + file.size, 0);
       let samplesTotal = sampleFiles().reduce((sum, file) => sum + file.size, 0);
       for (const file of incoming) {
@@ -190,7 +236,25 @@ export function AgentComposer({
           next.push(file);
           continue;
         }
-        if (chatFiles().length >= AGENT_ATTACHMENT_MAX_FILES) {
+        // A picture is shown to the AI (28.09) — compressed on sending — or,
+        // switched on its chip, put into the library (`kcxz.25`); either way
+        // under the library's own ceiling. Shown, it rides with the files.
+        if (isLibraryImage(file)) {
+          if (
+            pictures().length >= MEDIA_LIMITS.maxFiles ||
+            chatFiles().length + pictures().length >= AGENT_ATTACHMENT_MAX_FILES
+          ) {
+            setNotice(w.tooMany(MEDIA_LIMITS.maxFiles));
+            continue;
+          }
+          if (file.size > MEDIA_LIMITS.maxFileBytes) {
+            setNotice(w.tooBig(file.name, MEDIA_LIMITS.maxFileBytes / 1024));
+            continue;
+          }
+          next.push(file);
+          continue;
+        }
+        if (chatFiles().length + pictures().length >= AGENT_ATTACHMENT_MAX_FILES) {
           setNotice(w.tooMany(AGENT_ATTACHMENT_MAX_FILES));
           break;
         }
@@ -226,12 +290,29 @@ export function AgentComposer({
       setNotice(w.keyPasted);
       return;
     }
+    const pictureFiles = files.filter(goesToLibrary);
+    let media: LibraryUploadReceipt | undefined;
+    if (pictureFiles.length && uploadMedia) {
+      // Sent first, from here: a refusal keeps the files and the words, and
+      // nothing goes to the chat — as with samples below.
+      setUploading('media');
+      setNotice(null);
+      setInfo(null);
+      try {
+        media = await uploadMedia(pictureFiles, savedPictures.current);
+      } catch {
+        setNotice(w.mediaFailed);
+        return;
+      } finally {
+        setUploading(null);
+      }
+    }
     const samplesFiles = files.filter(isSamplesFile);
     let samples: AgentSamplesUpload | undefined;
     if (samplesFiles.length && uploadSamples) {
       // Sent first, from here: a refusal keeps the files and the words, and
       // nothing goes to the chat (no message is spent on a failed upload).
-      setUploading(true);
+      setUploading('samples');
       setNotice(null);
       setInfo(null);
       const target = samplesTarget?.value ?? null;
@@ -256,26 +337,65 @@ export function AgentComposer({
         );
         return;
       } finally {
-        setUploading(false);
+        setUploading(null);
       }
     }
-    const parts = await Promise.all(
-      files.filter((file) => !isSamplesFile(file)).map(async (file) => {
-        // Checked when it was added; the list only ever holds taken files.
-        const mediaType = attachmentMediaType(file) ?? 'text/plain';
-        return {
-          type: 'file' as const,
+    const parts: FileUIPart[] = [];
+    // Registered only once the message really leaves (review W4-25 vision F8).
+    const shown: Array<[File, string]> = [];
+    let inlineBytes = 0;
+    for (const file of files) {
+      if (isSamplesFile(file) || goesToLibrary(file)) continue;
+      if (isLibraryImage(file)) {
+        // Shown to the AI: compressed by the library's compressor, inline,
+        // under the door's own ceilings; the page keeps the picture so the
+        // agent can have it put into the library later (`media.keep`).
+        const compressed = await compressLibraryImage(file);
+        const mediaType = attachmentMediaType(compressed) ?? attachmentMediaType(file) ?? 'image/png';
+        const limit = attachmentLimit(mediaType);
+        if (compressed.size > limit) {
+          setNotice(w.tooBig(file.name, limit / 1024));
+          return;
+        }
+        inlineBytes += compressed.size;
+        if (inlineBytes > AGENT_ATTACHMENTS_TOTAL_MAX_BYTES) {
+          setNotice(w.tooBigTogether(AGENT_ATTACHMENTS_TOTAL_MAX_BYTES / 1024 / 1024));
+          return;
+        }
+        const pictureKey = crypto.randomUUID();
+        shown.push([file, pictureKey]);
+        parts.push({
+          type: 'file',
           mediaType,
           filename: file.name,
-          url: await inlineAs(file, mediaType),
-        };
-      })
-    );
-    onSubmit({ text: text.trim(), files: parts, ...(samples ? { samples } : {}) });
+          url: await inlineAs(compressed, mediaType),
+          providerMetadata: { contentFactory: { pictureKey } },
+        });
+        continue;
+      }
+      // Checked when it was added; the list only ever holds taken files.
+      const mediaType = attachmentMediaType(file) ?? 'text/plain';
+      inlineBytes += file.size;
+      parts.push({
+        type: 'file',
+        mediaType,
+        filename: file.name,
+        url: await inlineAs(file, mediaType),
+      });
+    }
+    for (const [file, pictureKey] of shown) keepShownPicture(file, pictureKey);
+    onSubmit({
+      text: text.trim(),
+      files: parts,
+      ...(samples ? { samples } : {}),
+      ...(media?.media.length ? { media } : {}),
+    });
     setText('');
     setFiles([]);
     setNotice(null);
-  }, [describeFailure, files, onSubmit, samplesTarget, text, uploadSamples, w]);
+    savedPictures.current = new Map();
+    setToLibrary(new Set());
+  }, [describeFailure, files, goesToLibrary, onSubmit, samplesTarget, text, uploadMedia, uploadSamples, w]);
 
   const submit = useCallback(async () => {
     if (!canSend) return;
@@ -333,9 +453,32 @@ export function AgentComposer({
                 <AgentGlyph name="clip" size={12} />
                 <span className="min-w-0 truncate">{file.name}</span>
                 {isSamplesFile(file) ? (
-                  <span className="shrink-0 cf-label-sm text-cf-ink-muted">
-                    {w.samplesChip}
-                  </span>
+                  <span className="shrink-0 cf-label-sm text-cf-ink-muted">{w.samplesChip}</span>
+                ) : isLibraryImage(file) ? (
+                  canKeepInLibrary ? (
+                    <Button
+                      type="button"
+                      variant="quiet"
+                      density="dense"
+                      aria-pressed={goesToLibrary(file)}
+                      aria-label={w.pictureRoute(file.name, goesToLibrary(file))}
+                      disabled={!!uploading || held}
+                      onClick={() =>
+                        setToLibrary((current) => {
+                          const next = new Set(current);
+                          if (next.has(file)) next.delete(file);
+                          else next.add(file);
+                          return next;
+                        })
+                      }
+                    >
+                      <span className="cf-label-sm">
+                        {goesToLibrary(file) ? w.mediaChip : w.pictureViewChip}
+                      </span>
+                    </Button>
+                  ) : (
+                    <span className="shrink-0 cf-label-sm text-cf-ink-muted">{w.pictureViewChip}</span>
+                  )
                 ) : null}
                 <Button
                   iconOnly
@@ -364,6 +507,22 @@ export function AgentComposer({
             ))}
           </ul>
         ) : null}
+        {viewedPictures.length ? (
+          <p className="inline-flex min-w-0 items-start gap-[4px] cf-caption text-cf-ink-muted">
+            <AgentGlyph name="image" size={12} />
+            <span className="min-w-0">
+              {canKeepInLibrary
+                ? `${w.pictureViewNote} ${w.pictureViewNoteEditor}`
+                : w.pictureViewNote}
+            </span>
+          </p>
+        ) : null}
+        {libraryPictures.length ? (
+          <p className="inline-flex min-w-0 items-start gap-[4px] cf-caption text-cf-ink-muted">
+            <AgentGlyph name="image" size={12} />
+            <span className="min-w-0">{w.mediaNote}</span>
+          </p>
+        ) : null}
         {hasSamples && uploadSamples && samplesTarget?.known ? (
           samplesTarget.options.length || samplesTarget.defaultName !== null ? (
             <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
@@ -376,7 +535,7 @@ export function AgentComposer({
                 density="dense"
                 id={targetId}
                 value={samplesTarget.value ?? ''}
-                disabled={uploading || held}
+                disabled={!!uploading || held}
                 fieldClassName="min-w-0 flex-1 sm:flex-none"
                 className="w-full min-w-0 sm:w-auto [&>option]:text-cf-ink"
                 onChange={(event) => samplesTarget.onChange(event.target.value || null)}
@@ -448,7 +607,7 @@ export function AgentComposer({
         </p>
         {uploading ? (
           <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
-            {w.samplesSending}
+            {uploading === 'media' ? w.mediaSending : w.samplesSending}
           </p>
         ) : held ? (
           <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">

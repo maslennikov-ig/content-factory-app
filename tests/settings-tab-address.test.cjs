@@ -98,6 +98,7 @@ const Panel = (name) => () => h('div', { 'data-panel': name }, name);
 
 /** Адрес, который тест меняет между отрисовками. */
 let search = new URLSearchParams('');
+let currentRole = 'ADMIN';
 
 const settings = loadTypeScriptModule(
   'apps/frontend/src/components/layout/settings.component.tsx',
@@ -139,7 +140,7 @@ const settings = loadTypeScriptModule(
       TeamsComponent: Empty,
     },
     '@contentfactory/frontend/components/layout/user.context': {
-      useUser: () => ({ tier: { current: 'FREE' }, role: 'ADMIN' }),
+      useUser: () => ({ tier: { current: 'FREE' }, role: currentRole }),
     },
     '@contentfactory/frontend/components/layout/logout.component': {
       LogoutComponent: Empty,
@@ -244,8 +245,8 @@ const settings = loadTypeScriptModule(
     // on 05.09.2026 (`content-factory-next-fn33.90`); without it here every
     // render below threw «is not a function».
     '@contentfactory/nestjs-libraries/user/organization.roles': {
-      isOrganizationAdmin: () => true,
-      isOrganizationEditor: () => true,
+      isOrganizationAdmin: (role) => role === 'ADMIN' || role === 'SUPERADMIN',
+      isOrganizationEditor: (role) => role !== 'USER',
     },
   }
 );
@@ -253,6 +254,7 @@ const settings = loadTypeScriptModule(
 afterEach(() => {
   cleanup();
   search = new URLSearchParams('');
+  currentRole = 'ADMIN';
 });
 
 const openedTab = () =>
@@ -306,14 +308,7 @@ test('picking a tab by hand is not undone by an address that names none', () => 
 test('upstream tabs leave the rail but still open by address (2q28.26)', () => {
   search = new URLSearchParams('');
   const view = render(h(settings.SettingsPopup));
-  for (const hidden of [
-    'webhooks',
-    'autopost',
-    'sets',
-    'signatures',
-    'api',
-    'approved_apps',
-  ]) {
+  for (const hidden of ['webhooks', 'autopost', 'sets', 'signatures']) {
     expect(
       document.querySelector(`[data-tab-button="${hidden}"]`)
     ).toBeNull();
@@ -325,6 +320,23 @@ test('upstream tabs leave the rail but still open by address (2q28.26)', () => {
   search = new URLSearchParams('tab=webhooks');
   view.rerender(h(settings.SettingsPopup));
   expect(openedTab()).toBe('webhooks');
+});
+
+// Live walk W4 P2-A (kcxz.26): the MCP address and a person's connections
+// live in «Одобренные приложения», which every member sees; «Разработчики»
+// is back for administrators only.
+test.each([
+  ['USER', { approved_apps: true, api: false }],
+  ['EDITOR', { approved_apps: true, api: false }],
+  ['ADMIN', { approved_apps: true, api: true }],
+])('a %s sees «Одобренные приложения» and «Разработчики» by role', (role, expected) => {
+  currentRole = role;
+  search = new URLSearchParams('');
+  render(h(settings.SettingsPopup));
+  for (const [tab, visible] of Object.entries(expected)) {
+    const button = document.querySelector(`[data-tab-button="${tab}"]`);
+    expect({ role, tab, visible: button !== null }).toEqual({ role, tab, visible });
+  }
 });
 
 test('the known list is exactly what the screen can draw', () => {

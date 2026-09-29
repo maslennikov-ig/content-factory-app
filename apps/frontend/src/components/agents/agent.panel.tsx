@@ -35,7 +35,7 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
  * The work panel beside the chat (spec §6.1, canvas C; owner 27.09.2026 «чат
  * плюс артефакт»): what the turn produced, opened as the product's own screen.
  *
- * A piece, an avatar and a channel open their real screens here — the same components
+ * A piece, an avatar, a channel, «Откуда идеи», «Откуда факты» and «Медиатека» open their real screens here — the same components
  * their pages render, so whatever is changed here is saved the way the page
  * saves it. The other kinds show their name and lead to their screen. With
  * nothing open, the panel shows the five steps of «С чего начать», each with
@@ -69,17 +69,52 @@ const ChannelScreen = dynamic(
   { ssr: false, loading: () => <SkeletonRows rows={4} /> }
 );
 
+const ContentLeadsTab = dynamic(
+  () =>
+    import(
+      '@contentfactory/frontend/components/content-intelligence/content-leads.tab'
+    ).then((module) => module.ContentLeadsTab),
+  { ssr: false, loading: () => <SkeletonRows rows={4} /> }
+);
+
+const ContentFactsShowcase = dynamic(
+  () =>
+    import(
+      '@contentfactory/frontend/components/content-intelligence/content-facts.showcase'
+    ).then((module) => module.ContentFactsShowcase),
+  { ssr: false, loading: () => <SkeletonRows rows={4} /> }
+);
+
+const MediaBox = dynamic(
+  () =>
+    import('@contentfactory/frontend/components/media/media.component').then(
+      (module) => module.MediaBox
+    ),
+  { ssr: false, loading: () => <SkeletonRows rows={4} /> }
+);
+
+/** The library beside the chat picks nothing: it is looked at, not chosen from. */
+const keepMedia = (): void => undefined;
+
 export type StarterKey = OnboardingStepKey;
 
 const textOf = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value : null;
 
+/**
+ * «Взять в работу» pressed in the ideas panel: the lead is taken, and the
+ * request to write from it goes into the composer (review W4-23 F1).
+ */
+export type WriteFromLead = (title: string) => void;
+
 function ArtifactBody({
   artifact,
   words,
+  onWriteFromLead,
 }: {
   artifact: AgentArtifact;
   words: AgentWords;
+  onWriteFromLead?: WriteFromLead;
 }) {
   if (artifact.kind === 'piece') {
     return <PieceContainer key={artifact.id} pieceId={artifact.id} embedded />;
@@ -116,6 +151,28 @@ function ArtifactBody({
     // The channel page itself (`kcxz.19`): the writing card, the schedule,
     // the recent posts and the connection, saved the way the page saves them.
     return <ChannelScreen key={artifact.id} channelId={artifact.id} embedded />;
+  }
+  if (artifact.kind === 'ideas') {
+    // «Откуда идеи» itself (`kcxz.23`): the subscriptions and the queue,
+    // saved the way the tab saves them. «Взять в работу» here takes the lead
+    // and puts the request to write from it into the composer — the
+    // «Сделать в чате» pattern, never sent (review W4-23 F1). Without a
+    // conversation to write in, the tab says only that the lead was taken.
+    return onWriteFromLead ? (
+      <ContentLeadsTab takenTo="chat" onNavigateToBrief={(lead) => onWriteFromLead(lead.title)} />
+    ) : (
+      <ContentLeadsTab />
+    );
+  }
+  if (artifact.kind === 'facts') {
+    // «Откуда факты» itself (`kcxz.24`): the facts, «Снять» and «Вернуть»
+    // saved the way the tab saves them.
+    return <ContentFactsShowcase />;
+  }
+  if (artifact.kind === 'media') {
+    // «Медиатека» itself (`kcxz.25`), as its page shows it: newest first, so a
+    // picture the chat generated or the composer uploaded is the first one.
+    return <MediaBox standalone setMedia={keepMedia} closeModal={keepMedia} />;
   }
   return (
     <div className="flex flex-col items-start gap-[12px]">
@@ -279,15 +336,22 @@ export function ArtifactColumn({
   onClose,
   empty,
   words,
+  onWriteFromLead,
 }: {
   artifact: AgentArtifact | null;
   onClose: () => void;
   /** What the panel shows with nothing open. */
   empty: ReactNode;
   words: AgentWords;
+  onWriteFromLead?: WriteFromLead;
 }) {
   return artifact ? (
-    <ResolvedColumn artifact={artifact} onClose={onClose} words={words} />
+    <ResolvedColumn
+      artifact={artifact}
+      onClose={onClose}
+      words={words}
+      onWriteFromLead={onWriteFromLead}
+    />
   ) : (
     <ColumnFrame artifact={null} onClose={onClose} words={words}>
       {empty}
@@ -300,15 +364,17 @@ function ResolvedColumn({
   artifact: written,
   onClose,
   words,
+  onWriteFromLead,
 }: {
   artifact: AgentArtifact;
   onClose: () => void;
   words: AgentWords;
+  onWriteFromLead?: WriteFromLead;
 }) {
   const { artifact } = usePieceArtifact(written);
   return (
     <ColumnFrame artifact={artifact} onClose={onClose} words={words}>
-      <ArtifactBody artifact={written} words={words} />
+      <ArtifactBody artifact={written} words={words} onWriteFromLead={onWriteFromLead} />
     </ColumnFrame>
   );
 }
@@ -347,10 +413,12 @@ export function ArtifactSheet({
   artifact: written,
   onClose,
   words,
+  onWriteFromLead,
 }: {
   artifact: AgentArtifact;
   onClose: () => void;
   words: AgentWords;
+  onWriteFromLead?: WriteFromLead;
 }) {
   const panel = useRef<HTMLElement>(null);
   const close = useRef(onClose);
@@ -392,7 +460,7 @@ export function ArtifactSheet({
         />
         <PanelHead artifact={artifact} onClose={onClose} words={words} />
         <div className="min-h-0 flex-1 overflow-y-auto px-[16px] py-[16px]">
-          <ArtifactBody artifact={written} words={words} />
+          <ArtifactBody artifact={written} words={words} onWriteFromLead={onWriteFromLead} />
         </div>
       </section>
     </div>

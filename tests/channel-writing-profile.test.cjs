@@ -15,7 +15,7 @@
  */
 
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
-const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { loadIntegrationService } = require('./helpers/integration-service.module.cjs');
 
 const PROFILE =
   'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts';
@@ -182,43 +182,7 @@ const { TelegramProvider } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts'
 );
 
-const { IntegrationService } = loadWithMocks(
-  'libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts',
-  {
-    '@nestjs/common': {
-      Injectable: () => (target) => target,
-      Inject: () => () => {},
-      forwardRef: (fn) => fn,
-      HttpException: class HttpException extends Error {
-        constructor(response, status) {
-          super(JSON.stringify(response));
-          this.response = response;
-          this.status = status;
-        }
-        getStatus() {
-          return this.status;
-        }
-      },
-      HttpStatus: { NOT_FOUND: 404, BAD_REQUEST: 400, UNPROCESSABLE_ENTITY: 422 },
-    },
-    '@contentfactory/nestjs-libraries/upload/upload.factory': {
-      UploadFactory: { createStorage: () => ({}) },
-    },
-    '@contentfactory/nestjs-libraries/redis/redis.service': { ioRedis: {} },
-    'nestjs-temporal-core': { TemporalService: class {} },
-    '@contentfactory/nestjs-libraries/database/prisma/notifications/notification.service':
-      { NotificationService: class {} },
-    '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.repository':
-      { AutopostRepository: class {} },
-    '@contentfactory/nestjs-libraries/integrations/refresh.integration.service':
-      { RefreshIntegrationService: class {} },
-    '@contentfactory/nestjs-libraries/integrations/analytics.snapshot.service':
-      { AnalyticsSnapshotService: class {} },
-    '@contentfactory/nestjs-libraries/integrations/integration.manager': {
-      IntegrationManager: class {},
-    },
-  }
-);
+const { IntegrationService } = loadIntegrationService();
 
 const telegram = new TelegramProvider();
 

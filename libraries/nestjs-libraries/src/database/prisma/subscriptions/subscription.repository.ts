@@ -56,6 +56,27 @@ export class SubscriptionRepository {
     });
   }
 
+  /**
+   * The subscription as the web request's organization carries it
+   * (`OrganizationRepository.getOrgsByUserId`'s include): the same row, the
+   * same fields, no `deletedAt` filter — a caller that holds only the
+   * workspace id (the agent chat) reads the credits rule's tier and window
+   * exactly as the door does (review W4-25 F8).
+   */
+  getSubscriptionAsOrganizationCarries(organizationId: string) {
+    return this._subscription.model.subscription.findUnique({
+      where: {
+        organizationId,
+      },
+      select: {
+        subscriptionTier: true,
+        totalChannels: true,
+        isLifetime: true,
+        createdAt: true,
+      },
+    });
+  }
+
   updateConnectedStatus(account: string, accountCharges: boolean) {
     return this._user.model.user.updateMany({
       where: {

@@ -25,7 +25,6 @@ import { ApiTags } from '@nestjs/swagger';
 import handleR2Upload from '@contentfactory/nestjs-libraries/upload/r2.uploader';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomFileValidationPipe } from '@contentfactory/nestjs-libraries/upload/custom.upload.validation';
-import { SubscriptionService } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/media/save.media.information.dto';
 import { VideoDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.dto';
@@ -40,10 +39,7 @@ import {
 @Controller('/media')
 export class MediaController {
   private storage = UploadFactory.createStorage();
-  constructor(
-    private _mediaService: MediaService,
-    private _subscriptionService: SubscriptionService
-  ) {}
+  constructor(private _mediaService: MediaService) {}
 
   /*
    * Media is what the workspace publishes, so every door that adds, changes
@@ -77,27 +73,21 @@ export class MediaController {
     @Req() req: Request,
     @Body() { prompt }: ImagePromptBodyDto
   ) {
-    return this.imageFromPrompt(org, prompt);
-  }
-
-  /** The image itself, shared by both doors; `isPicturePrompt` only from the second. */
-  private async imageFromPrompt(
-    org: Organization,
-    prompt: string,
-    isPicturePrompt = false
-  ) {
-    const total = await this._subscriptionService.checkCredits(org);
-    if (process.env.STRIPE_PUBLISHABLE_KEY && total.credits <= 0) {
+    if (!(await this._mediaService.imageCreditsLeft(org))) {
       return false;
     }
 
     return {
       output:
         'data:image/png;base64,' +
-        (await this._mediaService.generateImage(prompt, org, isPicturePrompt)),
+        (await this._mediaService.generateImage(prompt, org)),
     };
   }
 
+  /**
+   * The picture saved into the library. The chat's `media.generate` calls the
+   * same `MediaService.generateImageIntoLibrary` (`kcxz.25`).
+   */
   @Post('/generate-image-with-prompt')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async generateImageFromText(
@@ -105,14 +95,7 @@ export class MediaController {
     @Req() req: Request,
     @Body() { prompt }: ImagePromptBodyDto
   ) {
-    const image = await this.imageFromPrompt(org, prompt, true);
-    if (!image) {
-      return false;
-    }
-
-    const file = await this.storage.uploadSimple(image.output);
-
-    return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+    return this._mediaService.generateImageIntoLibrary(org, prompt, true);
   }
 
   @Post('/upload-server')

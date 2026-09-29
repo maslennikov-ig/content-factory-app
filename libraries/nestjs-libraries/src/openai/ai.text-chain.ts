@@ -355,6 +355,13 @@ export interface TextCallUsage {
    */
   failed?: boolean;
   /**
+   * The call the operation exists for, recorded after the calls that prepared
+   * it (`kcxz.44` review F2): a picture's drawing after its picture prompt.
+   * Its model, tier and attempt are the row's whatever attempt the
+   * preparing text calls reached; tokens and cost are still summed.
+   */
+  final?: boolean;
+  /**
    * The request left and no answer came back in time (a deadline or a
    * transport failure after sending). The provider may still have billed it,
    * so the operation's `costUsd` is a lower bound when any call has this.
@@ -531,6 +538,9 @@ export class TextUsageLedger {
     for (const call of pool) {
       if (call.attempt >= deciding.attempt) deciding = call;
     }
+    // The operation's own call names the row, served or failed (F2, kcxz.44).
+    const final = [...this.calls].reverse().find((call) => call.final);
+    if (final) deciding = final;
     const failed = this.calls.filter((call) => call.failed);
     return {
       ...(failed.length

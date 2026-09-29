@@ -163,13 +163,20 @@ async function loadInstalledGlobalPipe() {
       ConfigurationChecker: class {},
     },
     '@contentfactory/nestjs-libraries/chat/start.mcp': {
-      startMcp: async () => undefined,
+      MCP_HTTP_PATH: '/mcp',
+      createMcpBodyParser: () => (req, res, next) => next(),
+    },
+    '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.service': {
+      McpOAuthService: class {},
     },
     '@contentfactory/backend/cors.options': {
       buildBackendCorsOptions: () => ({}),
     },
     '@contentfactory/backend/api/routes/brand-voice.paste': {
       createVoicePasteBodyLimiter: () => (req, res, next) => next(),
+    },
+    '@contentfactory/backend/api/routes/agent-chat.body': {
+      createAgentChatBodyLimiter: () => (req, res, next) => next(),
     },
   });
 

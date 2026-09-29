@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
   AGENT_APPROVALS_PER_REQUEST,
@@ -10,7 +11,11 @@ import {
   AGENT_SAMPLES_MAX_FILES,
   AGENT_SAMPLES_MAX_REASONS,
   AGENT_SAMPLES_PART_TYPE,
+  AGENT_MEDIA_MAX_FILES,
+  AGENT_MEDIA_PART_TYPE,
+  AGENT_MEDIA_TYPES,
   type AgentDoorErrorCode,
+  type LibraryUploadReceiptV1,
   type AgentSamplesUploadV1,
 } from '../capabilities/agent-parts.contract';
 import { approvalFingerprint } from '../capabilities/approval-fingerprint';
@@ -61,6 +66,9 @@ const badRequest = (message: string) =>
 /** A samples receipt this caller could not have produced (review W3-18 F3). */
 export const samplesReceiptRefused = () =>
   badRequest('The samples receipt names an avatar outside this workspace, or this role adds no samples.');
+/** A media receipt this caller could not have produced (`kcxz.25`). */
+export const mediaReceiptRefused = () =>
+  badRequest('The pictures receipt names media outside this workspace, or this role uploads no media.');
 export const notYours = () =>
   new AgentChatRequestError(
     'AGENT_NOT_YOURS',
@@ -111,6 +119,21 @@ export type AgentChatInput =
        * anything runs (review W3-18 F3).
        */
       samplesAvatarId?: string | null;
+      /**
+       * Present when the message carries a pictures receipt (`kcxz.25`): the
+       * library ids it names. The door checks the role may upload media and
+       * every id is a live item of the caller's workspace before anything
+       * runs, as it does for a samples receipt.
+       */
+      mediaIds?: string[];
+      /** Where the pictures line sits in `message.parts`, with `mediaIds`. */
+      mediaPart?: number;
+      /**
+       * Pictures attached for the agent to look at: the message holds their
+       * placeholder lines; the bytes reach the model for this request only
+       * (`conductor.pictures.ts`) and are saved nowhere.
+       */
+      pictures?: ViewedPicture[];
     }
   | {
       mode: 'approval';
@@ -176,11 +199,83 @@ export const attachedTextPart = (
 });
 
 /**
+ * A picture the agent looks at (owner decision 28.09.2026, «агент видит
+ * картинки»): its bytes for the request that carries it, and the reference
+ * its placeholder line names (`conductor.pictures.ts`).
+ */
+export type ViewedPicture = {
+  /** Server-made; the placeholder line names it. */
+  ref: string;
+  /** Base64, no `data:` header. */
+  data: string;
+  mediaType: string;
+  filename?: string;
+};
+
+/** The line's marker, as it stands in the placeholder's JSON. */
+export const viewedPictureMarker = (ref: string) => `"viewedPicture":"${ref}"`;
+
+/** What the model reads beside a viewed picture. */
+export const VIEWED_PICTURE_NOTE =
+  'The person attached this picture for you to look at: it is shown to you next to this line once — on the first step of your answer to this message — so look at it then and keep what matters in your own words. It is saved nowhere — not in the media library, not in this chat — and a later message will not show it again. To put it on a post, call media.keep with its pictureKey (the person’s browser puts it into the media library and answers with its media id), then adaptation.image.';
+
+/** The browser's key of a picture it keeps for `media.keep` (a UUID), or `null`. */
+const pictureKeyOf = (part: Record<string, unknown>) => {
+  const meta = part.providerMetadata;
+  const own =
+    meta && typeof meta === 'object' ? (meta as Record<string, unknown>).contentFactory : null;
+  const key = own && typeof own === 'object' ? (own as Record<string, unknown>).pictureKey : null;
+  return typeof key === 'string' && UUID.test(key) ? key : null;
+};
+
+/**
+ * The line a viewed picture leaves in the message: what the thread keeps and
+ * a reload shows — the name and the type, never the picture.
+ */
+export const viewedPictureLine = (
+  ref: string,
+  filename: string | undefined,
+  mediaType: string,
+  pictureKey: string | null
+) => ({
+  type: 'text' as const,
+  text: JSON.stringify(
+    wrapUntrusted(
+      {
+        attachment: filename ?? null,
+        mediaType,
+        viewedPicture: ref,
+        pictureKey,
+        note: VIEWED_PICTURE_NOTE,
+      },
+      ['uploaded-file']
+    )
+  ),
+});
+
+/**
+ * What a picture's first bytes say it is (review W4-25 vision F5): PNG, JPEG,
+ * GIF and WebP by their signatures, `null` for anything else.
+ */
+export const sniffPictureType = (payload: string): string | null => {
+  const head = Buffer.from(payload.slice(0, 24), 'base64');
+  const starts = (...bytes: number[]) => bytes.every((byte, at) => head[at] === byte);
+  if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png';
+  if (starts(0xff, 0xd8, 0xff)) return 'image/jpeg';
+  if (head.subarray(0, 6).toString('latin1').match(/^GIF8[79]a$/)) return 'image/gif';
+  if (head.subarray(0, 4).toString('latin1') === 'RIFF' && head.subarray(8, 12).toString('latin1') === 'WEBP') {
+    return 'image/webp';
+  }
+  return null;
+};
+
+/**
  * One file part, checked (correctness review W1 F2): an inline `data:` URL
  * only — a link would make the server, Mastra or the provider fetch whatever
  * it names — of an allowed type, within the size limits. A text file becomes
- * a text part: redacted, and wrapped as untrusted data. A picture is rebuilt
- * under its declared type.
+ * a text part: redacted, and wrapped as untrusted data. A picture becomes its
+ * placeholder line, and its bytes go to the model for this request only
+ * (`ViewedPicture`), under the type its bytes show.
  */
 const attachmentPart = (part: Record<string, unknown>) => {
   const mediaType =
@@ -205,14 +300,18 @@ const attachmentPart = (part: Record<string, unknown>) => {
       .replace(/^\uFEFF/, '');
     return { part: attachedTextPart(filename, mediaType, decoded), bytes };
   }
+  // The bytes, not the label, say what a picture is (review W4-25 vision F5):
+  // a provider refuses a PNG sent as a JPEG. A picture of another allowed
+  // kind is taken under its real type; bytes that are no picture are refused.
+  const sniffed = sniffPictureType(payload);
+  if (!sniffed || !MEDIA_TYPES.includes(sniffed)) {
+    throw badRequest('The picture is not a PNG, JPEG, GIF or WebP image.');
+  }
+  const ref = randomUUID();
   return {
-    part: {
-      type: 'file',
-      url: `data:${mediaType};base64,${payload}`,
-      mediaType,
-      ...(filename ? { filename } : {}),
-    },
+    part: viewedPictureLine(ref, filename, sniffed, pictureKeyOf(part)),
     bytes,
+    picture: { ref, data: payload, mediaType: sniffed, ...(filename ? { filename } : {}) } as ViewedPicture,
   };
 };
 
@@ -295,6 +394,76 @@ export const samplesReceiptPart = (data: unknown) => {
   };
 };
 
+const MEDIA_TYPES_TAKEN: readonly string[] = AGENT_MEDIA_TYPES;
+
+/**
+ * The line the model reads for pictures in the media library (`kcxz.25`): a
+ * text part of untrusted data — the names are the person's — so a reloaded
+ * thread shows it as the pictures' line. No picture is here.
+ */
+export const mediaReceiptLine = (media: LibraryUploadReceiptV1['media']) => {
+  const receipt: LibraryUploadReceiptV1 = {
+    media: media.map((one) => ({ ...one, name: cleanFilename(one.name) ?? one.id })),
+  };
+  return {
+    type: 'text' as const,
+    text: JSON.stringify(
+      wrapUntrusted(
+        {
+          attachment: receipt.media.map((one) => one.name).join(', '),
+          // One line of what the receipt is: built by the door from the
+          // library's own rows (review W4-25 F3), names as uploaded.
+          note: "The person's browser uploaded these pictures to the workspace media library; the pictures themselves are not in this chat. Each `id` is a library media id: adaptation.image puts one on a post.",
+          mediaUpload: receipt,
+        },
+        ['uploaded-file']
+      )
+    ),
+  };
+};
+
+/**
+ * The receipt of pictures the composer uploaded to the media library itself
+ * (`kcxz.25`, `AGENT_MEDIA_PART_TYPE`), checked like a samples receipt: only
+ * its own shape, every field bounded, anything else refused rather than
+ * guessed. The line it becomes is a placeholder: the door checks the ids
+ * against the workspace and rebuilds the line from the library's rows
+ * (`withMediaReceipt`), so the names and types the model reads are the
+ * server's, not the browser's (review W4-25 F3).
+ */
+export const mediaReceiptPart = (data: unknown) => {
+  const refuse = () => badRequest('The pictures receipt is not readable.');
+  if (!isRecord(data) || !Array.isArray(data.media)) throw refuse();
+  if (!data.media.length || data.media.length > AGENT_MEDIA_MAX_FILES) throw refuse();
+  const media = data.media.map((entry) => {
+    const id = isRecord(entry) && typeof entry.id === 'string' && UUID.test(entry.id) ? entry.id : null;
+    const name = isRecord(entry) ? cleanFilename(entry.name) : undefined;
+    const type =
+      isRecord(entry) && typeof entry.type === 'string' && MEDIA_TYPES_TAKEN.includes(entry.type)
+        ? (entry.type as LibraryUploadReceiptV1['media'][number]['type'])
+        : null;
+    if (!id || !name || !type) throw refuse();
+    return { id, name, type };
+  });
+  const ids = media.map((one) => one.id);
+  if (new Set(ids).size !== ids.length) throw refuse();
+  return { ids, ...mediaReceiptLine(media) };
+};
+
+/**
+ * The message with its pictures line rebuilt from the library's rows (review
+ * W4-25 F3): the door read them to check the ids, and they — not the
+ * browser — say what each picture is called and what it is.
+ */
+export const withMediaReceipt = <M extends { parts: Record<string, unknown>[] }>(
+  message: M,
+  index: number,
+  media: LibraryUploadReceiptV1['media']
+): M => ({
+  ...message,
+  parts: message.parts.map((part, at) => (at === index ? mediaReceiptLine(media) : part)),
+});
+
 const userParts = (parts: unknown) => {
   if (!Array.isArray(parts)) throw badRequest('The message has no parts.');
   const kept: Record<string, unknown>[] = [];
@@ -303,11 +472,21 @@ const userParts = (parts: unknown) => {
   let bytes = 0;
   let receipts = 0;
   let samplesAvatarId: string | null | undefined;
+  let mediaIds: string[] | undefined;
+  let mediaPart: number | undefined;
+  const pictures: ViewedPicture[] = [];
   for (const part of parts) {
     if (!isRecord(part)) continue;
-    if (part.type === AGENT_SAMPLES_PART_TYPE) {
+    if (part.type === AGENT_MEDIA_PART_TYPE) {
+      if (mediaIds) throw badRequest('One pictures receipt per message.');
+      const { ids, ...receipt } = mediaReceiptPart(part.data);
+      mediaIds = ids;
+      mediaPart = kept.length;
       receipts += 1;
-      if (receipts > 1) throw badRequest('One samples receipt per message.');
+      kept.push(receipt);
+    } else if (part.type === AGENT_SAMPLES_PART_TYPE) {
+      if (samplesAvatarId !== undefined) throw badRequest('One samples receipt per message.');
+      receipts += 1;
       const { avatarId, ...receipt } = samplesReceiptPart(part.data);
       samplesAvatarId = avatarId;
       kept.push(receipt);
@@ -330,13 +509,20 @@ const userParts = (parts: unknown) => {
         throw badRequest('The files are too big together.');
       }
       kept.push(attached.part);
+      if ('picture' in attached && attached.picture) pictures.push(attached.picture);
     }
   }
   if (!text.trim() && !files && !receipts) throw badRequest('The message is empty.');
   if (text.length > AGENT_MESSAGE_MAX_CHARS) {
     throw badRequest('The message is too long.');
   }
-  return { parts: kept, text, ...(receipts ? { samplesAvatarId: samplesAvatarId ?? null } : {}) };
+  return {
+    parts: kept,
+    text,
+    ...(samplesAvatarId !== undefined ? { samplesAvatarId } : {}),
+    ...(mediaIds ? { mediaIds, mediaPart } : {}),
+    ...(pictures.length ? { pictures } : {}),
+  };
 };
 
 /** `tool-<name>` or `dynamic-tool` parts in state `approval-responded`. */
@@ -416,13 +602,15 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
   if (!messageId) throw badRequest('The message id is not valid.');
 
   if (last.role === 'user') {
-    const { parts, text, samplesAvatarId } = userParts(last.parts);
+    const { parts, text, samplesAvatarId, mediaIds, mediaPart, pictures } = userParts(last.parts);
     return {
       mode: 'message',
       ...(threadId ? { threadId } : {}),
       message: { id: messageId, role: 'user', parts },
       text,
       ...(samplesAvatarId !== undefined ? { samplesAvatarId } : {}),
+      ...(mediaIds ? { mediaIds, mediaPart } : {}),
+      ...(pictures ? { pictures } : {}),
     };
   }
   if (last.role === 'assistant') {

@@ -12,3 +12,4 @@ export * from './conductor.errors';
 export * from './conductor.agent';
 export * from './conductor.steps';
 export * from './agent-chat.request';
+export * from './conductor.pictures';

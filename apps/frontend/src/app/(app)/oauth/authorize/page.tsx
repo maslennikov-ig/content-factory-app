@@ -6,12 +6,27 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Logo } from '@contentfactory/frontend/components/new-layout/logo';
 import { Button } from '@contentfactory/react/form/button';
 import { OAuthAuthorizeSurface } from './oauth-authorize.surface';
+import { McpConsent } from './mcp-consent';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 
 type OAuthErrorCode = 'missing_params' | 'unsupported_type' | 'invalid' | 'validate_failed' | 'process_failed';
 
+/**
+ * One consent address for both kinds of client: a workspace's own
+ * third-party app (below, unchanged), and an external assistant that
+ * registered itself for MCP (`content-factory-next-kcxz.26`) — its client id
+ * starts with `mcp_`, and its request carries PKCE and the MCP resource.
+ */
 export default function OAuthAuthorizePage() {
+  const searchParams = useSearchParams();
+  if (searchParams.get('client_id')?.startsWith('mcp_')) {
+    return <McpConsent searchParams={searchParams} />;
+  }
+  return <ThirdPartyAppConsent />;
+}
+
+function ThirdPartyAppConsent() {
   const searchParams = useSearchParams();
   const fetch = useFetch();
   const t = useT();

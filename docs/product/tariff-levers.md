@@ -166,7 +166,7 @@ if (!packageOptions) { can(action, section); continue; }
 | Чат-помощник | `POST /copilot/chat` | `copilot_chat`/`draft` | 1 на запрос (Mastra — на ход) | 1 и больше | `Sections.AI` |
 | Агент пишет пост | `POST /copilot/agent` | `agent`/`draft` | 1 на запрос | 1 и больше | `Sections.AI` |
 | Разбить на тред | `POST /posts/separate-posts` | `text_generation`/`extract` | 1 | 1 + до 4 на длинный кусок | **нет** |
-| Сгенерировать картинку | `POST /media/generate-image[-with-prompt]` | `image_generation`/`image` (+`text_generation`/`draft`) | 1–2 | 1–2 | `image_generation_count` — единственный настоящий счётчик |
+| Сгенерировать картинку | `POST /media/generate-image[-with-prompt]` | `image_generation`/`image` (с `-with-prompt` внутри неё ещё вызов `draft`, промпт картинки; с 28.09.2026 одна операция, `kcxz.44`) | 1 | 1–2 | `image_generation_count` — единственный настоящий счётчик |
 | Картинка внутри генерации поста | внутри графа | внутри `agent` | 0 | N картинок | **никак** (`agent.graph.service.ts`, `getImageModel` напрямую) |
 | Сгенерировать видео | `POST /media/generate-video` | только раскадровка `text_generation`/`draft` | 0–1 | FAL, Kie, ElevenLabs, Transloadit на ключах инстанса | `generate_videos`; провайдеры мимо реестра |
 | Автопост по ленте | планировщик, `POST /autopost/v2` | `web_research` + `autopost` | 2–3 | 1–2 поиск + 1–3 | нет, `userId` пуст |

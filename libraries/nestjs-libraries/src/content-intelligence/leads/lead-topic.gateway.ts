@@ -339,7 +339,7 @@ export class LeadTopicGateway {
       );
     }
 
-    return { disabled: false, items };
+    return { disabled: false, items, ...(result.fromCache ? { fromCache: true as const } : {}) };
   }
 
   /**

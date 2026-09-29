@@ -58,6 +58,9 @@ export const questionCardView = (payload: unknown): unknown => {
   return { ...shown, [AGENT_CARD_ID_KEY]: questionCardId(payload) };
 };
 
+/** A media library id: the same shape `media.keep` takes (review W4-25 vision F9). */
+const LIBRARY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const onlyKeys = (answer: Record<string, unknown>, allowed: readonly string[]) =>
   Object.keys(answer).every((key) => allowed.includes(key));
 
@@ -86,6 +89,19 @@ export const answerFitsCard = (payload: unknown, answer: Record<string, unknown>
       return (
         (answer.decideKeys === undefined || isStringList(answer.decideKeys)) &&
         (answer.answers === undefined || Array.isArray(answer.answers))
+      );
+    }
+    case 'keep-picture': {
+      // The browser's answer after it put the picture into the library (or
+      // could not): the person's, no «Решите за меня».
+      // The id is a library id, and «kept» names one (review W4-25 vision F9).
+      if (!onlyKeys(answer, ['kept', 'mediaId', 'gone'])) return false;
+      return (
+        typeof answer.kept === 'boolean' &&
+        (answer.mediaId === undefined ||
+          (typeof answer.mediaId === 'string' && LIBRARY_ID.test(answer.mediaId))) &&
+        (answer.kept !== true || answer.mediaId !== undefined) &&
+        (answer.gone === undefined || typeof answer.gone === 'boolean')
       );
     }
     case 'consent': {

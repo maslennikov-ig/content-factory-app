@@ -571,6 +571,17 @@ describe('D7 — the approval footnote matches what the action does', () => {
     expect(cards.approvalNoteOf('avatar_activate', false)).toBe('undo');
   });
 
+  test('W4 walk P3-E: lead actions never promise an undo the screen does not have', async () => {
+    expect(cards.approvalNoteOf('ideas_dismiss', false)).toBe('dismiss');
+    expect(cards.approvalNoteOf('ideas_take', false)).toBe('take');
+    expect(cards.approvalNoteOf('ideas_archive', false)).toBe('archive');
+    const dismiss = await draw('ideas_dismiss');
+    expect(dismiss).toContain(ru.approval.dismissNote);
+    expect(dismiss).not.toContain(ru.approval.reversibleNote);
+    expect(await draw('ideas_take')).toContain(ru.approval.takeNote);
+    expect(await draw('ideas_archive')).toContain(ru.approval.archiveNote);
+  });
+
   test('the conversation tells the card which tool asks', () => {
     expect(source('apps/frontend/src/components/agents/agent.conversation.tsx')).toContain(
       'toolName={block.toolName}'

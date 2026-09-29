@@ -55,8 +55,11 @@ type ListRow = {
 
 const CHANNEL_MISSING = 'There is no such channel in this workspace; nothing was done.';
 
-/** The channel as the list door reads it, in the caller's workspace only. */
-const channelRow = async (ctx: ServiceContext, id: string): Promise<ListRow> => {
+/**
+ * The channel as the list door reads it, in the caller's workspace only, or
+ * `CHANNEL_NOT_FOUND`. Shared with the analytics and texts reads (`kcxz.24`).
+ */
+export const channelRow = async (ctx: ServiceContext, id: string): Promise<ListRow> => {
   const rows = (await ctx
     .service(IntegrationService)
     .getIntegrationsForChannelList(ctx.organizationId)) as unknown as ListRow[];

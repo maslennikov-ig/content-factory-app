@@ -9,6 +9,8 @@ interface VariableContextInterface {
   oauthLogoUrl: string;
   oauthDisplayName: string;
   mcpUrl?: string;
+  /** `MCP_ENABLED="true"` on this instance (`kcxz.26`, review W5-26 F7). */
+  mcpEnabled?: boolean;
   cloudflareUrl: string;
   mainUrl: string;
   frontEndUrl: string;
@@ -48,6 +50,7 @@ const VariableContext = createContext({
   oauthLogoUrl: '',
   oauthDisplayName: '',
   mcpUrl: '',
+  mcpEnabled: false,
   cloudflareUrl: '',
   mainUrl: '',
   frontEndUrl: '',

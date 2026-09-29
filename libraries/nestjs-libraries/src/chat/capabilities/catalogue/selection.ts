@@ -107,6 +107,28 @@ export const codedFailure = (code: string, message: string) =>
   Object.assign(new Error(message), { code });
 
 /**
+ * A paid capability's refusal before anything was spent — a lead not taken
+ * yet, a subscription checked a minute ago, nothing to write from. The chat
+ * adapter gives the message's paid step back on it, as it does for a run that
+ * answers `spentNothing` (review W4-23 F2): a refusal that tells the model to
+ * take one more step first must leave room for the paid step after it.
+ */
+export const unspentFailure = (code: string, message: string) =>
+  Object.assign(codedFailure(code, message), { spentNothing: true as const });
+
+/** Marks a service's own refusal as one that came before any spend. */
+export const markUnspent = <T>(error: T): T => {
+  if (error && typeof error === 'object') {
+    (error as { spentNothing?: boolean }).spentNothing = true;
+  }
+  return error;
+};
+
+/** Whether a thrown refusal said it came before any spend. */
+export const failedUnspent = (error: unknown) =>
+  !!error && typeof error === 'object' && (error as { spentNothing?: unknown }).spentNothing === true;
+
+/**
  * A failure a service reported as an event (`{ name: 'error', code, message }`)
  * — the adapt, intake and answer generators (correctness review W2 F13). The
  * service's words reach the model only under a product code other than the

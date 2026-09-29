@@ -203,9 +203,9 @@ export class OAuthRepository {
           select: {
             id: true,
             activated: true,
-            // MCP checks the member's role in the token's workspace
-            // (`content-factory-next-kcxz.1`); every membership is selected
-            // because the filter would need the row's own organization id.
+            // Selected for the old MCP bridge's role check (`kcxz.1`). A
+            // `pos_` token no longer opens MCP at all (`kcxz.26`, its own
+            // OAuth); the field stays until the public API reads roles.
             organizations: {
               select: { organizationId: true, role: true, disabled: true },
             },

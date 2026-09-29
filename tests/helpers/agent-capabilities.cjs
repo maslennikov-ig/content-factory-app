@@ -57,6 +57,17 @@ const SERVICE_MODULES = {
   // The AI settings doors' service (`ai.*`, kcxz.20).
   '@contentfactory/nestjs-libraries/openai/ai.provider.service':
     'AiProviderService',
+  // «Откуда идеи» (`ideas.*`, kcxz.23).
+  '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service':
+    'ContentLeadService',
+  // Facts and «Свои тексты по теме» (`facts.*`, `texts.related`, kcxz.24).
+  '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service':
+    'ContentFactService',
+  '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service':
+    'ContentMaterialService',
+  // The media library and a generated picture (`media.*`, kcxz.25).
+  '@contentfactory/nestjs-libraries/database/prisma/media/media.service':
+    'MediaService',
 };
 const services = Object.fromEntries(
   Object.entries(SERVICE_MODULES).map(([request, name]) => [
@@ -635,7 +646,239 @@ const fixtures = () => ({
   ...avatarFixtures(),
   ...channelFixtures(),
   ...aiSettingsFixtures(),
+  ...ideaFixtures(),
+  ...factFixtures(),
+  ...mediaFixtures(),
 });
+
+/**
+ * The media library and a generated picture (`kcxz.25`): a file name is
+ * whatever the uploader's computer called it — the injected text — so the
+ * library's summary carries it wrapped; a generated picture echoes only ids,
+ * the stored name and the style.
+ */
+const mediaFixtures = () => {
+  const media = {
+    MediaService: {
+      recentMedia: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return {
+          pages: 1,
+          results: [
+            { id: 'm1', name: 'x1.png', originalName: INJECTION, path: 'https://cdn.example/x1.png' },
+            { id: 'm2', name: 'clip.mp4', originalName: null, path: 'https://cdn.example/clip.mp4' },
+          ],
+        };
+      },
+      generateImageIntoLibraryFor: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return { id: 'm9', name: 'generated.png', path: 'https://cdn.example/generated.png' };
+      },
+    },
+    PieceService: {
+      detail: async (organizationId, pieceId) => {
+        if (organizationId !== 'org-1' || pieceId !== 'p1') throw new Error('not found');
+        return { piece: { id: 'p1', code: 'cnt-01', title: INJECTION }, adaptations: [{ id: 'a1', body: INJECTION }] };
+      },
+    },
+    // The pre-check of the two operations a picture takes (review W4-25 F1).
+    AiUsageService: {
+      readAllowance: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return { mode: 'workspace_key' };
+      },
+    },
+  };
+  return {
+    'media.library': { input: {}, services: media },
+    'media.generate': { input: { pieceId: 'p1', adaptationId: 'a1' }, services: media },
+    // The browser answered the card with the library id of the picture it
+    // uploaded; the library row's name is the uploader's (the injected text).
+    'media.keep': {
+      input: { pictureKey: '22222222-0000-4000-8000-000000000001' },
+      resumeData: { kept: true, mediaId: '11111111-0000-4000-8000-000000000001' },
+      services: {
+        MediaService: {
+          mediaInWorkspace: async (organizationId, ids) =>
+            organizationId === 'org-1'
+              ? ids.map((id) => ({ id, name: 'x1.png', originalName: INJECTION, path: 'https://cdn.example/x1.png' }))
+              : [],
+        },
+      },
+    },
+  };
+};
+
+/**
+ * Facts, own texts, the cliché check and analytics (`kcxz.24`): every
+ * statement, title, excerpt, failure reason and channel name a person, a
+ * platform or a search wrote is the injected text, so each summary that
+ * carries one must carry it wrapped; an add echoes only what its call wrote.
+ */
+const factFixtures = () => {
+  const fact = (status = 'VERIFIED') => ({
+    id: 'f1',
+    claimKey: 'цена|тариф',
+    topic: 'цена',
+    topicLabel: INJECTION,
+    statement: INJECTION,
+    language: 'ru',
+    temporalKind: 'TIMELESS',
+    freshUntil: null,
+    status,
+    grounding: { method: 'OWN_MATERIAL', sourceLabel: INJECTION, sourceUrl: 'https://example.org/a' },
+    needsLook: false,
+    evidence: [],
+  });
+  const facts = {
+    ContentFactService: {
+      listFacts: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return [fact()];
+      },
+      fact: async (organizationId, id) =>
+        organizationId === 'org-1' && id === 'f1' ? { id: 'f1', statement: INJECTION, status: 'VERIFIED' } : null,
+      // What the door answers: the stored row, with a stranger's words in it.
+      createFact: async () => ({ ...fact(), id: 'f2' }),
+      addFact: async () => ({ fact: { ...fact(), id: 'f2' }, existed: true }),
+      retractFact: async () => fact('RETRACTED'),
+      restoreFact: async () => fact(),
+    },
+  };
+  const retracted = {
+    ContentFactService: {
+      ...facts.ContentFactService,
+      fact: async () => ({ id: 'f1', statement: INJECTION, status: 'RETRACTED' }),
+    },
+  };
+  const channel = {
+    id: 'c1',
+    name: INJECTION,
+    providerIdentifier: 'telegram',
+    disabled: false,
+    refreshNeeded: false,
+  };
+  const integrations = {
+    getIntegrationsForChannelList: async () => [channel],
+    checkAnalytics: async () => [
+      { label: INJECTION, data: [{ total: '3', date: '2026-09-20' }], percentageChange: 10 },
+    ],
+  };
+  return {
+    'facts.list': { input: {}, services: facts },
+    'facts.add': { input: { statement: 'Пробный период — 14 дней.' }, services: facts },
+    'facts.retract': { input: { factId: 'f1' }, services: facts },
+    'facts.restore': { input: { factId: 'f1' }, services: retracted },
+    'texts.related': {
+      input: { topic: 'созвоны', channelId: 'c1' },
+      services: {
+        IntegrationService: integrations,
+        ContentMaterialService: {
+          listRelated: async () => ({
+            related: [
+              {
+                id: 'post-1',
+                kind: 'POST',
+                title: INJECTION,
+                excerpt: INJECTION,
+                url: 'https://t.me/c/1',
+                platform: 'telegram',
+                publishedAt: '2026-09-20T07:00:00.000Z',
+                score: 1,
+              },
+            ],
+          }),
+        },
+      },
+    },
+    'text.slop_check': {
+      input: { text: `Давайте разберёмся. ${INJECTION}. Важно отметить, что это не просто текст, а настоящий вызов.` },
+      services: {},
+    },
+    'analytics.production': {
+      input: {},
+      services: {
+        PostsService: {
+          getProductionAnalytics: async () => ({
+            period: { days: 30, from: '2026-08-29T00:00:00.000Z', to: '2026-09-27T10:00:00.000Z' },
+            summary: { publishedVolume: 3, failureCount: 1, failureRate: 25, averageLeadTimeHours: 5 },
+            originMix: [{ origin: 'WEB', count: 4, percentage: 100 }],
+            failureReasons: [{ reason: INJECTION, count: 1 }],
+          }),
+        },
+      },
+    },
+    'analytics.channel': { input: { channelId: 'c1' }, services: { IntegrationService: integrations } },
+  };
+};
+
+/**
+ * «Откуда идеи» (`kcxz.23`): every name, topic, title, excerpt and reason a
+ * person, a feed or a search engine wrote is the injected text, so each
+ * summary that carries one must carry it wrapped; an answer that echoes only
+ * what its own call wrote carries none.
+ */
+const ideaFixtures = () => {
+  const subscription = (id, kind) => ({
+    id,
+    kind,
+    displayName: INJECTION,
+    canonicalUrl: kind === 'TOPIC' ? `topic://${INJECTION}` : 'https://example.org/rss',
+    query: kind === 'TOPIC' ? INJECTION : null,
+    state: 'ACTIVE',
+    lastCheckedAt: '2026-09-27T06:00:00.000Z',
+    lastErrorCode: null,
+    leadsThisMonth: 1,
+    acceptedThisMonth: 0,
+  });
+  const lead = (status = 'NEW') => ({
+    id: 'lead-1',
+    subscriptionId: 'sub-1',
+    subscriptionName: INJECTION,
+    title: INJECTION,
+    excerpt: INJECTION,
+    sourceUrl: 'https://example.org/a/1',
+    publishedAt: '2026-09-26T08:00:00.000Z',
+    reasonRu: INJECTION,
+    reasonEn: INJECTION,
+    status,
+  });
+  const services = {
+    ContentLeadService: {
+      feedCheckEnabled: true,
+      topicCheckEnabled: true,
+      listSubscriptions: async (organizationId) => {
+        if (organizationId !== 'org-1') throw new Error('not found');
+        return {
+          subscriptions: [subscription('sub-1', 'RSS'), subscription('sub-2', 'TOPIC')],
+          capabilities: { feedCheck: true, topicCheck: true },
+        };
+      },
+      listLeads: async () => ({ leads: [lead()] }),
+      // What the door answers: the stored row, with a stranger's words in it.
+      createSubscription: async (_org, _user, body) => ({
+        ...subscription('sub-3', body.kind),
+        displayName: INJECTION,
+      }),
+      archiveSubscription: async () => ({ archived: true }),
+      checkSubscription: async () => ({ checked: true, created: 1 }),
+      getLead: async () => lead(),
+      dismissLead: async () => lead('DISMISSED'),
+      dismissLeads: async (_org, ids) => ({ dismissed: [...ids], alreadyDismissed: [] }),
+      acceptLead: async () => lead('ACCEPTED'),
+    },
+  };
+  return {
+    'ideas.list': { input: {}, services },
+    'ideas.queue': { input: {}, services },
+    'ideas.feed.add': { input: { url: 'https://example.org/rss' }, services },
+    'ideas.topic.add': { input: { topic: 'ИИ в малом бизнесе' }, services },
+    'ideas.archive': { input: { subscriptionId: 'sub-1' }, services },
+    'ideas.check': { input: { subscriptionId: 'sub-2' }, services },
+    'ideas.dismiss': { input: { leadIds: ['lead-1'] }, services },
+    'ideas.take': { input: { leadId: 'lead-1' }, services },
+  };
+};
 
 /**
  * The avatar group (`kcxz.18`): every name, line, title and rule a person or

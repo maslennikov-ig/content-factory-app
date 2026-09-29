@@ -43,7 +43,30 @@ const fromProvider = (error: unknown) =>
   /^AI_(APICall|LoadAPIKey)Error$/.test(String(field(error, 'name') ?? '')) ||
   typeof field(error, 'url') === 'string';
 
-export const conductorErrorCode = (error: unknown): AgentErrorCode => {
+/**
+ * What a turn knows about its own request when it words an error: whether
+ * the model step that failed carried the message's pictures.
+ */
+export type ConductorErrorScope = { picturesInStep?: () => boolean };
+
+/** A provider's refusal of the request's content, not of the key or the model. */
+const CONTENT_REJECTIONS = new Set([400, 413, 415, 422]);
+
+export const conductorErrorCode = (
+  error: unknown,
+  scope: ConductorErrorScope = {}
+): AgentErrorCode => {
+  const code = ownErrorCode(error);
+  // The step that carried the pictures was refused for its content: the
+  // model does not take pictures, or not this one (review W4-25 vision F5).
+  if (code === 'AI_PROVIDER_REJECTED' && scope.picturesInStep?.()) {
+    const status = statusOf(error) ?? statusOf(field(error, 'cause'));
+    if (status !== undefined && CONTENT_REJECTIONS.has(status)) return 'AGENT_PICTURE_NOT_SEEN';
+  }
+  return code;
+};
+
+const ownErrorCode = (error: unknown): AgentErrorCode => {
   const cause = field(error, 'cause');
   const name = String(field(error, 'name') ?? '');
   const id = String(field(error, 'id') ?? '');
@@ -104,8 +127,8 @@ const logger = new Logger('AgentConductor');
  * the code, the error's name, message and stack, with key shapes redacted —
  * a provider error may quote the request it refused.
  */
-export const logConductorError = (error: unknown) => {
-  const code = conductorErrorCode(error);
+export const logConductorError = (error: unknown, scope: ConductorErrorScope = {}) => {
+  const code = conductorErrorCode(error, scope);
   const name = String(field(error, 'name') ?? typeof error);
   const message = redactSecretShapes(
     String(field(error, 'message') ?? (typeof error === 'string' ? error : ''))
@@ -118,7 +141,7 @@ export const logConductorError = (error: unknown) => {
 };
 
 /** `onError` of `handleChatStream`: the code, never a message; the log keeps the rest. */
-export const conductorOnError = (error: unknown): string => {
-  logConductorError(error);
-  return conductorErrorCode(error);
+export const conductorOnError = (error: unknown, scope: ConductorErrorScope = {}): string => {
+  logConductorError(error, scope);
+  return conductorErrorCode(error, scope);
 };

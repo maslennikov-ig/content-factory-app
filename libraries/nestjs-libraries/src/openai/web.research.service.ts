@@ -122,6 +122,11 @@ export interface WebResearchResult {
   sources: WebResearchSource[];
   provider: SearchProvider | 'mixed';
   discovery?: WebResearchDiscoveryJudgement[];
+  /**
+   * Answered from the research cache: no search went out and no operation
+   * was opened (review W4-23 F4). Absent on a fresh answer.
+   */
+  fromCache?: true;
 }
 
 export interface WebResearchOptions {
@@ -1321,7 +1326,7 @@ Summary: {summary}`
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);
-      return cached;
+      return { ...cached, fromCache: true };
     }
     const primary = providerForSearchTask(task, config.search);
     const primaryCredential = searchCredentialFor(primary, config.search);

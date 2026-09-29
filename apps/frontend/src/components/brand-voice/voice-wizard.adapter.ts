@@ -120,6 +120,10 @@ export const wizardCopy = {
     // «Разбор прерван» with the numbers that were saved and the rerun button.
     proposalMissing:
       'В прошлый раз ИИ не закончил предложение. Числа сохранены. Чтобы получить предложение, запустите разбор ещё раз — это около пяти минут.',
+    // Another start of this avatar's analysis got there first (`kcxz.39`):
+    // the chat, a second tab. Said in the screen's language, not the server's.
+    analysisRunning:
+      'Разбор этого аватара уже идёт — в чате или в другой вкладке. Второй не запущен, ничего не потрачено. Результат появится здесь через несколько минут.',
     analysingMeasuring: 'считаем длину фраз, пунктуацию и повторы',
     analysingAssisting: 'составляем предложение голоса',
     unknownFailure:
@@ -183,6 +187,8 @@ export const wizardCopy = {
     analysing: 'Reading your texts',
     proposalMissing:
       'Last time the AI did not finish the proposal. The numbers are saved. To get a proposal, run the analysis again — it takes about five minutes.',
+    analysisRunning:
+      "This avatar's analysis is already running — in the chat or another tab. A second one was not started and nothing was spent. The result will appear here in a few minutes.",
     analysingMeasuring: 'counting sentence length, punctuation and repetition',
     analysingAssisting: 'drafting the voice proposal',
     unknownFailure:
@@ -270,6 +276,7 @@ export function voiceFailureFrom(
   let message = code
     ? asText(body.message) || wizardCopy[locale].unknownFailure
     : wizardCopy[locale].unknownFailure;
+  if (code === 'VOICE_ANALYSIS_RUNNING') message = wizardCopy[locale].analysisRunning;
   if (!code && body.streamFailure === 'network') {
     message = locale === 'ru'
       ? 'Соединение оборвалось. Числа, которые сервер успел посчитать, сохранены. Повторите разбор.'
@@ -504,6 +511,8 @@ export type AnalysisReading =
       hasProposal?: boolean;
       corpusChanged?: boolean;
       measuredAt?: string;
+      /** The run ended without a proposal (`kcxz.40`): not «still finishing». */
+      proposalFailed?: boolean;
     };
 
 const asPercentOrNull = (value: unknown): number | null =>
@@ -567,6 +576,7 @@ export function readAnalysis(value: unknown): AnalysisReading {
     ...(asText(analysis.measuredAt)
       ? { measuredAt: asText(analysis.measuredAt) }
       : {}),
+    ...(analysis.proposalFailed === true ? { proposalFailed: true } : {}),
   };
 }
 
@@ -584,6 +594,14 @@ export {
 
 /** How often a returning person's screen asks whether the run has finished. */
 export const ANALYSIS_WATCH_INTERVAL_MS = 10_000;
+
+/**
+ * How long a screen whose start was refused as `VOICE_ANALYSIS_RUNNING` keeps
+ * waiting while nothing is stored yet (`kcxz.39`, review W4-39-40 F1): the
+ * other run saves its numbers in seconds, and its claim lapses in two minutes
+ * if its process died, so past this the texts step opens again.
+ */
+export const ANALYSIS_ELSEWHERE_GRACE_MS = 120_000;
 
 /* -------------------------------------------------------------------------
  * Разбор строками: события стрима и полоса, которую они двигают

@@ -9,6 +9,9 @@
  * - `id`, `title`;
  * - `covers`: the capability ids it drives end to end (the coverage guard
  *   reads this, and the scenario suite checks the model really called each);
+ * - `skills`: skills of the conductor it proves when it is not about a
+ *   capability (the «help» answers, kcxz.24); the guard checks they exist
+ *   and that the script activates them;
  * - `role` (default `EDITOR`) and `world` (overrides of the base rows);
  * - `turns`: requests to `POST /agent/chat`, in order — `{ say }` a message
  *   (with `samples`: the receipt of files the composer uploaded, kcxz.18),

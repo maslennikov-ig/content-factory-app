@@ -28,6 +28,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
 import { VideoFrame } from '@contentfactory/react/helpers/video.frame';
 import { useUppyUploader } from '@contentfactory/frontend/components/media/new.uploader';
+import { mediaLibraryKey } from './media-library.keys';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { AiImage } from '@contentfactory/frontend/components/launches/ai.image';
 import { DropFiles } from '@contentfactory/frontend/components/layout/drop.files';
@@ -301,7 +302,7 @@ export const MediaBox: FC<{
     return (await fetch(`/media?${params.toString()}`)).json();
   }, [page, debouncedSearch]);
   const { data, mutate, isLoading } = useSWR(
-    `get-media-${page}-${debouncedSearch}`,
+    mediaLibraryKey(page, debouncedSearch),
     loadMedia
   );
   const [selected, setSelected] = useState([]);

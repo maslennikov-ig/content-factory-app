@@ -42,6 +42,9 @@ export const CARD_KINDS = [
   'channel',
   'channel-connect',
   'secret',
+  'ideas',
+  'facts',
+  'media',
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
@@ -103,6 +106,24 @@ export type AgentCardPayloads = {
    * — its writing card, plan mode, posting times and recent posts.
    */
   channel: { kind: 'channel'; id: string; name?: string; provider?: string };
+  /**
+   * «Откуда идеи» (`kcxz.23`): the panel opens the subscriptions and the
+   * leads' queue — the screen's own tab — so what the chat added, checked,
+   * declined or took is seen there. `id` is always `leads`: there is one.
+   */
+  ideas: { kind: 'ideas'; id: string };
+  /**
+   * «Откуда факты» (`kcxz.24`): the panel opens the facts the product holds
+   * true — the screen's own tab — so a fact the chat added, retracted or
+   * brought back is seen there. `id` is always `facts`: there is one.
+   */
+  facts: { kind: 'facts'; id: string };
+  /**
+   * «Медиатека» (`kcxz.25`): the panel opens the workspace's media library —
+   * the screen's own — newest first, so a picture the chat generated is the
+   * first one there. `id` is always `library`: there is one.
+   */
+  media: { kind: 'media'; id: string };
   /**
    * Connecting a channel (`kcxz.19`, spec §6.2 «Channel connect»): `id` is
    * the platform (`telegram`, `linkedin`…). `flow` says what the card draws:
@@ -225,6 +246,22 @@ export type AgentConsentQuestionPayload = {
 };
 
 /**
+ * The card of `media.keep` (owner decision 28.09.2026, «агент видит
+ * картинки»): the browser that holds the picture it showed the agent puts it
+ * into the media library when the person agrees, and answers
+ * `{ kept: true, mediaId }`, `{ kept: false }` or `{ kept: false, gone: true }`
+ * when the page no longer holds it. No «Решите за меня».
+ */
+export type AgentKeepPictureQuestionPayload = {
+  kind: 'keep-picture';
+  question: string;
+  /** The key the browser keeps the picture under. */
+  pictureKey: string;
+  canDecideForPerson: false;
+  cardId?: string;
+};
+
+/**
  * The adaptation interview card (`kcxz.14`): questions for one channel, each
  * with the suggested answer (`null` — we ask for the person's words), finite
  * options and why it is asked. The answer is
@@ -309,6 +346,12 @@ export const AGENT_ERROR_CODES = [
    * setting it does not take; trying again changes nothing (kcxz.29, D9).
    */
   'AI_PROVIDER_REJECTED',
+  /**
+   * The provider refused the step that carried the message's pictures: the
+   * model does not take pictures, or not this one (review W4-25 vision F5).
+   * Sending the message without the picture works.
+   */
+  'AGENT_PICTURE_NOT_SEEN',
   /** A safety processor stopped the turn (e.g. a key shape in the input). */
   'AGENT_BLOCKED',
   /**
@@ -394,6 +437,37 @@ export type AgentSamplesUploadV1 = {
   telegram: Array<{ name: string; selected: number; eligible: number }>;
 };
 
+/*
+ * Pictures attached in the chat (`kcxz.25`). A picture never passes through
+ * the chat door or the model: the composer uploads it from the browser to the
+ * media library itself (`POST /media/upload-simple`, the request the library
+ * screen sends) and the message carries only this receipt — the library ids,
+ * the names and the types. The door checks every id is a live item of the
+ * caller's workspace and that the role may upload, then hands the receipt to
+ * the model as untrusted data (the names are the person's); the agent puts a
+ * picture on a post with `adaptation.image` by its id.
+ */
+export const AGENT_MEDIA_PART_TYPE = 'data-media-upload' as const;
+/** Pictures of one message: the chat's own attachment count. */
+export const AGENT_MEDIA_MAX_FILES = 5;
+/** The pictures the composer sends to the library: the chat's own image types. */
+export const AGENT_MEDIA_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+] as const;
+export type ChatPictureType = (typeof AGENT_MEDIA_TYPES)[number];
+export type LibraryUploadReceiptV1 = {
+  media: Array<{
+    /** The library item's id (`Media.id`). */
+    id: string;
+    /** The file name, as the person's browser named it. */
+    name: string;
+    type: ChatPictureType;
+  }>;
+};
+
 /**
  * Answers one approval request may carry (correctness review W1 F4). Mastra
  * resumes each answer as its own leg; the door splits the turn's step cap
@@ -437,7 +511,8 @@ export type AgentChatRequestV1 = {
  * созвоны» вместе с её адаптациями»). AI SDK UI puts it on the tool part as
  * `approval.requestReason`. It reaches the browser only, never the model.
  */
-export const AGENT_APPROVAL_SUMMARY_MAX = 300;
+/** 700 since kcxz.45: a «Не надо» card names each of up to ten leads. */
+export const AGENT_APPROVAL_SUMMARY_MAX = 700;
 
 /**
  * Request header of every `/agent` door: the browser's IANA time zone

@@ -11,6 +11,7 @@ import {
   type ResolvedBrandProfileContextV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
+import { factRecordAdmission } from './fact-admission';
 import { ContentContextRepository } from './content-context.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import type {
@@ -280,12 +281,15 @@ export class ContentContextBuilderV1 {
             link.evidence.organizationId === organizationId &&
             !sourceRemoved(link.evidence)
         );
-        if (fact.status === 'CONFLICTED' || acceptedContradiction) {
+        // The fact's own record, by the rule the chat's `inWork` shares
+        // (`fact-admission.ts`, review W4-24 F5).
+        const byRecord = factRecordAdmission(fact, asOf);
+        if (byRecord === 'CONFLICTED' || acceptedContradiction) {
           rejected.set(fact.id, 'CONFLICTED');
           sawConflict = true;
           return null;
         }
-        if (fact.status !== 'VERIFIED' || !fact.verifiedAt) {
+        if (byRecord === 'UNVERIFIED') {
           rejected.set(fact.id, 'UNVERIFIED');
           return null;
         }
@@ -319,7 +323,7 @@ export class ContentContextBuilderV1 {
             // a stale claim — "we have 12 employees right now" past its own
             // stated horizon — stand as current. A `TIMELESS`/`DATED` fact
             // carries no `freshUntil` at all and is unaffected.
-            if (fact.freshUntil && fact.freshUntil.getTime() < asOf.getTime()) {
+            if (byRecord === 'STALE') {
               rejected.set(fact.id, 'STALE');
               sawStale = true;
               return null;
@@ -344,7 +348,7 @@ export class ContentContextBuilderV1 {
           .sort((left, right) => left.id.localeCompare(right.id));
         if (
           !fact.freshUntil ||
-          fact.freshUntil.getTime() < asOf.getTime() ||
+          byRecord === 'STALE' ||
           !freshSupports.length
         ) {
           rejected.set(fact.id, 'STALE');

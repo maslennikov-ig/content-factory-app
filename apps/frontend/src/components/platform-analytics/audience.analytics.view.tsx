@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Metric } from '../ui/metric';
+import { audienceMetricValue } from '@contentfactory/nestjs-libraries/integrations/audience-analytics.rules';
 import { Button } from '@contentfactory/react/form/button';
 import {
   EmptyState,
@@ -176,14 +177,8 @@ export function AudienceAnalyticsView({
         ) : (
           <div className="mt-[24px] grid grid-cols-3 gap-[12px] tablet:grid-cols-2 mobile:grid-cols-1">
             {metrics.map((metric) => {
-              const total = metric.data.reduce(
-                (sum, point) => sum + point.total,
-                0
-              );
-              const value =
-                metric.average && metric.data.length
-                  ? `${(total / metric.data.length).toFixed(2)}%`
-                  : total;
+              // One rule with the chat's `analytics.channel` (`kcxz.24`).
+              const value = audienceMetricValue(metric);
               return (
                 // The shared metric card (`97dq.76`, audit §6.3): the
                 // number is `cf-display-num`, as on Производство.

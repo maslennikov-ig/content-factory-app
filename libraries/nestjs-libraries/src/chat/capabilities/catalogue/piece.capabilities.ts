@@ -3,6 +3,8 @@ import { ContentPieceController } from '@contentfactory/backend/api/routes/conte
 import { ContentIntakeController } from '@contentfactory/backend/api/routes/content-intake.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { IntakeService } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake.service';
+import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service';
+import { leadIntakeText } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-intake';
 import { INTAKE_SNAPSHOT_TTL_SECONDS } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake-snapshot.store';
 import {
   INTAKE_INPUT_MAX_CHARS,
@@ -29,6 +31,8 @@ import {
   shortQuestion,
   type FactSelection,
   type ResearchLevel,
+  markUnspent,
+  unspentFailure,
 } from './selection';
 import { slotStateOf } from './plan.capabilities';
 import type { PlanSlotState } from '../agent-parts.contract';
@@ -129,6 +133,12 @@ type PieceCreated = {
    * and mark the facts» (kcxz.36, F6).
    */
   factsCard?: 'answered' | 'not_shown';
+  /**
+   * The lead the piece was written from (review W4-23 F6). Its text went in
+   * unseen by the person, as the screen's field would have held it, so the
+   * answer names it.
+   */
+  fromLead?: string;
 };
 
 type IntakePass =
@@ -196,13 +206,20 @@ export const pieceCreate = defineCapability({
   group: 'content',
   label: { ru: 'Написать заготовку', en: 'Write a piece' },
   description:
-    'Write a new piece (заготовка) — the intake of «Новый материал». Paid. Pass the person\'s words verbatim and the kind: thought («Свой текст», default), foreign_post («Чужой пост» — somebody else\'s text to rework) or instruction («Задание» — a task: what to write about). A message that is only a link is read as a link. Search the web (`research`) only when the person asks for it; with search, the person may be shown the found facts to keep, and the call continues with their choice. Returns the piece id, its code and how many open questions it has; the text is on the card, do not retype it. `factsKept` with `factsCard` means the facts are already chosen and the piece stands on them: never ask the person to look at or mark facts again.',
+    'Write a new piece (заготовка) — the intake of «Новый материал». Paid. From a lead taken with ideas.take, pass `sourceLeadId` and, as `text`, only words the person added (or none): the piece is written from the lead as the server stores it and keeps its address as the source; the person did not see that text, so say in one line which lead it was written from, by the title ideas.take or ideas.queue gave. Otherwise pass the person\'s words verbatim and the kind: thought («Свой текст», default), foreign_post («Чужой пост» — somebody else\'s text to rework) or instruction («Задание» — a task: what to write about). A message that is only a link is read as a link. Search the web (`research`) only when the person asks for it; with search, the person may be shown the found facts to keep, and the call continues with their choice. Returns the piece id, its code and how many open questions it has; the text is on the card, do not retype it. `factsKept` with `factsCard` means the facts are already chosen and the piece stands on them: never ask the person to look at or mark facts again.',
   input: z.object({
     text: z
       .string()
       .min(1)
       .max(INTAKE_INPUT_MAX_CHARS)
-      .describe('The person\'s words, verbatim'),
+      .optional()
+      .describe('The person\'s words, verbatim; with sourceLeadId only what they added, if anything'),
+    sourceLeadId: z
+      .string()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe('The lead taken to work with ideas.take: the piece is written from it and keeps its address'),
     inputKind: z
       .enum(INTAKE_KINDS)
       .optional()
@@ -222,13 +239,52 @@ export const pieceCreate = defineCapability({
   resumeSchema: factAnswer,
   run: async (ctx, input, emit): Promise<PieceCreated | undefined> => {
     const level: ResearchLevel | null = input.research ?? null;
+    const words = input.text?.trim() ?? '';
+    // A lead is read by the server, by id, in the caller's workspace — never
+    // taken from words the model retyped — and only once it was taken to
+    // work, as the screen takes it before the intake opens (kcxz.23).
+    let text = words;
+    if (input.sourceLeadId) {
+      // Every refusal here comes before anything is spent, so it gives the
+      // message's paid step back (review W4-23 F2): «take it first» must
+      // leave room for this call again after ideas.take, in the same turn.
+      let lead: { title: string; excerpt: string | null; sourceUrl: string; status: string };
+      try {
+        lead = (await ctx
+          .service(ContentLeadService)
+          .getLead(ctx.organizationId, input.sourceLeadId)) as typeof lead;
+      } catch (error) {
+        throw markUnspent(error);
+      }
+      if (lead.status !== 'ACCEPTED') {
+        throw unspentFailure(
+          'IDEAS_LEAD_NOT_TAKEN',
+          'This lead was not taken to work; take it with ideas.take, then call piece.create again — in this turn. Nothing was written or spent.'
+        );
+      }
+      // The screen's first text of the intake (`leadToIntakePrefill`), then
+      // what the person added.
+      text = [leadIntakeText(lead), words].filter(Boolean).join('\n\n');
+    }
+    if (!text) {
+      throw unspentFailure('INTAKE_TEXT_MISSING', 'There is nothing to write from: no words and no lead. Nothing was spent.');
+    }
+    // The door's own limit (`content-intake.dto.ts`) on what the intake reads,
+    // which the lead and the added words could pass together (review W4-23 F8).
+    if (text.length > INTAKE_INPUT_MAX_CHARS) {
+      throw unspentFailure(
+        'INTAKE_TEXT_TOO_LONG',
+        `Together with the lead the text is longer than the intake reads (${INTAKE_INPUT_MAX_CHARS} characters); nothing was written or spent. Ask the person to shorten what they added.`
+      );
+    }
     // Exactly what the screen sends (`buildIntakePayload`): the trimmed text,
-    // the kind, the interface language and both research options.
+    // the kind, the interface language, both research options and the lead.
     const body = {
-      input: input.text.trim(),
-      inputKind: screenInputKind(input.text, input.inputKind),
+      input: text,
+      inputKind: screenInputKind(text, input.inputKind),
       language: ctx.language,
       options: { researchEnabled: level !== null, researchLevel: level ?? 'standard' },
+      ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
     };
     const finished = (
       pass: IntakePass,
@@ -245,6 +301,7 @@ export const pieceCreate = defineCapability({
         research: level,
         ...(kept !== undefined ? { factsKept: kept } : {}),
         ...(kept !== undefined && card ? { factsCard: card } : {}),
+        ...(input.sourceLeadId ? { fromLead: input.sourceLeadId } : {}),
       };
     };
     // The second request of the screen: the same body, the rows kept and the
@@ -321,6 +378,14 @@ export const pieceCreate = defineCapability({
     ...(output.research ? { research: output.research } : {}),
     ...(output.factsKept !== undefined ? { factsKept: output.factsKept } : {}),
     ...(output.factsCard ? { factsCard: output.factsCard } : {}),
+    ...(output.fromLead
+      ? {
+          fromLead: {
+            leadId: output.fromLead,
+            wentIn: 'the lead’s title, excerpt and address, as stored, then the words the person added',
+          },
+        }
+      : {}),
   }),
   cardOf: (output) => ({
     kind: 'piece',

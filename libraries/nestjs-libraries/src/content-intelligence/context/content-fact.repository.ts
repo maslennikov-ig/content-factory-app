@@ -4,6 +4,7 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { ContentContextError } from './content-context.errors';
+import { factMomentOver } from './fact-valid-until';
 import { wordsWhere } from '../search-terms';
 
 /**
@@ -22,11 +23,26 @@ const SEARCHABLE_FACT_FIELDS = ['statement', 'claimKey', 'valueText'] as const;
 
 type PrismaClientLike = Record<string, any>;
 
+/**
+ * The most facts one catalogue read returns. A caller that shows the list
+ * says when it reached this (the chat's `capped`, review W4-24 F10).
+ */
+export const FACT_LIST_LIMIT = 100;
+
 function notFound(): never {
   throw new ContentContextError(
     'CONTENT_CONTEXT_NOT_FOUND',
     404,
     'Fact or evidence was not found'
+  );
+}
+
+/** The fact was replaced by a corrected copy: it is neither retracted nor restored. */
+function superseded(): never {
+  throw new ContentContextError(
+    'CONTENT_CONTEXT_FACT_SUPERSEDED',
+    409,
+    'A superseded fact is out of work already; the fact that replaced it is the only version in work, so it is neither retracted nor restored'
   );
 }
 
@@ -98,7 +114,7 @@ export class ContentFactRepository {
         ...(byWords ?? {}),
       },
       orderBy: [{ claimKey: 'asc' }, { id: 'asc' }],
-      take: 100,
+      take: FACT_LIST_LIMIT,
       include: {
         evidenceLinks: {
           orderBy: { id: 'asc' },
@@ -159,6 +175,42 @@ export class ContentFactRepository {
       ...fact,
       createdByUser: authorById.get(fact.createdByUserId) ?? null,
     }));
+  }
+
+  /**
+   * One fact of the workspace by id, for the chat (`kcxz.24`): what an
+   * approval card quotes and what «Снять» and «Вернуть» act on. The catalogue
+   * above stops at a hundred rows; a fact beyond them is still this
+   * workspace's. A tombstoned fact is gone, as everywhere else.
+   */
+  async findFact(organizationId: string, factId: string) {
+    return this.client().contentFact.findFirst({
+      where: { organizationId, id: factId, status: { not: 'TOMBSTONED' } },
+      select: {
+        id: true,
+        statement: true,
+        status: true,
+        verifiedAt: true,
+        freshUntil: true,
+      },
+    });
+  }
+
+  /**
+   * The row a dedupe key already names, tombstoned included — what
+   * `createFact`'s upsert would return untouched (`kcxz.24` review F2).
+   */
+  async findFactByDedupeKey(organizationId: string, dedupeKey: string) {
+    return this.client().contentFact.findFirst({
+      where: { organizationId, dedupeKey },
+      select: {
+        id: true,
+        statement: true,
+        status: true,
+        verifiedAt: true,
+        freshUntil: true,
+      },
+    });
   }
 
   async createFact(
@@ -447,6 +499,13 @@ export class ContentFactRepository {
    * `RETRACTED` fact, and `evaluateFact` above already leaves a `RETRACTED`
    * row untouched when new evidence arrives. This only writes the status a
    * terminal fact was always allowed to carry.
+   *
+   * A `SUPERSEDED` fact is refused (`CONTENT_CONTEXT_FACT_SUPERSEDED`, review
+   * W4-24 F1): it is already out of work, and retracting it would turn it
+   * into a row «Вернуть» accepts — putting the replaced statement back beside
+   * its correction. The screen never offers «Снять» there; the refusal lives
+   * here so every caller, the chat included, behaves the same. The write is
+   * bound to the status just read, so a copy made in between is not undone.
    */
   async retractFact(
     organizationId: string,
@@ -459,20 +518,22 @@ export class ContentFactRepository {
       select: { id: true, status: true },
     });
     if (!fact) notFound();
+    if (fact.status === 'SUPERSEDED') superseded();
     if (fact.status === 'RETRACTED') {
       return this.client().contentFact.findFirst({
         where: { organizationId, id: factId },
         include: evaluationInclude,
       });
     }
-    await this.client().contentFact.updateMany({
-      where: { organizationId, id: factId },
+    const changed = await this.client().contentFact.updateMany({
+      where: { organizationId, id: factId, status: fact.status },
       data: {
         status: 'RETRACTED',
         lastEvaluatedAt: now,
         updatedByUserId: actorUserId,
       },
     });
+    if (changed.count !== 1) notFound();
     return this.client().contentFact.findFirst({
       where: { organizationId, id: factId },
       include: evaluationInclude,
@@ -512,14 +573,21 @@ export class ContentFactRepository {
           select: { id: true, status: true },
         });
         if (!fact) notFound();
-        if (fact.status === 'SUPERSEDED') {
-          throw new ContentContextError(
-            'CONTENT_CONTEXT_FACT_SUPERSEDED',
-            409,
-            'A superseded fact cannot be restored; the fact that replaced it is the only version in work'
-          );
-        }
+        if (fact.status === 'SUPERSEDED') superseded();
         if (fact.status !== 'RETRACTED') notFound();
+        // By lineage, not only by status (review W4-24 F1): a row retracted
+        // after it was replaced — before `retractFact` refused that, or by
+        // any path to come — still has its correction, and must not come
+        // back beside it.
+        const correction = await client.contentFact.findFirst({
+          where: {
+            organizationId,
+            supersedesFactId: factId,
+            status: { not: 'TOMBSTONED' },
+          },
+          select: { id: true },
+        });
+        if (correction) superseded();
         // `evaluateFact` refuses to touch a terminal row on purpose — a fact
         // whose evidence changed while it sat retracted must not come back
         // to life on its own. Restoring means clearing the status first, in
@@ -530,6 +598,36 @@ export class ContentFactRepository {
           data: { status: 'UNVERIFIED', updatedByUserId: actorUserId },
         });
         if (changed.count !== 1) notFound();
+        return this.evaluateFact(client, organizationId, factId, actorUserId, now);
+      }
+    );
+  }
+
+  /**
+   * A new «Свежо до» for a fact in work, the person's own word from the chat
+   * (owner 29.09.2026, walk review F1): «скидка теперь до 31.10» on a fact
+   * already known. Only a live row — retracted, replaced or removed ones are
+   * left as they are (`null`) — and the status is recomputed as after any
+   * change, so a fact grounded in material keeps its material's freshness.
+   */
+  async redateFact(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    freshUntil: Date,
+    now: Date
+  ) {
+    return (this.transaction.model as any).$transaction(
+      async (client: PrismaClientLike) => {
+        const changed = await client.contentFact.updateMany({
+          where: {
+            organizationId,
+            id: factId,
+            status: { notIn: ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'] },
+          },
+          data: { freshUntil, temporalKind: 'CURRENT', updatedByUserId: actorUserId },
+        });
+        if (changed.count !== 1) return null;
         return this.evaluateFact(client, organizationId, factId, actorUserId, now);
       }
     );
@@ -574,6 +672,11 @@ export class ContentFactRepository {
           },
         });
         if (!previous) notFound();
+        // A «Свежо до» already over is not copied (owner 29.09.2026, walk
+        // review F1): the copy would be out of date the moment it is stored.
+        // It holds until the person names a new day — to the agent, which
+        // sets it (`redateFact`); a day still ahead is copied as it is.
+        const dayOver = !!previous.freshUntil && factMomentOver(new Date(previous.freshUntil), now);
         // Deterministic `dedupeKey` (tied to the fact being replaced, not to
         // the moment of the call), so a double-submitted copy lands on the
         // same new row rather than creating a second one — the same
@@ -588,10 +691,13 @@ export class ContentFactRepository {
             valueText: input.valueText,
             valueHash: input.valueHash,
             dedupeKey: input.dedupeKey,
-            temporalKind: previous.temporalKind,
+            // «Действует сейчас» needs a day; without one it holds until
+            // retracted, as a fact added without a day does.
+            temporalKind:
+              dayOver && previous.temporalKind === 'CURRENT' ? 'TIMELESS' : previous.temporalKind,
             effectiveFrom: previous.effectiveFrom,
             effectiveTo: previous.effectiveTo,
-            freshUntil: previous.freshUntil,
+            freshUntil: dayOver ? null : previous.freshUntil,
             status: 'UNVERIFIED',
             supersedesFactId: factId,
             createdByUserId: actorUserId,

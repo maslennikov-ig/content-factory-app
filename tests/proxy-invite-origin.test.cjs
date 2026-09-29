@@ -222,3 +222,23 @@ describe('what the invitation routing must leave alone', () => {
     expect(new URL(result.url).pathname).toBe('/');
   });
 });
+
+describe('the OAuth consent page after sign-in (kcxz.26)', () => {
+  test('a visitor without a session signs in and returns to the consent page, on the public origin', async () => {
+    const { proxy } = loadProxy();
+    const search = '?client_id=mcp_abc&redirect_uri=https%3A%2F%2Fclaude.ai%2Fcb&response_type=code&state=s1';
+    const result = await proxy(requestFor(`/oauth/authorize${search}`));
+    expect(result.type).toBe('redirect');
+    expect(new URL(result.url).pathname).toBe('/auth');
+    const returnUrl = new URL(returnUrlOf(result));
+    expect(returnUrl.origin).toBe(PUBLIC_ORIGIN);
+    expect(returnUrl.pathname).toBe('/oauth/authorize');
+    expect(returnUrl.search).toBe(search);
+  });
+
+  test('a signed-in visitor goes straight to it', async () => {
+    const { proxy } = loadProxy();
+    const result = await proxy(requestFor('/oauth/authorize?client_id=mcp_abc', { authenticated: true }));
+    expect(result.type).not.toBe('redirect');
+  });
+});

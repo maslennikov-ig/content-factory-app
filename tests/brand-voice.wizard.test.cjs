@@ -765,6 +765,72 @@ describe('the voice wizard on live data', () => {
     expect(analysis.textContent).toContain('Числа посчитаны, предложение — нет');
   });
 
+  test('a second start while the avatar is being analysed elsewhere waits for that run and shows it (kcxz.39, review F1)', async () => {
+    // The chat (or another tab) started this avatar's analysis first. The
+    // server refuses the second start before it reads or pays for anything,
+    // on the stream's last line. The screen does not show a dead end: it
+    // waits for the other run — even while nothing is stored yet — and opens
+    // its result when it lands, without a second start.
+    const stored = { reading: { outcome: 'insufficient', readiness: readiness() } };
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
+      [`GET ${VOICE_API}/analysis`]: () => stored.reading,
+      [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
+      [`POST ${VOICE_API}/analysis/stream`]: streamOf(
+        { name: 'started', samples: 0, planned: 0 },
+        {
+          name: 'error',
+          error: true,
+          code: 'VOICE_ANALYSIS_RUNNING',
+          message: 'Разбор этого аватара уже идёт — второй не запущен и ничего не потрачено.',
+        }
+      ),
+    });
+    const streams = () =>
+      server.calls.filter((call) => call.route.includes('/analysis/stream'));
+    await renderWizard(server);
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+    jest.useFakeTimers();
+    try {
+      await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
+      await act(async () => {});
+
+      let analysis = surface('analysis');
+      expect(analysis.getAttribute('aria-busy')).toBe('true');
+      expect(analysis.textContent).toContain('Разбор идёт на сервере');
+      expect(screen.queryByRole('alert')).toBeNull();
+
+      // Nothing stored yet: the other run has not saved its numbers. The
+      // screen keeps waiting instead of bouncing back to the texts.
+      await act(async () => {
+        jest.advanceTimersByTime(10_000);
+      });
+      await act(async () => {});
+      expect(surface('analysis')).not.toBeNull();
+      expect(surface('samples')).toBeNull();
+
+      // The other run lands; the screen shows it.
+      stored.reading = {
+        ...analysisReady(),
+        hasProposal: true,
+        corpusChanged: false,
+        measuredAt: new Date().toISOString(),
+      };
+      await act(async () => {
+        jest.advanceTimersByTime(10_000);
+      });
+      await act(async () => {});
+      analysis = surface('analysis');
+      expect(analysis.getAttribute('data-voice-state')).toBe('success');
+      expect(streams()).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('the step says what is running now, and the count comes from the stream', async () => {
     // Двадцать восемь вызовов модели — это минуты, и всё это время экран
     // раньше показывал одну надпись над полосой, нарисованной на шести
@@ -1892,6 +1958,38 @@ describe('the wizard adapter', () => {
     expect(
       resumeStepFor(unfinished, at + ANALYSIS_BACKGROUND_WINDOW_MS + 1)
     ).toBe('analysis');
+    // A run the server marked as ended (`kcxz.40`) is not waited for: its
+    // numbers and the rerun are offered at once, inside the window too.
+    const ended = stored({
+      hasProposal: false,
+      corpusChanged: false,
+      proposalFailed: true,
+    });
+    expect(ended.proposalFailed).toBe(true);
+    expect(resumeStepFor(ended, at + 60_000)).toBe('analysis');
+  });
+
+  test('a start refused because another run of the avatar is going says so in the screen language (kcxz.39)', () => {
+    const { voiceFailureFrom, wizardCopy } = adapter();
+    for (const locale of ['ru', 'en']) {
+      const failure = voiceFailureFrom(
+        {
+          code: 'VOICE_ANALYSIS_RUNNING',
+          message: 'Разбор этого аватара уже идёт — второй не запущен и ничего не потрачено.',
+        },
+        locale
+      );
+      expect(failure).toMatchObject({
+        code: 'VOICE_ANALYSIS_RUNNING',
+        status: 409,
+        screenState: 'error',
+        message: wizardCopy[locale].analysisRunning,
+      });
+    }
+    expect(wizardCopy.ru.analysisRunning).toContain('уже идёт');
+    expect(wizardCopy.ru.analysisRunning).toContain('ничего не потрачено');
+    expect(wizardCopy.en.analysisRunning).toContain('already running');
+    expect(wizardCopy.en.analysisRunning).toContain('nothing was spent');
   });
 
   test('a refusal keeps its code and lands in the state the contract assigns it', () => {

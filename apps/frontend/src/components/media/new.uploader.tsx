@@ -8,7 +8,8 @@ import { Dashboard, FileInput, ProgressBar } from '@uppy/react';
 
 // Uppy styles
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import Compressor from '@uppy/compressor';
+import { CompressionWrapper } from './compression.wrapper';
+import { LIBRARY_IMAGE_COMPRESSION } from './library-image-compression';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
@@ -19,26 +20,8 @@ import {
   formatUploadSizeLimit,
 } from '@contentfactory/nestjs-libraries/upload/upload.limits';
 
-export class CompressionWrapper<M = any, B = any> extends Compressor<any, any> {
-  override async prepareUpload(fileIDs: string[]) {
-    const { files } = this.uppy.getState();
-
-    // 1) Skip GIFs (and anything missing)
-    const filteredIDs = fileIDs.filter((id) => {
-      const f = files[id];
-      if (!f) return false;
-
-      const type = f.type ?? '';
-      const name = (f.name ?? '').toLowerCase();
-      const isGif = type === 'image/gif' || name.endsWith('.gif');
-
-      return !isGif;
-    });
-
-    // 2) Let @uppy/compressor do its work (convert/resize/etc)
-    return super.prepareUpload(filteredIDs);
-  }
-}
+// One compressor for the library and the chat (review W4-25 F6).
+export { CompressionWrapper };
 
 /**
  * What to tell the person when an upload does not land.
@@ -300,10 +283,8 @@ export function useUppyUploader(props: {
     uppy2.use(plugin, options);
     if (!disableImageCompression) {
       uppy2.use(CompressionWrapper, {
-        convertTypes: ['image/jpeg', 'image/png', 'image/webp'],
-        maxWidth: 1000,
-        maxHeight: 1000,
-        quality: 1,
+        ...LIBRARY_IMAGE_COMPRESSION,
+        convertTypes: [...LIBRARY_IMAGE_COMPRESSION.convertTypes],
       });
     }
     // Set additional metadata when a file is added

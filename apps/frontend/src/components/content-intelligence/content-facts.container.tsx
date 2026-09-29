@@ -15,6 +15,7 @@ import {
   claimKeyFromStatement,
   claimKeyIssue,
   emptyFactDraft,
+  factDayProblem,
   failureNotice,
   isUsableFact,
   jsonReader,
@@ -33,6 +34,7 @@ import {
   type AcceptedEvidence,
 } from './content-search.adapter';
 import { resolveContentLocale } from './content-section.copy';
+import { screenTimeZone } from '@contentfactory/frontend/components/layout/set.timezone';
 
 /**
  * The door into working memory that `BriefFactV1.factId` was written for.
@@ -87,6 +89,10 @@ const copy = {
     effectiveTo: 'Действует по',
     freshUntil: 'Свежо до',
     freshUntilRequiredHint: 'Для «Действует сейчас» дата обязательна — иначе факт не пройдёт проверку.',
+    freshUntilError: {
+      past: 'Этот день уже прошёл — факт сразу устарел бы. Выберите сегодня или позже.',
+      invalid: 'Такого дня нет в календаре — выберите дату заново.',
+    },
     submit: 'Сохранить факт',
     submitting: 'Сохраняем…',
     created: (id: string) => `Факт сохранён. Идентификатор для брифа: ${id}`,
@@ -149,6 +155,10 @@ const copy = {
     freshUntil: 'Fresh until',
     freshUntilRequiredHint:
       'Required for "Holds right now" — without it the fact fails validation.',
+    freshUntilError: {
+      past: 'This day is already over — the fact would be out of date at once. Pick today or later.',
+      invalid: 'There is no such day in the calendar — pick the date again.',
+    },
     submit: 'Save fact',
     submitting: 'Saving…',
     created: (id: string) => `Fact saved. Id for the brief: ${id}`,
@@ -290,15 +300,25 @@ export function ContentFactsContainer({
    */
   const claimKeyProblem = claimKeyIssue(draft.claimKey);
   const claimKeyPreview = claimKeyFromStatement(draft.statement.trim());
+  /**
+   * «Свежо до» in the calendar's zone, as the chat reads it (`kcxz.43`): the
+   * named day is stored whole, and a day already over is refused here, as
+   * `facts.add` refuses it (review F4).
+   */
+  const zone = screenTimeZone();
+  const freshUntilProblem = draft.freshUntil.trim()
+    ? factDayProblem(draft.freshUntil, zone)
+    : null;
 
   const submit = useCallback(async () => {
+    if (freshUntilProblem) return;
     setBusy(true);
     setFailure(null);
     setCreated(null);
     try {
       const response = await read(FACTS_API, {
         method: 'POST',
-        body: JSON.stringify(buildFactCreatePayload(draft)),
+        body: JSON.stringify(buildFactCreatePayload(draft, zone)),
       });
       const id = String(response?.id ?? '');
       setDraft(emptyFactDraft(locale));
@@ -367,11 +387,13 @@ export function ContentFactsContainer({
     draft,
     evidenceId,
     facts,
+    freshUntilProblem,
     locale,
     onEvidenceDropped,
     onFactCreated,
     read,
     t,
+    zone,
   ]);
 
   /**
@@ -391,7 +413,8 @@ export function ContentFactsContainer({
     name: 'freshUntil' | 'effectiveFrom' | 'effectiveTo',
     label: string,
     helper?: string,
-    required = false
+    required = false,
+    error?: string
   ) => (
     <div className="min-w-0" key={name}>
       <Input
@@ -399,6 +422,7 @@ export function ContentFactsContainer({
         lang={locale}
         label={label}
         helper={helper}
+        error={error}
         type="date"
         name={name}
         value={draft[name]}
@@ -624,7 +648,8 @@ export function ContentFactsContainer({
             </Select>
             {dateField('freshUntil', t.freshUntil,
               draft.temporalKind === 'CURRENT' ? t.freshUntilRequiredHint : undefined,
-              draft.temporalKind === 'CURRENT')}
+              draft.temporalKind === 'CURRENT',
+              freshUntilProblem ? t.freshUntilError[freshUntilProblem] : undefined)}
             {dateField('effectiveFrom', t.effectiveFrom)}
             {dateField('effectiveTo', t.effectiveTo)}
           </div>
@@ -634,7 +659,7 @@ export function ContentFactsContainer({
           <Button
             type="submit"
             variant="primary"
-            disabled={!!claimKeyProblem || readOnly}
+            disabled={!!claimKeyProblem || !!freshUntilProblem || readOnly}
             loading={busy}
             loadingLabel={t.submitting}
           >

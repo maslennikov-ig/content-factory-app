@@ -71,6 +71,7 @@ const EMPTY_ORGANIZATION_RELATIONS: Prisma.OrganizationWhereInput = {
   webhooks: { none: {} },
   oauthApp: { none: {} },
   oauthAuthorizations: { none: {} },
+  mcpOAuthGrants: { none: {} },
   aiUsageRecords: { none: {} },
   subscription: { is: null },
   brandProfile: { none: {} },

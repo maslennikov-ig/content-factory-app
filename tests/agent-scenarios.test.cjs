@@ -47,7 +47,12 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
   // A request the scenario plays to be refused at the door (a stale card,
   // review W2 F3): no stream, no admission, nothing for the client to take.
   const refusedAt = new Set(scenario.refusedTurns ?? []);
-  const answeredTurns = (played) => played.turns.filter((_turn, index) => !refusedAt.has(index));
+  // A request the scenario plays to fail inside its stream (a provider that
+  // refuses, review W4-25 vision F5): an `error` part with a code, the stream
+  // ended, the operation closed as failed.
+  const failedAt = new Set(scenario.failedTurns ?? []);
+  const answeredTurns = (played) =>
+    played.turns.filter((_turn, index) => !refusedAt.has(index) && !failedAt.has(index));
 
   test('every request is answered through the door and ends cleanly', () => {
     const played = run();
@@ -61,6 +66,13 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
       expect(turn.errors).toEqual([]);
       expect(turn.ended).toBe(true);
       expect(turn.thread).toBe(played.threadId);
+    }
+    for (const index of failedAt) {
+      const turn = played.turns[index];
+      expect(turn.refused).toBeNull();
+      expect(turn.errors).toHaveLength(1);
+      expect(turn.ended).toBe(true);
+      expect(turn.admissions).toEqual([['agent', 'agent', 'user-1', 'failed']]);
     }
     // Nothing is left waiting unless the scenario ends on a card.
     expect(played.pending).toBe(scenario.endsPending ? 1 : 0);

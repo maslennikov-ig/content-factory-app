@@ -225,7 +225,7 @@ test('the old fact is superseded, not edited: its own statement never changes', 
  * evidence that never confirmed the new wording — exactly what copy-not-edit
  * exists to prevent. Only a RETRACTED row gets a way back.
  */
-function makeRestoreClient(status) {
+function makeRestoreClient(status, { correction = null } = {}) {
   const stored = {
     id: 'fact-restore',
     organizationId: 'org-a',
@@ -234,8 +234,17 @@ function makeRestoreClient(status) {
   };
   const client = {
     contentFact: {
-      findFirst: async () => structuredClone(stored),
-      updateMany: async ({ data }) => {
+      // The lineage read (`supersedesFactId`) answers the correction, if any.
+      findFirst: async ({ where }) =>
+        where.supersedesFactId !== undefined
+          ? where.supersedesFactId === stored.id && correction
+            ? { id: correction }
+            : null
+          : structuredClone(stored),
+      updateMany: async ({ where, data }) => {
+        if (where.status !== undefined && where.status !== stored.status) {
+          return { count: 0 };
+        }
         Object.assign(stored, data);
         return { count: 1 };
       },
@@ -276,4 +285,41 @@ test('restoring a RETRACTED fact still returns it to work', async () => {
   assert.notEqual(result.status, 'RETRACTED');
   assert.notEqual(result.status, 'SUPERSEDED');
   assert.notEqual(stored.status, 'RETRACTED');
+});
+
+/**
+ * «Снять» on a SUPERSEDED row (review W4-24 F1): refused in the repository,
+ * so the screen and the chat behave the same. Retracting it would have made
+ * it a row «Вернуть» accepts — the replaced statement back beside its
+ * correction.
+ */
+test('retracting a SUPERSEDED fact is refused with the same code and writes nothing', async () => {
+  const { client, stored } = makeRestoreClient('SUPERSEDED');
+  const repository = makeRepository(client);
+
+  await assert.rejects(
+    repository.retractFact('org-a', 'user-a', 'fact-restore', new Date('2026-09-28T00:00:00.000Z')),
+    (error) => error.code === 'CONTENT_CONTEXT_FACT_SUPERSEDED' && error.status === 409
+  );
+  assert.equal(stored.status, 'SUPERSEDED');
+});
+
+test('a RETRACTED fact that has a correction is not restored beside it', async () => {
+  const { client, stored } = makeRestoreClient('RETRACTED', { correction: 'fact-copy' });
+  const repository = makeRepository(client);
+
+  await assert.rejects(
+    repository.restoreFact('org-a', 'user-a', 'fact-restore', new Date('2026-09-28T00:00:00.000Z')),
+    (error) => error.code === 'CONTENT_CONTEXT_FACT_SUPERSEDED'
+  );
+  assert.equal(stored.status, 'RETRACTED');
+});
+
+test('retracting an in-work fact writes RETRACTED bound to the status it read', async () => {
+  const { client, stored } = makeRestoreClient('VERIFIED');
+  const repository = makeRepository(client);
+
+  const result = await repository.retractFact('org-a', 'user-a', 'fact-restore', new Date('2026-09-28T00:00:00.000Z'));
+  assert.equal(result.status, 'RETRACTED');
+  assert.equal(stored.status, 'RETRACTED');
 });

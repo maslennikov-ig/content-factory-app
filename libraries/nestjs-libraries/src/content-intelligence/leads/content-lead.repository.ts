@@ -135,6 +135,50 @@ export class ContentLeadRepository {
     }));
   }
 
+  /**
+   * The row on the unique key `(organizationId, kind, canonicalUrl)`,
+   * archived or not (review W4-23 F3): what a new subscription to the same
+   * thing would collide with.
+   */
+  async findSubscriptionByKey(organizationId: string, kind: string, canonicalUrl: string) {
+    return this.client().contentLeadSubscription.findFirst({
+      where: { organizationId, kind, canonicalUrl },
+    });
+  }
+
+  /** One subscription of the workspace, archived or not (review W4-23 F9). */
+  async findSubscriptionAnyState(organizationId: string, id: string) {
+    return this.client().contentLeadSubscription.findFirst({
+      where: { organizationId, id },
+      select: { id: true },
+    });
+  }
+
+  /**
+   * Brings an archived subscription back as a new one (review W4-23 F3): live,
+   * `ACTIVE`, no last problem, with the name, topic and schedule of the new
+   * request. Only an archived row is revived; `null` when it no longer is.
+   */
+  async reviveSubscription(
+    organizationId: string,
+    id: string,
+    data: {
+      displayName: string;
+      query: string | null;
+      checkIntervalMinutes: number;
+      linkedAutoPostId: string | null;
+    }
+  ) {
+    const changed = await this.client().contentLeadSubscription.updateMany({
+      where: { organizationId, id, deletedAt: { not: null } },
+      data: { ...data, deletedAt: null, state: 'ACTIVE', lastErrorCode: null },
+    });
+    if (changed.count !== 1) return null;
+    return this.client().contentLeadSubscription.findFirst({
+      where: { organizationId, id, deletedAt: null },
+    });
+  }
+
   async getSubscription(organizationId: string, id: string) {
     const subscription = await this.client().contentLeadSubscription.findFirst({
       where: { organizationId, id, deletedAt: null },
@@ -269,6 +313,47 @@ export class ContentLeadRepository {
       );
     }
     return this.getLead(organizationId, leadId);
+  }
+
+  /**
+   * «Не надо» for several leads at once (`kcxz.45`): all or nothing, in one
+   * transaction. Every id must be a lead of the workspace; one already
+   * declined is a no-op, as `dismissLead` treats it; one taken to work refuses
+   * the whole batch. The new ones change in one `updateMany` filtered on
+   * `NEW`, and a count short of them — a lead taken on the screen between the
+   * read and the write — rolls the transaction back.
+   */
+  async dismissLeads(
+    organizationId: string,
+    leadIds: readonly string[],
+    actorUserId: string,
+    now: Date
+  ): Promise<{ dismissed: string[]; alreadyDismissed: string[] }> {
+    return (this.transaction.model as any).$transaction(async (database: any) => {
+      const rows = (await database.contentLead.findMany({
+        where: { organizationId, id: { in: [...leadIds] } },
+        select: { id: true, status: true },
+      })) as Array<{ id: string; status: string }>;
+      const byId = new Map(rows.map((row) => [row.id, row.status]));
+      if (leadIds.some((id) => !byId.has(id))) leadNotFound();
+      if (leadIds.some((id) => byId.get(id) !== 'NEW' && byId.get(id) !== 'DISMISSED')) {
+        throw new ContentLeadError('LEAD_NOT_NEW', 'Only a new lead can be declined', 409);
+      }
+      const fresh = leadIds.filter((id) => byId.get(id) === 'NEW');
+      if (fresh.length) {
+        const changed = await database.contentLead.updateMany({
+          where: { organizationId, id: { in: fresh }, status: 'NEW' },
+          data: { status: 'DISMISSED', dismissedAt: now, dismissedByUserId: actorUserId },
+        });
+        if (changed.count !== fresh.length) {
+          throw new ContentLeadError('LEAD_NOT_NEW', 'Only a new lead can be declined', 409);
+        }
+      }
+      return {
+        dismissed: fresh,
+        alreadyDismissed: leadIds.filter((id) => byId.get(id) === 'DISMISSED'),
+      };
+    });
   }
 
   async acceptLead(

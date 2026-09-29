@@ -14,10 +14,6 @@ import { DeveloperComponent } from '@contentfactory/frontend/components/develope
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import {
-  RadioGroup,
-  RadioOption,
-} from '@contentfactory/react/choice/radio.group';
-import {
   Tab,
   TabList,
   TabPanel,
@@ -25,115 +21,6 @@ import {
 } from '@contentfactory/react/choice/tabs';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { PublicApiSurface } from './public-api.surface';
-
-const mcpClients = [
-  'Claude Code',
-  'Cursor',
-  'VS Code / Copilot',
-  'Windsurf',
-  'Amp',
-  'Codex',
-  'Gemini CLI',
-  'Warp',
-] as const;
-
-type McpClient = (typeof mcpClients)[number];
-
-const getMcpConfig = (
-  client: McpClient,
-  mcpBase: string,
-  apiKey: string,
-  t: ReturnType<typeof useT>
-): { config: string; hint: string } => {
-  const urlBase = `${mcpBase}/mcp`;
-  const bearer = `Bearer ${apiKey}`;
-
-  const json = (obj: object) => JSON.stringify(obj, null, 2);
-
-  switch (client) {
-    case 'Claude Code':
-      return {
-        config: `claude mcp add --transport http content-factory ${urlBase} --header "Authorization: ${bearer}"`,
-        hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
-      };
-    case 'Cursor':
-      return {
-        config: json({
-          mcpServers: {
-            'content-factory': {
-              url: urlBase,
-              headers: { Authorization: bearer },
-            },
-          },
-        }),
-        hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.cursor/mcp.json', interpolation: { escapeValue: false } }),
-      };
-    case 'VS Code / Copilot':
-      return {
-        config: json({
-          servers: {
-            'content-factory': {
-              type: 'http',
-              url: urlBase,
-              headers: { Authorization: bearer },
-            },
-          },
-        }),
-        hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.vscode/mcp.json', interpolation: { escapeValue: false } }),
-      };
-    case 'Windsurf':
-      return {
-        config: json({
-          mcpServers: {
-            'content-factory': {
-              serverUrl: urlBase,
-              headers: { Authorization: bearer },
-            },
-          },
-        }),
-        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codeium/windsurf/mcp_config.json', interpolation: { escapeValue: false } }),
-      };
-    case 'Amp':
-      return {
-        config: json({
-          'amp.mcpServers': {
-            'content-factory': {
-              url: urlBase,
-              headers: { Authorization: bearer },
-            },
-          },
-        }),
-        hint: t('mcp_hint_amp_settings', 'Add to your Amp settings.json'),
-      };
-    case 'Codex':
-      return {
-        config: `# ~/.codex/config.toml\n\n[mcp_servers.content-factory]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
-        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codex/config.toml', interpolation: { escapeValue: false } }),
-      };
-    case 'Gemini CLI':
-      return {
-        config: json({
-          mcpServers: {
-            'content-factory': {
-              url: urlBase,
-              headers: { Authorization: bearer },
-            },
-          },
-        }),
-        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.gemini/settings.json', interpolation: { escapeValue: false } }),
-      };
-    case 'Warp':
-      return {
-        config: json({
-          'content-factory': {
-            url: urlBase,
-            headers: { Authorization: bearer },
-          },
-        }),
-        hint: t('mcp_hint_warp_settings', 'Settings > MCP Servers > + Add, then paste this config.'),
-      };
-  }
-};
 
 const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const toaster = useToaster();
@@ -170,174 +57,9 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
   );
 };
 
-const McpSection = ({
-  user,
-  mcpBase,
-}: {
-  user: { publicApi: string };
-  mcpBase: string;
-}) => {
-  const t = useT();
-  const [activeClient, setActiveClient] = useState<McpClient>('Claude Code');
-  // Remote clients sign in through OAuth; the workspace key never goes into
-  // an address (`content-factory-next-kcxz.1`).
-  const [method, setMethod] = useState<'header' | 'oauth'>('header');
-  const [revealed, setRevealed] = useState(false);
-
-  const { config, hint } = getMcpConfig(
-    activeClient,
-    mcpBase,
-    user.publicApi,
-    t
-  );
-
-  const remoteUrl = `${mcpBase}/mcp-oauth`;
-  const cliUrl = `${mcpBase}/mcp`;
-
-  const maskedConfig = revealed
-    ? config
-    : config.replace(
-        new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-        '*'.repeat(user.publicApi.length)
-      );
-
-  return (
-    <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
-        <div>
-          <div className="text-[15px] font-[600]">
-            {t('mcp_client_configuration', 'MCP Client Configuration')}
-          </div>
-          <div className="text-[13px] text-customColor18 mt-[2px]">
-            {t(
-              'connect_your_mcp_client_to_schedule_your_posts_faster',
-              'Connect the Content Factory MCP server to your client (Http streaming) to schedule your posts faster.'
-            )}
-          </div>
-        </div>
-        <div className="flex gap-[6px] shrink-0 pt-[2px]">
-          <DocsLink path="/mcp/introduction" />
-        </div>
-      </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex flex-col gap-[6px]">
-          <div className="text-[13px] font-[600] text-customColor18">
-            {t('auth_method', 'Authentication')}
-          </div>
-          <RadioGroup
-            className="flex gap-[6px]"
-            aria-label={t('auth_method', 'Authentication')}
-            value={method}
-            onChange={(next) => setMethod(next as 'header' | 'oauth')}
-          >
-            {(['header', 'oauth'] as const).map((m) => (
-              <RadioOption
-                key={m}
-                value={m}
-                density="dense"
-                className={clsx(
-                  'cursor-pointer px-[14px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                  method === m
-                    ? 'bg-cf-accent text-cf-accent-ink'
-                    : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-                )}
-              >
-                {m === 'header'
-                  ? t('cli_claude_code_codex', 'CLI (Claude Code / Codex)')
-                  : t('remote_servers', 'Remote servers (ChatGPT, Claude)')}
-              </RadioOption>
-            ))}
-          </RadioGroup>
-        </div>
-        {method === 'header' && (
-          <div className="flex flex-col gap-[6px]">
-            <div className="text-[13px] font-[600] text-customColor18">
-              {t('mcp_client', 'Client')}
-            </div>
-            <RadioGroup
-              className="flex flex-wrap gap-[6px]"
-              aria-label={t('mcp_client', 'Client')}
-              value={activeClient}
-              onChange={(next) => setActiveClient(next as McpClient)}
-            >
-              {mcpClients.map((client) => (
-                <RadioOption
-                key={client}
-                value={client}
-                density="dense"
-                  className={clsx(
-                    'cursor-pointer px-[14px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                    activeClient === client
-                      ? 'bg-cf-accent text-cf-accent-ink'
-                      : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-                  )}
-                >
-                  {client}
-                </RadioOption>
-              ))}
-            </RadioGroup>
-          </div>
-        )}
-        <div className="flex flex-col gap-[8px]">
-          <div className="text-[12px] text-customColor18 font-[500]">
-            {method === 'header'
-              ? hint
-              : t(
-                  'remote_server_url_hint',
-                  'Paste this URL into your remote MCP client (ChatGPT, Claude, etc.).'
-                )}
-          </div>
-          <pre className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-[13px] whitespace-pre-wrap break-all overflow-x-auto leading-[1.6]">
-            {method === 'header' ? maskedConfig : remoteUrl}
-          </pre>
-          <div className="flex gap-[8px]">
-            <Button variant="secondary"
-              type="button"
-              onClick={() => setRevealed(!revealed)}
- className="cursor-pointer px-[16px] transition-colors rounded-[8px] text-[13px] font-[600] flex items-center"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {revealed ? (
-                  <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </>
-                )}
-              </svg>
-              {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
-            </Button>
-            <CopyButton
-              text={method === 'header' ? config : remoteUrl}
-              label={t('copy', 'Copy')}
-            />
-            {method === 'header' && (
-              <CopyButton text={cliUrl} label={t('copy_url', 'Copy URL')} />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const PublicApiContent = () => {
   const user = useUser();
-  const { backendUrl, frontEndUrl, mcpUrl } = useVariables();
+  const { frontEndUrl } = useVariables();
   const toaster = useToaster();
   const fetch = useFetch();
   const decision = useDecisionModal();
@@ -375,7 +97,6 @@ const PublicApiContent = () => {
     return <PublicApiSurface state="restricted" locale={locale} />;
   }
 
-  const mcpBase = mcpUrl || backendUrl;
 
   return (
     <PublicApiSurface
@@ -400,8 +121,8 @@ const PublicApiContent = () => {
         )}
         <br />
         {t(
-          'api_auth_note_line4',
-          'and you will receive a pos_ prefixed token that works with the API, MCP, and CLI — just like an API Key.'
+          'api_auth_note_line4_api_only',
+          'and you will receive a pos_ prefixed token that works with the API and CLI — just like an API Key. MCP takes neither: assistants sign in with OAuth.'
         )}
       </div>
       <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -541,7 +262,7 @@ const PublicApiContent = () => {
         </div>
       </div>
 
-      <McpSection user={user} mcpBase={mcpBase} />
+      {/* MCP lives in «Одобренные приложения», which every member sees (kcxz.26, walk P2-A). */}
     </div>
     </PublicApiSurface>
   );

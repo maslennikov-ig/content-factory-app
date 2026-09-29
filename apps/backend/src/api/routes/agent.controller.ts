@@ -49,6 +49,8 @@ import {
   openProposalTargets,
   parseAgentChatBody,
   samplesReceiptRefused,
+  mediaReceiptRefused,
+  withMediaReceipt,
   DECLINED_ON_CARD,
   verifyPendingAnswer,
 } from '@contentfactory/nestjs-libraries/chat/conductor/agent-chat.request';
@@ -66,6 +68,7 @@ import {
   logConductorError,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.errors';
 import { normaliseThreadTitle } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
+import { holdViewedPictures } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.pictures';
 import {
   STEP_CAP_CLOSING,
   closingLineWatch,
@@ -240,6 +243,17 @@ export class AgentController {
             throw samplesReceiptRefused();
           }
         }
+        // A pictures receipt is the report of an upload to the media library
+        // only an editor can make, of pictures of this workspace (`kcxz.25`).
+        // The line the model reads is rebuilt from the library's own rows:
+        // their names and types, not the browser's (review W4-25 F3).
+        let message = input.message;
+        if (input.mediaIds) {
+          if (!isOrganizationEditor(identity.role)) throw mediaReceiptRefused();
+          const media = await this.mastraService.mediaReceipt(identity, input.mediaIds);
+          if (!media || input.mediaPart === undefined) throw mediaReceiptRefused();
+          message = withMediaReceipt(message, input.mediaPart, media);
+        }
         threadId = input.threadId ?? randomUUID();
         // Somebody else's thread is refused here; a new one is created only
         // once the turn is admitted, so a refused turn leaves no empty thread.
@@ -250,7 +264,7 @@ export class AgentController {
             await this.threads.pendingRuns(identity, threadId)
           );
         }
-        messages = [input.message];
+        messages = [message];
       } else {
         threadId = input.threadId;
         await this.threads.threadForAnswer(identity, threadId);
@@ -303,12 +317,16 @@ export class AgentController {
         }
       }
 
+      // This request's own id: the pictures it carries are held under it,
+      // never under the thread (review W4-25 vision F3).
+      const requestId = randomUUID();
       const requestContext = buildConductorContext({
         identity,
         threadId,
         paidLimit,
         approvals: fingerprints,
         openProposals,
+        requestId,
       });
       const mastra = await this.mastraService.mastra();
 
@@ -336,6 +354,16 @@ export class AgentController {
       let failed = false;
       /** Tool calls of this stream by id, for the approval card's words. */
       const calls = new Map<string, { toolName: string; input: unknown }>();
+      // Pictures to look at reach the model for this request only; the
+      // message and the memory hold their lines (owner decision 28.09).
+      const pictures = holdViewedPictures(
+        requestId,
+        resourceId,
+        threadId,
+        input.mode === 'message' ? input.pictures ?? [] : []
+      );
+      // A provider refusal of the step that carried them is about the picture.
+      const errorScope = { picturesInStep: pictures.lastStepShown };
       try {
         await admission.run(async () => {
           let stream: ReadableStream<any>;
@@ -346,7 +374,7 @@ export class AgentController {
               version: AGENT_STREAM_VERSION,
               sendReasoning: false,
               sendSources: false,
-              onError: conductorOnError,
+              onError: (error: unknown) => conductorOnError(error, errorScope),
               params: {
                 messages: messages as any,
                 ...(resume ?? {}),
@@ -362,11 +390,9 @@ export class AgentController {
             })) as unknown as ReadableStream<any>;
           } catch (error) {
             failed = true;
-            logConductorError(error);
-            throw new HttpException(
-              { code: conductorErrorCode(error) },
-              conductorErrorCode(error) === 'AGENT_RUN_NOT_PENDING' ? 409 : 502
-            );
+            logConductorError(error, errorScope);
+            const code = conductorErrorCode(error, errorScope);
+            throw new HttpException({ code }, code === 'AGENT_RUN_NOT_PENDING' ? 409 : 502);
           }
 
           res.status(200);
@@ -388,14 +414,34 @@ export class AgentController {
           // P2-B; review F1, F10 — each approval leg judged on its own): the
           // door's own closing line, before the part that ends it.
           const silence = closingLineWatch(answered?.calls.map((call) => call.toolCallId));
+          const write = (part: unknown) => res.write(`data: ${JSON.stringify(sanitisedPart(part))}\n\n`);
+          /**
+           * An approval request whose call this stream never showed — the
+           * second card of a step, streamed in the answer to the first — waits
+           * for its companion `data-tool-call-approval` part, which names the
+           * call (`@mastra/ai-sdk` emits the two together), so every card
+           * carries its words and its shown content (review kcxz.45 F5).
+           */
+          let held: any = null;
+          const flushHeld = async () => {
+            if (!held) return;
+            const part = held;
+            held = null;
+            write(await this.withApprovalReason(part, identity, threadId, calls));
+          };
           while (!abort.signal.aborted) {
             const { done, value } = await reader.read();
             if (done) break;
             if (failedPart(value)) failed = true;
-            if (silence.before(value)) {
-              for (const part of closingLine(identity.language)) {
-                res.write(`data: ${JSON.stringify(part)}\n\n`);
+            if (value?.type === 'data-tool-call-approval' && value.data) {
+              const data = value.data as { toolCallId?: unknown; toolName?: unknown; args?: unknown };
+              if (typeof data.toolCallId === 'string' && !calls.has(data.toolCallId)) {
+                calls.set(data.toolCallId, { toolName: String(data.toolName ?? ''), input: data.args ?? {} });
               }
+            }
+            await flushHeld();
+            if (silence.before(value)) {
+              for (const part of closingLine(identity.language)) write(part);
             }
             if (value?.type === 'tool-input-available' && value.toolCallId) {
               calls.set(value.toolCallId, {
@@ -403,23 +449,28 @@ export class AgentController {
                 input: value.input,
               });
             }
-            const part =
+            if (value?.type === 'tool-approval-request' && value.toolCallId && !calls.has(value.toolCallId)) {
+              held = value;
+              continue;
+            }
+            write(
               value?.type === 'tool-approval-request'
                 ? await this.withApprovalReason(value, identity, threadId, calls)
-                : this.withToolTitle(value, identity);
-            res.write(`data: ${JSON.stringify(sanitisedPart(part))}\n\n`);
+                : this.withToolTitle(value, identity)
+            );
           }
+          if (!abort.signal.aborted) await flushHeld();
         });
       } catch (error) {
         failed = true;
         if (!res.headersSent) throw error;
-        logConductorError(error);
-        this.logger.warn(`Agent turn failed after the stream opened: ${conductorErrorCode(error)}`);
-        res.write(
-          `data: ${JSON.stringify({ type: 'error', errorText: conductorErrorCode(error) })}\n\n`
-        );
+        logConductorError(error, errorScope);
+        const code = conductorErrorCode(error, errorScope);
+        this.logger.warn(`Agent turn failed after the stream opened: ${code}`);
+        res.write(`data: ${JSON.stringify({ type: 'error', errorText: code })}\n\n`);
       } finally {
         finished = true;
+        pictures.release();
         // A turn with an `error` part, or one the person left, is not a
         // success (premortem U2, U3); its tokens are recorded either way.
         await admission.finish(!failed && !abort.signal.aborted);

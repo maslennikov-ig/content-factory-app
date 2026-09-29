@@ -864,7 +864,7 @@ export const avatarAnalyse = defineCapability({
   group: 'avatar',
   label: { ru: 'Разобрать образцы', en: 'Analyse the samples' },
   description:
-    'Analyse an avatar\'s samples and have the AI write the voice proposal. Paid (about five minutes for eight texts); runs without asking. It first reads what is stored for these texts and never pays twice: a ready proposal is returned as is (`spent: false`), a run still finishing on the server is left to finish (`running`), and a stored run whose proposal did not arrive (`proposal-missing`) is run again only with `rerun: true` — pass it only after the person agreed to the new paid run. Changed samples start a new run. `insufficient` means not enough samples yet: say what is missing.',
+    'Analyse an avatar\'s samples and have the AI write the voice proposal. Paid (about five minutes for eight texts); runs without asking. It first reads what is stored for these texts and never pays twice: a ready proposal is returned as is (`spent: false`), a run still finishing on the server, or one just started elsewhere (the avatar screen, another chat), is left to finish (`running`), and a stored run whose proposal did not arrive (`proposal-missing`) is run again only with `rerun: true` — pass it only after the person agreed to the new paid run. Changed samples start a new run. `insufficient` means not enough samples yet: say what is missing. Call it whenever the person asks to run or re-run the analysis, even if the conversation says one is running: only its answer (`running`, or the refusal `VOICE_ANALYSIS_RUNNING`) says so, and it spends nothing then.',
   input: z.object({
     ...avatarScope,
     rerun: z
@@ -895,7 +895,19 @@ export const avatarAnalyse = defineCapability({
     if (step === 'analysis' && input.rerun !== true) {
       return { avatarId: await avatarOf(), outcome: 'proposal-missing', spent: false, ...(count ? { sampleCount: count } : {}) };
     }
-    const final = await analysisPass(ctx, actor, emit);
+    let final: Awaited<ReturnType<typeof analysisPass>>;
+    try {
+      final = await analysisPass(ctx, actor, emit);
+    } catch (error) {
+      // Another start of this avatar's analysis — the screen, a second tab,
+      // MCP — got there first (`kcxz.39`). The service refused before
+      // anything was read or paid for: the same answer as a run still
+      // finishing, and the paid slot goes back.
+      if ((error as { code?: unknown })?.code === 'VOICE_ANALYSIS_RUNNING') {
+        return { avatarId: await avatarOf(), outcome: 'running', spent: false };
+      }
+      throw error;
+    }
     if (!final) {
       throw codedFailure('VOICE_ANALYSIS_FAILED', 'The analysis ended without a result.');
     }
@@ -916,8 +928,9 @@ export const avatarAnalyse = defineCapability({
       ...(typeof final.sampleCount === 'number' ? { sampleCount: final.sampleCount } : {}),
     };
   },
-  // A stored proposal, a run still finishing, a missing proposal not rerun
-  // and too few samples pay for nothing: the slot goes back (W3-18 F4).
+  // A stored proposal, a run still finishing (or started elsewhere, kcxz.39),
+  // a missing proposal not rerun and too few samples pay for nothing: the
+  // slot goes back (W3-18 F4).
   spentNothing: (output) => !output.spent,
   summarize: (output) => ({ ...output }),
   cardOf: (output) => (output.outcome === 'proposal' ? avatarCard(output) : null),

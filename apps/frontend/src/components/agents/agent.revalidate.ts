@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 
 /**
@@ -19,4 +19,25 @@ export const useRevalidateUnder = () => {
       void mutate((key) => typeof key === 'string' && key.startsWith(prefix)),
     [mutate]
   );
+};
+
+/**
+ * Reads the routes under `prefix` again each time `count` grows — the
+ * finished actions of one group in the conversation (`channelCallsOf`,
+ * `avatarCallsOf`, `ideaCallsOf`, `factCallsOf`). What the thread loaded with
+ * is already current, so the first count is only remembered. One hook for
+ * every group (`kcxz.24`): four hand copies of this effect had begun to grow
+ * in `agent.conversation.tsx`.
+ */
+export const useRevalidateWhenCountGrows = (count: number, prefix: string) => {
+  const revalidateUnder = useRevalidateUnder();
+  const seen = useRef<number | null>(null);
+  useEffect(() => {
+    if (seen.current === null || count === seen.current) {
+      seen.current = count;
+      return;
+    }
+    seen.current = count;
+    revalidateUnder(prefix);
+  }, [count, prefix, revalidateUnder]);
 };

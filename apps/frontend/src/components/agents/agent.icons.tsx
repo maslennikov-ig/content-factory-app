@@ -29,6 +29,13 @@ const PATHS = {
       <path d="M3.5 13.5a4.5 4.5 0 019 0" />
     </>
   ),
+  image: (
+    <>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+      <circle cx="6" cy="6.5" r="1.2" />
+      <path d="M2.5 11.5 6.5 8l3 2.5 1.5-1.2 2.5 2.2" />
+    </>
+  ),
   calendar: (
     <>
       <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />

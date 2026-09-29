@@ -108,6 +108,25 @@ describe('native Mastra tools', () => {
       'ai_key_enter',
       'ai_key_clear',
       'ai_search_key_clear',
+      'ideas_list',
+      'ideas_queue',
+      'ideas_feed_add',
+      'ideas_topic_add',
+      'ideas_archive',
+      'ideas_check',
+      'ideas_dismiss',
+      'ideas_take',
+      'facts_list',
+      'facts_add',
+      'facts_retract',
+      'facts_restore',
+      'texts_related',
+      'text_slop_check',
+      'analytics_production',
+      'analytics_channel',
+      'media_library',
+      'media_generate',
+      'media_keep',
     ]);
     for (const [name, tool] of Object.entries(tools)) expect(tool.id).toBe(name);
   });
@@ -122,12 +141,12 @@ describe('native Mastra tools', () => {
     expect(tools.piece_rename.description).toBe(find('piece.rename').description);
   });
 
-  test('only the confirm class asks for approval; every input and a paid one with a mid-run choice suspend', () => {
+  test('the confirm class, and a write one that asks in the web chat (kcxz.45), ask for approval; every input and a paid one with a mid-run choice suspend', () => {
     for (const capability of catalogue) {
       const tool = tools[registry.toolNameOf(capability.id)];
-      expect({ id: capability.id, approval: !!tool.requireApproval }).toEqual({
+      expect({ id: capability.id, approval: tool.requireApproval === true }).toEqual({
         id: capability.id,
-        approval: capability.risk === 'confirm',
+        approval: capability.risk === 'confirm' || !!capability.asksInWebChat,
       });
       expect({ id: capability.id, suspends: !!(tool.suspendSchema && tool.resumeSchema) }).toEqual({
         id: capability.id,
@@ -150,6 +169,8 @@ describe('native Mastra tools', () => {
       ['adaptation.review', 'paid'],
       ['adaptation.rewrite', 'paid'],
       ['avatar.activate', 'input'],
+      // The browser that showed the agent a picture keeps it (28.09).
+      ['media.keep', 'input'],
     ]);
   });
 
@@ -582,6 +603,30 @@ describe('MCP tools from the same registry', () => {
       // removing a key stay web-only.
       'ai_settings',
       'ai_usage',
+      // Ideas (kcxz.23): all but a topic subscription, which asks on a card
+      // (a standing paid search) and stays web-only.
+      'ideas_list',
+      'ideas_queue',
+      'ideas_feed_add',
+      'ideas_archive',
+      'ideas_check',
+      'ideas_dismiss',
+      'ideas_take',
+      // Facts, own texts, the cliché check and analytics (kcxz.24): all but
+      // retracting a fact, which asks on a card and stays web-only.
+      'facts_list',
+      'facts_add',
+      'facts_restore',
+      'texts_related',
+      'text_slop_check',
+      'analytics_production',
+      'analytics_channel',
+      // The media library and a generated picture (kcxz.25): a paid run over
+      // MCP is bounded by the allowance (or the own key) and the MCP
+      // throttler — MCP admits with `countPaid: false`, so there is no
+      // per-turn paid cap (review W4-25 F9); the pictures receipt is web-only.
+      'media_library',
+      'media_generate',
     ]);
     // MCP has no question card: the intake's facts choice is not offered there.
     expect(mcpTools('ADMIN').piece_create.suspendSchema).toBeUndefined();
@@ -609,6 +654,16 @@ describe('MCP tools from the same registry', () => {
       'avatar_learning',
       'channel_open',
       'channel_posts',
+      'ideas_list',
+      'ideas_queue',
+      // Facts, own texts and analytics are read by every member (kcxz.24);
+      // the cliché check is an editor's (its door's policy).
+      'facts_list',
+      'texts_related',
+      'analytics_production',
+      'analytics_channel',
+      // The media library is read by every member (kcxz.25).
+      'media_library',
     ]);
   });
 

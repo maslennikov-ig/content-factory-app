@@ -23,17 +23,20 @@ import { PostValidationExceptionFilter } from '@contentfactory/backend/api/route
 import { HttpExceptionFilter } from '@contentfactory/nestjs-libraries/services/exception.filter';
 import { StripeErrorFilter } from '@contentfactory/nestjs-libraries/services/stripe.error.filter';
 import { ConfigurationChecker } from '@contentfactory/helpers/configuration/configuration.checker';
-import { startMcp } from '@contentfactory/nestjs-libraries/chat/start.mcp';
 import { buildBackendCorsOptions } from '@contentfactory/backend/cors.options';
 import { createVoicePasteBodyLimiter } from '@contentfactory/backend/api/routes/brand-voice.paste';
+import { createAgentChatBodyLimiter } from '@contentfactory/backend/api/routes/agent-chat.body';
+import {
+  createMcpBodyParser,
+  MCP_HTTP_PATH,
+} from '@contentfactory/nestjs-libraries/chat/start.mcp';
+import { McpOAuthService } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.service';
 
 async function start() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     cors: buildBackendCorsOptions(process.env),
   });
-
-  await startMcp(app);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -45,6 +48,16 @@ async function start() {
   app.use(['/copilot/{*splat}', '/posts'], (req: any, res: any, next: any) => {
     json({ limit: '50mb' })(req, res, next);
   });
+
+  // The agent chat carries pictures inline (owner decision 28.09.2026): its
+  // ceiling is sized from the door's own bounds in `agent-chat.body.ts`
+  // (review W4-25 vision F1).
+  app.use(['/agent/chat'], createAgentChatBodyLimiter());
+
+  // MCP (`content-factory-next-kcxz.26`) is a Nest controller now, behind its
+  // own bearer check and throttler; no raw mount. Only its body parser is
+  // set here (`createMcpBodyParser` says why).
+  app.use([MCP_HTTP_PATH], createMcpBodyParser(() => app.get(McpOAuthService)));
 
   // Every JSON route but the ones above gets express's own 100 KB default,
   // and the pasted-text intake needs more than that: `VoiceSampleItemDto`

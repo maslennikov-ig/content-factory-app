@@ -82,6 +82,10 @@ function makeRepository({ count = 0, subscription = null } = {}) {
     async countSubscriptions() {
       return count;
     },
+    // Review W4-23 F3: nothing archived on the same key to revive.
+    async findSubscriptionByKey() {
+      return null;
+    },
     async createSubscription(organizationId, actorUserId, input) {
       created.push(input);
       return { id: 'sub-new', ...input };

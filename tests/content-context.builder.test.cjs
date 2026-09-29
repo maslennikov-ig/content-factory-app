@@ -117,7 +117,7 @@ if (fs.existsSync(factServicePath)) {
       language: 'en',
       valueText: ' EUR  ',
       temporalKind: 'CURRENT',
-      freshUntil: '2026-08-21T10:00:00.000Z',
+      freshUntil: '2099-08-21T10:00:00.000Z',
     });
     await service.linkEvidence('org-a', 'user-a', 'fact-1', {
       evidenceId: 'evidence-1',

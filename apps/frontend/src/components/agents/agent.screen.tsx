@@ -39,6 +39,9 @@ import { useOnboardingProgress } from '@contentfactory/frontend/components/onboa
  * going in the same session.
  */
 
+/** A lead's title in the composer's request to write from it, at most (review W4-23 F1). */
+const LEAD_TITLE_IN_DRAFT = 200;
+
 const WIDE = '(min-width: 1280px)';
 
 const useWide = () => {
@@ -168,6 +171,18 @@ export function AgentScreen() {
 
   const closeArtifact = useCallback(() => setArtifact(null), []);
 
+  // «Взять в работу» in the ideas panel (review W4-23 F1): the lead is taken
+  // there; the request to write from it goes into the composer, as «Сделать
+  // в чате» does — never sent. Below 1280 px the sheet closes so the composer
+  // is in sight. With AI unavailable there is no conversation to write in.
+  const writeFromLead = useCallback(
+    (title: string) => {
+      setDraft(words.panel.writeFromLead(title.trim().slice(0, LEAD_TITLE_IN_DRAFT)));
+      if (!wide) setArtifact(null);
+    },
+    [words, wide]
+  );
+
   const openThread = useCallback((id: string) => {
     setSession(threadSession(id));
   }, []);
@@ -247,6 +262,7 @@ export function AgentScreen() {
             artifact={artifact}
             onClose={() => setArtifact(null)}
             words={words}
+            {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })}
             empty={
               <WorkspaceSteps
                 busy={starter !== null && !aiUnavailable}
@@ -262,6 +278,7 @@ export function AgentScreen() {
             artifact={artifact}
             onClose={() => setArtifact(null)}
             words={words}
+            {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })}
           />
         ) : null}
       </div>

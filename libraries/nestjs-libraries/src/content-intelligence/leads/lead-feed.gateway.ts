@@ -49,8 +49,16 @@ export type LeadFeedItemV1 = {
 };
 
 export type LeadFeedCheckResultV1 =
-  | { disabled: true; items?: undefined }
-  | { disabled: false; items: LeadFeedItemV1[] };
+  | { disabled: true; items?: undefined; fromCache?: undefined }
+  | {
+      disabled: false;
+      items: LeadFeedItemV1[];
+      /**
+       * A topic check answered from the research cache: nothing was searched
+       * or spent (review W4-23 F4). Optional, so a feed check never sets it.
+       */
+      fromCache?: true;
+    };
 
 /**
  * `upsertLeads` remembers a decline by `(organizationId, subscriptionId,

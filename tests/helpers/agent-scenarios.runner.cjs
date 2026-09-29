@@ -22,9 +22,11 @@
  */
 
 const { EventEmitter } = require('node:events');
+const { format } = require('node:util');
 const { AbstractChat } = require('ai');
 const { Mastra } = require('@mastra/core/mastra');
 const { InMemoryStore } = require('@mastra/core/storage');
+const { ConsoleLogger } = require('@mastra/core/logger');
 const { loadTypeScriptModule } = require('./load-ts-module.cjs');
 const {
   loadCapabilityModule,
@@ -72,6 +74,25 @@ const usage = {
  * (`ai.text-chain.ts`). A step that ran outside the turn's admission would
  * report to no ledger, or to another one (correctness review W1 F8).
  */
+/** Stands in a provider's echoed request body, so a report can tell it was kept. */
+const REQUEST_ECHO = 'scripted-provider-request-body';
+/** The body a provider says it sent: the prompt, file parts as base64. */
+const providerBody = (options) =>
+  JSON.stringify({
+    model: 'scripted',
+    marker: REQUEST_ECHO,
+    messages: options.prompt.map((message) => ({
+      ...message,
+      content: Array.isArray(message.content)
+        ? message.content.map((part) =>
+            part.type === 'file' && typeof part.data !== 'string'
+              ? { ...part, data: Buffer.from(part.data).toString('base64') }
+              : part
+          )
+        : message.content,
+    })),
+  });
+
 const scriptedModel = (currentUsageLedger) => {
   // `inputs`: everything each model call read, whole (kcxz.20, the secrets
   // guard) — kept apart from `calls` so the report stays small.
@@ -108,6 +129,20 @@ const scriptedModel = (currentUsageLedger) => {
       })(),
     });
     const scripted = state.queue.shift() || [['text', 'Готово.']];
+    // `['reject', status]`: the provider refuses the request as the AI SDK
+    // reports it — an `APICallError` that quotes the whole request body,
+    // pictures included (review W4-25 vision F5, F7).
+    const rejected = scripted.find(([kind]) => kind === 'reject');
+    if (rejected) {
+      const error = new Error(`Bad Request: the provider refused this request (${rejected[1]})`);
+      error.name = 'AI_APICallError';
+      error.statusCode = rejected[1];
+      error.url = 'https://provider.example/v1/chat/completions';
+      error.isRetryable = false;
+      error.requestBodyValues = JSON.parse(providerBody(options));
+      error.responseBody = '{"error":{"message":"Invalid image"}}';
+      throw error;
+    }
     // A provider does not call tools under `toolChoice: none` (W3 walk P2-B).
     const plan =
       toolChoice === 'none' && !state.ignoreToolChoice
@@ -142,7 +177,16 @@ const scriptedModel = (currentUsageLedger) => {
     provider: 'scripted',
     modelId: 'scripted',
     supportedUrls: {},
-    doGenerate: async (options) => ({ ...next(options), usage, warnings: [] }),
+    // As real providers do (`@ai-sdk/openai` returns `request: { body }`, the
+    // whole JSON it sent — pictures included): Mastra keeps it on its step
+    // records, so a scenario that suspends shows whether it reaches a
+    // snapshot (review W4-25 vision F2).
+    doGenerate: async (options) => ({
+      ...next(options),
+      usage,
+      warnings: [],
+      request: { body: providerBody(options) },
+    }),
     doStream: async (options) => {
       const result = next(options);
       const parts = [{ type: 'stream-start', warnings: [] }];
@@ -163,6 +207,7 @@ const scriptedModel = (currentUsageLedger) => {
       }
       parts.push({ type: 'finish', finishReason: result.finishReason, usage });
       return {
+        request: { body: providerBody(options) },
         stream: new ReadableStream({
           start(controller) {
             for (const part of parts) controller.enqueue(part);
@@ -211,12 +256,46 @@ class RecordingResponse extends EventEmitter {
 }
 
 /** The ledger table `AiUsageService` writes, in memory. */
-const ledger = () => {
+/**
+ * `included`: the scenario runs on the included allowance (`{ limit, used }`),
+ * so every admission — the turn's and a paid capability's — goes through the
+ * real `AiUsageService.createAdmission` count against the limit
+ * (`kcxz.44` review F6). `used` rows of this month are in the ledger before
+ * the first request. Without it the workspace's own key admits without a
+ * count.
+ */
+const ledger = (included) => {
   const rows = [];
+  const earlier = Array.from({ length: included?.used ?? 0 }, (_unused, index) => ({
+    id: `earlier-${index + 1}`,
+    organizationId: ORGANIZATION_ID,
+    usageMode: 'included',
+    operation: 'text_generation',
+    role: 'draft',
+    status: 'succeeded',
+  }));
+  const counted = (where) =>
+    [...earlier, ...rows].filter(
+      (row) =>
+        row.organizationId === where.organizationId &&
+        row.usageMode === where.usageMode &&
+        // `includedUsageFilter`: a failed review gives its operation back.
+        !(row.status === 'failed' && row.role === 'review')
+    ).length;
+  const prisma = {
+    subscription: {
+      findUnique: async () =>
+        included ? { includedAiMonthlyOperations: included.limit, createdAt: new Date('2026-09-01T00:00:00.000Z') } : null,
+    },
+    instanceAiDefaults: { findUnique: async () => null },
+    organization: { findUnique: async () => ({ createdAt: new Date(ORGANIZATION.createdAt) }) },
+  };
   return {
     rows,
-    prisma: {
+    prisma: Object.assign(prisma, {
+      $transaction: async (callback) => callback(prisma),
       aiUsageRecord: {
+        count: async ({ where }) => counted(where),
         create: async ({ data }) => {
           const row = { id: `row-${rows.length + 1}`, ...data };
           rows.push(row);
@@ -232,14 +311,15 @@ const ledger = () => {
           return { count: index === -1 ? 0 : 1 };
         },
       },
-    },
+    }),
   };
 };
 
 /** One door, one agent, one ledger, one workspace: nothing shared between scenarios. */
 const stand = (scenario) => {
-  const aiConfig = { ...providerConfig(), loadAiConfig: async () => WORKSPACE_KEY };
-  const table = ledger();
+  const key = scenario.included ? { ...WORKSPACE_KEY, usageMode: 'included' } : WORKSPACE_KEY;
+  const aiConfig = { ...providerConfig(), loadAiConfig: async () => key };
+  const table = ledger(scenario.included);
   // One instance of the transport's ledger store, shared by the admission and
   // the scripted model, as in the running backend.
   const textChain = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.text-chain.ts');
@@ -264,10 +344,13 @@ const stand = (scenario) => {
   const conductor = loadCapabilityModule('../conductor/index.ts', { aiConfig });
   const registry = loadCapabilityModule('index.ts', { aiConfig });
   const world = createWorld(scenario.world);
-  const services = world.servicesFor({ usage: aiUsage });
+  // `outsideTurn`: what runs on the worker, not in the turn — the periodic
+  // idea check (review W4-23 F5) — admits its own operation, as there.
+  const services = world.servicesFor({ usage: aiUsage, outsideTurn: aiConfig.withoutActiveAiConfig });
   const { model, state } = scriptedModel(textChain.currentUsageLedger);
 
   const storage = new InMemoryStore();
+  const snapshotWrites = watchSnapshotWrites(storage);
   const serviceOf = (token) => {
     const instance = services[token?.name];
     if (!instance) throw new Error(`No scenario service for ${token?.name}`);
@@ -284,7 +367,10 @@ const stand = (scenario) => {
   const mastra = new Mastra({
     storage,
     agents: { [conductor.CONDUCTOR_AGENT_ID]: agent },
-    logger: false,
+    // Mastra's own logger as the backend runs it (`mastra.service.ts`): what
+    // it prints lands in the watched log, which is scanned (review W4-25
+    // vision F7) — a provider error quotes the whole request it refused.
+    logger: new ConsoleLogger({ level: 'info' }),
   });
   const mastraService = {
     mastra: async () => mastra,
@@ -304,6 +390,8 @@ const stand = (scenario) => {
     // As `MastraService.samplesAvatarKnown` (review W3-18 F3).
     samplesAvatarKnown: (identity, avatarId) =>
       registry.avatarInWorkspace(serviceOf, identity, avatarId),
+    // As `MastraService.mediaReceipt` (kcxz.25, review W4-25 F3).
+    mediaReceipt: (identity, ids) => registry.mediaReceiptInWorkspace(serviceOf, identity, ids),
     // As `MastraService.approvalContent` (review W2 F4).
     approvalContent: (identity, toolName, args) =>
       registry.approvalContentDigest(
@@ -349,7 +437,7 @@ const stand = (scenario) => {
     new AgentThreadsService(mastraService),
     aiUsage
   );
-  return { controller, mastra, conductor, world, table, state, storage };
+  return { controller, mastra, conductor, world, table, state, storage, snapshotWrites };
 };
 
 const summarizeParts = (parts, names = new Map()) => {
@@ -511,6 +599,38 @@ const storedText = (storage) => {
 };
 
 /**
+ * Every write of a run snapshot, as text (review W4-25 vision F2): a row a
+ * later answer overwrites or prunes was still written — to Postgres on the
+ * running backend — so the end state of the storage alone cannot say a
+ * picture's bytes never landed in one.
+ */
+const watchSnapshotWrites = (storage) => {
+  const writes = [];
+  const workflows = storage.stores?.workflows;
+  for (const method of ['persistWorkflowSnapshot', 'updateWorkflowResults', 'updateWorkflowState']) {
+    const original = workflows?.[method];
+    if (typeof original !== 'function') continue;
+    workflows[method] = function (...args) {
+      try {
+        writes.push(
+          JSON.stringify(args, (_key, value) =>
+            value instanceof Map
+              ? [...value.entries()]
+              : ArrayBuffer.isView(value)
+                ? Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('base64')
+                : value
+          )
+        );
+      } catch (error) {
+        writes.push(`[unserialisable: ${error?.message}]`);
+      }
+      return original.apply(this, args);
+    };
+  }
+  return writes;
+};
+
+/**
  * What the process wrote while a scenario played: the Nest logger, Mastra's
  * and any `console` call land on stdout or stderr (kcxz.20, the secrets
  * guard). The report itself is written after, unwatched.
@@ -528,7 +648,10 @@ const watchLogs = () => {
   }
   for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
     const original = console[method];
-    console[method] = (...args) => lines.push(args.map(String).join(' '));
+    // As the console prints them (`util.format`, objects inspected), not as
+    // `String()` — which read a logged `{ error }` as `[object Object]` and
+    // could not see what it quoted (review W4-25 vision F7).
+    console[method] = (...args) => lines.push(format(...args));
     restore.push(() => (console[method] = original));
   }
   return { lines, stop: () => restore.forEach((undo) => undo()) };
@@ -571,7 +694,8 @@ const play = async (scenario) => {
 };
 
 const playWatched = async (scenario, logs) => {
-  const { controller, mastra, conductor, world, table, state, storage } = stand(scenario);
+  const { controller, mastra, conductor, world, table, state, storage, snapshotWrites } =
+    stand(scenario);
   state.ignoreToolChoice = scenario.ignoreToolChoice === true;
   const organization = { ...ORGANIZATION, users: [{ role: scenario.role ?? 'EDITOR' }] };
   // `x-agent-timezone` as the screen's transport sends it (kcxz.15); absent
@@ -599,8 +723,21 @@ const playWatched = async (scenario, logs) => {
               ...(turn.say ? [{ type: 'text', text: turn.say }] : []),
               // The receipt of files the composer already uploaded (kcxz.18).
               ...(turn.samples ? [{ type: 'data-avatar-samples', data: turn.samples }] : []),
+              // The receipt of pictures the composer already put into the
+              // media library (kcxz.25).
+              ...(turn.media ? [{ type: 'data-media-upload', data: turn.media }] : []),
               // Text files attached to the message, inline as the composer
               // sends them (kcxz.20, review W3-20 F5).
+              // Pictures attached for the agent to look at, inline as the
+              // composer sends them, with the key the browser keeps each
+              // under (owner decision 28.09, «агент видит картинки»).
+              ...(turn.pictures ?? []).map((picture) => ({
+                type: 'file',
+                mediaType: picture.type ?? 'image/png',
+                filename: picture.name,
+                url: `data:${picture.type ?? 'image/png'};base64,${picture.base64}`,
+                ...(picture.key ? { providerMetadata: { contentFactory: { pictureKey: picture.key } } } : {}),
+              })),
               ...(turn.files ?? []).map((file) => ({
                 type: 'file',
                 mediaType: 'text/plain',
@@ -732,6 +869,15 @@ const playWatched = async (scenario, logs) => {
       // The workspace snapshot this request opened with (kcxz.21): what the
       // model was told exists, the onboarding steps included.
       opening: openingSnapshot(state.calls.find((call) => call.turn === index)),
+      // The `lookFor` strings the storage holds right after this request —
+      // a suspended run's snapshot included, before a later answer prunes
+      // it (review W4-25 vision F2).
+      storedNow: (scenario.lookFor ?? []).filter((needle) => storedText(storage).includes(needle)),
+      // Whether a provider's echoed request body is in the storage, or was
+      // in any snapshot written so far.
+      storedEcho:
+        storedText(storage).includes(REQUEST_ECHO) ||
+        snapshotWrites.some((write) => write.includes(REQUEST_ECHO)),
       admissions: table.rows
         .slice(rowsBefore)
         .map((row) => [row.operation, row.role, row.userId, row.status]),
@@ -793,6 +939,9 @@ const playWatched = async (scenario, logs) => {
     literal,
     // The storage dump is the conversation, not an empty store; a redacted
     // key leaves its marker there.
+    // Whether the log quoted a provider's request at all — the log scan of
+    // `found` is not blind to one (review W4-25 vision F7).
+    loggedRequest: logs.lines.join('\n').includes(REQUEST_ECHO),
     storedKeyMarker: dumped.includes('[KEY]'),
     storedMessages: dumped.includes('msg-user-'),
     // What a «Нет» leaves in the thread (correctness review F9): the fact is
@@ -823,6 +972,24 @@ const playWatched = async (scenario, logs) => {
     prompts: state.calls.map((call) => ({ turn: call.turn, user: call.user })),
     pending,
     storedPartTypes,
+    // Where each string the scenario names turns up (`lookFor`): what the
+    // model read, what the storage holds, what a reload shows — e.g. the
+    // bytes of a picture that must reach the model and be saved nowhere.
+    found: Object.fromEntries(
+      (scenario.lookFor ?? []).map((needle) => [
+        needle,
+        {
+          model: state.inputs.join('\n').includes(needle),
+          stored: dumped.includes(needle),
+          history: JSON.stringify(history).includes(needle),
+          world: JSON.stringify(world.state()).includes(needle),
+          // What the process logged, and the usage rows (review W4-25 vision F2, F7).
+          snapshots: snapshotWrites.some((write) => write.includes(needle)),
+          logged: logs.lines.join('\n').includes(needle),
+          usage: JSON.stringify(table.rows).includes(needle),
+        },
+      ])
+    ),
   };
 };
 

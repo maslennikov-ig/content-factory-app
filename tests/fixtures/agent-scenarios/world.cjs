@@ -16,6 +16,7 @@
  */
 
 const { loadTypeScriptModule } = require('../../helpers/load-ts-module.cjs');
+const { HttpException } = require('@nestjs/common');
 
 /**
  * The real count behind «С чего начать» and the agent's snapshot
@@ -44,6 +45,207 @@ const { CHANNEL_MIN_IDEAL_LENGTH, defaultWritingProfileFor } = loadTypeScriptMod
 );
 const { planModeOf } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/pieces/adaptation-plan.ts'
+);
+/**
+ * One analysis per avatar at a time (`kcxz.39`): the service's own claim,
+ * over the store's in-process stand-in, so a scenario's second start is
+ * refused by the rule production uses.
+ */
+const { claimVoiceAnalysis, inProcessAnalysisLockStore } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/brand-voice/analysis-lock.ts'
+);
+
+/**
+ * «Откуда идеи» (`kcxz.23`) runs on the real code, not on a copy of it: the
+ * real `ContentLeadService` (rate limit, kinds, the check, what it presents),
+ * over the real `ContentLeadRepository` (organization scope, «only a new lead»,
+ * the dismissal memory) asked over the world's rows seen as the Prisma tables
+ * it reads (`leadTables` below), with the real `LeadTopicGateway` (window,
+ * junk, date and judge rules) over a research service that admits its own
+ * `web_research` operation. Only the network is fake: the feed reader and the
+ * search engine answer from `rows.feedItems` and `rows.topicFound`.
+ */
+const LEAD_DIR = 'libraries/nestjs-libraries/src/content-intelligence/leads';
+const nest = {
+  Injectable: () => (target) => target,
+  Optional: () => () => undefined,
+  Logger: class {
+    debug() {}
+    log() {}
+    warn() {}
+    error() {}
+  },
+};
+const leadModules = {
+  '@nestjs/common': nest,
+  'nestjs-temporal-core': { TemporalService: class {} },
+  '@temporalio/common': { TypedSearchAttributes: class {} },
+  '@contentfactory/nestjs-libraries/temporal/temporal.search.attribute': { organizationId: {} },
+  '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+    PrismaRepository: class {},
+    PrismaTransaction: class {},
+  },
+  // Constructor tokens only; the instances are handed in below.
+  './lead-feed.gateway': { LeadFeedGateway: class {} },
+  './lead-topic.gateway': { LeadTopicGateway: class {} },
+};
+const { ContentLeadService } = loadTypeScriptModule(`${LEAD_DIR}/content-lead.service.ts`, leadModules);
+const { ContentLeadRepository } = loadTypeScriptModule(`${LEAD_DIR}/content-lead.repository.ts`, leadModules);
+const { LeadTopicGateway } = loadTypeScriptModule(`${LEAD_DIR}/lead-topic.gateway.ts`, {
+  '@nestjs/common': nest,
+  '@contentfactory/nestjs-libraries/openai/web.research.service': {
+    WebResearchService: class {},
+    // Page chrome out of an excerpt; the world's excerpts carry none.
+    cleanExcerpt: (value) => ({ text: String(value || ''), hasProseLine: true }),
+  },
+  '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway': {
+    SourceFetchGateway: class {},
+  },
+  // The product's window, read from where the search clients keep it rather
+  // than retyped (`ai.clients.ts` builds engine clients this world has none of).
+  '@contentfactory/nestjs-libraries/openai/ai.clients': {
+    DISCOVERY_WINDOW_DAYS: Number(
+      /export const DISCOVERY_WINDOW_DAYS = (\d+);/.exec(
+        require('node:fs').readFileSync(
+          require('node:path').join(
+            __dirname,
+            '../../../libraries/nestjs-libraries/src/openai/ai.clients.ts'
+          ),
+          'utf8'
+        )
+      )[1]
+    ),
+  },
+  './lead-feed.gateway': {},
+});
+/** The piece's source line from a lead: the intake service's own function. */
+const { pieceLeadSource } = loadTypeScriptModule(`${LEAD_DIR}/lead-intake.ts`);
+
+/**
+ * Facts, own texts and analytics (`kcxz.24`) run on the real code too: the
+ * real `ContentFactService` over the real `ContentFactRepository` (organization
+ * scope, «ваше слово» verified at once, the dedupe key, «Снять», «Вернуть» and
+ * its re-evaluation) asked over the world's `facts` as the Prisma table it
+ * reads (`factTables` below); the real `ContentMaterialService.listRelated`
+ * over the real `TextSearchService` (the index, its ranking and the «only
+ * what a reader can open» rule), fed the world's rows by a loader that stands
+ * for `TextSearchRepository`; the real `slopCheck` (the capability imports
+ * it); «Производство» by the real `PostsService.getProductionAnalytics`
+ * and a channel's audience by the real `IntegrationService.checkAnalytics`
+ * (see below). Only the platform's audience answer is fake
+ * (`rows.channelAnalytics`, `rows.channelAnalyticsFails`).
+ */
+const CONTEXT_DIR = 'libraries/nestjs-libraries/src/content-intelligence/context';
+const SEARCH_DIR = 'libraries/nestjs-libraries/src/content-intelligence/search';
+const contextModules = {
+  '@nestjs/common': { ...nest, Inject: () => () => undefined },
+  '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+    PrismaRepository: class {},
+    PrismaTransaction: class {},
+  },
+};
+const { ContentFactService } = loadTypeScriptModule(`${CONTEXT_DIR}/content-fact.service.ts`, contextModules);
+const { ContentFactRepository } = loadTypeScriptModule(`${CONTEXT_DIR}/content-fact.repository.ts`, contextModules);
+const { TextSearchService } = loadTypeScriptModule(`${SEARCH_DIR}/text-search.service.ts`, contextModules);
+const { ContentMaterialService } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/materials/content-material.service.ts',
+  contextModules
+);
+/**
+ * «Производство» and a channel's audience through the real steps (review
+ * W4-24 F11): `PostsService.getProductionAnalytics` over a repository that
+ * answers `getProductionAnalyticsPosts` from the world's rows, and
+ * `IntegrationService.checkAnalytics` — the token check, the refresh, the
+ * cache and the platform's refusals — with only the platform, the refresh,
+ * Redis and the snapshot store standing in.
+ */
+const { PostsService: RealPostsService } = require('../../helpers/posts-service.module.cjs').loadPostsService();
+/** The platform's «token expired, refresh me» (`social.abstract`). */
+class PlatformRefreshToken extends Error {}
+/** The analytics cache (`ioRedis`), emptied for every world. */
+const analyticsCache = new Map();
+const { IntegrationService: RealIntegrationService } = require('../../helpers/integration-service.module.cjs').loadIntegrationService({
+  '@contentfactory/nestjs-libraries/redis/redis.service': {
+    ioRedis: {
+      get: async (key) => analyticsCache.get(key) ?? null,
+      set: async (key, value) => {
+        analyticsCache.set(key, value);
+        return 'OK';
+      },
+    },
+  },
+  '@contentfactory/nestjs-libraries/integrations/social.abstract': { RefreshToken: PlatformRefreshToken },
+  '@contentfactory/helpers/utils/timer': { timer: async () => undefined },
+});
+
+/**
+ * The media library and a generated picture (`kcxz.25`) run on the real code:
+ * the real `MediaService` (the door's credits rule, `generateImageIntoLibrary`
+ * — credit row, picture prompt, image, storage, library row), over the real
+ * `MediaRepository` (organization scope, «not deleted», newest first) asked
+ * over the world's `media` rows as the Prisma table, the real
+ * `SubscriptionService.checkCredits` / `useCredit` over the real
+ * `SubscriptionRepository` (the `credits` and `subscription` rows), and the
+ * real `OpenaiService`, whose picture prompt and drawing run in one
+ * `image_generation` admission (kcxz.44) through the `AiUsageService` the
+ * scenario hands in. Only
+ * the network is fake: the provider client (`getOpenAiClient`) and the file
+ * storage (`UploadFactory.createStorage`), through `mediaNetwork`, which each
+ * world points at its own rows.
+ */
+const MEDIA_DIR = 'libraries/nestjs-libraries/src/database/prisma/media';
+const SUBSCRIPTION_DIR = 'libraries/nestjs-libraries/src/database/prisma/subscriptions';
+const mediaNetwork = { client: null, storage: null };
+const mediaModules = {
+  '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+    PrismaRepository: class {},
+    PrismaTransaction: class {},
+  },
+  '@contentfactory/nestjs-libraries/openai/ai.clients': {
+    getOpenAiClient: async (organizationId) => mediaNetwork.client(organizationId),
+    getModelForRole: async (_organizationId, role) => (role === 'image' ? 'image-model' : 'text-model'),
+  },
+  // A constructor token only; the scenario's real instance is handed in.
+  '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
+  'openai/helpers/zod': { zodResponseFormat: () => ({ type: 'json_schema' }) },
+  '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service': {
+    IntegrationService: class {},
+  },
+  '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service': {
+    OrganizationService: class {},
+  },
+  '@contentfactory/nestjs-libraries/videos/video.manager': { VideoManager: class {} },
+  '@contentfactory/nestjs-libraries/upload/upload.factory': {
+    UploadFactory: {
+      createStorage: () => ({ uploadSimple: (data) => mediaNetwork.storage(data) }),
+    },
+  },
+  '@contentfactory/backend/services/auth/permissions/permission.exception.class': {
+    AuthorizationActions: {},
+    Sections: {},
+    SubscriptionException: class extends Error {},
+  },
+};
+const { MediaService } = loadTypeScriptModule(`${MEDIA_DIR}/media.service.ts`, mediaModules);
+const { MediaRepository } = loadTypeScriptModule(`${MEDIA_DIR}/media.repository.ts`, mediaModules);
+const { OpenaiService } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/openai/openai.service.ts',
+  mediaModules
+);
+// The adaptation edit resolves a picture with the real `findMedia` (review
+// W4-25 F7): a later change to its filter is seen by the media scenarios.
+const { PieceRepository } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/piece.repository.ts',
+  {
+    ...mediaModules,
+    '../materials/content-material.repository': { ContentMaterialRepository: class {} },
+    '../brief/content-brief.repository': { ContentBriefRepository: class {} },
+  }
+);
+const { SubscriptionService } = loadTypeScriptModule(`${SUBSCRIPTION_DIR}/subscription.service.ts`, mediaModules);
+const { SubscriptionRepository } = loadTypeScriptModule(
+  `${SUBSCRIPTION_DIR}/subscription.repository.ts`,
+  mediaModules
 );
 
 const ORGANIZATION_ID = 'org-1';
@@ -115,6 +317,7 @@ const baseRows = () => ({
 
 /** Applies a scenario's overrides to the base rows (shallow per table). */
 const createWorld = (overrides = {}) => {
+  analyticsCache.clear();
   const rows = { ...baseRows(), ...overrides };
   const writes = [];
   const reads = [];
@@ -158,6 +361,7 @@ const createWorld = (overrides = {}) => {
   };
   /* ---- Avatars (kcxz.18) ---------------------------------------------- */
   let nextSample = 1;
+  const analysisLocks = inProcessAnalysisLockStore();
   const voiceError = (code, message) => Object.assign(new Error(message), { name: 'VoiceError', code });
   /** The avatar a voice request is about: the one named, else the default. */
   const voiceAvatar = (actor) => {
@@ -372,7 +576,9 @@ const createWorld = (overrides = {}) => {
           count: async ({ where }) => {
             same(where);
             return (rows.facts ?? []).filter(
-              (fact) => !['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'].includes(fact.status)
+              (fact) =>
+                (fact.organizationId ?? ORGANIZATION_ID) === where.organizationId &&
+                !['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'].includes(fact.status)
             ).length;
           },
         },
@@ -405,7 +611,666 @@ const createWorld = (overrides = {}) => {
     };
   };
 
-  const servicesFor = ({ usage }) => ({
+  /* ---- «Откуда идеи» (kcxz.23) ---------------------------------------- */
+  /**
+   * The world's subscriptions and leads as the Prisma tables
+   * `ContentLeadRepository` reads. Every query must name the caller's
+   * organization; a filter the database would not understand fails the
+   * scenario. The unique indexes are the schema's: `(organizationId, kind,
+   * canonicalUrl)` over every row, archived ones included, and
+   * `(organizationId, subscriptionId, externalId)`.
+   */
+  const leadTables = () => {
+    // Made on first use, so the rows of scenarios that never touch ideas stay
+    // as they were.
+    const table = (name) => (rows[name] = rows[name] ?? []);
+    const stamp = (data) =>
+      Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])
+      );
+    const matches = (row, where) =>
+      Object.entries(where).every(([key, want]) => {
+        const have = row[key] ?? null;
+        if (want === null) return have === null;
+        if (want && typeof want === 'object' && !(want instanceof Date)) {
+          if (Array.isArray(want.in)) return want.in.includes(have);
+          if (want.gte !== undefined) return have !== null && new Date(have) >= new Date(want.gte);
+          if ('not' in want && want.not === null) return have !== null;
+          throw new Error(`lead tables: unexpected filter ${key}`);
+        }
+        return have === (want instanceof Date ? want.toISOString() : want);
+      });
+    const inWorkspace = (name, where = {}) => {
+      if (where.organizationId !== ORGANIZATION_ID) {
+        throw new Error(`${name} read for organization ${where.organizationId}`);
+      }
+      return table(name).filter((row) => matches(row, where));
+    };
+    const withSubscription = (lead) => {
+      const subscription = table('subscriptions').find((one) => one.id === lead.subscriptionId);
+      return {
+        ...lead,
+        subscription: subscription
+          ? { id: subscription.id, displayName: subscription.displayName, kind: subscription.kind }
+          : null,
+      };
+    };
+    return {
+      model: {
+        contentLeadSubscription: {
+          create: async ({ data }) => {
+            const taken = table('subscriptions').some(
+              (one) =>
+                one.organizationId === data.organizationId &&
+                one.kind === data.kind &&
+                one.canonicalUrl === data.canonicalUrl
+            );
+            if (taken) throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+            const row = {
+              id: `sub-${table('subscriptions').length + 1}`,
+              state: 'ACTIVE',
+              lastCheckedAt: null,
+              lastErrorCode: null,
+              createdAt: NOW,
+              deletedAt: null,
+              ...stamp(data),
+            };
+            table('subscriptions').push(row);
+            writes.push(['idea.subscribed', row.id]);
+            return { ...row };
+          },
+          count: async ({ where }) => inWorkspace('subscriptions', where).length,
+          findMany: async ({ where }) =>
+            inWorkspace('subscriptions', where)
+              .slice()
+              .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+              .map((row) => ({ ...row, linkedAutoPost: null })),
+          findFirst: async ({ where }) => {
+            const row = inWorkspace('subscriptions', where)[0];
+            return row ? { ...row } : null;
+          },
+          updateMany: async ({ where, data }) => {
+            const found = inWorkspace('subscriptions', where);
+            for (const row of found) {
+              Object.assign(row, stamp(data));
+              writes.push(
+                data.deletedAt
+                  ? ['idea.unsubscribed', row.id]
+                  : 'deletedAt' in data
+                  ? ['idea.revived', row.id]
+                  : ['idea.checked', row.id, data.lastErrorCode ?? 'ok']
+              );
+            }
+            return { count: found.length };
+          },
+        },
+        contentLead: {
+          groupBy: async ({ where }) => {
+            const counts = new Map();
+            for (const lead of inWorkspace('leads', where)) {
+              counts.set(lead.subscriptionId, (counts.get(lead.subscriptionId) ?? 0) + 1);
+            }
+            return [...counts].map(([subscriptionId, all]) => ({ subscriptionId, _count: { _all: all } }));
+          },
+          createMany: async ({ data }) => {
+            let count = 0;
+            for (const item of data) {
+              const known = table('leads').some(
+                (one) =>
+                  one.organizationId === item.organizationId &&
+                  one.subscriptionId === item.subscriptionId &&
+                  one.externalId === item.externalId
+              );
+              if (known) continue;
+              table('leads').push({
+                id: `lead-${table('leads').length + 1}`,
+                status: 'NEW',
+                observedAt: NOW,
+                dismissedAt: null,
+                acceptedAt: null,
+                ...stamp(item),
+              });
+              count += 1;
+            }
+            if (count) writes.push(['idea.leads', data[0].subscriptionId, count]);
+            return { count };
+          },
+          findMany: async ({ where, take }) =>
+            inWorkspace('leads', where)
+              .slice()
+              .reverse()
+              .sort((a, b) => String(b.observedAt).localeCompare(String(a.observedAt)))
+              .slice(0, take)
+              .map(withSubscription),
+          findFirst: async ({ where }) => {
+            const lead = inWorkspace('leads', where)[0];
+            return lead ? withSubscription(lead) : null;
+          },
+          updateMany: async ({ where, data }) => {
+            const found = inWorkspace('leads', where);
+            for (const lead of found) {
+              Object.assign(lead, stamp(data));
+              writes.push([data.status === 'DISMISSED' ? 'idea.dismissed' : 'idea.taken', lead.id]);
+            }
+            return { count: found.length };
+          },
+        },
+        autoPost: {
+          findMany: async () => [],
+          findFirst: async () => null,
+        },
+      },
+    };
+  };
+  /**
+   * `$transaction` over the lead tables (kcxz.45, the batch «Не надо»): the
+   * work runs on the same tables, and a throw puts the lead rows and the
+   * writes back as they were — Postgres's rollback.
+   */
+  const leadTransaction = (tables) => ({
+    model: {
+      $transaction: async (work) => {
+        const leads = (rows.leads ?? []).map((row) => ({ ...row }));
+        const written = writes.length;
+        try {
+          return await work(tables.model);
+        } catch (error) {
+          if (rows.leads) rows.leads.splice(0, rows.leads.length, ...leads);
+          writes.length = written;
+          throw error;
+        }
+      },
+    },
+  });
+  const leadRepository = () => {
+    const tables = leadTables();
+    return new ContentLeadRepository(tables, leadTransaction(tables));
+  };
+  /**
+   * The periodic check, as Temporal runs it (review W4-23 F5): one workflow
+   * per live subscription, whose first iteration checks at once. A start
+   * against a running id attaches to it (`USE_EXISTING`); archiving
+   * terminates it. The first check runs here, inside the start, through the
+   * same service the workflow's activity calls, outside the turn's admission
+   * (`outsideTurn`), so it admits its own operation as on the worker; in
+   * production it runs a moment later, not inside the call.
+   * Every live subscription of the rows runs its check from the start.
+   */
+  const periodic = new Set(
+    (rows.subscriptions ?? [])
+      .filter((one) => one.organizationId === ORGANIZATION_ID && !one.deletedAt && !rows.periodicStopped?.includes(one.id))
+      .map((one) => `content-lead-check-${one.id}`)
+  );
+  const temporalFor = (service, outsideTurn = (run) => run()) => ({
+    client: {
+      getRawClient: () => ({
+        workflow: {
+          start: async (name, { workflowId, args: [input], startDelay }) => {
+            if (name !== 'contentLeadCheckWorkflow') throw new Error(`workflow ${name}`);
+            if (periodic.has(workflowId)) return;
+            periodic.add(workflowId);
+            // Held for an interval (review W4-23 F11): the first check is not now.
+            if (startDelay) {
+              requests.push(['idea.periodic', input.subscriptionId, { startDelay }]);
+              return;
+            }
+            requests.push(['idea.periodic', input.subscriptionId]);
+            const first = await outsideTurn(() =>
+              service().checkSubscription(input.organizationId, input.subscriptionId)
+            );
+            requests.push(['idea.periodic.first', input.subscriptionId, first.checked ? 'checked' : first.reason]);
+          },
+        },
+      }),
+    },
+    terminateWorkflow: async (workflowId) => {
+      periodic.delete(workflowId);
+    },
+  });
+  /** The feed reader: what the address carries, from `rows.feedItems`. */
+  const feedReader = () => ({
+    get capabilityEnabled() {
+      return rows.feedCheck !== false;
+    },
+    check: async (url, kind) => {
+      requests.push(['idea.feed', url, kind]);
+      return {
+        disabled: false,
+        items: (rows.feedItems?.[url] ?? []).map((item) => ({
+          ...item,
+          publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+        })),
+      };
+    },
+  });
+  /**
+   * The search behind a topic check: one `web_research` operation admitted
+   * through the real `AiUsageService`, as `WebResearchService.research` opens
+   * it, answering `rows.topicFound` as sources, facts and the judge's verdicts.
+   */
+  const topicSearch = (usage) => ({
+    research: async (organizationId, subject, options) => {
+      scoped('WebResearchService.research', organizationId);
+      const found = rows.topicFound ?? [];
+      // The research cache answered (review W4-23 F4): no search, no operation.
+      if (rows.topicCached) {
+        requests.push(['idea.research.cached', subject]);
+        return {
+          sources: found.map(({ url, title, publishedAt, score }) => ({ url, title, publishedAt, score: score ?? 0.8 })),
+          facts: [],
+          discovery: [],
+          fromCache: true,
+        };
+      }
+      requests.push(['idea.research', subject, { ...options }]);
+      await usage.executeAiOperation(organizationId, 'web_research', async () => 'found');
+      return {
+        sources: found.map(({ url, title, publishedAt, score }) => ({ url, title, publishedAt, score: score ?? 0.8 })),
+        facts: found.map((one) => ({ text: one.excerpt, sourceUrl: one.url })),
+        discovery: found.map((one) => ({ url: one.url, relevant: true, reason: one.reason ?? null })),
+      };
+    },
+  });
+
+  /* ---- Facts, own texts, analytics (kcxz.24) --------------------------- */
+  /**
+   * The world's facts as the Prisma table `ContentFactRepository` reads. Every
+   * query must name the caller's organization; a filter or a shape the
+   * database would not understand fails the scenario. The unique index is the
+   * schema's `(organizationId, dedupeKey)`. A fact has no evidence links here:
+   * every one is the person's own word.
+   */
+  const factTables = () => {
+    const table = () => (rows.facts = rows.facts ?? []);
+    const stamp = (data) =>
+      Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])
+      );
+    const matches = (row, where) =>
+      Object.entries(where).every(([key, want]) => {
+        const have = row[key] ?? null;
+        if (want && typeof want === 'object' && !(want instanceof Date)) {
+          if (want.not !== undefined) return have !== want.not;
+          // `redateFact`: only a live row (walk review F1).
+          if (Array.isArray(want.notIn)) return !want.notIn.includes(have);
+          throw new Error(`fact table: unexpected filter ${key}`);
+        }
+        return have === want;
+      });
+    const inWorkspace = (where = {}) => {
+      if (where.organizationId !== ORGANIZATION_ID) {
+        throw new Error(`facts read for organization ${where.organizationId}`);
+      }
+      return table().filter((row) => matches(row, where));
+    };
+    const shown = (row) => ({ ...row, evidenceLinks: [] });
+    const client = {
+      contentFact: {
+        findMany: async ({ where }) =>
+          inWorkspace(where)
+            .slice()
+            .sort((a, b) => String(a.claimKey).localeCompare(String(b.claimKey)) || a.id.localeCompare(b.id))
+            .slice(0, 100)
+            .map(shown),
+        findFirst: async ({ where }) => {
+          const row = inWorkspace(where)[0];
+          return row ? shown(row) : null;
+        },
+        upsert: async ({ where, create }) => {
+          const key = where.organizationId_dedupeKey;
+          const known = inWorkspace({ organizationId: key.organizationId }).find(
+            (row) => row.dedupeKey === key.dedupeKey
+          );
+          if (known) return shown(known);
+          const row = { id: `fact-${table().length + 1}`, createdAt: NOW, updatedAt: NOW, ...stamp(create) };
+          table().push(row);
+          writes.push(['fact.added', row.id]);
+          return shown(row);
+        },
+        updateMany: async ({ where, data }) => {
+          const found = inWorkspace(where);
+          for (const row of found) {
+            Object.assign(row, stamp(data));
+            writes.push(['fact.status', row.id, row.status]);
+          }
+          return { count: found.length };
+        },
+      },
+      user: {
+        findMany: async ({ where }) =>
+          (where.id?.in ?? []).includes('user-1') ? [{ id: 'user-1', name: 'Анна', lastName: null }] : [],
+      },
+    };
+    return {
+      repository: { model: client },
+      transaction: { model: { $transaction: async (work) => work(client) } },
+    };
+  };
+  /**
+   * What `TextSearchRepository.load` reads for the index: this workspace's
+   * pieces, facts and posts that went out with their address.
+   */
+  const searchRows = {
+    load: async (organizationId) => {
+      scoped('TextSearchRepository.load', organizationId);
+      const mine = (row) => (row.organizationId ?? ORGANIZATION_ID) === organizationId;
+      return {
+        pieces: rows.pieces.filter(mine).map((piece) => ({
+          id: piece.id,
+          title: piece.title ?? null,
+          body: piece.body ?? null,
+          createdAt: new Date(NOW),
+        })),
+        derivations: [],
+        posts: (rows.publishedPosts ?? [])
+          .filter(mine)
+          .filter((post) => post.releaseURL)
+          .map((post) => ({
+            id: post.id,
+            content: post.content,
+            releaseURL: post.releaseURL,
+            publishDate: new Date(post.publishDate),
+            integration: { providerIdentifier: post.platform },
+          })),
+        facts: (rows.facts ?? []).filter(mine).map((fact) => ({
+          id: fact.id,
+          statement: fact.statement ?? null,
+          claimKey: fact.claimKey ?? null,
+        })),
+      };
+    },
+  };
+  const textSearch = new TextSearchService(searchRows, () => Date.parse(NOW));
+  const factService = () => {
+    const tables = factTables();
+    return new ContentFactService(new ContentFactRepository(tables.repository, tables.transaction), textSearch);
+  };
+
+  const leadService = (usage, outsideTurn) => {
+    let service;
+    service = new ContentLeadService(
+      leadRepository(),
+      feedReader(),
+      temporalFor(() => service, outsideTurn),
+      () => new Date(NOW),
+      new LeadTopicGateway(topicSearch(usage), undefined, {
+        enabled: rows.topicCheck !== false,
+        now: () => new Date(NOW),
+        deniedDomains: [],
+      })
+    );
+    return service;
+  };
+
+  /**
+   * `PostsRepository.getProductionAnalyticsPosts` over the world's rows: the
+   * query's own filter (this organisation, not deleted, root posts, the
+   * window, published or failed, the channel when named) and its shape.
+   */
+  const productionService = () =>
+    new RealPostsService({
+      getProductionAnalyticsPosts: async (organizationId, from, to, integrationId) => {
+        scoped('PostsRepository.getProductionAnalyticsPosts', organizationId);
+        return (rows.productionPosts ?? [])
+          .filter((post) => (post.organizationId ?? ORGANIZATION_ID) === organizationId)
+          .filter((post) => !post.deletedAt && !post.parentPostId)
+          .filter((post) => !integrationId || post.integrationId === integrationId)
+          .filter((post) => ['PUBLISHED', 'ERROR'].includes(post.state))
+          .map((post) => ({
+            state: post.state,
+            creationMethod: post.creationMethod,
+            createdAt: new Date(post.createdAt),
+            publishDate: new Date(post.publishDate),
+            error: post.error ?? null,
+            errors: post.errors ?? [],
+          }))
+          .filter((post) => post.publishDate >= from && post.publishDate <= to);
+      },
+    });
+
+  /**
+   * The real `IntegrationService.checkAnalytics`. The channel is read by the
+   * repository in the organisation it is asked for; its token lives until
+   * `tokenExpiration` (far ahead unless the row says otherwise). The platform
+   * answers `rows.channelAnalytics`, or fails as `rows.channelAnalyticsFails`
+   * says (`refresh` — asks for a new token; any other word — an error). A
+   * refresh, a disconnection and a notification are writes: the chat's read
+   * must never make one.
+   */
+  const audienceService = () => {
+    const platform = {
+      analytics: async (internalId, token, days) => {
+        requests.push(['analytics.platform', internalId, String(days)]);
+        const failure = (rows.channelAnalyticsFails ?? {})[internalId];
+        if (failure === 'refresh') throw new PlatformRefreshToken('token expired');
+        if (failure) throw new Error(failure);
+        return (rows.channelAnalytics ?? {})[internalId] ?? [];
+      },
+    };
+    return new RealIntegrationService(
+      {
+        getIntegrationById: async (organizationId, id) => {
+          scoped('IntegrationRepository.getIntegrationById', organizationId);
+          const channel = rows.channels.find(
+            (one) => one.id === id && (one.organizationId ?? ORGANIZATION_ID) === organizationId
+          );
+          return channel
+            ? {
+                type: 'social',
+                internalId: channel.id,
+                token: 'channel-token',
+                tokenExpiration: '2099-01-01T00:00:00.000Z',
+                ...channel,
+              }
+            : null;
+        },
+        disconnectChannel: async (organizationId, id) => {
+          scoped('IntegrationRepository.disconnectChannel', organizationId);
+          writes.push(['channel.refresh-needed', id]);
+        },
+      },
+      {},
+      { getSocialIntegration: () => platform },
+      {
+        inAppNotification: async (organizationId) => {
+          scoped('NotificationService.inAppNotification', organizationId);
+          writes.push(['notification', organizationId]);
+        },
+      },
+      {
+        refresh: async (integration) => {
+          writes.push(['channel.token-refreshed', integration.id]);
+          return false;
+        },
+      },
+      {},
+      { merge: async (id, days, live) => live }
+    );
+  };
+
+  /* ---- Media (kcxz.25) ------------------------------------------------- */
+  /** The `media` table: the world's rows, this workspace's unless named. */
+  const mediaRows = () => (rows.media = rows.media ?? []);
+  const mediaOrg = (row) => row.organizationId ?? ORGANIZATION_ID;
+  const mediaMatches = (row, where = {}) =>
+    Object.entries(where).every(([key, want]) => {
+      if (key === 'organizationId') return mediaOrg(row) === want;
+      if (key === 'organization') return mediaOrg(row) === want.id;
+      if (key === 'deletedAt') return (row.deletedAt ?? null) === want;
+      if (key === 'id' && want && typeof want === 'object') return want.in.includes(row.id);
+      if (key === 'originalName' && want && typeof want === 'object') {
+        return String(row.originalName ?? '').toLowerCase().includes(String(want.contains).toLowerCase());
+      }
+      if (want && typeof want === 'object') throw new Error(`media table: unexpected filter ${key}`);
+      return row[key] === want;
+    });
+  const picked = (row, select) =>
+    select ? Object.fromEntries(Object.keys(select).map((key) => [key, row[key] ?? null])) : { ...row };
+  const mediaScoped = (where, method) => {
+    const org = where?.organizationId ?? where?.organization?.id;
+    scoped(`MediaRepository.${method}`, org);
+  };
+  const mediaTable = {
+    model: {
+      media: {
+        count: async ({ where }) => {
+          mediaScoped(where, 'count');
+          return mediaRows().filter((row) => mediaMatches(row, where)).length;
+        },
+        findMany: async ({ where, orderBy, skip = 0, take, select }) => {
+          mediaScoped(where, 'findMany');
+          const found = mediaRows().filter((row) => mediaMatches(row, where));
+          if (orderBy?.createdAt === 'desc') {
+            found.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+          }
+          return found.slice(skip, take === undefined ? undefined : skip + take).map((row) => picked(row, select));
+        },
+        findFirst: async ({ where }) => {
+          mediaScoped(where, 'findFirst');
+          const row = mediaRows().find((one) => mediaMatches(one, where));
+          return row ? { ...row } : null;
+        },
+        create: async ({ data, select }) => {
+          scoped('MediaRepository.saveFile', data.organization.connect.id);
+          const row = {
+            id: `00000000-0000-4000-8000-${String(mediaRows().length + 1).padStart(12, '0')}`,
+            organizationId: data.organization.connect.id,
+            name: data.name,
+            originalName: data.originalName ?? null,
+            path: data.path,
+            thumbnail: null,
+            alt: null,
+            deletedAt: null,
+            createdAt: `2026-09-27T10:00:${String(mediaRows().length).padStart(2, '0')}.000Z`,
+          };
+          mediaRows().push(row);
+          writes.push(['media.saved', row.id]);
+          return picked(row, select);
+        },
+      },
+    },
+  };
+  /** The `credits` and `subscription` tables the credits rule reads. */
+  const creditTable = {
+    model: {
+      credits: {
+        create: async ({ data }) => {
+          scoped('SubscriptionRepository.useCredit', data.organizationId);
+          const row = { id: `credit-${(rows.credits ?? []).length + 1}`, createdAt: NOW, ...data };
+          (rows.credits = rows.credits ?? []).push(row);
+          writes.push(['credit.used', data.type]);
+          return row;
+        },
+        delete: async ({ where }) => {
+          rows.credits = (rows.credits ?? []).filter((row) => row.id !== where.id);
+          writes.push(['credit.returned', where.id]);
+          return {};
+        },
+        groupBy: async ({ where }) => {
+          scoped('SubscriptionRepository.getCreditsFrom', where.organizationId);
+          // The tier's monthly window: rows before its start do not count.
+          const from = where.createdAt?.gte ? new Date(where.createdAt.gte).getTime() : -Infinity;
+          const sum = (rows.credits ?? [])
+            .filter((row) => row.organizationId === where.organizationId && row.type === where.type)
+            .filter((row) => new Date(row.createdAt ?? NOW).getTime() >= from)
+            .reduce((total, row) => total + row.credits, 0);
+          return sum ? [{ _sum: { credits: sum } }] : [];
+        },
+      },
+      subscription: {
+        // As the web request's organization carries it (review W4-25 F8):
+        // by the unique `organizationId`, the include's four fields.
+        findUnique: async ({ where, select }) => {
+          scoped('SubscriptionRepository.getSubscriptionAsOrganizationCarries', where.organizationId);
+          return rows.subscription ? picked({ organizationId: where.organizationId, ...rows.subscription }, select) : null;
+        },
+      },
+    },
+  };
+  const mediaService = (usage) => {
+    let drawn = 0;
+    // The provider's two answers and the storage: the only fakes.
+    mediaNetwork.client = (organizationId) => ({
+      chat: {
+        completions: {
+          parse: async ({ messages }) => {
+            requests.push(['media.picture-prompt', organizationId, messages.at(-1).content]);
+            // `promptFails`: the provider fails the picture-prompt call after
+            // the operation was admitted (kcxz.44 review F6).
+            if (rows.promptFails) {
+              throw Object.assign(new Error('503 upstream unavailable'), { status: 503 });
+            }
+            return { choices: [{ message: { parsed: { prompt: 'A calm realistic photo of the post’s idea.' } } }] };
+          },
+        },
+      },
+      images: {
+        generate: async ({ prompt, model, size }) => {
+          if (rows.imageRefused) {
+            throw Object.assign(new Error('400 Your request was rejected by the safety system'), { status: 400 });
+          }
+          requests.push(['media.image', organizationId, prompt, model, size]);
+          drawn += 1;
+          return { data: [{ b64_json: 'iVBORw0KGgo=' }] };
+        },
+      },
+    });
+    mediaNetwork.storage = async (data) => {
+      requests.push(['media.stored', String(data).slice(0, 22)]);
+      return `https://cdn.example/generated-${drawn}.png`;
+    };
+    // `subscription` and `credits`: the repository's two tables, one set.
+    const subscriptions = new SubscriptionService(
+      new SubscriptionRepository(creditTable, null, null, creditTable, null),
+      null,
+      null
+    );
+    // `pictureAdmission`: the picture's one admission (`image_generation`,
+    // kcxz.44) answers this refusal — an allowance another tab spent, or a
+    // busy ledger. The refusal is the admission's own shape (an
+    // `HttpException` with its code), before its callback — the picture
+    // prompt — runs; every other operation goes through the real service.
+    const admitting = rows.pictureAdmission
+      ? Object.assign(Object.create(usage), {
+          executeAiOperation: (organizationId, operation, callback, role) => {
+            if (operation !== 'image_generation') {
+              return usage.executeAiOperation(organizationId, operation, callback, role);
+            }
+            const status = rows.pictureAdmission === 'AI_ADMISSION_CONTENDED' ? 503 : 429;
+            requests.push(['media.admission-refused', organizationId, rows.pictureAdmission]);
+            return Promise.reject(
+              new HttpException({ statusCode: status, code: rows.pictureAdmission, message: 'Refused by the ledger.' }, status)
+            );
+          },
+        })
+      : usage;
+    const real = new MediaService(new MediaRepository(mediaTable), new OpenaiService(admitting), subscriptions, null);
+    // Billing configured (`STRIPE_PUBLISHABLE_KEY`) only while a world that
+    // names it calls: the door's credits rule reads the environment.
+    const billed = (call) => async (...args) => {
+      const before = process.env.STRIPE_PUBLISHABLE_KEY;
+      if (rows.billing) process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_world';
+      try {
+        return await call(...args);
+      } finally {
+        if (before === undefined) delete process.env.STRIPE_PUBLISHABLE_KEY;
+        else process.env.STRIPE_PUBLISHABLE_KEY = before;
+      }
+    };
+    return {
+      recentMedia: (...args) => real.recentMedia(...args),
+      mediaInWorkspace: (...args) => real.mediaInWorkspace(...args),
+      generateImageIntoLibraryFor: billed((...args) => real.generateImageIntoLibraryFor(...args)),
+    };
+  };
+  const pieceRepository = new PieceRepository(mediaTable, null, null);
+
+  const servicesFor = ({ usage, outsideTurn }) => ({
+    ContentLeadService: leadService(usage, outsideTurn),
+    MediaService: mediaService(usage),
+    ContentFactService: factService(),
+    // Only `listRelated` is reached; the library's own reads are not.
+    ContentMaterialService: new ContentMaterialService({}, () => new Date(NOW), textSearch),
     OnboardingRepository: {
       progress: async (organizationId) => {
         scoped('OnboardingRepository.progress', organizationId);
@@ -700,6 +1565,14 @@ const createWorld = (overrides = {}) => {
         const row = (rows.adaptations ?? []).find((one) => one.id === adaptationId && one.pieceId === pieceId);
         if (!row) throw Object.assign(new Error('Адаптации нет.'), { code: 'ADAPTATION_NOT_FOUND' });
         requests.push(['adaptation.edit', pieceId, adaptationId, JSON.parse(JSON.stringify(input))]);
+        // The picture is a live library item of this workspace, read by the
+        // real `PieceRepository.findMedia` — else nothing is written.
+        if (input.image) {
+          const media = await pieceRepository.findMedia(organizationId, String(input.image.id ?? ''));
+          if (!media) {
+            throw Object.assign(new Error('Такой картинки в медиатеке нет.'), { code: 'ADAPTATION_MEDIA_UNKNOWN' });
+          }
+        }
         if (typeof input.body === 'string') row.body = input.body;
         if (input.image !== undefined) row.mediaId = input.image ? input.image.id : null;
         writes.push(['adaptation.edited', adaptationId]);
@@ -1003,6 +1876,13 @@ const createWorld = (overrides = {}) => {
         if (!piece.questions.length) {
           await usage.executeAiOperation(organizationId, 'intake', async () => 'core');
         }
+        // The source line the intake keeps (`leadSourceOf`): the lead read
+        // by id in this workspace, through the same function (kcxz.23).
+        if (body.sourceLeadId) {
+          const lead = await leadRepository().getLead(organizationId, body.sourceLeadId).catch(() => null);
+          const source = pieceLeadSource(body.sourceLeadId, lead);
+          if (source) piece.leadSource = source;
+        }
         rows.pieces.push(piece);
         writes.push(['piece.created', piece.id]);
         yield { name: 'piece', pieceId: piece.id, code: piece.code, core: { body: piece.body } };
@@ -1144,6 +2024,13 @@ const createWorld = (overrides = {}) => {
       // The steps `DELETE /integrations` takes (`delete-channel.ts`). A
       // deleted channel stays as a row with `deletedAt`, as in the database:
       // the list does not show it, the door's lookup by id still finds it.
+      // The platform's audience answer (`/analytics/:integration`): the door
+      // reads only the organisation's id; an id outside it is refused as the
+      // service refuses it.
+      checkAnalytics: async (org, id, date, forceRefresh, options) => {
+        scoped('IntegrationService.checkAnalytics', org?.id);
+        return audienceService().checkAnalytics(org, id, date, forceRefresh, options);
+      },
       getIntegrationById: async (organizationId, id) => {
         scoped('IntegrationService.getIntegrationById', organizationId);
         return (
@@ -1254,6 +2141,9 @@ const createWorld = (overrides = {}) => {
             run.measuredAt === 'recent'
               ? new Date(Date.now() - 60_000).toISOString()
               : run.measuredAt,
+          // The run ended without its proposal (`kcxz.40`), as the service
+          // reads `proposalFailedAt` off the row.
+          ...(run.failed ? { proposalFailed: true } : {}),
         };
       },
       assertAnalysisAllowed: (actor) => {
@@ -1267,25 +2157,50 @@ const createWorld = (overrides = {}) => {
         const avatar = voiceAvatar(actor);
         requests.push(['voice.analysis', avatar?.id ?? null, { ...body }]);
         yield { name: 'started', samples: 0, planned: 0 };
-        const readiness = readinessOf(avatar);
-        if (!readiness.ready) {
-          yield { name: 'done', analysis: { outcome: 'insufficient', readiness } };
-          return;
+        // `runningElsewhere`: the avatar screen (or another tab) started this
+        // avatar's analysis a moment ago and holds the claim.
+        if (avatar?.runningElsewhere) {
+          await claimVoiceAnalysis(analysisLocks, actor.organizationId, avatar.id);
         }
-        const corpus = avatar.samples.map((one) => one.code);
-        yield { name: 'started', samples: corpus.length, planned: corpus.length };
-        avatar.run = { corpus, proposal: false, measuredAt: new Date().toISOString() };
-        writes.push(['avatar.measured', avatar.id, corpus.length]);
-        yield { name: 'measured', measurementId: `m-${avatar.id}`, sampleCount: corpus.length, charCount: readiness.charCount, wordCount: 0, sentenceCount: 0 };
-        await usage.executeAiOperation(actor.organizationId, 'text_generation', async () => 'map');
-        yield { name: 'call', stage: 'map', index: 1, total: 1, ok: true };
-        if (rows.assistFails) {
-          throw voiceError('VOICE_ASSIST_UNAVAILABLE', 'Агентный слепок недоступен: ИИ не ответил. Числа разбора сохранены.');
+        const release = await claimVoiceAnalysis(analysisLocks, actor.organizationId, avatar?.id ?? null);
+        if (!release) {
+          throw voiceError('VOICE_ANALYSIS_RUNNING', 'Разбор этого аватара уже идёт — второй не запущен и ничего не потрачено.');
         }
-        avatar.run.proposal = true;
-        avatar.fields = (rows.proposalFields ?? DEFAULT_PROPOSAL).map((one) => ({ ...one }));
-        writes.push(['avatar.proposed', avatar.id]);
-        yield { name: 'done', analysis: { outcome: 'ready', sampleCount: corpus.length } };
+        let measured = false;
+        let finished = false;
+        try {
+          const readiness = readinessOf(avatar);
+          if (!readiness.ready) {
+            yield { name: 'done', analysis: { outcome: 'insufficient', readiness } };
+            finished = true;
+            return;
+          }
+          const corpus = avatar.samples.map((one) => one.code);
+          yield { name: 'started', samples: corpus.length, planned: corpus.length };
+          avatar.run = { corpus, proposal: false, measuredAt: new Date().toISOString() };
+          measured = true;
+          writes.push(['avatar.measured', avatar.id, corpus.length]);
+          yield { name: 'measured', measurementId: `m-${avatar.id}`, sampleCount: corpus.length, charCount: readiness.charCount, wordCount: 0, sentenceCount: 0 };
+          await usage.executeAiOperation(actor.organizationId, 'text_generation', async () => 'map');
+          yield { name: 'call', stage: 'map', index: 1, total: 1, ok: true };
+          if (rows.assistFails) {
+            // A number fails that many runs; `true` fails every one.
+            if (typeof rows.assistFails === 'number') rows.assistFails -= 1;
+            throw voiceError('VOICE_ASSIST_UNAVAILABLE', 'Агентный слепок недоступен: ИИ не ответил. Числа разбора сохранены.');
+          }
+          avatar.run.proposal = true;
+          avatar.fields = (rows.proposalFields ?? DEFAULT_PROPOSAL).map((one) => ({ ...one }));
+          writes.push(['avatar.proposed', avatar.id]);
+          yield { name: 'done', analysis: { outcome: 'ready', sampleCount: corpus.length } };
+          finished = true;
+        } finally {
+          // The service marks the row of a run that saved and did not finish.
+          if (measured && !finished) {
+            avatar.run.failed = true;
+            writes.push(['avatar.analysis-failed', avatar.id]);
+          }
+          await release();
+        }
       },
       proposal: async (actor) => {
         scoped('VoiceService.proposal', actor.organizationId);
@@ -1487,6 +2402,15 @@ const createWorld = (overrides = {}) => {
       },
     },
     PostsService: {
+      // «Производство» as the service counts it: the repository's rows of the
+      // window (published or failed, root posts, this organisation, the
+      // channel when named), counted by the real function.
+      getProductionAnalytics: async (organizationId, days, integrationId) => {
+        scoped('PostsService.getProductionAnalytics', organizationId);
+        // The real step on the scenario clock; only its repository read is
+        // the world's.
+        return productionService().getProductionAnalytics(organizationId, days, integrationId, new Date(NOW));
+      },
       // A channel's root posts, not deleted: a post is an adaptation row's
       // `postId` on that channel (review W3-19 P3-8).
       channelPostIds: async (organizationId, integrationId) => {
@@ -1646,7 +2570,9 @@ const createWorld = (overrides = {}) => {
       // the real service the door holds.
       readAllowance: async (organizationId) => {
         scoped('AiUsageService.readAllowance', organizationId);
-        return { mode: 'workspace_key' };
+        // `allowance`: what the included allowance reads (the snapshot line);
+        // a workspace key by default.
+        return rows.allowance ? { ...rows.allowance } : { mode: 'workspace_key' };
       },
     },
   });
@@ -1660,7 +2586,7 @@ const createWorld = (overrides = {}) => {
     /** What the scenario asserts on: the rows as they are now. */
     state: () =>
       JSON.parse(
-        JSON.stringify({ ...rows, switchModeAfterRead: undefined, nextPiece: undefined, snapshots: undefined, researchFacts: undefined, intakeQuestions: undefined, coreSnapshots: undefined, coreResearchFacts: undefined, proposals: undefined, reviewChanges: undefined, adaptQuestions: undefined, queueBusy: undefined, queueBusyPosts: undefined, unscheduleBeforeMove: undefined, assistFails: undefined, proposalFields: undefined })
+        JSON.stringify({ ...rows, switchModeAfterRead: undefined, nextPiece: undefined, feedItems: undefined, topicFound: undefined, topicCached: undefined, periodicStopped: undefined, snapshots: undefined, researchFacts: undefined, intakeQuestions: undefined, coreSnapshots: undefined, coreResearchFacts: undefined, proposals: undefined, reviewChanges: undefined, adaptQuestions: undefined, queueBusy: undefined, queueBusyPosts: undefined, unscheduleBeforeMove: undefined, assistFails: undefined, proposalFields: undefined })
       ),
   };
 };

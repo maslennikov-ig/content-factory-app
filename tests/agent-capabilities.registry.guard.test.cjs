@@ -128,8 +128,10 @@ describe('agent capability registry', () => {
     );
     expect(leaking.map((capability) => capability.id)).toEqual([]);
     // …and the reads still reach every member, but the AI settings: their
-    // doors are the administrator's (kcxz.20).
-    for (const capability of byClass('read').filter((entry) => entry.group !== 'ai-settings')) {
+    // doors are the administrator's (kcxz.20); and the cliché check, whose
+    // door is the editor's — a reader has no draft to check (kcxz.24).
+    const notForEveryone = (entry) => entry.group === 'ai-settings' || entry.id === 'text.slop_check';
+    for (const capability of byClass('read').filter((entry) => !notForEveryone(entry))) {
       expect(offered.has(registry.toolNameOf(capability.id))).toBe(true);
     }
   });
@@ -280,7 +282,7 @@ describe('F1, F16: an approval card says what and where, for exactly the call (r
 
   test('the line is one line, capped', () => {
     expect(registry.cleanApprovalSummary('Удалить\n\u2028 «x»\t ')).toBe('Удалить «x»');
-    const long = registry.cleanApprovalSummary('я'.repeat(500));
+    const long = registry.cleanApprovalSummary('я'.repeat(registry.AGENT_APPROVAL_SUMMARY_MAX + 200));
     expect(long).toHaveLength(registry.AGENT_APPROVAL_SUMMARY_MAX);
     expect(long.endsWith('…')).toBe(true);
     expect(registry.cleanApprovalSummary('  ')).toBeNull();

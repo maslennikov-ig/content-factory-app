@@ -120,7 +120,12 @@ describe('group know-how as skills (ADR-0012 amendment §6)', () => {
       'channels',
       'content',
       'plan',
+      'ideas',
+      'facts',
+      'analytics',
+      'media',
       'ai-settings',
+      'help',
     ]);
     for (const skill of CONDUCTOR_SKILL_SPECS) {
       expect(skill.name).toMatch(/^[a-z][a-z-]*$/);
@@ -385,14 +390,21 @@ describe('reading POST /agent/chat (premortem S2–S5)', () => {
           parts: [
             { type: 'text', text: 'напиши' },
             { type: 'tool-piece_delete', toolCallId: 'x', state: 'output-available' },
-            { type: 'file', url: 'data:image/png;base64,AA==', mediaType: 'image/png', filename: 'a.png' },
+            { type: 'file', url: 'data:image/png;base64,iVBORw0KGgo=', mediaType: 'image/png', filename: 'a.png' },
           ],
         },
       ],
     });
-    expect(parsed.message.parts).toEqual([
-      { type: 'text', text: 'напиши' },
-      { type: 'file', url: 'data:image/png;base64,AA==', mediaType: 'image/png', filename: 'a.png' },
+    // A picture leaves its line in the message; the bytes ride beside it for
+    // this request only (owner decision 28.09, «агент видит картинки»).
+    expect(parsed.message.parts.map((part) => part.type)).toEqual(['text', 'text']);
+    expect(parsed.message.parts[0]).toEqual({ type: 'text', text: 'напиши' });
+    expect(JSON.parse(parsed.message.parts[1].text).untrustedData.value).toMatchObject({
+      attachment: 'a.png',
+      mediaType: 'image/png',
+    });
+    expect(parsed.pictures).toEqual([
+      expect.objectContaining({ data: 'iVBORw0KGgo=', mediaType: 'image/png', filename: 'a.png' }),
     ]);
     expect(parsed.threadId).toBeUndefined();
   });
@@ -714,16 +726,14 @@ describe('what a request may carry (correctness review W1 F2, F4, F13)', () => {
     });
   });
 
-  test('a picture is rebuilt under its own declared type', () => {
+  test('a picture is rebuilt under the type its bytes show, never the data URL’s', () => {
     const parsed = request.parseAgentChatBody(
-      withFiles({ type: 'file', url: 'data:text/html;charset=utf-8;base64,AA==', mediaType: 'IMAGE/PNG', filename: 'a.png' })
+      withFiles({ type: 'file', url: 'data:text/html;charset=utf-8;base64,iVBORw0KGgo=', mediaType: 'IMAGE/PNG', filename: 'a.png' })
     );
-    expect(parsed.message.parts[1]).toEqual({
-      type: 'file',
-      url: 'data:image/png;base64,AA==',
-      mediaType: 'image/png',
-      filename: 'a.png',
-    });
+    expect(parsed.pictures).toEqual([
+      expect.objectContaining({ data: 'iVBORw0KGgo=', mediaType: 'image/png', filename: 'a.png' }),
+    ]);
+    expect(JSON.parse(parsed.message.parts[1].text).untrustedData.value.mediaType).toBe('image/png');
   });
 
   const answer = (runId, toolCallId, extra = {}) => ({

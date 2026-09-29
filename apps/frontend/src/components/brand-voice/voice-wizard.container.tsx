@@ -27,6 +27,7 @@ import { readVoice } from './voice-profile.adapter';
 import {
   ANALYSIS_PROGRESS_START,
   ANALYSIS_SILENCE_MS,
+  ANALYSIS_ELSEWHERE_GRACE_MS,
   ANALYSIS_WATCH_INTERVAL_MS,
   VOICE_ROUTES,
   advanceAnalysis,
@@ -392,13 +393,25 @@ export function VoiceWizardContainer({
     [goTo, w.proposalMissing]
   );
 
+  /**
+   * Until when «nothing stored for these texts» still means «the other run
+   * has not saved its numbers yet» (`kcxz.39`, review W4-39-40 F1): a start
+   * refused because the chat or another tab is analysing this avatar waits
+   * for that run instead of bouncing back to the texts.
+   */
+  const watchGraceUntil = useRef(0);
+
   /** Screen 04 waiting for a run the server is still finishing. */
-  const watchStoredRun = useCallback(() => {
-    setChosenPath((current) => current ?? 'own');
-    goTo('analysis');
-    setWatching(true);
-    onAnalysingChange?.(true);
-  }, [goTo, onAnalysingChange]);
+  const watchStoredRun = useCallback(
+    (graceMs = 0) => {
+      watchGraceUntil.current = graceMs ? Date.now() + graceMs : 0;
+      setChosenPath((current) => current ?? 'own');
+      goTo('analysis');
+      setWatching(true);
+      onAnalysingChange?.(true);
+    },
+    [goTo, onAnalysingChange]
+  );
 
   useEffect(() => {
     if (!watching) return;
@@ -414,6 +427,7 @@ export function VoiceWizardContainer({
       if (cancelled) return;
       const next = resumeStepFor(reading, Date.now());
       if (next === 'waiting') return;
+      if (next === 'samples' && Date.now() < watchGraceUntil.current) return;
       onAnalysingChange?.(false);
       if (next === 'samples') {
         goTo('samples');
@@ -496,6 +510,7 @@ export function VoiceWizardContainer({
    */
   const runAnalysis = useCallback(async () => {
     const run = ++analysisRun.current;
+    let handedToWatcher = false;
     const controller = new AbortController();
     analysisAbort.current = controller;
     // Считается тишина между строками, а не длительность хода: ход честно
@@ -579,6 +594,14 @@ export function VoiceWizardContainer({
       setAnalysisResult(result);
     } catch (error) {
       if (run !== analysisRun.current) return;
+      // Another start of this avatar's analysis — the chat, another tab —
+      // holds it (`kcxz.39`). Nothing was spent; the screen waits for that
+      // run and shows its result when it lands (review W4-39-40 F1).
+      if ((error as { code?: unknown } | null)?.code === 'VOICE_ANALYSIS_RUNNING') {
+        handedToWatcher = true;
+        watchStoredRun(ANALYSIS_ELSEWHERE_GRACE_MS);
+        return;
+      }
       // The refusal is shown on the screen the run was on, with a way to
       // retry it in place, rather than bounced back to the corpus.
       const interrupted = error instanceof TypeError ||
@@ -605,11 +628,11 @@ export function VoiceWizardContainer({
       if (run === analysisRun.current) {
         analysisAbort.current = null;
         setAnalysing(false);
-        onAnalysingChange?.(false);
+        if (!handedToWatcher) onAnalysingChange?.(false);
         setProgress(null);
       }
     }
-  }, [fail, locale, read, request, scoped, onAnalysisStart, onAnalysingChange]);
+  }, [fail, locale, read, request, scoped, onAnalysisStart, onAnalysingChange, watchStoredRun]);
 
   /**
    * «Дальше — разбор», which pays only when it has to (`2q28.34`).

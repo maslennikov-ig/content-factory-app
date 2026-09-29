@@ -38,6 +38,28 @@ the owner are in spec §5.3 (avatar), §5.4 (channels), §5.5 (AI settings), §5
   one call; audience self-address removed from cores and adaptations (`audience-remark.ts`); metric words and
   statistics shown in plain words (display only).
 
+## W4 (28.09) — ideas, facts, analytics, help and media from the chat (code done, not released)
+
+Owner 28.09 «Давай W4 с kcxz.23», then «делай исправь все это». Each stream: worker → independent correctness
+review → fix round (`evidence/correctness-review-w4-{23,24,25}.md`, `…-w4-25-vision.md`, each with «## Fixes»).
+Decisions for the owner are in spec §5.7 (ideas), §5.8 (facts, texts, analytics, help), §5.9 (media). Main points:
+
+- Ideas: topic subscription is confirm (card states the daily check and its cost), feed is write; re-adding an
+  archived subscription revives it (screen too); a paid call refused before spending gives the step back;
+  «Взять в работу» in the side panel pre-fills the composer.
+- Facts: retract is confirm, restore is write; a superseded fact can be neither retracted nor restored (service,
+  screen too). Analytics from the chat/MCP never refreshes tokens nor disconnects a channel (`mayRefresh: false`).
+  Help is a Mastra skill over the single FAQ source.
+- Media: owner 28.09 «агент видит картинки» — a pasted picture goes to the model for that request only (first
+  model step), never stored (placeholder in history, proven with provider request echo); «В медиатеку» card
+  (`media.keep`) uploads from the browser; generation = two AI operations, allowance pre-checked for both.
+  `/agent/chat` body limit ~14.3 MB.
+- Open for the owner: MCP may add facts as the person's own word (§5.8); screen «Свежо до» still ends at the
+  day's start; one picture = two operations (§5.9); a lead title can steer archive/dismiss/take (no card).
+- Full suite 28.09 on 6 W4 commits: Jest 573/575 suites (9801/9803) — the two reds (a main.ts import mock,
+  the word «модель» in a new copy line) fixed at root and re-run green; node:test 122/0; Python OK. No live
+  stand walk yet (needs the owner's word on production keys).
+
 ## Decisions (owner)
 
 - 26.09: place `/agents`; autonomy «почти всё сам» (paid steps and reserve without asking; delete,

@@ -21,6 +21,7 @@ import {
 } from '@contentfactory/nestjs-libraries/chat/capabilities/approval-summary';
 import type { CapabilityIdentity } from '@contentfactory/nestjs-libraries/chat/capabilities/capability.types';
 import { avatarInWorkspace } from '@contentfactory/nestjs-libraries/chat/capabilities/catalogue/avatar.capabilities';
+import { mediaReceiptInWorkspace } from '@contentfactory/nestjs-libraries/chat/capabilities/catalogue/media.capabilities';
 import { createConductorMemory } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
 
 /**
@@ -116,6 +117,14 @@ export class MastraService {
   /** Whether a samples receipt's avatar is the caller's (review W3-18 F3). */
   samplesAvatarKnown(identity: CapabilityIdentity, avatarId: string): Promise<boolean> {
     return avatarInWorkspace(this.service, identity, avatarId);
+  }
+
+  /**
+   * A pictures receipt as the library's own rows say it (`kcxz.25`, review
+   * W4-25 F3): `null` unless every id is a live picture of the caller's.
+   */
+  mediaReceipt(identity: CapabilityIdentity, ids: string[]) {
+    return mediaReceiptInWorkspace(this.service, identity, ids);
   }
 
   /** The label of a registry tool in the caller's language (kcxz.29, D5). */

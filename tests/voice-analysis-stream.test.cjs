@@ -229,7 +229,7 @@ function harness(options = {}) {
     {},
     () => new Date('2026-09-07T12:00:00.000Z')
   );
-  return { service, controller: new BrandVoiceController(service) };
+  return { service, prisma, controller: new BrandVoiceController(service) };
 }
 
 const fill = (service, count = 12) =>
@@ -570,5 +570,283 @@ describe('вернувшийся человек не платит за разб�
       hasProposal: false,
       corpusChanged: false,
     });
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * kcxz.39 / kcxz.40 (review W3-18 F5, F9)
+ * ---------------------------------------------------------------------- */
+
+const lock = loadTypeScriptModule(`${voiceBase}/analysis-lock.ts`, {}, { sources });
+const { resumeStepFor } = loadTypeScriptModule(
+  `${voiceBase}/analysis-resume.ts`,
+  {},
+  { sources }
+);
+
+/** A model whose answer waits until the test lets it go. */
+const heldTransport = (calls = []) => {
+  let open;
+  const gate = new Promise((resolve) => {
+    open = resolve;
+  });
+  const inner = groundedTransport(calls);
+  return {
+    open: () => open(),
+    complete: async (request) => {
+      await gate;
+      return inner.complete(request);
+    },
+  };
+};
+
+const measurementCount = (prisma) => prisma.state.brandVoiceMeasurement.length;
+
+/** `SET … EX … NX` and the two owner scripts, as Redis answers them. */
+const fakeRedis = () => {
+  const data = new Map();
+  const commands = [];
+  const live = (key) => {
+    const entry = data.get(key);
+    if (entry && entry.until <= Date.now()) data.delete(key);
+    return data.get(key);
+  };
+  return {
+    commands,
+    has: (key) => !!live(key),
+    client: {
+      set: async (...args) => {
+        commands.push(['set', ...args]);
+        const [key, value, , ttl, nx] = args;
+        if (nx === 'NX' && live(key)) return null;
+        data.set(key, { value, until: Date.now() + ttl * 1000 });
+        return 'OK';
+      },
+      eval: async (script, _keys, key, token, ttl) => {
+        commands.push(['eval', script, key]);
+        const entry = live(key);
+        if (!entry || entry.value !== token) return 0;
+        if (/'expire'/u.test(script)) {
+          entry.until = Date.now() + Number(ttl) * 1000;
+          return 1;
+        }
+        data.delete(key);
+        return 1;
+      },
+    },
+  };
+};
+
+describe('одна платная попытка на аватар за раз (kcxz.39)', () => {
+  test('the claim: first start wins, a second is refused, release frees it, the key is per avatar', async () => {
+    const store = lock.inProcessAnalysisLockStore();
+    const release = await lock.claimVoiceAnalysis(store, 'org-a', 'av-1');
+    expect(typeof release).toBe('function');
+    expect(await lock.claimVoiceAnalysis(store, 'org-a', 'av-1')).toBeNull();
+    // Another avatar and another space are not held by it.
+    expect(await lock.claimVoiceAnalysis(store, 'org-a', 'av-2')).not.toBeNull();
+    expect(await lock.claimVoiceAnalysis(store, 'org-b', 'av-1')).not.toBeNull();
+    await release();
+    await release();
+    expect(await lock.claimVoiceAnalysis(store, 'org-a', 'av-1')).not.toBeNull();
+    expect(lock.voiceAnalysisLockKey('org-a', null)).toBe('voice-analysis-running:org-a:space');
+  });
+
+  test('the claim is owned: a run that outlived its claim cannot free the next run\'s (review F3)', async () => {
+    for (const store of [lock.inProcessAnalysisLockStore(), lock.redisAnalysisLockStore(fakeRedis().client)]) {
+      const stale = await lock.claimVoiceAnalysis(store, 'org-a', 'av-1', { ttlSeconds: 0.05, renewMs: 60_000 });
+      expect(stale).not.toBeNull();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const fresh = await lock.claimVoiceAnalysis(store, 'org-a', 'av-1');
+      expect(fresh).not.toBeNull();
+      await stale();
+      // The newer claim still holds: a third start is refused.
+      expect(await lock.claimVoiceAnalysis(store, 'org-a', 'av-1')).toBeNull();
+      await fresh();
+      const after = await lock.claimVoiceAnalysis(store, 'org-a', 'av-1');
+      expect(after).not.toBeNull();
+      await after();
+    }
+  });
+
+  test('a refusal never touches the claim; the running one renews its short lifetime until released (review F4)', async () => {
+    const redis = fakeRedis();
+    const store = lock.redisAnalysisLockStore(redis.client);
+    expect(lock.VOICE_ANALYSIS_LOCK_TTL_SECONDS).toBe(120);
+    expect(lock.VOICE_ANALYSIS_LOCK_RENEW_MS * 3).toBeLessThanOrEqual(lock.VOICE_ANALYSIS_LOCK_TTL_SECONDS * 1000);
+    const release = await lock.claimVoiceAnalysis(store, 'org-a', 'av-1', { renewMs: 10 });
+    expect(redis.commands[0]).toEqual(['set', 'voice-analysis-running:org-a:av-1', expect.any(String), 'EX', 120, 'NX']);
+    const before = redis.commands.length;
+    expect(await lock.claimVoiceAnalysis(store, 'org-a', 'av-1')).toBeNull();
+    // Only the failed SET NX: no EXPIRE, nothing that extends the live claim.
+    expect(redis.commands.slice(before).map(([name]) => name)).toEqual(['set']);
+    await new Promise((resolve) => setTimeout(resolve, 35));
+    expect(redis.commands.filter(([name, script]) => name === 'eval' && /expire/u.test(script)).length).toBeGreaterThan(0);
+    await release();
+    const renewals = redis.commands.length;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(redis.commands.length).toBe(renewals);
+    expect(redis.has('voice-analysis-running:org-a:av-1')).toBe(false);
+  });
+
+  test('a store that does not answer refuses the start clearly instead of hanging (review F5)', async () => {
+    const hanging = { claim: () => new Promise(() => {}), renew: async () => true, release: async () => {} };
+    await expect(lock.claimVoiceAnalysis(hanging, 'org-a', 'av-1', { waitMs: 20 })).rejects.toBeInstanceOf(
+      lock.VoiceAnalysisLockUnavailable
+    );
+    expect(lock.VOICE_ANALYSIS_LOCK_WAIT_MS).toBe(5_000);
+
+    // The service turns it into VOICE_ANALYSIS_FAILED before reading or paying.
+    const calls = [];
+    const prisma = new InMemoryVoicePrisma();
+    const samples = new VoiceSampleRepository({ model: prisma.model }, prisma.transaction);
+    const profiles = new VoiceProfileRepository(
+      new BrandProfileRepository({ model: prisma.model }, prisma.transaction),
+      { model: prisma.model }
+    );
+    const broken = { claim: async () => { throw new Error('connection refused'); }, renew: async () => false, release: async () => {} };
+    const service = new VoiceService(samples, profiles, assistOver(groundedTransport(calls)), {}, () => new Date('2026-09-07T12:00:00.000Z'), null, broken);
+    await fill(service);
+    await expect(service.runAnalysis(admin, { withAssist: true })).rejects.toMatchObject({
+      code: 'VOICE_ANALYSIS_FAILED',
+      message: expect.stringContaining('Ничего не потрачено'),
+    });
+    expect(calls).toEqual([]);
+    expect(prisma.state.brandVoiceMeasurement).toHaveLength(0);
+  });
+
+  test('a second start before the first saved anything is refused, reads nothing and pays nothing', async () => {
+    const calls = [];
+    const transport = heldTransport(calls);
+    const { service, prisma, controller } = harness({ assist: assistOver(transport) });
+    await fill(service);
+
+    // The first run is past its claim and has not saved its numbers yet —
+    // the window in which the resume rule still reads `samples`.
+    const first = service.analysisStream(admin, { withAssist: true });
+    expect((await first.next()).value).toMatchObject({ name: 'started', samples: 0 });
+    expect((await first.next()).value).toMatchObject({ name: 'started' });
+    expect(measurementCount(prisma)).toBe(0);
+
+    const second = await run(controller);
+    const last = second.events[second.events.length - 1];
+    expect(last).toMatchObject({ name: 'error', code: 'VOICE_ANALYSIS_RUNNING' });
+    expect(second.events.map((event) => event.name)).toEqual(['started', 'error']);
+    // `runAnalysis` (the one-answer door) is the same run and the same claim.
+    await expect(service.runAnalysis(admin, { withAssist: true })).rejects.toMatchObject({
+      code: 'VOICE_ANALYSIS_RUNNING',
+      status: 409,
+    });
+
+    // The first run finishes and is the only one that asked the model.
+    transport.open();
+    const rest = [];
+    for (let step = await first.next(); !step.done; step = await first.next()) rest.push(step.value);
+    expect(rest[rest.length - 1]).toMatchObject({ name: 'done' });
+    expect(measurementCount(prisma)).toBe(1);
+    const asked = calls.length;
+    expect(asked).toBeGreaterThan(0);
+
+    // Released in `finally`: the next start runs.
+    const third = await run(controller);
+    expect(third.events[third.events.length - 1]).toMatchObject({ name: 'done' });
+  });
+
+  test('a failed run releases the claim too', async () => {
+    const { service, controller } = harness({ assist: assistOver(brokenTransport()) });
+    await fill(service);
+    const failed = await run(controller);
+    expect(failed.events[failed.events.length - 1]).toMatchObject({ code: 'VOICE_ASSIST_UNAVAILABLE' });
+    const again = await run(controller);
+    expect(again.events[again.events.length - 1]).toMatchObject({ code: 'VOICE_ASSIST_UNAVAILABLE' });
+  });
+});
+
+describe('упавший разбор не читается как «ещё идёт» (kcxz.40)', () => {
+  test('a run that saved numbers and then failed is marked, and the resume rule offers the rerun at once', async () => {
+    let transport = brokenTransport();
+    const { service, controller } = harness({
+      assist: { propose: (input) => assistModule.runVoiceAssist(transport, input) },
+    });
+    await fill(service);
+    await run(controller);
+
+    const saved = await service.analysis(admin);
+    expect(saved).toMatchObject({
+      outcome: 'ready',
+      hasProposal: false,
+      corpusChanged: false,
+      proposalFailed: true,
+    });
+    // A minute after the save — well inside the window — it is not «waiting».
+    const minuteLater = Date.parse(saved.measuredAt) + 60_000;
+    expect(resumeStepFor(saved, minuteLater)).toBe('analysis');
+
+    // The rerun the person agreed to runs and stores a proposal; the new
+    // row carries no failure mark.
+    transport = groundedTransport();
+    await run(controller);
+    const after = await service.analysis(admin);
+    expect(after).toMatchObject({ outcome: 'ready', hasProposal: true });
+    expect(after.proposalFailed).toBeUndefined();
+    expect(resumeStepFor(after, minuteLater)).toBe('proposal');
+  });
+
+  test('a finished run carries no mark, and an unmarked run without a proposal still waits inside the window', async () => {
+    const { service, controller } = harness({ assist: assistOver(groundedTransport()) });
+    await fill(service);
+    await run(controller);
+    const saved = await service.analysis(admin);
+    expect(saved.proposalFailed).toBeUndefined();
+    expect(
+      resumeStepFor(
+        { ...saved, hasProposal: false },
+        Date.parse(saved.measuredAt) + 60_000
+      )
+    ).toBe('waiting');
+  });
+
+  test('a reader that stops after the numbers were saved marks the run as ended, and frees the claim', async () => {
+    const { service, controller } = harness({ assist: assistOver(heldTransport()) });
+    await fill(service);
+    const stream = service.analysisStream(admin, { withAssist: true });
+    for (let step = await stream.next(); !step.done; step = await stream.next()) {
+      if (step.value.name === 'measured') break;
+    }
+    await stream.return(undefined);
+    const saved = await service.analysis(admin);
+    expect(saved.proposalFailed).toBe(true);
+    const next = await run(controller, { withAssist: false });
+    expect(next.events[next.events.length - 1]).toMatchObject({ name: 'done' });
+  });
+
+  test('a reader that stops at `done` keeps the proposal it paid for (review F2)', async () => {
+    const { service } = harness({ assist: assistOver(groundedTransport()) });
+    await fill(service);
+    const stream = service.analysisStream(admin, { withAssist: true });
+    for (let step = await stream.next(); !step.done; step = await stream.next()) {
+      if (step.value.name === 'done') break;
+    }
+    await stream.return(undefined);
+    const saved = await service.analysis(admin);
+    expect(saved).toMatchObject({ outcome: 'ready', hasProposal: true });
+    expect(saved.proposalFailed).toBeUndefined();
+  });
+});
+
+describe('предложение не стирает положение относительно нормы (review F6)', () => {
+  test('the row that stores the AI proposal keeps the deviations saved with the numbers', async () => {
+    const plain = harness();
+    await fill(plain.service);
+    await run(plain.controller, { withAssist: false });
+    const numbersOnly = plain.prisma.state.brandVoiceMeasurement[0].metrics.deviations;
+    expect(numbersOnly).toBeDefined();
+
+    const { service, prisma, controller } = harness({ assist: assistOver(groundedTransport()) });
+    await fill(service);
+    await run(controller);
+    const [row] = prisma.state.brandVoiceMeasurement;
+    expect(row.metrics.proposal).toBeDefined();
+    expect(row.metrics.deviations).toEqual(numbersOnly);
   });
 });

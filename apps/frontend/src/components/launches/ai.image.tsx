@@ -8,22 +8,13 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
-const list = [
-  'Realistic',
-  'Cartoon',
-  'Anime',
-  'Fantasy',
-  'Abstract',
-  'Pixel Art',
-  'Sketch',
-  'Watercolor',
-  'Minimalist',
-  'Cyberpunk',
-  'Monochromatic',
-  'Surreal',
-  'Pop Art',
-  'Fantasy Realism',
-];
+import {
+  IMAGE_STYLES,
+  imagePromptBody,
+} from '@contentfactory/nestjs-libraries/database/prisma/media/image-prompt';
+// The styles and the body the door reads are shared with the chat's
+// `media.generate` (`content-factory-next-kcxz.25`).
+const list = IMAGE_STYLES;
 
 const AiImageModal: FC<{
   close: () => void;
@@ -36,7 +27,7 @@ const AiImageModal: FC<{
   const toaster = useToaster();
   const setLocked = useLaunchStore((p) => p.setLocked);
   const [prompt, setPrompt] = useState('');
-  const [style, setStyle] = useState(list[0]);
+  const [style, setStyle] = useState<string>(list[0]);
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -55,16 +46,7 @@ const AiImageModal: FC<{
         await fetch('/media/generate-image-with-prompt', {
           method: 'POST',
           body: JSON.stringify({
-            prompt: `
-<!-- description -->
-${prompt}
-<!-- /description -->
-
-<!-- style -->
-${style}
-<!-- /style -->
-
-`,
+            prompt: imagePromptBody(prompt, style),
           }),
         })
       ).json();
