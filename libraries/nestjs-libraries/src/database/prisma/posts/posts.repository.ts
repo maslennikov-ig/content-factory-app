@@ -39,6 +39,7 @@ import {
  * слота. Строки не удаляются — их просто не показывают.
  */
 import {
+  markPersonQueued,
   supersededDraftPostIds,
   withForeignQueueGate,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
@@ -744,6 +745,15 @@ export class PostsRepository {
     work: (tx?: any) => Promise<T>
   ) {
     return withForeignQueueGate(this._post.model as any, orgId, postIds, work);
+  }
+
+  /**
+   * A person moved this CF variant in the queue (`kcxz.56`): the queue is
+   * theirs now, so a later autopilot adaptation of the piece keeps it. Runs on
+   * the gate's transaction client, so it commits or rolls back with the move.
+   */
+  personQueued(orgId: string, postId: string, client: any) {
+    return markPersonQueued(client, orgId, postId);
   }
 
   async changeState(

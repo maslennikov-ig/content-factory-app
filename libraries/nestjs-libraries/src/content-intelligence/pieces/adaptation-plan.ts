@@ -396,6 +396,28 @@ export const queueGate = (
   return block ? { block, release: [] } : { block: null, release };
 };
 
+/**
+ * A person moved a queued Content Factory variant (`content-factory-next-kcxz.56`):
+ * the queue is now the person's choice, so the autopilot label comes off it,
+ * the same way a released autopilot variant loses it (`plan: 'reserve'`,
+ * written only while the plan is still `'autopilot'`). `queueGate` then keeps
+ * it (`keptQueued`) when a later autopilot adaptation of the same piece and
+ * channel is written, instead of sending it back to the draft. The caller runs
+ * this on the same transaction client as the move (the channel lock of
+ * `withForeignQueueGate`, or the pieces' own channel lock).
+ */
+export const PERSON_QUEUED_PLAN: PlanModeV1 = 'reserve';
+
+export const markPersonQueued = (
+  client: ClientLike,
+  organizationId: string,
+  postId: string
+): Promise<{ count: number }> =>
+  client.contentDerivation.updateMany({
+    where: { organizationId, postId, plan: 'autopilot' },
+    data: { plan: PERSON_QUEUED_PLAN },
+  });
+
 /** The advisory-lock key every queue write of a (piece, channel) takes (F4). */
 export const channelLockKey = (
   organizationId: string,

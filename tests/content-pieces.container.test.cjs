@@ -89,6 +89,9 @@ const routes = loadTypeScriptModule(
 const avatarRoutes = loadTypeScriptModule(
   'apps/frontend/src/components/brand-voice/voice-avatars.adapter.ts'
 ).AVATAR_ROUTES;
+const imagePrompt = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/database/prisma/media/image-prompt.ts'
+);
 
 /*
   Окно поста подменяется на уровне модуля модалок — тот же приём, что в
@@ -694,6 +697,112 @@ describe('the channel workspace talks to its own doors', () => {
     );
     expect(document.querySelector('[data-autosave="saved"]')).not.toBeNull();
     expect(opened).toEqual([]);
+  });
+
+  /*
+    «Сгенерировать» (`kcxz.55`): одно нажатие рисует картинку по тому же
+    тексту, что уже показан в поле, той же дверью, что композитор и агент
+    (`/media/generate-image-with-prompt`), и кладёт результат на адаптацию
+    той же дверью, что «картинка из медиатеки» — `PATCH` с `image`.
+  */
+  test('«Сгенерировать» draws from the shown text and puts the result on the adaptation', async () => {
+    const GENERATE_URL = '/media/generate-image-with-prompt';
+    await workspace({
+      [`POST ${GENERATE_URL}`]: ok({
+        id: 'media-99',
+        name: 'сорвал сам себе.png',
+        path: '/uploads/media-99.png',
+      }),
+    });
+    const button = document.querySelector(
+      '[data-editor-tool="generate-image"]'
+    );
+    expect(button.getAttribute('data-generate-state')).toBe('idle');
+    await click(button, () =>
+      calls.some((call) => call.method === 'PATCH' && call.body?.image)
+    );
+
+    const generated = calls.filter((call) => call.url === GENERATE_URL);
+    expect(generated).toHaveLength(1);
+    expect(generated[0].method).toBe('POST');
+    expect(generated[0].body).toEqual({
+      prompt: imagePrompt.imagePromptBody(
+        WITH_DRAFT.adaptations[0].body,
+        imagePrompt.DEFAULT_IMAGE_STYLE
+      ),
+    });
+
+    const patched = calls.filter(
+      (call) => call.url === ADAPTATION_URL && call.body?.image
+    );
+    expect(patched).toHaveLength(1);
+    // Путь картинки сервер берёт из медиатеки сам (`buildAdaptationPatch`):
+    // уходит только её id.
+    expect(patched[0].body).toEqual({
+      image: { id: 'media-99' },
+    });
+
+    await settle(
+      () => document.querySelector('[data-generate-slot="done"]') !== null
+    );
+    expect(
+      document.querySelector('[data-generate-slot="done"] img').src
+    ).toContain('/uploads/media-99.png');
+    expect(
+      document.body.textContent.includes(
+        'Картинка стоит на посте и лежит в медиатеке'
+      )
+    ).toBe(true);
+  });
+
+  test('«Сгенерировать» is disabled without post text and never opens the door', async () => {
+    const GENERATE_URL = '/media/generate-image-with-prompt';
+    const EMPTY_BODY_DETAIL = {
+      ...WITH_DRAFT,
+      adaptations: WITH_DRAFT.adaptations.map((one) =>
+        one.id === TG_DRAFT_ID ? { ...one, body: '' } : one
+      ),
+    };
+    serve(table({ detail: detailDoor(ok(EMPTY_BODY_DETAIL)) }));
+    await open({ initialTab: 'int-tg-main' });
+    const disabledButton = document.querySelector(
+      '[data-editor-tool="generate-image"]'
+    );
+    expect(disabledButton.getAttribute('data-generate-state')).toBe(
+      'disabled'
+    );
+    expect(disabledButton.disabled).toBe(true);
+    expect(
+      document.body.textContent.includes(
+        'Сначала нужен текст поста — по нему рисуется картинка'
+      )
+    ).toBe(true);
+    expect(calls.some((call) => call.url === GENERATE_URL)).toBe(false);
+  });
+
+  test('a refused generation shows a plain error and offers «Ещё раз»', async () => {
+    const GENERATE_URL = '/media/generate-image-with-prompt';
+    await workspace({
+      [`POST ${GENERATE_URL}`]: refused(422, {
+        code: 'MEDIA_IMAGE_REJECTED',
+        message: 'Модель отказалась рисовать по этому описанию.',
+      }),
+    });
+    const button = document.querySelector(
+      '[data-editor-tool="generate-image"]'
+    );
+    await click(button, () =>
+      document.querySelector('[data-generate-error="true"]') !== null
+    );
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Не получилось нарисовать картинку. Попробуйте ещё раз.'
+    );
+    expect(
+      calls.some((call) => call.method === 'PATCH' && call.body?.image)
+    ).toBe(false);
+    expect(
+      screen.getByRole('button', { name: 'Ещё раз' })
+    ).not.toBeNull();
   });
 
   test('«Запланировать» sends the chosen moment through the schedule door', async () => {

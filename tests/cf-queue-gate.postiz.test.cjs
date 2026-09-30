@@ -114,7 +114,7 @@ describe('withForeignQueueGate', () => {
 describe('PostsService queue writes from Postiz', () => {
   const serviceWith = (states, post) => {
     const client = clientWith(states);
-    const calls = { changeState: [], changeDate: [], createOrUpdate: [] };
+    const calls = { changeState: [], changeDate: [], createOrUpdate: [], personQueued: [] };
     const repository = {
       getPostById: async (id) => ({
         id,
@@ -127,6 +127,11 @@ describe('PostsService queue writes from Postiz', () => {
       changeDate: async (...args) => {
         calls.changeDate.push(args);
         return {};
+      },
+      // A person's move of a CF variant marks the queue theirs (`kcxz.56`).
+      personQueued: async (...args) => {
+        calls.personQueued.push(args);
+        return { count: 1 };
       },
       createOrUpdatePost: async (...args) => {
         calls.createOrUpdate.push(args);
@@ -230,6 +235,8 @@ describe('PostsService queue writes from Postiz', () => {
     ]);
     const tx = calls.changeDate[0][5];
     expect(tx && typeof tx.$queryRaw).toBe('function');
+    // The person's mark rides the same transaction (`kcxz.56`).
+    expect(calls.personQueued).toEqual([['org-a', 'post-1', tx]]);
   });
 
   test('review F1: a gate that fails for another reason resyncs the workflow, a refusal does not', async () => {

@@ -3,6 +3,8 @@
   "rule": "A locale written in its own script must use that script in every value. Exemptions below are exact and checked in both directions.",
   "untranslatable": {
     "ai": "An initialism that is written AI in every locale that ships here.",
+    "mcp_connect_assistant_claude": "The assistant's product name, never translated.",
+    "mcp_connect_assistant_chatgpt": "The assistant's product name, never translated.",
     "channel_validation_message": "Placeholders and punctuation only; there is no prose to translate.",
     "cli_claude_code_codex": "Names the CLI and the two tools it wraps; all three are product names.",
     "farcaster": "A product name.",

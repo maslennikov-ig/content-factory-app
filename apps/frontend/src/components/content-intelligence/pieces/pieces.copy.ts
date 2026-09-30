@@ -309,6 +309,20 @@ export const piecesCopy = {
     toolEmoji: 'Эмодзи',
     emojiSearch: 'Найти эмодзи',
     toolImage: 'Картинка из медиатеки',
+    // «Сгенерировать» рядом с «Картинка из медиатеки» (`kcxz.55`): одно
+    // нажатие рисует картинку по тексту поста, без окна и описания.
+    toolGenerate: 'Сгенерировать картинку',
+    // Видимая подпись короче доступного имени: в узком поле панель с длинной
+    // подписью роняет «Редактировать» на вторую строку (макет: «Сгенерировать»).
+    toolGenerateLabel: 'Сгенерировать',
+    toolGenerateBusy: 'Рисуем…',
+    toolGenerateRetry: 'Ещё раз',
+    toolGenerateAiTag: 'ИИ',
+    toolGenerateIdleCaption: 'Картинка по тексту поста',
+    toolGeneratePendingCaption: 'Рисуем по тексту поста · до минуты',
+    toolGenerateDoneCaption: 'Картинка стоит на посте и лежит в медиатеке',
+    toolGeneratedBadge: 'Сгенерировано',
+    toolGenerateNeedsText: 'Сначала нужен текст поста — по нему рисуется картинка',
     editorLabel: (platform: string) => `Текст поста для ${platform}`,
     counter: (count: number, max: number) => `${count} из ${max} знаков`,
     counterNoMax: (count: number) =>
@@ -393,6 +407,7 @@ export const piecesCopy = {
     rewriteMore: 'Другие способы переписать',
     appliesOnRewrite: 'применится при переписывании',
     imageFailed: 'Картинка не прикрепилась. Попробуйте ещё раз.',
+    imageGenerateFailed: 'Не получилось нарисовать картинку. Попробуйте ещё раз.',
     actionsLabel: 'Действия с текстом',
     rewriteOpen: 'Переписать…',
     rewriteRun: 'Переписать',
@@ -761,6 +776,16 @@ export const piecesCopy = {
     toolEmoji: 'Emoji',
     emojiSearch: 'Find an emoji',
     toolImage: 'Image from the media library',
+    toolGenerate: 'Generate a picture',
+    toolGenerateLabel: 'Generate',
+    toolGenerateBusy: 'Drawing…',
+    toolGenerateRetry: 'Try again',
+    toolGenerateAiTag: 'AI',
+    toolGenerateIdleCaption: 'A picture from the post text',
+    toolGeneratePendingCaption: 'Drawing from the post text · up to a minute',
+    toolGenerateDoneCaption: 'The picture is on the post and in the media library',
+    toolGeneratedBadge: 'Generated',
+    toolGenerateNeedsText: 'The post needs text first — the picture is drawn from it',
     editorLabel: (platform: string) => `Post text for ${platform}`,
     counter: (count: number, max: number) =>
       `${count} of ${max} characters`,
@@ -843,6 +868,7 @@ export const piecesCopy = {
     rewriteMore: 'Other ways to rewrite',
     appliesOnRewrite: 'applies when rewritten',
     imageFailed: 'The image was not attached. Try again.',
+    imageGenerateFailed: 'Could not draw the picture. Try again.',
     actionsLabel: 'Text actions',
     rewriteOpen: 'Rewrite…',
     rewriteRun: 'Rewrite',

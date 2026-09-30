@@ -76,6 +76,10 @@ export function PieceChannelTab({
   image,
   onPickImage,
   onRemoveImage,
+  onGenerateImage,
+  generatingImage = false,
+  generateImageError = null,
+  justGenerated = false,
   checks,
   draftGaps,
   slopChange,
@@ -138,6 +142,11 @@ export function PieceChannelTab({
   image: AdaptationImageV1 | null;
   onPickImage?: () => void;
   onRemoveImage?: () => void;
+  /** «Сгенерировать» рядом с «Картинка из медиатеки» (`kcxz.55`). */
+  onGenerateImage?: () => void;
+  generatingImage?: boolean;
+  generateImageError?: string | null;
+  justGenerated?: boolean;
   checks?: QualityChecksV1 | null;
   draftGaps?: readonly unknown[] | null;
   /** «Было N → стало M» после принятой правки — до перезагрузки. */
@@ -372,6 +381,10 @@ export function PieceChannelTab({
                     image={image}
                     onPickImage={onPickImage}
                     onRemoveImage={onRemoveImage}
+                    onGenerateImage={onGenerateImage}
+                    generatingImage={generatingImage}
+                    generateImageError={generateImageError}
+                    justGenerated={justGenerated}
                     draftId={adaptation.id}
                     format={channel.providerIdentifier || channel.platform}
                   />

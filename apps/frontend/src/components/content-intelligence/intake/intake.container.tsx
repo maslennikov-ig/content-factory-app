@@ -95,6 +95,16 @@ export function IntakeContainer({
   */
   const [materialKind, setMaterialKind] = useState<IntakeMaterialKind>('thought');
   const [researchLevel, setResearchLevel] = useState<'quick' | 'standard' | 'deep'>('standard');
+  /*
+    «Задание» просит фактов, а не только слов (владелец 30.09.2026,
+    `content-factory-next-kcxz.50`): «расскажем о вчерашней презентации
+    OpenAI» без поиска не проверить. Полоса включает поиск сама, ровно как
+    сервер по умолчанию поступает с этим же видом входа. Но если человек уже
+    трогал флажок поиска — своей рукой, в любую сторону, — это решение чужое
+    для полосы: она больше не спорит с ним ни в эту, ни в ту сторону, ни
+    сейчас, ни при следующей смене вида.
+  */
+  const researchTouchedByPerson = useRef(false);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
@@ -188,6 +198,31 @@ export function IntakeContainer({
   const goToPiece = useCallback((pieceId: string) => {
     if (typeof window === 'undefined') return;
     window.location.assign(piecePath(pieceId));
+  }, []);
+
+  /*
+    Флажок поиска, потрогай его человек хоть раз, перестаёт быть автомобилем
+    полосы «Что вы присылаете»: своя рука побеждает угадывание сразу и
+    насовсем, для этого хода.
+  */
+  const handleResearchEnabledChange = useCallback((enabled: boolean) => {
+    researchTouchedByPerson.current = true;
+    setResearchEnabled(enabled);
+  }, []);
+
+  const handleMaterialKindChange = useCallback((kind: IntakeMaterialKind) => {
+    setMaterialKind((previous) => {
+      if (kind === previous) return previous;
+      if (!researchTouchedByPerson.current) {
+        if (kind === 'instruction') {
+          setResearchEnabled(true);
+          setResearchLevel('standard');
+        } else if (previous === 'instruction') {
+          setResearchEnabled(false);
+        }
+      }
+      return kind;
+    });
   }, []);
 
   /* ---------------------------------------------------------------------
@@ -471,10 +506,11 @@ export function IntakeContainer({
         onInputChange={setInput}
         onLanguageChange={setTextLanguage}
         researchEnabled={researchEnabled}
+        researchAutoEnabled={researchEnabled && !researchTouchedByPerson.current}
         researchLevel={researchLevel}
         materialKind={materialKind}
-        onMaterialKindChange={setMaterialKind}
-        onResearchEnabledChange={setResearchEnabled}
+        onMaterialKindChange={handleMaterialKindChange}
+        onResearchEnabledChange={handleResearchEnabledChange}
         onResearchLevelChange={setResearchLevel}
         onResearchFactSelect={(factKey, selected) => {
           setResearchFacts((facts) => facts.map((fact) =>

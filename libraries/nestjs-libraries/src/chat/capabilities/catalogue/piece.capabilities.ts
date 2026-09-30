@@ -206,7 +206,7 @@ export const pieceCreate = defineCapability({
   group: 'content',
   label: { ru: 'Написать заготовку', en: 'Write a piece' },
   description:
-    'Write a new piece (заготовка) — the intake of «Новый материал». Paid. From a lead taken with ideas.take, pass `sourceLeadId` and, as `text`, only words the person added (or none): the piece is written from the lead as the server stores it and keeps its address as the source; the person did not see that text, so say in one line which lead it was written from, by the title ideas.take or ideas.queue gave. Otherwise pass the person\'s words verbatim and the kind: thought («Свой текст», default), foreign_post («Чужой пост» — somebody else\'s text to rework) or instruction («Задание» — a task: what to write about). A message that is only a link is read as a link. Search the web (`research`) only when the person asks for it; with search, the person may be shown the found facts to keep, and the call continues with their choice. Returns the piece id, its code and how many open questions it has; the text is on the card, do not retype it. `factsKept` with `factsCard` means the facts are already chosen and the piece stands on them: never ask the person to look at or mark facts again.',
+    'Write a new piece (заготовка) — the intake of «Новый материал». Paid. From a lead taken with ideas.take, pass `sourceLeadId` and, as `text`, only words the person added (or none): the piece is written from the lead as the server stores it and keeps its address as the source; the person did not see that text, so say in one line which lead it was written from, by the title ideas.take or ideas.queue gave. Otherwise pass the person\'s words verbatim and the kind: thought («Свой текст», default — the person\'s own view, experience or story), foreign_post («Чужой пост» — somebody else\'s text to rework) or instruction («Задание» — a task naming what to write about: an event, news, a product, a topic, «расскажем о…», «напиши про…»). When in doubt between thought and instruction, a text that names a subject but carries no view of the person\'s own is instruction. A message that is only a link is read as a link. An instruction searches the web by itself (`standard`); pass `research: none` only when the person said not to search. For the other kinds search (`research`) only when the person asks for it; with search, the person may be shown the found facts to keep, and the call continues with their choice. Returns the piece id, its code and how many open questions it has; the text is on the card, do not retype it. `factsKept` with `factsCard` means the facts are already chosen and the piece stands on them: never ask the person to look at or mark facts again.',
   input: z.object({
     text: z
       .string()
@@ -225,9 +225,9 @@ export const pieceCreate = defineCapability({
       .optional()
       .describe('thought — «Свой текст» (default); foreign_post — «Чужой пост»; instruction — «Задание»'),
     research: z
-      .enum(RESEARCH_LEVELS)
+      .enum([...RESEARCH_LEVELS, 'none'])
       .optional()
-      .describe('Web search for facts, only on request: quick, standard or deep. Absent — no search'),
+      .describe('Web search for facts: quick, standard or deep; none — no search. Absent — standard for an instruction, no search for the other kinds'),
   }),
   risk: 'paid',
   card: 'piece',
@@ -238,7 +238,14 @@ export const pieceCreate = defineCapability({
   suspendSchema: factSelection,
   resumeSchema: factAnswer,
   run: async (ctx, input, emit): Promise<PieceCreated | undefined> => {
-    const level: ResearchLevel | null = input.research ?? null;
+    // An instruction names what to write about, so its facts are searched for
+    // unless the person said not to (`kcxz.50`, live walk 30.09.2026: «расскажем
+    // о вчерашней презентации» came back with nothing found).
+    const kind = screenInputKind(input.text ?? '', input.inputKind);
+    const level: ResearchLevel | null =
+      input.research === 'none'
+        ? null
+        : input.research ?? (kind === 'instruction' ? 'standard' : null);
     const words = input.text?.trim() ?? '';
     // A lead is read by the server, by id, in the caller's workspace — never
     // taken from words the model retyped — and only once it was taken to
@@ -681,7 +688,7 @@ export const pieceArchive = defineCapability({
   group: 'content',
   label: { ru: 'Убрать заготовку в архив', en: 'Archive a piece' },
   description:
-    'Move a piece to the archive (hidden from the list, kept with its adaptations), or bring it back with `archived: false`. Reversible; use it instead of deleting when the person only wants a piece out of the way.',
+    'Move a piece to the archive (hidden from the list, kept with its adaptations), or bring it back with `archived: false`. Reversible. Only when the person asked to archive or hide the piece. A request to delete is not a request to archive: where deleting is not offered, say it is done in Content Factory and offer the archive in one line — do not archive, unschedule or change anything by yourself.',
   input: z.object({
     pieceId,
     archived: z.boolean().describe('true — to the archive; false — back to the list'),

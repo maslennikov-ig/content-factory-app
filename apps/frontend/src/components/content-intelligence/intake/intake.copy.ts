@@ -74,6 +74,16 @@ export const intakeCopy = {
       'Проверим вашу мысль по внешним источникам: подтвердим числа и факты, ' +
       'поправим то, что расходится с источниками, и добавим находки по теме ' +
       'с адресами. Это платная операция, она тратит одну из операций месяца.',
+    /*
+      «Задание» просит фактов, а не только слов (владелец 30.09.2026,
+      `content-factory-next-kcxz.50`): полоса включает поиск сама и говорит об
+      этом — короткая метка рядом с флажком и одна строка под ним. Обе уходят,
+      как только человек сам трогает флажок: тогда это уже его решение, а не
+      подсказанное.
+    */
+    researchAutoBadge: 'Включено для задания',
+    researchAutoNote:
+      'Для задания ищем сами: найдём факты о том, о чём пост. Выключить можно здесь же.',
     // Владелец, 18.09.2026 (живой прогон 18.09, `content-factory-next-97dq`):
     // вставленный чужой пост ничем не отличался от собственной мысли, и продукт
     // выдавал чужое мнение за авторское. Флажок стоит рядом с ресерчем — это
@@ -371,6 +381,9 @@ export const intakeCopy = {
       'We check your thought against outside sources: confirm numbers and facts, ' +
       'correct what the sources contradict, and add findings on the topic with ' +
       'their addresses. This is a paid step: it spends one of the month’s operations.',
+    researchAutoBadge: 'On for the task',
+    researchAutoNote:
+      'For a task we search on our own: we find facts about what the post covers. You can turn it off right here.',
     kindLabel: 'What you are sending',
     kindOwn: 'My text',
     kindForeign: 'Someone’s post',

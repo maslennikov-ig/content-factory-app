@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
@@ -89,6 +90,7 @@ export function IntakeScreen({
   onInputChange,
   onLanguageChange,
   researchEnabled = false,
+  researchAutoEnabled = false,
   researchLevel = 'standard',
   materialKind = 'thought',
   onMaterialKindChange = () => undefined,
@@ -128,6 +130,14 @@ export function IntakeScreen({
   onInputChange: (value: string) => void;
   onLanguageChange: (language: 'ru' | 'en') => void;
   researchEnabled?: boolean;
+  /**
+   * The checkbox is on because «Задание» turned it on, not because the person
+   * did (`content-factory-next-kcxz.50`, owner live walk 30.09.2026). Draws
+   * the card as an accent note explaining why, rather than as a plain
+   * checkbox — the moment the person touches it themselves the badge and the
+   * note both leave, because it is their choice from then on.
+   */
+  researchAutoEnabled?: boolean;
   researchLevel?: 'quick' | 'standard' | 'deep';
   /** Вид входа, названный человеком: свой текст, чужой пост, задание (`97dq.28`). */
   materialKind?: IntakeMaterialKind;
@@ -363,7 +373,12 @@ export function IntakeScreen({
               </Select>
             </div>
 
-            <div className="flex min-w-0 flex-col gap-[8px] sm:max-w-[420px]">
+            <div
+              className={clsx(
+                'flex min-w-0 flex-col gap-[8px] rounded-cf p-[12px] sm:max-w-[420px]',
+                researchAutoEnabled ? 'bg-cf-accent-soft' : 'bg-cf-surface-subtle'
+              )}
+            >
               {/*
                 Что такое ресерч, объясняет кружок с вопросом рядом с подписью,
                 а не строка под флажком: экран остаётся коротким, объяснение
@@ -378,7 +393,32 @@ export function IntakeScreen({
                   label={<span>{t.researchLabel}</span>}
                 />
                 <Hint label={t.researchHintLabel}>{t.researchHint}</Hint>
+                {researchAutoEnabled ? (
+                  <span className="ms-auto cf-caption text-cf-accent">
+                    {t.researchAutoBadge}
+                  </span>
+                ) : null}
               </span>
+              {researchAutoEnabled ? (
+                <p className="flex items-start gap-[8px] cf-caption text-cf-ink-muted">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mt-px shrink-0 text-cf-accent"
+                    aria-hidden="true"
+                  >
+                    <circle cx="11" cy="11" r="6.5" />
+                    <path d="M20 20l-4.2-4.2" />
+                  </svg>
+                  <span className="text-pretty">{t.researchAutoNote}</span>
+                </p>
+              ) : null}
               {researchEnabled ? (
                 <ResearchLevelSelect
                   locale={locale}

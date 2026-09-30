@@ -92,9 +92,10 @@ export const admitCapabilityCall = async (
     /** The web chat's hooks: `asksInWebChat` applies (never over MCP). */
     webChat?: boolean;
     /**
-     * MCP (`kcxz.49`): a `confirm` call's «Да» is its one-time code, which
-     * the adapter checks after admission (`mcp-confirmation.ts`); there is no
-     * card whose approval this request could carry.
+     * MCP (`kcxz.49`, `kcxz.52`): a `confirm` call's «Да» is its one-time
+     * code, which the adapter checks after admission (`mcp-confirmation.ts`),
+     * or the person's own request (`mcpConfirm: 'request'`); there is no card
+     * whose approval this request could carry.
      */
     confirmsByCode?: boolean;
   }

@@ -38,7 +38,8 @@ import { VOICE_SAMPLE_PASTE_LIMITS } from '@contentfactory/nestjs-libraries/cont
  *
  * The tools are the web chat's for that role minus `confirm`, `input` and
  * `secret` (`buildMcpCapabilityTools`) — except the `confirm` ones marked
- * `mcpConfirm`, which ask in the conversation (`kcxz.49`). One `MCPServer` per distinct role tool
+ * `mcpConfirm`, which ask in the conversation (`kcxz.49`) or run on the
+ * person's request (`kcxz.52`). One `MCPServer` per distinct role tool
  * list and language, built on first use and kept; the role behind a request is
  * re-read from the membership on every request, and every call re-runs its
  * door's policies inside `execute` (`admitCapabilityCall`).

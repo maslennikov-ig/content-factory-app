@@ -384,6 +384,34 @@ describe('one capability of each class, end to end', () => {
     expect(output.summary).toEqual({ pieceId: 'p9', code: 'cnt-9', questions: 1 });
   });
 
+  // kcxz.50 (live walk 30.09.2026): «расскажем о вчерашней презентации»
+  // is a task — its facts are searched for without a separate request.
+  test.each([
+    ['an instruction searches by itself', { inputKind: 'instruction' }, true],
+    ['an instruction the person said not to search', { inputKind: 'instruction', research: 'none' }, false],
+    ['a thought stays without search', { inputKind: 'thought' }, false],
+    ['a thought searches on request', { inputKind: 'thought', research: 'deep' }, true],
+  ])('piece.create: %s', async (_name, extra, searched) => {
+    const prepared = [];
+    const services = {
+      IntakeService: {
+        ...all['piece.create'].services.IntakeService,
+        prepare: async (organizationId, body) => {
+          prepared.push(body);
+          return { plan: true };
+        },
+      },
+    };
+    await executeTool(
+      build('piece.create', services),
+      { ...all['piece.create'].input, ...extra },
+      { requestContext: requestContextFor(registry) }
+    );
+    expect(prepared[0].inputKind).toBe(extra.inputKind);
+    expect(prepared[0].options.researchEnabled).toBe(searched);
+    if (extra.research === 'deep') expect(prepared[0].options.researchLevel).toBe('deep');
+  });
+
   test('paid: an error line of the generator becomes a coded refusal', async () => {
     const { output } = await executeTool(
       build('piece.create', {

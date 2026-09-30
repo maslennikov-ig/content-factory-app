@@ -226,10 +226,10 @@ const withoutConfirmation = (input: unknown) => {
 
 /**
  * MCP gets the extra `confirmation` argument on the tools that may ask
- * (`mcpConfirm`); the web chat's schema is the declaration's, untouched.
+ * (`mcpConfirm: 'ask'`); the web chat's schema is the declaration's, untouched.
  */
 const inputSchemaFor = (capability: CapabilityDeclaration, entrance: CapabilityEntrance) =>
-  entrance === 'mcp' && capability.mcpConfirm
+  entrance === 'mcp' && capability.mcpConfirm === 'ask'
     ? capability.input.extend({ [MCP_CONFIRMATION_FIELD]: mcpConfirmationInput })
     : capability.input;
 
@@ -258,8 +258,10 @@ export const buildCapabilityTool = (
     context: ToolContextLike
   ): Promise<CapabilityToolOutput | undefined> => {
     // A «Да» asked in the conversation (`kcxz.49`): MCP only, and only on
-    // the tools that declare it.
-    const asksByCode = options.entrance === 'mcp' && capability.mcpConfirm === true;
+    // the tools that declare it. A `request` tool runs on the person's own
+    // words over MCP (`kcxz.52`): no card, no code.
+    const asksByCode = options.entrance === 'mcp' && capability.mcpConfirm === 'ask';
+    const noCard = options.entrance === 'mcp' && capability.mcpConfirm !== undefined;
     let code: string | undefined;
     if (asksByCode) ({ args: input, code } = withoutConfirmation(input));
     if (options.entrance === 'mcp') {
@@ -273,7 +275,7 @@ export const buildCapabilityTool = (
         input,
         context?.requestContext,
         options.gate!,
-        { countPaid: false, confirmsByCode: asksByCode }
+        { countPaid: false, confirmsByCode: noCard }
       );
       if (refused) return refused;
     }
@@ -448,8 +450,8 @@ export const buildCapabilityTool = (
       annotations: {
         title: capability.label[options.language],
         ...MCP_ANNOTATIONS[capability.risk],
-        // A tool that may send a post out by itself after a «да» in the
-        // conversation: the host's own approval is the second check (kcxz.49).
+        // A tool that may send a post out by itself: the host's own approval
+        // of the tool stays the person's check (kcxz.49, kcxz.52).
         ...(options.entrance === 'mcp' && capability.mcpConfirm ? { destructiveHint: true } : {}),
       },
     },

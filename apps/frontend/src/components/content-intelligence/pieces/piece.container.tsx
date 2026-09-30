@@ -100,6 +100,17 @@ import {
   isInterviewAskKey,
   PIECE_ROUTES,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import {
+  DEFAULT_IMAGE_STYLE,
+  imagePromptBody,
+} from '@contentfactory/nestjs-libraries/database/prisma/media/image-prompt';
+
+/**
+ * The door the composer's «AI image» and the chat's `media.generate` already
+ * call (`kcxz.55`): the channel tab's «Сгенерировать» spends nothing new —
+ * same door, same prompt shape, no backend change.
+ */
+const GENERATE_IMAGE_URL = '/media/generate-image-with-prompt';
 
 /** Время, которое версия держит в календаре канала: бронь или очередь. */
 function plannedDateOf(adaptation: {
@@ -953,6 +964,65 @@ export function PieceContainer({
     [patchCached, pieceId, request, w]
   );
 
+  /*
+    «Сгенерировать» рядом с «Картинка из медиатеки» (`kcxz.55`): картинка по
+    тексту поста, той же дверью, что композитор и агент. `justGenerated`
+    живёт только в этом заходе — после перезагрузки картинка ничем не
+    отличается от подобранной в медиатеке.
+  */
+  const [generatingImage, setGeneratingImage] = useState<
+    Record<string, boolean>
+  >({});
+  const [generateImageError, setGenerateImageError] = useState<
+    Record<string, string>
+  >({});
+  const [justGenerated, setJustGenerated] = useState<Record<string, boolean>>(
+    {}
+  );
+  const generateImage = useCallback(
+    async (adaptationId: string, text: string) => {
+      setGenerateImageError((current) => {
+        if (!(adaptationId in current)) return current;
+        const next = { ...current };
+        delete next[adaptationId];
+        return next;
+      });
+      setGeneratingImage((current) => ({ ...current, [adaptationId]: true }));
+      try {
+        const response = await request(GENERATE_IMAGE_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt: imagePromptBody(text, DEFAULT_IMAGE_STYLE),
+          }),
+        });
+        const body = await response.json().catch(() => null);
+        // The door answers `false` when the plan's picture credits are
+        // spent this month (`MediaService.generateImageIntoLibrary`).
+        if (!response.ok || !body?.id) {
+          setGenerateImageError((current) => ({
+            ...current,
+            [adaptationId]: w.imageGenerateFailed,
+          }));
+          return;
+        }
+        setJustGenerated((current) => ({ ...current, [adaptationId]: true }));
+        await setImage(adaptationId, { id: body.id, path: body.path });
+      } catch {
+        setGenerateImageError((current) => ({
+          ...current,
+          [adaptationId]: w.imageGenerateFailed,
+        }));
+      } finally {
+        setGeneratingImage((current) => {
+          const next = { ...current };
+          delete next[adaptationId];
+          return next;
+        });
+      }
+    },
+    [request, setImage, w]
+  );
+
   const schedule = useCallback(
     async (adaptation: WorkspaceAdaptationV1, now: boolean, at: Date) => {
       setScheduleBusy({ id: adaptation.id, kind: now ? 'now' : 'schedule' });
@@ -1757,6 +1827,20 @@ export function PieceContainer({
         onRemoveImage={
           adaptation ? () => void setImage(adaptation.id, null) : undefined
         }
+        onGenerateImage={
+          adaptation
+            ? () => void generateImage(adaptation.id, body)
+            : undefined
+        }
+        generatingImage={
+          adaptation ? Boolean(generatingImage[adaptation.id]) : false
+        }
+        generateImageError={
+          adaptation ? generateImageError[adaptation.id] ?? null : null
+        }
+        justGenerated={
+          adaptation ? Boolean(justGenerated[adaptation.id]) : false
+        }
         checks={fresh ? draft?.checks : adaptation?.checks}
         draftGaps={fresh ? draft?.draftGaps : null}
         slopChange={adaptation ? reviewedSlop[adaptation.id] ?? null : null}
@@ -1889,11 +1973,21 @@ export function PieceContainer({
           useOpen={picker.useOpen}
           onSelect={(media) => {
             const first = media[0];
-            if (first)
+            if (first) {
+              // A picked library picture is not what «Сгенерировать» drew,
+              // even over one it had (`kcxz.55`): the «Сгенерировано» badge
+              // belongs to this session's own generation only.
+              setJustGenerated((current) => {
+                if (!current[picker.adaptationId]) return current;
+                const next = { ...current };
+                delete next[picker.adaptationId];
+                return next;
+              });
               void setImage(picker.adaptationId, {
                 id: first.id,
                 path: first.path,
               });
+            }
           }}
           onOpened={() => setPicker(null)}
         />

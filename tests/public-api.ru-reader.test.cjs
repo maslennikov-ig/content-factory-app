@@ -48,15 +48,67 @@ describe('developer settings speak the reader language', () => {
       path.join(root, 'apps/frontend/src/components/approved-apps/mcp-connect.section.tsx'),
       'utf8'
     );
-    const steps = [...section.matchAll(/t\(\s*'(mcp_connect_step_[a-z]+)'/gu)].map(([, key]) => key);
-    expect(steps).toEqual(['mcp_connect_step_claude', 'mcp_connect_step_chatgpt', 'mcp_connect_step_allow']);
+    /*
+      `content-factory-next-kcxz.54`: the shared mixed list split into two
+      scenarios behind `Segmented`, so a source-order regex over one flat list
+      no longer describes the file — the two step columns live in different
+      JSX branches. What still has to hold: every step title, body and
+      menu-path chip goes through `t()`, and nothing is a hand-typed English
+      literal.
+    */
+    const keys = [
+      ...new Set(
+        [...section.matchAll(/t\(\s*'(mcp_connect_[a-z0-9_]+)'/gu)].map(
+          ([, key]) => key
+        )
+      ),
+    ];
+    expect(keys.sort()).toEqual(
+      [
+        'mcp_connect_assistant_chatgpt',
+        'mcp_connect_assistant_claude',
+        'mcp_connect_assistant_switch_label',
+        'mcp_connect_chatgpt_1_body',
+        'mcp_connect_chatgpt_1_title',
+        'mcp_connect_chatgpt_2_body',
+        'mcp_connect_chatgpt_2_title',
+        'mcp_connect_chatgpt_3_body',
+        'mcp_connect_chatgpt_3_title',
+        'mcp_connect_chatgpt_readonly_lead',
+        'mcp_connect_chatgpt_readonly_rest',
+        'mcp_connect_claude_1_body',
+        'mcp_connect_claude_1_title',
+        'mcp_connect_claude_2_body',
+        'mcp_connect_claude_2_title',
+        'mcp_connect_claude_3_body',
+        'mcp_connect_claude_3_title',
+        'mcp_connect_description',
+        'mcp_connect_footer_note',
+        'mcp_connect_menu_chatgpt_create',
+        'mcp_connect_menu_chatgpt_developer',
+        'mcp_connect_menu_claude_connectors',
+        'mcp_connect_title',
+      ].sort()
+    );
     const ru = JSON.parse(
       fs.readFileSync(
         path.join(root, 'libraries/react-shared-libraries/src/translation/locales/ru/translation.json'),
         'utf8'
       )
     );
-    for (const key of steps) expect(ru[key]).toMatch(/[а-яё]/u);
+    // Brand names and ChatGPT's own (English-only) menu labels carry the same
+    // text in both languages on purpose — the rest is prose and must read as
+    // Russian, not a leftover English sentence.
+    const literalEverywhere = new Set([
+      'mcp_connect_assistant_claude',
+      'mcp_connect_assistant_chatgpt',
+      'mcp_connect_menu_chatgpt_developer',
+      'mcp_connect_menu_chatgpt_create',
+    ]);
+    for (const key of keys) {
+      expect(typeof ru[key]).toBe('string');
+      if (!literalEverywhere.has(key)) expect(ru[key]).toMatch(/[а-яё]/u);
+    }
     expect(source).not.toContain('MCP_HINTS_RU');
   });
 });

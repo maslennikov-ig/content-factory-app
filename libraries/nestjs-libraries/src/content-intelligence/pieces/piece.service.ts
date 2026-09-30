@@ -222,6 +222,7 @@ import {
   canReplaceQueued,
   holderIds,
   isPlanMode,
+  PERSON_QUEUED_PLAN,
   queueGate,
   type QueueBlockV1,
   nextFreeSlot,
@@ -702,8 +703,8 @@ const PLAN_NOTES = {
     en: 'The previous version is already going out, so the new one stays planned.',
   },
   keptQueued: {
-    ru: 'Прежняя версия уже стоит в очереди, поэтому новая осталась в плане.',
-    en: 'The previous version is already queued, so the new one stays planned.',
+    ru: 'Прежняя версия уже стоит в очереди по выбору человека, и автопилот её не заменяет, поэтому новая осталась в плане.',
+    en: 'The previous version is already queued by a person’s choice, and the autopilot does not replace it, so the new one stays planned.',
   },
   startFailed: {
     ru: 'Календарь не принял публикацию в очередь, поэтому версия осталась в плане. Нажмите «Запланировать» ещё раз.',
@@ -4729,8 +4730,9 @@ export class PieceService {
       };
       if (mineState === 'QUEUE') {
         // Подтверждённая очередь переносится и остаётся очередью; процесс
-        // публикации перезапускается на новое время после фиксации. Метка
-        // очереди (чья она — человека или автопилота) не меняется.
+        // публикации перезапускается на новое время после фиксации. Перенос —
+        // выбор человека (`kcxz.56`): метка автопилота снимается, и новая
+        // версия автопилота эту очередь больше не вытесняет (`keptQueued`).
         const gate = queueGate(variants, adaptationId, nowInLock, {
           releaseHuman: true,
           blockPublished: false,
@@ -4738,6 +4740,7 @@ export class PieceService {
         if (gate.block) throw workspaceError('ADAPTATION_QUEUE_BUSY', language);
         await release(gate.release);
         await db.setPostState(organizationId, mine.post.id, { publishDate: when });
+        await db.setPlan(organizationId, adaptationId, { plan: PERSON_QUEUED_PLAN }, 'autopilot');
         status = 'queued';
       } else if (mode === 'autopilot') {
         const gate = queueGate(variants, adaptationId, nowInLock, {

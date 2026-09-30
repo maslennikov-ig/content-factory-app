@@ -98,7 +98,7 @@ export const mediaLibrary = defineCapability({
   group: 'media',
   label: { ru: 'Медиатека', en: 'Media library' },
   description:
-    'Read the workspace media library («Медиатека»), newest first: each item’s media id, its name as uploaded, and whether it is an image or a video. `search` narrows by name. The id is what adaptation.image takes to put a picture on a post. A picture the person attached to a message is already there (its id is in the message). Free. The library opens beside the chat; name at most the few that matter.',
+    'Read the workspace media library («Медиатека»), newest first: each item’s media id, its name as uploaded, and whether it is an image or a video. `search` narrows by name. The id is what adaptation.image takes to put a picture on a post. A picture the person attached to a message in this chat is already there (its id is in the message). A picture attached in an outside assistant (Claude, ChatGPT) does not reach Content Factory: ask the person to upload it in «Медиатека» (/media) — then find it here by name and put it on the post. Free. The library opens beside the chat; name at most the few that matter.',
   input: z.object({
     search: z.string().trim().min(1).max(100).optional().describe('Part of a file name, only when the person named one'),
     limit: z.number().int().min(1).max(LIBRARY_MAX).optional().describe('How many, 10 if unnamed'),

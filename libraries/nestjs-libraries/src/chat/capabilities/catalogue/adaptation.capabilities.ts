@@ -260,7 +260,7 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
+    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
     channelId,
@@ -270,7 +270,7 @@ export const pieceAdapt = defineCapability({
   }),
   risk: 'paid',
   // Over MCP the autopilot consent is asked in the conversation (`kcxz.49`).
-  mcpConfirm: true,
+  mcpConfirm: 'ask',
   card: 'adaptation',
   door: door(ContentPieceController, 'adapt'),
   untrusted: [],

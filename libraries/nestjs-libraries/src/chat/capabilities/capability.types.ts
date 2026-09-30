@@ -188,14 +188,21 @@ export type CapabilityDeclaration<
    */
   asksInWebChat?: true;
   /**
-   * `confirm` class, optional (`kcxz.49`): offered over MCP too. There the
-   * call first answers with the card's question (`describeApproval`) and a
-   * one-time code; the assistant asks the person in the conversation and,
-   * after their «да», calls again with the code (`mcp-confirmation.ts`). Only
-   * for what can be undone from the product (a scheduled post comes off the
-   * schedule); deleting, publishing at once, channels and keys stay web-only.
+   * Offered over MCP though its web chat asks first (`kcxz.49`, `kcxz.52`).
+   * Only for what can be undone from the product (a scheduled post comes off
+   * the schedule); deleting, publishing at once, channels and keys stay
+   * web-only.
+   *
+   * - `ask` — the request does not name what follows (an adaptation into an
+   *   autopilot channel goes out by itself): the call first answers with the
+   *   question and a one-time code; the assistant asks the person and, after
+   *   their «да», calls again with the code (`mcp-confirmation.ts`).
+   * - `request` — the request names the action and its time («перенеси на
+   *   завтра 10:00»): the person's own words are the consent and the call
+   *   runs at once (owner, live walk 30.09.2026: «если я уже сказал, что
+   *   сделать, зачем спрашивать повторно»).
    */
-  mcpConfirm?: true;
+  mcpConfirm?: 'ask' | 'request';
   /**
    * `confirm` class, and an `asksInWebChat` one, required: the approval card's «what and where», read from
    * the workspace for the stored arguments (the entity by id, in the caller's

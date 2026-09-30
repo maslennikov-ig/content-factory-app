@@ -223,43 +223,25 @@ describe('kcxz.49: scheduling and moving over MCP ask in the conversation', () =
   const writes = (calls) =>
     calls.filter(([, key]) => ['scheduleAdaptation', 'changeDate'].includes(key)).map(([, key]) => key);
 
-  test('plan_schedule: the card’s line is the question; the write runs only with the code', async () => {
+  // kcxz.52 (owner, live walk 30.09.2026): «если я уже сказал, что сделать,
+  // зачем спрашивать повторно». The person's request names the action and
+  // the time, so over MCP it runs at once — no question, no code.
+  test('plan_schedule over MCP runs on the person’s request: no question, no code argument', async () => {
     const { calls, services, input } = plan('plan.schedule');
     const { tool } = setup('plan.schedule', services);
-    const asked = await call(tool, input);
-    expect(asked.summary.needsConfirmation).toBe(true);
-    const question = asked.summary.question.untrustedData.value;
-    expect(question).toContain('Запланировать пост заготовки cnt-01');
-    expect(question).toContain('04.03 10:00');
-    expect(writes(calls)).toEqual([]);
-
-    const done = await call(tool, { ...input, confirmation: asked.summary.confirmation });
+    const done = await call(tool, input);
     expect(done).toMatchObject({ ok: true, summary: { state: 'scheduled' } });
+    expect(done.summary.needsConfirmation).toBeUndefined();
     expect(writes(calls)).toEqual(['scheduleAdaptation']);
+    expect(Object.keys(tool.inputSchema.shape)).not.toContain('confirmation');
   });
 
-  test('plan_move: asked, then moved with the code', async () => {
+  test('plan_move over MCP runs on the person’s request', async () => {
     const { calls, services, input } = plan('plan.move');
     const { tool } = setup('plan.move', services);
-    const asked = await call(tool, input);
-    expect(asked.summary.question.untrustedData.value).toContain('Перенести запланированный пост');
-    expect(writes(calls)).toEqual([]);
-    await call(tool, { ...input, confirmation: asked.summary.confirmation });
+    const done = await call(tool, input);
+    expect(done.ok).toBe(true);
     expect(writes(calls)).toEqual(['changeDate']);
-  });
-
-  test('the post’s text changed after the question: the code no longer fits', async () => {
-    const { calls, services, input } = plan('plan.schedule');
-    const { tool } = setup('plan.schedule', services);
-    const asked = await call(tool, input);
-    const detail = fixtures()['plan.schedule'].services.PieceService.detail;
-    services.PieceService.detail = async (...args) => {
-      const stored = await detail(...args);
-      return { ...stored, adaptations: stored.adaptations.map((row) => ({ ...row, body: 'другой текст' })) };
-    };
-    const refused = await call(tool, { ...input, confirmation: asked.summary.confirmation });
-    expect(refused).toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
-    expect(writes(calls)).toEqual([]);
   });
 
   test('without a named zone the question is not asked: the plan’s zone rule (kcxz.42)', async () => {
@@ -299,5 +281,7 @@ describe('kcxz.49: scheduling and moving over MCP ask in the conversation', () =
   test('what cannot be undone from the product stays web-only', () => {
     const offered = catalogue.filter((one) => one.risk === 'confirm' && registry.isMcpCapability(one));
     expect(offered.map((one) => one.id)).toEqual(['plan.schedule', 'plan.move']);
+    expect(offered.map((one) => one.mcpConfirm)).toEqual(['request', 'request']);
+    expect(find('piece.adapt').mcpConfirm).toBe('ask');
   });
 });

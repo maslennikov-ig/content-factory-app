@@ -1321,8 +1321,11 @@ export class PostsService {
 
     // schedule: Set status to QUEUE and change date (reschedule the post)
     // update: Just change the date without changing the status
-    const write = (tx?: any) =>
-      this._postRepository.changeDate(
+    // A person's move of a queued CF variant is the person's choice
+    // (`kcxz.56`): the gate hands `tx` only for a CF variant, and on it the
+    // autopilot label comes off together with the move.
+    const write = async (tx?: any) => {
+      const saved = await this._postRepository.changeDate(
         orgId,
         id,
         date,
@@ -1331,6 +1334,9 @@ export class PostsService {
         tx,
         action === 'schedule' ? readState : undefined
       );
+      if (tx) await this._postRepository.personQueued(orgId, id, tx);
+      return saved;
+    };
     // `schedule` writes QUEUE for anything that is not a draft; for a CF
     // variant that goes through its piece's one-queue rule (`97dq.67`). A post
     // read as QUEUE is gated too (review F2): whether a sibling took the queue

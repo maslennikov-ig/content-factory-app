@@ -149,7 +149,7 @@ const CALENDAR = ['QUEUE', 'DRAFT', 'PUBLISHED', 'ERROR'];
  * `variant` makes the post a CF variant, so the write runs in the gate's
  * transaction.
  */
-const world = ({ state, afterRead, variant = false }) => {
+const world = ({ state, afterRead, variant = false, variantPlan = 'reserve' }) => {
   const row = {
     id: 'post-1',
     organizationId: 'org-a',
@@ -186,12 +186,24 @@ const world = ({ state, afterRead, variant = false }) => {
       return { count: 1 };
     },
   });
+  // The variant's own plan label (`kcxz.56`): a person's move takes the
+  // autopilot label off it on the gate's transaction.
+  const derivation = { id: 'v1', postId: 'post-1', plan: variantPlan };
   const tx = {
     $queryRaw: async () => log.push(['tx', 'lock']),
     contentDerivation: {
       findMany: async () => [
-        { id: 'v1', plan: 'reserve', post: { state: row.state, publishDate: row.publishDate, deletedAt: null } },
+        { id: 'v1', plan: derivation.plan, post: { state: row.state, publishDate: row.publishDate, deletedAt: null } },
       ],
+      updateMany: async ({ where, data }) => {
+        log.push(['tx', 'derivation', where.plan]);
+        const hit =
+          where.organizationId === row.organizationId &&
+          where.postId === derivation.postId &&
+          (where.plan === undefined || where.plan === derivation.plan);
+        if (hit) Object.assign(derivation, data);
+        return { count: hit ? 1 : 0 };
+      },
     },
     post: post('tx'),
   };
@@ -228,7 +240,7 @@ const world = ({ state, afterRead, variant = false }) => {
     synced.push(id);
     return 'stopped';
   };
-  return { row, log, service, workflows, synced };
+  return { row, log, service, workflows, synced, derivation };
 };
 
 const published = (row) => {
@@ -349,5 +361,49 @@ describe('which states a schedule move starts from', () => {
     await expect(
       service.changeDate('org-b', 'post-1', FUTURE, 'schedule')
     ).rejects.toMatchObject({ code: 'POST_NOT_FOUND', status: 404 });
+  });
+});
+
+describe('kcxz.56: a person moving a queued CF variant makes the queue theirs', () => {
+  test('calendar drag / plan.move: the autopilot label comes off on the gate transaction, after the move', async () => {
+    const { row, log, service, derivation, workflows } = world({
+      state: 'QUEUE',
+      variant: true,
+      variantPlan: 'autopilot',
+    });
+    await service.changeDate('org-a', 'post-1', FUTURE, 'schedule', CALENDAR);
+    expect(row.state).toBe('QUEUE');
+    expect(row.publishDate.toISOString()).toBe(new Date(FUTURE).toISOString());
+    expect(derivation.plan).toBe('reserve');
+    expect(log).toEqual([
+      ['tx', 'lock'],
+      ['tx', 'updateMany', 'QUEUE'],
+      ['tx', 'derivation', 'autopilot'],
+    ]);
+    expect(workflows).toEqual([['post-1', 'QUEUE']]);
+  });
+
+  test('a refused move leaves the label as it was', async () => {
+    const { service, derivation, log } = world({
+      state: 'QUEUE',
+      afterRead: published,
+      variant: true,
+      variantPlan: 'autopilot',
+    });
+    await expect(service.changeDate('org-a', 'post-1', FUTURE, 'schedule')).rejects.toMatchObject({
+      code: 'POST_STATE_CHANGED',
+    });
+    expect(derivation.plan).toBe('autopilot');
+    expect(log.some(([, what]) => what === 'derivation')).toBe(false);
+  });
+
+  test('a plain Postiz post and a draft move write no plan label', async () => {
+    const plain = world({ state: 'QUEUE' });
+    await plain.service.changeDate('org-a', 'post-1', FUTURE, 'schedule');
+    expect(plain.log).toEqual([['root', 'updateMany', 'QUEUE']]);
+
+    const draft = world({ state: 'DRAFT', variant: true, variantPlan: 'autopilot' });
+    await draft.service.changeDate('org-a', 'post-1', FUTURE, 'schedule');
+    expect(draft.derivation.plan).toBe('autopilot');
   });
 });

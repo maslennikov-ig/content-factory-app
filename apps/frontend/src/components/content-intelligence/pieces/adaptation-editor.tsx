@@ -9,9 +9,14 @@ import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Hint } from '@contentfactory/react/layout/hint';
 import {
+  CheckmarkIcon,
   CloseIcon,
   EmojiIcon,
+  GenerateIcon,
   InsertMediaIcon,
+  ResetIcon,
+  VerticalDividerIcon,
+  WarningTriangleIcon,
 } from '@contentfactory/frontend/components/ui/icons';
 import { editorToolsFor } from './adaptation-toolbar';
 import { formatStoredMarkup } from './adaptation-markup';
@@ -58,6 +63,10 @@ export function AdaptationEditor({
   image,
   onPickImage,
   onRemoveImage,
+  onGenerateImage,
+  generatingImage = false,
+  generateImageError,
+  justGenerated = false,
   draftId,
   format,
 }: {
@@ -72,6 +81,16 @@ export function AdaptationEditor({
   image?: AdaptationImageV1 | null;
   onPickImage?: () => void;
   onRemoveImage?: () => void;
+  /**
+   * «Сгенерировать» рядом с «Картинка из медиатеки» (`kcxz.55`): картинка по
+   * тексту поста, без окна и описания — решает сервер, экран только просит.
+   */
+  onGenerateImage?: () => void;
+  generatingImage?: boolean;
+  /** Слово отказа сервера, по-русски; есть — показана строка ошибки. */
+  generateImageError?: string | null;
+  /** Картинка только что сгенерирована в этом заходе — не после перезагрузки. */
+  justGenerated?: boolean;
   /** Метка для стенда и тестов: какая адаптация сейчас в поле. */
   draftId?: string;
   /** Формат канала — идентификатор провайдера; решает набор кнопок панели. */
@@ -122,6 +141,25 @@ export function AdaptationEditor({
   const over = maxLength !== null && maxLength > 0 && count > maxLength;
   const inEdit = editing && !readOnly;
   const ready = inEdit && editor !== null;
+
+  /*
+    Один разговор о картинке ИИ на пять исходов (`kcxz.55`): рисуем сейчас —
+    отказ важнее «нет текста», а «готово» держится только пока картинка
+    только что нарисована в этом заходе — после перезагрузки страницы
+    прежняя картинка показана обычной фигурой ниже, без бейджа «Сгенерировано».
+  */
+  const generateState: 'idle' | 'pending' | 'done' | 'error' | 'disabled' =
+    !onGenerateImage
+      ? 'idle'
+      : generatingImage
+      ? 'pending'
+      : generateImageError
+      ? 'error'
+      : justGenerated && image
+      ? 'done'
+      : !value.trim()
+      ? 'disabled'
+      : 'idle';
 
   const closeLink = () => {
     setLinkOpen(false);
@@ -379,6 +417,41 @@ export function AdaptationEditor({
               <InsertMediaIcon aria-hidden="true" />
             </Button>
           ) : null}
+          {onGenerateImage ? (
+            <>
+              <VerticalDividerIcon
+                aria-hidden="true"
+                className="text-cf-border"
+              />
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                className={clsx(
+                  'gap-[8px] px-[12px]',
+                  generateState === 'disabled' && 'text-cf-ink-muted opacity-60'
+                )}
+                disabled={generateState === 'disabled' || generatingImage}
+                /*
+                  «Рисуем…» стоит на месте подписи, а не прячется за спиннером
+                  общей кнопки: на стенде 30.09.2026 занятая кнопка читалась
+                  пустой плашкой. Движение показывает полоса в месте картинки.
+                */
+                aria-busy={generatingImage || undefined}
+                aria-label={generatingImage ? t.toolGenerateBusy : t.toolGenerate}
+                title={t.toolGenerate}
+                data-editor-tool="generate-image"
+                data-generate-state={generateState}
+                onClick={onGenerateImage}
+              >
+                <GenerateIcon
+                  aria-hidden="true"
+                  className={clsx(generatingImage && 'text-cf-accent')}
+                />
+                <span>{generatingImage ? t.toolGenerateBusy : t.toolGenerateLabel}</span>
+              </Button>
+            </>
+          ) : null}
           <span className="min-w-[8px] flex-1" />
           <span
             data-editor-counter={over ? 'over' : 'within'}
@@ -496,7 +569,61 @@ export function AdaptationEditor({
           </article>
         )}
 
-        {image ? (
+        {generateState === 'pending' ? (
+          <div
+            data-generate-slot="pending"
+            className="relative aspect-video overflow-hidden rounded-[8px] border border-dashed border-cf-border-strong bg-cf-surface-subtle"
+          >
+            <div className="flex h-full flex-col items-center justify-center gap-[8px] text-cf-ink-muted">
+              <GenerateIcon
+                aria-hidden="true"
+                size={24}
+                className="text-cf-accent"
+              />
+              <span className="cf-caption">{t.toolGeneratePendingCaption}</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-[4px] overflow-hidden bg-cf-border">
+              <div
+                aria-hidden="true"
+                className="h-full w-[40%] bg-cf-accent animate-[cf-skeleton-sweep_1.4s_ease-in-out_infinite] motion-reduce:hidden"
+              />
+            </div>
+          </div>
+        ) : generateState === 'done' && image?.path ? (
+          <div
+            data-generate-slot="done"
+            className="relative overflow-hidden rounded-[8px] border border-cf-border"
+          >
+            <img
+              src={image.path}
+              alt={t.imageAlt}
+              className="aspect-video w-full object-cover"
+            />
+            <div className="absolute inset-x-0 top-0 flex items-center justify-end gap-[8px] p-[8px]">
+              <span className="inline-flex items-center gap-[8px] rounded-[8px] bg-cf-surface-raised shadow-menu px-[8px] py-[4px] cf-caption text-cf-ink">
+                <GenerateIcon
+                  aria-hidden="true"
+                  size={14}
+                  className="text-cf-accent"
+                />
+                {t.toolGeneratedBadge}
+              </span>
+              {onRemoveImage && !readOnly ? (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  className={clsx(tool, 'rounded-[8px] bg-cf-surface-raised shadow-menu text-cf-ink')}
+                  aria-label={t.imageRemove}
+                  title={t.imageRemove}
+                  onClick={onRemoveImage}
+                >
+                  <CloseIcon aria-hidden="true" size={16} />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : image ? (
           <figure
             data-editor-image="true"
             className="flex min-w-0 items-start gap-[12px]"
@@ -526,6 +653,43 @@ export function AdaptationEditor({
               ) : null}
             </figcaption>
           </figure>
+        ) : null}
+
+        {onGenerateImage && generateState === 'error' ? (
+          <div
+            role="alert"
+            data-generate-error="true"
+            className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-[12px] rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px]"
+          >
+            <WarningTriangleIcon aria-hidden="true" className="text-cf-danger" />
+            <span className="cf-body-sm text-cf-ink">
+              {generateImageError}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              density="dense"
+              className="gap-[8px]"
+              onClick={onGenerateImage}
+            >
+              <ResetIcon aria-hidden="true" />
+              {t.toolGenerateRetry}
+            </Button>
+          </div>
+        ) : onGenerateImage && generateState === 'done' ? (
+          <p className="flex items-center gap-[8px] cf-caption text-cf-ink-muted">
+            <CheckmarkIcon aria-hidden="true" className="shrink-0 text-cf-accent" />
+            <span>{t.toolGenerateDoneCaption}</span>
+          </p>
+        ) : onGenerateImage && generateState === 'disabled' ? (
+          <p className="cf-caption text-cf-ink-muted">
+            {t.toolGenerateNeedsText}
+          </p>
+        ) : onGenerateImage && generateState === 'idle' ? (
+          <p className="flex items-center gap-[8px] cf-caption text-cf-ink-muted">
+            <span className="text-cf-signature">{t.toolGenerateAiTag}</span>
+            <span>{t.toolGenerateIdleCaption}</span>
+          </p>
         ) : null}
 
         {over ? (

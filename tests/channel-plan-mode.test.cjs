@@ -980,6 +980,87 @@ describe('«Поставить на ЧЧ:ММ»', () => {
 });
 
 /* -------------------------------------------------------------------------
+ * Перенос очереди автопилота человеком — выбор человека (`kcxz.56`)
+ * ---------------------------------------------------------------------- */
+
+describe('kcxz.56: очередь автопилота, перенесённая человеком, остаётся за ним', () => {
+  const MOVED = '2026-09-23T10:00:00.000Z';
+
+  // Перенос в календаре или через plan.move идёт через PostsService.changeDate:
+  // под замком канала пост получает новое время, а версия — метку человека
+  // тем же помощником, что зовёт репозиторий постов.
+  const moveLikeCalendar = async ({ posts, derivations }, postId, date) => {
+    posts.get(postId).publishDate = new Date(date);
+    const client = {
+      contentDerivation: {
+        updateMany: async ({ where, data }) => {
+          const rows = derivations.filter(
+            (row) => row.postId === where.postId && (where.plan === undefined || row.plan === where.plan)
+          );
+          rows.forEach((row) => Object.assign(row, data));
+          return { count: rows.length };
+        },
+      },
+    };
+    return plan.markPersonQueued(client, 'org-a', postId);
+  };
+
+  test.each([
+    ['календарь / plan.move', (world) => moveLikeCalendar(world, 'post-1', MOVED)],
+    [
+      '«Поставить на …» на заготовке',
+      (world) => world.service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: MOVED }, 'ru'),
+    ],
+  ])('%s: вариант 1 остаётся в очереди на новом времени, вариант 2 — в плане с причиной', async (_name, move) => {
+    const world = stand({ planMode: 'autopilot' });
+    const { generate, queued, posts, derivations } = world;
+    await generate();
+    expect(derivations[0].plan).toBe('autopilot');
+    await move(world);
+    expect(derivations[0].plan).toBe('reserve');
+
+    const second = await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    expect(posts.get('post-1').publishDate.toISOString()).toBe(MOVED);
+    expect(posts.get('post-2').state).toBe('DRAFT');
+    expect(derivations.map((row) => row.plan)).toEqual(['reserve', 'reserve']);
+    expect(second.state).toBe('draft');
+    expect(second.plan).toMatchObject({ status: 'reserved', autopilot: false });
+    expect(second.plan.note).toBe(
+      'Прежняя версия уже стоит в очереди по выбору человека, и автопилот её не заменяет, поэтому новая осталась в плане.'
+    );
+    // Вариант 2 не встаёт на минуту варианта 1.
+    expect(posts.get('post-2').publishDate.toISOString()).not.toBe(MOVED);
+  });
+
+  test('«Поставить на …» переноса отвечает без метки автопилота', async () => {
+    const world = stand({ planMode: 'autopilot' });
+    await world.generate();
+    const result = await world.service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: MOVED }, 'ru');
+    expect(result.placement).toMatchObject({ status: 'queued', date: MOVED, autopilot: false });
+  });
+
+  test('без переноса человеком вариант 2 по-прежнему сменяет вариант 1', async () => {
+    const { generate, queued, derivations, posts } = stand({ planMode: 'autopilot' });
+    await generate();
+    const second = await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-2']);
+    expect(posts.get('post-1').state).toBe('DRAFT');
+    expect(derivations.map((row) => row.plan)).toEqual(['reserve', 'autopilot']);
+    expect(second.plan).toMatchObject({ status: 'queued', autopilot: true });
+  });
+
+  test('метка человека пишется только поверх метки автопилота', async () => {
+    const world = stand({ planMode: 'autopilot' });
+    await world.generate();
+    world.derivations[0].plan = 'draft';
+    const { count } = await moveLikeCalendar(world, 'post-1', MOVED);
+    expect(count).toBe(0);
+    expect(world.derivations[0].plan).toBe('draft');
+  });
+});
+
+/* -------------------------------------------------------------------------
  * Одна очередь на заготовку в канале (review F1, F3, F4, F5)
  * ---------------------------------------------------------------------- */
 

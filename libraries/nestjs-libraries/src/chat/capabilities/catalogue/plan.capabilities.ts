@@ -618,12 +618,13 @@ export const planSchedule = defineCapability({
   group: 'plan',
   label: { ru: 'Запланировать', en: 'Schedule' },
   description:
-    'Schedule an adaptation at a firm time («Запланировать»): the post goes out by itself then. In the web chat the person approves it on a card: call the tool, do not ask in text. Works on a draft or a reserve. If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP the first call answers `needsConfirmation` with the card’s question instead: ask the person that question, and only after their «да» call again with the same arguments and its `confirmation` code.' +
+    'Schedule an adaptation at a firm time («Запланировать»): the post goes out by itself then. In the web chat the person approves it on a card: call the tool, do not ask in text. Works on a draft or a reserve. If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP there is no card and no second question: call it only when the person asked for this very action and named the time; if they did not, ask them first in your own words.' +
     ZONE_NOTE,
   input: z.object({ pieceId, adaptationId, at, timeZone: namedTimeZoneInput }),
   risk: 'confirm',
-  // Undone from the product («Снять с расписания»): asked in the conversation over MCP (`kcxz.49`).
-  mcpConfirm: true,
+  // Undone from the product («Снять с расписания»); over MCP the person's
+  // request names the action and time, so it runs at once (`kcxz.52`).
+  mcpConfirm: 'request',
   card: 'plan',
   door: door(ContentPieceController, 'scheduleAdaptation'),
   untrusted: [],
@@ -742,12 +743,13 @@ export const planMove = defineCapability({
   group: 'plan',
   label: { ru: 'Перенести пост', en: 'Move a post' },
   description:
-    'Move a scheduled (queued) post to another time, as dragging it in the calendar does; it stays scheduled and goes out by itself at the new time. In the web chat the person approves it on a card. For a reserve use plan.place instead (no card). If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP the first call answers `needsConfirmation` with the card’s question instead: ask the person that question, and only after their «да» call again with the same arguments and its `confirmation` code.' +
+    'Move a scheduled (queued) post to another time, as dragging it in the calendar does; it stays scheduled and goes out by itself at the new time. In the web chat the person approves it on a card. For a reserve use plan.place instead (no card). If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP there is no card and no second question: call it only when the person asked for this very action and named the time; if they did not, ask them first in your own words.' +
     ZONE_NOTE,
   input: z.object({ pieceId, adaptationId, at, timeZone: namedTimeZoneInput }),
   risk: 'confirm',
-  // A scheduled post still comes off the schedule: asked in the conversation over MCP (`kcxz.49`).
-  mcpConfirm: true,
+  // A scheduled post still comes off the schedule; over MCP the person's
+  // request names the new time, so it runs at once (`kcxz.52`).
+  mcpConfirm: 'request',
   card: 'plan',
   door: door(PostsController, 'changeDate'),
   untrusted: [],

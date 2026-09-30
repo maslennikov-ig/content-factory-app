@@ -14,7 +14,8 @@ import { approvalFingerprint } from './approval-fingerprint';
  * spec §5.1).
  *
  * The web chat asks on a card: the autopilot consent of `piece.adapt`, the
- * approval of `plan.schedule` and `plan.move`. An MCP client has no such card
+ * approval of `plan.schedule` and `plan.move` (these two run on the person's
+ * own request over MCP since `kcxz.52`). An MCP client has no such card
  * — claude.ai does not offer elicitation, and the owner wants the assistant
  * to ask in its own words (live walk 29.09.2026, step A4). So the call that
  * needs a «Да» does not run: it answers with the question, in the person's
