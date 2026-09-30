@@ -416,7 +416,7 @@ export const planPlace = defineCapability({
     if (mode === 'autopilot') {
       throw codedFailure(
         'PLAN_PLACE_AUTOPILOT',
-        'The channel is on autopilot: placing the post would queue it to go out by itself, so nothing was placed. Offer plan.schedule for this time; the person approves it on a card.'
+        'The channel is on autopilot: placing the post would queue it to go out by itself, so nothing was placed. Offer plan.schedule for this time; the person approves it.'
       );
     }
     // The picker's body (`adaptation-picker.tsx` `place`). The check above is
@@ -441,7 +441,7 @@ export const planPlace = defineCapability({
       if ((error as { code?: unknown })?.code === ADAPTATION_QUEUE_NEEDS_CONSENT) {
         throw codedFailure(
           'PLAN_PLACE_AUTOPILOT',
-          'The channel went on autopilot, or the post was scheduled, while this was being placed: placing it would send it without a card, so nothing was placed. Offer plan.schedule (or plan.move for a scheduled post); the person approves it on a card.'
+          'The channel went on autopilot, or the post was scheduled, while this was being placed: placing it would send it without a card, so nothing was placed. Offer plan.schedule (or plan.move for a scheduled post); the person approves it.'
         );
       }
       throw error;
@@ -618,13 +618,18 @@ export const planSchedule = defineCapability({
   group: 'plan',
   label: { ru: 'Запланировать', en: 'Schedule' },
   description:
-    'Schedule an adaptation at a firm time («Запланировать»): the post goes out by itself then. The person approves it on a card first; call the tool, do not ask in text. Works on a draft or a reserve. If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text.',
-  input: z.object({ pieceId, adaptationId, at }),
+    'Schedule an adaptation at a firm time («Запланировать»): the post goes out by itself then. In the web chat the person approves it on a card: call the tool, do not ask in text. Works on a draft or a reserve. If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP the first call answers `needsConfirmation` with the card’s question instead: ask the person that question, and only after their «да» call again with the same arguments and its `confirmation` code.' +
+    ZONE_NOTE,
+  input: z.object({ pieceId, adaptationId, at, timeZone: namedTimeZoneInput }),
   risk: 'confirm',
+  // Undone from the product («Снять с расписания»): asked in the conversation over MCP (`kcxz.49`).
+  mcpConfirm: true,
   card: 'plan',
   door: door(ContentPieceController, 'scheduleAdaptation'),
   untrusted: [],
-  describeApproval: async (ctx, input) => {
+  describeApproval: async (asked, input) => {
+    // The question over MCP says times in the zone the call names (`kcxz.42`).
+    const ctx = withPlanZone({ ...asked, entrance: asked.entrance ?? 'chat' }, input.timeZone, NOTHING_CHANGED);
     const subject = await approvalSubject(ctx, input);
     if (!subject) return APPROVAL_MISSING[ctx.language](input.adaptationId);
     const when = localTime(input.at, subject.zone, ctx.language);
@@ -643,7 +648,8 @@ export const planSchedule = defineCapability({
     return `${head}${effect}${await sideEffects(ctx, subject)}. ${excerptOf(subject.row, ctx.language)}`;
   },
   approvalContent: postContent,
-  run: async (ctx, input): Promise<Slot> => {
+  run: async (asked, input): Promise<Slot> => {
+    const ctx = withPlanZone(asked, input.timeZone, NOTHING_CHANGED);
     const { row } = await storedAdaptation(ctx, input.pieceId, input.adaptationId);
     if (!row) throw adaptationMissing();
     // `buildSchedulePayload({ date })`.
@@ -736,13 +742,18 @@ export const planMove = defineCapability({
   group: 'plan',
   label: { ru: 'Перенести пост', en: 'Move a post' },
   description:
-    'Move a scheduled (queued) post to another time, as dragging it in the calendar does; it stays scheduled and goes out by itself at the new time. The person approves it on a card first. For a reserve use plan.place instead (no card). If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text.',
-  input: z.object({ pieceId, adaptationId, at }),
+    'Move a scheduled (queued) post to another time, as dragging it in the calendar does; it stays scheduled and goes out by itself at the new time. In the web chat the person approves it on a card. For a reserve use plan.place instead (no card). If the text changed after the person’s «Да», it refuses (`APPROVAL_CONTENT_CHANGED`): call it again so they see the new text. Over MCP the first call answers `needsConfirmation` with the card’s question instead: ask the person that question, and only after their «да» call again with the same arguments and its `confirmation` code.' +
+    ZONE_NOTE,
+  input: z.object({ pieceId, adaptationId, at, timeZone: namedTimeZoneInput }),
   risk: 'confirm',
+  // A scheduled post still comes off the schedule: asked in the conversation over MCP (`kcxz.49`).
+  mcpConfirm: true,
   card: 'plan',
   door: door(PostsController, 'changeDate'),
   untrusted: [],
-  describeApproval: async (ctx, input) => {
+  describeApproval: async (asked, input) => {
+    // The question over MCP says times in the zone the call names (`kcxz.42`).
+    const ctx = withPlanZone({ ...asked, entrance: asked.entrance ?? 'chat' }, input.timeZone, NOTHING_CHANGED);
     const subject = await approvalSubject(ctx, input);
     if (!subject) return APPROVAL_MISSING[ctx.language](input.adaptationId);
     const from = localTime(slotTimeOf(subject.row), subject.zone, ctx.language);
@@ -757,7 +768,8 @@ export const planMove = defineCapability({
       : `Move the scheduled post of piece ${subject.code} in “${subject.channel}” from ${from} to ${to}: it goes out by itself at the new time and can be taken off the schedule until then. ${excerptOf(subject.row, ctx.language)}`;
   },
   approvalContent: postContent,
-  run: async (ctx, input): Promise<Slot> => {
+  run: async (asked, input): Promise<Slot> => {
+    const ctx = withPlanZone(asked, input.timeZone, NOTHING_CHANGED);
     const { row } = await storedAdaptation(ctx, input.pieceId, input.adaptationId);
     if (!row) throw adaptationMissing();
     if (row.state !== 'queued' || !row.postId) {

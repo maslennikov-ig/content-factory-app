@@ -103,6 +103,22 @@ describe('the button', () => {
     expect(stored()).toEqual({ piece: null, code: null, channel: null, text: 'Первый абзац\n\nВторой' });
   });
 
+  test('kcxz.47 (W6 P3-B): a copy of a piece post names that piece, not «make a piece of this text»', async () => {
+    world.global = [{ content: '<p>Текст адаптации</p>' }];
+    world.selected = [{ integration: { name: 'Кофейня' } }];
+    render(
+      h(button.AskAgentButton, {
+        label: composeCopy.ru.askAgent,
+        close: () => (world.closed += 1),
+        piece: { id: 'p1', code: 'cnt-01', title: 'Весенний запуск' },
+      })
+    );
+    await act(async () => {
+      fireEvent.click(document.querySelector('button'));
+    });
+    expect(stored()).toEqual({ piece: 'Весенний запуск', code: 'cnt-01', channel: 'Кофейня', text: 'Текст адаптации' });
+  });
+
   test('refusing to leave keeps the window: nothing handed over, nothing opened', async () => {
     world.confirm = false;
     world.global = [{ content: '<p>Текст</p>' }];
@@ -154,6 +170,12 @@ describe('the post window', () => {
       /\{agentAvailable && canWritePosts && !addEditSets && !dummy && !extension && \(\s*<AskAgentButton\s+label=\{composeCopy\[voiceLocale\]\.askAgent\}/
     );
     expect(MODAL).toMatch(/const \{ addEditSets, mutate, customClose, dummy, extension \} = props;/);
+  });
+
+  test('kcxz.47: «Дублировать пост» hands the source post’s piece to the copy’s button', () => {
+    const compose = read('apps/frontend/src/components/new-launch/compose.modal.ts');
+    expect(compose).toMatch(/duplicateOfPiece: existing\.posts\[0\]\?\.piece \?\? null,/);
+    expect(MODAL).toMatch(/<AskAgentButton[\s\S]*?piece=\{props\.duplicateOfPiece\}/);
   });
 
   test('review W6-28 F2: the extension frame opens the window with `extension`, so the button is not offered', () => {

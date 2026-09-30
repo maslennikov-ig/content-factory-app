@@ -668,6 +668,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Правки к этому тексту уже ждут на карточке выше — заново не запускали и ничего не потратили.',
           next: 'Отметьте нужные правки на той карточке или продолжите без них.',
         },
+        CONFIRMATION_INVALID: {
+          what: 'Подтверждение не подошло к этому действию — ничего не сделали.',
+          next: 'Спрошу заново: ответьте «да», если согласны.',
+        },
+        CONFIRMATION_UNAVAILABLE: {
+          what: 'Не получилось проверить подтверждение — ничего не сделали.',
+          next: 'Попробуйте ещё раз через минуту.',
+        },
         PIECE_NOT_FOUND: {
           what: 'Такой заготовки нет — возможно, её удалили.',
           next: 'Откройте «Контент» и выберите другую.',
@@ -1317,6 +1325,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         PROPOSAL_CARD_OPEN: {
           what: 'Changes to this text already wait on the card above — nothing was run again or spent.',
           next: 'Tick the changes you want on that card, or go on without them.',
+        },
+        CONFIRMATION_INVALID: {
+          what: 'The confirmation did not fit this action — nothing was done.',
+          next: 'We ask again: answer yes if you agree.',
+        },
+        CONFIRMATION_UNAVAILABLE: {
+          what: 'We could not check the confirmation — nothing was done.',
+          next: 'Try again in a minute.',
         },
         PIECE_NOT_FOUND: {
           what: 'There is no such piece — it may have been deleted.',

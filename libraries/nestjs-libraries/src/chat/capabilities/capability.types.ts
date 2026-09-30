@@ -105,11 +105,21 @@ export type CapabilityRunContext = CapabilityIdentity & {
    * Absent over MCP; a capability that can decide for the person then does.
    */
   suspend?: (payload: unknown) => Promise<void>;
+  /**
+   * MCP only (`kcxz.49`): the person said «да» in the conversation to the
+   * question this call returned, and the call carries the code issued for
+   * exactly these arguments (`mcp-confirmation.ts`). A capability that asks
+   * inside its run (the autopilot consent of `piece.adapt`) reads it instead
+   * of a card; without it it throws `ConfirmationNeeded`.
+   */
+  confirmed?: boolean;
 };
 
 /** What `describeApproval` may read: the caller and the door's services. */
 export type ApprovalDescribeContext = CapabilityIdentity & {
   service: <T>(token: Type<T>) => T;
+  /** Set when the question is asked over MCP (`kcxz.49`); the web chat's card leaves it out. */
+  entrance?: CapabilityEntrance;
 };
 
 /**
@@ -177,6 +187,15 @@ export type CapabilityDeclaration<
    * it stays plain `write`: the client's own tool approval decides there.
    */
   asksInWebChat?: true;
+  /**
+   * `confirm` class, optional (`kcxz.49`): offered over MCP too. There the
+   * call first answers with the card's question (`describeApproval`) and a
+   * one-time code; the assistant asks the person in the conversation and,
+   * after their «да», calls again with the code (`mcp-confirmation.ts`). Only
+   * for what can be undone from the product (a scheduled post comes off the
+   * schedule); deleting, publishing at once, channels and keys stay web-only.
+   */
+  mcpConfirm?: true;
   /**
    * `confirm` class, and an `asksInWebChat` one, required: the approval card's «what and where», read from
    * the workspace for the stored arguments (the entity by id, in the caller's

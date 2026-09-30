@@ -33,7 +33,10 @@ so if one is wrong):
    chat.
 7. **MCP gets the same catalogue minus the confirm and secret classes** (§5.2) in its first
    release: an MCP client has no approval card, so deleting, connecting, publishing now and key
-   entry stay web-only.
+   entry stay web-only. Since `kcxz.49` (live walk 29.09.2026) what can be undone from the product
+   asks in the conversation instead: the autopilot consent of `piece.adapt`, `plan.schedule` and
+   `plan.move` answer the first call with the card's question and a one-time code; the assistant
+   asks the person, and after their «да» repeats the call with the code (§5.1).
 8. **Out of the agent:** billing, team and roles, `/admin`, creating/switching workspaces, the
    upstream surfaces hidden by 2q28.26 (webhooks, autopost v1, sets, signatures, developers/API,
    plugs, third-party), video generation, the legacy Postiz compose modal (`POST /posts`), the
@@ -217,7 +220,10 @@ Decided for the owner (reversible, say if wrong):
   для канала «Y»: »); the agent finds the adaptation and edits, reviews or illustrates it, and
   `adaptation.edit` writes the post. A post written by hand has no piece to work on, so the request
   is to make one from its text (up to 4000 characters); an empty window gets the «one thought»
-  request. No live text editing of the open window from the chat.
+  request. No live text editing of the open window from the chat. A copy made by «Дублировать пост»
+  of a piece's post carries that piece (`duplicateOfPiece`, `kcxz.47`, walk W6 P3-B): its text is
+  the adaptation's, so the button names the piece instead of asking for a second piece of the same
+  text.
 - Autocomplete goes without a replacement: the three fields are the plain shared `Textarea` they
   already were without a model.
 - Removed: the popup, the assisted field, the provider, `POST /copilot/chat` and its runtime, the
@@ -429,8 +435,8 @@ Version facts: `evidence/mcp-w5-docs-2026-09-28.md`. Connecting: `docs/operation
 |---|---|---|
 | `read` | runs | runs |
 | `write` | runs; reversible changes (create, edit, archive, reserve, unschedule) | runs |
-| `paid` | runs without asking (§1.2); asks only when the allowance cannot cover it or the per-turn cap is reached | runs, bounded by the allowance (or the own key) and the per-token throttler; no per-turn cap — MCP has no turn (`kcxz.26`, §4.10) |
-| `confirm` | approval card with what, where and the consequence (§1.2 deletes and connects, §1.4 external effects) | excluded |
+| `paid` | runs without asking (§1.2); asks only when the allowance cannot cover it or the per-turn cap is reached | runs, bounded by the allowance (or the own key) and the per-token throttler; no per-turn cap — MCP has no turn (`kcxz.26`, §4.10). `piece.adapt` into an autopilot channel asks in the conversation with a code, as `confirm` does over MCP (`kcxz.49`), and then writes into the queue |
+| `confirm` | approval card with what, where and the consequence (§1.2 deletes and connects, §1.4 external effects) | excluded; a capability marked `mcpConfirm` (`plan.schedule`, `plan.move`) asks in the conversation (`kcxz.49`): the first call returns `needsConfirmation` with the card's line as data and a code; the call repeated with the code runs. The code (`mcp-confirmation.ts`) is one-time, lives 10 minutes in the chat's claim store and is bound to the person, the workspace, the tool, the arguments and the `approvalContent` digest. Over MCP these tools, `piece.adapt` included, carry `destructiveHint: true`; the server cannot tell the person's «да» from the model's, and the host's own approval of a destructive-hinted tool is the second check. `plan.schedule` and `plan.move` accept `timeZone` in the web chat too, as `plan.place` does: an unknown zone there leaves the card with the plain label and the run refuses it (`PLAN_TIME_ZONE_UNKNOWN`), accepted in review. claude.ai offers no elicitation (29.09.2026), so this is not built on it |
 | `input` | a card the **person** must fill: consent to activate an avatar, a choice only they can make (facts to keep, review changes); always with «Решите за меня» where the product can decide | excluded, or the MCP client's own elicitation later |
 | `secret` | secret card; value goes straight to the door | excluded |
 
@@ -515,7 +521,10 @@ the channel card's `IntegrationsController.updateWritingProfile`). Decided for t
   stored yet, and opens its result when it lands; its own ru/en words (`wizardCopy.analysisRunning`)
   remain for any other surface that shows the code. The chat answers it as `running`, `spent: false`,
   and the paid step goes back. Refused, not queued or joined: the running one stores its result where
-  both sides read it.
+  both sides read it. The chat's own claims on a card's answer and its answered marks
+  (`chat/conductor/agent-run-claims.ts`) are bounded the same way since `kcxz.47`: a store command that
+  does not answer in 5 s refuses the answer, or the thread read, as `AGENT_FAILED` (503) before it runs or
+  is billed.
 - **A run that ended without its proposal is not «still finishing»** (`kcxz.40`, review F9, decided for
   the owner). When a run saved its numbers and then did not reach `done` — the model did not answer, a
   write failed, the reader stopped — `proposalFailedAt` is written into the measurement's `metrics`

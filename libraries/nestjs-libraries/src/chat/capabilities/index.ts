@@ -15,6 +15,7 @@ export * from './approval-summary';
 export * from './door-policy';
 export * from './mastra.adapter';
 export * from './mcp.adapter';
+export * from './mcp-confirmation';
 export * from './paid-adapter';
 export * from './untrusted-data';
 export * from './person-time';

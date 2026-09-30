@@ -23,7 +23,9 @@ const {
 
 const registry = loadRegistry();
 const find = (id) => registry.CAPABILITY_CATALOGUE.find((one) => one.id === id);
-const PLAN_MCP = ['plan.ahead', 'plan.calendar', 'plan.ready', 'plan.place', 'plan.unschedule'];
+// Scheduling and moving ask in the conversation over MCP (kcxz.49); their
+// question says times in the named zone, so they name it too.
+const PLAN_MCP = ['plan.ahead', 'plan.calendar', 'plan.ready', 'plan.place', 'plan.unschedule', 'plan.schedule', 'plan.move'];
 
 /** The fixture's services, every call recorded. */
 const recorded = (services) => {

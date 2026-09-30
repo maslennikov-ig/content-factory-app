@@ -63,20 +63,78 @@ export const inProcessRunClaimStore = (): AgentRunClaimStore => {
   };
 };
 
+/**
+ * How long one store command may take (`kcxz.47`, review W4-39-40 F5).
+ *
+ * With Redis down the client queues commands and never answers, so the chat's
+ * answer on a card hung before anything ran, and a thread's history hung on
+ * reading which cards were answered. Every command of the store the chat uses
+ * is bounded the same as the voice analysis claim
+ * (`VOICE_ANALYSIS_LOCK_WAIT_MS`): no answer in time is an error, and the
+ * door refuses the answer before it is billed or run (`AGENT_FAILED`).
+ */
+export const AGENT_RUN_CLAIM_WAIT_MS = 5_000;
+
+export class AgentRunClaimUnavailable extends Error {
+  constructor() {
+    super('The run claim store did not answer.');
+    this.name = 'AgentRunClaimUnavailable';
+  }
+}
+
+/** The same store, each command answered within `waitMs` or rejected. */
+export const boundedRunClaimStore = (
+  store: AgentRunClaimStore,
+  waitMs = AGENT_RUN_CLAIM_WAIT_MS
+): AgentRunClaimStore => {
+  const within = async <T>(work: () => Promise<T>): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        work(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new AgentRunClaimUnavailable()), waitMs);
+        }),
+      ]);
+    } catch (error) {
+      if (error instanceof AgentRunClaimUnavailable) throw error;
+      throw new AgentRunClaimUnavailable();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+  return {
+    incr: (key) => within(() => store.incr(key)),
+    expire: (key, ttl) => within(() => store.expire(key, ttl)),
+    del: (key) => within(() => store.del(key)),
+    get: (key) => within(() => store.get(key)),
+    set: (key, value, mode, ttl) => within(() => store.set(key, value, mode, ttl)),
+  };
+};
+
 export const agentRunClaimKey = (runId: string) => `agent-run-claim:${runId}`;
 
 /**
  * Claims `runId`. Resolves to the release function when this request is the
- * one that answers, `null` when another request holds the run.
+ * one that answers, `null` when another request holds the run. Rejects when
+ * the store did not answer (`boundedRunClaimStore`); then the counter it may
+ * still write, once Redis is back, is deleted after it, so a card is never
+ * left claimed with no lifetime.
  */
 export const claimAgentRun = async (
   store: AgentRunClaimStore,
   runId: string
 ): Promise<(() => Promise<void>) | null> => {
   const key = agentRunClaimKey(runId);
-  const count = await store.incr(key);
+  let count: number;
+  try {
+    count = await store.incr(key);
+    if (count === 1) await store.expire(key, AGENT_RUN_CLAIM_TTL_SECONDS);
+  } catch (error) {
+    void store.del(key).catch(() => undefined);
+    throw error;
+  }
   if (count !== 1) return null;
-  await store.expire(key, AGENT_RUN_CLAIM_TTL_SECONDS);
   let released = false;
   return async () => {
     if (released) return;

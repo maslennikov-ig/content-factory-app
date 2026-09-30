@@ -547,7 +547,7 @@ describe('MCP tools from the same registry', () => {
       role,
     });
 
-  test('confirm, input and secret never reach MCP', () => {
+  test('confirm, input and secret never reach MCP — but scheduling and moving, asked in the conversation (kcxz.49)', () => {
     const names = Object.keys(mcpTools('ADMIN'));
     expect(names).toEqual([
       'workspace_snapshot',
@@ -571,12 +571,15 @@ describe('MCP tools from the same registry', () => {
       'adaptation_rewrite',
       'adaptation_edit',
       'adaptation_image',
-      // The plan's reads and the reserve; scheduling and moving are confirm.
+      // The plan's reads and the reserve; scheduling and moving are confirm,
+      // asked in the conversation with a one-time code (kcxz.49).
       'plan_ahead',
       'plan_calendar',
       'plan_ready',
       'plan_place',
       'plan_unschedule',
+      'plan_schedule',
+      'plan_move',
       // Avatars (kcxz.18): reads, changes and the paid runs; activating,
       // deleting, forgetting and retiring ask on a card and stay web-only.
       'avatar_list',
@@ -630,8 +633,8 @@ describe('MCP tools from the same registry', () => {
     ]);
     // MCP has no question card: the intake's facts choice is not offered there.
     expect(mcpTools('ADMIN').piece_create.suspendSchema).toBeUndefined();
-    for (const capability of catalogue.filter((entry) =>
-      ['confirm', 'input', 'secret'].includes(entry.risk)
+    for (const capability of catalogue.filter(
+      (entry) => ['confirm', 'input', 'secret'].includes(entry.risk) && !entry.mcpConfirm
     )) {
       expect(names).not.toContain(registry.toolNameOf(capability.id));
     }

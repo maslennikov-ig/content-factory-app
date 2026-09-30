@@ -19,6 +19,7 @@ import {
   type Reviewed,
 } from './core.capabilities';
 import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion } from './selection';
+import { ConfirmationNeeded } from '../mcp-confirmation';
 import { proposalTarget } from '../capability.context';
 
 /**
@@ -259,7 +260,7 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents on a card, because the post would go out by itself (a «no» ends the call, nothing written). The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
+    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
     channelId,
@@ -268,6 +269,8 @@ export const pieceAdapt = defineCapability({
     ...postFields,
   }),
   risk: 'paid',
+  // Over MCP the autopilot consent is asked in the conversation (`kcxz.49`).
+  mcpConfirm: true,
   card: 'adaptation',
   door: door(ContentPieceController, 'adapt'),
   untrusted: [],
@@ -388,17 +391,23 @@ export const pieceAdapt = defineCapability({
     // consents first, before anything is spent (spec §1.4, premortem A1).
     const mode = await pieces.adaptPlanMode(ctx.organizationId, input.pieceId, input.channelId);
     if (mode === 'autopilot') {
-      if (!ctx.suspend) {
-        throw codedFailure(
-          'AUTOPILOT_NEEDS_CONSENT',
-          'The channel is on autopilot: the post would go out by itself, so the person consents on a card in the web chat first. Nothing was spent.'
-        );
-      }
       const channel = await ctx
         .service(IntegrationService)
         .getIntegrationsForChannelList(ctx.organizationId)
         .then((all: any[]) => all.find((one) => one.id === input.channelId))
         .catch(() => null);
+      if (!ctx.suspend) {
+        // MCP (`kcxz.49`): the same question, asked by the assistant in the
+        // conversation; the repeat call carries the code of the person's «да».
+        if (ctx.confirmed) return decideAll(0, true);
+        if (ctx.entrance === 'mcp') {
+          throw new ConfirmationNeeded(AUTOPILOT_TEXT[ctx.language](String(channel?.name || input.channelId)));
+        }
+        throw codedFailure(
+          'AUTOPILOT_NEEDS_CONSENT',
+          'The channel is on autopilot: the post would go out by itself, so the person consents on a card first. Nothing was spent.'
+        );
+      }
       await ctx.suspend({
         kind: 'consent',
         subject: 'autopilot',

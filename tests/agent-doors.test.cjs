@@ -175,7 +175,7 @@ class FakeResponse extends EventEmitter {
   }
 }
 
-const setup = ({ parts = [{ type: 'start' }, { type: 'finish' }], hang = false } = {}) => {
+const setup = ({ parts = [{ type: 'start' }, { type: 'finish' }], hang = false, claims } = {}) => {
   const mastra = fakeMastra();
   const scripted = { current: null };
   const handleChatStream = jest.fn(async () => {
@@ -202,7 +202,7 @@ const setup = ({ parts = [{ type: 'start' }, { type: 'finish' }], hang = false }
       };
     }),
   };
-  const threads = new AgentThreadsService(mastra.mastraService);
+  const threads = new AgentThreadsService(mastra.mastraService, claims);
   const controller = new AgentController(mastra.mastraService, threads, aiUsage);
   return { controller, mastra, handleChatStream, aiUsage, admissions, scripted };
 };
@@ -702,6 +702,22 @@ describe('correctness review W1: cards, answers and attachments at the door', ()
     await running;
     // Released with the stream: a later answer is judged by what still waits.
     expect(await context.controller.threads.claimRun('run-approve-1')).toEqual(expect.any(Function));
+  });
+
+  test('kcxz.47 (review W4-39-40 F5): a claim store that fails refuses the answer as AGENT_FAILED, before it runs or is billed', async () => {
+    const down = () => Promise.reject(new Error('Connection is closed.'));
+    const claims = { incr: down, expire: down, del: down, get: down, set: down };
+    const context = setup({ claims });
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    pendingApproval(context.mastra);
+    await expect(chat(context, approvalBody())).rejects.toEqual(
+      expect.objectContaining({ status: 503, code: 'AGENT_FAILED' })
+    );
+    expect(context.handleChatStream).not.toHaveBeenCalled();
+    expect(context.admissions).toHaveLength(0);
+    await expect(context.controller.threads.claimRun('run-approve-1')).rejects.toEqual(
+      expect.objectContaining({ status: 503, code: 'AGENT_FAILED' })
+    );
   });
 
   test('kcxz.29 D2: a question answered once is never run again, even if the stream was cut and the run still reads as suspended', async () => {

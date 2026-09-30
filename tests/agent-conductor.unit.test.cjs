@@ -823,6 +823,33 @@ describe('one answer per suspended run at a time (correctness review W1 F5)', ()
     expect(await claims.agentCallAnswered(store, 'run-2', 'call-2')).toBe(true);
   });
 
+  test('kcxz.47 (review W4-39-40 F5): a store that does not answer is refused in time, never waited for', async () => {
+    const hang = () => new Promise(() => undefined);
+    const store = claims.boundedRunClaimStore({ incr: hang, expire: hang, del: hang, get: hang, set: hang }, 20);
+    const started = Date.now();
+    await expect(claims.claimAgentRun(store, 'run-1')).rejects.toBeInstanceOf(claims.AgentRunClaimUnavailable);
+    await expect(claims.agentCallAnswered(store, 'run-1', 'call-1')).rejects.toBeInstanceOf(
+      claims.AgentRunClaimUnavailable
+    );
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(claims.AGENT_RUN_CLAIM_WAIT_MS).toBe(5_000);
+    // A store error is the same refusal; a store that answers is unchanged.
+    const failing = claims.boundedRunClaimStore({ ...claims.inProcessRunClaimStore(), incr: async () => { throw new Error('down'); } });
+    await expect(claims.claimAgentRun(failing, 'run-1')).rejects.toBeInstanceOf(claims.AgentRunClaimUnavailable);
+    const live = claims.boundedRunClaimStore(claims.inProcessRunClaimStore());
+    expect(await claims.claimAgentRun(live, 'run-1')).toEqual(expect.any(Function));
+    expect(await claims.claimAgentRun(live, 'run-1')).toBeNull();
+  });
+
+  test('kcxz.47: a claim that failed after the counter was written deletes it, so the card is not held with no lifetime', async () => {
+    const inner = claims.inProcessRunClaimStore();
+    const store = { ...inner, expire: async () => { throw new Error('down'); } };
+    await expect(claims.claimAgentRun(store, 'run-1')).rejects.toThrow('down');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(await inner.get('agent-run-claim:run-1')).toBeNull();
+    expect(await claims.claimAgentRun(inner, 'run-1')).toEqual(expect.any(Function));
+  });
+
   test('a crashed holder cannot lock a card for good', async () => {
     const store = claims.inProcessRunClaimStore();
     const expire = jest.spyOn(store, 'expire');

@@ -91,6 +91,12 @@ export const admitCapabilityCall = async (
     resuming?: boolean;
     /** The web chat's hooks: `asksInWebChat` applies (never over MCP). */
     webChat?: boolean;
+    /**
+     * MCP (`kcxz.49`): a `confirm` call's «Да» is its one-time code, which
+     * the adapter checks after admission (`mcp-confirmation.ts`); there is no
+     * card whose approval this request could carry.
+     */
+    confirmsByCode?: boolean;
   }
 ): Promise<CapabilityRefusal | null> => {
   const identity = readCapabilityIdentity(requestContext);
@@ -118,7 +124,7 @@ export const admitCapabilityCall = async (
   }
 
   const toolName = toolNameOf(capability.id);
-  const confirm = capability.risk === 'confirm';
+  const confirm = capability.risk === 'confirm' && !options.confirmsByCode;
   const asksHere = !!options.webChat && !!capability.asksInWebChat;
   if (confirm || asksHere) {
     const print = approvalFingerprint(toolName, input);

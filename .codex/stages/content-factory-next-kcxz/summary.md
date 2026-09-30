@@ -1,4 +1,4 @@
-# Stage summary — `content-factory-next-kcxz` (agent chat), through release 3
+# Stage summary — `content-factory-next-kcxz` (agent chat), through release 4
 
 State on 27.09.2026 night: owner «Исправь все найденные проблемы и доделай до конца. Даю тебе все
 разрешения.» — every open finding of W2 fixed and proven live (`evidence/live-stand-w2-2026-09-27/`
@@ -90,7 +90,17 @@ independent correctness review → fix round (re-review where a P1/P2 or a High 
   `MCP_ENABLED="true"`, Mastra 45 unchanged — `evidence/release-3-2026-09-29.md`.
 - Open: real Claude/ChatGPT connection not yet tried by a person (the protocol version each speaks is not
   stated in their docs; the SDK client flow is proven); the grant rule (`Deny` etc.) and the consent throttle
-  are per person; the chat's run claims still wait on Redis without a bound. Next: W6 `.28` (CopilotKit).
+  are per person; the chat's run claims still wait on Redis without a bound.
+
+## Release 4 (29.09) — W6, CopilotKit gone
+
+- `.28`: the post-editor helper on CopilotKit is replaced by «Спросить агента» in the post window: a new agent
+  thread with the request pre-filled, never sent (piece + channel by `cnt-NN`, or the post's text to make a
+  piece, or the one-thought request); hidden in the browser extension. Autocomplete in the signature, autopost
+  and plug fields is gone (decided for the owner, §4.4). `/copilot/chat`, its runtime and `@copilotkit/*` /
+  `@ag-ui/*` removed; `/copilot/credits` and `/copilot/research` stay. Review + fixes, live walk 5 ops.
+- **Release 4:** production `d6130a6f4dc0` (source `ecbd102b5`), rollback `9d2b8ba85a2f`, schema unchanged —
+  `evidence/release-4-2026-09-29.md`. Open P3s are listed there.
 
 ## Decisions (owner)
 

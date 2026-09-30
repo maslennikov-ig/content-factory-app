@@ -210,6 +210,35 @@ const removeLines = (before: string, after: string): string | null => {
   return head + '\n'.repeat(Math.max(newlines(headGap), newlines(tailGap))) + tail;
 };
 
+/** Разрыв строк внутри отрывка: переносы вместе с пустыми строками между ними. */
+const BREAK_RUN = /\n(?:[ \t\u00A0]*\n)*/gu;
+
+/**
+ * Удаление, которое забрало вместе с отрывком и разрыв абзаца, этот разрыв
+ * оставляет (`kcxz.47`, прогон W6 P3-C).
+ *
+ * Живой стенд 29.09.2026: «сделай короче» убрало отрывок «Для меня у
+ * встречи должна быть заранее понятная цель.\n\n» — последнее предложение
+ * абзаца вместе с переносами за ним, — и заключительный вопрос приклеился к
+ * первому абзацу. Если в отрывке был перенос, а по обе его стороны в тех же
+ * строках остаётся текст, шов — самый длинный разрыв из отрывка, и остаток
+ * начинается с заглавной. Абзацы, которые автор разделил, удаление не
+ * склеивает. `null` — в отрывке переноса нет или одна из сторон пуста.
+ */
+const removeKeepingBreak = (
+  before: string,
+  removed: string,
+  after: string
+): string | null => {
+  const runs = removed.match(BREAK_RUN);
+  if (!runs) return null;
+  const head = before.replace(/[ \t\u00A0]+$/u, '');
+  const tail = after.replace(/^[ \t\u00A0]+/u, '');
+  if (!head || head.endsWith('\n') || !tail || tail.startsWith('\n')) return null;
+  const breaks = Math.max(...runs.map(newlines));
+  return head + '\n'.repeat(breaks) + capitalised(tail);
+};
+
 /**
  * Что осталось на шве от вырезанного начала предложения: пробелы и одна
  * запятая или тире с пробелами после.
@@ -275,6 +304,8 @@ const spliceTidy = (
   if (!replacement) {
     const lines = removeLines(before, after);
     if (lines !== null) return lines;
+    const kept = removeKeepingBreak(before, text.slice(start, end), after);
+    if (kept !== null) return kept;
     const head = removeSentenceHead(before, after, headWhole && tailWhole);
     if (head !== null) return head;
     return stitchRemoval(before, after, headWhole && tailWhole);

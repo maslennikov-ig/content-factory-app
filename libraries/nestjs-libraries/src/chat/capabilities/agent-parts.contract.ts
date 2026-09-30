@@ -309,6 +309,14 @@ export const CAPABILITY_REFUSAL_CODES = [
    * model points the person at the open card.
    */
   'PROPOSAL_CARD_OPEN',
+  /**
+   * MCP only (`kcxz.49`): the confirmation code of a «Да» asked in the
+   * conversation does not fit this call (used, expired, other arguments, a
+   * changed post), or its store did not answer; nothing ran. The web chat
+   * never sees them: it asks on cards.
+   */
+  'CONFIRMATION_INVALID',
+  'CONFIRMATION_UNAVAILABLE',
 ] as const;
 export type CapabilityRefusalCode = (typeof CAPABILITY_REFUSAL_CODES)[number];
 

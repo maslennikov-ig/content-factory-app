@@ -53,7 +53,7 @@ import { redactSecretLeaves, redactSecretShapes } from './secret-shapes';
 
 export class AgentChatRequestError extends HttpException {
   constructor(
-    readonly code: AgentDoorErrorCode | 'AGENT_RUN_NOT_PENDING',
+    readonly code: AgentDoorErrorCode | 'AGENT_RUN_NOT_PENDING' | 'AGENT_FAILED',
     status: number,
     message: string
   ) {
@@ -86,6 +86,18 @@ export const notPending = () =>
     'AGENT_RUN_NOT_PENDING',
     HttpStatus.CONFLICT,
     'This card is no longer waiting for an answer.'
+  );
+
+/**
+ * The claim store (Redis) did not answer in time (`kcxz.47`, review W4-39-40
+ * F5): the answer is refused before it is billed or run, and the person tries
+ * again. The screen already has words for `AGENT_FAILED`.
+ */
+export const claimUnavailable = () =>
+  new AgentChatRequestError(
+    'AGENT_FAILED',
+    HttpStatus.SERVICE_UNAVAILABLE,
+    'Could not check that this card is not being answered already. Nothing was spent.'
   );
 
 /** Our ids and Mastra's (uuid, nanoid) both fit; paths and spaces do not. */

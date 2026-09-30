@@ -19,6 +19,7 @@ import type {
   ResearchSource,
 } from '@contentfactory/frontend/components/new-launch/store';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
+import type { PostPiece } from '@contentfactory/frontend/components/new-launch/ask-agent.button';
 
 export interface AddEditModalProps {
   dummy?: boolean;
@@ -40,6 +41,8 @@ export interface AddEditModalProps {
    */
   extension?: boolean;
   duplicateOfPostId?: string;
+  /** The piece the copied post came from; «Спросить агента» names it (`kcxz.47`). */
+  duplicateOfPiece?: PostPiece | null;
   onlyValues?: Array<{
     content: string;
     id?: string;

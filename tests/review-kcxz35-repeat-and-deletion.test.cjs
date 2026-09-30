@@ -246,6 +246,27 @@ describe('F7: applying a deletion of a whole line or paragraph', () => {
     expect(apply('Один, безусловно, два.\n\nТри.', 'безусловно')).toBe('Один два.\n\nТри.');
     expect(apply('Один. Два.\n\nТри.', 'Два.')).toBe('Один.\n\nТри.');
   });
+
+  // kcxz.47, прогон W6 P3-C: отрывок забрал разрыв абзаца вместе с последним
+  // предложением, и вопрос приклеился к первому абзацу.
+  test('the recorded shortening: a sentence taken with the break after it keeps the paragraphs', () => {
+    const post =
+      '🗓️ Созвон без повестки — ожидание, пока кто-нибудь придумает цель. ' +
+      'Для меня у встречи должна быть заранее понятная цель.\n\n' +
+      'Что для вас делает созвон содержательной встречей?';
+    expect(apply(post, 'Для меня у встречи должна быть заранее понятная цель.\n\n')).toBe(
+      '🗓️ Созвон без повестки — ожидание, пока кто-нибудь придумает цель.\n\n' +
+        'Что для вас делает созвон содержательной встречей?'
+    );
+  });
+
+  test('a deletion across a break keeps the break and starts the rest with a capital', () => {
+    expect(apply('Один. Два.\n\nтри четыре.', 'Два.\n\nтри ')).toBe('Один.\n\nЧетыре.');
+    expect(apply('Один. Два.\nТри.', ' Два.\n')).toBe('Один.\nТри.');
+    // Пустая сторона — разрыв уже на месте, шов как прежде.
+    expect(apply('Один. Два.\n\nТри.', '\n\nТри.')).toBe('Один. Два.');
+    expect(apply('Один.\n\nДва. Три.', 'Один.\n\n')).toBe('Два. Три.');
+  });
 });
 
 describe('F7: the selection row of a deletion', () => {

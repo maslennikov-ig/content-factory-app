@@ -39,8 +39,9 @@ export class MockRedis {
 
   async del(key: string) {
     this.expiries.delete(key);
-    this.data.delete(key);
-    return 1;
+    // As Redis: the number of keys removed. A one-time code (kcxz.49) is used
+    // by the one call whose delete removed it.
+    return this.data.delete(key) ? 1 : 0;
   }
 
   /**

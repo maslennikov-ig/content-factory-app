@@ -19,6 +19,9 @@ import {
   writeEditorHandoff,
 } from '@contentfactory/frontend/components/agents/agent.handoff';
 
+/** Заготовка поста, как её отдаёт `/posts/group/:group`. */
+export type PostPiece = { title?: string | null; code?: string | null };
+
 /**
  * Текст, который окно показывает сейчас (review W6-28 F1). Существующий пост
  * и правка под отдельный канал живут в `internal` этого канала, а `global`
@@ -56,10 +59,17 @@ export const shownTexts = ({
  * отправляется: отправляет человек (`agent.handoff.ts`). Уход закрывает окно,
  * поэтому спрашивается то же подтверждение, что у «К заготовке».
  */
-export const AskAgentButton: FC<{ label: string; close: () => void }> = ({
-  label,
-  close,
-}) => {
+export const AskAgentButton: FC<{
+  label: string;
+  close: () => void;
+  /**
+   * Заготовка, из которой сделан пост, когда окно открыто копией
+   * («Дублировать пост»): у копии нет своего поста, но текст — адаптация
+   * этой заготовки, и просить «сделай заготовку» из него значило бы вторую
+   * заготовку того же текста (`kcxz.47`, прогон W6 P3-B).
+   */
+  piece?: PostPiece | null;
+}> = ({ label, close, piece }) => {
   const t = useT();
   const router = useRouter();
   const existingData = useExistingData();
@@ -84,14 +94,13 @@ export const AskAgentButton: FC<{ label: string; close: () => void }> = ({
     ) {
       return;
     }
-    const post = existingData.posts?.[0] as
-      | { piece?: { title?: string | null; code?: string | null } | null }
-      | undefined;
+    const post = existingData.posts?.[0] as { piece?: PostPiece | null } | undefined;
+    const origin = post?.piece ?? piece;
     writeEditorHandoff(
       window.sessionStorage,
       editorHandoffFrom({
-        piece: post?.piece?.title,
-        code: post?.piece?.code,
+        piece: origin?.title,
+        code: origin?.code,
         channels: selectedIntegrations
           .map((selected) => selected.integration?.name)
           .filter((name): name is string => !!name),
@@ -100,7 +109,7 @@ export const AskAgentButton: FC<{ label: string; close: () => void }> = ({
     );
     close();
     router.push(AGENT_FROM_EDITOR_HREF);
-  }, [close, current, existingData, global, internal, router, selectedIntegrations, t]);
+  }, [close, current, existingData, global, internal, piece, router, selectedIntegrations, t]);
 
   return (
     <Button type="button" variant="quiet" onClick={ask}>

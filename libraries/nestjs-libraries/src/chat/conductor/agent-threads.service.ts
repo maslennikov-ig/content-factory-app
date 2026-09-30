@@ -14,12 +14,14 @@ import type {
 } from '../capabilities/agent-parts.contract';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
 import { questionCardId, questionCardView } from '../capabilities/question-card';
-import { notYours, type PendingRun } from './agent-chat.request';
+import { claimUnavailable, notYours, type PendingRun } from './agent-chat.request';
 import { AGENT_STREAM_VERSION } from '../capabilities/agent-parts.contract';
 import { conductorResourceId } from './conductor.context';
 import { threadTitleFromMessage } from './conductor.memory';
 import {
   AGENT_RUN_CLAIM_STORE,
+  AgentRunClaimUnavailable,
+  boundedRunClaimStore,
   agentCallAnswered,
   approvalContentShown,
   claimAgentRun,
@@ -117,6 +119,12 @@ export const pendingView = async (
     )
   );
 
+/** A claim store that did not answer is the door's `AGENT_FAILED` (503). */
+const refusedWhenUnavailable = (error: unknown): never => {
+  if (error instanceof AgentRunClaimUnavailable) throw claimUnavailable();
+  throw error;
+};
+
 /** Where Mastra keeps an agent run's snapshot (`Agent.listSuspendedRuns`). */
 const AGENT_RUN_WORKFLOWS = ['agentic-loop', 'durable-agentic-loop'] as const;
 
@@ -130,15 +138,20 @@ export class AgentThreadsService {
     @Inject(AGENT_RUN_CLAIM_STORE)
     claims?: AgentRunClaimStore
   ) {
-    this.claims = claims ?? inProcessRunClaimStore();
+    // Every command bounded: Redis down refuses, it never hangs (kcxz.47).
+    this.claims = boundedRunClaimStore(claims ?? inProcessRunClaimStore());
   }
 
   /**
    * Claims a suspended run for one answer (correctness review W1 F5): the
    * release function, or `null` while another request answers it.
    */
-  claimRun(runId: string) {
-    return claimAgentRun(this.claims, runId);
+  async claimRun(runId: string) {
+    try {
+      return await claimAgentRun(this.claims, runId);
+    } catch (error) {
+      return refusedWhenUnavailable(error);
+    }
   }
 
   /**
@@ -289,7 +302,9 @@ export class AgentThreadsService {
             : undefined;
         if (
           call.toolCallId &&
-          (await agentCallAnswered(this.claims, run.runId, call.toolCallId, card))
+          (await agentCallAnswered(this.claims, run.runId, call.toolCallId, card).catch(
+            refusedWhenUnavailable
+          ))
         ) {
           continue;
         }

@@ -1038,6 +1038,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {agentAvailable && canWritePosts && !addEditSets && !dummy && !extension && (
               <AskAgentButton
                 label={composeCopy[voiceLocale].askAgent}
+                piece={props.duplicateOfPiece}
                 close={() => (customClose ? customClose() : modal.closeAll())}
               />
             )}

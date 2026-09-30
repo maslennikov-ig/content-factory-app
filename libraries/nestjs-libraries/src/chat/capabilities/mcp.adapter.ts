@@ -23,9 +23,12 @@ import {
  * Excluded: `confirm` (no approval card over MCP), `input` (no question card)
  * and `secret` (a key never passes through a model). Each call re-runs the
  * door's policies inside `execute`, because an MCP server has no agent hooks.
+ * A `confirm` capability marked `mcpConfirm` is offered: its «Да» is asked in
+ * the conversation with a one-time code (`mcp-confirmation.ts`, `kcxz.49`).
  */
 export const isMcpCapability = (capability: CapabilityDeclaration) =>
-  !WEB_ONLY_RISKS.includes(capability.risk);
+  !WEB_ONLY_RISKS.includes(capability.risk) ||
+  (capability.risk === 'confirm' && capability.mcpConfirm === true);
 
 export const buildMcpCapabilityTools = (
   capabilities: readonly CapabilityDeclaration[],
