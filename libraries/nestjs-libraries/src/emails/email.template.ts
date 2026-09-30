@@ -295,17 +295,19 @@ export function emailQuietAction(options: EmailActionOptions): string {
 }
 
 /**
- * The `Cf` mark: a bordered cell with the atomic number and the letters, the
- * same construction the interface uses and for the same reason — it renders
- * from text, so it survives images being switched off. Kept `dir="ltr"` even
+ * The `Cf` mark: a filled ochre cell with the atomic number and the letters —
+ * the nucleus of the logo, and the same construction the interface uses for the
+ * same reason: it renders from text, so it survives images being switched off.
+ * The ochre is the cell's own background, so the dark letters keep their
+ * contrast whatever a client does to the canvas behind it. Kept `dir="ltr"` even
  * in a right-to-left email: the mark is a mark, not a sentence.
  */
 function renderMark(): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" dir="ltr" style="border-collapse: collapse;">
                     <tr>
-                      <td class="cf-mark" style="width: 24px; height: 24px; border: 1px solid ${EMAIL_COLORS.signature}; border-radius: 4px; padding: 2px 3px 2px 3px; line-height: 1;">
-                        <div class="cf-mark-ink" style="font-family: ${EMAIL_MONO}; font-size: 7px; font-weight: 600; line-height: 8px; color: ${EMAIL_COLORS.signature}; text-align: left;">98</div>
-                        <div class="cf-mark-ink" style="font-family: ${EMAIL_MONO}; font-size: 11px; font-weight: 600; line-height: 12px; color: ${EMAIL_COLORS.signature}; text-align: center;">Cf</div>
+                      <td class="cf-mark" bgcolor="${EMAIL_COLORS.signature}" style="width: 24px; height: 24px; background-color: ${EMAIL_COLORS.signature}; border: 1px solid ${EMAIL_COLORS.signature}; border-radius: 4px; padding: 2px 3px 2px 3px; line-height: 1;">
+                        <div class="cf-mark-ink" style="font-family: ${EMAIL_MONO}; font-size: 7px; font-weight: 600; line-height: 8px; color: ${EMAIL_COLORS.canvas}; text-align: left;">98</div>
+                        <div class="cf-mark-ink" style="font-family: ${EMAIL_MONO}; font-size: 11px; font-weight: 600; line-height: 12px; color: ${EMAIL_COLORS.canvas}; text-align: center;">Cf</div>
                       </td>
                     </tr>
                   </table>`;
@@ -329,8 +331,8 @@ function lightSchemeStyles(): string {
   .cf-rule { background-color: ${l.border} !important; }
   .cf-ink { color: ${l.ink} !important; }
   .cf-ink-muted { color: ${l.inkMuted} !important; }
-  .cf-mark { border-color: ${l.signature} !important; }
-  .cf-mark-ink { color: ${l.signature} !important; }
+  .cf-mark { background-color: ${l.signature} !important; border-color: ${l.signature} !important; }
+  .cf-mark-ink { color: ${l.surface} !important; }
   .cf-btn { background-color: ${l.accent} !important; }
   .cf-btn-label { color: ${l.accentInk} !important; }
   .cf-quiet { background-color: ${l.surfaceSubtle} !important; border-color: ${l.borderStrong} !important; }

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { ReactNode } from 'react';
 import loadDynamic from 'next/dynamic';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
+import { CfAtom } from '@contentfactory/frontend/components/ui/brand/cf-atom';
 import { WorkflowOverview } from '@contentfactory/frontend/components/auth/workflow.overview';
 import { AuthLanguageSwitch } from '@contentfactory/frontend/components/auth/language.switch';
 
@@ -40,7 +41,13 @@ export default async function AuthLayout({
             a second errand on the one screen whose job is signing in. */}
       </main>
 
-      <aside className="flex flex-1 items-center justify-center border-t border-cf-border px-[24px] py-[40px] lg:border-t-0 lg:px-[48px] lg:py-[64px]">
+      <aside className="flex flex-1 flex-col items-center justify-center gap-[32px] border-t border-cf-border px-[24px] py-[40px] lg:border-t-0 lg:px-[48px] lg:py-[64px]">
+        {/* The whole logo lives here, on the side that says what the product
+            makes: its orbits carry the same text, image and video. The name
+            is already in the column beside it, so the drawing is decorative. */}
+        <div className="w-full max-w-[520px]">
+          <CfAtom size={176} decorative />
+        </div>
         <WorkflowOverview
           heading={t(
             'auth_pitch_heading',

@@ -58,7 +58,11 @@ const px = (value: number) => `${Math.round(value * 100) / 100}px`;
 
 export const CfMark: FC<{
   size?: number;
-  /** `filled` is the dense plate for app avatars and tight badges. */
+  /**
+   * `filled` is the ochre plate — the nucleus of the atom logo, and the
+   * default everywhere since the logo landed. `outline` stays for a place
+   * that needs the lighter bordered cell.
+   */
   variant?: 'outline' | 'filled';
   /**
    * Colour of the symbol in the outline variant. `signature` is the collapsed
@@ -71,7 +75,7 @@ export const CfMark: FC<{
   title?: string;
 }> = ({
   size = 32,
-  variant = 'outline',
+  variant = 'filled',
   tone = 'ink',
   className,
   decorative = false,
@@ -119,6 +123,9 @@ export const CfMark: FC<{
         fontSize: px(measure(NUMBER, size)),
         fontWeight: 600,
         lineHeight: 1,
+        // Top-left in the stack, as on the logo's plate; the 48px cell
+        // positions it absolutely, where this does nothing.
+        alignSelf: 'flex-start',
         color: filled ? 'var(--cf-ink-inverse)' : 'var(--cf-signature)',
         ...(filled ? { opacity: 0.8 } : null),
       }}
@@ -133,7 +140,8 @@ export const CfMark: FC<{
       {symbol}
     </span>
   ) : size < 48 ? (
-    // At 24px the card turns into a stack: number above, symbol below.
+    // At 24px the card turns into a stack: number above, symbol below. The
+    // number keeps to the top-left corner, where the logo's plate has it.
     <span
       className="flex h-full w-full flex-col items-center justify-between"
       style={{ padding: '2px 3px' }}

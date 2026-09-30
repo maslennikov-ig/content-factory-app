@@ -18,8 +18,8 @@ const SIZES = {
  * at every size and follows the active theme.
  *
  * This is the lock from the mark sheet — card, 12px gap, name at 650 with
- * −0.01em. The 24px card takes its symbol in `signature`, the one place the
- * symbol matches its own border.
+ * −0.01em. The card is the filled ochre plate, the nucleus of the atom logo;
+ * the whole atom is too fine for a navigation row and lives in `CfAtom`.
  */
 export const Wordmark: FC<{
   size?: keyof typeof SIZES;
@@ -31,7 +31,7 @@ export const Wordmark: FC<{
 
   return (
     <span className={clsx('inline-flex items-center gap-[12px]', className)}>
-      <CfMark size={mark} tone={mark <= 24 ? 'signature' : 'ink'} decorative />
+      <CfMark size={mark} decorative />
       <span
         className={clsx(
           markOnly
