@@ -34,3 +34,8 @@ docs-reviewed: updated — durable summary contract and project navigation refle
 merge/translation, source grounding, language/one-call bounds and failure fastpaths.
 graph-reviewed: used — focused stale graph orientation plus exact current source;
 no refresh before accepted relevant integration/release.
+
+Delivery addendum — 01.10.2026: the owner-approved application packet subsequently
+deployed private e8bbe9a3fc23 / public image 66619d212950. Application deployment is
+complete; original real-search semantic/source-name acceptance remains pending.
+The initial offline acceptance and its exact receipt remain unchanged.

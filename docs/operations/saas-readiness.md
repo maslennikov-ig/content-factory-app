@@ -4,7 +4,7 @@
 
 **Статус:** целевой runbook; не подтверждает готовность production
 
-**Проверено статически:** 2026-08-19
+**Проверено статически:** 2026-10-01
 
 Этот документ связывает Cloud-first продуктовый контракт с существующими
 операционными процедурами. Он не разрешает deployment, работу с production,
@@ -22,19 +22,43 @@
 доступа к compose, PostgreSQL, Temporal, secret store или хосту, остаётся в
 `docs/operations/` и не становится пользовательским onboarding.
 
+## Срез на 01.10.2026
+
+Этот контракт не означает, что SaaS готов к запуску. По `cfiz` новый
+зашифрованный backup восстановлен вручную в изолированном контейнере; первый
+послеремонтный запуск общего host backup `/root/full_backup.sh` ещё ожидает
+отдельной проверки `0qgn.1` на 02.10.2026 06:00 UTC. Это не доказывает
+offsite-restore после потери хоста.
+
+Ёмкость также остаётся воротами: `71m.8` открыт, последний read-only снимок
+текущего production image не выдержал порог при коротком повторном наблюдении;
+финальный кандидат ещё не принят по этому критерию. Детали измерения принадлежат
+датированным доказательствам, а не постоянному лимиту в этом runbook.
+
+Runtime-сигналы имеют узкую область действия: Docker `HEALTHCHECK` проверяет
+только HTTP `/api`, а `/api/monitor/queue/:name` сейчас всегда отвечает, что
+очередь здорова, не опрашивая её. Работающий общий GlitchTip сам по себе не
+доказывает доставку события от приложения, retention или обнаружение сбоя.
+Разделённый по tenant abuse budget и сверка AI-ledger с расходом провайдера
+остаются нерешёнными; правовые и операторские факты, включая регион, компанию,
+support/Terms/Privacy, отложены владельцем. Поэтому запуск публичного SaaS
+сейчас не принимается этим документом.
+
 ## Readiness gates
 
 | Граница | Репозиторное доказательство | Что проверить в разрешённом окружении | Fail-closed результат |
 | --- | --- | --- | --- |
 | Точная версия и Source | `tests/source.archive.test.cjs`, ADR-0005 | публичная ссылка и manifest называют реально обслуживающий commit; архив скачивается без сессии | не открывать внешний preview |
-| Runtime | [runtime.md](runtime.md), production compose | frontend, backend, orchestrator, PostgreSQL, Redis, Temporal и storage здоровы; HTTP health не подменяет provider readiness | остановить rollout, сохранить предыдущий образ |
+| Runtime | [runtime.md](runtime.md), production compose, `Dockerfile` | frontend, backend, orchestrator, PostgreSQL, Redis, Temporal и storage здоровы; `HEALTHCHECK` на `/api` не доказывает готовность очередей, providers, egress или telemetry | остановить rollout, сохранить предыдущий образ |
 | Схема и роли | [production-deploy.md](production-deploy.md), раздел [Пример: Cloud-first SaaS-срез](production-deploy.md#пример-cloud-first-saas-срез) | preflight, non-owner runtime roles, cross-database isolation и пятнадцать операторов среза (два `CREATE TYPE` отдельной командой, остальные через валидатор с пятью `--allow-table`) | не запускать новый backend до применённой additive schema |
-| Backup и recovery | [postgres-backup.md](postgres-backup.md) | свежий проверенный artifact и репетиция восстановления совместимой версии | не выполнять необратимый шаг без recovery point |
-| Error collection | [error-collection.md](error-collection.md) | события доходят, payload и proxy logs не содержат идентификаторы; retention действует | отключить collector boundary, не расширять payload |
+| Backup и recovery | [postgres-backup.md](postgres-backup.md), [`cfiz` proof](../../.codex/stages/content-factory-next-0qgn/evidence/cfiz-host-restore-2026-10-01.json) | `cfiz` подтвердил ручной полный restore из нового зашифрованного артефакта 01.10; отдельно дождаться первого запуска общего host backup `/root/full_backup.sh` по `0qgn.1` 02.10 06:00 UTC, сверить checksum/signature и выполнить предусмотренный изолированный restore; offsite-restore не доказан | не выполнять необратимый шаг без свежего recovery point; не считать ручной backup расписанием |
+| Error collection | [error-collection.md](error-collection.md) | получить обезличенное тестовое событие из приложения и проверить приём, redaction, retention и наблюдаемое поведение при отказе; статус GlitchTip как процесса не подтверждает этот путь | отключить collector boundary, не расширять payload |
 | Outbound data | [outbound-connections.md](outbound-connections.md), ADR-0009 | каждый включённый сервис имеет четыре факта обоснования и текущую конфигурацию | неизвестный или необоснованный egress остаётся выключен |
 | Tenant isolation | auth/policy и repository tests | один tenant не читает ключи, данные, events или usage другого | блокировать затронутый путь как security incident |
+| AI quota и ledger | `AiUsageService`, `AiUsageRecord`, [продуктовый контракт](../product/cloud-saas-growth-spec.md#ai-режимы) | квота считается по продуктовым операциям, не по долларам или числу вызовов провайдера; активные `admitted` резервируют лимит не более 24 ч, неудачный `review` исключён, отказ конфигурации до вызова аннулирует резервацию. Поля токенов и стоимости nullable, повторы агрегируются; `possiblyBilled` может означать лишь нижнюю границу стоимости. Неизвестное не равно нулю; перед финансовым использованием сверять с провайдерами | не обещать денежный предел и не считать `NULL` нулём; учёт по вызовам провайдера и сверка ещё открыты |
+| Ёмкость | `71m.8`, [точный image/workload receipt](../../.codex/stages/content-factory-next-0qgn-followup-release/evidence/memory-before-release.json) | текущий кандидат проходит нужную нагрузку с подключённым каналом ниже порога без отключения очередей и process wrappers | не объявлять ёмкость принятой по короткому снимку, локальному замеру или другой версии |
 | Bootstrap администратора | `resolveNewUserAccess` возвращает `isSuperAdmin: false` на каждой ветке | до публичного трафика оператор выполняет [Bootstrap администратора инстанса](production-deploy.md#bootstrap-администратора-инстанса) и подтверждает ровно один `User.isSuperAdmin = true` | не открывать публичный трафик; первый посетитель не становится администратором инстанса |
-| Abuse controls | focused auth/public throttle tests, [таблица порогов](configuration.md#ограничение-частоты-неаутентифицированных-post) | все четыре auth POST (`register` 1, `login` 10, `forgot` 5, `resend-activation` 3 за 60 с) считаются на одного caller и отвечают `429` при исчерпании; public-growth имеет отдельный бюджет; warning не содержит IP/User-Agent/cookie; ingress **заменяет** `X-Real-IP`/`X-Forwarded-For`, а не дополняет | не открывать публичный трафик без проверенного ingress; распределённый abuse budget остаётся отдельным readiness gate |
+| Abuse controls | focused auth/public throttle tests, [таблица порогов](configuration.md#ограничение-частоты-неаутентифицированных-post) | `register` допускает 10 запросов за 60 с и отдельно одну резервацию побочного эффекта за 60 с; `login` 10, `forgot` 5, `resend-activation` 3. Redis хранит Nest throttle counters, но HMAC caller key случаен на процесс, а reservation limiter — process-local `Map`/`Symbol`; это не распределённый per-caller abuse budget. Public-growth имеет отдельный budget; warning не содержит IP/User-Agent/cookie; ingress **заменяет** `X-Real-IP`/`X-Forwarded-For`, а не дополняет | не открывать публичный трафик без проверенного ingress; распределённый abuse budget остаётся отдельным readiness gate |
 | Raw telemetry retention | `scripts/operations/cleanup-saas-retention.cjs`, `tests/saas-retention.test.cjs`, [`deploy/production/retention/`](../../deploy/production/retention) | `content-factory-next-saas-retention.timer` включён и в `systemctl list-timers` показывает следующий запуск в 05:30; ручной `systemctl start` завершается кодом 0, а в journal лежит JSON с `mode: apply` и нулевым `verification`. Apply удаляет только `PublicGrowthTrustedEvent` и `AiUsageRecord` старше 90 дней, требует `CF_CONFIRM_SAAS_RETENTION=apply` и совпадающий `CF_SAAS_RETENTION_TARGET` — он задан в самом unit, а не в `app.env` | остановить job при ошибке или оставшихся строках; не затрагивать `PublicGrowthDaily` вручную |
 | Публичный путь | `tests/cloud-saas-contract.test.cjs` и public-route tests | только разрешённые маршруты открыты; demo использует synthetic data | вернуть публичный трафик на безопасную страницу |
 
@@ -184,13 +208,17 @@ JSON успешного запуска: `mode`, `before`, `target`, счётчи
    изолированном окружении; не использовать реальные social accounts.
 5. Проверить миграции и runtime-роли по production runbook, не применяя
    `prisma db push`.
-6. Получить свежий backup и выполнить предусмотренную для этого релиза recovery
-   proof до любого необратимого изменения.
+6. Получить свежий подписанный зашифрованный backup и выполнить предусмотренную
+   для этого релиза полную изолированную recovery proof до любого
+   необратимого изменения. Выполненный 01.10 ручной restore не засчитывается как
+   первый суточный запуск после ремонта: его проверяет `0qgn.1`.
 7. Проверить error relay, redaction, retention и отсутствие browser identifiers
    в proxy/collector logs.
-8. Проверить auth/public abuse controls через ingress: лимиты должны быть
-   per-caller, исчерпание — давать `429` и warning без сырого адреса. Текущий
-   process-random tracker не заменяет отложенный распределённый abuse budget.
+8. Проверить auth/public abuse controls через ingress: `/auth/register` имеет
+   10 запросов и отдельную одну резервацию побочного эффекта за 60 с;
+   исчерпание даёт `429`, warning не содержит сырого адреса. Redis counters,
+   случайный per-process HMAC и локальная reservation `Map` не являются
+   распределённым per-caller budget.
 9. Сверить фактический egress с реестром исходящих соединений. Не включать
    provider только потому, что переменная существует.
 10. Сравнить публичные утверждения с реально проверенным состоянием. Не
@@ -209,6 +237,25 @@ JSON успешного запуска: `mode`, `before`, `target`, счётчи
 quota затронутый путь останавливается. Доказательства сохраняются без secrets и
 пользовательского контента; массовая коррекция не выполняется без плана.
 
+### Проверяемый путь оператора при инциденте
+
+1. Зафиксировать время, image/commit, область затронутого маршрута и tenant, а
+   также безопасный сигнал отказа; не копировать credentials, post text или
+   необработанные browser identifiers в общий журнал.
+2. Ограничить остановку затронутой функции или пути по действующему
+   [production runbook](production-deploy.md); не выключать и не очищать соседние
+   сервисы, базы, очереди или tenants без отдельного плана.
+3. Проверить сигнал ошибки через [error-collection.md](error-collection.md),
+   фактическую доставку из приложения и журнал retention. `HEALTHCHECK /api` и
+   ответ `/api/monitor/queue/:name` не заменяют проверку очереди и telemetry.
+4. При риске повреждения данных сохранить последнюю годную копию и сверить её
+   checksum/signature; восстановление сначала выполнить только по
+   [изолированной процедуре backup/restore](postgres-backup.md). Этот документ
+   не разрешает импорт в live database или повторную публикацию.
+5. Возобновлять затронутый путь только после readback версии, схемы, нужных
+   очередей и tenant/security границы. Записать обезличенный результат в run
+   record и открыть остаток в существующей задаче.
+
 ## Что этот runbook намеренно не решает
 
 - выбор инфраструктурного провайдера и региона данных;
@@ -216,6 +263,8 @@ quota затронутый путь останавливается. Доказа
 - цена, trial/card policy и коммерческие entitlement;
 - SLA, certification и формальные compliance claims;
 - production deployment или подключение credentials.
+- выбранные владельцем company/operator identity, регион, Support, Terms и
+  Privacy details — пока эти факты отложены, документ их не подставляет.
 
 Эти границы остаются задачами `content-factory-next-saas.6` и
 `content-factory-next-or3.9`; до их принятия документация сообщает только

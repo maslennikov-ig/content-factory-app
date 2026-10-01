@@ -1,0 +1,15 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-75xn.9",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-75xn.9",
+  "source_digest": "f26af3eb56e646ed79ad38ad1b8089feb3bd378db7f5ed54fee6f629034dee54",
+  "criteria": [
+    {
+      "criterion_id": "AC-original-keyless-communities",
+      "text": "Третий шаг волны, если останется запас. По образцу бесключевого лана Wikipedia/Wikidata: constrained-static-fetch плюс политика выпуска трафика, ранжирование по вовлечённости, без ключей и без расхода. Платные обёртки скилла-образца (X, TikTok, Instagram через ScrapeCreators) не переносятся.",
+      "text_digest": "0002a65f237abb138386a04dbc1f8c859fc5e1af44411c0f72dcc4a2378684ab"
+    }
+  ],
+  "capture_note": "Original free-only community description preserved verbatim; Reddit retains existing m0iy.7 policy exclusion; local fixtures do not prove live quality or authorize activation."
+}

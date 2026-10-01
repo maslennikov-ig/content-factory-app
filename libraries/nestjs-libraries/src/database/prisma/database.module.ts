@@ -57,7 +57,7 @@ import { ResearchQuotaService } from '@contentfactory/nestjs-libraries/content-i
 import { RESEARCH_QUOTA_STORE } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { INTAKE_SNAPSHOT_STORE } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake-snapshot.store';
 import { VOICE_ANALYSIS_LOCK_STORE, redisAnalysisLockStore } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/analysis-lock';
-import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
+import { ioRedis, MockRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import { BrandProfileService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.service';
@@ -96,6 +96,7 @@ import { ContentBriefRepository } from '@contentfactory/nestjs-libraries/content
 import { ContentBriefService } from '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.service';
 import { ContentLeadRepository } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.repository';
 import { LeadFeedGateway } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-feed.gateway';
+import { CommunityTopicDiscoveryService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/community-topic-discovery.service';
 import { LeadTopicGateway } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-topic.gateway';
 import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service';
 
@@ -214,6 +215,15 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     ContentBriefService,
     ContentLeadRepository,
     LeadFeedGateway,
+    {
+      provide: CommunityTopicDiscoveryService,
+      // The quota may use MockRedis locally, but its PX/NX no-op is neither
+      // shared admission nor provider pacing. Community outbound fails closed.
+      useFactory: (store) => new CommunityTopicDiscoveryService(
+        store instanceof MockRedis ? undefined : store
+      ),
+      inject: [RESEARCH_QUOTA_STORE],
+    },
     LeadTopicGateway,
     ContentLeadService,
   ],

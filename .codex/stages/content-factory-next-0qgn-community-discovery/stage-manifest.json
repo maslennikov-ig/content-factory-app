@@ -1,0 +1,80 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-0qgn-community-discovery",
+  "goal_id": "content-factory-next-75xn.9",
+  "epic_id": "content-factory-next-0qgn",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 4,
+  "acceptance_boundary_id": "no-paid-community-topic-selection",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "community-source-acquisition",
+      "request-policy-and-pacing",
+      "topic-gateway-routing",
+      "lead-persistence-consumer"
+    ],
+    "risk_models": [
+      "anonymous-egress",
+      "cross-process-provider-limits",
+      "hidden-paid-fallback",
+      "bounded-cache",
+      "candidate-identity-and-dates"
+    ],
+    "test_environments": [
+      "local-node22",
+      "offline-recorded-source-fixtures",
+      "mocked-shared-redis-admission"
+    ],
+    "rollback_boundary": "default-off-operator-flag-and-local-service-code-no-schema",
+    "acceptance_proofs": [
+      "three-keyless-provider-fixtures",
+      "disabled-means-no-egress",
+      "no-research-model-paid-fallback",
+      "bounded-bytes-time-cache",
+      "shared-pacing-and-backoff",
+      "real-topic-service-consumer-with-offline-repository",
+      "preserved-freshness-identity-dismissal",
+      "affected-checks-and-backend-types"
+    ]
+  },
+  "source": "docs/product/keyless-community-discovery-contract.md",
+  "branch": "codex/remaining-followups-2026-10-01",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "routing",
+    "consumer-integration",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-0qgn-community-discovery/summary.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-75xn.9",
+      "stream_owner": "community_discovery",
+      "artifact_path": ".codex/stages/content-factory-next-0qgn-community-discovery/artifacts/community-discovery.md"
+    }
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-75xn.9",
+    "source_digest": "f26af3eb56e646ed79ad38ad1b8089feb3bd378db7f5ed54fee6f629034dee54",
+    "criteria": [
+      {
+        "criterion_id": "AC-original-keyless-communities",
+        "text": "Третий шаг волны, если останется запас. По образцу бесключевого лана Wikipedia/Wikidata: constrained-static-fetch плюс политика выпуска трафика, ранжирование по вовлечённости, без ключей и без расхода. Платные обёртки скилла-образца (X, TikTok, Instagram через ScrapeCreators) не переносятся.",
+        "text_digest": "0002a65f237abb138386a04dbc1f8c859fc5e1af44411c0f72dcc4a2378684ab"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-75xn.9/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "f26af3eb56e646ed79ad38ad1b8089feb3bd378db7f5ed54fee6f629034dee54",
+  "explicit_defer_note": "Reddit excluded under retained owner policy; no live source quality, deployment/activation, paid call or deep-phase acceptance inferred. Ranking chooses bounded candidates; no new queue sorting promise."
+}

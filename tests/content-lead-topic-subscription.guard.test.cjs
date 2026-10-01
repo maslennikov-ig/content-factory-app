@@ -208,7 +208,7 @@ const sourceRow = (url, title, daysOld = 1) => ({
   provider: 'tavily',
 });
 
-function stand({ enabled = true, sources = [] } = {}) {
+function stand({ enabled = true, sources = [], communityOnly = false, community } = {}) {
   const client = makeClient();
   const repository = new ContentLeadRepository(
     { model: client },
@@ -229,9 +229,9 @@ function stand({ enabled = true, sources = [] } = {}) {
   };
   const answers = [];
   const topics = new LeadTopicGateway(research, null, {
-    enabled,
+    enabled, communityOnly,
     now: () => NOW,
-  });
+  }, community);
   const feed = {
     capabilityEnabled: true,
     check: jest.fn(async () => ({ disabled: false, items: [] })),
@@ -512,5 +512,71 @@ describe('the topic switch, seen from the service', () => {
     const listed = await service.listSubscriptions(ORG);
 
     expect(listed.capabilities).toEqual({ feedCheck: true, topicCheck: false });
+  });
+});
+
+
+// Full free producer -> gateway -> service -> repository; synthetic metadata
+// only. Paid/research spies throw, and the real repository enforces dismissal.
+describe('keyless community topic persistence', () => {
+  const { CommunityTopicDiscoveryService } = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/content-intelligence/leads/community-topic-discovery.service.ts',
+    { '@nestjs/common': nestCommon }
+  );
+  function freeCollector() {
+    const cache = new Map();
+    const store = {
+      get: async (key) => cache.get(key) || null,
+      set: async (key, value, px, duration, nx) => {
+        if (nx === 'NX' && cache.has(key)) return null;
+        cache.set(key, value); return 'OK';
+      },
+    };
+    const fetcher = jest.fn(async (address) => {
+      const url = new URL(address);
+      if (url.pathname.endsWith('newstories.json')) return new Response('[17]', { headers: { 'content-type': 'application/json' } });
+      if (url.pathname.includes('/item/')) return new Response(JSON.stringify({
+        id: 17, type: 'story', title: 'Temporal workflow update', url: 'https://example.org/temporal',
+        time: NOW.getTime() / 1000 - 86400, score: 18, descendants: 4,
+      }), { headers: { 'content-type': 'application/json' } });
+      if (url.hostname === 'api.github.com') return new Response(JSON.stringify({ items: [{
+        html_url: 'https://github.com/public/temporal/issues/17', title: 'Temporal issue', body: 'Workflow metadata',
+        created_at: new Date(NOW.getTime() - 86400000).toISOString(), comments: 7,
+      }] }), { headers: { 'content-type': 'application/json' } });
+      return new Response(`<feed xmlns="http://www.w3.org/2005/Atom"><entry><id>http://arxiv.org/abs/2609.00017v1</id>
+        <title>Temporal research</title><summary>Workflow paper metadata</summary><published>${new Date(NOW.getTime() - 86400000).toISOString()}</published>
+        </entry></feed>`, { headers: { 'content-type': 'application/atom+xml' } });
+    });
+    return { collector: new CommunityTopicDiscoveryService(store, { fetcher,
+      resolver: async () => [{ address: '93.184.216.34', family: 4 }], now: () => NOW }), fetcher };
+  }
+  test('persists all three free sources and retains stable identity, cache and dismissal', async () => {
+    const { collector, fetcher } = freeCollector();
+    const { service, research, client } = stand({ communityOnly: true, community: collector });
+    research.research.mockRejectedValue(new Error('research/classifier/judge/model/paid fallback forbidden'));
+    const created = await createTopic(service, 'Temporal');
+    expect(await service.checkSubscription(ORG, created.id)).toEqual({ checked: true, created: 3 });
+    expect(client.leads.map((row) => row.sourceUrl)).toEqual([
+      'https://example.org/temporal', 'https://github.com/public/temporal/issues/17', 'https://arxiv.org/abs/2609.00017v1',
+    ]);
+    expect(client.leads.every((row) => row.publishedAt instanceof Date && row.organizationId === ORG)).toBe(true);
+    expect(client.leads[0].reasonEn).toContain('18 points');
+    expect(client.leads[1].reasonEn).toContain('7 comments');
+    expect(client.leads[2].reasonEn).toContain('unknown');
+    await service.dismissLead(ORG, client.leads[0].id, 'user-a');
+    expect(await service.checkSubscription(ORG, created.id)).toEqual({ checked: true, created: 0, fromCache: true });
+    expect(client.leads[0].status).toBe('DISMISSED');
+    expect(client.leads).toHaveLength(3);
+    expect(research.research).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    const outside = await service.checkSubscription('another-org', created.id).catch((error) => error);
+    expect(outside.code).toBe('SUBSCRIPTION_NOT_FOUND');
+  });
+  test('topic checking disabled blocks the collector before metadata acquisition', async () => {
+    const { collector, fetcher } = freeCollector();
+    const { service, research } = stand({ enabled: false, communityOnly: true, community: collector });
+    const created = await createTopic(service, 'Temporal');
+    expect((await service.checkSubscription(ORG, created.id)).reason).toBe('CHECK_DISABLED');
+    expect(fetcher).not.toHaveBeenCalled(); expect(research.research).not.toHaveBeenCalled();
   });
 });

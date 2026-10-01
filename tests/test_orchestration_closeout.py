@@ -38,6 +38,89 @@ ARTIFACT_SPEC.loader.exec_module(ARTIFACT_VALIDATOR)
 
 
 class ChangedLineDebtHitsTest(unittest.TestCase):
+    def test_stage_result_counter_is_not_source_debt(self):
+        zero_count = "# to" + "do 0"
+        marker = "TO" + "DO"
+        with tempfile.TemporaryDirectory() as temp_directory:
+            repository = pathlib.Path(temp_directory)
+            subprocess.run(["git", "init", "--quiet"], cwd=repository, check=True)
+            stage = repository / ".codex/stages/example"
+            stage.mkdir(parents=True)
+            receipt = stage / "acceptance-receipt.json"
+            receipt.write_text(
+                json.dumps({"result_counts": [zero_count]}, indent=2) + "\n"
+            )
+            hits = STAGE_CLOSEOUT.changed_line_debt_hits(repository)
+            self.assertEqual(hits, [])
+
+            # A new result counter in a tracked receipt is the same evidence.
+            subprocess.run(["git", "add", "."], cwd=repository, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Fixture", "-c",
+                 "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "base"],
+                cwd=repository, check=True,
+            )
+            receipt.write_text(
+                json.dumps({"result_counts": [zero_count, zero_count]}, indent=2) + "\n"
+            )
+            self.assertEqual(STAGE_CLOSEOUT.changed_line_debt_hits(repository), [])
+
+            # Evidence remains scanned for meaningful unfinished work.
+            receipt.write_text(
+                json.dumps({"result_counts": [zero_count], "notes": f"{marker}: add proof"}, indent=2)
+                + "\n"
+            )
+            hits = STAGE_CLOSEOUT.changed_line_debt_hits(repository)
+            self.assertEqual(len(hits), 1)
+            self.assertIn(f"{marker}: add proof", hits[0])
+
+    def test_zero_counter_exception_is_bounded_to_stage_evidence(self):
+        zero_count = "# to" + "do 0"
+        nonzero_count = "# to" + "do 1"
+        markers = ["TO" + "DO", "FI" + "XME", "HA" + "CK", "X" * 3]
+        with tempfile.TemporaryDirectory() as temp_directory:
+            repository = pathlib.Path(temp_directory)
+            subprocess.run(["git", "init", "--quiet"], cwd=repository, check=True)
+            evidence = repository / ".codex/stages/example/evidence"
+            evidence.mkdir(parents=True)
+            (evidence / "results.log").write_text(zero_count + "\n")
+            (evidence / "pending.log").write_text(nonzero_count + "\n")
+            (repository / "source.py").write_text(
+                zero_count + "\n" + "\n".join(f"# {m}: implement" for m in markers) + "\n"
+            )
+            hits = STAGE_CLOSEOUT.changed_line_debt_hits(repository)
+            self.assertEqual(len(hits), 6)
+            self.assertTrue(any("pending.log" in hit for hit in hits))
+            self.assertEqual(sum("source.py" in hit for hit in hits), 5)
+            self.assertFalse(any("results.log" in hit for hit in hits))
+
+    def test_zero_counter_exception_requires_exact_result_line_and_path(self):
+        zero_count = "# to" + "do 0"
+        evidence = ".codex/stages/example/evidence/results.json"
+        for line in [zero_count, f'"{zero_count}"', f'  "{zero_count}",  ']:
+            self.assertTrue(STAGE_CLOSEOUT.is_zero_pending_result_line(evidence, line))
+        for line in [zero_count + "1", zero_count + ": implement", f'"note": "{zero_count}"']:
+            self.assertFalse(STAGE_CLOSEOUT.is_zero_pending_result_line(evidence, line))
+        for path in [
+            ".codex/stages/example/source.py",
+            ".codex/stages/example/notes.json",
+            ".codex/stages/example/evidence/source.py",
+            ".codex/stages/example/evidence/../../source.log",
+            "other/acceptance-receipt.json",
+        ]:
+            self.assertFalse(STAGE_CLOSEOUT.is_zero_pending_result_line(path, zero_count))
+
+    def test_supported_receipt_suffix_preserves_zero_and_real_debt_distinction(self):
+        zero_count = "# to" + "do 0"
+        marker = "TO" + "DO"
+        path = ".codex/stages/example/acceptance-receipt.evidence-repair.json"
+        self.assertTrue(STAGE_CLOSEOUT.is_zero_pending_result_line(path, f'"{zero_count}",'))
+        for line in [zero_count.replace("0", "1"), f'"notes": "{marker}: add proof"']:
+            self.assertFalse(STAGE_CLOSEOUT.is_zero_pending_result_line(path, line))
+        for suffix in ["", "bad..suffix", "-bad", "bad name"]:
+            path = f".codex/stages/example/acceptance-receipt.{suffix}.json"
+            self.assertFalse(STAGE_CLOSEOUT.is_zero_pending_result_line(path, zero_count))
+
     def test_ignores_untracked_binary_content_but_scans_text(self):
         text_marker = "TO" + "DO"
         binary_marker = b"FI" + b"XME"
@@ -314,7 +397,8 @@ class AlternateAcceptanceReceiptCliTest(unittest.TestCase):
             )
             command = (
                 "printf 'ok 1 - native persistence # SKIP SOURCE_REGISTRY_POSTGRES_URL "
-                "is not configured\\n# tests 1\\n# pass 0\\n# fail 0\\n# skipped 1\\n'"
+                "is not configured\\n# tests 1\\n# pass 0\\n# fail 0\\n# skipped 1\\n# to'"
+                "'do 0\\n'"
             )
             cli = [
                 sys.executable,
@@ -341,6 +425,7 @@ class AlternateAcceptanceReceiptCliTest(unittest.TestCase):
                 payload["command_results"][0]["environment_gates"][0]["status"],
                 "skipped",
             )
+            self.assertIn("# to" + "do 0", payload["command_results"][0]["result_counts"])
             alternate_bytes = alternate.read_bytes()
 
             second = subprocess.run(

@@ -1,0 +1,15 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-71m.8",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-71m.8",
+  "source_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
+  "criteria": [
+    {
+      "criterion_id": "AC-original-connected-channel-memory",
+      "text": "Record the exact image, limit, connected-channel workload and observed memory; demonstrate less than 60% with all required queues served, no EXCLUDE_QUEUE workaround and no pnpm/dotenv wrappers. If the threshold is missed, retain the measured result and bound the remaining optimization. Real account connection and production changes require separate authority.",
+      "text_digest": "3ec009eb98e934049be1c481d07697fac3b60a6e5d846b32a4fc844c794d3c91"
+    }
+  ],
+  "capture_note": "Exact original71m.8 criterion retained; this stage delivers accepted source followups and measures actual connected-channel runtime; user granted whole-EPIC action authority01.10, legal facts explicitly deferred."
+}

@@ -553,3 +553,55 @@ describe('identity across a repeated check', () => {
     expect(first.items[0].externalId).toMatch(/^[0-9a-f]{64}$/u);
   });
 });
+
+describe('strict-free community selection', () => {
+  test('community mode returns its bounded result and never reaches research or page dating', async () => {
+    const research = researchStub();
+    research.research.mockRejectedValue(new Error('paid path forbidden'));
+    const pages = pagesStub();
+    const community = { check: jest.fn(async () => ({ disabled: false, items: [], fromCache: true })) };
+    const gateway = new LeadTopicGateway(research, pages, {
+      enabled: true, communityOnly: true, now: () => NOW,
+    }, community);
+    expect(await gateway.check('org-a', 'Temporal')).toEqual({ disabled: false, items: [], fromCache: true });
+    expect(community.check).toHaveBeenCalledWith('org-a', 'Temporal', WINDOW_DAYS);
+    expect(research.research).not.toHaveBeenCalled();
+    expect(pages.fetch).not.toHaveBeenCalled();
+  });
+});
+
+test('the default community switch preserves existing search and runtime Nest injection has its class token', async () => {
+  const research = researchStub();
+  const community = { check: jest.fn() };
+  const before = process.env.LEAD_TOPIC_COMMUNITY_ONLY;
+  try {
+    delete process.env.LEAD_TOPIC_COMMUNITY_ONLY;
+    const gateway = new LeadTopicGateway(research, null, { enabled: true, now: () => NOW }, community);
+    await gateway.check('org-a', 'Temporal');
+    expect(research.research).toHaveBeenCalledTimes(1);
+    expect(community.check).not.toHaveBeenCalled();
+    expect(Reflect.getMetadata('design:paramtypes', LeadTopicGateway)[3].name).toBe('CommunityTopicDiscoveryService');
+  } finally {
+    if (before === undefined) delete process.env.LEAD_TOPIC_COMMUNITY_ONLY; else process.env.LEAD_TOPIC_COMMUNITY_ONLY = before;
+  }
+});
+test('the environment selects community mode only while topic checking is enabled', async () => {
+  const research = researchStub();
+  const community = { check: jest.fn(async () => ({ disabled: false, items: [] })) };
+  const before = process.env.LEAD_TOPIC_COMMUNITY_ONLY;
+  try {
+    process.env.LEAD_TOPIC_COMMUNITY_ONLY = 'true';
+    await new LeadTopicGateway(research, null, { enabled: true }, community).check('org-a', 'Temporal');
+    expect(community.check).toHaveBeenCalledTimes(1);
+    expect(await new LeadTopicGateway(research, null, { enabled: false }, community).check('org-a', 'Temporal')).toEqual({ disabled: true });
+    expect(community.check).toHaveBeenCalledTimes(1);
+    expect(research.research).not.toHaveBeenCalled();
+  } finally {
+    if (before === undefined) delete process.env.LEAD_TOPIC_COMMUNITY_ONLY; else process.env.LEAD_TOPIC_COMMUNITY_ONLY = before;
+  }
+});
+test('missing collector never triggers a research fallback in strict-free mode', async () => {
+  const research = researchStub();
+  expect(await gatewayWith(research, { communityOnly: true }).check('org-a', 'Temporal')).toEqual({ disabled: false, items: [] });
+  expect(research.research).not.toHaveBeenCalled();
+});

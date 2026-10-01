@@ -1,0 +1,77 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-0qgn-followup-release",
+  "goal_id": "content-factory-next-71m.8",
+  "epic_id": "content-factory-next-0qgn",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 5,
+  "acceptance_boundary_id": "deployed-followups-connected-channel-runtime",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "private-public-source-delivery",
+      "registry-host-runtime",
+      "connected-channel-queues-and-memory",
+      "host-pull-capacity"
+    ],
+    "risk_models": [
+      "private-history-publication",
+      "image-source-binding",
+      "shared-host-preservation",
+      "schema-Mastra-isolation",
+      "cold-vs-warm-memory"
+    ],
+    "test_environments": [
+      "exact-private-Node22-release-suite",
+      "clean-public-image-build",
+      "production-existing-channel-workload"
+    ],
+    "rollback_boundary": "prior-public666-image-only-switch-no-schema",
+    "acceptance_proofs": [
+      "exact-release-receipt",
+      "clean-public-tree-and-archive",
+      "registry-host-digest",
+      "empty-live-schema-diff-Mastra-fingerprint",
+      "health-source-and-other-container-preservation",
+      "measured-existing-channel-memory-all-queues-no-wrappers",
+      "exact-uncompressed-layer-space-and-inodes-before-pull"
+    ]
+  },
+  "source": "docs/operations/production-deploy.md",
+  "branch": "codex/remaining-followups-2026-10-01",
+  "scope_ledger": "none",
+  "work_areas": [
+    "delivery",
+    "runtime-acceptance",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-0qgn-followup-release/summary.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-71m.8",
+      "stream_owner": "orchestrator",
+      "artifact_path": ".codex/stages/content-factory-next-0qgn-followup-release/artifacts/followup-release.md"
+    }
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-71m.8",
+    "source_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
+    "criteria": [
+      {
+        "criterion_id": "AC-original-connected-channel-memory",
+        "text": "Record the exact image, limit, connected-channel workload and observed memory; demonstrate less than 60% with all required queues served, no EXCLUDE_QUEUE workaround and no pnpm/dotenv wrappers. If the threshold is missed, retain the measured result and bound the remaining optimization. Real account connection and production changes require separate authority.",
+        "text_digest": "3ec009eb98e934049be1c481d07697fac3b60a6e5d846b32a4fc844c794d3c91"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-71m.8/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
+  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal resumed; owner explicitly delegates technical/product verification to root. Full EPIC not complete."
+}

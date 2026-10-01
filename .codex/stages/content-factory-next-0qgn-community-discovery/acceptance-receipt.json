@@ -1,0 +1,46 @@
+{
+  "command_results": [
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/community-topic-discovery.test.cjs tests/lead-topic-gateway.guard.test.cjs tests/content-lead-topic-subscription.guard.test.cjs tests/content-lead-dismissal-guard.test.cjs tests/content-lead-service-recovery.guard.test.cjs tests/content-lead-review-w4-23.test.cjs --coverage=false",
+      "duration_seconds": 2.812,
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 6 passed, 6 total",
+        "Tests:       84 passed, 84 total"
+      ]
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "duration_seconds": 14.9,
+      "result": "passed"
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm run docs:check",
+      "duration_seconds": 0.658,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check HEAD",
+      "duration_seconds": 0.01,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/community-topic-discovery.test.cjs tests/lead-topic-gateway.guard.test.cjs tests/content-lead-topic-subscription.guard.test.cjs tests/content-lead-dismissal-guard.test.cjs tests/content-lead-service-recovery.guard.test.cjs tests/content-lead-review-w4-23.test.cjs --coverage=false",
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm run docs:check",
+    "git diff --check HEAD"
+  ],
+  "completed_at": "2026-10-01T15:41:02.110090+00:00",
+  "diff_digest": "6389f17babf39659ca0b6cdd6da0c6012f4556f8cdd29cf13938ddf119bc5230",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "2e6f3c221d20a8d46b59f1c755f8601c1bf4a647",
+  "idempotency_key": "4ea04aec440adef7df514bdb74ed289bafb0b80a7d8f524ab9be4fb75d659a81",
+  "orchestration_level": "integration",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-0qgn-community-discovery",
+  "started_at": "2026-10-01T15:40:43.537074+00:00",
+  "verification_fingerprint": "4ea04aec440adef7df514bdb74ed289bafb0b80a7d8f524ab9be4fb75d659a81"
+}

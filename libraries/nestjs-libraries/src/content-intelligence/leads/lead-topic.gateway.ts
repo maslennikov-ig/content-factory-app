@@ -17,6 +17,7 @@ import {
 import type { WebResearchResult } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { discoveryJunkReason, uniqueStems } from './lead-junk';
 import { pageDate } from './lead-page-date';
+import { CommunityTopicDiscoveryService } from './community-topic-discovery.service';
 import type { LeadFeedCheckResultV1, LeadFeedItemV1 } from './lead-feed.gateway';
 
 /**
@@ -150,6 +151,7 @@ type TopicCandidate = {
 export class LeadTopicGateway {
   private readonly logger = new Logger('LeadTopicGateway');
   private readonly enabled: boolean;
+  private readonly communityOnly: boolean;
   private readonly windowDays: number;
   private readonly now: () => Date;
   private readonly deniedDomains: string[];
@@ -176,15 +178,18 @@ export class LeadTopicGateway {
     @Optional()
     options: {
       enabled?: boolean;
+      communityOnly?: boolean;
       windowDays?: number;
       now?: () => Date;
       deniedDomains?: string[];
       maximumPageReads?: number;
       pageReadDeadlineMs?: number;
-    } = {}
+    } = {},
+    @Optional() private readonly community?: CommunityTopicDiscoveryService
   ) {
     this.enabled =
       options.enabled ?? process.env.LEAD_TOPIC_CHECK_ENABLED === 'true';
+    this.communityOnly = options.communityOnly ?? process.env.LEAD_TOPIC_COMMUNITY_ONLY === 'true';
     this.windowDays = options.windowDays ?? DISCOVERY_WINDOW_DAYS;
     this.now = options.now ?? (() => new Date());
     this.deniedDomains =
@@ -212,6 +217,14 @@ export class LeadTopicGateway {
     if (!this.enabled) return { disabled: true };
     const subject = (query || '').trim();
     if (!subject) return { disabled: false, items: [] };
+
+    if (this.communityOnly) {
+      if (!this.community) {
+        this.logger.warn('Community topic discovery unavailable; outbound denied.');
+        return { disabled: false, items: [] };
+      }
+      return this.community.check(organizationId, subject, this.windowDays);
+    }
 
     const result: WebResearchResult = await this.research.research(
       organizationId,

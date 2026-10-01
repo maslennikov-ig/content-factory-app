@@ -1,7 +1,7 @@
 import { Injectable, Logger, type Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { MCPServer } from '@mastra/mcp';
+import type { MCPServer } from '@mastra/mcp';
 import { json } from 'express';
 import { PermissionsService } from '@contentfactory/backend/services/auth/permissions/permissions.service';
 import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/backend-strings';
@@ -193,6 +193,9 @@ export class McpServers {
     const key = `${language}|${mcpToolNamesFor(CAPABILITY_CATALOGUE, role).join(',')}`;
     let server = this.servers.get(key);
     if (!server) {
+      // Helpers and disabled MCP do not need the SDK's retained module graph.
+      // Keep loading synchronous so the first request fills the existing cache.
+      const { MCPServer } = require('@mastra/mcp') as typeof import('@mastra/mcp');
       server = new MCPServer({
         ...MCP_SERVER_INFO,
         description:

@@ -56,7 +56,7 @@
 - `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
 - `pieces/adaptation-review.ts`, `adaptation-review.contract.ts` и `openai/ai.roles.ts` внутри `libraries/nestjs-libraries/src/` — явная платная проверка адаптации (`review`), один вызов и атомарное принятие в DRAFT; UI `apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx`.
 - Sixth walk (`4zul`): `docs/product/sixth-walk-wave-2026-09-14-spec.md`; opinion-only questions in `intake/intake.prompts.v3.ts` and `pieces/core-questions.ts`; explicit search in `intake/intake.service.ts`; core enrichment in `pieces/piece-research.contract.ts`, `PieceService.researchCore/acceptCoreResearch` and `pieces/adaptation-review.tsx` reusing `intake.research.tsx`. Active review uses `pieces/review-semantic.v3.ts`; answer rewriting uses `pieces/core-write-prompt.v3.ts`; local/global search scope is in `openai/web.research.service.ts`. All library paths start at `libraries/nestjs-libraries/src/content-intelligence/` except `openai/`; UI paths start at `apps/frontend/src/components/content-intelligence/`.
-- Ресерч R1–R5: `libraries/nestjs-libraries/src/content-intelligence/research/` содержит policy/fetch/Wikipedia/Wikidata и квоту, `libraries/nestjs-libraries/src/openai/web.research.service.ts` — общий порт Tavily/Exa и readerSummary; контракт сводки — `docs/product/search-summary-contract.md`. Вход и усиление заготовки используют явный выбор опор. R6/R7 ждут замера пользы.
+- Ресерч R1–R5: `libraries/nestjs-libraries/src/content-intelligence/research/` содержит policy/fetch/Wikipedia/Wikidata и квоту, `libraries/nestjs-libraries/src/openai/web.research.service.ts` — общий порт Tavily/Exa и readerSummary; контракты: `docs/product/search-summary-contract.md`, `docs/product/keyless-community-discovery-contract.md` (отдельный бесплатный topic-путь). Вход и усиление заготовки используют явный выбор опор. R6/R7 ждут замера пользы.
 - Общие индикатор и строка фильтров — `apps/frontend/src/components/ui/progress.tsx` и `filters-row.tsx`; каталог компонентов — `docs/design/component-inventory.md`; защита от повторной геометрии — `tests/component-geometry.guard.test.cjs`.
 - `apps/backend/src/api/routes/ndjson-stream.ts` — общий транспорт входа, адаптации и разбора аватара: без сжатия, первая строка и heartbeat. Контракты расширены отдельными `intake-v2.contract.ts` и `voice-intake-v2.contract.ts`.
 - `apps/frontend/src/components/layout/top.menu.tsx` — навигация A; четыре вкладки заготовок в `content-section.screen.tsx`.
@@ -72,8 +72,11 @@
   `libraries/nestjs-libraries/src/database/prisma/public-growth/` — закрытый
   privacy-safe контракт суточных агрегатов конверсии без PII и постоянного
   visitor id.
-- `registration-intent.ts`, `starter-template-chooser.tsx` и auth
-  `starter-template.ts` — allowlisted LOCAL/OAuth шаблон и single-use intent.
+- `libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts` и Prisma
+  `organizations/organization.repository.ts` — совместимые `workspaceName`/`company`,
+  ADMIN создателя и стартовые метки по умолчанию. Выбор `starterTemplate` снят
+  решением `pdbe`; `scripts/evidence/run-public-funnel-database-proof.cjs` проверяет
+  LOCAL/OAuth и изоляцию двух организаций на временной PostgreSQL.
 - `admin.controller.ts` и Prisma `public-growth/` — super-admin totals/ratios;
   оба `scripts/evidence/*public-funnel*` воспроизводят browser и DB proof.
 - `apps/orchestrator/` — Temporal workflows and activities; existing contracts are immutable.

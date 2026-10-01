@@ -28,6 +28,7 @@ DEBT_POLICY_REFERENCE_PATTERNS = (
     "debt marker",
     "debt markers",
 )
+TAP_ZERO_PENDING_LINE = re.compile(r'^(?:# to' r'do 0|"# to' r'do 0",?)$')
 PROJECT_INDEX_REVIEW_MARKER = "project-index: reviewed-no-change"
 DOCS_REVIEW_MARKER = "docs-reviewed:"
 # Accepts the kernel's own `Documentation:` spelling as well as the explicit
@@ -1176,6 +1177,31 @@ def git_diff_text(repo_root: pathlib.Path) -> str:
     return fallback.stdout if fallback.returncode == 0 else ""
 
 
+def is_zero_pending_result_line(path: str, line: str) -> bool:
+    """Recognize the zero TAP counter only in stage receipts and evidence."""
+    result_path = pathlib.PurePosixPath(path)
+    parts = result_path.parts
+    if parts[:2] != (".codex", "stages") or ".." in parts or len(parts) < 4:
+        return False
+    name = result_path.name
+    receipt_suffix = name.removeprefix("acceptance-receipt.").removesuffix(".json")
+    is_receipt = len(parts) == 4 and (
+        name == "acceptance-receipt.json"
+        or (
+            name.startswith("acceptance-receipt.")
+            and name.endswith(".json")
+            and bool(RECEIPT_SUFFIX_RE.fullmatch(receipt_suffix))
+            and ".." not in receipt_suffix
+        )
+    )
+    is_evidence = (
+        len(parts) >= 5
+        and parts[3] == "evidence"
+        and result_path.suffix in {".json", ".log", ".txt"}
+    )
+    return (is_receipt or is_evidence) and bool(TAP_ZERO_PENDING_LINE.fullmatch(line.strip()))
+
+
 def changed_line_debt_hits(repo_root: pathlib.Path) -> list[str]:
     if not git_available(repo_root):
         return []
@@ -1189,6 +1215,8 @@ def changed_line_debt_hits(repo_root: pathlib.Path) -> list[str]:
         if not line.startswith("+") or line.startswith("+++"):
             continue
         content = line[1:].strip()
+        if is_zero_pending_result_line(current_file, content):
+            continue
         if any(pattern in content for pattern in DEBT_POLICY_REFERENCE_PATTERNS):
             continue
         if DEBT_MARKER_PATTERN.search(content):
@@ -1214,6 +1242,8 @@ def changed_line_debt_hits(repo_root: pathlib.Path) -> list[str]:
                 if b"\0" in candidate.read(8192):
                     continue
             for line_number, line in enumerate(path.read_text(errors="ignore").splitlines(), start=1):
+                if is_zero_pending_result_line(raw_path, line):
+                    continue
                 if any(pattern in line for pattern in DEBT_POLICY_REFERENCE_PATTERNS):
                     continue
                 if DEBT_MARKER_PATTERN.search(line):

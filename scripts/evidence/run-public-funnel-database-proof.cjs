@@ -325,6 +325,48 @@ CREATE TABLE "Tags" (
   "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
+-- Only scalar post ownership and mutation paths are exercised. The synthetic
+-- integrationId does not represent a connected channel; no provider, queue,
+-- publication, or relation-heavy post read is part of this local proof.
+CREATE TYPE "State" AS ENUM ('QUEUE', 'PUBLISHED', 'ERROR', 'DRAFT');
+CREATE TYPE "EditorialStage" AS ENUM ('PLAN', 'DRAFT', 'REVIEW', 'SCHEDULED');
+CREATE TYPE "APPROVED_SUBMIT_FOR_ORDER" AS ENUM ('NO', 'WAITING_CONFIRMATION', 'YES');
+CREATE TYPE "CreationMethod" AS ENUM ('UNKNOWN', 'WEB', 'MCP', 'API', 'AUTOPOST', 'CLI');
+CREATE TABLE "Post" (
+  "id" TEXT PRIMARY KEY,
+  "state" "State" NOT NULL DEFAULT 'DRAFT',
+  "editorialStage" "EditorialStage",
+  "publishDate" TIMESTAMP(3) NOT NULL,
+  "organizationId" TEXT NOT NULL REFERENCES "Organization"("id"),
+  "integrationId" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "delay" INTEGER NOT NULL DEFAULT 0,
+  "group" TEXT NOT NULL,
+  "title" TEXT,
+  "description" TEXT,
+  "parentPostId" TEXT,
+  "releaseId" TEXT,
+  "releaseURL" TEXT,
+  "settings" TEXT,
+  "researchSources" TEXT NOT NULL DEFAULT '[]',
+  "contentContextSnapshotId" TEXT,
+  "brandProfileVersionId" TEXT,
+  "contentContextReviewedAt" TIMESTAMP(3),
+  "contentContextReviewedById" TEXT,
+  "image" TEXT,
+  "submittedForOrderId" TEXT,
+  "submittedForOrganizationId" TEXT,
+  "approvedSubmitForOrder" "APPROVED_SUBMIT_FOR_ORDER" NOT NULL DEFAULT 'NO',
+  "creationMethod" "CreationMethod" NOT NULL DEFAULT 'UNKNOWN',
+  "lastMessageId" TEXT,
+  "intervalInDays" INTEGER,
+  "error" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  "deletedAt" TIMESTAMP(3)
+);
+CREATE UNIQUE INDEX "Post_organizationId_id_key" ON "Post"("organizationId", "id");
+
 CREATE TABLE "AiProviderSetting" (
   "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   "organizationId" TEXT NOT NULL UNIQUE REFERENCES "Organization"("id") ON DELETE CASCADE,
@@ -669,6 +711,9 @@ async function main() {
     OrganizationRepository,
   } = require('../../libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts');
   const {
+    PostsRepository,
+  } = require('../../libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts');
+  const {
     OrganizationService,
   } = require('../../libraries/nestjs-libraries/src/database/prisma/organizations/organization.service.ts');
   const {
@@ -732,6 +777,7 @@ async function main() {
       email: body.email,
       provider: body.provider,
       workspaceName: body.workspaceName,
+      ...(body.company !== undefined ? { company: body.company } : {}),
     });
     return createOrgAndUser(body, ...createArgs);
   };
@@ -1048,6 +1094,399 @@ async function main() {
     { name: 'Review', color: '#F59E0B' },
     { name: 'Schedule', color: '#8B5CF6' },
   ];
+
+  const tenantEvidence = {
+    schemaVersion: 'tenant-isolation-real-db/v1',
+    boundary: {
+      registration: 'POST /auth/register with real Nest validation',
+      tagMutation: 'PostsRepository.editTag with real Prisma/PostgreSQL',
+      postMutation: 'PostsRepository with real Prisma/PostgreSQL',
+      providerCalls: 0,
+      limits:
+        'Local disposable fixture; no authenticated PostsController HTTP, connected integration, publication, export or account deletion',
+    },
+  };
+  const tenantProviderCallCount = providerCalls.length;
+  const tenantBodies = [
+    {
+      email: 'tenant-legacy-a@example.test',
+      password: 'local-http-password-12',
+      provider: 'LOCAL',
+      providerToken: '',
+      company: 'Legacy Company A',
+    },
+    {
+      email: 'tenant-workspace-b@example.test',
+      password: 'local-http-password-12',
+      provider: 'LOCAL',
+      providerToken: '',
+      workspaceName: 'Named Workspace B',
+    },
+  ];
+  const tenantRows = async () =>
+    Promise.all(
+      tenantBodies.map(async ({ email }) => {
+        const user = await prisma.user.findUnique({
+          where: {
+            email_providerName: { email, providerName: Provider.LOCAL },
+          },
+          select: { id: true, isSuperAdmin: true },
+        });
+        assert.ok(user);
+        const memberships = await prisma.userOrganization.findMany({
+          where: { userId: user.id },
+          select: {
+            userId: true,
+            organizationId: true,
+            role: true,
+            disabled: true,
+          },
+        });
+        assert.equal(memberships.length, 1);
+        const organization = await prisma.organization.findUnique({
+          where: { id: memberships[0].organizationId },
+          select: { id: true, name: true },
+        });
+        return { user, organization, memberships };
+      })
+    );
+  let tenants;
+  await check(
+    'legacy company and workspaceName registrations persist two distinct tenant identities',
+    async () => {
+      assert.equal(Object.hasOwn(tenantBodies[0], 'workspaceName'), false);
+      const intents = repositoryIntents.length;
+      for (const body of tenantBodies) {
+        assert.deepEqual(await authPost('/auth/register', body), {
+          status: 200,
+          body: { register: true },
+        });
+      }
+      assert.equal(repositoryIntents[intents].workspaceName, undefined);
+      assert.equal(repositoryIntents[intents].company, 'Legacy Company A');
+      assert.equal(
+        repositoryIntents[intents + 1].workspaceName,
+        'Named Workspace B'
+      );
+      tenants = await tenantRows();
+      assert.notEqual(tenants[0].organization.id, tenants[1].organization.id);
+      assert.notEqual(tenants[0].user.id, tenants[1].user.id);
+      const registrations = tenants.map(({ organization, user }, index) => {
+        const expectedName =
+          index === 0 ? 'Legacy Company A' : 'Named Workspace B';
+        assert.equal(organization.name, expectedName);
+        assert.ok(!organization.name.includes('@'));
+        assert.notEqual(organization.name, tenantBodies[index].email);
+        return {
+          organizationId: organization.id,
+          userId: user.id,
+          name: organization.name,
+          workspaceNameForwarded:
+            repositoryIntents[intents + index].workspaceName !== undefined,
+        };
+      });
+      tenantEvidence.registrations = {
+        organizationA: registrations[0],
+        organizationB: registrations[1],
+        distinctOrganizationIds: true,
+        distinctUserIds: true,
+      };
+      return tenantEvidence.registrations;
+    }
+  );
+  const [tenantA, tenantB] = tenants;
+  const tenantOrgIds = tenants.map(({ organization }) => organization.id);
+  const tenantUserIds = tenants.map(({ user }) => user.id);
+  const tenantSnapshot = async () => ({
+    users: await prisma.user.findMany({
+      where: { id: { in: tenantUserIds } },
+      orderBy: { id: 'asc' },
+    }),
+    organizations: await prisma.organization.findMany({
+      where: { id: { in: tenantOrgIds } },
+      orderBy: { id: 'asc' },
+    }),
+    memberships: await prisma.userOrganization.findMany({
+      where: {
+        OR: [
+          { userId: { in: tenantUserIds } },
+          { organizationId: { in: tenantOrgIds } },
+        ],
+      },
+      orderBy: { id: 'asc' },
+    }),
+    tags: await prisma.tags.findMany({
+      where: { orgId: { in: tenantOrgIds } },
+      orderBy: { id: 'asc' },
+    }),
+  });
+  await check(
+    'each persisted creator is ADMIN only in their own organization',
+    async () => {
+      for (const tenant of tenants) {
+        assert.equal(tenant.user.isSuperAdmin, false);
+        assert.deepEqual(tenant.memberships, [
+          {
+            userId: tenant.user.id,
+            organizationId: tenant.organization.id,
+            role: 'ADMIN',
+            disabled: false,
+          },
+        ]);
+      }
+      const foreignMembershipCount = await prisma.userOrganization.count({
+        where: {
+          OR: [
+            {
+              userId: tenantA.user.id,
+              organizationId: tenantB.organization.id,
+            },
+            {
+              userId: tenantB.user.id,
+              organizationId: tenantA.organization.id,
+            },
+          ],
+        },
+      });
+      assert.equal(foreignMembershipCount, 0);
+      tenantEvidence.memberships = {
+        ownRoles: ['ADMIN', 'ADMIN'],
+        foreignMembershipCount,
+      };
+      return tenantEvidence.memberships;
+    }
+  );
+  const postsRepository = new PostsRepository(
+    model,
+    model,
+    model,
+    model,
+    model,
+    model,
+    model
+  );
+  let tenantTags;
+  await check(
+    'each tenant receives exactly one default workflow tag quartet',
+    async () => {
+      tenantTags = await Promise.all(
+        tenantOrgIds.map((id) => postsRepository.getTags(id))
+      );
+      for (const [index, tags] of tenantTags.entries()) {
+        assert.equal(tags.length, 4);
+        assert.equal(new Set(tags.map(({ name }) => name)).size, 4);
+        assert.ok(tags.every(({ orgId }) => orgId === tenantOrgIds[index]));
+        assert.deepEqual(
+          tags
+            .map(({ name, color }) => ({ name, color }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+          [...workflowTags].sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
+      assert.equal(new Set(tenantTags.flat().map(({ id }) => id)).size, 8);
+      tenantEvidence.defaultTags = {
+        counts: tenantTags.map((tags) => tags.length),
+        disjointTagIds: true,
+        tagIds: tenantTags.map((tags) => tags.map(({ id }) => id)),
+        ownerDecision:
+          'content-factory-next-pdbe: unconditional default workflow tags',
+      };
+      return tenantEvidence.defaultTags;
+    }
+  );
+  await check(
+    'both tenant registration replays leave identities memberships and tag seeds unchanged',
+    async () => {
+      const before = await tenantSnapshot();
+      const globalCounts = await queryCounts();
+      const intentCount = repositoryIntents.length;
+      const statuses = [];
+      for (const body of tenantBodies)
+        statuses.push((await authPost('/auth/register', body)).status);
+      assert.deepEqual(statuses, [400, 400]);
+      assert.deepEqual(await tenantSnapshot(), before);
+      assert.deepEqual(await queryCounts(), globalCounts);
+      assert.equal(repositoryIntents.length, intentCount);
+      tenantEvidence.replay = {
+        statuses,
+        allRowsUnchanged: true,
+        repositoryCalls: 0,
+      };
+      return tenantEvidence.replay;
+    }
+  );
+  const tagB = tenantTags[1][0];
+  await check(
+    'foreign-organization tag edit is not found and leaves the real tag unchanged',
+    async () => {
+      const before = await tenantSnapshot();
+      await assert.rejects(
+        postsRepository.editTag(tagB.id, tenantA.organization.id, {
+          name: 'Forbidden foreign rename',
+          color: '#000000',
+        }),
+        (error) => error.code === 'P2025'
+      );
+      assert.deepEqual(await tenantSnapshot(), before);
+      tenantEvidence.foreignTagEdit = {
+        id: tagB.id,
+        code: 'P2025',
+        unchanged: true,
+      };
+      return tenantEvidence.foreignTagEdit;
+    }
+  );
+  await check(
+    'same-organization tag edit succeeds without changing the other tenant',
+    async () => {
+      const tagsBefore = await postsRepository.getTags(tenantA.organization.id);
+      const body = { name: 'Tenant B reviewed tag', color: '#4D7CFE' };
+      const edited = await postsRepository.editTag(
+        tagB.id,
+        tenantB.organization.id,
+        body
+      );
+      assert.equal(edited.id, tagB.id);
+      assert.equal(edited.orgId, tenantB.organization.id);
+      const persisted = await prisma.tags.findUnique({
+        where: { id: tagB.id },
+      });
+      assert.equal(persisted.name, body.name);
+      assert.equal(persisted.color, body.color);
+      assert.deepEqual(
+        await postsRepository.getTags(tenantA.organization.id),
+        tagsBefore
+      );
+      tenantEvidence.ownTagEdit = {
+        id: tagB.id,
+        persisted: true,
+        otherTenantUnchanged: true,
+      };
+      return tenantEvidence.ownTagEdit;
+    }
+  );
+  const postInstant = new Date('2026-01-01T12:00:00.000Z');
+  const postRows = await Promise.all(
+    tenants.map(({ organization }, index) =>
+      prisma.post.create({
+        data: {
+          id: randomUUID(),
+          organizationId: organization.id,
+          integrationId: `proof-no-provider-${index}`,
+          group: randomUUID(),
+          state: 'DRAFT',
+          content: `Local tenant ${index} draft`,
+          publishDate: postInstant,
+        },
+      })
+    )
+  );
+  const postSnapshot = () => prisma.post.findMany({ orderBy: { id: 'asc' } });
+  await check(
+    'foreign post and group writes are refused without changing persisted posts',
+    async () => {
+      const before = await postSnapshot();
+      const date = '2026-01-02T12:00:00.000Z';
+      const draft = {
+        integration: { id: 'proof-no-provider-0' },
+        value: [{ content: 'Forbidden foreign edit', image: [] }],
+        settings: {},
+      };
+      const codes = [];
+      for (const body of [
+        { ...draft, value: [{ ...draft.value[0], id: postRows[1].id }] },
+        { ...draft, group: postRows[1].group },
+      ]) {
+        await assert.rejects(
+          postsRepository.createOrUpdatePost(
+            'update',
+            tenantA.organization.id,
+            date,
+            body,
+            [],
+            'WEB'
+          ),
+          (error) => {
+            assert.equal(error.code, 'POST_NOT_FOUND');
+            assert.equal(error.status, 404);
+            codes.push({ code: error.code, status: error.status });
+            return true;
+          }
+        );
+        assert.deepEqual(await postSnapshot(), before);
+      }
+      await assert.rejects(
+        postsRepository.changeDate(
+          tenantA.organization.id,
+          postRows[1].id,
+          date,
+          true,
+          'update'
+        ),
+        (error) => error.code === 'P2025'
+      );
+      assert.deepEqual(await postSnapshot(), before);
+      const groupDeleteResult = await postsRepository.deletePost(
+        tenantA.organization.id,
+        postRows[1].group
+      );
+      assert.equal(groupDeleteResult, null);
+      assert.deepEqual(await postSnapshot(), before);
+      tenantEvidence.foreignPosts = {
+        postId: postRows[1].id,
+        group: postRows[1].group,
+        postCode: codes[0].code,
+        postStatus: codes[0].status,
+        groupCode: codes[1].code,
+        groupStatus: codes[1].status,
+        dateCode: 'P2025',
+        dateRowsUnchanged: true,
+        groupDeleteResult,
+        allRowsUnchanged: true,
+      };
+      return tenantEvidence.foreignPosts;
+    }
+  );
+  await check(
+    'same-organization post and group mutations affect only that tenant',
+    async () => {
+      const foreignBefore = await prisma.post.findUnique({
+        where: { id: postRows[1].id },
+      });
+      const date = '2026-01-02T12:00:00.000Z';
+      const own = await postsRepository.changeDate(
+        tenantA.organization.id,
+        postRows[0].id,
+        date,
+        true,
+        'update'
+      );
+      assert.equal(own.publishDate.toISOString(), date);
+      assert.equal(own.state, 'DRAFT');
+      const deleted = await postsRepository.deletePost(
+        tenantA.organization.id,
+        postRows[0].group
+      );
+      assert.deepEqual(deleted, { id: postRows[0].id });
+      const persisted = await prisma.post.findUnique({
+        where: { id: postRows[0].id },
+      });
+      assert.ok(persisted.deletedAt instanceof Date);
+      assert.equal(persisted.publishDate.toISOString(), date);
+      assert.deepEqual(
+        await prisma.post.findUnique({ where: { id: postRows[1].id } }),
+        foreignBefore
+      );
+      tenantEvidence.ownPosts = {
+        dateChanged: true,
+        ownGroupDeleted: true,
+        otherTenantUnchanged: true,
+      };
+      return tenantEvidence.ownPosts;
+    }
+  );
+  assert.equal(providerCalls.length, tenantProviderCallCount);
+  writeJson('tenant-isolation.json', tenantEvidence);
 
   await check(
     'LOCAL registration applies the selected workflow through POST /auth/register',
@@ -1665,6 +2104,7 @@ async function main() {
       postgres: '17',
     },
     checks,
+    resources: { ...resources, label: resourceLabel },
     cleanup: cleanupEvidence,
     failure: failure
       ? {

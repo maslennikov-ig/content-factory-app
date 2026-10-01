@@ -66,3 +66,18 @@ suites / 14 tests. Единственный общий результат ком
 
 docs-reviewed: updated — добавлены Cloud SaaS spec, ADR-0010, readiness runbook, AI/data/config docs и стабильная навигация в docs/project index.
 graph-reviewed: updated — Graphify 0.9.45 локально пересобран без LLM/API: 9453 nodes, 18923 edges; focused query нашёл EmailFirstSignup, PublicGrowthService и executeAiOperation с их consumers.
+
+## Current contract clarification — 01.10.2026
+
+The earlier acceptance/defers above record the historical August slice. Owner
+decision pdbe removed the starterTemplate selection in September; current
+registration creates default localized tags per new organization, while editorial
+stage is a separate Post field. The 03.09 saas.2 comment explicitly moved export/
+delete to blocked saas.7; they are not an unfinished registration requirement.
+The accepted role matrix and closed jjvz fix remain valid. A bounded two-org
+PostgreSQL walk passed at 7f9f44a2d:26helper checks, root two suites / 117 tests and
+bounded review/cleanup. Evidence:
+../content-factory-next-0qgn/evidence/saas-two-org-acceptance-2026-10-01.json.
+This proves named repository/registration scenarios, not PostsController HTTP
+or the separate export/delete lifecycle.
+No historical receipt is rewritten or reused for modified proof code.

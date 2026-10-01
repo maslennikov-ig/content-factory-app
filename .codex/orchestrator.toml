@@ -13,13 +13,13 @@ multi_repo = false
 launch_mode = "direct_execution"
 repo = "content-factory-next"
 root = "/home/me/code/content-factory-next"
-current_stage = ".codex/stages/content-factory-next-0qgn-search-summary/stage-manifest.json"
-current_stage_id = "content-factory-next-0qgn-search-summary"
+current_stage = ".codex/stages/content-factory-next-0qgn-followup-release/stage-manifest.json"
+current_stage_id = "content-factory-next-0qgn-followup-release"
 base_commit = "9275ea47272675bc761c4a54cfb9a1034188c011"
 
 [delivery]
 mode = "mixed"
-current_branch = "codex/remaining-work-2026-10-01"
+current_branch = "codex/remaining-followups-2026-10-01"
 protected_branches = ["main", "master"]
 push_after_closeout = "ask"
 
@@ -65,12 +65,12 @@ legacy_delta = "slice_acceptance"
 stages_dir = ".codex/stages"
 artifact_pattern = ".codex/stages/{stage_id}/artifacts/{task_id}.md"
 summary_pattern = ".codex/stages/{stage_id}/summary.md"
-current_stage_summary = ".codex/stages/content-factory-next-0qgn-search-summary/summary.md"
+current_stage_summary = ".codex/stages/content-factory-next-0qgn-followup-release/summary.md"
 
 [completion_inbox]
 scope = "git_common_dir"
-events_file = ".codex/stages/content-factory-next-0qgn-search-summary/completions.ndjson"
-review_state_file = ".codex/stages/content-factory-next-0qgn-search-summary/review-state.json"
+events_file = ".codex/stages/content-factory-next-0qgn-followup-release/completions.ndjson"
+review_state_file = ".codex/stages/content-factory-next-0qgn-followup-release/review-state.json"
 report_entrypoint = "scripts/orchestration/report_child_completion.py"
 review_entrypoint = "scripts/orchestration/review_completion_inbox.py"
 

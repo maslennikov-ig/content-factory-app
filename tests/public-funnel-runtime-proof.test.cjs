@@ -74,10 +74,8 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         networks: [],
       },
     });
-    expect(summary.checks).toHaveLength(18);
-    expect(summary.checks.every((check) => check.status === 'PASS')).toBe(
-      true
-    );
+    expect(summary.checks).toHaveLength(26);
+    expect(summary.checks.every((check) => check.status === 'PASS')).toBe(true);
     expect(summary.checks.map((check) => check.name)).toEqual(
       expect.arrayContaining([
         'LOCAL registration applies the selected workflow through POST /auth/register',
@@ -88,6 +86,14 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         'LOCAL duplicate and OAuth replay leave workspace and tag counts unchanged',
         'same-caller successful registration retains its effect limit and creates no second workspace',
         'same-caller ordinary form refusal permits an immediate corrected registration',
+        'legacy company and workspaceName registrations persist two distinct tenant identities',
+        'each persisted creator is ADMIN only in their own organization',
+        'each tenant receives exactly one default workflow tag quartet',
+        'both tenant registration replays leave identities memberships and tag seeds unchanged',
+        'foreign-organization tag edit is not found and leaves the real tag unchanged',
+        'same-organization tag edit succeeds without changing the other tenant',
+        'foreign post and group writes are refused without changing persisted posts',
+        'same-organization post and group mutations affect only that tenant',
       ])
     );
 
@@ -131,5 +137,56 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         exactlyOneWorkspaceCreated: true,
       },
     });
+
+    const tenants = JSON.parse(
+      fs.readFileSync(path.join(evidenceDir, 'tenant-isolation.json'), 'utf8')
+    );
+    expect(tenants).toMatchObject({
+      schemaVersion: 'tenant-isolation-real-db/v1',
+      boundary: {
+        registration: 'POST /auth/register with real Nest validation',
+        tagMutation: 'PostsRepository.editTag with real Prisma/PostgreSQL',
+        postMutation: 'PostsRepository with real Prisma/PostgreSQL',
+        providerCalls: 0,
+      },
+      registrations: {
+        organizationA: {
+          name: 'Legacy Company A',
+          workspaceNameForwarded: false,
+        },
+        organizationB: {
+          name: 'Named Workspace B',
+          workspaceNameForwarded: true,
+        },
+        distinctOrganizationIds: true,
+        distinctUserIds: true,
+      },
+      memberships: { ownRoles: ['ADMIN', 'ADMIN'], foreignMembershipCount: 0 },
+      defaultTags: { counts: [4, 4], disjointTagIds: true },
+      replay: { statuses: [400, 400], allRowsUnchanged: true },
+      foreignTagEdit: { code: 'P2025', unchanged: true },
+      ownTagEdit: { persisted: true, otherTenantUnchanged: true },
+      foreignPosts: {
+        postCode: 'POST_NOT_FOUND',
+        groupCode: 'POST_NOT_FOUND',
+        postStatus: 404,
+        groupStatus: 404,
+        dateCode: 'P2025',
+        dateRowsUnchanged: true,
+        groupDeleteResult: null,
+        allRowsUnchanged: true,
+      },
+      ownPosts: {
+        dateChanged: true,
+        ownGroupDeleted: true,
+        otherTenantUnchanged: true,
+      },
+    });
+    expect(tenants.registrations.organizationA.organizationId).not.toBe(
+      tenants.registrations.organizationB.organizationId
+    );
+    expect(tenants.registrations.organizationA.userId).not.toBe(
+      tenants.registrations.organizationB.userId
+    );
   }, 190_000);
 });
