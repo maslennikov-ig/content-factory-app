@@ -1,6 +1,6 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-0qgn-followup-release`
-Last accepted local stage id: `content-factory-next-0qgn-community-discovery` (local84-test integration; default off)
+Current stage id: `content-factory-next-0qgn-product-runtime-release`
+Accepted stage id: `content-factory-next-0qgn-followup-release` (5d/438release; memory threshold missed)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-71m.8`
 
@@ -8,52 +8,54 @@ Status reconciled 01.10.2026 in Beads `content-factory-next-lymv`.
 Detailed audit: [status-reconciliation-2026-10-01.md](stages/content-factory-next-kcxz/evidence/status-reconciliation-2026-10-01.md).
 Beads owns live task status; the evidence below records bounded acceptance.
 
-## Active programme — 01.10.2026
+## Active programme — 02.10.2026
 
-User requested plan/spec and orchestration. Epic `content-factory-next-0qgn` is in progress;
-all 36 remaining records preserved under their 11 original scopes.
+Owner delegated completion and verification of whole EPIC `0qgn` to root.
+All 36 original criteria/owners remain mapped in Beads and the immutable scope.
 [Spec](../docs/product/remaining-work-2026-10-01-spec.md),
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
-Frozen release source: `e8bbe9a3fc23`, branch `codex/remaining-work-2026-10-01`.
-Local handoff/evidence updates after that SHA are not part of the image candidate.
-Owner approved and root completed the exact application delivery packet: private
-`e8bbe9a3fc23`, public/image `66619d212950`. Telegram return, registration retry,
-case-normalized auth/AI/public budgets and bounded search summary are deployed.
-Original real Telegram/client/model semantics remain separate unfinished criteria.
-Root combined auth proof: 18 suites / 455 tests; real Nest/Postgres funnel 18/18;
-search: six suites / 134 tests plus independent review and backend types.
-Owner-approved cfiz host repair and isolated restore completed; cfiz closed.
-Owner-selected manual research assessment completed (`0qgn.3`); original m0iy.10
-population/human-acceptance threshold remains unproven, phase 2 blocked.
-Read-only UI residue reconciliation (`97dq.43`) found all original points already
-shipped/superseded. Later steady memory exceeded the threshold; 71m.8 reopened with both windows retained.
-Local scanner followup `0qgn.4` fixed after release; 30 focused tests and review pass.
-Current local branch `codex/remaining-followups-2026-10-01` preserves frozen release;
-new scanner changes are not part of the deployed e8 image or its suite receipt.
-SaaS two-org proof accepted; free community root84 tests/types/docs/process passed; default off.
-Native whole-EPIC goal resumed; owner delegates technical/product verification to root.
-Legal facts and pricing explicitly postponed; actual external-account proof still requires access.
+Native goal is active; EPIC is not complete. Legal facts and pricing are explicitly
+owner-deferred; Claude.ai followup is owner-removed, actual ChatGPT remains required.
 
 ## Current delivery
 
-- Current production/public image: `66619d212950`, private source `e8bbe9a3fc23`.
-  Protected rollback: `3132393a8920`. GHCR digest:
-  `sha256:509ade72559ef620ad8ac619b367a3cdcbeef4153b8b13efa53236416532709f`.
-  [Delivered packet](stages/content-factory-next-0qgn/evidence/application-delivery-packet-2026-10-01.md).
-- Switch 01.10 12:46 UTC: healthy/0 restarts; API/login/Source 200, archive exact.
-  Empty live Prisma diff; 45 Mastra tables/fingerprint unchanged. All 39 other
-  container identities/images unchanged. Standing scoped retention removed only
-  own obsolete f0b4bfae1f25 tag and two config copies; free 12,890,525,696 bytes (~12 GiB).
-- Exact e8 release receipt: all 9 commands passed; four-app build, Jest 590/10,165,
-  node:test 122 pass/0 fail/4 unchanged env skips, Python 46 OK, types/docs/process.
-  Public Build 36862483559 and CodeQuality 36862483599 both succeeded.
-- Frozen private delivery branch `codex/remaining-work-2026-10-01` was pushed at e8.
-  Private main/origin main remain 9275ea472; public main 666 published. Followup branch
-  is local; original e8 receipt unchanged and does not cover a future followup SHA.
-  One worktree; retained spike experiment and pre-existing untracked prompts preserved.
+- LIVE public/image `438665412829`, private source `5d822447a159` on
+  `codex/remaining-followups-2026-10-01`; branch pushed. Protected rollback `66619d212950`.
+  GHCR index digest `sha256:ecf3718de97e9d2306271f8bef2e56f4d705a960366ae4132f441ff250d007a8`;
+  host config image `sha256:c048635c6cbe226ceb478902f4f7f7c949610447a302dd88703b351da74e756e`.
+- Root exact 5d receipt: all 9 release commands passed; four-app builds/types,
+  Jest 593 suites/10,272 tests, node:test 122 pass/0 fail/4 environment DB skips,
+  Python 50 OK, branding/docs/process/diff. Public Build36920217049 and
+  CodeQuality36920216863 actual success; all four Build jobs succeeded.
+- New-image Prisma diff EMPTY; Product77 and Mastra45 fingerprints unchanged,
+  existing channel/all queues preserved; all39 other container identities/images unchanged.
+  API/login page/Source200; source archive11,571,332 bytes/SHA
+  `2c3a35aa3b52665570440c3012a99a5d521753fed8f8e3ef03a7f5357646590e` exact.
+  Login page200 does not prove a fresh authenticated login on438.
+- Actual overlay2 pull passed two pre-login capacity checks with registry-matched
+  unpacked/layer evidence; after pull free9,936,883,712 bytes. Current438/prior666
+  protected; prescribed retention completed, free12,849,233,920B; hf97 closed.
+- Actual seeded MCP initialize/tools-list200/66tools, zero tool/provider calls;
+  exact5owned rows deleted and privatejournal removed. This is warmSDK proof,
+  not actual OAuth/ChatGPT acceptance. Own WindowsChromeCDP9334 is logged out;
+  normal profiles untouched, owner login request remains pending.
+- Read-only31sample window completed01.10 21:41Z after MCP warming, span1799.845438s.
+  Docker-equivalent62.6022–63.0672% FAILS original<60/1792MiB; PID+start-time locks
+  unchanged, allqueues/schema preserved. Task71m.8 remains in progress.
+- Real B1 on old666 FAILED Node512MiB heap exhaustion/PM2 backend restart despite
+  healthy container. No saved draft. Only own orphan was failed/possiblyBilledtrue,
+  costNULL retained; all6owned fixture rows disabled/credentials removed/0pending.
+  Small offline actualgraph did not reproduceOOM; fullbackend gap retained; no paid replay.
+- Accepted isolated lead-story source31eb5fc+b690 and real PG17 ten-check proof
+  retained; integrated4248+9ede, runtime pending. Searchd61+b65 integratedf06+1fcd.
+  HTMLreplacement35ab546 accepted111checks/types after22case/frozen438oracle;
+  HTMLsource integrated3fc; full release running, actual memory/B1 proof pending.
+- Current stage evidence lives in `stages/content-factory-next-0qgn-followup-release/`.
+  Historical initial e8/public666 delivery remains in `stages/content-factory-next-0qgn/`.
+  Other owners' prompts/worktrees/evidence preserved; no broad cleanup.
 - Private history stays in `maslennikov-ig/content-factory-next`; public
-  `maslennikov-ig/content-factory-app` is only copied-tree/build output. Never add
-  a public remote here. Registry remains `ghcr.io/maslennikov-ig/content-factory-next`.
+  `maslennikov-ig/content-factory-app` is copied-tree/build output only. Never add
+  its remote here. Registry remains `ghcr.io/maslennikov-ig/content-factory-next`.
 
 ## Accepted implementation and remaining acceptance
 
@@ -70,7 +72,8 @@ Legal facts and pricing explicitly postponed; actual external-account proof stil
   `2q28.2` retains approval/limit/B1 owner checks; registration success alone
   does not prove them. `2q28.41` owns observed registration friction, and
   `2q28.38` retains the unresolved prompt-quality part. `2q28.10` resolved: owner selected the existing portal page for feedback.
-  The unfinished Telegram tab-return follow-up `fn33.21` now belongs to `2q28`.
+  Original Telegram missing-tab-note `fn33.21` CLOSED after actual cookie-bound
+  LINK200/absent-note recovery in two Windows browser cases; no provider exchange.
 - Wave `97dq` closed: all 100 direct children accepted. Final `.43` matrix confirms
   all seven original observations already shipped or explicitly superseded;
   exact e8 suite reused, no new blanket UX or post-release browser acceptance.
@@ -79,17 +82,14 @@ Legal facts and pricing explicitly postponed; actual external-account proof stil
   already accepted, and the relevant owner decisions are recorded.
   Unused sentence repair / `VoiceRibbonContainer` was removed 07.09; its stale
   `fn33.28.19.2` is now closed too. Original acceptance history stays intact.
-- Memory `71m` open, 71m.8 in progress. Nine samples at 13:09–13:17 UTC were
-  59.17–59.40%, but later readings at 13:57–14:05 rose to 60.43–60.59% on the
-  same image/limit. Short-window acceptance revoked; all prior samples preserved.
-  Existing one-channel/33-queue/no-wrapper proof remains valid. Read-only profile:
-  backend is largest (about 543 MB RSS); anon does not separate V8 from native.
-  Local matching-image baseline accepted: heapUsed 278–279 MiB, RSS 415–421 MiB,
-  external 6–9 MiB, 9,334 modules. Direct Node, empty DB, 1 GiB diagnostic cgroup:
-  no connected-channel/cap-change proof; exact owned Docker IDs absent. Next profile imports.
-  Local MCP lazy-load fix ab58df2a3 accepted: 34 tests/real synthetic SDK, types/review.
-  Cold exclusion saves ~33 MiB; first real MCP call reloads it. No live threshold claim.
-  [Evidence](stages/content-factory-next-0qgn/evidence/connected-channel-memory-acceptance-2026-10-01.json).
+- Memory `71m` open, 71m.8 in progress. Old666 nine59.17–59.40% samples were
+  invalidated by later60.43–60.59%; both windows retained. Actual B1 then exposed
+  backend Node heapOOM. MCP lazy SDK source is now deployed438, but its hot
+  windowfinished62.60–63.07%; cold-only33MiB saving is not sustained acceptance.
+  Original1792MiB/all32provider queues+main/noEXCLUDE/wrappers stay unchanged.
+  JSDOM two-edge replacement source accepted35ab546 from a measured offline spike:
+  3fresh processes/arm,44equivalent HTML outputs; isolated14.64MiB heap delta.
+  No full-app delta or B1 cause inferred. [Old windows](stages/content-factory-next-0qgn/evidence/connected-channel-memory-acceptance-2026-10-01.json).
 - Search quality and benefit measurement remain in `ec48`, `75xn`, `m0iy`.
   `fn33.132` now belongs to `ec48`; phase 2 `m0iy.6` waits for the measured
   benefit threshold in `m0iy.10`, not merely the expired observation date.
@@ -106,7 +106,9 @@ Legal facts and pricing explicitly postponed; actual external-account proof stil
   Owner pdbe removed template selection; 03.09 explicitly moved export/delete
   into blocked saas.7. No PostsController HTTP or universal lifecycle claim.
   [Receipt](stages/content-factory-next-0qgn/evidence/saas-two-org-acceptance-2026-10-01.json).
-  SaaS parent/saas.4/.5/.7 remain unfinished behind owner legal/region gates.
+  SaaS parent/.4/.7 retain owner legal/region gates. Originalsaas.5 doc-only
+  contract CLOSED with exact5d docsreceipt; expandedruntime/distributedabuse/
+  nullableledger/offsiteproofs explicitly preserved in0qgn.5, stillunfinished.
 
 ## Backup repair accepted — 01.10.2026
 
@@ -130,14 +132,14 @@ Legal facts and pricing explicitly postponed; actual external-account proof stil
   tariff follow-ups are blocked under it. The accepted public funnel stays closed.
 - `kcxz.48`: app-directory submission waits for `kcxz.46` and actual publisher
   identity, account access and legally valid privacy information.
-- `hf97`: immediate disk headroom restored; current ownership inventory and
-  a bounded shared-cache/capacity policy remain unresolved. No broad cleanup.
+- `hf97` CLOSED: original inventory/authority/preservation/headroom criteria passed;
+  fresh strict capacity guard for everycandidate; unknown sharedcache untouched.
 - Legal/provider/region decisions `saas.6` and `rry` were shelved by the owner,
-  not satisfied. `saas.4/.5/.7` retain their gates; no residency/SLA promises
+  not satisfied. `saas.4/.7` and runtime0qgn.5 retain gates; no residency/SLA promises
   or new production-as-SaaS acceptance inferred from product releases.
 - `0qgn.1` retains the first post-repair scheduled backup observation due 02.10.
-  Local scanner 0qgn.4 accepted separately; future publication would need its own
-  exact-source delivery proof/authority. Original deployed e8 receipt preserved.
+  Scanner0qgn.4 and local followups now released438 with exact5d receipt.
+  Historical e8 receipt remains unchanged; it does not cover the new source.
   Historical closed `3aw`, `c6k.16`, `2ua`, `ry5`, `cxd` and `71m.7` are not
   current owner tasks. The accepted YouTube display risk `2la` is unchanged.
 
@@ -165,14 +167,15 @@ Legal facts and pricing explicitly postponed; actual external-account proof stil
 
 ## Next recommended
 
-Next stage id: `content-factory-next-0qgn-lead-stories`
-Recommended action: verify the community stage receipt, then finish 75xn.33/.34;
-Owner answered: combine same-event articles/all links; retain unverified reprints marked. Pricing deferred; owner removed Claude.ai check; ChatGPT acceptance remains.
-The local MCP fix is accepted; owner now authorized its necessary project release;
-71m.8 stays in progress, earlier short-window acceptance is explicitly revoked.
-Observe 0qgn.1 after the scheduled 02.10 run. Real Telegram/client/MCP/model-semantic
-acceptance and SaaS/legal/payment gates retain exact owner/action authority.
-Do not repeat September 16/22 walkthroughs or already accepted implementation.
+Next stage id: content-factory-next-0qgn-product-runtime-release (current, unfinished).
+Recommended action: finish the exact-commit release suite, publish the accepted
+lead/search/HTML source, apply only the guarded nullable ContentLead column,
+verify actual API/UI/B1 behavior and measure sustained hot memory on that image.
+Release438 retention is complete; its 62.60–63.07% warm result failed <60%.
+Keep readiness and distributed-registration streams isolated for the next ops
+boundary (0qgn.5). Observe scheduled0qgn.1 on02.10 06:00UTC. Actual ChatGPT,
+client history, research-population threshold, legal and payment gates remain.
+Do not infer client acceptance or repeat accepted September walkthroughs.
 
 Documentation: delivery/handoff evidence updated; obsolete starter-template navigation corrected.
 docs-reviewed: delivered-source and bounded followups recorded; no public API change.

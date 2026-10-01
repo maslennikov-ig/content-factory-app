@@ -580,3 +580,144 @@ describe('keyless community topic persistence', () => {
     expect(fetcher).not.toHaveBeenCalled(); expect(research.research).not.toHaveBeenCalled();
   });
 });
+
+describe('story sources reach saved cards without changing decisions', () => {
+  test.each(['DISMISSED', 'ACCEPTED'])(
+    'repeat adds sources to a %s card and keeps tenant isolation',
+    async (status) => {
+      const sources = [
+        sourceRow(
+          'https://a.example/story',
+          'Клиника внедрила медицинскую модель снимков'
+        ),
+        sourceRow(
+          'https://b.example/story',
+          'Клиника внедрила медицинскую модель снимков'
+        ),
+      ];
+      const { service, client, answers } = stand({ sources });
+      const sub = await createTopic(service, 'медицине');
+      expect(await service.checkSubscription(ORG, sub.id)).toMatchObject({
+        created: 1,
+      });
+      const first = client.leads[0];
+      first.status = status;
+      first.acceptedAt = NOW;
+      first.dismissedAt = NOW;
+      first.acceptedByUserId = 'accepted-user';
+      first.dismissedByUserId = 'dismissed-user';
+      const identity = first.externalId;
+      const id = first.id;
+      answers.push([
+        ...sources,
+        sourceRow(
+          'https://c.example/story',
+          'Клиника внедрила медицинскую модель снимков'
+        ),
+      ]);
+      expect(await service.checkSubscription(ORG, sub.id)).toMatchObject({
+        created: 0,
+      });
+      expect(client.leads).toHaveLength(1);
+      expect(first).toMatchObject({
+        id,
+        externalId: identity,
+        status,
+        acceptedAt: NOW,
+        dismissedAt: NOW,
+        acceptedByUserId: 'accepted-user',
+        dismissedByUserId: 'dismissed-user',
+      });
+      const list = await service.listLeads(ORG, {});
+      expect(list.leads[0].sourceRefsJson.sources).toHaveLength(3);
+      expect((await service.listLeads('org-b', {})).leads).toEqual([]);
+    }
+  );
+  test('several old cards are a conflict with no automatic decision merge', async () => {
+    const { repository, client } = stand();
+    for (const [url, status] of [
+      ['https://a.example/story', 'ACCEPTED'],
+      ['https://b.example/story', 'DISMISSED'],
+    ])
+      client.leads.push({
+        id: url,
+        organizationId: ORG,
+        subscriptionId: 'sub-a',
+        externalId: url,
+        sourceUrl: url,
+        status,
+      });
+    const before = JSON.stringify(client.leads);
+    await expect(
+      repository.upsertStoryLeads(ORG, 'sub-a', [
+        {
+          externalId: 'story:v1:both',
+          title: 'Story',
+          excerpt: null,
+          sourceUrl: 'https://a.example/story',
+          publishedAt: NOW,
+          reasonRu: 'ru',
+          reasonEn: 'en',
+          sourceRefsJson: {
+            version: 1,
+            sources: ['https://a.example/story', 'https://b.example/story'].map(
+              (url) => ({ url, canonicalUrl: url, primaryStatus: 'UNKNOWN' })
+            ),
+            attributions: [],
+            truncated: false,
+          },
+        },
+      ])
+    ).rejects.toMatchObject({ status: 409 });
+    expect(JSON.stringify(client.leads)).toBe(before);
+  });
+});
+
+test('URL metadata cannot claim a different canonical article identity', async () => {
+  const { repository } = stand();
+  const sourceUrl = 'https://a.example/story';
+  await expect(
+    repository.upsertStoryLeads(ORG, 'sub-a', [
+      {
+        externalId: sourceUrl,
+        title: 'Article',
+        excerpt: null,
+        sourceUrl,
+        publishedAt: NOW,
+        reasonRu: 'ru',
+        reasonEn: 'en',
+        sourceRefsJson: {
+          version: 1,
+          sources: [
+            {
+              url: sourceUrl,
+              canonicalUrl: 'https://other.example/story',
+              primaryStatus: 'UNKNOWN',
+            },
+          ],
+          attributions: [],
+          truncated: false,
+        },
+      },
+    ])
+  ).rejects.toThrow('INVALID_LEAD_SOURCE_REFS');
+});
+
+const storyWrite = urls => ({externalId:urls[0],title:'Клиника внедрила медицинскую модель снимков',excerpt:TOPIC_PROSE,sourceUrl:urls[0],publishedAt:NOW,reasonRu:'ru',reasonEn:'en',sourceRefsJson:{version:1,sources:urls.map(url=>({url,canonicalUrl:url,primaryStatus:'UNKNOWN'})),attributions:[],truncated:false}});
+test('one projected transaction snapshot tracks newly created and repeatedly updated article URLs',async()=>{
+ const {repository,client}=stand();const original=client.contentLead.findMany;const find=jest.fn(async args=>(await original(args)).map(row=>args.select?Object.fromEntries(Object.keys(args.select).map(key=>[key,row[key]])):{...row}));client.contentLead.findMany=find;
+ const a='https://a.example/snapshot',b='https://b.example/snapshot',c='https://c.example/snapshot';
+ const result=await repository.upsertStoryLeads(ORG,'snapshot-sub',[storyWrite([a]),storyWrite([a,b]),storyWrite([b,c])]);
+ expect(result.created).toBe(1);expect(client.leads).toHaveLength(1);expect(client.leads[0].sourceRefsJson.sources.map(source=>source.url)).toEqual([a,b,c]);
+ expect(find).toHaveBeenCalledTimes(1);expect(find).toHaveBeenCalledWith({where:{organizationId:ORG,subscriptionId:'snapshot-sub'},select:{id:true,externalId:true,sourceUrl:true,sourceRefsJson:true}});
+});
+test('projected snapshot preserves historical canonical variants and existing decisions',async()=>{
+ const {repository,client}=stand();const a='https://a.example/history',b='https://b.example/history',c='https://c.example/history';client.leads.push({id:'historic',organizationId:ORG,subscriptionId:'historic-sub',externalId:'legacy-guid',sourceUrl:a+'#archive',status:'DISMISSED',dismissedAt:NOW,dismissedByUserId:'historical-user'});
+ const original=client.contentLead.findMany;const find=jest.fn(async args=>(await original(args)).map(row=>args.select?Object.fromEntries(Object.keys(args.select).map(key=>[key,row[key]])):{...row}));client.contentLead.findMany=find;
+ expect((await repository.upsertStoryLeads(ORG,'historic-sub',[storyWrite([a,b]),storyWrite([b,c])])).created).toBe(0);expect(find).toHaveBeenCalledTimes(1);expect(client.leads).toHaveLength(1);expect(client.leads[0]).toMatchObject({id:'historic',externalId:'legacy-guid',status:'DISMISSED',dismissedAt:NOW,dismissedByUserId:'historical-user'});expect(client.leads[0].sourceRefsJson.sources).toHaveLength(3);
+});
+
+test('Serializable retry reads a fresh projected snapshot once for each attempt',async()=>{
+ const {repository,client}=stand();const original=client.contentLead.findMany;const conflict=Object.assign(new Error('retry'),{code:'P2034'});const find=jest.fn().mockRejectedValueOnce(conflict).mockImplementation(async args=>(await original(args)).map(row=>Object.fromEntries(Object.keys(args.select).map(key=>[key,row[key]]))));client.contentLead.findMany=find;
+ const a='https://a.example/retry',b='https://b.example/retry';expect((await repository.upsertStoryLeads(ORG,'retry-sub',[storyWrite([a]),storyWrite([a,b])])).created).toBe(1);expect(find).toHaveBeenCalledTimes(2);expect(client.leads).toHaveLength(1);expect(client.leads[0].sourceRefsJson.sources).toHaveLength(2);
+});

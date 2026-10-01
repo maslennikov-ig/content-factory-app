@@ -4,7 +4,7 @@
   "goal_id": "content-factory-next-71m.8",
   "epic_id": "content-factory-next-0qgn",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "accepted",
   "sequence": 5,
   "acceptance_boundary_id": "deployed-followups-connected-channel-runtime",
   "acceptance_owner": "root",
@@ -73,5 +73,7 @@
   },
   "scope_anchor": ".codex/goals/content-factory-next-71m.8/scope-criterion-snapshot.json",
   "scope_anchor_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
-  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal resumed; owner explicitly delegates technical/product verification to root. Full EPIC not complete."
+  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal resumed; owner explicitly delegates technical/product verification to root. Full EPIC not complete.",
+  "accepted_source_commit": "5d822447a159f032c9f6527b80a18b7c36827761",
+  "root_acceptance_note": "Existing exact5d release receipt reused as the source acceptance; later metadata only. Actual438 delivered and measured62.6022\u201363.0672percent miss retained with bounded next parser optimization. Task71m.8 and wholeEPIC unfinished."
 }

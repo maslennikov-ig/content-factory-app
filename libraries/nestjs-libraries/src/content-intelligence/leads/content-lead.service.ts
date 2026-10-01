@@ -1,3 +1,4 @@
+import { readLeadSourceRefs, type LeadSourceRefsV1 } from './lead-source-refs';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
@@ -89,6 +90,7 @@ function presentLead(row: any) {
     title: row.title,
     excerpt: row.excerpt,
     sourceUrl: row.sourceUrl,
+    sourceRefsJson: readLeadSourceRefs(row.sourceRefsJson),
     publishedAt: row.publishedAt,
     observedAt: row.observedAt,
     reasonRu: row.reasonRu,
@@ -566,13 +568,13 @@ export class ContentLeadService {
           publishedAt: item.publishedAt,
           reasonRu: reason.ru,
           reasonEn: reason.en,
+          ...(isTopic && item.sourceRefsJson ? {sourceRefsJson:item.sourceRefsJson} : {}),
         };
       });
-      const { created } = await this.repository.upsertLeads(
-        organizationId,
-        subscriptionId,
-        items
-      );
+      const { created } = isTopic && items.every(item => item.sourceRefsJson)
+        ? await this.repository.upsertStoryLeads(organizationId, subscriptionId,
+            items as Array<(typeof items)[number] & {sourceRefsJson:LeadSourceRefsV1}>)
+        : await this.repository.upsertLeads(organizationId, subscriptionId, items);
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
         // Only ERRORED recovers to ACTIVE on a success — this is that
         // recovery path. Not an unconditional overwrite: the gate above

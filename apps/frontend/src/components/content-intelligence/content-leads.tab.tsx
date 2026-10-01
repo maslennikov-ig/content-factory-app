@@ -1,5 +1,6 @@
 'use client';
 
+import { safeLeadUrl, isKnownLeadReprint } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-source-refs';
 import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
@@ -83,6 +84,12 @@ type Locale = 'ru' | 'en';
 
 const copy = {
   ru: {
+    foundMaterial: 'Найденный материал · первоисточник не подтверждён',
+    verifiedPrimary: 'Подтверждённый первоисточник',
+    knownReprint: 'Перепечатка · первоисточник не подтверждён',
+    unverifiedReprint: 'Заявленный первоисточник не подтверждён',
+    sourceClaim: 'Ссылка, заявленная материалом — не подтверждена',
+    sourcesTruncated: 'Часть сведений об источниках не сохранена из-за ограничения объёма.',
     title: 'Откуда идеи',
     body: 'Ленты, которые продукт читает за вас. Он приносит поводы написать — не готовые тексты. Что взять в работу, решаете вы.',
     addSubscription: 'Добавить подписку',
@@ -209,6 +216,12 @@ const copy = {
     excerptQuote: (text: string) => `«${text}»`,
   },
   en: {
+    foundMaterial: 'Found article · primary source unverified',
+    verifiedPrimary: 'Verified primary source',
+    knownReprint: 'Reprint · primary source unverified',
+    unverifiedReprint: 'Claimed primary source is unverified',
+    sourceClaim: 'Source claimed by the article — unverified',
+    sourcesTruncated: 'Some source information was not saved because of the size limit.',
     title: 'Ideas',
     body: 'Feeds the product reads for you. It brings reasons to write — not finished text. What to take to work is your call.',
     addSubscription: 'Add subscription',
@@ -491,6 +504,34 @@ function LeadCardView({
   const observed = formatDateTime(lead.observedAt, locale);
   const reason = locale === 'ru' ? lead.reasonRu : lead.reasonEn;
   const isNew = lead.status === 'NEW';
+  const refs = lead.sourceRefsJson;
+  const sources = refs
+    ? [...refs.sources].sort(
+        (a, b) =>
+          Number(b.primaryStatus === 'VERIFIED_PRIMARY') -
+            Number(a.primaryStatus === 'VERIFIED_PRIMARY') ||
+          a.url.localeCompare(b.url, 'en')
+      )
+    : safeLeadUrl(lead.sourceUrl)
+    ? [
+        {
+          url: lead.sourceUrl,
+          canonicalUrl: null,
+          primaryStatus: 'UNKNOWN' as const,
+        },
+      ]
+    : [];
+  const linked = new Set(
+    sources.map((source) => source.canonicalUrl || source.url)
+  );
+  const claimed = [
+    ...new Map(
+      (
+        refs?.attributions.filter((claim) => !linked.has(claim.targetUrl)) || []
+      ).map((claim) => [claim.targetUrl, claim])
+    ).values(),
+  ];
+
 
   return (
     <Panel
@@ -511,6 +552,57 @@ function LeadCardView({
             {t.excerptQuote(lead.excerpt)}
           </p>
         </div>
+      )}
+      <ul className="flex flex-col gap-[8px]">
+        {sources.map((source) => (
+          <li
+            key={source.canonicalUrl || source.url}
+            className="flex flex-col gap-[4px]"
+          >
+            <a
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cf-body-sm text-cf-ink underline break-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-accent"
+            >
+              {source.url}
+            </a>
+            <span className="cf-caption text-cf-ink-muted">
+              {source.primaryStatus === 'VERIFIED_PRIMARY'
+                ? t.verifiedPrimary
+                : isKnownLeadReprint(source.url)
+                ? t.knownReprint
+                : refs?.attributions.some(
+                    (claim) => claim.fromUrl === source.url
+                  )
+                ? t.unverifiedReprint
+                : t.foundMaterial}
+            </span>
+          </li>
+        ))}
+        {claimed.map((claim) => (
+          <li
+            key={`${claim.fromUrl}:${claim.targetUrl}`}
+            className="flex flex-col gap-[4px]"
+          >
+            <a
+              href={claim.targetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cf-body-sm text-cf-ink underline break-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-accent"
+            >
+              {claim.targetUrl}
+            </a>
+            <span className="cf-caption text-cf-ink-muted">
+              {t.sourceClaim}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {refs?.truncated && (
+        <span className="cf-caption text-cf-ink-muted">
+          {t.sourcesTruncated}
+        </span>
       )}
       {isNew ? (
         <div className="mt-[4px] flex flex-wrap items-center gap-[8px]">

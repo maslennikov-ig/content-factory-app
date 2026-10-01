@@ -137,6 +137,12 @@ export interface WebResearchOptions {
    * language to write in, and pay nothing extra for it.
    */
   language?: ContentLanguage;
+  /**
+   * Internal opt-in for a result read directly in the source-search UI.
+   * Absent/false preserves automatic, intake and copilot behavior. Only the
+   * source-search controller sets it; it is never taken from a request DTO.
+   */
+  readerResponse?: boolean;
   /** Server-owned depth preset. The caller cannot set raw provider budgets. */
   level?: ResearchLevel;
   /**
@@ -1000,12 +1006,78 @@ const wholePageExcerpt = (value: string | undefined) => {
     : undefined;
 };
 
+/** Narrow reader-only admission; regulator acronyms in an ad widget are not an article. */
+const RUSSIAN_AD_LABELING =
+  /маркиров\p{L}{0,12}\s+(?:(?:интернет|онлайн|цифров\p{L}{0,8})[-\s]+)?реклам\p{L}{0,12}/iu;
+const RUSSIAN_AD_LAW =
+  /реклам\p{L}{0,12}\s+(?:прав\p{L}{0,12}|закон\p{L}{0,12})|(?:закон\p{L}{0,12}|правил\p{L}{0,12})[^.!?\n]{0,40}реклам\p{L}{0,12}|оператор\p{L}{0,8}\s+рекламн\p{L}{0,8}\s+данных/iu;
+const NON_AD_ARTICLE_TITLE =
+  /маркиров\p{L}{0,12}\s+товар\p{L}{0,12}|честный\s+знак|сертификац\p{L}{0,12}|рыбалк\p{L}{0,12}|кл[её]в\p{L}{0,12}|рыболов\p{L}{0,12}|дайджест/iu;
+const AD_PROMOTION =
+  /под\s+ключ|без\s+(?:штраф\p{L}{0,8}|VPN)|закаж\p{L}{0,8}|оформим|подпиш\p{L}{0,8}|скидк\p{L}{0,8}/iu;
+const AD_DUTY =
+  /обязан\p{L}{0,10}|обязател\p{L}{0,10}|необходимо|долж\p{L}{0,8}|подлеж\p{L}{0,8}|переда\p{L}{0,10}|получить|присва\p{L}{0,10}|регистр\p{L}{0,10}|ответственност\p{L}{0,8}/iu;
+const AD_LEGAL_DETAIL =
+  /ЕРИР|ERID|оператор\p{L}{0,8}\s+рекламн\p{L}{0,8}\s+данных|Роскомнадзор|КоАП|идентификатор\p{L}{0,8}|пометк\p{L}{0,8}/iu;
+
+const advertisingArticleContext = (
+  title: string | undefined,
+  url: string,
+  excerpt: string
+): boolean => {
+  const boundedTitle = (title ?? '').slice(0, 500);
+  if (
+    RUSSIAN_AD_LABELING.test(boundedTitle) ||
+    RUSSIAN_AD_LAW.test(boundedTitle)
+  ) {
+    return true;
+  }
+  // A title about commodity labeling or fishing cannot earn eligibility
+  // from an advertising widget lower on the page.
+  if (NON_AD_ARTICLE_TITLE.test(boundedTitle)) return false;
+
+  let articlePath = '';
+  try {
+    // Query/fragment/domain keywords are not evidence of article identity.
+    articlePath = decodeURIComponent(
+      new URL(url).pathname.slice(0, 1_500)
+    ).replace(/[-_/.]+/g, ' ');
+  } catch {
+    // A malformed path cannot supply positive context; prose still can.
+  }
+  if (
+    RUSSIAN_AD_LABELING.test(articlePath) ||
+    RUSSIAN_AD_LAW.test(articlePath) ||
+    /markirovk[a-z]{0,12}\s+(?:internet\s+)?reklam[a-z]{0,12}|reklam[a-z]{0,12}\s+(?:prav[a-z]{0,12}|zakon[a-z]{0,12})/i.test(
+      articlePath
+    )
+  ) {
+    return true;
+  }
+
+  // A generic FAQ can qualify through explanatory prose. Keyword lists and
+  // promises of a service do not describe a concrete advertising duty.
+  const statements = excerpt
+    .slice(0, WEB_SEARCH_MAX_SOURCE_CHARS)
+    .split(/[.!?\n]+/)
+    .slice(0, 80);
+  return statements.some(
+    (statement) =>
+      statement.trim().length >= 120 &&
+      /реклам\p{L}{0,12}/iu.test(statement) &&
+      AD_DUTY.test(statement) &&
+      AD_LEGAL_DETAIL.test(statement) &&
+      !AD_PROMOTION.test(statement)
+  );
+};
+
 /**
- * `content-factory-next-fn33.133`: the summary is not ours to write. It is the
- * search provider's `answer`, and a provider answers in the language it was
- * asked in — always English here, because the English query is the one query
- * every run makes. On a Russian screen the whole «Бриф» reads in Russian and
- * one paragraph under «Коротко о найденном» reads in English.
+ * The original `content-factory-next-fn33.133` observation was an English
+ * provider `answer` on a Russian brief screen. Queries now follow the subject
+ * language; provider answers are still provider-owned content. The existing
+ * summary path merges distinct answers or corrects their reader language.
+ * A separately opted-in reader response can also synthesize one summary from
+ * citable facts when the provider supplied no answer.
  *
  * The check is a script test rather than a language detector on purpose. It
  * decides one thing — whether to spend a second cheap model call — and it must
@@ -1022,6 +1094,8 @@ const containsCyrillic = (value: string) => /[А-ЯЁа-яё]/.test(value);
  * модель переписать пустую строку на русский. Платный вызов ни за что, и
  * видно его только в ленте расхода. Замечено в `content-factory-next-97dq.3`,
  * когда проверка фактов начала передавать язык читателя.
+ * Источники без answer теперь могут отдельно обосновать сводку читателя,
+ * но только через внутренний readerResponse; это не перевод пустой строки.
  */
 const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
   summary.trim()
@@ -1366,11 +1440,16 @@ Untrusted research data: {evidence}`
     // query cannot contain: a control character invisible in the source is a
     // separator nobody can review, and an empty one would let ["ab","c"] and
     // ["a","bc"] collide into one key (`content-factory-next-97dq.3`, P3).
+    // Reader admission/synthesis changes the result, so a reader response and
+    // an automatic result must never reuse one another's cache entry.
     const key = `${organizationId}|${searchRouteFingerprint(
       config.search
     )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${
       options.language ?? ''
-    }|${callerQueries(options, level).join('\n')}|${subject
+    }|${options.readerResponse === true ? 'reader' : 'consumer'}|${callerQueries(
+      options,
+      level
+    ).join('\n')}|${subject
       .trim()
       .slice(0, CLASSIFIER_SUBJECT_CHARS)}`;
     const cached = this.cache.get(key);
@@ -1580,6 +1659,14 @@ Untrusted research data: {evidence}`
     const level = options.level ?? 'standard';
     const preset = RESEARCH_LEVEL_PRESETS[level];
     const supplied = callerQueries(options, level);
+    const needsAdvertisingContext =
+      options.readerResponse === true &&
+      !!options.language &&
+      !supplied.length &&
+      task !== 'discovery' &&
+      RUSSIAN_AD_LABELING.test(
+        String(subject).slice(0, CLASSIFIER_SUBJECT_CHARS)
+      );
 
     /**
      * The cheapest call in the product, and for two years it was billed as the
@@ -1924,6 +2011,12 @@ Untrusted research data: {evidence}`
           ...(text ? { text } : {}),
         });
         if (!excerpt || remainingContent <= 0) continue;
+        if (
+          needsAdvertisingContext &&
+          !advertisingArticleContext(item.title, url, excerpt)
+        ) {
+          continue;
+        }
         const sourceContent = truncateAtParagraph(
           excerpt,
           WEB_SEARCH_MAX_SOURCE_CHARS
@@ -1955,6 +2048,12 @@ Untrusted research data: {evidence}`
           : {}),
       });
       if (!row.extract || remainingContent <= 0) continue;
+      if (
+        needsAdvertisingContext &&
+        !advertisingArticleContext(row.title, url, row.extract)
+      ) {
+        continue;
+      }
       const content = truncateAtParagraph(
         truncateAtParagraph(row.extract, WEB_SEARCH_MAX_SOURCE_CHARS),
         remainingContent
@@ -2021,6 +2120,18 @@ Untrusted research data: {evidence}`
     const providerSummary = supplied.length
       ? providerAnswers.join('\n\n')
       : answers[0] ?? '';
+    // Exa supplies pages without an `answer`. A reader can buy one grounded
+    // summary from admitted facts; language alone is not a reader opt-in.
+    const sourceOnlySummary =
+      options.readerResponse === true &&
+      !!options.language &&
+      !supplied.length &&
+      task !== 'discovery' &&
+      answers.length === 0 &&
+      facts.size > 0;
+    const citableUrls = sourceOnlySummary
+      ? new Set([...facts.values()].map((fact) => fact.sourceUrl))
+      : undefined;
     const subjectLanguage = classification.subjectLanguage.trim().toLowerCase();
     const summaryLanguage: ContentLanguage | undefined =
       options.language ??
@@ -2041,13 +2152,16 @@ Untrusted research data: {evidence}`
     const summary =
       !supplied.length &&
       (answers.length > 1 ||
+        sourceOnlySummary ||
         (options.language &&
           summaryNeedsLanguage(providerSummary, options.language)))
         ? await this.readerSummary(
             organizationId,
             subject,
             answers,
-            [...sources.values()],
+            [...sources.values()].filter(
+              (source) => !citableUrls || citableUrls.has(source.url)
+            ),
             [...facts.values()],
             summaryLanguage
           )

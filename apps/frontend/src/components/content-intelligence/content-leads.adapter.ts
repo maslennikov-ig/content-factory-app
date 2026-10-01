@@ -1,3 +1,4 @@
+import { readLeadSourceRefs, safeLeadUrl, type LeadSourceRefsV1 } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-source-refs';
 import {
   failureNotice,
   jsonReader,
@@ -79,6 +80,7 @@ export type LeadRow = Readonly<{
   title: string;
   excerpt: string | null;
   sourceUrl: string;
+  sourceRefsJson: LeadSourceRefsV1 | null;
   publishedAt: string | null;
   observedAt: string | null;
   reasonRu: string;
@@ -159,7 +161,8 @@ export function readLeadsEnvelope(value: unknown): readonly LeadRow[] {
       subscriptionName: asNullableText(row.subscriptionName),
       title: asText(row.title),
       excerpt: asNullableText(row.excerpt),
-      sourceUrl: asText(row.sourceUrl),
+      sourceUrl: safeLeadUrl(row.sourceUrl) ? row.sourceUrl : '',
+      sourceRefsJson: readLeadSourceRefs(row.sourceRefsJson),
       publishedAt: asNullableText(row.publishedAt),
       observedAt: asNullableText(row.observedAt),
       reasonRu: asText(row.reasonRu),

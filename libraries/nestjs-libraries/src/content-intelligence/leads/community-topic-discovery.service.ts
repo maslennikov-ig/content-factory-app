@@ -1,3 +1,4 @@
+import { groupLeadStories } from './lead-story-cluster';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { XMLParser } from 'fast-xml-parser';
@@ -12,6 +13,28 @@ import { canonicalizeSourceUrl } from '../source-registry/network-policy';
 import { assertDomainAllowed, parseDeniedDomains } from '../source-registry/source-access-policy';
 import { parseSourcePayload } from '../source-registry/source-parser';
 import type { LeadFeedCheckResultV1, LeadFeedItemV1 } from './lead-feed.gateway';
+
+function communityStories(
+  items: LeadFeedItemV1[],
+  topic: string
+): LeadFeedItemV1[] {
+  const positions = new Map(
+    items.map((item, index) => [item.sourceUrl, index])
+  );
+  return groupLeadStories(items, topic).sort(
+    (a, b) =>
+      Math.min(
+        ...a.sourceRefsJson!.sources.map(
+          (s) => positions.get(s.url) ?? Infinity
+        )
+      ) -
+      Math.min(
+        ...b.sourceRefsJson!.sources.map(
+          (s) => positions.get(s.url) ?? Infinity
+        )
+      )
+  );
+}
 
 /** Existing Redis singleton, injected by DatabaseModule; no socket-import side effects. */
 export interface CommunityAdmissionStore {
@@ -320,9 +343,9 @@ export class CommunityTopicDiscoveryService {
     const key = createHash('sha256').update(JSON.stringify([organizationId, subject, windowDays, policyKey])).digest('hex');
     for (const [id, entry] of this.cache) if (entry.expires <= now.getTime()) this.cache.delete(id);
     const cached = this.cache.get(key);
-    if (cached) return { disabled: false, fromCache: true, items: cached.items.filter((item) =>
+    if (cached) return { disabled: false, fromCache: true, items: communityStories(cached.items.filter((item) =>
       item.publishedAt && item.publishedAt <= now && item.publishedAt.getTime() >= now.getTime() - windowDays * 86_400_000)
-      .map((item) => ({ ...item, publishedAt: new Date(item.publishedAt!), reason: item.reason ? { ...item.reason } : null })) };
+      .map((item) => ({ ...item, publishedAt: new Date(item.publishedAt!), reason: item.reason ? { ...item.reason } : null })), subject) };
     const sets: Candidate[][] = [];
     let acquired = false;
     for (const provider of active) {
@@ -348,6 +371,6 @@ export class CommunityTopicDiscoveryService {
     // Store independent values: the consumer cannot mutate dismissal identity.
     if (acquired) this.cache.set(key, { expires: now.getTime() + CACHE_MS, items: items.map((item) =>
       ({ ...item, publishedAt: new Date(item.publishedAt!), reason: item.reason ? { ...item.reason } : null })) });
-    return { disabled: false, items };
+    return { disabled: false, items: communityStories(items, subject) };
   }
 }

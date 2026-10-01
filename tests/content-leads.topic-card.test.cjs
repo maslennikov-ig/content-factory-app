@@ -90,7 +90,7 @@ const FEED_ROW = {
 
 const calls = [];
 
-const serve = ({ subscriptions = [], feedCheck = true, topicCheck = true }) => {
+const serve = ({ subscriptions = [], feedCheck = true, topicCheck = true, leadRows = [] }) => {
   global.fetch = async (url, init = {}) => {
     const method = String(init.method || 'GET').toUpperCase();
     calls.push({ method, url, body: init.body ? JSON.parse(init.body) : null });
@@ -98,7 +98,7 @@ const serve = ({ subscriptions = [], feedCheck = true, topicCheck = true }) => {
       return ok({ subscriptions, capabilities: { feedCheck, topicCheck } });
     }
     if (url === '/content-intelligence/leads/queue?status=NEW') {
-      return ok({ leads: [] });
+      return ok({ leads: leadRows });
     }
     if (url === '/content-intelligence/leads/subscriptions/linkable-autoposts') {
       return ok({ autoPosts: [] });
@@ -107,7 +107,7 @@ const serve = ({ subscriptions = [], feedCheck = true, topicCheck = true }) => {
   };
 };
 
-const renderTab = async () => {
+const renderTab = async (language = 'ru') => {
   await act(async () => {
     render(
       React.createElement(
@@ -118,7 +118,7 @@ const renderTab = async () => {
           { value: { role: 'ADMIN' } },
           React.createElement(
             variables.VariableContextComponent,
-            { language: 'ru' },
+            { language },
             React.createElement(leads.ContentLeadsTab)
           )
         )
@@ -307,4 +307,127 @@ describe('the minute after a check', () => {
     const [check] = screen.getAllByRole('button', { name: 'Проверить сейчас' });
     expect(check.disabled).toBe(false);
   });
+});
+
+describe('saved story article links', () => {
+  const article = 'https://cryptorank.io/news/feed/story';
+  const other = 'https://reporter.example/story';
+  const claimed = 'https://incrypted.com/story';
+  const row = {
+    id: 'lead-story',
+    title: 'Сюжет',
+    sourceUrl: article,
+    status: 'NEW',
+    excerpt: 'Текст',
+    reasonRu: 'Объяснение',
+    reasonEn: 'Reason',
+    sourceRefsJson: {
+      version: 1,
+      sources: [article, other].map((url) => ({
+        url,
+        canonicalUrl: url,
+        primaryStatus: 'UNKNOWN',
+      })),
+      attributions: [
+        { fromUrl: article, targetUrl: claimed, state: 'CLAIMED_UNVERIFIED' },
+      ],
+      truncated: false,
+    },
+  };
+  test('all links are semantic focusable links with visible unverified labels', async () => {
+    serve({ subscriptions: [TOPIC_ROW], leadRows: [row] });
+    await renderTab();
+    for (const url of [article, other, claimed]) {
+      const link = screen.getByRole('link', { name: url });
+      expect(link.href).toBe(url);
+      expect(link.tabIndex).toBe(0);
+      expect(link.rel).toContain('noopener');
+    }
+    expect(document.body.textContent).toContain(
+      'Перепечатка · первоисточник не подтверждён'
+    );
+    expect(document.body.textContent).toContain(
+      'Ссылка, заявленная материалом'
+    );
+    expect(document.body.textContent).not.toContain(
+      'Подтверждённый первоисточник'
+    );
+  });
+  test('an explicitly saved verified source sorts first; claimed search links do not', async () => {
+    serve({
+      subscriptions: [TOPIC_ROW],
+      leadRows: [
+        {
+          ...row,
+          sourceRefsJson: {
+            ...row.sourceRefsJson,
+            sources: [
+              row.sourceRefsJson.sources[0],
+              {
+                url: other,
+                canonicalUrl: other,
+                primaryStatus: 'VERIFIED_PRIMARY',
+              },
+            ],
+          },
+        },
+      ],
+    });
+    await renderTab();
+    const links = document
+      .querySelector('[data-content-lead-row="lead-story"]')
+      .querySelectorAll('a');
+    expect(links[0].href).toBe(other);
+    expect(document.body.textContent).toContain('Подтверждённый первоисточник');
+  });
+  test('unknown schema falls back to the historical source link; unsafe URLs are never clickable', async () => {
+    serve({
+      subscriptions: [TOPIC_ROW],
+      leadRows: [{ ...row, sourceRefsJson: { version: 99 } }],
+    });
+    await renderTab();
+    expect(screen.getByRole('link', { name: article })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: claimed })).toBeNull();
+  });
+  test('truncation is visible and duplicate attribution URLs appear once', async () => {
+    serve({
+      subscriptions: [TOPIC_ROW],
+      leadRows: [
+        {
+          ...row,
+          sourceRefsJson: {
+            ...row.sourceRefsJson,
+            truncated: true,
+            attributions: [
+              row.sourceRefsJson.attributions[0],
+              {
+                fromUrl: other,
+                targetUrl: claimed,
+                state: 'CLAIMED_UNVERIFIED',
+              },
+            ],
+          },
+        },
+      ],
+    });
+    await renderTab();
+    expect(screen.getAllByRole('link', { name: claimed })).toHaveLength(1);
+    expect(document.body.textContent).toContain('ограничения объёма');
+  });
+});
+
+test('saved source state labels follow the English UI locale',async()=>{
+ const sourceUrl='https://reporter.example/english';serve({subscriptions:[TOPIC_ROW],leadRows:[{id:'english-lead',title:'Story',sourceUrl,status:'NEW',reasonEn:'Reason',sourceRefsJson:{version:1,sources:[{url:sourceUrl,canonicalUrl:sourceUrl,primaryStatus:'UNKNOWN'}],attributions:[],truncated:false}}]});await renderTab('en');expect(document.body.textContent).toContain('Found article · primary source unverified');expect(document.body.textContent).not.toContain('первоисточник не подтверждён');
+});
+
+const savedReprints = require('./fixtures/lead-story-provenance/saved-stories.json').items.filter(row => ['/leads/1','/leads/8'].includes(row.pointer));
+test.each(['ru','en'])('both saved CryptoRank reprints are visibly identified in %s without attribution HTML', async language => {
+  const leadRows = savedReprints.map((saved,index) => ({id:`saved-reprint-${index}`,title:saved.title,sourceUrl:saved.sourceUrl,publishedAt:saved.publishedAt,status:'NEW',reasonRu:'Материал по теме',reasonEn:'Article on the topic',sourceRefsJson:{version:1,sources:[{url:saved.sourceUrl,canonicalUrl:saved.sourceUrl,primaryStatus:'UNKNOWN'}],attributions:[],truncated:false}}));
+  serve({subscriptions:[TOPIC_ROW],leadRows});await renderTab(language);
+  const label=language==='ru'?'Перепечатка · первоисточник не подтверждён':'Reprint · primary source unverified';
+  for(const row of leadRows){const card=document.querySelector(`[data-content-lead-row="${row.id}"]`);expect(card.textContent).toContain(label);expect(card.querySelectorAll('a')).toHaveLength(1);expect(card.querySelector('a').href).toBe(row.sourceUrl);}
+});
+test.each(['ru','en'])('legacy sourceUrl fallback identifies both saved CryptoRank reprints in %s', async language => {
+  const leadRows=savedReprints.map((saved,index)=>({id:`legacy-reprint-${index}`,title:saved.title,sourceUrl:saved.sourceUrl,status:'NEW',sourceRefsJson:null}));serve({subscriptions:[TOPIC_ROW],leadRows});await renderTab(language);
+  const label=language==='ru'?'Перепечатка · первоисточник не подтверждён':'Reprint · primary source unverified';for(const row of leadRows)expect(document.querySelector(`[data-content-lead-row="${row.id}"]`).textContent).toContain(label);
 });

@@ -126,10 +126,10 @@ export class ContentSourceController {
       const research = await this.research.research(
         organization.id,
         body.subject,
-        // `content-factory-next-fn33.133`: the screen says which language it
-        // reads in. The search provider answers in the language it was asked
-        // in, and that is English on every run.
-        { language: body.language }
+        // This route returns evidence directly to the reader. The internal
+        // opt-in is server-owned; a language alone also occurs in automatic
+        // generation and intake, which discard the provider summary.
+        { language: body.language, readerResponse: true }
       );
       const sourceByUrl = new Map(
         research.sources.map((source) => [source.url, source])

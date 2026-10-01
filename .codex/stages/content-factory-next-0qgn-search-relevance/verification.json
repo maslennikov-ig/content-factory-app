@@ -1,0 +1,80 @@
+{
+  "schema_version": "bounded-child-verification/v1",
+  "stage_id": "content-factory-next-0qgn-search-relevance",
+  "base_commit": "5d822447a159f032c9f6527b80a18b7c36827761",
+  "branch": "codex/search-relevance-2026-10-01",
+  "worktree": "/home/me/code/content-factory-next-worktrees/0qgn-search-relevance-20261001",
+  "scope": "reader advertising-context admission and source-only summary",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "dependency_setup": {
+    "offline": true,
+    "frozen_lockfile": true,
+    "ignore_scripts": true,
+    "downloaded": 0,
+    "shared_installation_mutated": false,
+    "prisma_generate": "own Prisma Client 6.5.0; no database action"
+  },
+  "red": {
+    "log": "evidence/focused-red-ledger-bound.log",
+    "suites": 2,
+    "failed": 15,
+    "passed": 37,
+    "skipped": 0,
+    "production_source": "unchanged base"
+  },
+  "green_focused": {
+    "log": "evidence/focused-green-deadline.log",
+    "suites": 2,
+    "tests": 53,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "final": {
+    "affected_search": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/web.research.source-admission.test.cjs tests/web.research.service.test.cjs tests/web.research.summary-language.test.cjs tests/web.research.degradation.test.cjs tests/web-research.usage-record.test.cjs tests/research.phase-one.test.cjs tests/lead-discovery-judge.test.cjs --coverage=false",
+      "log": "evidence/affected-search.log",
+      "suites": 7,
+      "tests": 162,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "log": "evidence/backend-types.log",
+      "exit_code": 0
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  },
+  "source_sha256": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "07f41d44231d984ad306e5eae5429d56e37047d7703810735c487f02ebfec185",
+    "tests/web.research.source-admission.test.cjs": "dce69e8f3217393e32eaf4c41747187566fb8c6e058387804102482f2ef19d6c",
+    "tests/web.research.summary-language.test.cjs": "d6a25769f919f0b4a825648e24c13c4a8a931cda71ff149305815410b005764d",
+    "tests/fixtures/recorded-search/telegram-labeling-2026-10-01.json": "a9b92a57e2213858b9a8f88de94c58382f5306622ac3b0289f9e0ea48fdd487a",
+    "tests/fixtures/recorded-search/1c-cloud-2026-10-01.json": "c3dd5a671ad3d617f812740c73eb265d76409e6530f565b2dce7fe30c1444914",
+    "docs/product/source-search-admission.md": "2a7cc158f8e5cb9088b8f3aa9f6af9912a170c0dce72e21ba68f7a4467e94264",
+    "docs/product/search-summary-contract.md": "35c4e3c50fa356935a986117f0adeb8091288267946a69624e4ed93b7d4fc9ae",
+    "docs/superpowers/plans/2026-10-01-source-search-admission.md": "7f507d1641b326bfcd4e126ae85cbbd2c003b2f7644a45b95bc8e2016435c07e"
+  },
+  "recorded_public_input_sha256": {
+    "telegram_actual": "bb7f923398bbf4486a2718475d7a268856a47deabad1509e2d7cf1a8ff0afb4e",
+    "cloud_actual": "73f5c96c6de5cd5e415bf2bafd0d17f6acbb0cbbc528125b290e864489d53a41"
+  },
+  "acceptance_owner": "root",
+  "live_semantic_verification": "not performed by child",
+  "resources": {
+    "retained": [
+      "isolated committed worktree",
+      "own offline node_modules and generated Prisma client",
+      "stage logs and delivery evidence"
+    ],
+    "runtime_created": [],
+    "external_calls": 0,
+    "host_actions": 0,
+    "primary_checkout_mutations": 0,
+    "shared_cleanup": 0
+  }
+}

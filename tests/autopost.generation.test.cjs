@@ -16,7 +16,9 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
   }).outputText;
   const loaded = { exports: {} };
   const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
+    request === '@contentfactory/helpers/utils/html.extraction'
+      ? loadTypeScriptModule('libraries/helpers/src/utils/html.extraction.ts')
+      : Object.prototype.hasOwnProperty.call(mocks, request)
       ? mocks[request]
       : require(request);
   const evaluate = new Function(

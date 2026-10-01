@@ -607,19 +607,37 @@ describe('сводка веб-поиска говорит на языке чит
     assert.equal(result.sources.length, 2);
   });
 
-  test('пустой ответ движка не вызывает модель сводки', async () => {
+  test('пустой ответ с цитируемыми фактами покупает одну сводку для читателя', async () => {
     searchAnswer.answer = '  ';
 
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
       'ключевая ставка',
-      { language: 'ru' }
+      { language: 'ru', readerResponse: true }
+    );
+
+    assert.equal(result.summary, summaryResult.summary);
+    assert.equal(summaryCalls().length, 1);
+    assert.equal(chatModelCalls.length, 2);
+    assert.equal(result.sources.length, 1);
+    assert.equal(result.facts.length, 1);
+  });
+
+  test('пустой ответ без цитируемых фактов не вызывает модель сводки', async () => {
+    searchAnswer.answer = '  ';
+    delete searchAnswer.results[0].content;
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка',
+      { language: 'ru', readerResponse: true }
     );
 
     assert.equal(result.summary, '');
     assert.equal(summaryCalls().length, 0);
     assert.equal(chatModelCalls.length, 1);
     assert.equal(result.sources.length, 1);
+    assert.equal(result.facts.length, 0);
   });
 
   test('общий промпт ограничивает тему, каждый ответ и источник, не меняя поисковые выдержки', async () => {
@@ -731,7 +749,7 @@ describe('отказ поиска приходит с кодом', () => {
     assert.equal(/Tavily|OpenRouter|8000/.test(body.message), false);
   });
 
-  test('язык читателя доходит до сервиса поиска', async () => {
+  test('маршрут задаёт язык и внутренний признак читателя, не принимая его из body', async () => {
     const calls = [];
     const controller = controllerWithResearch({
       research: async (...args) => {
@@ -742,11 +760,11 @@ describe('отказ поиска приходит с кодом', () => {
 
     await controller.searchForEvidence(
       { id: 'org-a' },
-      { subject: 'ключевая ставка', language: 'ru' }
+      { subject: 'ключевая ставка', language: 'ru', readerResponse: false }
     );
 
     assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0][2], { language: 'ru' });
+    assert.deepEqual(calls[0][2], { language: 'ru', readerResponse: true });
   });
 
   test('DTO принимает только известные языки', async () => {

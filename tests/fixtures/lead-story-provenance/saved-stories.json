@@ -1,0 +1,126 @@
+{
+  "evidence": ".codex/stages/content-factory-next-75xn/evidence/quality-2026-09-13-after/outB/leads-dated.json",
+  "items": [
+    {
+      "pointer": "/leads/0",
+      "topic": "ИИ в Европе",
+      "sourceUrl": "https://www.planet360.info/ru/2026/09/04/yevrokomissiya-zapuskayet-pervyye-proverki-v-ramkakh-zakona-ob-iskusstvennom-intellekte",
+      "title": "Еврокомиссия запускает первые проверки в рамках Закона об ИИ Planet360.info",
+      "excerpt": "Для компаний, занимающихся разработкой и распространением систем ИИ, европейское регулирование вводит новые обязательства и повышенную ответственность, а надзорная система будет постепенно становиться все более структурированной.\n\nТаким образом, внимание Еврокомиссии сосредоточено не только на формальном соблюдении норм AI Act, но и на кибербезопасности — проблеме, которая приобретает особую остроту по мере распростр",
+      "publishedAt": "2026-09-04",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/0",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/1",
+      "topic": "ИИ в Европе",
+      "sourceUrl": "https://cryptorank.io/news/feed/5aa7e-zakon-es-ob-yy-pereshel-k-etapu-realnoho-kontrolya-novye-pravyla-uzhe-deystvuyut",
+      "title": "Закон ЕС об ИИ перешел к этапу реального контроля: новые правила уже действуют | AI | CryptoRank.io",
+      "excerpt": "Cryptorank\n\nЗакон ЕС об ИИ перешел к этапу реального контроля: новые правила уже действуют\n\nЗакон ЕС об ИИ перешел к этапу реального контроля: новые правила уже действуют\n\nShare:\n\nPredictions Markets\n\nSee what traders are focused on\n\nPrediction Banner\n\nЗакон Европейского Союза «Об искусственном интеллекте» (AI Act) перешел от этапа формирования правил к практическому применению: со 2 августа 2026 года в ЕС вступили в",
+      "publishedAt": "2026-08-29",
+      "provider": null,
+      "archivedClaim": "CLAIMED_UNVERIFIED",
+      "articlePointer": "/body/leads/1",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/4",
+      "topic": "Четырёхдневка",
+      "sourceUrl": "https://tsn.ua/ru/ukrayina/v-ukraine-predlagayut-vvesti-chetyryohdnevnuyu-rabochuyu-nedelyu-chto-izvestno-3157955.html",
+      "title": "В Украине предлагают ввести четырёхдневную рабочую неделю",
+      "excerpt": "Среди аргументов в пользу этой инициативы отмечают повышение эффективности сотрудников, сокращение числа отпусков по болезни и из-за выгорания, гармонизацию",
+      "publishedAt": "2026-08-29",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/4",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/5",
+      "topic": "Четырёхдневка",
+      "sourceUrl": "https://fakty.ua/ru/477810-v-ukraine-predlagayut-vvesti-chetyryohdnevnuyu-rabochuyu-nedelyu-chto-izvestno",
+      "title": "В Украине предлагают ввести четырёхдневную рабочую неделю: что известно | «ФАКТЫ»",
+      "excerpt": "РЕКЛАМА\n\nСреди ожидаемых преимуществ инициаторы называют повышение производительности труда сотрудников, сокращение случаев профессионального выгорания и больничных, а также лучший баланс между работой и личной жизнью.\n\nОтдельно авторы петиции подчеркивают важность сохранения кадрового потенциала Украины. По их мнению, более гибкий режим работы может помочь людям дольше оставаться продуктивными и снизить нагрузку на ",
+      "publishedAt": "2026-08-31",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/5",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/8",
+      "topic": "AI Act",
+      "sourceUrl": "https://cryptorank.io/news/feed/de9bf-the-enforcement-wave-five-deadlines-that-will-define-ai-agent-governance-this-year",
+      "title": "The Enforcement Wave: Five Deadlines That Will Define AI Agent Governance This Year",
+      "excerpt": "Across the Atlantic, the EU AI Act’s Article 50 transparency obligations have been active since August 2, 2026-more than five weeks ago. The enforcement ledger reads zero. No fines, no investigations, no actions targeting agent behavior. The structural reasons are clear: the Act contains no definition of agentic systems, the EU AI Office operates with approximately 125 staff members, 12 member states missed the deadl",
+      "publishedAt": "2026-09-10",
+      "provider": null,
+      "archivedClaim": "CLAIMED_UNVERIFIED",
+      "articlePointer": "/body/leads/8",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/9",
+      "topic": "AI Act",
+      "sourceUrl": "https://www.techtimes.com/articles/326510/20260903/eu-sets-ai-search-compliance-template-gemini-perplexity-face-same-clock-chatgpt.htm",
+      "title": "EU Sets AI Search Compliance Template: Gemini and Perplexity Face Same Clock as ChatGPT",
+      "excerpt": "The compliance window may feel distant, but the DSA enforcement track record is not theoretical. Since the regulation's first enforcement action in December 2025, the Commission has issued approximately €870 million (approximately $1.009 billion at September 3, 2026 rates) in fines across three designated services: a record €550 million (approximately $638 million) against AliExpress in July 2026 for failing to addre",
+      "publishedAt": "2026-09-03",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/9",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/11",
+      "topic": "Маркетплейсы",
+      "sourceUrl": "https://unn.ua/en/news/up-to-half-the-price-of-the-product-marketplace-commissions-and-logistics-costs-have-surged-in-russia",
+      "title": "Up to half the price of the product: marketplace commissions and logistics costs have surged in Russia | УНН",
+      "excerpt": "In addition, starting August 30, Ozon reduced the commission discount for local sales under the FBO model from 6 to 3 percentage points. For a number of regions, including Moscow, the Moscow region, St. Petersburg, and Russia’s Northwest, this discount no longer applies at all.\n\nWildberries also revised its tariffs over the summer. Following the July changes, the basic commission, according to analysts’ estimates, in",
+      "publishedAt": "2026-08-30",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/11",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/12",
+      "topic": "Маркетплейсы",
+      "sourceUrl": "https://rb.ru/news/komissii-marketplejsov-prevysili-40-stoimosti-tovarov-rentabelnost-biznesa-sellerov-snizilas-vtroe",
+      "title": "Комиссии маркетплейсов на 40% превысили стоимость товаров продавцов",
+      "excerpt": "Комиссии и логистические расходы Ozon, Wildberries и «Яндекс Маркета» на 40% превысили стоимость товаров. Рентабельность продавцов упала до 3–6%.",
+      "publishedAt": "2026-08-26",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/12",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/13",
+      "topic": "Маркетплейсы",
+      "sourceUrl": "https://www.interfax.ru/business/1113702",
+      "title": "Расходы селлеров в пользу Ozon в январе-июле составили 24,73% от цены продажи товаров",
+      "excerpt": "\"Размер комиссии за продажу, указанный в открытой базе знаний компании - номинальное значение (в зависимости от категории товаров комиссии варьируются от 1% до 52%). Компания начисляет продавцу баллы и таким образом предоставляет ему значимые скидки на свои услуги, что и дает невысокий размер фактической комиссии. Для покупателей площадка делает скидки на товары. Такой подход позволяет нам одновременно стимулировать ",
+      "publishedAt": "2026-09-07",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/13",
+      "excerptCharacters": 420
+    },
+    {
+      "pointer": "/leads/14",
+      "topic": "Маркетплейсы",
+      "sourceUrl": "https://www.if24.ru/prodavtsy-otdayut-ozon-chetvert-tseny-tovara",
+      "title": "Продавцы отдают Ozon четверть цены товара",
+      "excerpt": "Перейти в Дзен\n\nНовости\n\nПродавцы отдают Ozon четверть цены товара\n\nМаксим Богодвид / РИА Новости\n\nСредние расходы продавца на все услуги Ozon в январе-июле составили 24,73% от цены проданного товара, сообщила компания. В эту сумму входят комиссия, логистика, продвижение и другие услуги, сообщает «Интерфакс».\n\nПри этом непосредственно комиссия за продажу в среднем составляла лишь 1,54%, а логистика — около 7,5% стоим",
+      "publishedAt": "2026-09-08",
+      "provider": null,
+      "archivedClaim": null,
+      "articlePointer": "/body/leads/14",
+      "excerptCharacters": 420
+    }
+  ],
+  "articleEvidence": ".codex/stages/content-factory-next-75xn/evidence/quality-2026-09-13-after/outB/t-queue.json"
+}

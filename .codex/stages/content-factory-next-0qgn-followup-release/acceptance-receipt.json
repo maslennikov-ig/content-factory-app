@@ -1,0 +1,110 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "duration_seconds": 15.406,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "duration_seconds": 12.532,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "duration_seconds": 10.066,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 78.485,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "duration_seconds": 1073.915,
+      "environment_gates": [
+        {
+          "environment_variable": "SOURCE_REGISTRY_POSTGRES_URL",
+          "reason": "SOURCE_REGISTRY_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL serializable lease crossing rolls back snapshot and forbids late completion"
+        },
+        {
+          "environment_variable": "EDITORIAL_STAGE_POSTGRES_URL",
+          "reason": "EDITORIAL_STAGE_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "existing process tags carry over to Post.editorialStage one-to-one"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL rejects foreign post id and group before mutation"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL atomically commits or rolls back an AutoPost V2 draft and provenance set"
+        }
+      ],
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 593 passed, 593 total",
+        "Tests:       10272 passed, 10272 total",
+        "# tests 126",
+        "# pass 122",
+        "# fail 0",
+        "# skipped 4",
+        "# todo 0",
+        "Ran 50 tests in 1.182s",
+        "OK",
+        "Test Suites: 593 passed, 593 total / Tests:       10272 passed, 10272 total"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "duration_seconds": 0.087,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "duration_seconds": 0.683,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.178,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.009,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+    "pnpm run build",
+    "bash scripts/release/record-suite-receipt.sh",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-10-01T20:08:14.733048+00:00",
+  "diff_digest": "e72288b10aa7fd06aec6b1f878eab995c2654d1da3f9d76366c42cb1c3070a0f",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "5d822447a159f032c9f6527b80a18b7c36827761",
+  "idempotency_key": "debb235ba1bbe67d9675cbfca97deae4dc8508c113b72f781287b0fe87233e8c",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-0qgn-followup-release",
+  "started_at": "2026-10-01T19:48:23.214320+00:00",
+  "verification_fingerprint": "debb235ba1bbe67d9675cbfca97deae4dc8508c113b72f781287b0fe87233e8c"
+}

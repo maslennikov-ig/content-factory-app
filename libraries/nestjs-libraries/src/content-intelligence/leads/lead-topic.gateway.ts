@@ -1,3 +1,6 @@
+import { groupLeadStories } from './lead-story-cluster';
+import { pageAttributions } from './lead-source-attribution';
+import type { LeadSourceRefsV1 } from './lead-source-refs';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { SourceFetchGateway } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway';
@@ -139,6 +142,7 @@ function withDeadline<T>(work: Promise<T>, milliseconds: number): Promise<T> {
 }
 
 type TopicCandidate = {
+  sourceRefsJson?: LeadSourceRefsV1;
   externalId: string;
   sourceUrl: string;
   title: string;
@@ -308,7 +312,7 @@ export class LeadTopicGateway {
       }
       candidates.set(externalId, {
         externalId,
-        sourceUrl,
+        sourceUrl: raw,
         title: (source.title || '').trim() || sourceUrl,
         excerpt,
         publishedAt,
@@ -338,6 +342,7 @@ export class LeadTopicGateway {
         sourceUrl: candidate.sourceUrl,
         publishedAt: candidate.publishedAt,
         reason: candidate.reason,
+        sourceRefsJson: candidate.sourceRefsJson,
       });
     }
 
@@ -352,7 +357,7 @@ export class LeadTopicGateway {
       );
     }
 
-    return { disabled: false, items, ...(result.fromCache ? { fromCache: true as const } : {}) };
+    return { disabled: false, items: groupLeadStories(items, subject), ...(result.fromCache ? { fromCache: true as const } : {}) };
   }
 
   /**
@@ -389,6 +394,22 @@ export class LeadTopicGateway {
             this.readPage(candidate.sourceUrl),
             this.pageReadDeadlineMs
           );
+          const claims = pageAttributions(html, candidate.sourceUrl);
+          let canonicalUrl: string | null = null;
+          try {
+            canonicalUrl = canonicalizeSourceUrl(candidate.sourceUrl);
+          } catch {}
+          candidate.sourceRefsJson = {
+            version: 1,
+            sources: [
+              {
+                url: candidate.sourceUrl,
+                canonicalUrl,
+                primaryStatus: 'UNKNOWN',
+              },
+            ],
+            ...claims,
+          };
           candidate.publishedAt = pageDate(html, candidate.sourceUrl, now) ?? candidate.publishedAt;
         } catch (error) {
           this.logger.debug(

@@ -506,6 +506,8 @@ function loadAutopostService({ generated, modelCalls }) {
     {
       // Same reason as in `loadAgentGraphService`: the real, pure module.
       sources: {
+        '@contentfactory/helpers/utils/html.extraction':
+          'libraries/helpers/src/utils/html.extraction.ts',
         '@contentfactory/nestjs-libraries/agent/voice-directives':
           'libraries/nestjs-libraries/src/agent/voice-directives.ts',
       },

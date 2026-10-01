@@ -3322,7 +3322,8 @@ production не переносится, и у стенда своя база Mas
 
 Готовые точечные миграции, если требуются, лежат в `docs/operations/`:
 
-- [`content-leads-schema-apply.sql`](./content-leads-schema-apply.sql) — две таблицы для отслеживания источников идей
+- [`content-leads-schema-apply.sql`](./content-leads-schema-apply.sql) — две таблицы для отслеживания источников идей, включая nullable `sourceRefsJson` для чистой установки
+- [`lead-story-provenance-schema-apply.sql`](./lead-story-provenance-schema-apply.sql) — только nullable JSONB-колонка `ContentLead.sourceRefsJson` для существующей схемы; применять до переключения образа с сюжетами
 - [`avatars-schema-apply.sql`](./avatars-schema-apply.sql) — хранилище аватаров и их метаданные
 - [`editorial-stage-schema-apply.sql`](./editorial-stage-schema-apply.sql) — редакционный этап поста enum и индекс
 - [`telegram-admin-binding-schema-apply.sql`](./telegram-admin-binding-schema-apply.sql) — колонки Telegram для входа и привязки администратора
@@ -3339,6 +3340,17 @@ production не переносится, и у стенда своя база Mas
 - [`channel-plan-mode-schema-apply.sql`](./channel-plan-mode-schema-apply.sql) — `Integration.planMode`; применён вместе с предыдущим 23.09.2026 (`ae55c65be5ff`)
 - [`ai-usage-possibly-billed-schema-apply.sql`](./ai-usage-possibly-billed-schema-apply.sql) — колонка `AiUsageRecord.possiblyBilled`; шаг схемы волны 15-го прохода (`tcxv`), идёт до переключения образа
 - [`piece-adaptation-schema-apply.sql`](./piece-adaptation-schema-apply.sql) — `ContentPiece.kind`, `ContentPiece.brief`, `ContentDerivation.kind/title/body/mediaId` и индекс `ContentDerivation (organizationId, postId)`; шаг схемы волны «заготовка и адаптации», применён до переключения образа 07.09.2026 (`a6be7f3fbb92`)
+
+Для сюжетов поводов выбрать из фактического `prisma migrate diff` только
+`ALTER TABLE "ContentLead" ADD COLUMN "sourceRefsJson" JSONB`, сверить с
+`lead-story-provenance-schema-apply.sql` и пропустить selected SQL через обычный
+`validate-prisma-migration-sql.cjs --mode update --allow-table ContentLead`.
+Применить одной транзакцией по процедуре ниже; повторный diff должен быть пустым
+для этой колонки. Таблицы Mastra и любые другие изменения не выбирать. Старая
+версия приложения игнорирует nullable поле: откат кода сохраняет колонку и её
+данные. Для первого создания двух таблиц используется актуальный
+`content-leads-schema-apply.sql`, отдельный `ADD COLUMN` поверх него не нужен.
+Локальная подготовка SQL не доказывает его применение к production.
 
 Список выше — это ровно то, что лежит в каталоге; сверять его командой `ls
 docs/operations/*-schema-apply.sql`. Здесь значился `telegram-binding-schema-apply.sql`,

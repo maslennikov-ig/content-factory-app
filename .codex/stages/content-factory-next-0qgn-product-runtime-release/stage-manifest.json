@@ -1,0 +1,273 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-0qgn-product-runtime-release",
+  "goal_id": "content-factory-next-71m.8",
+  "epic_id": "content-factory-next-0qgn",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 6,
+  "acceptance_boundary_id": "product-search-lead-provenance-runtime-release",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "search-reader-evidence",
+      "lead-story-storage-provenance-ui",
+      "HTML-generation-imports",
+      "private-public-release",
+      "connected-channel-runtime"
+    ],
+    "risk_models": [
+      "reader-model-cost-boundary",
+      "tenant-story-status-preservation",
+      "additive-schema-Mastra-isolation",
+      "extraction-compatibility",
+      "memory-regression",
+      "shared-host-release-preservation"
+    ],
+    "test_environments": [
+      "exact-private-Node22-full-release",
+      "root-real-Prisma-PG17-sentinel",
+      "clean-public-image-build",
+      "production-owned-QA-and-existing-channel-workload"
+    ],
+    "rollback_boundary": "current438-image-rollback-nullable-additive-column-left-in-place",
+    "acceptance_proofs": [
+      "root-accepted-isolated-streams",
+      "exact-release-receipt",
+      "guarded-single-nullable-column",
+      "source-registry-host-digests",
+      "fresh-owned-UI-API-semantic-checks",
+      "full-app-warmed-memory-all-queues-process-identity",
+      "other-project-and-Mastra-preservation"
+    ]
+  },
+  "source": "docs/product/remaining-work-2026-10-01-spec.md",
+  "branch": "codex/remaining-followups-2026-10-01",
+  "scope_ledger": "none",
+  "work_areas": [
+    "product_implementation",
+    "schema_migration",
+    "integration",
+    "delivery",
+    "runtime_acceptance",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-0qgn-product-runtime-release/summary.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-71m.8",
+      "stream_owner": "orchestrator",
+      "artifact_path": ".codex/stages/content-factory-next-0qgn-product-runtime-release/artifacts/product-runtime-release.md"
+    }
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-71m.8",
+    "source_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
+    "criteria": [
+      {
+        "criterion_id": "AC-original-connected-channel-memory",
+        "text": "Record the exact image, limit, connected-channel workload and observed memory; demonstrate less than 60% with all required queues served, no EXCLUDE_QUEUE workaround and no pnpm/dotenv wrappers. If the threshold is missed, retain the measured result and bound the remaining optimization. Real account connection and production changes require separate authority.",
+        "text_digest": "3ec009eb98e934049be1c481d07697fac3b60a6e5d846b32a4fc844c794d3c91"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-71m.8/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
+  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal resumed; owner explicitly delegates technical/product verification to root. Full EPIC not complete.",
+  "original_scope_baseline": ".codex/stages/content-factory-next-0qgn/initial-scope-snapshot.json",
+  "original_record_mapping": [
+    {
+      "task_id": "content-factory-next-2q28.2",
+      "original_source_digest": "271062a265d7eec3a230d4967198cee348e19166945ea30025ab67d2093b8f2d",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-cfiz",
+      "original_source_digest": "64cf479b890f749988cb43277af7707aca20238f34e68832276d8d7617f8a3e2",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-71m.8",
+      "original_source_digest": "f707ed437bdb4a3ff3269c2c7dd512c5310ad217db4b2aa9486b6ae2cacb4c2b",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-kcxz",
+      "original_source_digest": "2576ec2475e82c179e63d22baea94215f50a73e3c304b5ba5c4b1d480a0b49c7",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-2q28.11",
+      "original_source_digest": "591dd2f42f2a1c26e5d8f60deba25b133532c843d29330eee6b2c48bdda02453",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-2q28",
+      "original_source_digest": "0104d4c2eac8e97741f0db6b9bae19d03e8c342789e6c9b365413e3e9a37ee79",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-97dq",
+      "original_source_digest": "cdc87d7aa717718b49a8bb785c327c85b95d17d3bc713142b7f7a13b2b40d661",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-hf97",
+      "original_source_digest": "e02e3196a0063453ff92bfc60452dfbe2d8076ad1f8e26341c3c6d72419b9ead",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-75xn",
+      "original_source_digest": "a22d7ba844addd8b15c69982bc8fa93efb038b94058a6c7b2124d75b8c527908",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-ec48",
+      "original_source_digest": "3b80b97506f2349ec4ef80d9f153ef94db1693730fcbf08cd3cd204871c7fc68",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-saas.7",
+      "original_source_digest": "4b68379181ac58e2f1efb11ea0695940d8380db0ba5e3226f236713cd0bbee55",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-saas.5",
+      "original_source_digest": "29afadea8cae426683128d52ffec25210593f9381e9b83bf61a9510a6a0e9569",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-saas.4",
+      "original_source_digest": "ec87050eeafc9bb6fe3a4f5d6bf9b6e3a50af947e5f12f6d7f4b9a6120eaf706",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-saas.2",
+      "original_source_digest": "d414f7c5a135e877909e7f7c795f9bb484ad6755f25206a318f319c087afca31",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-saas",
+      "original_source_digest": "d1dc1d96d47e532ba8e09861efaaf8f95c47751e752a0d2d9c66b1db361ebe02",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-71m",
+      "original_source_digest": "74e80c74c53f47344b2efa8d3455493c3a455012b8ba0dc51f68fee7e59ab350",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-kcxz.46",
+      "original_source_digest": "dc3d5ff94ea6fcf7a444883b0326b801e8f65a984c0a348ac8146b49a7801238",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-2q28.41",
+      "original_source_digest": "cbd769ef5ad38869310fcf5edeeeee7d0e83753a45cad44f97c9ac051a0590c9",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-m0iy.10",
+      "original_source_digest": "ae1d42cb4435e7880c16ebdb9fb7ffcd4c90d298d26e091ea2bd66332ba65913",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-m0iy",
+      "original_source_digest": "f19423e8435f09eb661ffc7c792a269644f2669cdc8ead45a6efaf40263a222a",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-fn33.132",
+      "original_source_digest": "6f92561c21b08a309bcea1649a48c3320d9d2f2f5616568d1fbe017d5e752982",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-kcxz.48",
+      "original_source_digest": "8badacaabab2cfe2b06ff340ddd2f0715a14bcb4507c136a374a2b4dea42cccd",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-2q28.38",
+      "original_source_digest": "2daf00957f08bf51db9c38017d69e612c1a7e9f64797bcbf00f247eec972d99d",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-2q28.10",
+      "original_source_digest": "2e24bef476700a82fb13f9f7f47fa691a1b7879b67e3ff3728232132518f32b9",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-97dq.43",
+      "original_source_digest": "eec639437d9a3fd1c64d754d17edebd167c2a9ca9aa31f9fa0468dcae0283183",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-75xn.34",
+      "original_source_digest": "b855a346dc84e8e5b9547859a3f2d60684cd633018af12ab0234b8b9cb03904e",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-75xn.33",
+      "original_source_digest": "6d21598d7dd7647d830e1163400d5549b40c4c828834593057825b20ddbf8628",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-75xn.9",
+      "original_source_digest": "b400b3aab384e54edfc46e98c5609c071466b9572b2185a523ce230e934734b0",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-m0iy.7",
+      "original_source_digest": "2c189b1a25f110ccb61dba5e966471323277cf544256777d0a7746cc9a38de73",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-m0iy.6",
+      "original_source_digest": "aed08f11ddc4764c01fa2a0fe24bd964ca74958e1cc50f5d528ae298830ab76c",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-ec48.7",
+      "original_source_digest": "cd3047955b32b42b3c24e2e8bc6853d88d6a84fed79b6b42533f43ff6e0377ec",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-or3.9.1",
+      "original_source_digest": "442c9693f59112b54f74d786c78adfe25ae89300c42d802956795e797a327052",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-or3.9",
+      "original_source_digest": "b06fb23851e03f339851390596e44695e43053002b03e0441ad0424686ed8822",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-fn33.103",
+      "original_source_digest": "67d0422a54345966ff852345311ae58d7c08de11dbdb7cbc2d56a8db6008f5b6",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-fn33.21",
+      "original_source_digest": "f0104541e9cdc851be30bb091bf19f837526821cbb5a014f02e08eeb91690855",
+      "status_truth": "beads"
+    },
+    {
+      "task_id": "content-factory-next-fn33.9",
+      "original_source_digest": "2d4edeb5518fdd70ecaef8c8da6d9415379999c1951714ef85932d821870dec1",
+      "status_truth": "beads"
+    }
+  ],
+  "selected_product_tasks": [
+    "content-factory-next-75xn.33",
+    "content-factory-next-75xn.34",
+    "content-factory-next-fn33.132",
+    "content-factory-next-ec48.7",
+    "content-factory-next-2q28.2",
+    "content-factory-next-71m.8"
+  ]
+}

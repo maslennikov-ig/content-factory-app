@@ -57,6 +57,7 @@ CREATE TABLE "ContentLead" (
     "title" TEXT NOT NULL,
     "excerpt" TEXT,
     "sourceUrl" TEXT NOT NULL,
+    "sourceRefsJson" JSONB,
     "publishedAt" TIMESTAMP(3),
     "observedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reasonRu" TEXT NOT NULL,

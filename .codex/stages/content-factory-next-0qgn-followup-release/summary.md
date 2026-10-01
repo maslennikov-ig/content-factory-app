@@ -1,48 +1,54 @@
-# Integrated followup delivery and runtime acceptance
+# Followup release and measured runtime acceptance
 
-Stage5 under wholeEPIC0qgn, selected original71m.8 criterion. One shared actual
-image/production rollback boundary; this is an application release, not a helper
-or proof-only micro-stage. Root owns coupled release/switch and final acceptance.
-Read-only source-policy, current public API, memory and external-client readiness
-streams have bounded independent ownership; only the docs child writes two named
-docs/evidence. No runtime mutation delegated to those readers.
+Stage5 accepted at private source5d822447a159/public image438665412829. The exact
+root release receipt passed all9 configured commands: Jest593suites/10272tests,
+node122pass/0fail/4explicitDBenvironment skips, Python50OK, four-app builds/types,
+branding/docs/process/diff. Actual public Build36920217049/CodeQuality36920216863
+succeeded. No second suite was run for later stage-only evidence or handoff edits.
 
-Current accepted sources: MCP lazy-loader34tests + real synthetic SDK; community
-84tests/types/docs/process; scanner30 focused checks. These are local evidence,
-not the new exact release gate or production memory threshold. Full release
-acceptance uses configured commands once after all candidate writers finish.
+Registry/index/config/source archive match the deployed438 image. Empty Prisma
+diff; Product77/Mastra45 fingerprints and39 other container identities preserved.
+API/login-page/Source200/exact archive are checked; fresh authenticated login on438
+and semantic generation are unproved. Protected rollback66619d212950 remains.
 
-Documentation: use production-deploy.md, accepted free community contract and
-current official OpenAI docs for external-client guide correction.
-docs-reviewed: updated — owner whole-EPIC authority and legal-facts defer recorded;
-current source contracts preserved, actual release receipt/results separate.
-project-index: reviewed-no-change-needed — existing runtime entrypoints unchanged.
-graph-reviewed: used — stale c1e44cfd only for orientation; exact current sources
-confirmed, no external graph extraction or hook/telemetry changes.
+Actual seeded MCP initialize/tools-list200/66tools warmed SDK, no tool/provider
+calls; exact5own fixture rows deleted/privatejournal removed. This is not ChatGPT
+OAuth acceptance. Read-only PID+start-time locked31sample window21:11–21:41UTC
+spans1799.845438s at unchanged1792MiB. Docker-equivalent62.6022–63.0672percent:
+original<60 threshold FAIL. All samples/runtime/queues/schema preservation passed;
+exact connected-channel identity before release was not collected and is not
+claimed. Task71m.8/wholeEPIC remain unfinished; accepted parser optimization is
+bounded to the next source integration/release and actual full-application remeasure.
+
+Prescribed retention removed only own obsolete3132393a8920 and two obsolete env
+copies. Free9,928,843,264→12,849,233,920B/2,535,705inodes, current438/rollback666,
+all40container identities/health/liveconfiguration hashes preserved. Originalhf97
+capacity criteria closed; every futurecandidate must pass fresh strict capacity
+checks. Unknown sharedcache untouched, no indefinite capacity guarantee.
+
+Root accepted next-source streams: lead-story31eb5fc+b690 plus realPG17ten-check
+proof; searchd61+b65UI-only reader marker/cache identity181tests/types; parse5
+replacement35ab546111focused checks/backend+orchestrator types/frozen438oracle.
+These are not integrated/deployed or live semantic/memory acceptance.
+
+Real B1 onold666 failed Node512 heapOOM/PM2backend restart, no draft. Owned orphan
+failed/possiblyBilledtrue/costNULL,6fixtures disabled/credentials revoked0pending.
+Small offline actualgraph did not reproduceOOM; fullbackend/usage envelope gap
+remains. Live read-only PopularPosts=0 excludes that query as currentOOMcause.
+Early iterator-close continuation was standalone-only, not an accepted live defect.
+
+Documentation: current release/runtime/task facts reconciled.
+docs-reviewed: updated — current release and failed threshold recorded; owner
+legal/pricing defers and actual external/client criteria unchanged.
+project-index: reviewed-no-change-needed — stable runtime entrypoints unchanged.
+graph-reviewed: used — stale owner graphc1e44 orientation, exact sources confirmed;
+no external extraction, hooks, query logging or unaccepted refresh.
 
 ## Explicit defers
 
-Owner01.10: legal operator/region/support/Terms/Privacy facts «давай это пока отложим».
-Independent engineering/release/live acceptance continues; no legal launch claims.
-75xn.33/.34 policies resolved01.10: keep unverifiable reprints visibly marked;
-combine same-event articles preserving all links. Pricing postponed; owner removed
-Claude.ai check01.10. Actual ChatGPT proof remains required. Native goal resumed by owner; root is the delegated technical/product verifier.
-
-## Accepted child deliveries
-
-Root hash-bound acceptance and safe-only cleanup are recorded in evidence/accepted-deliveries-2026-10-01.json. Current official MCP docs and readonly source map accepted; actual client/submission still unproven. Three-sample production666 baseline accepted with60.611% threshold miss. Two actual free-public source probes accepted as facts: windowedGitHub response exceeded256KiB and failedclosed; the boundedprovider budget correction is still being implemented. No productioncommunityactivation.
-
-Final child correction accepted: GitHub response bounded1MiB within unchanged2MiBtotal; exactquerycreation-window/title-body filter and exact postfilter kept.71focusedtests passed. OneactualpublicTemporal probe returned8GitHub+12arXiv/23HTTP200/814225bytes/8856ms withallcandidatedatesinwindow; root confirmed4prior/probeownedcontainerIDsabsent. This proves lexical source recovery, not userquality or Reddit acceptance. Full rootrelease and productionthreshold remain pending.
-
-Accepted documentation/portal readers: SaaS operator contract now exposes actualprocess-local registrationeffect and nullableAIledger boundaries, monitoring placeholders and scheduledbackup/legal gaps. Originalsaas.5 expanded accounting/telemetry gaps remain explicit; root will not erase them merely on docacceptance. Portalreader found no supportedexactproject/slug mapping for thirdwalk; no request or falsezeroresponse inference. No runtime/accounts/messages changed; rawprivate snapshots700/600 stay ignored.
-
-Capacity actualformat discovery: ownlocal666export contained validrootDIR `.`/size0; boundedallowlist regression and actualfullstream nowpass (2812793344unpackedB/267797entries). First2full-copy reserve required14.819GB versus12.871GBavailable; no pull attempted. Root actualhostdriveroverlay2 confirmed; boundedexactdownload+unpacked reserve refinement inprogress,6GBoperating/1GBtransient preserved; unknownmetadata neverfallback. Candidate sourcefreeze and exactfullrelease stillpending.
-
-Owner scope correction01.10: Claude.ai post-fix check removed, not waitingforaccess
-and not a passingresult. Originaltaskdescription/historicalwalks preserved; exact
-quote/mapping in evidence/owner-claude-check-removal-2026-10-01.json. ChatGPT
-acceptance/submission and other originalcriteria remain. Native goal subsequently resumed; owner delegated verification to root.
-
-Owner resumption01.10: «Ну тогда доделай все сам до конца. Ты будь проверяющим.» Root performs remaining reproducible technical/product acceptance. This changes the verifier, not observed third-party customer history or missing external account/company facts. Capacity worker resumed; wholeEPIC stays active.
-
-Capacity source accepted:72capacity+21weight tests/0skips, exact hashes in centraldelivery. Actual old666 export2812793344bytes/267797entries/726913606localstoredbytes. Refined bound only for verified published caller3 and successfuloverlay2; unknown auto conservative. Newcandidate measurement/publishedmanifest and runtime gates remain pending.
+Owner postponed legaloperator/region/support/Terms/Privacy and pricing. Claude.ai
+followup removed by owner, historicalwalks retained; actualChatGPT still required
+and own browser loggedout. Scheduledbackup0qgn.1 due02Oct06UTC is unobserved.
+Originalsaas.5 doconly contract accepted/closed; expandedruntime debt preserved in
+0qgn.5. Historical research threshold/clientfeedback remain unproved. All36original
+criteria/owners/history retained; wholeEPIC stays active and unfinished.

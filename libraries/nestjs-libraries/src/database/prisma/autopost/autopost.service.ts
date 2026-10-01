@@ -10,7 +10,7 @@ import { AutoPost, Integration } from '@prisma/client';
 import { BaseMessage } from '@langchain/core/messages';
 import striptags from 'striptags';
 import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
-import { JSDOM } from 'jsdom';
+import { extractAutopostHtmlText } from '@contentfactory/helpers/utils/html.extraction';
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
@@ -336,17 +336,8 @@ export class AutopostService {
 
   async loadUrl(url: string) {
     try {
-      const loadDom = new JSDOM(
-        await (await fetchSafePublicHttpsUrl(url)).text()
-      );
-      loadDom.window.document
-        .querySelectorAll('script')
-        .forEach((s) => s.remove());
-      loadDom.window.document
-        .querySelectorAll('style')
-        .forEach((s) => s.remove());
-      // remove all html, script and styles
-      return striptags(loadDom.window.document.body.innerHTML);
+      const html = await (await fetchSafePublicHttpsUrl(url)).text();
+      return extractAutopostHtmlText(html);
     } catch (err) {
       return '';
     }

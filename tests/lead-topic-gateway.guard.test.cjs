@@ -371,7 +371,8 @@ describe('a date is required', () => {
     );
 
     expect(pages.reads.filter((read) => read.kind === 'URL')).toHaveLength(8);
-    expect(result.items).toHaveLength(8);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].sourceRefsJson.sources).toHaveLength(8);
   });
 
   test('one slow host cannot hold up the check', async () => {
@@ -437,7 +438,7 @@ describe('junk never reaches a person', () => {
 
     const result = await gatewayWith(research).check('org-a', TOPIC);
 
-    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+    expect(result.items.flatMap(item => item.sourceRefsJson.sources.map(source => source.url))).toEqual([
       'https://strong.example/b',
       'https://unscored.example/c',
     ]);
@@ -604,4 +605,34 @@ test('missing collector never triggers a research fallback in strict-free mode',
   const research = researchStub();
   expect(await gatewayWith(research, { communityOnly: true }).check('org-a', 'Temporal')).toEqual({ disabled: false, items: [] });
   expect(research.research).not.toHaveBeenCalled();
+});
+
+test('source claims use only the already bounded dating read and never verify primacy', async () => {
+  const url = 'https://cryptorank.io/news/feed/recorded';
+  const pages = pagesStub({
+    [url]: {
+      html: '<time datetime="2026-09-11"></time><p>Источник: <a href="https://incrypted.com/article">Incrypted</a></p>',
+    },
+  });
+  const research = researchStub(sweep([{ url }]));
+  const result = await gatewayWith(research, {}, pages).check('org-a', TOPIC);
+  expect(pages.reads.filter((read) => read.kind === 'URL')).toEqual([
+    { url, kind: 'URL' },
+  ]);
+  expect(result.items[0].sourceRefsJson.attributions).toEqual([
+    {
+      fromUrl: url,
+      targetUrl: 'https://incrypted.com/article',
+      state: 'CLAIMED_UNVERIFIED',
+    },
+  ]);
+  expect(result.items[0].sourceRefsJson.sources[0].primaryStatus).toBe(
+    'UNKNOWN'
+  );
+});
+
+test('both real dated CryptoRank candidates retain their reprint URLs without fetching attribution', async()=>{
+ const {isKnownLeadReprint}=loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/leads/lead-source-refs.ts');
+ const saved=require('./fixtures/lead-story-provenance/saved-stories.json').items.filter(row=>['/leads/1','/leads/8'].includes(row.pointer));
+ for(const row of saved){const research=researchStub(sweep([{url:row.sourceUrl,title:row.title,excerpt:row.excerpt,publishedAt:row.publishedAt}]));const result=await gatewayWith(research).check('org-a',row.topic);expect(result.items).toHaveLength(1);const found=result.items[0];expect(found.publishedAt).toEqual(new Date(row.publishedAt));expect(found.sourceRefsJson.attributions).toEqual([]);expect(found.sourceRefsJson.sources[0].primaryStatus).toBe('UNKNOWN');expect(isKnownLeadReprint(found.sourceRefsJson.sources[0].url)).toBe(true);}
 });

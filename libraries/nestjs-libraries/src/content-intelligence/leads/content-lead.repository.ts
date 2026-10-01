@@ -1,3 +1,5 @@
+import { canonicalizeSourceUrl } from '../source-registry/network-policy';
+import { assertLeadSourceRefs, readLeadSourceRefs, mergeLeadSourceRefs, type LeadSourceRefsV1 } from './lead-source-refs';
 import { Injectable } from '@nestjs/common';
 import {
   PrismaRepository,
@@ -254,6 +256,147 @@ export class ContentLeadRepository {
       skipDuplicates: true,
     });
     return { created: result.count ?? 0 };
+  }
+
+  /** Same-tenant URL overlap remembers decisions while sources accumulate. */
+  async upsertStoryLeads(
+    organizationId: string,
+    subscriptionId: string,
+    items: Array<{
+      externalId: string;
+      title: string;
+      excerpt: string | null;
+      sourceUrl: string;
+      publishedAt: Date | null;
+      reasonRu: string;
+      reasonEn: string;
+      sourceRefsJson: LeadSourceRefsV1;
+    }>
+  ) {
+    if (!items.length) return { created: 0 };
+    // Validate the whole batch before opening a write transaction.
+    const checked = items.map((item) => ({
+      ...item,
+      sourceRefsJson: assertLeadSourceRefs(item.sourceRefsJson),
+    }));
+    const canonical = (url: string) => {
+      try {
+        return canonicalizeSourceUrl(url);
+      } catch {
+        return url;
+      }
+    };
+    for (const item of checked) {
+      if (
+        !item.sourceRefsJson.sources.some(
+          (source) => canonical(source.url) === canonical(item.sourceUrl)
+        ) ||
+        item.sourceRefsJson.sources.some(
+          (source) =>
+            source.canonicalUrl !== null &&
+            canonical(source.url) !== source.canonicalUrl
+        )
+      )
+        throw new Error('INVALID_LEAD_SOURCE_REFS');
+    }
+    const storedRefs = (row: any): LeadSourceRefsV1 =>
+      readLeadSourceRefs(row.sourceRefsJson) || {
+        version: 1,
+        sources: [
+          {
+            url: row.sourceUrl,
+            canonicalUrl: canonical(row.sourceUrl),
+            primaryStatus: 'UNKNOWN',
+          },
+        ],
+        attributions: [],
+        truncated: false,
+      };
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await (this.transaction.model as any).$transaction(
+          async (database: any) => {
+            let created = 0;
+            // One same-tenant projection per transaction attempt. Include all
+            // historic URL variants; a row limit would miss overlap evidence.
+            const rows = await database.contentLead.findMany({
+              where: { organizationId, subscriptionId },
+              select: { id: true, externalId: true, sourceUrl: true, sourceRefsJson: true },
+            });
+            for (const item of checked) {
+              const urls = new Set(
+                item.sourceRefsJson.sources.map((source) =>
+                  canonical(source.canonicalUrl || source.url)
+                )
+              );
+              const matches = rows.filter(
+                (row: any) =>
+                  row.externalId === item.externalId ||
+                  storedRefs(row).sources.some((source) =>
+                    urls.has(canonical(source.canonicalUrl || source.url))
+                  )
+              );
+              if (matches.length > 1)
+                throw new ContentLeadError(
+                  'LEAD_NOT_NEW',
+                  'Story overlaps several saved leads; existing decisions were preserved',
+                  409
+                );
+              const existing = matches[0];
+              const sourceRefsJson = existing
+                ? mergeLeadSourceRefs(storedRefs(existing), item.sourceRefsJson)
+                : item.sourceRefsJson;
+              const primary = sourceRefsJson.sources.find(
+                (source) => source.primaryStatus === 'VERIFIED_PRIMARY'
+              );
+              const data = {
+                title: item.title,
+                excerpt: item.excerpt,
+                sourceUrl: primary?.url || item.sourceUrl,
+                publishedAt: item.publishedAt,
+                reasonRu: item.reasonRu,
+                reasonEn: item.reasonEn,
+                sourceRefsJson,
+              };
+              if (existing) {
+                const changed = await database.contentLead.updateMany({
+                  where: {
+                    organizationId, subscriptionId,
+                    ...(existing.id ? { id: existing.id } : { externalId: existing.externalId }),
+                  },
+                  data,
+                });
+                if (changed.count !== 1) leadNotFound();
+                Object.assign(existing, { sourceUrl: data.sourceUrl, sourceRefsJson });
+              } else {
+                const result = await database.contentLead.createMany({
+                  data: [
+                    {
+                      organizationId,
+                      subscriptionId,
+                      externalId: item.externalId,
+                      ...data,
+                    },
+                  ],
+                  skipDuplicates: true,
+                });
+                if (result.count !== 1) throw new Error('LEAD_STORY_WRITE_CONFLICT');
+                created += result.count;
+                // createMany returns no generated id. The unique tenant /
+                // subscription / externalId key addresses this new row when
+                // a later item in this batch overlaps its accumulated URLs.
+                rows.push({ externalId: item.externalId, sourceUrl: data.sourceUrl, sourceRefsJson });
+              }
+            }
+            return { created };
+          },
+          { isolationLevel: 'Serializable' }
+        );
+      } catch (error: any) {
+        if (error?.code === 'P2034' && attempt < 2) continue;
+        throw error;
+      }
+    }
   }
 
   async listLeads(

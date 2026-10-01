@@ -1,3 +1,4 @@
+import type { LeadSourceRefsV1 } from './lead-source-refs';
 import { Injectable, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { SourceFetchGateway } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway';
@@ -45,6 +46,7 @@ export type LeadFeedItemV1 = {
    * judge about whether it belongs. Absent — the ordinary case — means
    * `lead-reason.ts` writes the sentence from its rules, as it always has.
    */
+  sourceRefsJson?: LeadSourceRefsV1;
   reason?: { ru: string; en: string } | null;
 };
 

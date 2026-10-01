@@ -2280,6 +2280,7 @@ model ContentLead {
   title             String
   excerpt           String?
   sourceUrl         String
+  sourceRefsJson    Json?
   publishedAt       DateTime?
   observedAt        DateTime                @default(now())
   /// Why this reader, not just what the item says (`Ideas.dc.html`'s card

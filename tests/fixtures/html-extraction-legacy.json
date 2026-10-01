@@ -1,0 +1,487 @@
+{
+  "sourceHashes": {
+    "extract": "195ff2af684905e574ede8d246484f499b82560b11fd1a52b2f74fc6fd7dd722",
+    "autopost": "90c135f6388a5028c1b150dba32b1ec76d5431a94471c3a59c2539e760bce72a"
+  },
+  "findDepthBody": "\n  let depth = 0;\n  let elementer = element;\n  while (elementer.parentNode) {\n    depth++;\n    // @ts-ignore\n    elementer = elementer.parentNode;\n  }\n  return depth;",
+  "extractBody": "const dom = new JSDOM(load);\n\n    // only element that has a title\n    const allTitles = Array.from(dom.window.document.querySelectorAll('*'))\n      .filter((f) => {\n        return (\n          f.querySelector('h1') ||\n          f.querySelector('h2') ||\n          f.querySelector('h3') ||\n          f.querySelector('h4') ||\n          f.querySelector('h5') ||\n          f.querySelector('h6')\n        );\n      })\n      .reverse();\n\n    const findTheOneWithMostTitles = allTitles.reduce(\n      (all, current) => {\n        const depth = findDepth(current);\n        const calculate = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].reduce(\n          (total, tag) => {\n            if (current.querySelector(tag)) {\n              return total + 1;\n            }\n            return total;\n          },\n          0\n        );\n\n        if (calculate > all.total) {\n          return { total: calculate, depth, element: current };\n        }\n\n        if (depth > all.depth) {\n          return { total: calculate, depth, element: current };\n        }\n\n        return all;\n      },\n      { total: 0, depth: 0, element: null }\n    );\n\n    return findTheOneWithMostTitles?.element?.textContent\n      ?.replace(/\\n/g, ' ')\n      .replace(/ {2,}/g, ' ');",
+  "autopostBody": "\n    try {\n      const loadDom = new JSDOM(\n        html\n      );\n      loadDom.window.document\n        .querySelectorAll('script')\n        .forEach((s) => s.remove());\n      loadDom.window.document\n        .querySelectorAll('style')\n        .forEach((s) => s.remove());\n      // remove all html, script and styles\n      return striptags(loadDom.window.document.body.innerHTML);\n    } catch (err) {\n      return '';\n    }",
+  "savedOracleResults": [
+    {
+      "id": "normal",
+      "sourceSha256": "16b6eeb9523b50086c7cb5c083d6d20cf5db34851b734bab8acc0801bab3adc0",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "NewsOne paragraph.DetailsSecond paragraph."
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "NewsOne paragraph.DetailsSecond paragraph."
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "NewsOne paragraph.DetailsSecond paragraph."
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "NewsOne paragraph.DetailsSecond paragraph."
+      }
+    },
+    {
+      "id": "malformed",
+      "sourceSha256": "0f93685215c11785891db2a3a7e6d5b09b49e2e13c55da7cc8c77f64ba696a59",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "BrokenOne boldNext text"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "BrokenOne boldNext text"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "BrokenOne boldNext textCell"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "BrokenOne boldNext textCell"
+      }
+    },
+    {
+      "id": "missing-body",
+      "sourceSha256": "55e42ee84c27625e46ff3deb95a42ee2680a7ccf482140b7831d1a532b15f3b1",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "Added bodyContent"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "Added bodyContent"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "Added bodyContent"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "Added bodyContent"
+      }
+    },
+    {
+      "id": "entities-cyrillic",
+      "sourceSha256": "258762fc48be02dbee6e59de2c07c90ce575244501e2bb4f94187d0b41970104",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "Привет & мирЦена < 10 > 2 \"да\" 'нет'     🚀 ©"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "Привет & мирЦена < 10 > 2 \"да\" 'нет'     🚀 ©"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "Привет &amp; мирЦена &lt; 10 &gt; 2 \"да\" 'нет' &nbsp; &nbsp; 🚀 ©"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "Привет &amp; мирЦена &lt; 10 &gt; 2 \"да\" 'нет' &nbsp; &nbsp; 🚀 ©"
+      }
+    },
+    {
+      "id": "comments",
+      "sourceSha256": "c979aca2c56998fc5c8f522a9f86b8481f56cf72a31788d2315e15632b0e69e6",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "TitleAB"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "TitleAB"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "TitleAB"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "TitleAB"
+      }
+    },
+    {
+      "id": "script-style",
+      "sourceSha256": "955f474b3b2f736abda900f2a95aebe18ebbeb7b42ee1976bb6b04aefb5496eb",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "Titleif (a < b) x='&amp;';.a{display:none}Visible"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "Titleif (a < b) x='&amp;';.a{display:none}Visible"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "TitleVisible"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "TitleVisible"
+      }
+    },
+    {
+      "id": "fragment",
+      "sourceSha256": "2e2cba20a6f603f21467478b0d76e53ec65949e5c2dca17f99be19b3e4a422f9",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "hello Fragment outside inline tail"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "hello Fragment outside inline tail"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "hello Fragment outside inline tail"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "hello Fragment outside inline tail"
+      }
+    },
+    {
+      "id": "nested-headings",
+      "sourceSha256": "afd959a5369c8dd379b2004851877c1836b5ae1c7bea4ebe2d81e115115aec50",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "WideNestedDeepBody"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "WideNestedDeepBody"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "WideNestedDeepBody"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "WideNestedDeepBody"
+      }
+    },
+    {
+      "id": "ties-reverse",
+      "sourceSha256": "bfe044b1df96e841d6a4f3257a0b5545e21996d71a5a74c55c2789ce3f2e7fdd",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "LastB"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "LastB"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "FirstALastB"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "FirstALastB"
+      }
+    },
+    {
+      "id": "depth-override",
+      "sourceSha256": "57d0bad97278d410202edc244cb4524fd5c4527f5000c1190468fe48de835d08",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "FirstSecond"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "FirstSecond"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "FirstSecondOnly deepDepth has priority"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "FirstSecondOnly deepDepth has priority"
+      }
+    },
+    {
+      "id": "template",
+      "sourceSha256": "cb6a9380f4ac21bf0268dc08fa849fd39a6c98a1e41a3881893f09b4ff5a481e",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "VisibleAfter"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "VisibleAfter"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "VisibleHidden headingkeepInTemplate()keep{}Template textAfter"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "VisibleHidden headingkeepInTemplate()keep{}Template textAfter"
+      }
+    },
+    {
+      "id": "template-only-heading",
+      "sourceSha256": "c96b8e86564bfabcf1518ae809bcb66ace5cc64e1addf7ca48251636d17d4f86",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "undefined"
+      },
+      "extractActual": {
+        "type": "undefined"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "No visible heading"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "No visible heading"
+      }
+    },
+    {
+      "id": "svg",
+      "sourceSha256": "934ba32ab1feb5ce30df99cd3f620b58bdb76d175a875e8de69b9b0f837041e8",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "SVGVectorA & Bremove().s{}Foreign titleForeign text"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "SVGVectorA & Bremove().s{}Foreign titleForeign text"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "SVGVectorA &amp; BForeign titleForeign text"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "SVGVectorA &amp; BForeign titleForeign text"
+      }
+    },
+    {
+      "id": "svg-case",
+      "sourceSha256": "dd321235d6e8037dbb6656764309b14c9071832a6f70d3a69622919a7571ad02",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "HTML title"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "HTML title"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "Foreign capitalForeign lowerHTML title"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "Foreign capitalForeign lowerHTML title"
+      }
+    },
+    {
+      "id": "undefined-no-heading",
+      "sourceSha256": "b87f0c2aafb0e22984ce9179b14a8519f317ad413935bf0cfc1601fdeebc7390",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "undefined"
+      },
+      "extractActual": {
+        "type": "undefined"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "No titleStrong"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "No titleStrong"
+      }
+    },
+    {
+      "id": "empty",
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "undefined"
+      },
+      "extractActual": {
+        "type": "undefined"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": ""
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": ""
+      }
+    },
+    {
+      "id": "whitespace",
+      "sourceSha256": "10d3f3df8782e1e4ea0a4d4285346ac5a9fa59f5c76c1f6b204cbd8e4be4966a",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": " A B\tC More words "
+      },
+      "extractActual": {
+        "type": "string",
+        "value": " A B\tC More words "
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": " A\n B\tC    More\n words  "
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": " A\n B\tC    More\n words  "
+      }
+    },
+    {
+      "id": "noscript",
+      "sourceSha256": "3d64e8e739a7aa92b5d43e67900b80e993869a10f2fbc16a545a8cb8d4aca66d",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "HeadingFallbackNoscript contentEnd"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "HeadingFallbackNoscript contentEnd"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "HeadingFallbackNoscript contentEnd"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "HeadingFallbackNoscript contentEnd"
+      }
+    },
+    {
+      "id": "frameset-null-body",
+      "sourceSha256": "ad9c7b4ea04699d159c9006765536cbc4d36ca3e339bc5849d2877520c886c7c",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "undefined"
+      },
+      "extractActual": {
+        "type": "undefined"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": ""
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": ""
+      }
+    },
+    {
+      "id": "table-foster-parenting",
+      "sourceSha256": "99d6c1775f89685e3fe7684f9326e079a92b188134603e221ac83f387e2b7c05",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "HeadingCell headingdataoutsidetail"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "HeadingCell headingdataoutsidetail"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "HeadingCell headingdataoutsidetail"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "HeadingCell headingdataoutsidetail"
+      }
+    },
+    {
+      "id": "heading-self-only",
+      "sourceSha256": "4b34f30e85e3a83eb4e2002e89e73c7020156829f78ab5de10a1162ea814596c",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "Only heading"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "Only heading"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "Only heading"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "Only heading"
+      }
+    },
+    {
+      "id": "links-voids",
+      "sourceSha256": "e6db78039ecb434fccd21899988353240dcf2ec48ed66ebf447cd66838aeba29",
+      "extractEqual": true,
+      "autopostEqual": true,
+      "extractExpected": {
+        "type": "string",
+        "value": "LinkABC"
+      },
+      "extractActual": {
+        "type": "string",
+        "value": "LinkABC"
+      },
+      "autopostExpected": {
+        "type": "string",
+        "value": "LinkABC"
+      },
+      "autopostActual": {
+        "type": "string",
+        "value": "LinkABC"
+      }
+    }
+  ]
+}
