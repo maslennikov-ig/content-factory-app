@@ -504,6 +504,99 @@ const createAuthService = ({
   };
 };
 
+describe('registration pre-write form refusal classification', () => {
+  const registration = (email = 'guest@example.com') =>
+    Object.assign(new CreateOrgUserDto(), {
+      provider: Provider.LOCAL,
+      email,
+      password: 'Secret!7',
+    });
+
+  test('a forbidden plus address is a retryable registration refusal before lookup or writes', async () => {
+    const previous = process.env.DISALLOW_PLUS;
+    process.env.DISALLOW_PLUS = 'true';
+    try {
+      const { service, userService, organizationService, emailService } =
+        createAuthService();
+
+      await expect(
+        service.routeAuth(
+          Provider.LOCAL,
+          registration('guest+form@example.com'),
+          '127.0.0.1',
+          'agent'
+        )
+      ).rejects.toMatchObject({
+        name: 'RegistrationFormRefusal',
+        code: 'email_plus_not_allowed',
+        message: 'Email with plus sign is not allowed',
+      });
+      expect(userService.getUserByEmail).not.toHaveBeenCalled();
+      expect(organizationService.createOrgAndUser).not.toHaveBeenCalled();
+      expect(emailService.sendEmail).not.toHaveBeenCalled();
+
+      // This classification authorizes registration correction only.
+      await expect(
+        service.routeAuth(
+          Provider.LOCAL,
+          Object.assign(new LoginUserDto(), {
+            email: 'guest+form@example.com',
+            password: 'Secret!7',
+          }),
+          '127.0.0.1',
+          'agent'
+        )
+      ).rejects.toMatchObject({ name: 'Error' });
+    } finally {
+      if (previous === undefined) delete process.env.DISALLOW_PLUS;
+      else process.env.DISALLOW_PLUS = previous;
+    }
+  });
+
+  test('a known existing email is retryable before account or mail writes', async () => {
+    const { service, userService, organizationService, emailService } =
+      createAuthService({ existingLocalUser: { id: 'existing-user' } });
+
+    await expect(
+      service.routeAuth(
+        Provider.LOCAL,
+        registration('Guest@Example.com'),
+        '127.0.0.1',
+        'agent'
+      )
+    ).rejects.toMatchObject({
+      name: 'RegistrationFormRefusal',
+      code: 'email_already_exists',
+      message: 'Email already exists',
+    });
+    expect(userService.getUserByEmail).toHaveBeenCalledWith('guest@example.com');
+    expect(organizationService.createOrgAndUser).not.toHaveBeenCalled();
+    expect(emailService.sendEmail).not.toHaveBeenCalled();
+  });
+
+  test.each(['database', 'mail'])(
+    'a %s failure with the same form-error message is never reclassified',
+    async (stage) => {
+      const { service, organizationService, emailService } = createAuthService();
+      const failure = new Error('Email already exists');
+      if (stage === 'database') {
+        organizationService.createOrgAndUser.mockRejectedValueOnce(failure);
+      } else {
+        emailService.sendEmail.mockRejectedValueOnce(failure);
+      }
+
+      await expect(
+        service.routeAuth(Provider.LOCAL, registration(), '127.0.0.1', 'agent')
+      ).rejects.toBe(failure);
+      expect(failure.name).toBe('Error');
+      expect(organizationService.createOrgAndUser).toHaveBeenCalledTimes(1);
+      expect(emailService.sendEmail).toHaveBeenCalledTimes(
+        stage === 'mail' ? 1 : 0
+      );
+    }
+  );
+});
+
 describe('the account-activation email speaks the registration language', () => {
   test('a Russian registration gets a Russian subject and body, not English', async () => {
     requireApproval(false);

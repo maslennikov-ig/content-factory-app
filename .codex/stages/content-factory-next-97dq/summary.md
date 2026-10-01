@@ -1,5 +1,15 @@
 # Ninth wave execution (eighth-walk findings, 18.09.2026)
 
+## Status reconciliation — 01.10.2026
+
+Beads `97dq.9` and `.95`–`.99` were stale open records for already delivered work;
+they are now closed with exact release/live-stand/regression evidence. Only `.43`
+remains under this epic, with shipped and superseded items noted separately.
+This is reconciliation of accepted delivery, not a claim that every later UI or
+model-quality observation passed. Historical evidence below is retained verbatim.
+See [the audit](../content-factory-next-kcxz/evidence/status-reconciliation-2026-10-01.md).
+
+
 Specification: docs/product/eighth-walk-wave-2026-09-18-spec.md. Beads 97dq owns status; this file records
 execution and acceptance evidence. Orchestrator: Claude Fable 5.1 root; streams run on Opus 5.
 

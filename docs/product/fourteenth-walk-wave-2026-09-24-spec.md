@@ -48,7 +48,8 @@ Facts found (read-only):
   channel tab, the piece on «Суть»), with the existing confirm; the text-column delete goes.
 
 ### 97dq.79 — Link on words (B2)
-- For html editors (Telegram) the author link is attached to 2–5 meaningful words as `[words](url)`,
+- For html editors (Telegram) the author link is attached to 2–5 meaningful words using Markdown
+  link syntax (`[words]` immediately followed by `(url)`),
   never a bare address; plain editors keep the address. Optional «Текст ссылки» under «Ссылка для
   поста» (post and brief answer): when filled, exactly those words carry the link.
 

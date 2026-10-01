@@ -62,6 +62,7 @@ const { TelegramProvider } = loadTypeScriptModule(
 const issuer = 'https://oauth.telegram.org';
 const testClientId = 'telegram-test-client';
 const testClientCredential = 'not-a-real-credential';
+const inspectedState = 's'.repeat(43);
 let primaryKeys;
 let rotatedKeys;
 
@@ -129,6 +130,137 @@ afterAll(() => {
 });
 
 describe('Telegram OIDC provider', () => {
+  test.each([
+    ['login', undefined],
+    ['link', { redirect_uri: 'https://app.example/settings' }],
+  ])(
+    'inspects %s purpose without spending the browser-bound state',
+    async (purpose, query) => {
+      const provider = new TelegramProvider();
+      const link = new URL(await provider.generateLink(query));
+      const state = link.searchParams.get('state');
+      const stored = redisValues.get(`auth:telegram:pkce:${state}`);
+
+      await expect(
+        provider.getStatePurpose({ state, browserState: state })
+      ).resolves.toBe(purpose);
+      await expect(
+        provider.getStatePurpose({ state, browserState: state })
+      ).resolves.toBe(purpose);
+
+      expect(redisValues.get(`auth:telegram:pkce:${state}`)).toBe(stored);
+      expect(ioRedis.get).toHaveBeenCalledWith(`auth:telegram:pkce:${state}`);
+      expect(ioRedis.getdel).not.toHaveBeenCalled();
+      expect(ioRedis.del).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
+    }
+  );
+
+  test.each([
+    ['missing state', {}],
+    ['missing cookie', { state: inspectedState }],
+    ['foreign cookie', { state: inspectedState, browserState: 'f'.repeat(43) }],
+    [
+      'longer foreign cookie',
+      { state: inspectedState, browserState: 'a-much-longer-foreign-state' },
+    ],
+    [
+      'non-string state',
+      { state: [inspectedState], browserState: inspectedState },
+    ],
+    [
+      'matching oversized nonce',
+      { state: 'x'.repeat(4_096), browserState: 'x'.repeat(4_096) },
+    ],
+    [
+      'matching malformed nonce',
+      { state: '/'.repeat(43), browserState: '/'.repeat(43) },
+    ],
+  ])(
+    'refuses purpose inspection with %s before looking in Redis',
+    async (_case, callback) => {
+      const provider = new TelegramProvider();
+      redisValues.set(
+        `auth:telegram:pkce:${inspectedState}`,
+        'original-verifier'
+      );
+
+      await expect(provider.getStatePurpose(callback)).rejects.toThrow(
+        'Invalid or expired Telegram state'
+      );
+
+      expect(ioRedis.get).not.toHaveBeenCalled();
+      expect(ioRedis.getdel).not.toHaveBeenCalled();
+      expect(redisValues.get(`auth:telegram:pkce:${inspectedState}`)).toBe(
+        'original-verifier'
+      );
+      expect(global.fetch).not.toHaveBeenCalled();
+    }
+  );
+
+  test('unknown and expired states have the same inspection refusal', async () => {
+    const provider = new TelegramProvider();
+    const expired = new URL(await provider.generateLink()).searchParams.get(
+      'state'
+    );
+    // Redis expires this key in production; removing it reproduces that result.
+    redisValues.delete(`auth:telegram:pkce:${expired}`);
+
+    for (const state of ['u'.repeat(43), expired]) {
+      await expect(
+        provider.getStatePurpose({ state, browserState: state })
+      ).rejects.toThrow('Invalid or expired Telegram state');
+    }
+    expect(ioRedis.getdel).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('inspection preserves PKCE exchange and then refuses the consumed state', async () => {
+    const provider = new TelegramProvider();
+    const state = new URL(await provider.generateLink()).searchParams.get(
+      'state'
+    );
+    const verifier = JSON.parse(
+      redisValues.get(`auth:telegram:pkce:${state}`)
+    ).verifier;
+    const idToken = await signToken();
+    await mockTelegram(idToken);
+
+    await expect(
+      provider.getStatePurpose({ state, browserState: state })
+    ).resolves.toBe('login');
+    await expect(
+      provider.getToken('one-time-code', undefined, {
+        state,
+        browserState: state,
+      })
+    ).resolves.toBe(idToken);
+    expect(tokenRequestBody().get('code_verifier')).toBe(verifier);
+    await expect(
+      provider.getStatePurpose({ state, browserState: state })
+    ).rejects.toThrow('Invalid or expired Telegram state');
+    expect(ioRedis.getdel).toHaveBeenCalledTimes(1);
+  });
+
+  test('refuses inspection of a state written for another deployment generically', async () => {
+    const provider = new TelegramProvider();
+    const state = 'f'.repeat(43);
+    redisValues.set(
+      `auth:telegram:pkce:${state}`,
+      JSON.stringify({
+        verifier: 'a-verifier',
+        redirectUri: 'https://attacker.example/settings',
+        purpose: 'link',
+      })
+    );
+
+    await expect(
+      provider.getStatePurpose({ state, browserState: state })
+    ).rejects.toThrow('Invalid or expired Telegram state');
+    expect(ioRedis.getdel).not.toHaveBeenCalled();
+    expect(redisValues.has(`auth:telegram:pkce:${state}`)).toBe(true);
+  });
+
   test('builds a short-lived S256 authorization request without extra scopes', async () => {
     const provider = new TelegramProvider();
     const link = new URL(await provider.generateLink());

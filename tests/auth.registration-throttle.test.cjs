@@ -1,5 +1,5 @@
 const { Reflector } = require('@nestjs/core');
-const { Logger } = require('@nestjs/common');
+const { Logger, ValidationPipe } = require('@nestjs/common');
 const {
   ThrottlerException,
   ThrottlerStorageService,
@@ -22,14 +22,16 @@ const { createTransientClientTracker, ThrottlerBehindProxyGuard } =
 
 // One handler identity per route, because `generateKey` mixes the handler name
 // into the storage key: two routes must not share a budget by accident, and the
-// same route must reuse its own across calls.
+// same route must reuse its own across calls. Express maps case-insensitive
+// spellings to that same handler.
 const handlers = new Map();
 function handlerFor(path) {
-  if (!handlers.has(path)) {
-    const name = path.replace(/[^a-z]+/gi, '_');
-    handlers.set(path, { [name]: function () {} }[name]);
+  const route = path.toLowerCase();
+  if (!handlers.has(route)) {
+    const name = route.replace(/[^a-z]+/gi, '_');
+    handlers.set(route, { [name]: function () {} }[name]);
   }
-  return handlers.get(path);
+  return handlers.get(route);
 }
 
 function requestContext(url, address = '198.51.100.24', headers = {}) {
@@ -74,14 +76,52 @@ function createGuard() {
 }
 
 describe('registration and recovery throttling', () => {
-  test('a repeated registration from one caller is refused while another caller remains independent', async () => {
+  test('DTO refusal leaves room for an immediately corrected registration', async () => {
+    const { guard, storage } = createGuard();
+    const { CreateOrgUserDto } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts'
+    );
+    const pipe = new ValidationPipe({ transform: true, whitelist: true });
+    await guard.onModuleInit();
+    try {
+      await expect(
+        guard.canActivate(requestContext('/auth/register'))
+      ).resolves.toBe(true);
+      await expect(
+        pipe.transform(
+          { provider: 'LOCAL', email: 'not-an-email', password: 'Secret!7' },
+          { type: 'body', metatype: CreateOrgUserDto }
+        )
+      ).rejects.toMatchObject({ status: 400 });
+
+      await expect(
+        guard.canActivate(requestContext('/auth/register'))
+      ).resolves.toBe(true);
+      await expect(
+        pipe.transform(
+          {
+            provider: 'LOCAL',
+            email: 'corrected@example.com',
+            password: 'Secret!7',
+          },
+          { type: 'body', metatype: CreateOrgUserDto }
+        )
+      ).resolves.toBeInstanceOf(CreateOrgUserDto);
+    } finally {
+      storage.onApplicationShutdown();
+    }
+  });
+
+  test('registration has ten attempts per caller while another caller remains independent', async () => {
     const { guard, storage } = createGuard();
     const warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     await guard.onModuleInit();
 
-    await expect(
-      guard.canActivate(requestContext('/auth/register'))
-    ).resolves.toBe(true);
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(
+        guard.canActivate(requestContext('/auth/register'))
+      ).resolves.toBe(true);
+    }
     await expect(
       guard.canActivate(requestContext('/auth/register'))
     ).rejects.toBeInstanceOf(ThrottlerException);
@@ -102,8 +142,13 @@ describe('registration and recovery throttling', () => {
     const warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     await guard.onModuleInit();
 
+    for (let attempt = 0; attempt < 9; attempt += 1) {
+      await expect(
+        guard.canActivate(requestContext('/auth/register'))
+      ).resolves.toBe(true);
+    }
     await expect(
-      guard.canActivate(requestContext('/auth/register'))
+      guard.canActivate(requestContext('/auth/register/'))
     ).resolves.toBe(true);
     await expect(
       guard.canActivate(requestContext('/auth/register/'))
@@ -112,6 +157,42 @@ describe('registration and recovery throttling', () => {
     warning.mockRestore();
     storage.onApplicationShutdown();
   });
+
+  test.each(['/auth/REGISTER', '/AUTH/REGISTER'])(
+    'canonical and mixed-case %s share one registration attempt budget',
+    async (path) => {
+      const { guard, storage } = createGuard();
+      const warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      await guard.onModuleInit();
+      try {
+        expect(requestContext(path).getHandler()).toBe(
+          requestContext('/auth/register').getHandler()
+        );
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          await expect(
+            guard.canActivate(
+              requestContext(attempt % 2 === 0 ? '/auth/register' : path)
+            )
+          ).resolves.toBe(true);
+        }
+        await expect(
+          guard.canActivate(requestContext(path))
+        ).rejects.toBeInstanceOf(ThrottlerException);
+        await expect(
+          guard.canActivate(requestContext('/auth/register'))
+        ).rejects.toBeInstanceOf(ThrottlerException);
+        await expect(
+          guard.canActivate(requestContext(path, '198.51.100.25'))
+        ).resolves.toBe(true);
+        expect(warning).toHaveBeenCalledWith(
+          'Auth throttle exhausted for POST /auth/register'
+        );
+      } finally {
+        warning.mockRestore();
+        storage.onApplicationShutdown();
+      }
+    }
+  );
 
   test('forgot-password has a bounded per-caller budget', async () => {
     const { guard, storage } = createGuard();

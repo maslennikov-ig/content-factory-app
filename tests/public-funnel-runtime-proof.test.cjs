@@ -74,7 +74,7 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         networks: [],
       },
     });
-    expect(summary.checks).toHaveLength(16);
+    expect(summary.checks).toHaveLength(18);
     expect(summary.checks.every((check) => check.status === 'PASS')).toBe(
       true
     );
@@ -86,6 +86,8 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         'a stale starterTemplate value and an omitted one both accept an omitted workspace and get the same four tags',
         'global whitelist validation silently drops an unsupported or multi-valued starterTemplate and still creates the default four tags',
         'LOCAL duplicate and OAuth replay leave workspace and tag counts unchanged',
+        'same-caller successful registration retains its effect limit and creates no second workspace',
+        'same-caller ordinary form refusal permits an immediate corrected registration',
       ])
     );
 
@@ -116,6 +118,17 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         oauthCallbackStatus: 200,
         oauthRegisterStatus: 200,
         countsUnchanged: true,
+      },
+      effectLimit: {
+        firstStatus: 200,
+        repeatedStatus: 429,
+        countsUnchanged: true,
+        repositoryCalls: 0,
+      },
+      formRetry: {
+        refusedStatus: 400,
+        correctedStatus: 200,
+        exactlyOneWorkspaceCreated: true,
       },
     });
   }, 190_000);

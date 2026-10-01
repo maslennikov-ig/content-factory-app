@@ -48,11 +48,13 @@ const { translateBackendText } = loadTypeScriptModule(
 // route must reuse its own across calls.
 const handlers = new Map();
 const handlerFor = (path) => {
-  if (!handlers.has(path)) {
-    const name = path.replace(/[^a-z]+/gi, '_');
-    handlers.set(path, { [name]: function () {} }[name]);
+  // Express maps case variants of a route to the same controller handler.
+  const route = path.toLowerCase();
+  if (!handlers.has(route)) {
+    const name = route.replace(/[^a-z]+/gi, '_');
+    handlers.set(route, { [name]: function () {} }[name]);
   }
-  return handlers.get(path);
+  return handlers.get(route);
 };
 
 const requestContext = (
@@ -117,8 +119,14 @@ describe('the doors that spend a model budget have a ceiling', () => {
     ['the assistant chat', '/copilot/chat'],
     ['an assistant agent run', '/copilot/agent'],
     ['assistant web research', '/copilot/research'],
-    ['reading a source into a material', '/content-intelligence/sources/src-1/sync'],
-    ['drafting from a source', '/content-intelligence/sources/src-1/draft-material'],
+    [
+      'reading a source into a material',
+      '/content-intelligence/sources/src-1/sync',
+    ],
+    [
+      'drafting from a source',
+      '/content-intelligence/sources/src-1/draft-material',
+    ],
     // Вход одной мыслью тратит больше всех: два разбора, до трёх поисков и до
     // трёх генераций на один запрос (`content-factory-next-tu3k.1`).
     ['writing from one thought', '/content-intelligence/intake'],
@@ -139,6 +147,88 @@ describe('the doors that spend a model budget have a ceiling', () => {
       HttpException
     );
   });
+
+  test.each([
+    [SEARCH, '/CONTENT-INTELLIGENCE/sources/SEARCH'],
+    ['/copilot/chat', '/COPILOT/chat'],
+    ['/copilot/agent', '/copilot/AGENT'],
+    ['/copilot/research', '/COPILOT/RESEARCH'],
+    ['/content-intelligence/intake', '/content-intelligence/INTAKE'],
+    [
+      '/content-intelligence/sources/src-1/sync',
+      '/content-intelligence/sources/src-1/SYNC',
+    ],
+    [
+      '/content-intelligence/sources/src-1/draft-material',
+      '/content-intelligence/sources/src-1/DRAFT-MATERIAL',
+    ],
+    [
+      '/content-intelligence/pieces/piece-1/adapt',
+      '/content-intelligence/pieces/piece-1/ADAPT',
+    ],
+  ])(
+    'mixed-case AI spellings of %s share the same budget',
+    async (canonical, mixed) => {
+      const guard = await createGuard();
+      expect(requestContext(canonical).getHandler()).toBe(
+        requestContext(mixed).getHandler()
+      );
+      for (let i = 0; i < LIMIT; i += 1) {
+        await expect(
+          guard.canActivate(requestContext(i % 2 ? mixed : canonical))
+        ).resolves.toBe(true);
+      }
+      for (const url of [mixed, canonical]) {
+        await expect(
+          guard.canActivate(requestContext(url))
+        ).rejects.toMatchObject({ status: 429 });
+      }
+      await expect(
+        guard.canActivate(requestContext(mixed, { org: 'workspace-2' }))
+      ).resolves.toBe(true);
+    }
+  );
+
+  test('mixed-case public post spellings share activation and the posts budget', async () => {
+    const guard = await createGuard();
+    const canonical = '/public/v1/posts';
+    const mixed = '/PUBLIC/v1/POSTS';
+    expect(requestContext(canonical).getHandler()).toBe(
+      requestContext(mixed).getHandler()
+    );
+    // This route keeps the existing configured public ceiling, not the AI one.
+    for (let i = 0; i < 90; i += 1) {
+      await expect(
+        guard.canActivate(requestContext(i % 2 ? mixed : canonical))
+      ).resolves.toBe(true);
+    }
+    for (const url of [mixed, canonical]) {
+      await expect(
+        guard.canActivate(requestContext(url))
+      ).rejects.toMatchObject({ status: 429 });
+    }
+    await expect(
+      guard.canActivate(requestContext(mixed, { org: 'workspace-2' }))
+    ).resolves.toBe(true);
+  });
+
+  test.each([
+    ['/COPILOT/credits', 'GET'],
+    ['/CONTENT-INTELLIGENCE/INTAKE', 'GET'],
+    ['/PUBLIC/v1/POSTS', 'GET'],
+    ['/POSTS', 'POST'],
+    ['/content-intelligence/pieces/piece-1/ARCHIVE', 'POST'],
+  ])(
+    'mixed-case excluded %s %s remains outside the ceiling',
+    async (url, method) => {
+      const guard = await createGuard();
+      for (let i = 0; i < 95; i += 1) {
+        await expect(
+          guard.canActivate(requestContext(url, { method }))
+        ).resolves.toBe(true);
+      }
+    }
+  );
 
   test('the refusal carries a code and a sentence in the caller’s language', async () => {
     const guard = await createGuard();
@@ -210,9 +300,7 @@ describe('the doors that spend a model budget have a ceiling', () => {
       guard.canActivate(requestContext('/copilot/chat'))
     ).rejects.toBeInstanceOf(HttpException);
 
-    await expect(
-      guard.canActivate(requestContext(SEARCH))
-    ).resolves.toBe(true);
+    await expect(guard.canActivate(requestContext(SEARCH))).resolves.toBe(true);
   });
 
   test('the reads the screen polls are outside the ceiling', async () => {

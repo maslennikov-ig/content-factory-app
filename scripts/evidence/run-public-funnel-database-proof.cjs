@@ -1010,12 +1010,18 @@ async function main() {
       externalCalls: 0,
     },
   };
-  const authPost = (route, body) =>
+  let proofClientSequence = 0;
+  // Independent registration scenarios represent different callers. The real
+  // ingress replaces this header; this loopback-only stand supplies synthetic
+  // TEST-NET addresses and keeps the actual controller effect limiter enabled.
+  // Same-caller retry scenarios below pass their address explicitly.
+  const authPost = (route, body, clientAddress = `198.51.100.${++proofClientSequence}`) =>
     jsonRequest(baseUrl, route, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'user-agent': 'public-funnel-runtime-proof',
+        'x-forwarded-for': clientAddress,
       },
       body: JSON.stringify(body),
     });
@@ -1317,6 +1323,72 @@ async function main() {
         repositoryCalls: 0,
       };
       return authEvidence.replay;
+    }
+  );
+
+  await check(
+    'same-caller successful registration retains its effect limit and creates no second workspace',
+    async () => {
+      const address = '198.51.100.253';
+      const body = {
+        email: 'effect-budget-first@example.test',
+        password: 'local-http-password-12',
+        provider: 'LOCAL',
+        providerToken: '',
+      };
+      const first = await authPost('/auth/register', body, address);
+      assert.equal(first.status, 200);
+      const before = await queryCounts();
+      const intentCount = repositoryIntents.length;
+      const repeated = await authPost('/auth/register', {
+        ...body, email: 'effect-budget-second@example.test',
+      }, address);
+      assert.equal(repeated.status, 429);
+      assert.deepEqual(await queryCounts(), before);
+      assert.equal(repositoryIntents.length, intentCount);
+      authEvidence.effectLimit = {
+        firstStatus: first.status,
+        repeatedStatus: repeated.status,
+        countsUnchanged: true,
+        repositoryCalls: 0,
+      };
+      return authEvidence.effectLimit;
+    }
+  );
+
+  await check(
+    'same-caller ordinary form refusal permits an immediate corrected registration',
+    async () => {
+      const address = '198.51.100.254';
+      const body = {
+        email: 'local-http-workflow@example.test',
+        password: 'local-http-password-12',
+        provider: 'LOCAL',
+        providerToken: '',
+      };
+      const before = await queryCounts();
+      const intentCount = repositoryIntents.length;
+      const refused = await authPost('/auth/register', body, address);
+      assert.equal(refused.status, 400);
+      assert.deepEqual(await queryCounts(), before);
+      assert.equal(repositoryIntents.length, intentCount);
+      const corrected = await authPost('/auth/register', {
+        ...body, email: 'form-correction@example.test',
+      }, address);
+      assert.equal(corrected.status, 200);
+      assert.deepEqual(await queryCounts(), {
+        users: before.users + 1,
+        organizations: before.organizations + 1,
+        tags: before.tags + 4,
+      });
+      assert.equal(repositoryIntents.length, intentCount + 1);
+      assert.deepEqual((await registrationRows('form-correction@example.test')).tags, workflowTags);
+      authEvidence.formRetry = {
+        refusedStatus: refused.status,
+        correctedStatus: corrected.status,
+        exactlyOneWorkspaceCreated: true,
+      };
+      return authEvidence.formRetry;
     }
   );
 

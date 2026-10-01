@@ -15,6 +15,8 @@ import { registrationRequiresApproval } from '@contentfactory/helpers/auth/regis
 import { resolveNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
 import { AuthProviderManager } from '@contentfactory/backend/services/auth/providers/providers.manager';
 import type { AuthCallbackContext } from '@contentfactory/backend/services/auth/providers.interface';
+import type { TelegramProvider } from '@contentfactory/backend/services/auth/providers/telegram.provider';
+import { RegistrationFormRefusal } from '@contentfactory/nestjs-libraries/throttler/registration-limiter';
 import dayjs from 'dayjs';
 import { NotificationService } from '@contentfactory/nestjs-libraries/database/prisma/notifications/notification.service';
 import { ForgotReturnPasswordDto } from '@contentfactory/nestjs-libraries/dtos/auth/forgot-return.password.dto';
@@ -223,6 +225,7 @@ export class AuthService {
     // of date fails here exactly as it would fail below, and lands in the same
     // «this is an ordinary registration» answer.
     let boundEmail: string | undefined;
+    let creationStarted = false;
     try {
       boundEmail = (await inspectTeamInvitation(token)).boundEmail;
       answered = await acceptTeamInvitation(
@@ -230,16 +233,27 @@ export class AuthService {
         body.email,
         // There is no account yet, so it cannot already be a member.
         async () => false,
-        (invitation) =>
-          this._organizationService.createInvitedUser(
+        (invitation) => {
+          creationStarted = true;
+          return this._organizationService.createInvitedUser(
             { ...body, newsletterConsent },
             invitation,
             ip,
             userAgent,
             { vouchedFor: Boolean(boundEmail) }
-          )
+          );
+        }
       );
     } catch (error) {
+      // The shared invitation helper checks the address before GETDEL and
+      // before this callback. Never release a failure once creation started.
+      if (
+        !creationStarted &&
+        error instanceof TeamInvitationError &&
+        error.code === 'invite_email_mismatch'
+      ) {
+        throw new RegistrationFormRefusal('invite_email_mismatch');
+      }
       if (
         error instanceof TeamInvitationError &&
         (error.code === 'invite_used' || error.code === 'invite_invalid')
@@ -308,6 +322,9 @@ export class AuthService {
   ) {
     if (provider === Provider.LOCAL) {
       if (this.plusAddressingBlocked(body.email)) {
+        if (body instanceof CreateOrgUserDto) {
+          throw new RegistrationFormRefusal('email_plus_not_allowed');
+        }
         throw new Error('Email with plus sign is not allowed');
       }
       if (body instanceof CreateOrgUserDto) {
@@ -316,7 +333,7 @@ export class AuthService {
       const user = await this._userService.getUserByEmail(body.email);
       if (body instanceof CreateOrgUserDto) {
         if (user) {
-          throw new Error('Email already exists');
+          throw new RegistrationFormRefusal('email_already_exists');
         }
 
         if (!(await this.canRegister(provider))) {
@@ -710,6 +727,13 @@ export class AuthService {
   oauthLink(provider: string, query?: any) {
     const providerInstance = this._providerManager.getProvider(provider);
     return providerInstance.generateLink(query);
+  }
+
+  telegramStatePurpose(callback: AuthCallbackContext) {
+    const provider = this._providerManager.getProvider(
+      'TELEGRAM'
+    ) as TelegramProvider;
+    return provider.getStatePurpose(callback);
   }
 
   async linkIdentity(

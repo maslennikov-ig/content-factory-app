@@ -2,17 +2,13 @@
 
 ## Current Programme
 
-- Эпик Beads `content-factory-next-vme` держит всю оставшуюся работу: семь стадий по порядку — `vme.1` учёт AI и публичные гарантии, `vme.2` интерфейсный долг, `vme.3` эксплуатационная готовность, `9e9` контентный интеллект, `0c8` редактор изображений, `or3` публичная воронка, `cft` переезд в публичный репозиторий (последняя по решению владельца 17.08.2026). Его описание перечисляет девять решений владельца, которые ни одна стадия не поглощает; тот же список повторён в разделе отложенного в `.codex/handoff.md`.
-- Стадии `content-factory-next-vme.1`, `.2` и `.3` приняты локально на
-  release-уровне; receipts и артефакты лежат в соответствующих каталогах
-  `.codex/stages/`. Стадия `content-factory-next-9e9` также принята: после
-  research-first контракта профиль/голос, реестр источников, память и единый
-  контекст подключены к четырём путям создания. Стадия `0c8` также принята:
-  приватный Fabric.js-редактор сохраняет новую media-копию без vendor calls.
-  Стадия `or3` принята: публичный продукт и безопасный demo ведут в
-  email-first регистрацию, выбранный шаблон реально применяется через LOCAL и
-  OAuth, а конверсия хранится только в шести закрытых агрегатах. Следующая
-  программная граница — `content-factory-next-cft`; она ещё не начата.
+- Beads owns current scope/status; `.codex/handoff.md` owns the operational snapshot.
+- Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it.
+- Agent/MCP: `content-factory-next-kcxz`, `docs/product/agent-harness-spec.md`, ADR-0012; evidence and releases under `.codex/stages/content-factory-next-kcxz/`.
+- First-client onboarding/acceptance: `content-factory-next-2q28`, `.codex/stages/content-factory-next-2q28/`; preserve the existing client-page response field names.
+- Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`; search scopes `ec48`, `75xn`, `m0iy`.
+- Operations/SaaS navigation: `docs/operations/postgres-backup.md`, `production-deploy.md`, `saas-readiness.md`; current gates remain in Beads, not this index.
+- Historical programme `vme` was retired 31.08.2026. `cft` completed the public-tree move the same day; accepted `vme.1/.2/.3`, `9e9`, `0c8` and `or3` retain their stage receipts.
 
 ## Documentation
 
@@ -60,7 +56,7 @@
 - `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
 - `pieces/adaptation-review.ts`, `adaptation-review.contract.ts` и `openai/ai.roles.ts` внутри `libraries/nestjs-libraries/src/` — явная платная проверка адаптации (`review`), один вызов и атомарное принятие в DRAFT; UI `apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx`.
 - Sixth walk (`4zul`): `docs/product/sixth-walk-wave-2026-09-14-spec.md`; opinion-only questions in `intake/intake.prompts.v3.ts` and `pieces/core-questions.ts`; explicit search in `intake/intake.service.ts`; core enrichment in `pieces/piece-research.contract.ts`, `PieceService.researchCore/acceptCoreResearch` and `pieces/adaptation-review.tsx` reusing `intake.research.tsx`. Active review uses `pieces/review-semantic.v3.ts`; answer rewriting uses `pieces/core-write-prompt.v3.ts`; local/global search scope is in `openai/web.research.service.ts`. All library paths start at `libraries/nestjs-libraries/src/content-intelligence/` except `openai/`; UI paths start at `apps/frontend/src/components/content-intelligence/`.
-- Ресерч R1–R5: `libraries/nestjs-libraries/src/content-intelligence/research/` содержит policy/fetch/Wikipedia/Wikidata и квоту, `libraries/nestjs-libraries/src/openai/web.research.service.ts` — общий порт Tavily/Exa; вход и усиление заготовки используют явный выбор опор. R6/R7 ждут замера пользы.
+- Ресерч R1–R5: `libraries/nestjs-libraries/src/content-intelligence/research/` содержит policy/fetch/Wikipedia/Wikidata и квоту, `libraries/nestjs-libraries/src/openai/web.research.service.ts` — общий порт Tavily/Exa и readerSummary; контракт сводки — `docs/product/search-summary-contract.md`. Вход и усиление заготовки используют явный выбор опор. R6/R7 ждут замера пользы.
 - Общие индикатор и строка фильтров — `apps/frontend/src/components/ui/progress.tsx` и `filters-row.tsx`; каталог компонентов — `docs/design/component-inventory.md`; защита от повторной геометрии — `tests/component-geometry.guard.test.cjs`.
 - `apps/backend/src/api/routes/ndjson-stream.ts` — общий транспорт входа, адаптации и разбора аватара: без сжатия, первая строка и heartbeat. Контракты расширены отдельными `intake-v2.contract.ts` и `voice-intake-v2.contract.ts`.
 - `apps/frontend/src/components/layout/top.menu.tsx` — навигация A; четыре вкладки заготовок в `content-section.screen.tsx`.
@@ -89,7 +85,8 @@
 - `tests/cloud-saas-contract.test.cjs` и legal review runbook — матрица 3 × 16,
   абзацный каркас и явная граница человеческой проверки переводов.
 - `libraries/nestjs-libraries/src/throttler/` — per-caller потолки четырёх
-  неаутентифицированных auth POST и краткоживущий tracker без сырого адреса;
+  неаутентифицированных auth POST, краткоживущий tracker без сырого адреса и
+  `registration-limiter.ts` — owner-safe слот регистрации после DTO-проверки;
   контракт с ingress (`deploy/production/Caddyfile.snippet`, `var/docker/nginx.conf`)
   и известные ограничения описаны в `docs/operations/configuration.md`.
 - `scripts/operations/cleanup-saas-retention.cjs` — owner-run dry-run/apply
@@ -119,7 +116,7 @@
 
 ## Integrations And Sources Of Truth
 
-- Runtime product state will live in Postgres through Prisma once a migration slice is accepted.
+- Runtime product state lives in Postgres through Prisma; Mastra uses its separate database, Redis holds coordination state, and Temporal owns durable execution.
 - Git owns code, schemas, migrations, configuration examples, durable decisions, and public-safe export fixtures.
 - Beads owns task and status history; `.codex/handoff.md` owns only current operational state.
 - История Postiz сохранена в Git; remote `upstream` удалён по решению владельца.
@@ -143,7 +140,7 @@
 - Brand/UI changes follow `PRODUCT.md`, `DESIGN.md`, ADR-0006, and the interface specification. Replace user-facing Postiz identity while preserving required provenance and compatibility-sensitive legacy identifiers.
 - Never edit an already-used Temporal workflow/activity contract; create a versioned successor.
 - Keep platform-specific behavior in provider implementations.
-- No Content Factory implementation code is imported before the product licensing model is decided.
+- Donor code integration requires ownership/provenance verification and AGPL compatibility; the product licence decision is ADR-0005.
 - No credentials, private materials, real provider calls, live publishing, paid model calls, deployment, or user messaging without explicit authority.
 - Keep current-state and target-state separate according to `docs/adr/0002-separate-current-and-target-state.md`.
 - Update documentation and the local Graphify index when architecture or durable workflow changes.

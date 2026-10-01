@@ -10,6 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ThrottlerException } from '@nestjs/throttler';
 
 import { CreateOrgUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/login.user.dto';
@@ -23,6 +24,11 @@ import { EmailService } from '@contentfactory/nestjs-libraries/services/email.se
 import { RealIP } from 'nestjs-real-ip';
 import { UserAgent } from '@contentfactory/nestjs-libraries/user/user.agent';
 import { Provider } from '@prisma/client';
+import {
+  acquireRegistrationEffect,
+  releaseRegistrationEffect,
+  RegistrationFormRefusal,
+} from '@contentfactory/nestjs-libraries/throttler/registration-limiter';
 import {
   inspectTeamInvitation,
   TeamInvitationError,
@@ -95,8 +101,16 @@ export class AuthController {
     @Body() body: CreateOrgUserDto,
     @Res({ passthrough: false }) response: Response,
     @RealIP() ip: string,
-    @UserAgent() userAgent: string
+    @UserAgent() userAgent: string,
+    @Req() request: Request
   ) {
+    // Global DTO validation has already run. Keep this outside the form-error
+    // catch: an exhausted effect budget must remain HTTP 429.
+    const admission = acquireRegistrationEffect(request);
+    if (admission.allowed === false) {
+      response.header('Retry-After', String(admission.retryAfterSeconds));
+      throw new ThrottlerException();
+    }
     try {
       // No `org` cookie is ever set: the front-end proxy carries a pending
       // invitation in its own cookie and the invitation is accepted through
@@ -170,6 +184,12 @@ export class AuthController {
         register: true,
       });
     } catch (e: any) {
+      if (e instanceof RegistrationFormRefusal) {
+        releaseRegistrationEffect(admission.reservation);
+      }
+      // Unknown/partial-effect failures retain their slot; do not reinterpret
+      // all 4xx responses or matching message strings as safe form errors.
+      if (e instanceof HttpException && e.getStatus() === 429) throw e;
       response.status(400).send(e.message);
     }
   }
@@ -290,6 +310,24 @@ export class AuthController {
     }
 
     return link;
+  }
+
+  @Get('/telegram/state')
+  async telegramState(
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    response.header('Cache-Control', 'no-store');
+    try {
+      const purpose = await this._authService.telegramStatePurpose({
+        state,
+        browserState: req?.cookies?.[OAUTH_STATE_COOKIE],
+      });
+      return { purpose };
+    } catch {
+      throw new HttpException('Invalid or expired Telegram state', 400);
+    }
   }
 
   @Post('/activate')

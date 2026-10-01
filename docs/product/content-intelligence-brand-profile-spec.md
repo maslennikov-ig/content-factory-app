@@ -63,11 +63,13 @@
 - Editor хранит ручной текст и имеет явные Copilot/research actions. Само
   редактирование не требует AI:
   [`editor.tsx`](../../apps/frontend/src/components/new-launch/editor.tsx).
-- Agent передаёт в backend выбранные каналы и язык, но не профиль. Модель
-  разрешается по организации на каждый запрос:
-  [`agent.chat.tsx`](../../apps/frontend/src/components/agents/agent.chat.tsx),
-  [`copilot.controller.ts`](../../apps/backend/src/api/routes/copilot.controller.ts) и
-  [`load.tools.service.ts`](../../libraries/nestjs-libraries/src/chat/load.tools.service.ts).
+- Agent с 26–30.09 переведён на Mastra и реестр действий (`kcxz`): backend
+  строит контекст организации, пользователя и языка; модель разрешается
+  для организации на каждый запрос, а действия ограничиваются ролью.
+  Прежние `agent.chat.tsx` и `load.tools.service.ts` удалены. Текущие входы:
+  [`agent.screen.tsx`](../../apps/frontend/src/components/agents/agent.screen.tsx),
+  [`agent.controller.ts`](../../apps/backend/src/api/routes/agent.controller.ts) и
+  [`conductor.agent.ts`](../../libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts).
 - AutoPost принадлежит организации, хранит язык и собственный prompt/content,
   а AI-ветка уже обёрнута в операцию `autopost`. Текущий Temporal workflow
   бесконечный и запускает публикационный activity только по `id`; менять его

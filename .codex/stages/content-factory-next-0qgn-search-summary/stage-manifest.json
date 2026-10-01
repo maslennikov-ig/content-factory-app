@@ -1,0 +1,75 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-0qgn-search-summary",
+  "goal_id": "content-factory-next-ec48.7",
+  "epic_id": "content-factory-next-0qgn",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 3,
+  "acceptance_boundary_id": "one-grounded-reader-summary",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "provider-answer-aggregation",
+      "reader-summary-synthesis",
+      "accepted-source-grounding",
+      "search-result-consumers"
+    ],
+    "risk_models": [
+      "current-vs-forecast",
+      "original-source-names",
+      "untrusted-search-text",
+      "summary-failure-degradation",
+      "usage-metering-and-fastpath"
+    ],
+    "test_environments": [
+      "local-node22",
+      "offline-recorded-shape-model-fixtures"
+    ],
+    "rollback_boundary": "search-service-and-tests-only-no-schema",
+    "acceptance_proofs": [
+      "one-distinct-summary-operation",
+      "accepted-source-context-and-bounded-prompt",
+      "no-rewrite-single-answer-fastpaths",
+      "caller-query-no-summary-cost",
+      "failed-empty-summary-single-answer-fallback",
+      "affected-search-regressions-and-types"
+    ]
+  },
+  "source": "docs/product/search-summary-contract.md",
+  "branch": "codex/remaining-work-2026-10-01",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-0qgn-search-summary/summary.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-ec48.7",
+      "stream_owner": "search_summary",
+      "artifact_path": ".codex/stages/content-factory-next-0qgn-search-summary/artifacts/search-summary.md"
+    }
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-ec48.7",
+    "source_digest": "f83a6e4cd77ceeeb7bb0ebaee9d10c8a573b145124d03da1492ea4e69c670438",
+    "criteria": [
+      {
+        "criterion_id": "AC-existing-search-summary",
+        "text": "Область AiDev, повторная проверка 05.09.2026, коммит 1b019abd. POST /content-intelligence/sources/search с language ru.\n\nЧто ожидал: одна связная сводка «Коротко о найденном».\nЧто увидел: два абзаца подряд, по одному на каждый запрос (на языке темы и на английском), склеенные пустой строкой и не сведённые между собой. Абзацы пересекаются и расходятся по смыслу.\n\nДословно, тема про ключевую ставку, абзац первый: «Ожидается, что ключевая ставка Банка России в сентябре 2026 года останется высокой: большинство экспертов прогнозируют ее на уровне около 13,5-13,75%».\nАбзац второй: «По состоянию на 4 сентября 2026 года ключевая процентная ставка Банка России составляет 14% годовых.»\nТекущее значение названо только во втором абзаце, а первый начинает с прогноза, и человек читает 13,5-13,75 как ответ на вопрос про сентябрь. При этом верхний источник выдачи прямо говорит, что ставку скорее сохранят на 14%.\n\nВторое: перевод сводки на русский портит названия. Дословно: «объем кредитов, выданных VTBS, увеличился на 70% год к году». В исходной русской заметке это ВТБ. Название банка переехало в сводку через английский и вернулось искажённым.\n\nПричина по коду: libraries/nestjs-libraries/src/openai/web.research.service.ts, строка 625. Ответы поисковика склеиваются join('\\n\\n') без сведения, и уже склейка отдаётся на перевод.\n\nПравку fn33.133 это не отменяет: при переданном language сводка действительно приходит по-русски, проверено. Речь про её устройство.\n\n## Steps to Reproduce\n\n1. «Контент» -> «Бриф» -> «Найти» по русской теме.\n2. Прочитать «Коротко о найденном».\n\n## Acceptance Criteria\n\nСводка одна, без повторов и расхождений между половинами; названия из русских источников не искажаются.",
+        "text_digest": "8f3c2bdce3cdd968f821195bbc8b67055d75cb4575686321023138a987a64cf7"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-ec48.7/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "f83a6e4cd77ceeeb7bb0ebaee9d10c8a573b145124d03da1492ea4e69c670438",
+  "explicit_defer_note": "Local recorded-shape/mock evidence does not prove live semantic faithfulness or original real search acceptance; no paid provider call or application deployment authorized."
+}

@@ -3,7 +3,7 @@
   "stage_id": "content-factory-next-97dq",
   "goal_id": "content-factory-next-97dq",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "accepted",
   "sequence": 1,
   "acceptance_boundary_id": "eighth-walk-2026-09-18",
   "acceptance_owner": "root",
@@ -76,5 +76,6 @@
     ]
   },
   "scope_anchor": ".codex/goals/content-factory-next-97dq/scope-criterion-snapshot.json",
-  "scope_anchor_digest": "98921a32e8642696e3e77ac1cbb87b66a6478d952cbfb60ee9539225ba7a8416"
+  "scope_anchor_digest": "98921a32e8642696e3e77ac1cbb87b66a6478d952cbfb60ee9539225ba7a8416",
+  "status_reconciliation_note": "01.10.2026 lymv: original eighth-walk implementation/integration/release/owner-walk boundary is accepted, as recorded in 97dq.9 and retained release evidence. Later follow-ups are separate; 97dq epic remains open for 97dq.43. Original criteria, anchor, branch and historical proof bindings are unchanged."
 }

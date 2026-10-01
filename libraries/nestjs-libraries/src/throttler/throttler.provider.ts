@@ -33,7 +33,9 @@ export { createTransientClientTracker } from './transient-client-tracker';
  * address list impractical.
  */
 const AUTH_THROTTLES = {
-  '/auth/register': { limit: 1, ttl: 60_000 },
+  // Counts every request, including DTO refusals. Account/mail effects have a
+  // separate one-per-minute reservation acquired after validation.
+  '/auth/register': { limit: 10, ttl: 60_000 },
   '/auth/login': { limit: 10, ttl: 60_000 },
   '/auth/forgot': { limit: 5, ttl: 60_000 },
   '/auth/resend-activation': { limit: 3, ttl: 60_000 },
@@ -50,7 +52,7 @@ function authThrottlePath(
   req: Record<string, any>
 ): AuthThrottlePath | undefined {
   if (req.method !== 'POST') return undefined;
-  const path = requestPath(req);
+  const path = requestPath(req).toLowerCase();
   return path in AUTH_THROTTLES ? (path as AuthThrottlePath) : undefined;
 }
 
@@ -100,7 +102,7 @@ const AI_PATTERNS = [
 
 function isAiSpendingPath(req: Record<string, any>): boolean {
   if (req.method !== 'POST') return false;
-  const path = requestPath(req);
+  const path = requestPath(req).toLowerCase();
   return (
     (AI_PATHS as readonly string[]).includes(path) ||
     AI_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
@@ -124,7 +126,11 @@ export class ThrottlerByOrganizationGuard extends ThrottlerGuard {
     req: Record<string, any>
   ): Promise<string> {
     const owner = req.org?.id || req.ip;
-    return owner + '_' + (req.url?.indexOf('/posts') > -1 ? 'posts' : 'other');
+    return (
+      owner +
+      '_' +
+      (req.url?.toLowerCase().indexOf('/posts') > -1 ? 'posts' : 'other')
+    );
   }
 }
 
@@ -137,7 +143,8 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
   ): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     if (
-      (request.method === 'POST' && request.url.includes('/public/v1/posts')) ||
+      (request.method === 'POST' &&
+        request.url.toLowerCase().includes('/public/v1/posts')) ||
       authThrottlePath(request) ||
       isAiSpendingPath(request)
     ) {

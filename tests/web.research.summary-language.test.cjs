@@ -13,6 +13,11 @@
  * `WebSearchFallbackError` вылетает наружу и становится 500 без кода. Отказ
  * настройки (`CONTENT_SEARCH_NOT_CONFIGURED`) экран умеет объяснить, а
  * временный сбой — нет, хотя именно он лечится повтором.
+ *
+ * `content-factory-next-ec48.7`: два ответа нужно свести в один, отделив
+ * текущую ставку от прогноза и сохранив названия из самих источников.
+ * Ниже используются офлайн-примеры в форме ответов поисковика; они проверяют
+ * данные и ограничения вызова, а не качество живой модели.
  */
 
 const fs = require('node:fs');
@@ -60,17 +65,20 @@ let classification;
 let aiConfig;
 let searchAnswer;
 let summaryResult;
+let summaryError;
 const templates = [];
 const promptInputs = [];
 const chatModelCalls = [];
+const searchCalls = [];
 
 const promptFor = (template) => ({
   pipe: () => ({
     invoke: async (input) => {
       promptInputs.push({ template, input });
-      return template.includes('Classify the research subject')
-        ? classification
-        : summaryResult;
+      if (template.includes('Classify the research subject'))
+        return classification;
+      if (summaryError) throw summaryError;
+      return summaryResult;
     },
   }),
 });
@@ -104,11 +112,16 @@ const { WebResearchService } = loadTypeScriptModule(
       WEB_SEARCH_MAX_SOURCE_CHARS: 8_000,
       WEB_SEARCH_MAX_RESULT_CHARS: 32_000,
       getChatModel: async (organizationId, temperature, maxTokens, role) => {
-        chatModelCalls.push({ organizationId, temperature, role });
+        chatModelCalls.push({ organizationId, temperature, maxTokens, role });
         return { withStructuredOutput: () => ({}) };
       },
       getWebSearchClient: async () => ({
-        invoke: async () => searchAnswer,
+        invoke: async ({ query }) => {
+          searchCalls.push(query);
+          return typeof searchAnswer === 'function'
+            ? searchAnswer(query)
+            : searchAnswer;
+        },
       }),
     },
     '@langchain/core/prompts': {
@@ -127,16 +140,93 @@ const aiUsage = {
     callback(),
 };
 
+const summaryCalls = () =>
+  promptInputs.filter(
+    ({ template }) => !template.includes('Classify the research subject')
+  );
+
+// Форма Tavily: answer, results с title/content и датой публикации. Цифры и
+// формулировки воспроизводят расхождение из ec48.7, а адреса учебные.
+const rateResponses = [
+  {
+    answer:
+      'Ожидается, что ключевая ставка Банка России в сентябре 2026 года останется высокой: большинство экспертов прогнозируют ее на уровне около 13,5–13,75%.',
+    results: [
+      {
+        title: 'Ключевую ставку, скорее всего, сохранят на 14%',
+        url: 'https://example.org/rate-forecast',
+        content:
+          'На 4 сентября 2026 года ключевая ставка Банка России составляет 14% годовых. Эксперты ожидают сохранения ставки на следующем заседании; прогноз 13,5–13,75% относится к возможному будущему снижению.',
+        published_date: '2026-09-04',
+      },
+    ],
+  },
+  {
+    answer:
+      'As of 4 September 2026, the Bank of Russia key interest rate is 14% per annum.',
+    results: [
+      {
+        title: 'Bank of Russia key rate decision',
+        url: 'https://example.org/rate-decision',
+        content:
+          'The key rate is 14% per annum as of 4 September 2026. A later cut is a forecast, not an announced decision.',
+        published_date: '2026-09-04',
+      },
+    ],
+  },
+];
+
+const bankResponses = [
+  {
+    answer: 'ВТБ увеличил объём выданных кредитов на 70% год к году.',
+    results: [
+      {
+        title: 'ВТБ сообщил о росте кредитования',
+        url: 'https://example.org/bank-ru',
+        content:
+          'ВТБ: объём кредитов, выданных банком, увеличился на 70% год к году по состоянию на август 2026 года.',
+        published_date: '2026-09-04',
+      },
+    ],
+  },
+  {
+    answer: 'Loans issued by VTBS increased by 70% year on year.',
+    results: [
+      {
+        title: 'Russian bank lending in August',
+        url: 'https://example.org/bank-en',
+        content:
+          'The Russian report describes a 70% year-on-year increase in loans issued in August 2026.',
+        published_date: '2026-09-04',
+      },
+    ],
+  },
+];
+
+function useTwoResponses(responses) {
+  classification = {
+    scope: 'global',
+    subjectLanguage: 'ru',
+    englishQuery: 'Bank of Russia key rate September 2026',
+    subjectLanguageQuery: 'ключевая ставка Банка России сентябрь 2026',
+    freshnessRequired: true,
+  };
+  searchAnswer = (query) =>
+    responses[query === classification.englishQuery ? 1 : 0];
+}
+
 describe('сводка веб-поиска говорит на языке читателя', () => {
   beforeEach(() => {
     templates.length = 0;
     promptInputs.length = 0;
     chatModelCalls.length = 0;
+    searchCalls.length = 0;
+    summaryError = undefined;
     classification = {
-      scope: 'international',
+      scope: 'global',
       subjectLanguage: 'ru',
       englishQuery: 'key interest rate Russia',
-      localQuery: null,
+      subjectLanguageQuery: null,
       freshnessRequired: false,
     };
     aiConfig = {
@@ -209,6 +299,18 @@ describe('сводка веб-поиска говорит на языке чит
     assert.equal(chatModelCalls.length, 1);
   });
 
+  test('один английский ответ для английского читателя тоже не покупает сводку', async () => {
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'key rate',
+      { language: 'en' }
+    );
+
+    assert.equal(result.summary, searchAnswer.answer);
+    assert.equal(summaryCalls().length, 0);
+    assert.equal(chatModelCalls.length, 1);
+  });
+
   test('без языка поведение прежнее: сводка идёт как пришла', async () => {
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
@@ -230,6 +332,334 @@ describe('сводка веб-поиска говорит на языке чит
 
     assert.equal(result.summary, searchAnswer.answer);
     assert.equal(result.sources.length, 1);
+  });
+
+  test('текущая ставка и прогноз входят в одну сводку через один общий вызов', async () => {
+    useTwoResponses(rateResponses);
+    summaryResult = {
+      summary:
+        'На 4 сентября 2026 года ключевая ставка Банка России составляет 14% годовых. 13,5–13,75% — прогноз возможного будущего снижения, а не текущая ставка; источники также допускают сохранение 14%.',
+    };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка Банка России в сентябре 2026 года',
+      { language: 'ru' }
+    );
+
+    assert.equal(summaryCalls().length, 1, 'объединение и перевод — один вызов');
+    assert.equal(chatModelCalls.length, 2, 'классификация и одна сводка');
+    assert.equal(chatModelCalls.every(({ role }) => role === 'classify'), true);
+    assert.equal(chatModelCalls[1].maxTokens > 0, true);
+    assert.equal(chatModelCalls[1].maxTokens <= 1_200, true);
+    const { template, input } = summaryCalls()[0];
+    const evidence = JSON.parse(input.evidence);
+    assert.deepEqual(evidence.answers, rateResponses.map(({ answer }) => answer));
+    assert.equal(
+      evidence.subject,
+      'ключевая ставка Банка России в сентябре 2026 года'
+    );
+    assert.deepEqual(
+      evidence.sources.map(({ title, excerpt, publishedAt }) => ({
+        title,
+        excerpt,
+        publishedAt,
+      })),
+      rateResponses.map(({ results: [source] }) => ({
+        title: source.title,
+        excerpt: source.content,
+        publishedAt: source.published_date,
+      }))
+    );
+    assert.equal(input.language, 'Russian');
+    assert.match(template, /one coherent/i);
+    assert.match(template, /current.*forecast|forecast.*current/is);
+    assert.match(template, /as.of|dated/i);
+    assert.match(template, /conflict/i);
+    assert.match(template, /untrusted/i);
+    assert.match(template, /instructions.*data|data.*instructions/is);
+    assert.equal(result.summary, summaryResult.summary);
+    assert.notEqual(
+      result.summary,
+      rateResponses.map(({ answer }) => answer).join('\n\n')
+    );
+    assert.equal(result.facts.length, 2);
+    assert.equal(result.sources.length, 2);
+  });
+
+  test.each([
+    {
+      label: 'два русских ответа',
+      language: 'ru',
+      answers: ['Текущая ставка — 14%.', 'Прогноз будущей ставки — 13,5–13,75%.'],
+      combined: 'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
+    },
+    {
+      label: 'два английских ответа',
+      language: 'en',
+      answers: [
+        'The current rate is 14%.',
+        'A later rate cut to 13.5–13.75% is forecast.',
+      ],
+      combined:
+        'The current rate is 14%; a later cut to 13.5–13.75% is a forecast.',
+    },
+    {
+      label: 'два ответа без языка читателя',
+      language: undefined,
+      answers: [
+        'The current rate is 14%.',
+        'A later rate cut to 13.5–13.75% is forecast.',
+      ],
+      combined: 'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
+    },
+  ])(
+    '$label тоже сводятся одним вызовом',
+    async ({ language, answers, combined }) => {
+      useTwoResponses(
+        rateResponses.map((response, index) => ({
+          ...response,
+          answer: answers[index],
+        }))
+      );
+      summaryResult = { summary: combined };
+
+      const result = await new WebResearchService(aiUsage).research(
+        'organization-a',
+        'ключевая ставка',
+        language ? { language } : {}
+      );
+
+      assert.equal(summaryCalls().length, 1);
+      assert.deepEqual(JSON.parse(summaryCalls()[0].input.evidence).answers, answers);
+      assert.equal(
+        summaryCalls()[0].input.language,
+        language === 'en' ? 'English' : 'Russian'
+      );
+      assert.equal(chatModelCalls.length, 2);
+      assert.equal(result.summary, combined);
+    }
+  );
+
+  test('без явного языка русская тема выбирает русский даже при первом английском ответе', async () => {
+    useTwoResponses([rateResponses[1], rateResponses[0]]);
+    summaryResult = {
+      summary:
+        'На 4 сентября 2026 года ставка — 14%; 13,5–13,75% — прогноз возможного будущего снижения.',
+    };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка Банка России в сентябре 2026 года'
+    );
+
+    const { input } = summaryCalls()[0];
+    assert.deepEqual(
+      JSON.parse(input.evidence).answers,
+      [rateResponses[1].answer, rateResponses[0].answer]
+    );
+    assert.equal(input.language, 'Russian');
+    assert.equal(result.summary, summaryResult.summary);
+    assert.equal(summaryCalls().length, 1);
+    assert.equal(chatModelCalls.length, 2);
+  });
+
+  test('название из русской выдержки имеет приоритет над VTBS в ответе движка', async () => {
+    useTwoResponses(bankResponses);
+    summaryResult = {
+      summary:
+        'ВТБ сообщил о росте объёма выданных кредитов на 70% год к году в августе 2026 года.',
+    };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'рост кредитования ВТБ',
+      { language: 'ru' }
+    );
+
+    const { template, input } = summaryCalls()[0];
+    const evidence = JSON.parse(input.evidence);
+    assert.deepEqual(evidence.answers, bankResponses.map(({ answer }) => answer));
+    assert.equal(evidence.sources[0].title, bankResponses[0].results[0].title);
+    assert.equal(evidence.sources[0].excerpt, bankResponses[0].results[0].content);
+    assert.match(template, /original.*names|names.*original/is);
+    assert.match(
+      template,
+      /source.*(?:priority|precedence|outrank)|(?:priority|precedence|outrank).*source/is
+    );
+    assert.match(template, /number/i);
+    assert.equal(summaryCalls().length, 1);
+    assert.equal(result.summary, summaryResult.summary);
+    assert.equal(result.summary.includes('VTBS'), false);
+    assert.equal(result.summary.includes('70%'), true);
+  });
+
+  test('перевод единственного ответа тоже получает исходное название из выдержки', async () => {
+    searchAnswer = {
+      answer: bankResponses[1].answer,
+      results: bankResponses[0].results,
+    };
+    summaryResult = {
+      summary: 'ВТБ увеличил объём выданных кредитов на 70% год к году.',
+    };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'рост кредитования ВТБ',
+      { language: 'ru' }
+    );
+
+    const evidence = JSON.parse(summaryCalls()[0].input.evidence);
+    assert.deepEqual(evidence.answers, [bankResponses[1].answer]);
+    assert.equal(evidence.sources[0].excerpt, bankResponses[0].results[0].content);
+    assert.equal(summaryCalls().length, 1);
+    assert.equal(result.summary, summaryResult.summary);
+  });
+
+  test('два одинаковых ответа не покупают объединение', async () => {
+    const answer = 'Ключевая ставка — 14% годовых.';
+    useTwoResponses(
+      rateResponses.map((response, index) => ({
+        ...response,
+        answer: index ? `  ${answer}  ` : answer,
+      }))
+    );
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка',
+      { language: 'ru' }
+    );
+
+    assert.equal(searchCalls.length, 2);
+    assert.equal(summaryCalls().length, 0);
+    assert.equal(chatModelCalls.length, 1);
+    assert.equal(result.summary, answer);
+    assert.equal(result.sources.length, 2);
+  });
+
+  test.each([
+    { label: 'сбой модели', error: new Error('summary model is unavailable') },
+    { label: 'пустой текст', written: { summary: '   ' } },
+    { label: 'пустой ответ', written: null },
+    { label: 'не строка', written: { summary: 14 } },
+    { label: 'не поле сводки', written: { answer: '14%' } },
+  ])(
+    '$label сохраняет первый ответ и источники без повторного перевода',
+    async ({ error, written }) => {
+      useTwoResponses(rateResponses);
+      summaryError = error;
+      summaryResult = written;
+
+      const result = await new WebResearchService(aiUsage).research(
+        'organization-a',
+        'ключевая ставка',
+        { language: 'en' }
+      );
+
+      assert.equal(result.summary, rateResponses[0].answer);
+      assert.equal(result.facts.length, 2);
+      assert.equal(result.sources.length, 2);
+      assert.equal(summaryCalls().length, 1);
+      assert.equal(chatModelCalls.length, 2);
+    }
+  );
+
+  test('пустая первая половина не становится запасной сводкой при сбое перевода', async () => {
+    useTwoResponses([
+      { ...rateResponses[0], answer: '   ' },
+      rateResponses[1],
+    ]);
+    summaryError = new Error('summary model is unavailable');
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка',
+      { language: 'ru' }
+    );
+
+    assert.equal(result.summary, rateResponses[1].answer);
+    assert.equal(summaryCalls().length, 1);
+    assert.equal(chatModelCalls.length, 2);
+    assert.equal(result.sources.length, 2);
+  });
+
+  test('готовые запросы проверки фактов не покупают ни классификацию, ни сводку', async () => {
+    useTwoResponses(rateResponses);
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'проверить две цифры в черновике',
+      {
+        language: 'ru',
+        task: 'facts',
+        queries: [
+          classification.subjectLanguageQuery,
+          classification.englishQuery,
+        ],
+      }
+    );
+
+    assert.equal(searchCalls.length, 2);
+    assert.equal(promptInputs.length, 0);
+    assert.equal(chatModelCalls.length, 0);
+    assert.equal(result.facts.length, 2);
+    assert.equal(result.sources.length, 2);
+  });
+
+  test('пустой ответ движка не вызывает модель сводки', async () => {
+    searchAnswer.answer = '  ';
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка',
+      { language: 'ru' }
+    );
+
+    assert.equal(result.summary, '');
+    assert.equal(summaryCalls().length, 0);
+    assert.equal(chatModelCalls.length, 1);
+    assert.equal(result.sources.length, 1);
+  });
+
+  test('общий промпт ограничивает тему, каждый ответ и источник, не меняя поисковые выдержки', async () => {
+    const sources = Array.from({ length: 20 }, (_, index) => ({
+      title: `Источник ${index} ${'название '.repeat(150)}`,
+      url: `https://example.org/long-source-${index}`,
+      content: `ВТБ сохранил исходное имя. Источник ${index}. ${'Длинная выдержка с фактами. '.repeat(300)}`,
+      published_date: '2026-09-04',
+    }));
+    const responses = [
+      { answer: `Первый ответ: ${'прогноз '.repeat(2_000)}`, results: sources },
+      { answer: `Второй ответ: ${'текущий факт '.repeat(2_000)}`, results: [] },
+    ];
+    // Каждый успешный ответ поисковика должен иметь хотя бы один результат.
+    responses[1].results = [sources[0]];
+    useTwoResponses(responses);
+    summaryResult = { summary: 'ВТБ: текущий факт и прогноз указаны отдельно.' };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      `Тема: ${'данные '.repeat(4_000)}`,
+      { language: 'ru' }
+    );
+
+    const { template, input } = summaryCalls()[0];
+    const evidence = JSON.parse(input.evidence);
+    assert.equal(evidence.answers.length, 2);
+    assert.equal(evidence.answers.every((answer) => answer.length <= 4_000), true);
+    assert.equal(evidence.subject.length <= 2_000, true);
+    assert.equal(evidence.sources.length <= 8, true);
+    assert.equal(evidence.sources.every(({ title }) => title.length <= 300), true);
+    assert.equal(
+      evidence.sources.every(({ excerpt }) => excerpt.length <= 1_000),
+      true
+    );
+    assert.equal(input.evidence.length < 30_000, true);
+    assert.match(template, /untrusted/i);
+    assert.equal(result.facts[0].text.length > 1_000, true);
+    assert.equal(result.sources.length, 20);
+    assert.equal(chatModelCalls.length, 2);
   });
 });
 

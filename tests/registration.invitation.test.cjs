@@ -117,16 +117,23 @@ const sharedMocks = {
   },
 };
 
-const { AuthService } = loadTypeScriptModule(
-  'apps/backend/src/services/auth/auth.service.ts',
-  sharedMocks
-);
-
 const invitations = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/auth/team-invitation.ts',
   sharedMocks
 );
-const { issueTeamInvitation, TEAM_INVITATION_TTL_SECONDS } = invitations;
+const {
+  issueTeamInvitation,
+  TEAM_INVITATION_TTL_SECONDS,
+  TeamInvitationError,
+} = invitations;
+// Both the service and the failure injected below use the real error class.
+const { AuthService } = loadTypeScriptModule(
+  'apps/backend/src/services/auth/auth.service.ts',
+  {
+    ...sharedMocks,
+    '@contentfactory/nestjs-libraries/auth/team-invitation': invitations,
+  }
+);
 
 const INVITATION = {
   id: 'invite-1',
@@ -422,12 +429,55 @@ describe('registering from an invitation', () => {
         '127.0.0.1',
         'agent'
       )
-    ).rejects.toMatchObject({ code: 'invite_email_mismatch' });
+    ).rejects.toMatchObject({
+      name: 'RegistrationFormRefusal',
+      code: 'invite_email_mismatch',
+      status: 403,
+      message: 'This invitation belongs to another email address',
+    });
 
     expect(organizationService.createInvitedUser).not.toHaveBeenCalled();
     expect(organizationService.createOrgAndUser).not.toHaveBeenCalled();
     // And the link survives for the person it was meant for.
     expect(redis.size).toBe(1);
+
+    await expect(
+      service.routeAuth(
+        Provider.LOCAL,
+        registration({ invitationToken: token }),
+        '127.0.0.1',
+        'agent'
+      )
+    ).resolves.toMatchObject({ awaitingApproval: false });
+    expect(organizationService.createInvitedUser).toHaveBeenCalledTimes(1);
+    expect(redis.size).toBe(0);
+  });
+
+  test('an invitation failure after marker consumption is never a retryable form refusal', async () => {
+    const token = await issueTeamInvitation({
+      ...INVITATION,
+      boundEmail: 'invited@example.com',
+    });
+    const { service, organizationService } = wire();
+    const failure = new TeamInvitationError(
+      'invite_email_mismatch',
+      403,
+      'This invitation belongs to another email address'
+    );
+    organizationService.createInvitedUser.mockRejectedValueOnce(failure);
+
+    await expect(
+      service.routeAuth(
+        Provider.LOCAL,
+        registration({ invitationToken: token }),
+        '127.0.0.1',
+        'agent'
+      )
+    ).rejects.toBe(failure);
+    expect(failure.name).toBe('Error');
+    expect(organizationService.createInvitedUser).toHaveBeenCalledTimes(1);
+    expect(organizationService.createOrgAndUser).not.toHaveBeenCalled();
+    expect(redis.size).toBe(0);
   });
 
   test('a copied link accepts whatever address registers with it', async () => {

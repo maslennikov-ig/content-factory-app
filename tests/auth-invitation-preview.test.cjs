@@ -109,6 +109,10 @@ const { AuthController } = loadTypeScriptModule(
       inspectTeamInvitation,
       TeamInvitationError,
     },
+    '@contentfactory/nestjs-libraries/throttler/registration-limiter':
+      require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/throttler/registration-limiter.ts'
+      ),
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto: class {},
     },

@@ -1,4 +1,22 @@
-# Stage summary — `content-factory-next-kcxz` (agent chat), through release 4
+# Stage summary — `content-factory-next-kcxz` (agent chat), through release 7
+
+## Current acceptance boundary — 01.10.2026
+
+Implementation shipped through release 6 (`f0b4bfae1f25`); logo release 7
+(`3132393a8920`, `qz8l`) is recorded in this stage's evidence. Read-only production
+check on 01.10 confirms release 7, healthy, zero restarts. Original release receipts
+and historical decisions below are preserved; older pending-release notes are superseded.
+
+54 of 56 agent children are closed. Claude was exercised in real live walks 1/2;
+`kcxz.46` now retains third-walk acceptance after the fixes and actual ChatGPT verification.
+`kcxz.47`, `.49` and `.50`–`.56` are completed; app submission `.48` is blocked by `.46`.
+See [release 5](evidence/release-5-2026-09-30.md),
+[release 6](evidence/release-6-2026-09-30.md),
+[release 7](evidence/release-7-2026-09-30.md) and the
+[status reconciliation](evidence/status-reconciliation-2026-10-01.md).
+
+## Historical implementation and decisions
+
 
 State on 27.09.2026 night: owner «Исправь все найденные проблемы и доделай до конца. Даю тебе все
 разрешения.» — every open finding of W2 fixed and proven live (`evidence/live-stand-w2-2026-09-27/`
@@ -7,7 +25,7 @@ State on 27.09.2026 night: owner «Исправь все найденные пр
 help answer, Mastra 29 → 45). Closed with it: `.30`, `.32`–`.38`, `l7tm`, `tbuj`, `ia7s`, `wffi`. Next: W3
 `.18`–`.21`.
 
-## W3 (28.09) — avatar, channels, AI settings, onboarding from the chat (code done, not released)
+## W3 (28.09) — avatar, channels, AI settings, onboarding from the chat (released in release 2)
 
 Owner 28.09 «Давай третью волну, W3 с kcxz.18». Each stream: worker → independent correctness review →
 fix round (reviews `evidence/correctness-review-w3-{18,19,20,21}.md`, each with «## Fixes»). Decisions for
@@ -38,7 +56,7 @@ the owner are in spec §5.3 (avatar), §5.4 (channels), §5.5 (AI settings), §5
   one call; audience self-address removed from cores and adaptations (`audience-remark.ts`); metric words and
   statistics shown in plain words (display only).
 
-## W4 (28.09) — ideas, facts, analytics, help and media from the chat (code done, not released)
+## W4 (28.09) — ideas, facts, analytics, help and media from the chat (released in release 3)
 
 Owner 28.09 «Давай W4 с kcxz.23», then «делай исправь все это». Each stream: worker → independent correctness
 review → fix round (`evidence/correctness-review-w4-{23,24,25}.md`, `…-w4-25-vision.md`, each with «## Fixes»).

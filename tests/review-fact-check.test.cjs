@@ -508,6 +508,7 @@ describe('caller-supplied queries', () => {
   let admissions;
   let invoked;
   let classifierCalls;
+  let promptCalls;
   let reserved;
   let chatModelRoles;
   let encyclopedicCalls;
@@ -518,6 +519,7 @@ describe('caller-supplied queries', () => {
     const runAdmissions = (admissions = []);
     const runInvoked = (invoked = []);
     const runClassifierCalls = (classifierCalls = []);
+    const runPromptCalls = (promptCalls = []);
     const runReserved = (reserved = []);
     const runChatModelRoles = (chatModelRoles = []);
     const runEncyclopedicCalls = (encyclopedicCalls = []);
@@ -525,6 +527,7 @@ describe('caller-supplied queries', () => {
       admissions: runAdmissions,
       invoked: runInvoked,
       classifierCalls: runClassifierCalls,
+      promptCalls: runPromptCalls,
       reserved: runReserved,
       chatModelRoles: runChatModelRoles,
       encyclopedicCalls: runEncyclopedicCalls,
@@ -571,6 +574,7 @@ describe('caller-supplied queries', () => {
             fromTemplate: (template) => ({
               pipe: () => ({
                 invoke: async (input) => {
+                  runPromptCalls.push({ template, input });
                   // Пересказ сводки идёт тем же швом; считаем только классификацию.
                   if (template.startsWith('Classify the research subject'))
                     runClassifierCalls.push({ template, input });
@@ -677,12 +681,6 @@ describe('caller-supplied queries', () => {
    */
   test('an English answer to a Russian fact check buys no restatement at all', async () => {
     const service = serviceDouble();
-    let restated = 0;
-    const original = service.summaryInLanguage.bind(service);
-    service.summaryInLanguage = async (...args) => {
-      restated += 1;
-      return original(...args);
-    };
 
     const result = await service.research('org', 'русский черновик', {
       level: 'standard',
@@ -691,7 +689,8 @@ describe('caller-supplied queries', () => {
       queries: ['комиссия 10%'],
     });
 
-    expect(restated).toBe(0);
+    // Ни классификация, ни сводка не доходят до вызова модели через промпт.
+    expect(promptCalls).toHaveLength(0);
     expect(classifierCalls).toHaveLength(0);
     // Ни классификации, ни пересказа: роль `classify` не звали ни разу.
     expect(chatModelRoles).toEqual([]);

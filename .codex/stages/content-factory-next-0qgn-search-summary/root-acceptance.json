@@ -1,0 +1,39 @@
+{
+  "schema_version": "bounded-root-acceptance/v1",
+  "stage_id": "content-factory-next-0qgn-search-summary",
+  "owner": "root",
+  "base_commit": "9275ea47272675bc761c4a54cfb9a1034188c011",
+  "tested_tree": "uncommitted source hashes; not a release HEAD receipt",
+  "recorded_at": "2026-10-01T11:03:30.065713+00:00",
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/web.research.service.test.cjs tests/web.research.summary-language.test.cjs tests/web.research.degradation.test.cjs tests/web-research.usage-record.test.cjs tests/research.phase-one.test.cjs tests/lead-discovery-judge.test.cjs --coverage=false",
+      "result": "passed",
+      "suites": 6,
+      "tests": 134,
+      "skipped": 0
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "result": "passed",
+      "files_checked": 161
+    }
+  ],
+  "source_sha256": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "6324e65be4dc456468fa1905f76f55df4e1e9d05168457d72cf7672ff4b22879",
+    "tests/web.research.summary-language.test.cjs": "12ab31765072690debd48b777e361152fbc89f09f396b7ed103c7eaccee7ecce",
+    "tests/web.research.service.test.cjs": "27731c37c6fa82b3c3ce7972f77c2491ab159d1559c1ed626e824e0d1e3d6809",
+    "tests/web.research.degradation.test.cjs": "03eb1ce4d32096f8db3cad3d4dd3c6ab70b286b34b2ed9e1530a29f20b5cdbbf",
+    "tests/web-research.usage-record.test.cjs": "522f042e70b764837fae8ac54a3d4183ed0d38ebd71e13e82476054bbaf3271c",
+    "tests/research.phase-one.test.cjs": "a3db5a11fa8a3927c940ca4a01ff0190565169b25d1ffbb9ffdf52d92a7df11f",
+    "tests/lead-discovery-judge.test.cjs": "f49c0247ef8593c6cc7526c70921c7ef23c70a1d1e8c84cea7029b354880de93",
+    "docs/product/search-summary-contract.md": "62cab2ff8edf147e73acba38a498fbd31831c79c3160d8f08923bf047c5b489c"
+  },
+  "independent_review": "No implementation blocker; P3 language documentation qualification corrected, source unchanged",
+  "live_semantic_proof": "not run; no model/search/provider call authorized",
+  "documentation_after_code_checks": "Only P3 wording correction; no code or test change after root pass"
+}

@@ -20,8 +20,8 @@ type StoredIntent = {
 };
 
 /**
- * Where a Telegram callback that arrived on the sign-in page has to continue,
- * or `null` when this is an ordinary sign-in and the page should carry on.
+ * Where a Telegram callback with a usable tab note can continue. A missing
+ * target does not imply login: the caller must first read the server purpose.
  */
 export function identityLinkReturnUrl({
   search,

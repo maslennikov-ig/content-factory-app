@@ -192,6 +192,38 @@ export class TelegramProvider extends AuthProviderAbstract {
     return `${TELEGRAM_AUTH_URL}?${params.toString()}`;
   }
 
+  /** Classifies the return without claiming its single-use PKCE verifier. */
+  async getStatePurpose(
+    callback?: AuthCallbackContext
+  ): Promise<TelegramPurpose> {
+    const state = callback?.state;
+    const browserState = callback?.browserState;
+    // Refuse before touching Redis: possession of the callback URL alone must
+    // reveal nothing about the flow another browser started.
+    if (
+      typeof state !== 'string' ||
+      state.length !== 43 ||
+      !/^[A-Za-z0-9_-]+$/.test(state) ||
+      typeof browserState !== 'string' ||
+      browserState.length !== 43 ||
+      !sameSecret(browserState, state)
+    ) {
+      throw new Error('Invalid or expired Telegram state');
+    }
+
+    try {
+      const { redirectUri } = this.getConfig();
+      const stored = await ioRedis.get(this.stateKey(state));
+      if (!stored) throw new Error('Missing Telegram state');
+      const pkce = this.readPkceState(stored, redirectUri);
+      this.storedRedirectUri(pkce.redirectUri);
+      return pkce.purpose;
+    } catch {
+      // Unknown, expired, consumed and foreign states have the same refusal.
+      throw new Error('Invalid or expired Telegram state');
+    }
+  }
+
   async getToken(
     code: string,
     redirectUri?: string,

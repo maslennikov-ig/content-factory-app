@@ -1,0 +1,72 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-kcxz",
+  "goal_id": "content-factory-next-kcxz",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 1,
+  "acceptance_boundary_id": "agent-harness-chat-web-mcp",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "agent-web-chat",
+      "capability-registry",
+      "mastra-conductor",
+      "agent-mcp"
+    ],
+    "risk_models": [
+      "organization-and-role-isolation",
+      "secret-exclusion",
+      "paid-admission",
+      "person-bound-approval",
+      "live-client-acceptance"
+    ],
+    "test_environments": [
+      "local-node22",
+      "recorded-live-model-stand",
+      "production-read-only",
+      "actual-claude-chatgpt-client"
+    ],
+    "rollback_boundary": "f0b4bfae1f25",
+    "acceptance_proofs": [
+      "spec-section-2-A1-A5",
+      "recorded-action-scenarios",
+      "release-suite-receipts",
+      "owner-live-walk",
+      "actual-mcp-client-walk"
+    ]
+  },
+  "source": "docs/product/agent-harness-spec.md",
+  "branch": "main",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-kcxz/summary.md",
+    ".codex/stages/content-factory-next-kcxz/evidence/release-6-2026-09-30.md",
+    ".codex/stages/content-factory-next-kcxz/evidence/status-reconciliation-2026-10-01.md"
+  ],
+  "stream_artifacts": [],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-kcxz",
+    "source_digest": "ee7f9424cf491047430caa2e2e3fefa611c47a765f10534cbca68fad02482372",
+    "criteria": [
+      {
+        "criterion_id": "AC-spec-section-2-A1-A5",
+        "text": "A1–A5 спецификации §2: сценарий «с нуля до поста в плане» проходит на стенде с живой моделью только через чат и оставляет те же записи, что экраны; владелец проходит страницу живого теста только через чат; записанные сценарии покрывают каждое действие; ни одно действие не выходит за область и роль, значение ключа не попадает в сообщения, память, трассы и журналы; открытие экрана ничего не тратит.",
+        "text_digest": "0370b1ad805e207a49a73bdf37d303d6d7986045b35ab69bb76d3ee6dc5b4582"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-kcxz/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "ee7f9424cf491047430caa2e2e3fefa611c47a765f10534cbca68fad02482372",
+  "reconciled_at": "2026-10-01",
+  "status_note": "Reconstructed binding for the existing agent stage, not a new implementation stage or a retrospective receipt. Implementation released; kcxz.46 retains third Claude walk after fixes and actual ChatGPT acceptance, kcxz.48 remains blocked. The Beads epic remains open."
+}

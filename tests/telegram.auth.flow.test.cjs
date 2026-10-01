@@ -119,6 +119,9 @@ const { AuthService } = loadTypeScriptModule(
       'libraries/helpers/src/auth/registration.approval.ts'
     ),
     '@contentfactory/helpers/auth/newsletter.consent': newsletterConsentRules,
+    '@contentfactory/nestjs-libraries/throttler/registration-limiter': loadSharedModule(
+      'libraries/nestjs-libraries/src/throttler/registration-limiter.ts'
+    ),
     '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/locale/backend-strings.ts'
     ),
@@ -133,6 +136,7 @@ const { AuthService } = loadTypeScriptModule(
 const createAuthService = ({ existingUser = null } = {}) => {
   const provider = {
     generateLink: jest.fn(),
+    getStatePurpose: jest.fn(async () => 'link'),
     getToken: jest.fn(async () => 'verified-id-token'),
     getUser: jest.fn(async () => ({
       id: 'telegram-user-42',
@@ -167,10 +171,39 @@ const createAuthService = ({ existingUser = null } = {}) => {
     providerManager
   );
 
-  return { service, provider, userService, organizationService };
+  return {
+    service,
+    provider,
+    providerManager,
+    userService,
+    organizationService,
+  };
 };
 
 describe('Telegram authentication flow', () => {
+  test.each(['login', 'link'])(
+    'purpose inspection bridges only to the Telegram provider for %s',
+    async (purpose) => {
+      const { service, provider, providerManager, organizationService } =
+        createAuthService();
+      provider.getStatePurpose.mockResolvedValue(purpose);
+      const callback = {
+        state: 'callback-state',
+        browserState: 'cookie-state',
+      };
+
+      await expect(service.telegramStatePurpose(callback)).resolves.toBe(
+        purpose
+      );
+
+      expect(providerManager.getProvider).toHaveBeenCalledWith('TELEGRAM');
+      expect(provider.getStatePurpose).toHaveBeenCalledWith(callback);
+      expect(provider.getToken).not.toHaveBeenCalled();
+      expect(provider.getUser).not.toHaveBeenCalled();
+      expect(organizationService.createOrgAndUser).not.toHaveBeenCalled();
+    }
+  );
+
   test('forwards both the callback state and the browser cookie to the exchange', async () => {
     const { service, provider } = createAuthService();
 
