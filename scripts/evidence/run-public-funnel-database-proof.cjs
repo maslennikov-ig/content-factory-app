@@ -82,6 +82,16 @@ let cleanupEvidence = {
   networks: [resources.network],
 };
 
+// One proof burst must use one privacy-safe caller key even if wall time
+// crosses a minute. The real guard/storage policy and global clock stay intact.
+function createPinnedPublicGrowthGuard(Guard, tracker, at) {
+  return class extends Guard {
+    async getTracker(request) {
+      return tracker(request, at);
+    }
+  };
+}
+
 function command(command, commandArgs, options = {}) {
   return execFileSync(command, commandArgs, {
     cwd: root,
@@ -885,6 +895,10 @@ async function main() {
     PublicGrowthEventsGuard,
   } = require('../../apps/backend/src/api/routes/public-growth-events.controller.ts');
   const {
+    createTransientClientTracker,
+  } = require('../../libraries/nestjs-libraries/src/throttler/transient-client-tracker.ts');
+
+  const {
     OrganizationRepository,
   } = require('../../libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts');
   const {
@@ -1062,7 +1076,16 @@ async function main() {
 
   const moduleRef = await Test.createTestingModule({
     imports: [ProofModule],
-  }).compile();
+  })
+    .overrideGuard(PublicGrowthEventsGuard)
+    .useClass(
+      createPinnedPublicGrowthGuard(
+        PublicGrowthEventsGuard,
+        createTransientClientTracker,
+        Date.now()
+      )
+    )
+    .compile();
   phase = 'nest-listen';
   app = moduleRef.createNestApplication();
   app.useGlobalPipes(

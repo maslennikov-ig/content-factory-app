@@ -220,6 +220,17 @@ it('records unavailable/unconstrained memory as unknown, never an available zero
   expect(readComplete(h.latest().raw).constrainedMemoryBytes).toBeNull();
 });
 
+it('an unsafe unlimited native memory value stops the producer before any write and never retries', async () => {
+  const unlimited = Number(0xffffffffffffffffn);
+  expect(Number.isSafeInteger(unlimited)).toBe(false);
+  const h = harness({ constrainedMemory: unlimited }); await h.ready(); await h.tick();
+  expect(h.writes).toBe(0); expect(h.latest().raw).toBe('');
+  expect(h.events).not.toContain('write'); expect(h.events).not.toContain('truncate');
+  expect(h.timers[0].active).toBe(false);
+  expect([...h.handles.values()].every((handle) => handle.closed)).toBe(true);
+  await h.tick(); expect(h.writes).toBe(0);
+});
+
 it.each(['mkdir', 'mkdtemp', 'open', 'fstat', 'lstat', 'readFile'])('startup %s failure disables only the gauge', async (fault) => {
   const h = harness(); h.state.fault = fault; await h.ready(); await h.tick();
   expect(h.writes).toBe(0); expect(h.timers[0].active).toBe(false);
@@ -372,6 +383,9 @@ it.each([
   const partialWriteEntered = new Promise((resolve) => { partialWriteEnteredResolve = resolve; });
   let releasePartialWrite;
   const partialWriteGate = new Promise((resolve) => { releasePartialWrite = resolve; });
+  // Model the bounded deployment's metadata. An unbounded cgroup-v2 host can
+  // return UINT64_MAX; its deliberate numeric rejection is covered above.
+  const constrainedMemoryBytes = 1792 * 1024 * 1024;
   let interval;
   let cleared = false;
   let uptime = 0;
@@ -421,7 +435,7 @@ it.each([
     require: actualRequire, Buffer, module: { exports: {} },
     process: {
       pid: process.pid, argv: ['node', wrapper], cwd: () => '/app/apps/backend', getuid: () => process.getuid(),
-      uptime: () => uptime, memoryUsage: () => process.memoryUsage(), constrainedMemory: () => process.constrainedMemory(),
+      uptime: () => uptime, memoryUsage: () => process.memoryUsage(), constrainedMemory: () => constrainedMemoryBytes,
       get env() { throw new Error('No environment reads'); },
     },
     setInterval(callback, milliseconds) { expect(milliseconds).toBe(60000); interval = callback; return { unref() {} }; },
@@ -483,6 +497,7 @@ it.each([
       if (partialWrite) releasePartialWrite();
       const value = await pendingRecord;
       expect(value.pid).toBe(process.pid); expect(value.sequence).toBe(1);
+      expect(value.constrainedMemoryBytes).toBe(constrainedMemoryBytes);
       expect(fs.lstatSync(latest).ino).toBe(original.ino);
       await waitForSignal(sampleFinished, 'complete sample identity'); expect(cleared).toBe(false);
       // Fast-forward only the injected timer to close the real gauge FDs.

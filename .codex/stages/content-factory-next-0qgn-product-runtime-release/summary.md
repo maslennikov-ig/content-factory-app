@@ -6,18 +6,22 @@ all36 original criteria/owners remain unchanged. Root is the delegated verifier.
 ## Current delivered boundary
 
 LIVE private298ec244cf7d127ee34842c97e748cc8236d3019/public48f6a1a5fa4861dfc5303194931faf61a5c30fa7.
-Exact full9 receipt PASS, including Jest610/10925/9skips, Node122/0fail/4DBskips,
-Python50; public48 CI failed a real-FD test read race. Test-only c371/publicb427
-fix also failed CI37049949281 on startup readiness; all failed logs are retained.
-Live image/archive remain48/298ec; these later test commits are not image identity.
-Native image/archive/first strict pull/source parity/empty Prisma diff PASS;
-Product77/Mastra45 definitions and all39 foreign containers/configs preserved.
-App48 healthy0/1792MiB, rollback6076 protected; no D5 retirement was needed.
-Private salted before/after proof preserves exact active-channel identity.
-Settled33 queue pollers/process/source/schema checks PASS. Cold51.731–51.772%
-is qualified; no comparable fully warmed1800s/<60% acceptance exists for48.
-Three startup main-isolate V8 roles yielded numeric verified records; CJS counts
-are not a complete worker/native/ESM inventory or causal memory savings proof.
+Private8b99/public438f is built, published and pulled, NOT switched. Exact8b
+full9 PASS: Jest611/11008/9Redis skips, Node122/0fail/4DBskips, Python50.
+Actual438f CI normal/+400 each failed the same4 real-FD fixture cases; Node and
+Python did not run there. Native Docker31/build/quality jobs PASS; no overall
+CI acceptance exists. All failed logs and earlier48/b427 failures are retained.
+438f archive11784569B/b6c9002e98ec9d62fd024413daa38be65012f93a23bd4d71586306ad8181ea2a,
+registry/config/layers/source parity and new-image empty Prisma diff PASS.
+First pull refused strict capacity. Root then retired ONLY unused own D5 HOSTtag
+under current whole-EPIC authority, preserving serving48, rollback6076 and D5
+local/registry proofs; 2922639360B freed. Second unchanged strict pull PASS.
+Product77/Mastra45 definitions, all40 deep container states/three live roles and
+all33 recent queue pollers preserved; public API/login/source HTML200.
+App48 remains healthy0/1792MiB. Salted channel continuity and numeric late V8
+records are qualified: three roles report1879048192 constrained bytes; backend
+bucket farcaster55 counts Neynar CJS paths, not an exact SDK membership list.
+Latest thin58.168% is NOT full warmed1800s/<60 acceptance. Runtime bytes unchanged.
 
 Actual48 neutral eight-text analysis9SUCCESS/0pending found TONE599/TOPICS600
 unfinished ordinary prose. Raw upstream cause UNKNOWN. Exact owned four access
@@ -37,17 +41,35 @@ Recorded current fields replay to exact559/591-character completed prefixes,
 with observations/portrait/refs/call counts unchanged. No word completion, extra
 call, V1 or history rewriting; ambiguous boundaries abstain. Deliberately
 unpunctuated near-limit prose may lose its last sentence; live quality is pending.
-Gauge test-only event-readiness correction46ec/fa474 is frozen and root-accepted;
-52 ordinary/+400 checks PASS; controlled native startup delay reproduced RED
-then GREEN. Gauge/application/runtime bytes stay unchanged by that test fix.
-Root runs one exact full9 for combined source, then public snapshot/image/native
-switch, fresh owned A1/A2/tone/UI/MCP and comparable HOT under original criterion.
+Gauge test-only event-readiness correction46ec/fa474 was source-accepted,
+52 ordinary/+400 focused PASS, but actual438f CI failed after readiness. A
+controlled unsafe native constrainedMemory value reproduced exactly4 failures:
+Number(UINT64_MAX) exceeds the producer's safe integer contract and stops writes.
+Actual Ubuntu CI cgroup values were not captured: that platform explanation is
+inference. Minimum follow-up fixture pins the synthetic1792MiB limit and adds
+an unsafe-value fail-closed assertion;53 ordinary/+400 focused PASS. Production
+gauge/app/runtime bytes and all original52 assertions/deadlines remain unchanged.
+Exactd958 root full9 FAIL:611Jest/610pass/1fail,11008pass/1fail/9skip;
+native gauge suite PASS. Public funnel check22/request121 yielded202 vs429;
+Node/Python did not run, no release receipt and no new publication/image/host
+action. Tracker includes a minute bucket: actual failed-run rotation is inferred.
+Scoped25+50-line test-only fix reviewed: public guard calls actual tracker with
+one pinned instant; production guard/storage/tracker/global Date unchanged.
+Exact unmodified helper controlled minute-crossing RED21 then fixed GREEN26,
+final persistent native wrapper11/11PASS with0default/121explicit tracker calls.
+Runtime limit120/121st429, DTO400 and all26 real Nest/PG checks/cleanup retained.
+Actual failedd958 wall-clock rotation remains inference; raw failure is retained.
+After the scoped fixture correction root will run one exact full9, publish
+its isolated public snapshot/image, require actual CI success, then switch and
+run fresh owned A1/A2/tone/UI/MCP and comparable HOT under original criteria.
+Frozen v5 A1 preparation22 hashes/offline8 checks accepted as preparation ONLY;
+failed actual438f CI blocks invocation. No model/browser/live mutation ran there.
 
 Documentation: operational handoff/index/style contract and stage note updated.
-docs-reviewed: updated — actual48 delivery, unfinished prose policy and CI failures.
-project-index: reviewed-updated — V2 TONE/TOPICS guard navigation.
+docs-reviewed: updated — actual48, pulled438f, exact D5 capacity action and failed CI.
+project-index: reviewed-updated — V2, real-FD metadata and bounded public event proof.
 graph-reviewed: local AST refreshed at46ec;27066nodes/53858edges/zero model tokens.
-V2 caller edge and two exact source hashes match; later docs/evidence only qualified.
+V2 caller edge/two hashes match; later test/docs evidence is qualified, no runtime change.
 documentation-decision: existing pinned runtime/source contracts reused; no deps changed.
 
 ## Explicit limits and retained evidence

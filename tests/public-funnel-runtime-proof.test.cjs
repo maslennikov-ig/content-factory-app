@@ -44,11 +44,55 @@ function assertProofExit(result, summary) {
 let evidenceDir;
 let summaryPath;
 let authPath;
+let clockPreloadPath;
+let clockReceiptPath;
 
 beforeAll(() => {
   evidenceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-public-funnel-'));
   summaryPath = path.join(evidenceDir, 'summary.json');
   authPath = path.join(evidenceDir, 'auth.json');
+  clockPreloadPath = path.join(evidenceDir, 'minute-edge.cjs');
+  clockReceiptPath = path.join(evidenceDir, 'minute-edge.json');
+  // Drive the real tracker's default time across a minute in the child only.
+  // The proof must pass its own pinned instant; Date, timers and HMAC stay real.
+  fs.writeFileSync(
+    clockPreloadPath,
+    `const fs = require('node:fs');
+const Module = require('node:module');
+const trackerPath = ${JSON.stringify(
+      path.join(
+        root,
+        'libraries/nestjs-libraries/src/throttler/transient-client-tracker.ts'
+      )
+    )};
+const originalLoad = Module._load;
+const before = ${Date.UTC(2026, 9, 3, 12, 0, 59, 999)};
+let defaultCalls = 0;
+let explicitCalls = 0;
+Module._load = function (request, parent, isMain) {
+  const filename = Module._resolveFilename(request, parent, isMain);
+  const result = Reflect.apply(originalLoad, this, arguments);
+  if (filename === trackerPath) {
+    const actualTracker = result.createTransientClientTracker;
+    result.createTransientClientTracker = (req, at) => {
+      if (at !== undefined) {
+        explicitCalls += 1;
+        return actualTracker(req, at);
+      }
+      return actualTracker(req, ++defaultCalls <= 60 ? before : before + 1);
+    };
+    Module._load = originalLoad;
+  }
+  return result;
+};
+process.on('exit', () => fs.writeFileSync(
+  ${JSON.stringify(clockReceiptPath)},
+  JSON.stringify({ defaultCalls, explicitCalls }),
+  { mode: 0o600, flag: 'wx' }
+));
+`,
+    { mode: 0o600, flag: 'wx' }
+  );
 });
 
 afterAll(() => {
@@ -60,6 +104,8 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
     const result = spawnSync(
       process.execPath,
       [
+        '--require',
+        clockPreloadPath,
         path.join(
           root,
           'scripts/evidence/run-public-funnel-database-proof.cjs'
@@ -126,6 +172,10 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
     expect(environment.redisServer).toMatch(/^7\.2\./);
     expect(summary.checks).toHaveLength(26);
     expect(summary.checks.every((check) => check.status === 'PASS')).toBe(true);
+    expect(JSON.parse(fs.readFileSync(clockReceiptPath, 'utf8'))).toEqual({
+      defaultCalls: 0,
+      explicitCalls: 121,
+    });
     expect(summary.checks.map((check) => check.name)).toEqual(
       expect.arrayContaining([
         'LOCAL registration applies the selected workflow through POST /auth/register',

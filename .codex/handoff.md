@@ -20,35 +20,35 @@ Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai ow
   `48f6a1a5fa4861dfc5303194931faf61a5c30fa7`; healthy0/1792MiB/rollback6076.
   Index `sha256:eccb671981e4ac596c25b1b21a137c122dfc61ebf120702e3258f31375de9c0d`;
   config `sha256:17a7d884ed68d7f7eec33f5e5448038b59def7690b7cd6d2c74ac359a714c35a`.
-- Exact298ec full9 PASS:3types/fourbuilds/Jest610/10925/9skips,
-  Node122/0fail/4DBskips/Python50/brand/docs/process/diff. v4receipt;
-  priorv3 index151>150 failure retained/corrected before exact acceptance.
-- Archive11776919B/SHA
-  b83550e0960d72dbdadc3beff4eb4fab30e28ee0522485fe584b997de8450883.
-  Registry/14layers/nativehelp/sourceparity/firststrictpull PASS; noD5retirement.
-- New-image Prisma diff EMPTY; Product77/1431 and Mastra45/838 unchanged.
-  Nativeonlycf-app; all39deep/livecompose preserved/only2releasekeys changed.
-  Private salted before/after proof: exact active-channel identity preserved.
-  Noexisting-backup restore/DDL/customer/social/foreign mutation.
-- First old+new cachedpollers gap retained; settled33recentpollers/source/schema/
-  processes/resources PASS;3main-isolate V8numeric roles verified. ColdDocker
-  51.7310–51.7722% qualified; intendedwarm1800s/<60 acceptance stillpending.
-- Public48 normal/time-shift CI failedsamepartialJSONtestreadrace; chained
-  Node/Python neverran. Gaugeunchanged. Child3c617→primaryc371 test-onlyfix
-  48ordinary/48time-shift PASS; publicsource-onlyb427dec7f83cba6bc49050bc5e3af24eab380221.
-  CI37049949281 FAIL same startup race; liveimage/archive still48/298ec.
-- Actual48 neutral8text analysis9SUCCESS/0pending/nohelperretry; proposal
-  SHA238f1c5983c78ebbacfccdb3deca387662a7810cf009057432b753f4e8e8dd2a.
-  TONE599/TOPICS600 unquotedterminalfragments: semanticqualityFAIL/rawcauseUNKNOWN.
-  Ownfouraccessrows revoked/token401/credentialsremoved; outputs/history retained.
-  New V2 sentence-boundary sourcefix54fb integrated/159focusedPASS; livequalitypending.
-- EmptyownA1 retired/fourrows revoked/token401/modelcalls0; v2 stoppedbeforechat:
-  intendedincludedLuna/systemsearch/unlimited differs fromsearch-off/finitequota.
-  v3 preparationaccepted/fixed13actions/3admissions peraction/39overall;
-  no global/default/billingmutation and noactualA1/A2paidwalk yet.
-- Prior6076 HOT31/1829.935797s64.1037–64.8228% FAIL remainshistorical.
-  X/gauge/clientlazyFarcaster/tone source streams arein48; no causal savingclaim.
-  RootactualQA/HOT and unfinishedoriginalgates remain; EPICnotcomplete.
+- Actual48 archive11776919B/SHA
+  b83550e0960d72dbdadc3beff4eb4fab30e28ee0522485fe584b997de8450883; exact298ec full9/native switch/source/schema/33queues PASS/all39 preserved.
+- New exact private8b99e9e9f13b6eef14c1b08c6c9876d86b36d38e full9 PASS: Jest611/11008/9Redis skips, Node122/0fail/4PG skips/Python50/four builds/types.
+  Public438f5725752da7e41add2887adf6efb78e4e280e published; image from it/archive11784569B/SHAb6c9002e98ec9d62fd024413daa38be65012f93a23bd4d71586306ad8181ea2a.
+  Nativehelp/14layer registry identity PASS; image PULLED, NOT switched.
+- Actual438f normal/+400 CI both FAIL4native gauge tests;610/611suites PASS,
+  11002PASS/11skips/4FAIL; chained Node/Python notrun. Raw logs retained.
+  Controlled unsafe native constrained-memory value reproduces all4 failures; actualCI cgroup content remains INFERENCE. Minimum test-only fixture pins its
+  existing1792MiB contract;53normal/+400 focused PASS, unsafe rejection retained.
+  Integratedd958 gauge suitePASS in full run; full9 FAIL only public-event
+  check22/request121202vs429. Node/Python notrun; no publish/switch. Controlled
+  exact Nest/PG/Redis RED21 then GREEN26; test-only pinned caller time/final11PASS.
+  Actual original rotation inferred; final root new full9/actualCI pending.
+- Strict438f first pull refused before download. Exact unused hostedD5 tag
+  retirement freed2922639360B; serving48/prior6076/local+registryD5 preserved.
+  Second strict pull PASS; no force/prune/foreign/backup/capacity-policy change.
+  New438f readonly Prisma diff EMPTY; Product77/1431/Mastra45/838 unchanged.
+  Post pull/schema all40deep/live3/app/PIDs/all33recent preserved; public API,
+  login and exact48 source HTML200. No existing-backup restore or DDL.
+- Actual48 neutral8text analysis9SUCCESS/0pending found TONE599/TOPICS600
+  unfinished ordinary prose; semanticFAIL/raw upstream cause UNKNOWN.
+  Ownfouraccessrows revoked/token401/samples retired/credentials removed; V2 sentence-boundary54fb159focused PASS/replay559/591, live quality pending. EmptyownA1 also retired,
+  fourrows/session401/modelcalls0; no old credentials reused.
+- v3 A1/A2 preparation accepted: effective system search=true/stored=false/unlimited;13model/card+15ledger actions, <=3admissions/action/39overall
+  are operation bounds, not USD/hardquota guarantees. No actual A1/A2 walk yet.
+  New v5 fixture preparator accepted offline/22hashes, NOTexecuted; strict exactsource/CI/image/host/settledruntime receipts required. No default/billing change.
+- Existing48 late V8 all3 VERIFIED/constrained1792MiB/same processes/main-isolate; Thin58.168% is not full intendedwarm1800s/<60 proof.
+  Prior6076 HOT31/1829.935797s64.1037–64.8228% FAIL retained;71m.8 stillIN_PROGRESS.
+  Root QA/HOT/external/research/legal/pricing gates remain; EPIC incomplete.
 
 ## Actual own product verification on459 and historical memory
 
