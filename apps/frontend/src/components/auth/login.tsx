@@ -13,7 +13,7 @@ import { GithubProvider } from '@contentfactory/frontend/components/auth/provide
 import { OauthProvider } from '@contentfactory/frontend/components/auth/providers/oauth.provider';
 import { GoogleProvider } from '@contentfactory/frontend/components/auth/providers/google.provider';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { FarcasterProvider } from '@contentfactory/frontend/components/auth/providers/farcaster.provider';
+import { LazyFarcasterProvider as FarcasterProvider } from '@contentfactory/frontend/components/auth/providers/lazy-farcaster.provider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { rememberAwaitingApproval } from '@contentfactory/frontend/components/auth/approval-marker';

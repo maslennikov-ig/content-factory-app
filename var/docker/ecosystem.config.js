@@ -41,7 +41,10 @@ const REQUIRE_ESM = '--experimental-require-module';
  * @param {number} heapMiB
  * @returns {string[]}
  */
-const nodeArgs = (heapMiB) => [REQUIRE_ESM, `--max-old-space-size=${heapMiB}`];
+const nodeArgs = (heapMiB) => [
+  REQUIRE_ESM, `--max-old-space-size=${heapMiB}`,
+  '--require', '/app/var/docker/runtime-memory-gauge.cjs',
+];
 
 // PM2 runs each application inside its own wrapper module, and by default that
 // wrapper pulls in `@pm2/io` — an instrumentation agent for a monitoring

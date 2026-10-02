@@ -17,7 +17,7 @@ import { LoadingComponent } from '@contentfactory/frontend/components/layout/loa
 import { GoogleProvider } from '@contentfactory/frontend/components/auth/providers/google.provider';
 import { OauthProvider } from '@contentfactory/frontend/components/auth/providers/oauth.provider';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { FarcasterProvider } from '@contentfactory/frontend/components/auth/providers/farcaster.provider';
+import { LazyFarcasterProvider as FarcasterProvider } from '@contentfactory/frontend/components/auth/providers/lazy-farcaster.provider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';

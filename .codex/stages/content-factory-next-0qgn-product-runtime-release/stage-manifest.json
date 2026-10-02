@@ -32,7 +32,7 @@
       "clean-public-image-build",
       "production-owned-QA-and-existing-channel-workload"
     ],
-    "rollback_boundary": "current27-image-rollback-nullable-additive-column-left-in-place",
+    "rollback_boundary": "currentD5-image-rollback-existing-schema-left-in-place",
     "acceptance_proofs": [
       "root-accepted-isolated-streams",
       "exact-release-receipt",
@@ -303,6 +303,42 @@
     "next": "fresh exact full release after commit"
   },
   "currentApplicationDelivery": {
+    "privateSource": "1c7c86f838f4a165d4695b5e3f12cd828b893a12",
+    "publicSource": "6076c28eb0337d8be78b733146f0235f34b2fa8c",
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:6076c28eb033",
+    "rollback": "d5b71523ad0b",
+    "rootReceipt": "application-release-6076c28eb033-root-acceptance.json",
+    "status": "EXACT_NATIVE_DELIVERY_PASS_WITH_OPEN_PRODUCT_AND_MEMORY_CRITERIA",
+    "ownedProductCloseout": "owned-product-runtime-6076-root-closeout.json",
+    "standingRetention": "retention-6076-root-acceptance.json",
+    "memoryRootDecision": "hot-memory-6076c28eb033-root-threshold-decision.json"
+  },
+  "nextCandidateSourceAcceptance": {
+    "tone599Child": "9f2f31329a7f81f8b67782a615c75ffa5c1c95f5",
+    "tone599Integration": "c1645e1c5",
+    "sourceAcceptance": "tone599-source-root-acceptance.json",
+    "XPublicSdkLazyDecision": "x-sdk-lazy-root-source-decision.json",
+    "fullAcceptanceAndRelease": "PENDING onecombinedcandidate",
+    "live6076Threshold": "FAIL64.1037\u201364.8228/1829.935797s",
+    "currentLiveUnchanged": true,
+    "wholeEpicComplete": false,
+    "XPublicSdkLazyChild": "49d2ccc3b76a6c153c6e76e5d8ad37c0cd4b5fae",
+    "XPublicSdkLazyIntegration": "a18e0391ed4969fabdb0e6ca7fd7fbba45fdd50e",
+    "XSourceAcceptance": "x-sdk-lazy-source-root-acceptance.json",
+    "runtimeV8GaugeDecision": "runtime-v8-gauge-root-source-decision.json",
+    "frontendFarcasterLazyDecision": "auth-farcaster-client-lazy-root-source-decision.json",
+    "combinedCandidateFrozen": true,
+    "rootActualA1A2Preparation": "new owned stand only after exact final release; real Telegram/customer/ChatGPT not substituted",
+    "conditionalCapacityPreparation": "capacity-d5-nextrelease-root-acceptance.json; all future bindings and fresh actual refusal pending; current6076 protected",
+    "runtimeV8GaugeChild": "ba492afe3c045728f0051686a7e8802be8fbf0a2",
+    "runtimeV8GaugeIntegration": "b4a3e7bf7e889e4640a4e017da82d4de9774d62b",
+    "runtimeV8GaugeSourceAcceptance": "runtime-v8-gauge-source-root-acceptance.json",
+    "frontendFarcasterLazyChild": "7c126403d6d0c196aa0494727a47e7a4d11adc09",
+    "frontendFarcasterLazyIntegration": "61beec8f10d98bfb6abe6b4354c1ca28ebd7245b",
+    "frontendFarcasterLazySourceAcceptance": "auth-farcaster-client-lazy-source-root-acceptance.json",
+    "allFourBoundedSourceStreamsAccepted": true
+  },
+  "previousApplicationDeliveryD5": {
     "privateSource": "99e99377ce699d0d6d904571e2a775419b785529",
     "publicSource": "d5b71523ad0b66a8b0ba60de9c47cb69533123b7",
     "image": "ghcr.io/maslennikov-ig/content-factory-next:d5b71523ad0b",
@@ -312,34 +348,5 @@
     "ownedProductCloseout": "owned-product-runtime-d5b71523ad0b-root-closeout.json",
     "standingRetention": "host-retention-d5b71523ad0b-root-acceptance.json",
     "memoryRootDecision": "hot-memory-d5b71523ad0b-root-threshold-decision.json"
-  },
-  "nextCandidateSourceAcceptance": {
-    "readerChild": "5e6062bac8656e5b15953cb31e4d79d45d9aa3ff",
-    "blueskyChild": "73138e48f62aa34218d7dccc5edd11f8868e866a",
-    "integratedCodeHead": "d62c435c3ed883b9e2da769effabe26c793b702a",
-    "rootProofs": [
-      "reader-truncation-repair-459-root-acceptance.json",
-      "bluesky-lazy-root-source-acceptance.json",
-      "avatar-tone-guard-6ca-root-source-acceptance.json",
-      "graph-tone-root-acceptance-20261002.json"
-    ],
-    "fullReceiptOrImage": "Exact99 nine commands/all3 suite halves PASS; actual publicD5 image delivered",
-    "actualMemorySaving": "UNKNOWN",
-    "toneGuardChild": "6ca2e7a09319eea4b510d00c8e58184f34e5decf",
-    "preToneExactFullSourceAcceptance": {
-      "source": "a51cb1cc262e0d10a27d296005b45175114f9897",
-      "receipt": "a51cb-full-source-root-acceptance.json",
-      "status": "PASS; does not cover combined tone guard"
-    },
-    "actualNewToneAnalysis": "Actual D5 9SUCCESS/pending0/TONE600 unmatched interior whole-word cut; task9 in_progress. New guard49daf\u2192d762 root accepted245focused/types/old+newreplay; no paid replay/history mutation.",
-    "excerptGuardChild": "49dafd7620664b59e2066e0d51c7c1dd694d1d6b",
-    "excerptIntegratedCodeHead": "d762328f517fcc72b1650e65db1373f59db4d54f",
-    "excerptGuardRootReceipt": "avatar-tone-excerpt-49daf-root-source-acceptance.json",
-    "reader8": "closed with complete faithful onceoriginal1C; sourcecoveragequalifiedweak",
-    "neynarChild": "2ee972dc590f7a4898de4f7aee0d591df2ef4a3d",
-    "neynarIntegratedCodeHead": "8c0a96f879c413493738c619989c5708dcd00168",
-    "neynarRootReceipt": "neynar-lazy-2ee972-root-source-acceptance.json",
-    "combinedNextAcceptance": "Excerpt+Neynar accepted source; one combined fresh exact full9/image/liveTone/HOT pending",
-    "nostrDecision": "Root API captures cannot be preserved; accepted read-only compatibility proof, no source conversion"
   }
 }

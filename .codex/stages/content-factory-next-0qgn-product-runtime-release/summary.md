@@ -1,64 +1,60 @@
 # Product and runtime release integration
 
-Whole EPIC0qgn remains active with all36 original criteria/owners preserved.
-Exact private cb51/public cb456 release passes full nine-command receipt, actual
-schema/archive/readiness/preservation gates. Own B1 now saves an empty-schedule
-DRAFT in18.4s (`2q28.2.1` CLOSED). Actual own avatar/raw adaptation semantic and
-Windows UI proofs pass (`2q28.38` CLOSED); all credential fixtures are retired.
-Three coherent Russian search summaries preserve proper names (`ec48.7` CLOSED),
-but Telegram5/5 rejected and 1C topic quality remain outside that language result.
+The whole EPIC0qgn is incomplete; Beads owns status and all36 original criteria
+and owners remain unchanged. Root is the owner-delegated verifier.
 
-Root accepted and integrated bounded advertising-query context repair, lazy
-LinkedIn PDF loading and public-CI real Redis/owner-label cleanup repair. No source
-admission, provider budget, Temporal contract, queue count or1792MiB limit changed.
-Fresh exact root release acceptance/public CI/runtime quality/hot memory are pending.
-Same feedback page actually published version5→6 with existing two links/answers,
-all50 fields and old versions preserved; no client message/read/acceptance claimed.
+## Current delivered boundary
 
-Documentation: operational handoff/index updated; original spec/plan unchanged.
-docs-reviewed: updated — existing retry/readiness/search/grounded voice contracts;
-feedback canonical six prose changes preserve controls and existing recipient links.
-project-index: reviewed-updated — funnel stand explicitly owns PostgreSQL and Redis.
-graph-reviewed: updated — local AST refresh at accepted integration; no external
-semantic/model backend, labels, hooks or query logging. Missing graph edges remain
-orientation limits, not runtime proof.
-documentation-decision: no external/versioned boundary - existing installed SDK
-versions and converter/type sources verified locally; no dependency/lockfile change.
+LIVE private1c7c86f838f4a165d4695b5e3f12cd828b893a12/public6076c28eb0337d8be78b733146f0235f34b2fa8c.
+Exact nine-command receipt and both public CI runs PASS, including all three test
+halves, time-shift and native PG/Redis/Mastra/synthetic-restore checks. Native image,
+empty Prisma diff, Product77/Mastra45 definitions, archive, all39 other containers
+and live configuration preservation passed. Image6076 is healthy/restarts0/1792MiB;
+D5 remains the current host rollback. Only unused old459 host tag was retired by
+an exact separately accepted exception; local/registry copies and shared caches
+remain. Standing retention removed only two old own config copies.
 
-## Explicit defers
+Owned B1/search/manual voice/avatar/adaptation/UI/MCP verification is accepted
+with its stated limits: 15 successful ledgers, zero pending; three owned stands
+retired and local credentials removed. TONE599 still has an unfinished quote.
+No real customer connection/publishing/feedback or ChatGPT acceptance is claimed.
+Full HOT31/1829.935797s is FAIL64.1037–64.8228%, strict original threshold<60%; all33
+queues, process/source/schema/within-window channel identity passed. Pre-release
+exact channel identity and causal SDK memory savings remain unknown.
 
-Owner legal/operator/region/support/Terms/Privacy and pricing postponed, not
-satisfied. Claude.ai followup removed; actual ChatGPT login remains unavailable.
-Historical client cookie/actual customer feedback, research population denominators,
-offsite destination/decrypt-key custody and telemetry aging/natural03Oct timer
-remain bounded in Beads. Owner02Oct defers restoring backup copies/recovery
-exercises; live service must keep working. Existing scheduled backup continues. Natural02Oct encrypted backup accepted (`0qgn.1` CLOSED).
-Full cb456 hot observer completed31samples/1830.018s after incomplete15-sample
-SIGTERM143;64.3559–64.9179% is a threshold failure with all preservation checksPASS. Conditional PDF saving is UNKNOWN until
-a comparable full31-sample hot window on its exact release. No forcedGC/raised
-memory/excludedqueues or inference that healthy HTTP proves whole EPIC completion.
-Old666 Node heap OOM cause and orphan possible billing/costNULL remain unknown.
+## Next combined source
 
-## Root evidence
+Root accepted tone599 child9f2f→c164, X lazy public SDK49d2→a18 and bounded V8 gauge
+ba492→b4a3. Tone keeps the exact completed prefix, applies after reference union
+and adds no calls/history rewriting. X keeps custom settings/logger/clients and
+existing error boundaries; first-use default logger capture is explicit.
+Gauge records bounded numeric main-isolate/CJS metrics only, no inspector/GC/cap
+change. Client-only Farcaster7c126→61beec is accepted with19behavior/112affected
+checks; provider/callback/visibility semantics remain protected. New exact full receipt,
+public source/image, native switch, owned UI/quality and HOT acceptance are pending.
+Unbound D5 capacity preparation grants no current retirement action; current6076
+must remain protected. Original75xn engineering scope/all38 children reconciled
+closed using current31-check community replay and original no-Reddit policy;
+HN/GitHub/arxiv defaultOFF, no fourth-source/semantic-benefit/activation claim.
 
-Current evidence directory contains cb51 exact acceptance receipt; native cb456
-source/archive/schema/readiness/all39container gates; B1/search/avatar/adaptation/
-registration proofs and retirement; portal version6 publication identity/history
-proof; source stream manifests/root acceptances and current memory observations.
-Public cb456 Build36958776061 full/time suite failure is preserved; corrected
-funnel v2 focused normal/shift400 each12/12 plus actual26 PG/Redis checks passes.
-Root d67 full9-command attempt passed types/build but failed one PDF timestamp
-test;603 suites/10638 tests passed, Node/Python did not run. Deterministic per-doc
-2001/2002 timestamp test repair294 passes17/17 normally and400days shifted, keeps
-image/page/xref/ModDate countercases and production source unchanged. Fresh exact
-full receipt remains required. Only a new actual public run proves CI repaired.
-Standing host retention is scoped to own release/config artifacts after release
-checks. Explicit older438 host-tag retirement exception is recorded separately;
-current/rollback and shared caches/foreign projects/databases remain preserved.
+Documentation: operational handoff/index/runbook/plan are being updated.
+docs-reviewed: updated — current6076 delivery, diagnostic bounds, client lazy loading.
+project-index: reviewed-updated — numeric runtime gauge navigation.
+graph-reviewed: reviewed — previous local graph is orientation only; refresh after
+accepted final integration, no external backend/labels/hooks/query logging.
+documentation-decision: existing exact pinned SDK/runtime sources reused; no deps changed.
 
-Full8219: Jest604/10643 and Node122 pass; Python49/50 fails three omitted
-next-stage handoff markers. Root restores exact markers; all50 focused Python
-checks pass, no enforcement/test weakening. A fresh exact full receipt is required.
-Original2q28.2 access/unlimited/B1 gate CLOSED under owner-delegated root check;
-unique original-task timestamp account is active/unblocked, instance unlimited.
-No independent customer identity or actual customer-use/feedback claim.
+## Explicit limits and retained evidence
+
+Legal/operator/region/support/Terms/Privacy and prices owner-deferred. Claude.ai
+owner-removed; actual ChatGPT remains unavailable. Historical research denominators,
+real customer facts, offsite destination/key custody, telemetry aging/natural03Oct
+and invoice reconciliation remain unproved. Owner excludes backup restoration and
+separate recovery exercises; natural02Oct encrypted backup PASS and service continues.
+Fresh A1/A2 live-model chat-only stand is being prepared; inert Telegram fixture
+will not prove a real connection, personal customer acceptance or ChatGPT.
+Earlier cb/D5 failed/full/incomplete windows, suite failures/corrections, old OOM
+and unknown billing are retained in evidence and Git history, not erased or passed.
+Current root receipts: application-release-6076c28eb033-root-acceptance.json,
+owned-product-runtime-6076-root-closeout.json and
+hot-memory-6076c28eb033-root-threshold-decision.json in evidence/.

@@ -786,7 +786,11 @@ export async function runAssistV2({
       ],
     });
   }
-  const fields = [...byField.values()];
+  // Ref union may supply the unique admitted quote absent from the winner.
+  // The idempotent quality pass stays outside attempt(), with no extra call.
+  const fields = [...byField.values()]
+    .map((field) => omitIncompleteToneQuotation(field, observations))
+    .filter((field): field is NonNullable<typeof field> => field !== null);
 
   return {
     observations,

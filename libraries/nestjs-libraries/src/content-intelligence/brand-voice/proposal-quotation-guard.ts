@@ -76,7 +76,8 @@ export function omitIncompleteToneQuotation<T extends Field>(
   if (
     typeof text !== 'string' ||
     field.field !== 'TONE' ||
-    text.length !== FIELD_LIMIT
+    text.length < 2 ||
+    text.length > FIELD_LIMIT
   )
     return field;
   // This guard handles the observed angle-quote form, not ambiguous mixed

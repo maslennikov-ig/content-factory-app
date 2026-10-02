@@ -114,6 +114,9 @@ const mocks = {
   '@contentfactory/frontend/components/auth/providers/farcaster.provider': {
     FarcasterProvider: emptyProvider,
   },
+  '@contentfactory/frontend/components/auth/providers/lazy-farcaster.provider': {
+    LazyFarcasterProvider: emptyProvider,
+  },
   '@contentfactory/frontend/components/auth/providers/telegram.provider': {
     TelegramProvider: emptyProvider,
   },
