@@ -44,8 +44,13 @@ humour, absence of analyst/meta prose and paragraph shape.
 New V2 reduce proposals additionally guard the recorded TONE cutoff at the
 existing 600 UTF-16-character field boundary. After schema parsing and quote
 admission, outside the paid repair loop, one unmatched trailing `«` qualifies
-only when its text is an exact prefix ending inside a word of a referenced
-admitted TONE quotation. The guard keeps only the exact preceding complete
+only when its text is a uniquely matching, word-boundary-started literal
+excerpt within referenced admitted TONE quotations, with remaining source
+content. It may end inside a word or after a whole word; the latter requires
+at least one remaining word of three letters, conservatively excluding
+punctuation-only, short or numeric-only continuations. Repeated matching
+positions or observations abstain, as do mid-word starts and a full quotation
+with no remaining prose. The guard keeps only the exact preceding complete
 sentence prefix outside quotations; it adds no continuation or punctuation.
 Without a safe prefix it omits that field. Other fields, portrait, observations,
 quotations and reference arrays remain intact. V1 and historical proposal reads

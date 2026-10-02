@@ -1,6 +1,6 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (3bc/459 delivery; hot threshold missed)
+Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (99/D5 delivery; full HOT threshold FAIL)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-71m.8`
 
@@ -17,36 +17,37 @@ Claude.ai followup is owner-removed; actual ChatGPT remains required.
 
 ## Current delivery and candidate
 
-- LIVE private source `3bc4bea11727f004c573b824f7e0ae3b88065318`, public/image
-  `459378515e24611daaaf23572fc59b62ca3412d7`; private/public pushed.
-  GHCR index `sha256:ffeb76da381b84988122525c728fca1e2e555d6ebf8be7a2a3a41d26bc3e8ff5`;
-  host config `sha256:adf2aaa5777d72d1eb38c783fd994e5b6261383d8933fbffd0a0bbb39035f630`.
-  App healthy/restarts0;1792MiB/all33queues. Protected host rollback `cb456e7b0479`.
-- Exact3bc nine-command receipt PASS: three typechecks/four-app build,
-  Jest604/10643pass/9 Redis opt-in skips, node122pass/0fail/4 DB environment skips,
-  Python50OK, branding/docs/process/diff. Public Build36974058930 and
-  CodeQuality36974058998 SUCCESS. Full CI604/10641pass/11skips, node122/4skips,
-  Python50OK; all-three-halves guard, calendar400, native Docker/PG/Redis PASS.
-  Actual normal/calendar funnel each26PASS/0inner skips. `0qgn.6` CLOSED.
-  Historical cb/d67/8219 failed receipts retained;3bc does not cover later changes.
-- Native new-image Prisma diff EMPTY; Product77/1431 hash649a6ff2 and
-  Mastra45/838 hasha8cdfd91 unchanged. All39 other containers/configs/compose
-  preserved; only CF_IMAGE/CONTENT_FACTORY_RELEASE changed. Source/archive/API/
-  login200; readiness DB/Redis/Temporal main+all32providers PASS.
-  Archive11719711B/SHA d0975a3bcca61ba7b976444303e26991407911ce194ff07968b2e9189acf1ad2.
-- Strict first pull refused10.68GB<12.37GB. Exact one-off old27 host-tag retirement
-  proved0refs/all40 preserved and freed2.92GB; actual native recheck/pull passed.
-  Local/registry27 retained; re-pull time unknown. Currentcb remained and is now
-  new459 rollback. Normal retention kept459+cb and removed only two own438
-  config copies. No shared cache/images/volumes/data/SQL/GPG cleanup or restore.
-- Combined code `d62c435c3` integrates reader5e6062/c7f, Bluesky731 and TONE6ca:
-  exact recorded1Ccutoff gets one opted-in grounded reader pass;
-  SDK module deferred at nine original operations, agents/sessions per call.
-  Reader196/Bluesky86focused checks and affected types PASS; no retries/new
-  queries/budgets/Temporal/limits. Rawupstream cutoff cause UNKNOWN.
-  Pre-TONE exact a51cb nine-command receipt PASS:605/10696Jest/9skips,122node/4skips,
-  Python50/build/three types; no image/live saving proof. Accepted TONE6ca guard
-  has214focused/23new checks; next combined candidate needs its own full receipt.
+- LIVE private `99e99377ce699d0d6d904571e2a775419b785529`, public/image
+  `d5b71523ad0b66a8b0ba60de9c47cb69533123b7`; both ordinary pushes verified.
+  GHCR index `sha256:04ff9bdc925e7e6c0a429ec8c35b1be1b15f15649fddbfbb5a92d2bd233c3bad`;
+  host config `sha256:721472c1a4634820712f11fa432b37f6c5c6077f78dfaaf117392c4e72427b1c`.
+  App healthy/restarts0/1792MiB; protected host rollback `459378515e24`.
+- Exact99 nine commands PASS:3types/four-app build/Jest606/10719/9skips,
+  node122/0fail/4DBskips/Python50/brand/docs/process/diff. Public
+  Build36997995254/CodeQuality36997995248 SUCCESS; frozen CI/source/job bindings accepted.
+  Receipts bind exact source; later documentation does not extend coverage.
+- Actual Prisma diff EMPTY; Product77/1431 hash649a6ff2 and Mastra45/838
+  hasha8cdfd91 unchanged. All39 deep configs/runtime/compose preserved; only
+  CF_IMAGE/CONTENT_FACTORY_RELEASE changed. Public API/auth/ready/source200;
+  served archive11740361B/SHA
+  c3e5f266e2a10ee6a8e36a89eb917e861c93af09f5d7f804c10b17af77a056fd.
+- First pull refused10.66GB<12.37GB before pulling. Exact unused oldcb host tag
+  retirement proved0refs/all40 preserved/freed2922348544B; native recheck/pull
+  PASS. Current459 kept as rollback. Local/registrycb/source retained; re-pull
+  time unknown. No shared cache/foreign images/volumes/DB/SQL/GPG cleanup/restore.
+  Native retention kept D5/459; only2 old27 own config copies removed.
+- Reader5e6062/Bluesky731/TONE6ca accepted and integrated in exact99: bounded
+  grounded reader fallback/nine lazy SDK operations/V2 cut-quotation omission;
+  196/86/214focused checks/types/fullPASS. OriginsUNKNOWN/history unchanged.
+- D5 startup3/60s metadata gap:two main/64 activity pollers still listed;
+  actual one process per role/source/schema healthy. No settled33/warm proof.
+- Fresh D5 B1 PASS/DRAFT/oneSUCCESS;1C complete faithful abstention closes0qgn.8;
+  weak sources/unchanged query-routing-admission/causeUNKNOWN. Manual6fields/
+  analysis9SUCCESS/5fields: TONE600 cut remains9. Excerpt49daf→d762 accepted
+  245tests/types/actual600→499offline; V1/history/pipeline/callcounts unchanged.
+  Adaptation449chars/3RUparagraphs/selectedmanual/DRAFT/2SUCCESS/pending0; Windows
+  avatar+adaptation1440/390 PASS/MCP66PASS. All3ownstands retired/4localcredentials
+  removed/2oldtokens401/ledgers kept. Full HOT31/1829.916s:62.7557–63.7630% FAIL.
 
 ## Actual own product verification on459 and historical memory
 
@@ -177,15 +178,15 @@ manual/eight-source/raw adaptation proofs are bound to exact live459 source hash
 Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
 sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
 
-Next: retain live459/protectedcb and actual full459HOTFAIL. Integrate accepted
-bounded TONE guard with reader/Bluesky, then a new exact full receipt/safe release.
-Run a new comparable full HOT window after required owned warm verification;
-do not switch the live app during that observer or replay paid once actions.
+Next: preserve liveD5/protected459; full31/1829.916s HOT FAIL original<60/all33PASS.
+Excerpt49daf/d762 plus Neynar2ee/8c0a96f87 source accepted;88focused/types/16replays.
+One combined exactfullcandidate/newrelease/liveTone9 and comparable HOT required.
+Nostr original socket captures cannot safely defer through root API; no mechanical edit.
 Documentation: current operational facts reconciled; original spec/plan unchanged.
 docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.
 project-index: reviewed-updated
-graph-reviewed: updated local AST0.9.45 d62;26942nodes/53683edges/0model tokens;
-V2 guard/completeStop two extracted edges;five exact source hashes match, scoped only.
+graph-reviewed: updated local AST0.9.45 8c0a96f87;26966nodes/53713edges/0model tokens;
+Farcaster getClient/scoped callers located;six exact source hashes match, read-only AST.
 
 ## Starter prompt for next orchestrator
 

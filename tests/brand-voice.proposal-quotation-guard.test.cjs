@@ -245,3 +245,401 @@ test('all unsafe fields omitted uses existing empty-proposal outcome without ext
   assert.deepEqual(seen, ['map', 'reduce']);
   assert.deepEqual(result.proposal.portrait, portrait);
 });
+
+
+// Exact root-projected synthetic D5 tone and all referenced observations.
+const interiorFixture = {
+  tone: {
+    key: 'TONE',
+    text: 'Направляйте самоиронию на собственные привычки и выводы: «Мой личный эксперт по посмертным выводам работает без выходных»; «Комиссию я однажды уже изображал в одиночку». Для образных шуток используйте неожиданные бытовые или рабочие образы, не делая читателя их мишенью: «Оптовый склад ясности пока закрыт». Разделяйте предположение и установленный результат, прямо обозначая границы вывода: «Если это только моя догадка, так и пишу»; «не стали превращать маленький пример в закон для всех случаев». Советы привязывайте к конкретному действию и критерию: «я выбираю одно, которое сильнее всего мешает',
+    status: 'ACCEPTED',
+    observationRefs: [
+      'smp-04#1',
+      'smp-08#1',
+      'smp-05#2',
+      'smp-08#4',
+      'smp-04#2',
+      'smp-05#5',
+    ],
+  },
+  observations: [
+    {
+      ref: 'smp-04#1',
+      index: 16,
+      field: 'TONE',
+      claim:
+        'Автор шутит над собственной склонностью находить объяснение задним числом: мишень самоиронии — собственные выводы после получения результата.',
+      quote:
+        'Мой личный эксперт по посмертным выводам работает без выходных, но доступ к протоколу ему теперь ограничен.',
+      sampleCode: 'smp-04',
+    },
+    {
+      ref: 'smp-04#2',
+      index: 17,
+      field: 'TONE',
+      claim:
+        'Автор оговаривает границы вывода и не переносит результат небольшого наблюдения на все случаи.',
+      quote:
+        'Мы записали сами вопросы и не стали превращать маленький пример в закон для всех случаев.',
+      sampleCode: 'smp-04',
+    },
+    {
+      ref: 'smp-05#2',
+      index: 22,
+      field: 'TONE',
+      claim:
+        'Автор развивает образное противопоставление: расплывчатая «ясность» становится складом, а конкретные вопросы — мастерской. Шутка направлена на общие обещания ясности, а не на читателя.',
+      quote:
+        'Оптовый склад ясности пока закрыт. Зато небольшая мастерская конкретных вопросов уже иногда приносит пользу.',
+      sampleCode: 'smp-05',
+    },
+    {
+      ref: 'smp-05#5',
+      index: 25,
+      field: 'TONE',
+      claim:
+        'Советы подаются через конкретное действие и критерий выбора, а не как универсальные правила.',
+      quote:
+        'Если замечаний несколько, я выбираю одно, которое сильнее всего мешает понять материал.',
+      sampleCode: 'smp-05',
+    },
+    {
+      ref: 'smp-08#1',
+      index: 36,
+      field: 'TONE',
+      claim:
+        'Самоироничная шутка направлена на автора: он высмеивает собственную роль комиссии, которая без проверки одобряет его выводы.',
+      quote:
+        'Комиссию я однажды уже изображал в одиночку. Она подозрительно быстро соглашалась со всеми моими выводами.',
+      sampleCode: 'smp-08',
+    },
+    {
+      ref: 'smp-08#4',
+      index: 39,
+      field: 'TONE',
+      claim:
+        'Автор прямо отделяет собственное предположение от установленного результата.',
+      quote: 'Если это только моя догадка, так и пишу.',
+      sampleCode: 'smp-08',
+    },
+  ],
+};
+
+async function runInteriorFixture(version = 2) {
+  const fixturesByRef = new Map(
+    interiorFixture.observations.map((o) => [o.ref, o])
+  );
+  const samples = Array.from({ length: 8 }, (_, i) => {
+    const code = `smp-${String(i + 1).padStart(2, '0')}`;
+    const maxIndex = Math.max(
+      1,
+      ...interiorFixture.observations
+        .filter((o) => o.sampleCode === code)
+        .map((o) => Number(o.ref.split('#')[1]))
+    );
+    const observations = Array.from({ length: maxIndex }, (_, i) => {
+      const original = fixturesByRef.get(`${code}#${i + 1}`);
+      return original
+        ? {
+            field: original.field,
+            metric: null,
+            quote: original.quote,
+            claim: original.claim,
+          }
+        : {
+            field: 'WHO_SPEAKS',
+            metric: null,
+            quote: otherQuote,
+            claim: `Описывает проверку в нейтральном примере ${code}, пункт ${
+              i + 1
+            }.`,
+          };
+    });
+    return {
+      code,
+      observations,
+      text: observations.map((o) => o.quote).join(' '),
+      language: 'ru',
+      contentHash: 'synthetic-offline',
+    };
+  });
+  const seen = [];
+  const tone = {
+    field: 'TONE',
+    text: interiorFixture.tone.text,
+    observationRefs: interiorFixture.tone.observationRefs,
+  };
+  const intactField = {
+    field: 'WHO_SPEAKS',
+    text: otherText,
+    observationRefs: ['smp-01#1'],
+  };
+  const intactPortrait = {
+    ...portrait,
+    observationRefs: interiorFixture.tone.observationRefs.slice(0, 2),
+  };
+  const reduced = {
+    fields: [tone, intactField],
+    portrait: intactPortrait,
+    pointOfView: 'first_person',
+    formality: 'neutral',
+    emojiPolicy: 'none',
+    hashtagPolicy: 'none',
+    neverSay: [],
+  };
+  const before = JSON.stringify({ reduced, samples });
+  const result = await (version === 2
+    ? pipeline.runAssistV2
+    : pipeline.runAssist)({
+    samples,
+    measurement,
+    sampleLimit: 8,
+    transport: {
+      complete: async (input) => {
+        seen.push(input.stage);
+        if (input.stage === 'reduce') return reduced;
+        const code = /smp-\d{2}/u.exec(input.prompt)[0];
+        const sample = samples.find((s) => s.code === code);
+        return { sampleCode: code, observations: sample.observations };
+      },
+    },
+  });
+  return {
+    result,
+    seen,
+    reduced,
+    before,
+    after: JSON.stringify({ reduced, samples }),
+  };
+}
+
+test('exact D5 interior excerpt ending at a word boundary gets a complete V2 prefix with all refs admitted and eight map/one reduce', async () => {
+  assert.equal(interiorFixture.tone.text.length, 600);
+  const { result, seen, reduced, before, after } = await runInteriorFixture();
+  const tone = result.proposal.fields.find((f) => f.field === 'TONE');
+  assert.ok(tone.text.endsWith('для всех случаев».'));
+  assert.ok(interiorFixture.tone.text.startsWith(tone.text));
+  assert.ok(tone.text.length < 600);
+  assert.equal(
+    (tone.text.match(/«/g) || []).length,
+    (tone.text.match(/»/g) || []).length
+  );
+  assert.deepEqual(tone.observationRefs, interiorFixture.tone.observationRefs);
+  assert.deepEqual(
+    result.proposal.fields.find((f) => f.field === 'WHO_SPEAKS'),
+    reduced.fields[1]
+  );
+  assert.deepEqual(result.proposal.portrait, reduced.portrait);
+  for (const original of interiorFixture.observations) {
+    const kept = result.observations.find((o) => o.ref === original.ref);
+    assert.ok(kept, original.ref);
+    assert.equal(kept.field, 'TONE');
+    assert.equal(kept.quote, original.quote);
+  }
+  assert.deepEqual(seen, [...Array(8).fill('map'), 'reduce']);
+  assert.equal(result.calls.length, 9);
+  assert.equal(
+    result.calls.every((c) => c.attempt === 1 && c.ok),
+    true
+  );
+  assert.equal(before, after);
+});
+
+const interiorFragment = interiorFixture.tone.text.slice(
+  interiorFixture.tone.text.lastIndexOf('«') + 1
+);
+const interiorField = {
+  field: 'TONE',
+  text: interiorFixture.tone.text,
+  observationRefs: interiorFixture.tone.observationRefs,
+};
+const interiorObservation = interiorFixture.observations.find(
+  (o) => o.ref === 'smp-05#5'
+);
+const oneInteriorQuote = [interiorObservation];
+const interiorCut = (fragment, prefix = 'Проверяйте условия. Правило ') =>
+  prefix +
+  'дополнительные условия '
+    .repeat(50)
+    .slice(0, 600 - prefix.length - fragment.length - 1) +
+  '«' +
+  fragment;
+
+test('interior literal ending inside a word keeps the old continuation path without inventing its ending', () => {
+  const cut = interiorFragment.slice(0, -2);
+  const field = { ...interiorField, text: interiorCut(cut) };
+  assert.equal(field.text.length, 600);
+  const result = guard.omitIncompleteToneQuotation(field, oneInteriorQuote);
+  assert.equal(result.text, 'Проверяйте условия.');
+  assert.ok(field.text.startsWith(result.text));
+});
+
+test.each([
+  [
+    'same quote repeats',
+    [
+      {
+        ...interiorObservation,
+        quote: interiorObservation.quote + ' ' + interiorObservation.quote,
+      },
+    ],
+  ],
+  [
+    'two admitted referenced quotes',
+    [interiorObservation, { ...interiorObservation, ref: 'smp-04#1' }],
+  ],
+  [
+    'unreferenced continuation',
+    [{ ...interiorObservation, ref: 'not-admitted#1' }],
+  ],
+  [
+    'wrong observation field',
+    [{ ...interiorObservation, field: 'WHO_SPEAKS' }],
+  ],
+  [
+    'incomplete observation',
+    [{ ...interiorObservation, quote: interiorObservation.quote.slice(0, -1) }],
+  ],
+  [
+    'punctuation-only remainder',
+    [
+      {
+        ...interiorObservation,
+        quote: 'Если несколько, ' + interiorFragment + '...',
+      },
+    ],
+  ],
+  [
+    'short-word-only remainder',
+    [
+      {
+        ...interiorObservation,
+        quote: 'Если несколько, ' + interiorFragment + ' бы.',
+      },
+    ],
+  ],
+  [
+    'numeric-only remainder',
+    [
+      {
+        ...interiorObservation,
+        quote: 'Если несколько, ' + interiorFragment + ' 123.',
+      },
+    ],
+  ],
+  [
+    'exact quote body',
+    [{ ...interiorObservation, quote: interiorFragment + '.' }],
+  ],
+])('interior %s abstains with the original object', (_label, observations) => {
+  assert.strictEqual(
+    guard.omitIncompleteToneQuotation(interiorField, observations),
+    interiorField
+  );
+});
+
+test.each(['а', 'Z', '7', '\u0301', '-', '—', '_', '’', "'"])(
+  'excerpt starting after word/identifier/compound character %s abstains',
+  (previous) => {
+    const observations = [
+      {
+        ...interiorObservation,
+        quote: previous + interiorFragment + ' понять материал.',
+      },
+    ];
+    assert.strictEqual(
+      guard.omitIncompleteToneQuotation(interiorField, observations),
+      interiorField
+    );
+  }
+);
+
+test('ambiguity is not resolved by choosing the only position with enough remaining prose', () => {
+  const observations = [
+    {
+      ...interiorObservation,
+      quote: interiorFragment + ' понять материал. ' + interiorFragment + '.',
+    },
+  ];
+  assert.strictEqual(
+    guard.omitIncompleteToneQuotation(interiorField, observations),
+    interiorField
+  );
+});
+
+test.each([
+  ['599', interiorFixture.tone.text.slice(0, -1)],
+  ['601', 'А' + interiorFixture.tone.text],
+  [
+    'whole complete quote',
+    'А'.repeat(600 - interiorObservation.quote.length - 2) +
+      '«' +
+      interiorObservation.quote +
+      '»',
+  ],
+  [
+    'exact full quote as unclosed fragment',
+    interiorCut(interiorObservation.quote),
+  ],
+  ['mixed quote form', '"' + interiorFixture.tone.text.slice(1)],
+  [
+    'two unclosed quotes',
+    interiorFixture.tone.text.slice(1).replace(/«(?=[^«»]*$)/u, '««'),
+  ],
+])('interior %s remains untouched', (_label, text) => {
+  const field = { ...interiorField, text };
+  assert.strictEqual(
+    guard.omitIncompleteToneQuotation(field, oneInteriorQuote),
+    field
+  );
+});
+
+test('interior TONE evidence cannot transform another proposal field', () => {
+  const field = { ...interiorField, field: 'WHO_SPEAKS' };
+  assert.strictEqual(
+    guard.omitIncompleteToneQuotation(field, oneInteriorQuote),
+    field
+  );
+});
+
+test('source-confirmed interior cut with uncertain abbreviation prefix omits the field instead of keeping a partial claim', () => {
+  const field = {
+    ...interiorField,
+    text: interiorCut(interiorFragment, 'Проверьте адрес г. Москва Правило '),
+  };
+  assert.equal(field.text.length, 600);
+  assert.equal(
+    guard.omitIncompleteToneQuotation(field, oneInteriorQuote),
+    null
+  );
+});
+
+test('interior source match after Unicode punctuation keeps exact complete emoji prefix', () => {
+  const field = {
+    ...interiorField,
+    text: interiorCut(interiorFragment, 'Проверяйте 🧩 вместе. Правило '),
+  };
+  const observations = [
+    {
+      ...interiorObservation,
+      quote: 'Проверка 🧩: ' + interiorFragment + ' понять материал.',
+    },
+  ];
+  const result = guard.omitIncompleteToneQuotation(field, observations);
+  assert.equal(result.text, 'Проверяйте 🧩 вместе.');
+  assert.ok(field.text.startsWith(result.text));
+});
+
+test('exact D5 V1 generation and historical word display preserve all600 without any new transport call', async () => {
+  const { result, seen, reduced, before, after } = await runInteriorFixture(1);
+  assert.deepEqual(result.proposal.fields, reduced.fields);
+  assert.deepEqual(seen, [...Array(8).fill('map'), 'reduce']);
+  assert.equal(result.calls.length, 9);
+  assert.equal(before, after);
+  const words = loadTypeScriptModule(base + 'metric-words.ts');
+  assert.equal(
+    words.proposalInWords({ fields: [{ text: interiorFixture.tone.text }] })
+      .fields[0].text,
+    interiorFixture.tone.text
+  );
+});

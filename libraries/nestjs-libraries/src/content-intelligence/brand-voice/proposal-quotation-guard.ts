@@ -22,6 +22,47 @@ const completeStop = (text: string, at: number): boolean => {
   return !!word && !ABBREVIATIONS.has(word);
 };
 
+/** A unique literal excerpt starting at a word boundary, with content left. */
+const supportedExcerpt = (
+  fragment: string,
+  refs: ReadonlySet<string>,
+  observations: readonly GroundedQuote[]
+): boolean => {
+  let match: { quote: string; at: number } | undefined;
+  for (const one of observations) {
+    if (
+      !refs.has(one.ref) ||
+      one.field !== 'TONE' ||
+      typeof one.quote !== 'string' ||
+      !/[.!?…]$/u.test(one.quote)
+    )
+      continue;
+    const quote = one.quote;
+    for (
+      let at = quote.indexOf(fragment);
+      at >= 0;
+      at = quote.indexOf(fragment, at + 1)
+    ) {
+      const previous = Array.from(quote.slice(0, at)).pop() ?? '';
+      // Do not start an excerpt inside a word/identifier or joined compound.
+      if (/[\p{L}\p{N}\p{M}_'’\p{Pd}]/u.test(previous)) continue;
+      // Repeated positions/observations are ambiguous even if only one has
+      // enough text left; never choose a continuation from competing matches.
+      if (match) return false;
+      match = { quote, at };
+    }
+  }
+  if (!match) return false;
+  const remaining = match.quote.slice(match.at + fragment.length);
+  if (/^\p{L}/u.test(remaining)) return true; // Existing inside-word case.
+  // A whole-word cutoff needs remaining prose, not just its closing stop.
+  // Three letters conservatively exclude short/numeric-only continuations.
+  return (
+    /^[^\p{L}\p{N}\p{M}_'’\p{Pd}]/u.test(remaining) &&
+    /\p{L}{3,}/u.test(remaining)
+  );
+};
+
 /**
  * Omit a source-confirmed cut quotation and its unfinished final sentence.
  * Return only an exact complete prefix, or no field; never invent its ending.
@@ -56,15 +97,7 @@ export function omitIncompleteToneQuotation<T extends Field>(
   const fragment = text.slice(open[0] + 1);
   if (fragment.length < 8 || !/\p{L}$/u.test(fragment)) return field;
   const refs = new Set(field.observationRefs ?? []);
-  const supported = observations.some(
-    (one) =>
-      refs.has(one.ref) &&
-      one.field === 'TONE' &&
-      typeof one.quote === 'string' &&
-      one.quote.startsWith(fragment) &&
-      /^\p{L}/u.test(one.quote.slice(fragment.length)) &&
-      /[.!?…]$/u.test(one.quote)
-  );
+  const supported = supportedExcerpt(fragment, refs, observations);
   if (!supported) return field;
   const prefix = text.slice(0, complete).trimEnd();
   return prefix.length >= 2 ? { ...field, text: prefix } : null;

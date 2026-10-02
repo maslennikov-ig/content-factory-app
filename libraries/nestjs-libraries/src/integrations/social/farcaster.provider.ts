@@ -10,15 +10,26 @@ import {
   SocialAbstract,
   ValidityMedia,
 } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
-import { NeynarAPIClient } from '@neynar/nodejs-sdk';
+import type { NeynarAPIClient } from '@neynar/nodejs-sdk';
 import { Integration } from '@prisma/client';
 import { FarcasterDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/farcaster.dto';
 import { Tool } from '@contentfactory/nestjs-libraries/integrations/tool.decorator';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
 
-const client = new NeynarAPIClient({
-  apiKey: process.env.NEYNAR_SECRET_KEY || '00000000-000-0000-000-000000000000',
-});
+// Preserve the existing app-key capture at provider module evaluation.
+const clientApiKey =
+  process.env.NEYNAR_SECRET_KEY || '00000000-000-0000-000-000000000000';
+let clientPromise: Promise<NeynarAPIClient> | undefined;
+
+// Share only app-level SDK/client initialization. A failed initialization
+// rejects this operation; only a later independent invocation may try again.
+const getClient = (): Promise<NeynarAPIClient> =>
+  (clientPromise ??= import('@neynar/nodejs-sdk')
+    .then(({ NeynarAPIClient }) => new NeynarAPIClient({ apiKey: clientApiKey }))
+    .catch((error) => {
+      clientPromise = undefined;
+      throw error;
+    }));
 
 @Rules(
   'Farcaster/Warpcast can only accept pictures'
@@ -105,7 +116,7 @@ export class FarcasterProvider
         : firstPost?.settings?.subreddit;
 
     for (const channel of channels) {
-      const data = await client.publishCast({
+      const params = {
         embeds:
           firstPost?.media?.map((media) => ({
             url: media.path,
@@ -113,7 +124,9 @@ export class FarcasterProvider
         signerUuid: accessToken,
         text: firstPost.message,
         ...(channel?.value?.id ? { channelId: channel?.value?.id } : {}),
-      });
+      };
+      const client = await getClient();
+      const data = await client.publishCast(params);
 
       ids.push({
         // @ts-ignore
@@ -147,7 +160,7 @@ export class FarcasterProvider
     const parentIds = (lastCommentId || postId).split(',');
 
     for (const parentHash of parentIds) {
-      const data = await client.publishCast({
+      const params = {
         embeds:
           commentPost?.media?.map((media) => ({
             url: media.path,
@@ -155,7 +168,9 @@ export class FarcasterProvider
         signerUuid: accessToken,
         text: commentPost.message,
         parent: parentHash,
-      });
+      };
+      const client = await getClient();
+      const data = await client.publishCast(params);
 
       ids.push({
         // @ts-ignore
@@ -184,10 +199,9 @@ export class FarcasterProvider
     id: string,
     integration: Integration
   ) {
-    const search = await client.searchChannels({
-      q: data.word,
-      limit: 10,
-    });
+    const params = { q: data.word, limit: 10 };
+    const client = await getClient();
+    const search = await client.searchChannels(params);
 
     return search.channels.map((p) => {
       return {

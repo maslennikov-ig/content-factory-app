@@ -78,7 +78,7 @@
   },
   "scope_anchor": ".codex/goals/content-factory-next-71m.8/scope-criterion-snapshot.json",
   "scope_anchor_digest": "ec9b949a51e3fe00b7dc1c4d5daae3e85c675b7cc877c40e4dcf4bbe6d2b4a2f",
-  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal resumed; owner explicitly delegates technical/product verification to root. Full EPIC not complete.",
+  "explicit_defer_note": "Legal/operator/region/support/Terms/Privacy and pricing postponed by owner. Claude.ai check explicitly removed by owner01.10, not deferred/passed; actual ChatGPT acceptance remains. Source attribution/grouping policies answered. Native goal reports blocked; root continues authorised manual work; owner explicitly delegates technical/product verification to root. Full EPIC not complete.",
   "original_scope_baseline": ".codex/stages/content-factory-next-0qgn/initial-scope-snapshot.json",
   "original_record_mapping": [
     {
@@ -303,14 +303,15 @@
     "next": "fresh exact full release after commit"
   },
   "currentApplicationDelivery": {
-    "privateSource": "3bc4bea11727f004c573b824f7e0ae3b88065318",
-    "publicRelease": "459378515e24611daaaf23572fc59b62ca3412d7",
-    "healthy": true,
-    "protectedRollback": "cb456e7b0479",
-    "exactLocalFullReceipt": "acceptance-receipt.final-hotfix-3bc4-20261002.json",
-    "actualPublicCI": "Build36974058930/CodeQuality36974058998SUCCESS",
-    "actualHotThreshold": "FAIL64.42-64.62%31samples1829.867s",
-    "ownerNoExistingBackupRestores": true
+    "privateSource": "99e99377ce699d0d6d904571e2a775419b785529",
+    "publicSource": "d5b71523ad0b66a8b0ba60de9c47cb69533123b7",
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:d5b71523ad0b",
+    "rollback": "459378515e24",
+    "rootReceipt": "application-release-d5b71523ad0b-root-acceptance.json",
+    "status": "BASIC_RUNTIME_DELIVERY_PASS; qualified owned closeout complete; full HOT31/1829.916s FAIL62.7557\u201363.7630%; TONE9 pending",
+    "ownedProductCloseout": "owned-product-runtime-d5b71523ad0b-root-closeout.json",
+    "standingRetention": "host-retention-d5b71523ad0b-root-acceptance.json",
+    "memoryRootDecision": "hot-memory-d5b71523ad0b-root-threshold-decision.json"
   },
   "nextCandidateSourceAcceptance": {
     "readerChild": "5e6062bac8656e5b15953cb31e4d79d45d9aa3ff",
@@ -322,7 +323,7 @@
       "avatar-tone-guard-6ca-root-source-acceptance.json",
       "graph-tone-root-acceptance-20261002.json"
     ],
-    "fullReceiptOrImage": "PENDING combined final exact receipt",
+    "fullReceiptOrImage": "Exact99 nine commands/all3 suite halves PASS; actual publicD5 image delivered",
     "actualMemorySaving": "UNKNOWN",
     "toneGuardChild": "6ca2e7a09319eea4b510d00c8e58184f34e5decf",
     "preToneExactFullSourceAcceptance": {
@@ -330,6 +331,15 @@
       "receipt": "a51cb-full-source-root-acceptance.json",
       "status": "PASS; does not cover combined tone guard"
     },
-    "actualNewToneAnalysis": "PENDING release and one otherwise-required owned analysis"
+    "actualNewToneAnalysis": "Actual D5 9SUCCESS/pending0/TONE600 unmatched interior whole-word cut; task9 in_progress. New guard49daf\u2192d762 root accepted245focused/types/old+newreplay; no paid replay/history mutation.",
+    "excerptGuardChild": "49dafd7620664b59e2066e0d51c7c1dd694d1d6b",
+    "excerptIntegratedCodeHead": "d762328f517fcc72b1650e65db1373f59db4d54f",
+    "excerptGuardRootReceipt": "avatar-tone-excerpt-49daf-root-source-acceptance.json",
+    "reader8": "closed with complete faithful onceoriginal1C; sourcecoveragequalifiedweak",
+    "neynarChild": "2ee972dc590f7a4898de4f7aee0d591df2ef4a3d",
+    "neynarIntegratedCodeHead": "8c0a96f879c413493738c619989c5708dcd00168",
+    "neynarRootReceipt": "neynar-lazy-2ee972-root-source-acceptance.json",
+    "combinedNextAcceptance": "Excerpt+Neynar accepted source; one combined fresh exact full9/image/liveTone/HOT pending",
+    "nostrDecision": "Root API captures cannot be preserved; accepted read-only compatibility proof, no source conversion"
   }
 }
