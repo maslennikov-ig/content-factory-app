@@ -1,4 +1,7 @@
-import { omitIncompleteToneQuotation } from './proposal-quotation-guard';
+import {
+  omitIncompleteBoundaryProse,
+  omitIncompleteToneQuotation,
+} from './proposal-quotation-guard';
 import {
   mapResultSchema,
   mapResultSchemaV2,
@@ -790,6 +793,9 @@ export async function runAssistV2({
   // The idempotent quality pass stays outside attempt(), with no extra call.
   const fields = [...byField.values()]
     .map((field) => omitIncompleteToneQuotation(field, observations))
+    .filter((field): field is NonNullable<typeof field> => field !== null)
+    // Near-limit prose is filtered only after grounding and final ref union.
+    .map((field) => omitIncompleteBoundaryProse(field, observations))
     .filter((field): field is NonNullable<typeof field> => field !== null);
 
   return {

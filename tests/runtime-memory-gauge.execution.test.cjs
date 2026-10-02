@@ -158,6 +158,15 @@ async function waitForCompleteRecord(filename, timeoutMs = 500) {
   }
 }
 
+async function waitForSignal(signal, label, timeoutMs = 500) {
+  let deadline;
+  try {
+    return await Promise.race([signal, new Promise((_, reject) => {
+      deadline = setTimeout(() => reject(new Error(`Timed out waiting for ${label}`)), timeoutMs);
+    })]);
+  } finally { clearTimeout(deadline); }
+}
+
 it('appends only the fixed preload after the preserved PM2 caps and flags', () => {
   const config = require('../var/docker/ecosystem.config.js');
   expect(config.apps.map((app) => app.node_args)).toEqual([512, 512, 256].map((cap) => [
@@ -324,10 +333,41 @@ it('a real direct Node process and its inherited native Worker stay inert and ex
 });
 
 
-it.each(['normal', 'normal-partial-write', 'file-symlink', 'file-replacement', 'directory-symlink'])('real Node file-descriptor lifecycle: %s', async (scenario) => {
+it.each([
+  'normal', 'normal-partial-write', 'normal-delayed-startup', 'normal-partial-write-delayed-startup',
+  'startup-overlap', 'startup-readiness-timeout', 'file-symlink', 'file-replacement', 'directory-symlink',
+])('real Node file-descriptor lifecycle: %s', async (scenario) => {
+  const source = fs.readFileSync(gaugePath, 'utf8');
+  const identity = source.slice(source.indexOf('  async function identity() {'), source.indexOf('  async function initialize() {'));
+  const initialize = source.slice(source.indexOf('  async function initialize() {'), source.indexOf('  function cacheCounts() {'));
+  // Readiness is observed through the final startup fstat, without modifying the
+  // preload. Fail explicitly if that source ordering changes underneath this test.
+  expect(initialize.match(/await file\.stat\(\)/g)).toHaveLength(1);
+  expect(identity.match(/await file\.stat\(\)/g)).toHaveLength(1);
+  expect(identity).toMatch(/const currentFd = owned\(await file\.stat\(\), false\); active\(\);/);
+  expect(identity.slice(identity.indexOf('const currentFd =') + 'const currentFd = owned(await file.stat(), false);'.length)).not.toMatch(/\bawait\b/);
+  expect(initialize).toMatch(/await identity\(\);\s*inFlight = false;\s*}\s*$/);
+  expect(source).toMatch(/await identity\(\);\s*sequence \+= 1;/);
+  expect(source).toContain('void writeSample().catch(stop).finally(() => { inFlight = false; });');
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-v8-gauge-native-'));
   const initial = fs.lstatSync(scratch);
   const created = [];
+  const pending = new Set();
+  const track = (operation) => {
+    const result = operation(); pending.add(result);
+    result.then(() => pending.delete(result), () => pending.delete(result));
+    return result;
+  };
+  const delayedStartup = scenario.includes('delayed-startup') || scenario.startsWith('startup-');
+  const partialWrite = scenario.startsWith('normal-partial-write');
+  let startupReadyResolve, sampleFinishedResolve, startupIdentityEnteredResolve, releaseStartup;
+  const startupReady = new Promise((resolve) => { startupReadyResolve = resolve; });
+  const sampleFinished = new Promise((resolve) => { sampleFinishedResolve = resolve; });
+  const startupIdentityEntered = new Promise((resolve) => { startupIdentityEnteredResolve = resolve; });
+  const startupGate = new Promise((resolve) => { releaseStartup = resolve; });
+  let stoppedResolve, handlesClosedResolve;
+  const stopped = new Promise((resolve) => { stoppedResolve = resolve; });
+  const handlesClosed = new Promise((resolve) => { handlesClosedResolve = resolve; });
   let partialWriteEnteredResolve;
   const partialWriteEntered = new Promise((resolve) => { partialWriteEnteredResolve = resolve; });
   let releasePartialWrite;
@@ -336,23 +376,45 @@ it.each(['normal', 'normal-partial-write', 'file-symlink', 'file-replacement', '
   let cleared = false;
   let uptime = 0;
   const translate = (name) => name === '/tmp' ? scratch : name.startsWith('/tmp/') ? scratch + name.slice(4) : name;
-  const promises = Object.fromEntries(['mkdir', 'mkdtemp', 'lstat', 'readFile'].map((name) => [name, (...args) => fs.promises[name](translate(args[0]), ...args.slice(1))]));
-  promises.open = async (...args) => {
+  const promises = Object.fromEntries(['mkdir', 'mkdtemp', 'lstat', 'readFile'].map((name) => [name, (...args) => track(() => fs.promises[name](translate(args[0]), ...args.slice(1)))]));
+  promises.open = (...args) => track(async () => {
     const handle = await fs.promises.open(translate(args[0]), ...args.slice(1));
-    if (scenario === 'normal-partial-write' && String(args[0]).endsWith('/latest.json')) {
+    const close = handle.close.bind(handle);
+    handle.close = (...closeArgs) => track(async () => {
+      await close(...closeArgs);
+      if (created.length === 4 && created.every((opened) => opened.fd === -1)) handlesClosedResolve();
+    });
+    if (String(args[0]).endsWith('/latest.json')) {
+      const stat = handle.stat.bind(handle);
+      let statCalls = 0;
+      handle.stat = (...statArgs) => track(async () => {
+        const result = await stat(...statArgs);
+        statCalls += 1;
+        if (statCalls === 2) {
+          startupIdentityEnteredResolve();
+          if (delayedStartup) await waitForSignal(startupGate, 'startup identity release', 1000);
+          // The gauge's await/identity/initialize continuations drain before this
+          // callback, including inFlight=false. Opening four FDs is too early.
+          setImmediate(startupReadyResolve);
+        }
+        if (statCalls === 4) setImmediate(sampleFinishedResolve);
+        return result;
+      });
+    }
+    if (partialWrite && String(args[0]).endsWith('/latest.json')) {
       const write = handle.write.bind(handle);
-      handle.write = async (buffer, offset, length, position) => {
+      handle.write = (buffer, offset, length, position) => track(async () => {
         const firstLength = Math.floor(length / 2);
         const first = await write(buffer, offset, firstLength, position);
         partialWriteEnteredResolve();
-        await partialWriteGate;
+        await waitForSignal(partialWriteGate, 'partial write release');
         const second = await write(buffer, offset + first.bytesWritten, length - first.bytesWritten,
           position + first.bytesWritten);
         return { bytesWritten: first.bytesWritten + second.bytesWritten };
-      };
+      });
     }
     created.push(handle); return handle;
-  };
+  });
   const actualRequire = (name) => name === 'node:fs' ? { promises, constants: fs.constants } : require(name);
   actualRequire.cache = Object.create(null);
   const context = {
@@ -363,15 +425,36 @@ it.each(['normal', 'normal-partial-write', 'file-symlink', 'file-replacement', '
       get env() { throw new Error('No environment reads'); },
     },
     setInterval(callback, milliseconds) { expect(milliseconds).toBe(60000); interval = callback; return { unref() {} }; },
-    clearInterval() { cleared = true; },
+    clearInterval() { cleared = true; stoppedResolve(); },
   };
-  const pause = () => new Promise((resolve) => setTimeout(resolve, 10));
   const claim = path.join(scratch, 'cf-runtime-memory-backend');
   let original, latest, foreign;
   try {
-    vm.runInNewContext(fs.readFileSync(gaugePath, 'utf8'), context, { timeout: 1000 });
-    for (let n = 0; n < 100 && created.length < 4; n += 1) await pause();
-    await pause(); await pause();
+    vm.runInNewContext(source, context, { timeout: 1000 });
+    if (delayedStartup) {
+      await waitForSignal(startupIdentityEntered, 'final startup identity', 1000);
+      let readyObserved = false;
+      startupReady.then(() => { readyObserved = true; });
+      await settle();
+      expect(readyObserved).toBe(false); expect(cleared).toBe(false);
+      expect(created).toHaveLength(4);
+      if (scenario === 'startup-overlap') {
+        uptime = 60; interval(); expect(cleared).toBe(true);
+      }
+      if (scenario === 'startup-readiness-timeout') {
+        await expect(waitForSignal(startupReady, 'startup readiness', 10)).rejects.toThrow('Timed out waiting for startup readiness');
+        return;
+      }
+      releaseStartup();
+    }
+    await waitForSignal(startupReady, 'startup readiness', 1000);
+    if (scenario === 'startup-overlap') {
+      const directory = path.join(claim, fs.readdirSync(claim)[0]);
+      expect(fs.readFileSync(path.join(directory, 'latest.json'), 'utf8')).toBe('');
+      await waitForSignal(handlesClosed, 'native gauge handles to close');
+      expect(created.every((handle) => handle.fd === -1)).toBe(true);
+      return;
+    }
     expect(created).toHaveLength(4); expect(cleared).toBe(false);
     const names = fs.readdirSync(claim); expect(names).toHaveLength(1);
     const directory = path.join(claim, names[0]); latest = path.join(directory, 'latest.json');
@@ -389,31 +472,37 @@ it.each(['normal', 'normal-partial-write', 'file-symlink', 'file-replacement', '
       fs.renameSync(claim, claim + '-held'); foreign = path.join(scratch, 'owned-foreign-dir'); fs.mkdirSync(foreign);
       fs.symlinkSync(foreign, claim);
     }
-    uptime = 60; interval(); await pause(); await pause();
-    if (scenario === 'normal' || scenario === 'normal-partial-write') {
-      if (scenario === 'normal-partial-write') {
-        await partialWriteEntered;
+    uptime = 60; interval();
+    if (scenario.startsWith('normal')) {
+      if (partialWrite) {
+        await waitForSignal(partialWriteEntered, 'partial write to begin');
         expect(fs.statSync(latest).size).toBeGreaterThan(0);
         expect(() => readComplete(fs.readFileSync(latest, 'utf8'))).toThrow(SyntaxError);
       }
       const pendingRecord = waitForCompleteRecord(latest);
-      if (scenario === 'normal-partial-write') releasePartialWrite();
+      if (partialWrite) releasePartialWrite();
       const value = await pendingRecord;
       expect(value.pid).toBe(process.pid); expect(value.sequence).toBe(1);
       expect(fs.lstatSync(latest).ino).toBe(original.ino);
+      await waitForSignal(sampleFinished, 'complete sample identity'); expect(cleared).toBe(false);
       // Fast-forward only the injected timer to close the real gauge FDs.
-      uptime = 10801; interval(); await pause();
+      uptime = 10801; interval();
     } else {
+      await waitForSignal(stopped, 'ownership rejection');
       expect(cleared).toBe(true);
       if (scenario === 'file-symlink') expect(fs.readFileSync(foreign, 'utf8')).toBe('untouched-owned-fixture');
       if (scenario === 'file-replacement') expect(fs.readFileSync(latest, 'utf8')).toBe('replacement-owned-fixture');
       if (scenario === 'directory-symlink') expect(fs.readdirSync(foreign)).toEqual([]);
     }
-    for (let n = 0; n < 50 && created.some((handle) => handle.fd !== -1); n += 1) await pause();
+    await waitForSignal(handlesClosed, 'native gauge handles to close');
     expect(created.every((handle) => handle.fd === -1)).toBe(true);
   } finally {
-    releasePartialWrite();
-    for (const handle of created) { try { await handle.close(); } catch {} }
+    if (interval && !cleared) { uptime = 10801; interval(); }
+    releaseStartup(); releasePartialWrite();
+    await waitForSignal(Promise.allSettled([...pending]), 'owned fixture I/O to settle', 1000);
+    await settle();
+    await waitForSignal(Promise.allSettled(created.map((handle) => handle.close())), 'owned fixture handles to close', 1000);
+    expect(created.every((handle) => handle.fd === -1)).toBe(true);
     const current = fs.lstatSync(scratch);
     if (current.ino !== initial.ino || current.dev !== initial.dev || current.uid !== process.getuid() || !current.isDirectory() || current.isSymbolicLink()) throw new Error('Owned fixture cleanup mismatch');
     fs.rmSync(scratch, { recursive: true });

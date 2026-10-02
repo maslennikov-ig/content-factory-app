@@ -103,3 +103,102 @@ export function omitIncompleteToneQuotation<T extends Field>(
   const prefix = text.slice(0, complete).trimEnd();
   return prefix.length >= 2 ? { ...field, text: prefix } : null;
 }
+
+const BOUNDARY_ABBREVIATIONS = new Set([
+  ...ABBREVIATIONS,
+  'incl',
+  'dept',
+  'assoc',
+  'напр',
+  'наприм',
+  'соотв',
+  'сокр',
+  'акад',
+  'табл',
+  'млрд',
+  'проч',
+]);
+
+/**
+ * New V2 output policy for ordinary unfinished prose at the existing limit.
+ * This does not diagnose a lexical/provider cutoff: deliberately unpunctuated
+ * near-limit prose may lose its last sentence. Ambiguous boundaries abstain.
+ * Only an exact prior prefix survives; no ending or quotation is completed.
+ */
+export function omitIncompleteBoundaryProse<T extends Field>(
+  field: T,
+  observations: readonly GroundedQuote[]
+): T | null {
+  const raw = field.text;
+  if (
+    typeof raw !== 'string' ||
+    (field.field !== 'TONE' && field.field !== 'TOPICS') ||
+    raw.length > FIELD_LIMIT
+  )
+    return field;
+  const text = raw.trimEnd();
+  if (
+    text.length < FIELD_LIMIT - 1 ||
+    !/\p{L}\p{M}*$/u.test(text) ||
+    !/^\s*\p{Lu}/u.test(text)
+  )
+    return field;
+  const refs = new Set(field.observationRefs ?? []);
+  if (
+    !observations.some(
+      (one) => refs.has(one.ref) && one.field === field.field
+    )
+  )
+    return field;
+  // Unsupported quotation/markup, format controls, broken surrogates, URLs
+  // and punctuation runs cannot certify an ordinary prose sentence.
+  if (
+    /[“”"„'‘’‹›()[\]{}<>/\\@…\p{Cs}\p{Cf}]/u.test(text) ||
+    text.includes(String.fromCharCode(96)) ||
+    /[.!?]{2,}/u.test(text)
+  )
+    return field;
+  let quoted = false;
+  let complete = 0;
+  for (let at = 0; at < text.length; at++) {
+    if (text[at] === '«') {
+      if (quoted) return field;
+      quoted = true;
+    } else if (text[at] === '»') {
+      if (!quoted) return field;
+      quoted = false;
+    }
+    if (quoted) continue;
+    // A capitalized continuation after a comma/colon/semicolon is ambiguous;
+    // it is never promoted to a sentence stop.
+    if (
+      /[,;:]/u.test(text[at]) &&
+      /^\s+\p{Lu}/u.test(text.slice(at + 1))
+    )
+      return field;
+    if (!/[.!?]/u.test(text[at])) continue;
+    if (!completeStop(text, at)) return field;
+    if (text[at - 1] === '»') {
+      if (/[.!?]/u.test(text[at - 2])) return field;
+    } else {
+      const word = /[\p{L}\p{M}\p{N}_\p{Pd}]+$/u.exec(
+        text.slice(0, at)
+      )?.[0];
+      if (
+        !word ||
+        !(text[at] === '.' ? /^\p{Ll}{4,}$/u : /^\p{L}+$/u).test(word) ||
+        BOUNDARY_ABBREVIATIONS.has(word)
+      )
+        return field;
+    }
+    complete = at + 1;
+  }
+  if (quoted) return field;
+  const tail = text.slice(complete).trimStart();
+  if (
+    !/^\p{Lu}/u.test(tail) ||
+    !/^[\p{L}\p{M}\p{N}\s,;:\p{Pd}]+$/u.test(tail)
+  )
+    return field;
+  return complete >= 2 ? { ...field, text: raw.slice(0, complete) } : null;
+}

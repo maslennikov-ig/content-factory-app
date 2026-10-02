@@ -1,14 +1,14 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (1c7/6076 delivery; full HOT threshold FAIL)
+Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (298ec/48f6 basic delivery; full HOT pending)
 Selected Beads epic: `content-factory-next-0qgn`
-Selected Beads goal: `content-factory-next-71m.8`
+Selected Beads goal: `content-factory-next-0qgn`
 
 ## Active programme — 02.10.2026
 
 Owner delegated completion and verification of the whole EPIC to root, including
 necessary actions and renewed execution with "continue". Native goal currently
-reports blocked; root continues authorised work. EPIC is incomplete. All36 original
+reports active; root continues authorised work. EPIC is incomplete. All36 original
 criteria/owners remain preserved; Beads owns status.
 [Spec](../docs/product/remaining-work-2026-10-01-spec.md),
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
@@ -16,39 +16,39 @@ Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai ow
 
 ## Current delivery and candidate
 
-- LIVE private `1c7c86f838f4a165d4695b5e3f12cd828b893a12`, public/image
-  `6076c28eb0337d8be78b733146f0235f34b2fa8c`; ordinary pushes/CI verified.
-  Index `sha256:784caf919f246be77362348569c6b7c1de6ed818278af95b0e37f3910d22d2f6`;
-  config `sha256:b6b12dfe7975af13008baeb9b00c1d362f70ace2c9ed5ed60dfc6a91a3a7eef4`.
-  Healthy/restarts0/1792MiB; protected rollback `d5b71523ad0b` stays on host.
-- Exact1c7 nine commands PASS:3types/four-app build/Jest607/10777/9skips,
-  node122/0fail/4DBskips/Python50/brand/docs/process/diff. Public
-  Build37010513897/Quality37010514013 SUCCESS; normal/time-shift/native PG proof.
-  Missing CI Chromium subcase remains qualified; no zero-CodeQL-alert claim.
-- Actual Prisma diff EMPTY; Product77/1431 hash649a6ff2 and Mastra45/838
-  hasha8cdfd91 unchanged. All39deep/compose preserved; only2releasekeys changed.
-  API/auth/source200; readiness is Temporal metadata, not guessed404 HTTP route.
-  Archive11750299B/SHA31c6e53730214d6a33e94d662ff210b4619495a560ef6e274c6184a3f27f746b.
-- Initial strict pull refused10.65GB<12.37GB. Exact unused own old459 tag only
-  retired after fresh local/registry/all40deep/0refs proof:2922430464B freed.
-  Native recheck/pull passed unchangedgate; D5 rollback/local+registry459 kept.
-  Re-pull duration unknown; no shared cache/foreign/volumes/SQL/GPG/restore.
-  Native retention removed only `.env`+`app.env` old `.bak-before-cb456e7b0479`.
-- Owned B1 PASS/DRAFT; Telegram/rate grounded summaries qualified,1C complete
-  source-insufficient abstention. Manual6fields/analysis9SUCCESS/fivefields,
-  6TRAIN2HOLDOUT TOO_FEW_OWN. TONE599 still cut; raworigin/winnerrefs UNKNOWN.
-  Adaptation430chars/3RUparagraphs/selectedmanual/DRAFT/2SUCCESS/pending0;
-  Windows avatar/adapt1440dark/390light/allguideviews/MCP66 PASS/zero toolcalls.
-  All3 stands retired/15SUCCESS0pending ledgers kept/4localcredentials removed;
-  two old avatar/adapt tokens401; main token401 not captured, no false claim.
-- Full HOT14:13:39–14:44:09Z:31samples/1829.935797s64.1037–64.8228% FAIL.
-  All33 recentpollers/source/schema/process/channel identity withinwindow PASS.
-  Exact pre-release channel identity remains unknown; no causal SDK saving claim.
-- TONE599 child9f2f→primaryc164 accepted:272focused/types/22source/17replay PASS;
-  exact599→92 completeprefix/drop507, finalV2passafterrefs; history/calls unchanged.
-  X49d2→a18/gaugeba492→b4a3/Farcaster7c126→61beec source accepted.
-  Gauge3h/180numeric samples, client-only auth import, existing SDK callbacks;
-  no inspector/GC/cap change, saving/fullnewrelease UNKNOWN;6076 stays LIVE.
+- LIVE private `298ec244cf7d127ee34842c97e748cc8236d3019`, public/image
+  `48f6a1a5fa4861dfc5303194931faf61a5c30fa7`; healthy0/1792MiB/rollback6076.
+  Index `sha256:eccb671981e4ac596c25b1b21a137c122dfc61ebf120702e3258f31375de9c0d`;
+  config `sha256:17a7d884ed68d7f7eec33f5e5448038b59def7690b7cd6d2c74ac359a714c35a`.
+- Exact298ec full9 PASS:3types/fourbuilds/Jest610/10925/9skips,
+  Node122/0fail/4DBskips/Python50/brand/docs/process/diff. v4receipt;
+  priorv3 index151>150 failure retained/corrected before exact acceptance.
+- Archive11776919B/SHA
+  b83550e0960d72dbdadc3beff4eb4fab30e28ee0522485fe584b997de8450883.
+  Registry/14layers/nativehelp/sourceparity/firststrictpull PASS; noD5retirement.
+- New-image Prisma diff EMPTY; Product77/1431 and Mastra45/838 unchanged.
+  Nativeonlycf-app; all39deep/livecompose preserved/only2releasekeys changed.
+  Private salted before/after proof: exact active-channel identity preserved.
+  Noexisting-backup restore/DDL/customer/social/foreign mutation.
+- First old+new cachedpollers gap retained; settled33recentpollers/source/schema/
+  processes/resources PASS;3main-isolate V8numeric roles verified. ColdDocker
+  51.7310–51.7722% qualified; intendedwarm1800s/<60 acceptance stillpending.
+- Public48 normal/time-shift CI failedsamepartialJSONtestreadrace; chained
+  Node/Python neverran. Gaugeunchanged. Child3c617→primaryc371 test-onlyfix
+  48ordinary/48time-shift PASS; publicsource-onlyb427dec7f83cba6bc49050bc5e3af24eab380221.
+  CI37049949281 FAIL same startup race; liveimage/archive still48/298ec.
+- Actual48 neutral8text analysis9SUCCESS/0pending/nohelperretry; proposal
+  SHA238f1c5983c78ebbacfccdb3deca387662a7810cf009057432b753f4e8e8dd2a.
+  TONE599/TOPICS600 unquotedterminalfragments: semanticqualityFAIL/rawcauseUNKNOWN.
+  Ownfouraccessrows revoked/token401/credentialsremoved; outputs/history retained.
+  New V2 sentence-boundary sourcefix54fb integrated/159focusedPASS; livequalitypending.
+- EmptyownA1 retired/fourrows revoked/token401/modelcalls0; v2 stoppedbeforechat:
+  intendedincludedLuna/systemsearch/unlimited differs fromsearch-off/finitequota.
+  v3 preparationaccepted/fixed13actions/3admissions peraction/39overall;
+  no global/default/billingmutation and noactualA1/A2paidwalk yet.
+- Prior6076 HOT31/1829.935797s64.1037–64.8228% FAIL remainshistorical.
+  X/gauge/clientlazyFarcaster/tone source streams arein48; no causal savingclaim.
+  RootactualQA/HOT and unfinishedoriginalgates remain; EPICnotcomplete.
 
 ## Actual own product verification on459 and historical memory
 
@@ -179,15 +179,15 @@ Current own QA is bound to live6076; historical459/D5 proofs remain qualified.
 Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
 sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
 
-Next: preserve live6076/protectedD5; full31/1829.935797s HOT FAIL original<60.
-Tone599 c164 source integrated; X lazy source and safe V8 gauge preparation ongoing.
-One combined exactfullcandidate/newrelease/liveTone9 and comparable HOT required.
+Next: preserve live48/rollback6076; previous HOT64.10–64.82% FAIL original<60.
+V2 text boundary54fb and gauge test46ec/fa474 accepted; one full9 follows.
+One combined full9/newrelease/A1-A2/liveTone9 and comparable HOT required.
 Nostr socket captures and simple shared-i18n preload restriction are not accepted.
 Documentation: current operational facts reconciled; original spec/plan unchanged.
 docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.
 project-index: reviewed-updated
-graph-reviewed: updated local AST0.9.45 8c0a96f87;26966nodes/53713edges/0model tokens;
-Farcaster getClient/scoped callers located;six exact source hashes match, read-only AST.
+graph-reviewed: local AST0.9.45 refreshed46ec;27066nodes/53858edges/0model tokens;
+runAssistV2→omitIncompleteBoundaryProse and two exact indexed source hashes match.
 
 ## Starter prompt for next orchestrator
 
