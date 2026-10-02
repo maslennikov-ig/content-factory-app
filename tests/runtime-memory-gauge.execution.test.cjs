@@ -143,6 +143,21 @@ function readComplete(raw) {
   return record.sample;
 }
 
+async function waitForCompleteRecord(filename, timeoutMs = 500) {
+  const deadline = process.hrtime.bigint() + BigInt(timeoutMs) * 1_000_000n;
+  let lastValidationError;
+  while (true) {
+    const raw = fs.readFileSync(filename, 'utf8');
+    try {
+      return readComplete(raw);
+    } catch (error) {
+      lastValidationError = error;
+    }
+    if (process.hrtime.bigint() >= deadline) throw lastValidationError;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
 it('appends only the fixed preload after the preserved PM2 caps and flags', () => {
   const config = require('../var/docker/ecosystem.config.js');
   expect(config.apps.map((app) => app.node_args)).toEqual([512, 512, 256].map((cap) => [
@@ -309,10 +324,14 @@ it('a real direct Node process and its inherited native Worker stay inert and ex
 });
 
 
-it.each(['normal', 'file-symlink', 'file-replacement', 'directory-symlink'])('real Node file-descriptor lifecycle: %s', async (scenario) => {
+it.each(['normal', 'normal-partial-write', 'file-symlink', 'file-replacement', 'directory-symlink'])('real Node file-descriptor lifecycle: %s', async (scenario) => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-v8-gauge-native-'));
   const initial = fs.lstatSync(scratch);
   const created = [];
+  let partialWriteEnteredResolve;
+  const partialWriteEntered = new Promise((resolve) => { partialWriteEnteredResolve = resolve; });
+  let releasePartialWrite;
+  const partialWriteGate = new Promise((resolve) => { releasePartialWrite = resolve; });
   let interval;
   let cleared = false;
   let uptime = 0;
@@ -320,6 +339,18 @@ it.each(['normal', 'file-symlink', 'file-replacement', 'directory-symlink'])('re
   const promises = Object.fromEntries(['mkdir', 'mkdtemp', 'lstat', 'readFile'].map((name) => [name, (...args) => fs.promises[name](translate(args[0]), ...args.slice(1))]));
   promises.open = async (...args) => {
     const handle = await fs.promises.open(translate(args[0]), ...args.slice(1));
+    if (scenario === 'normal-partial-write' && String(args[0]).endsWith('/latest.json')) {
+      const write = handle.write.bind(handle);
+      handle.write = async (buffer, offset, length, position) => {
+        const firstLength = Math.floor(length / 2);
+        const first = await write(buffer, offset, firstLength, position);
+        partialWriteEnteredResolve();
+        await partialWriteGate;
+        const second = await write(buffer, offset + first.bytesWritten, length - first.bytesWritten,
+          position + first.bytesWritten);
+        return { bytesWritten: first.bytesWritten + second.bytesWritten };
+      };
+    }
     created.push(handle); return handle;
   };
   const actualRequire = (name) => name === 'node:fs' ? { promises, constants: fs.constants } : require(name);
@@ -359,9 +390,15 @@ it.each(['normal', 'file-symlink', 'file-replacement', 'directory-symlink'])('re
       fs.symlinkSync(foreign, claim);
     }
     uptime = 60; interval(); await pause(); await pause();
-    if (scenario === 'normal') {
-      for (let n = 0; n < 50 && fs.statSync(latest).size === 0; n += 1) await pause();
-      const value = readComplete(fs.readFileSync(latest, 'utf8'));
+    if (scenario === 'normal' || scenario === 'normal-partial-write') {
+      if (scenario === 'normal-partial-write') {
+        await partialWriteEntered;
+        expect(fs.statSync(latest).size).toBeGreaterThan(0);
+        expect(() => readComplete(fs.readFileSync(latest, 'utf8'))).toThrow(SyntaxError);
+      }
+      const pendingRecord = waitForCompleteRecord(latest);
+      if (scenario === 'normal-partial-write') releasePartialWrite();
+      const value = await pendingRecord;
       expect(value.pid).toBe(process.pid); expect(value.sequence).toBe(1);
       expect(fs.lstatSync(latest).ino).toBe(original.ino);
       // Fast-forward only the injected timer to close the real gauge FDs.
@@ -375,6 +412,7 @@ it.each(['normal', 'file-symlink', 'file-replacement', 'directory-symlink'])('re
     for (let n = 0; n < 50 && created.some((handle) => handle.fd !== -1); n += 1) await pause();
     expect(created.every((handle) => handle.fd === -1)).toBe(true);
   } finally {
+    releasePartialWrite();
     for (const handle of created) { try { await handle.close(); } catch {} }
     const current = fs.lstatSync(scratch);
     if (current.ino !== initial.ino || current.dev !== initial.dev || current.uid !== process.getuid() || !current.isDirectory() || current.isSymbolicLink()) throw new Error('Owned fixture cleanup mismatch');
