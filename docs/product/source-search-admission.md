@@ -84,3 +84,44 @@ coverage. Root owns any subsequent live acceptance and deployment.
 
 Rollback is the service/test/doc change. There is no schema, dependency,
 workflow, production configuration or runtime resource change.
+
+## Reader admission diagnostics
+
+Only strict `options.readerResponse === true` adds optional
+`admissionDiagnostics` to the service result and authenticated source-search
+HTTP response. No DTO controls this marker. Absent/false and ordinary discovery
+calls preserve their previous result shape. A historical cache result without
+this property keeps it absent. Reader and consumer cache identities remain
+separate; a cached reader response carries its original traversal snapshot,
+not evidence of a new provider request.
+
+The object contains numbers plus `needsAdvertisingContext`, never source text,
+URLs, titles, prompts, tenant/person identifiers or credentials. The controller
+projects an explicit field allowlist. Every count is a finite integer in
+0–1,000,000; larger counts saturate, nonfinite values become zero. Saturation
+changes observation only, never source/fact admission, caps or traversal.
+No new logging, calls, retries, budget, configuration or cache behavior is added.
+
+`provider.rowsVisited` counts rows actually entered in each answered provider's
+admission loop. Its decision counters are `invalidUrl`, `duplicateWithFact`,
+`sourceCapStops`, `noUsableExcerpt`, `contentExhausted`,
+`advertisingContextRejected` and `truncationEmpty`. A cap stop counts the
+encountered stop, not unseen rows after the break. If an excerpt is absent and
+the content budget is also exhausted, the existing first check records
+`noUsableExcerpt`; these are traversal decisions, not independent tests of
+every upstream row.
+
+The separate `keyless` counters describe the existing encyclopedic lane.
+`urlRowsChecked` counts its initial URL-filter traversal; `rowsVisited` counts
+the subsequent valid-URL admission-loop entries, including a cap-stop row.
+`invalidUrl` records URL rejection, `existingSourceSkipped` records the lane's
+existing source skip regardless of whether that source has a fact; the remaining
+five rejection/stop counters have the same decision meanings as the provider
+loop. Its visited population is already normalized by the lane, not a raw
+upstream search population.
+
+`candidateSourceCount` is final `sources.size`, including reserved/keyless
+sources; `admittedFactCount` is final `facts.size`. Counts do not expose rejected
+candidates for acceptance or relax eligibility. They can distinguish branches
+of a future zero-fact response. The old saved fn33.132 response did not retain
+these measurements, so this change does not determine its historical cause.

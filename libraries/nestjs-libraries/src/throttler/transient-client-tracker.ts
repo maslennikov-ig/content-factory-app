@@ -38,8 +38,7 @@ function normalizeConnectionAddress(value: unknown): string {
 }
 
 /**
- * Produces a short-lived caller identifier without returning or retaining any
- * raw request metadata.
+ * Reads the normalized connection address used only inside the HMAC functions.
  *
  * The forwarded chain is read before `X-Real-IP` because Caddy is not the last
  * hop. Caddy replaces both headers with the peer it sees, then proxies to the
@@ -55,19 +54,48 @@ function normalizeConnectionAddress(value: unknown): string {
  * unconditionally rewritten at the ingress, so a client-supplied value never
  * reaches this code.
  */
-export function createTransientClientTracker(
-  request: TransientClientRequest,
-  at = Date.now()
-): string {
+function clientAddress(request: TransientClientRequest): string {
   const connectionAddress =
     firstHeader(request.headers?.['x-forwarded-for']) ||
     firstHeader(request.headers?.['x-real-ip']) ||
     firstHeader(request.ip) ||
     firstHeader(request.socket?.remoteAddress);
-  const normalizedAddress = normalizeConnectionAddress(connectionAddress);
+  return normalizeConnectionAddress(connectionAddress);
+}
+
+/** Produces a process-local minute HMAC without retaining request metadata. */
+export function createTransientClientTracker(
+  request: TransientClientRequest,
+  at = Date.now()
+): string {
+  const normalizedAddress = clientAddress(request);
   const bucket = Math.floor(at / TRANSIENT_TRACKER_BUCKET_MS);
 
   return createHmac('sha256', processTrackerKey)
     .update(`${bucket}\0${normalizedAddress}`)
     .digest('hex');
+}
+
+/**
+ * Registration alone shares caller identity across replicas/restarts. The JWT
+ * key already belongs to this backend; derive a separate HMAC key per budget,
+ * rotate identity each minute, and never fall back to a process-local salt.
+ * Other callers retain createTransientClientTracker's original semantics.
+ */
+export function createRegistrationClientTracker(
+  request: TransientClientRequest,
+  at = Date.now(),
+  budget: 'attempt' | 'effect' = 'effect'
+): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret?.trim()) throw new Error('Registration tracker is unavailable');
+
+  const scopedKey = createHmac('sha256', secret)
+    .update(`content-factory:registration:${budget}:v1`)
+    .digest();
+  const bucket = Math.floor(at / TRANSIENT_TRACKER_BUCKET_MS);
+  return createHmac('sha256', scopedKey)
+    .update(`${bucket}\0${clientAddress(request)}`)
+    .digest('hex')
+    .slice(0, 32);
 }

@@ -158,6 +158,7 @@ const { AuthService } = loadTypeScriptModule(
     '@nestjs/common': {
       Injectable: () => (target) => target,
       HttpException: class HttpException extends Error {},
+      ServiceUnavailableException: require('@nestjs/common').ServiceUnavailableException,
       Logger: class {
         error() {}
         warn() {}
@@ -165,6 +166,12 @@ const { AuthService } = loadTypeScriptModule(
       },
     },
     '@prisma/client': { Provider },
+    '../redis/redis.service': {
+      ioRedis: {
+        status: 'ready',
+        duplicate: () => { throw new Error('Unexpected registration Redis I/O'); },
+      },
+    },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto,
     },

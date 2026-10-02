@@ -388,6 +388,7 @@ const { AuthService } = loadTypeScriptModule(
   {
     '@nestjs/common': {
       Injectable: () => (target) => target,
+      ServiceUnavailableException: require('@nestjs/common').ServiceUnavailableException,
       Logger: class {
         error() {}
         warn() {}

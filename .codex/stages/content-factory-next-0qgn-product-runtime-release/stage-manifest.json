@@ -32,7 +32,7 @@
       "clean-public-image-build",
       "production-owned-QA-and-existing-channel-workload"
     ],
-    "rollback_boundary": "current438-image-rollback-nullable-additive-column-left-in-place",
+    "rollback_boundary": "current27-image-rollback-nullable-additive-column-left-in-place",
     "acceptance_proofs": [
       "root-accepted-isolated-streams",
       "exact-release-receipt",
@@ -269,5 +269,37 @@
     "content-factory-next-ec48.7",
     "content-factory-next-2q28.2",
     "content-factory-next-71m.8"
-  ]
+  ],
+  "delivery_observation_27": {
+    "private_source": "d70c2106295e0c396d3917545447da5c94c331a6",
+    "public_image": "27a3d02850c3b4c9665fe08459b187ad14509e6b",
+    "all9ReleaseCommands": "pass",
+    "publicCI": "both success",
+    "guardedNullableColumn": "applied; all old definitions preserved; empty postdiff",
+    "sourceArchiveSha256": "e0b6b640b35fed9099570a14bb2ef8fbd1f06eec1b9650c02bd15d34ea545988",
+    "runtimeAcceptance": "incomplete; new P1 draft schedule hang; memory hot window not run",
+    "ownedQaCleanup": "6 retired; keys revoked; zero pending; unknown cost retained",
+    "nextCorrection": "all bounded followup sources accepted/integrated; new exact release/local graph refresh and actual corrected B1 remain"
+  },
+  "accepted_followup_sources": {
+    "privateIntegrationHead": "e0fa13f205fb7e826b37ed900b48c2a9b6f9a80a",
+    "productionAccepted": false,
+    "streams": [
+      "runtime-readiness99cb",
+      "registration-distributeda074",
+      "collector-create-onlyf1eb",
+      "draft-empty-schedule93",
+      "search-language225",
+      "language-prefix-bound1c",
+      "reader-admission-counts5e63"
+    ]
+  },
+  "releaseCorrectionObservation": {
+    "failedSource": "aa9ea34cbfc77aa13e12fa987705fcae0c1c0b3c",
+    "failedReceipt": "none",
+    "rootCause": "test Nest exception fixture compatibility and accidental Redis import",
+    "focusedRepair": "3 suites/115 tests pass, natural exit, no open handles",
+    "scope": "three tests only; product source unchanged",
+    "next": "fresh exact full release after commit"
+  }
 }

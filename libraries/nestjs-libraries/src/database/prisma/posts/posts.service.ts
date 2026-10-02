@@ -94,6 +94,9 @@ const REFUSED_QUEUE_WRITE: ReadonlySet<unknown> = new Set([
   'POST_STATE_CHANGED',
 ]);
 
+/** Today through day +366, matching the channel plan's existing horizon. */
+const FREE_SLOT_HORIZON_DAYS = 366;
+
 @Injectable()
 export class PostsService {
   private storage = UploadFactory.createStorage();
@@ -1484,10 +1487,31 @@ export class PostsService {
   }
 
   async findFreeDateTime(orgId: string, integrationId?: string) {
-    const findTimes = await this._integrationService.findFreeDateTime(
-      orgId,
-      integrationId
-    );
+    let findTimes: number[];
+    try {
+      findTimes = await this._integrationService.findFreeDateTime(
+        orgId,
+        integrationId
+      );
+    } catch (error) {
+      // The existing integration reader parses stored JSON and maps its rows.
+      // Broken JSON/list shapes are validation refusals, not endless scans.
+      if (error instanceof SyntaxError || error instanceof TypeError) {
+        throw new BadRequestException('Invalid posting times.');
+      }
+      throw error;
+    }
+    if (
+      !Array.isArray(findTimes) ||
+      !findTimes.length ||
+      !Array.from(findTimes).every(
+        (time) => Number.isInteger(time) && time >= 0 && time < 24 * 60
+      )
+    ) {
+      throw new BadRequestException(
+        'Posting times must contain whole UTC-day minutes between 0 and 1439.'
+      );
+    }
     return this.findFreeDateTimeRecursive(
       orgId,
       findTimes,
@@ -1507,7 +1531,8 @@ export class PostsService {
   private async findFreeDateTimeRecursive(
     orgId: string,
     times: number[],
-    date: dayjs.Dayjs
+    date: dayjs.Dayjs,
+    dayOffset = 0
   ): Promise<string> {
     const list = await this._postRepository.getPostsCountsByDates(
       orgId,
@@ -1516,7 +1541,17 @@ export class PostsService {
     );
 
     if (!list.length) {
-      return this.findFreeDateTimeRecursive(orgId, times, date.add(1, 'day'));
+      if (dayOffset >= FREE_SLOT_HORIZON_DAYS) {
+        throw new BadRequestException(
+          'No free posting time is available within the next 366 UTC days.'
+        );
+      }
+      return this.findFreeDateTimeRecursive(
+        orgId,
+        times,
+        date.add(1, 'day'),
+        dayOffset + 1
+      );
     }
 
     const num = list.reduce<null | number>((prev, curr) => {

@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "test_advisory_lock_refused_without_creating",
+    "test_create_exact_seven_days_repeat_and_all_four_buckets",
+    "test_default_and_namespace_name_collision_refused",
+    "test_four_wrong_hash_buckets_are_refused",
+    "test_mid_transaction_database_error_rolls_back_parent_children_and_fks",
+    "test_only_missing_future_day_is_added",
+    "test_parent_lock_refused_promptly",
+    "test_partial_day_refused_without_filling_or_deleting_it",
+    "test_referenced_table_lock_timeout_rolls_back_the_new_day",
+    "test_unrelated_existing_target_is_never_adopted",
+    "test_whole_transaction_deadline_rolls_back_even_when_each_sleep_is_shorter",
+    "test_wrong_bound_on_a_later_day_aborts_before_first_creation"
+  ],
+  "cleanup": {
+    "docker_volumes_created": 0,
+    "exact_container_absent": true,
+    "only_loopback_port": true
+  },
+  "driver": "3.3.2",
+  "format": "cf-collector-partitions-pg18-execution/v1",
+  "postgres_version": "PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "scope": "new disposable local synthetic database only"
+}

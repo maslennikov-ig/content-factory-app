@@ -68,6 +68,7 @@ const sharedMocks = {
   '@nestjs/common': {
     Injectable: () => (target) => target,
     HttpException: class HttpException extends Error {},
+    ServiceUnavailableException: require('@nestjs/common').ServiceUnavailableException,
     Logger: class {
       error() {}
       warn() {}

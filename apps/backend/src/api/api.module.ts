@@ -33,6 +33,7 @@ import { AutopostController } from '@contentfactory/backend/api/routes/autopost.
 import { SetsController } from '@contentfactory/backend/api/routes/sets.controller';
 import { ThirdPartyController } from '@contentfactory/backend/api/routes/third-party.controller';
 import { MonitorController } from '@contentfactory/backend/api/routes/monitor.controller';
+import { RuntimeMonitorService } from '@contentfactory/backend/services/monitor/runtime-monitor.service';
 import { NoAuthIntegrationsController } from '@contentfactory/backend/api/routes/no.auth.integrations.controller';
 import { PUBLIC_GROWTH_SERVICE } from '@contentfactory/backend/api/routes/public-growth.token';
 import { EnterpriseController } from '@contentfactory/backend/api/routes/enterprise.controller';
@@ -142,6 +143,7 @@ const authenticatedController = [
     ...authenticatedController,
   ],
   providers: [
+    RuntimeMonitorService,
     AuthService,
     StripeService,
     OpenaiService,

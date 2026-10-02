@@ -1,0 +1,22 @@
+WARN `--no-project` was provided, but no project was found
+test_clock_is_caller_pinnable_without_the_real_calendar (tests.test_collector_partitions_create_only.InputGuards.test_clock_is_caller_pinnable_without_the_real_calendar) ... ok
+test_errors_never_print_arbitrary_database_details (tests.test_collector_partitions_create_only.InputGuards.test_errors_never_print_arbitrary_database_details) ... ok
+test_native_output_is_allowlisted_instead_of_trusting_a_generator (tests.test_collector_partitions_create_only.InputGuards.test_native_output_is_allowlisted_instead_of_trusting_a_generator) ... ok
+test_source_and_effective_retention_guards_fail_without_mutation (tests.test_collector_partitions_create_only.InputGuards.test_source_and_effective_retention_guards_fail_without_mutation) ... ok
+test_advisory_lock_refused_without_creating (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_advisory_lock_refused_without_creating) ... ok
+test_create_exact_seven_days_repeat_and_all_four_buckets (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_create_exact_seven_days_repeat_and_all_four_buckets) ... ok
+test_default_and_namespace_name_collision_refused (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_default_and_namespace_name_collision_refused) ... ok
+test_four_wrong_hash_buckets_are_refused (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_four_wrong_hash_buckets_are_refused) ... ok
+test_mid_transaction_database_error_rolls_back_parent_children_and_fks (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_mid_transaction_database_error_rolls_back_parent_children_and_fks) ... ok
+test_only_missing_future_day_is_added (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_only_missing_future_day_is_added) ... ok
+test_parent_lock_refused_promptly (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_parent_lock_refused_promptly) ... ok
+test_partial_day_refused_without_filling_or_deleting_it (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_partial_day_refused_without_filling_or_deleting_it) ... ok
+test_referenced_table_lock_timeout_rolls_back_the_new_day (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_referenced_table_lock_timeout_rolls_back_the_new_day) ... ok
+test_unrelated_existing_target_is_never_adopted (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_unrelated_existing_target_is_never_adopted) ... ok
+test_whole_transaction_deadline_rolls_back_even_when_each_sleep_is_shorter (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_whole_transaction_deadline_rolls_back_even_when_each_sleep_is_shorter) ... ok
+test_wrong_bound_on_a_later_day_aborts_before_first_creation (tests.test_collector_partitions_create_only.PostgreSQL18Execution.test_wrong_bound_on_a_later_day_aborts_before_first_creation) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 10.236s
+
+OK

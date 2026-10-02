@@ -54,7 +54,7 @@ const copy = {
     accept: 'Взять как доказательство',
     accepting: 'Берём…',
     accepted: 'Взято. Ниже напишите утверждение своими словами — доказательство привяжется к нему.',
-    empty: 'Ничего не нашлось. Попробуйте переформулировать тему.',
+    empty: 'Подходящих выдержек из источников не найдено. Попробуйте уточнить тему.',
     summaryTitle: 'Коротко о найденном',
     resultsTitle: 'Что нашлось',
     published: 'Опубликовано',
@@ -96,7 +96,7 @@ const copy = {
     accept: 'Take as evidence',
     accepting: 'Taking…',
     accepted: 'Taken. Write the claim in your own words below — the evidence attaches to it.',
-    empty: 'Nothing came back. Try wording the subject differently.',
+    empty: 'No suitable source excerpts were found. Try refining the subject.',
     summaryTitle: 'What it says, briefly',
     resultsTitle: 'What was found',
     published: 'Published',
@@ -304,7 +304,7 @@ export function ContentSearchContainer({
 
       {answer && (
         <div className="mt-[20px] border-t border-cf-border pt-[16px]">
-          {answer.summary && (
+          {answer.results.length > 0 && answer.summary && (
             <div className="mb-[16px]">
               <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.summaryTitle}

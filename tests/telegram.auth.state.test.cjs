@@ -6,6 +6,12 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 const { AuthController } = loadTypeScriptModule(
   'apps/backend/src/api/routes/auth.controller.ts',
   {
+    '../redis/redis.service': {
+      ioRedis: {
+        status: 'ready',
+        duplicate: () => { throw new Error('Unexpected registration Redis I/O'); },
+      },
+    },
     '@contentfactory/backend/services/auth/auth.service': {
       AuthService: class {},
     },

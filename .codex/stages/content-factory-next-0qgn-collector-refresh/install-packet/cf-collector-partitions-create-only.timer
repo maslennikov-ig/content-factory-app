@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh seven days of collector event partitions without retention cleanup
+
+[Timer]
+OnCalendar=*-*-* 00:05:00 UTC
+Persistent=true
+AccuracySec=30s
+Unit=cf-collector-partitions-create-only.service
+
+[Install]
+WantedBy=timers.target

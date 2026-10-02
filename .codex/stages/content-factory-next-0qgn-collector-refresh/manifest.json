@@ -1,0 +1,152 @@
+{
+  "acceptance_owner": "root",
+  "base_commit": "d70c2106295e0c396d3917545447da5c94c331a6",
+  "child_closed_task": false,
+  "files": [
+    {
+      "bytes": 1571,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/default-fixture-diagnostic.log",
+      "sha256": "1d0f9022ee4ddc28b62e67e28a44b9fb4e47105721ac46cb9ff421cb8ce1ab32"
+    },
+    {
+      "bytes": 475,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/fixture-focused-recheck.log",
+      "sha256": "25a05ac2cfe03f074aac8508e3a6b232a7de5df694d0c0047cadabed3091ed08"
+    },
+    {
+      "bytes": 3061,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/focused-tests.log",
+      "sha256": "824836cb0deab319f6a754208d935d1ee11a0fc12ad0f84138a0513980cf29ff"
+    },
+    {
+      "bytes": 536,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/host-readonly-service-prerequisites.log",
+      "sha256": "62d42ce98fbbf50cdea651c2fb1334fb12c2e4fe54095713a57c99b447149927"
+    },
+    {
+      "bytes": 422,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/SHA256SUMS",
+      "sha256": "6a5870bcb8b23ddae7fe013bf050dcf586febc5440f78c5c643892259ac3aa7e"
+    },
+    {
+      "bytes": 470,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only",
+      "sha256": "c478172bcb27e4b3ea0360b5e1ee12172279b129b89513763ab66a7e428c192a"
+    },
+    {
+      "bytes": 454,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only.service",
+      "sha256": "a5f527f0fcbcb789593ed912b795b80004ef5b2914e19d7975819a753ae331d1"
+    },
+    {
+      "bytes": 248,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only.timer",
+      "sha256": "af2836f86cc69d0b6f7a82a49ad1a812aa1c8685e76b2a5aa765dc767232102c"
+    },
+    {
+      "bytes": 3854,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/manifest.json",
+      "sha256": "769d8e58bef84bf7a5cc560981c948cd0616b95d67601d6a56525f9e892c4ab1"
+    },
+    {
+      "bytes": 338,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/installed-native-readonly-plan.json",
+      "sha256": "d7efe16ebbaeddda7a514bd185304f5ca26f47713b7a5a3f1bd302ae8e085bd2"
+    },
+    {
+      "bytes": 0,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/installed-native-readonly-plan.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1135,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/pg18-report.json",
+      "sha256": "7c691b30444e8a0d95029737c646df074ced5f30b594d41a6c1cf1bb3c5e0040"
+    },
+    {
+      "bytes": 2322,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/plan.md",
+      "sha256": "eeac8046b9913b20afd2d60e2ba2f3ff2ad04ba0845024c9e7709cf333cced1b"
+    },
+    {
+      "bytes": 939,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/retry-api-addendum.md",
+      "sha256": "fe1cd5933a3e04621987a76dad09c1d436aeffb3f5ecb45e50443d3690a7c3f6"
+    },
+    {
+      "bytes": 5351,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/summary.md",
+      "sha256": "5984cffd91e41c61ff588789e01ef9fd06e25498c626007851244a4391f21eaa"
+    },
+    {
+      "bytes": 635,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/systemd-first-activation.json",
+      "sha256": "c8376bf1515510d7988ea4a7eeffb36e9403ca2930b93bec71616b5aee31f59b"
+    },
+    {
+      "bytes": 62,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/systemd-unit-offline-root-attempt.log",
+      "sha256": "37f33dd56958d052c6755cc7e933606b79ede62d3ae5e19a4ade4bd5b0f80111"
+    },
+    {
+      "bytes": 511,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/systemd-unit-offline-verification.json",
+      "sha256": "a304733e6d97328894e39ed5eee9aa38b49618cbbf549e636420a694af726720"
+    },
+    {
+      "bytes": 0,
+      "path": ".codex/stages/content-factory-next-0qgn-collector-refresh/systemd-unit-offline-verification.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 16327,
+      "path": "docs/operations/collector-partitions-create-only.md",
+      "sha256": "f8d95f1394640628ec26af88bc9d8c1d76aef843b9c05b1e56d082651f45a988"
+    },
+    {
+      "bytes": 20822,
+      "path": "scripts/operations/collector-partitions-create-only.py",
+      "sha256": "1da9d24b13a3bb0d758ea10d39c0eb9d8aa25c846600333ba65b6107b24a484a"
+    },
+    {
+      "bytes": 23299,
+      "path": "tests/test_collector_partitions_create_only.py",
+      "sha256": "d14d0680808d8d6bb65d8de014750423fc496a25b33f7892fa144f96069ffcb5"
+    }
+  ],
+  "format": "cf-collector-create-only-refresh-evidence/v1",
+  "installed_collector_source_guards": {
+    "/code/apps/issue_events/models.py": "5a64954fbd9225f4ea31027f5e8b900d0ee9719c90a4a81a2a64bce9bcc9a145",
+    "/code/glitchtip/management/commands/maintain_partitions.py": "a502399206a6a03e7fa642302ef2eb6bdf9fcba3afc3a9727e8d96ddc0c23cac",
+    "/code/glitchtip/partition_manager.py": "d6ac1d9b6ee34fe1a035afe9ef1307c30847cb6be26589c41a8384de911ff86f",
+    "/code/glitchtip/settings.py": "01d5f14fdeffb8d5885ede7519c4a7db7c40d2a7c20ff9eba427045930a5f1e0"
+  },
+  "scope": {
+    "application_backend_changes": false,
+    "automatic_user_schema_indexes_per_new_day": 25,
+    "collector_restarts": false,
+    "event_submissions": false,
+    "host_writes": false,
+    "maximum_created_tables_per_run": 35,
+    "maximum_daily_tables": 5,
+    "queue_changes": false,
+    "retention_changes": false
+  },
+  "state": "prepared in isolated worktree; root acceptance/integration/install pending",
+  "verification": {
+    "actual_postgresql_cases": 12,
+    "collector_native_integration": "installed helper plan read-only, pass, no CREATE/apply",
+    "focused_command": "CF_COLLECTOR_PARTITIONS_EXECUTION_TEST=1 CF_COLLECTOR_PARTITIONS_TEST_REPORT=.codex/stages/content-factory-next-0qgn-collector-refresh/pg18-report.json uv run --no-project --with 'django==6.0.2' --with 'psycopg[binary]==3.3.2' python3 -m unittest tests/test_collector_partitions_create_only.py -v",
+    "full_suite_run": false,
+    "installed_django": "6.0.2",
+    "installed_postgres": "18.2",
+    "local_postgres": "18.6",
+    "psycopg": "3.3.2",
+    "result": "pass",
+    "return_code": 0,
+    "reuse": "source and test files unchanged since matching 16-case pass; no rerun for freshness",
+    "systemd_first_activation": "v255 source reviewed: no stamp means no pre-install catch-up; explicit first service start required",
+    "systemd_offline": "local 259 user-manager parse with explicit fixture substitutions, pass; root-mode installed host255 verification/activation pending",
+    "tests": 16
+  }
+}

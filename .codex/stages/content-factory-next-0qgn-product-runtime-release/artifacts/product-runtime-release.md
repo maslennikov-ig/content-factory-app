@@ -44,7 +44,9 @@ verification:
   - Root accepted lead source and realPG17ten-check proof
   - Root accepted search181checks and UI-only reader/cache boundary
   - Root accepted HTML111focused checks/types/frozen438oracle
-  - Exact final release and new runtime semantic/memory acceptance pending
+  - Exact d70 all9 release commands/public27 CI/source/archive/schema proof PASS
+  - Actual public27 fresh own login and10Windows route cases PASS
+  - Actual B1 empty-schedule P1 FAILED; hot-memory acceptance remains pending
 changed_files:
   - Accepted lead-story nullable provenance, UI search admission/summary and pure parse5 extraction
 explicit_defers:
@@ -77,3 +79,31 @@ real-client facts, scheduledbackup and actualChatGPT session remain unchanged.
 Independent full-envelopeOOM/realmonitor diagnosis does not delay source freeze
 unless it identifies a concrete P0/P1 affecting this candidate. No capincrease,
 queueexclusion, sharedcache cleanup or unrelated projects/accounts.
+
+# Root delivery observation — public27 / d70
+
+Exact source delivered with all9 configured release checks and both public CI
+workflows successful. Nullable ContentLead column applied after signed encrypted
+product-only backup; old1430Product definitions and all45Mastra tables/838
+definitions preserved; new-image diff empty. API/login/Source/archive and own
+fresh authenticated settings/ten Windows routes pass. Prescribed host retention
+keeps current27/rollback438 and removes only own666 plus two enumerated config
+copies. Other39container identities/runtime and liveconfiguration unchanged.
+
+Live B1 failed: post-time at21s recurses indefinitely for an empty schedule,
+including draft. Root ended request/backend-only recovery; no draft. Own single
+orphan nowfailed/possiblyBilledtrue/costNULL; all6 fixture rows retired, credentials
+revoked, ledger retained, no pending. Separate2q28.2.1 repair is in progress.
+Cold memory and old666 OOM are not causal/sustained acceptance. No27 hot window.
+
+Search results are mixed: Telegramzero admitted excerpts/nonempty summary; raw
+admission cause unknown. 1Cfive Russian sources/English summary from any-Cyrillic
+language guard. Rate summary separates currentvalue/forecast; no universal
+source quality claim. Bounded negative-state/language correction225/1c accepted and integrated.
+
+Shared collector repair creates exactly35event partitions, preserving6993old
+objects/settings/otherprojects. Two owned frontend/SDK events recovered once and
+stored withredaction; create-only refresh installed/first service PASS; genuine synthetic Nest/backend event storedONCE/redacted onexact27.
+Source accepted/integrated readiness99cb/distributedregistrationa074/draft93; next release pending. Root
+accepted14nativeHTTPdeadlinechecks; onlyrequestfunctionchanged, originalonce-paid
+uncertain/no-retry/ownership guards unchanged. Source receipts remain exactd70.

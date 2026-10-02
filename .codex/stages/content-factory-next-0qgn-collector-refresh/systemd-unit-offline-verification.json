@@ -1,0 +1,12 @@
+{
+  "fixture_adjustments": [
+    "ExecStart only points at an identical temporary executable copy",
+    "docker.service/basic.target/timers.target dependency stubs"
+  ],
+  "format": "cf-collector-unit-offline-proof/v1",
+  "local_systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "residual": "root-mode verify on installed host255 unit paths and activation remain root-owned",
+  "result": "pass",
+  "return_code": 0,
+  "scope": "temporary unprivileged offline user-manager parse only; no unit installed/activated"
+}

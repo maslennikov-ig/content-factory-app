@@ -1,0 +1,47 @@
+FAIL tests/runtime-monitor.readiness.test.cjs
+  public queue monitor contract
+    ✕ an invented queue is 404 before dependency work (277 ms)
+    ✕ a known unavailable queue is a sanitized 503 (6 ms)
+    ✓ known queue success retains the public two-field response (5 ms)
+
+  ● public queue monitor contract › an invented queue is 404 before dependency work
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"message": "Queue invented is healthy.", "status": "success"}
+
+      18 |   test('an invented queue is 404 before dependency work', async () => {
+      19 |     const h = controller(false, true);
+    > 20 |     await expect(h.controller.getMessagesGroup('invented')).rejects.toMatchObject({
+         |           ^
+      21 |       status: 404,
+      22 |       response: { status: 'error', message: 'Unknown queue.' },
+      23 |     });
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (tests/runtime-monitor.readiness.test.cjs:20:11)
+
+  ● public queue monitor contract › a known unavailable queue is a sanitized 503
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"message": "Queue telegram is healthy.", "status": "success"}
+
+      27 |   test('a known unavailable queue is a sanitized 503', async () => {
+      28 |     const h = controller(true, false);
+    > 29 |     await expect(h.controller.getMessagesGroup('telegram')).rejects.toMatchObject({
+         |           ^
+      30 |       status: 503,
+      31 |       response: { status: 'error', message: 'Queue is unavailable.' },
+      32 |     });
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (tests/runtime-monitor.readiness.test.cjs:29:11)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 1 passed, 3 total
+Snapshots:   0 total
+Time:        0.557 s
+Ran all test suites within paths "tests/runtime-monitor.readiness.test.cjs".

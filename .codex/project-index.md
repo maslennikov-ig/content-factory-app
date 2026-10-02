@@ -6,7 +6,7 @@
 - Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it.
 - Agent/MCP: `content-factory-next-kcxz`, `docs/product/agent-harness-spec.md`, ADR-0012; evidence and releases under `.codex/stages/content-factory-next-kcxz/`.
 - First-client onboarding/acceptance: `content-factory-next-2q28`, `.codex/stages/content-factory-next-2q28/`; preserve the existing client-page response field names.
-- Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`; search scopes `ec48`, `75xn`, `m0iy`.
+- Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`, `docs/product/avatar-grounded-style-contract.md`; search scopes `ec48`, `75xn`, `m0iy`.
 - Operations/SaaS navigation: `docs/operations/postgres-backup.md`, `production-deploy.md`, `saas-readiness.md`; current gates remain in Beads, not this index.
 - Historical programme `vme` was retired 31.08.2026. `cft` completed the public-tree move the same day; accepted `vme.1/.2/.3`, `9e9`, `0c8` and `or3` retain their stage receipts.
 
@@ -15,9 +15,7 @@
 - `docs/README.md` — главный индекс документации и рекомендуемый вход в проект.
 - `docs/{product,architecture,development,operations,adr,maintenance}/` — продукт, система, разработка, эксплуатация, решения и правила актуальности.
 - `PRODUCT.md` — аудитория, назначение, позиционирование и стратегические design principles.
-- `docs/product/cloud-saas-growth-spec.md` и ADR-0010 — Cloud-first managed
-  SaaS-модель, гибридный AI, публичная воронка и явные коммерческие,
-  юридические и production-gates при сохранении AGPL Source.
+- `docs/product/cloud-saas-growth-spec.md` и ADR-0010 — Cloud-first managed SaaS-модель, гибридный AI, публичная воронка и явные коммерческие, юридические и production-gates при сохранении AGPL Source.
 - `docs/product/content-intelligence-brand-profile-spec.md`,
   `content-source-registry-spec.md` и `content-memory-spec.md` — принятые
   контракты профиля, разрешённых источников, фактов, доказательств и единого
@@ -90,8 +88,8 @@
 - `libraries/nestjs-libraries/src/throttler/` — per-caller потолки четырёх
   неаутентифицированных auth POST, краткоживущий tracker без сырого адреса и
   `registration-limiter.ts` — owner-safe слот регистрации после DTO-проверки;
-  контракт с ingress (`deploy/production/Caddyfile.snippet`, `var/docker/nginx.conf`)
-  и известные ограничения описаны в `docs/operations/configuration.md`.
+  shared Redis owner slot/abuse guard: `docs/product/registration-distributed-budget.md`;
+  ingress and deployment limits: `docs/operations/configuration.md`.
 - `scripts/operations/cleanup-saas-retention.cjs` — owner-run dry-run/apply
   удаление raw growth/AI-строк старше 90 дней; apply требует
   `CF_CONFIRM_SAAS_RETENTION` и совпадающего `CF_SAAS_RETENTION_TARGET`.
@@ -104,6 +102,8 @@
 - `docs/operations/postgres-backup.md` и `scripts/operations/postgres-backup*.sh` — repository-owned backup/restore для product, Mastra и Temporal PostgreSQL; установка wrapper/timer на production остаётся отдельным действием владельца.
 - `deploy/production/bootstrap-app-db.sh`, `deploy/production/migrate-mastra-storage.sh` и `scripts/operations/check-postgres-role-isolation.sh` — owner-run переход на отдельные non-owner runtime-роли product/Mastra и отдельную Mastra DB; fail-closed `pg_shdepend`-проверка всех владельцев текущей БД, membership в обоих направлениях, `PUBLIC` ACL, exact DML/sequence grants и cross-database `CONNECT` выполняется до переключения URL.
 - `scripts/operations/validate-prisma-migration-sql.cjs` — барьер применения схемы на production: сверяет отобранный оператором SQL с выводом `prisma migrate diff`, пропускает только добавляющие операции по явно названным таблицам и никогда не трогает `mastra_*`. К базе не подключается, едет в образ, покрыт `tests/prisma-schema-apply-guard.execution.test.cjs` и `tests/prisma-schema-apply-guard.migrate-diff.test.cjs`. Порядок применения — `docs/operations/production-deploy.md`, раздел «Применение Prisma-схемы»; `prisma db push` на боевой базе запрещён.
+- `docs/operations/runtime-readiness.md` — real existing DB/Redis/Temporal checks; liveness stays separate.
+- `scripts/operations/collector-partitions-create-only.py` and `docs/operations/collector-partitions-create-only.md` — bounded shared-collector create-only refresh, never retention or task retry.
 - `docs/operations/error-collection.md`, `libraries/helpers/src/errors/browser.error.relay.server.ts` и exact nginx route — закрытый payload и bounded per-page budgets без IP/UA/cookies/URL; `scripts/ci/run-docker-backed-ci.sh` — required zero-skip Docker/relay/Mastra/restore proof.
 - `docs/operations/legacy-errors-retention.md` и `scripts/operations/cleanup-legacy-errors.cjs` — owner-run dry-run/apply очистка legacy `Errors` старше 90 дней без удаления unknown-семантики.
 - `docs/operations/newsletter.md` — owner-run setup собственного Listmonk, double opt-in, private admin/API boundary, UUID unsubscribe и включение отдельной Listmonk DB в PostgreSQL backup/restore; pending delivery хранится в `User`, а `apps/backend/src/services/newsletter/` атомарно арендует точный pending-переход и передаёт в новый bounded Temporal workflow только `userId`, timestamp и stable lease id, без адреса в workflow history или логах. Активные аренды не блокируют следующую сотню, истёкшие восстанавливаются.

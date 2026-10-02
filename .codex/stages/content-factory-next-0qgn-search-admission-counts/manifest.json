@@ -1,0 +1,101 @@
+{
+  "asset_routing": "existing installed local TS/Jest patterns; no installs/external models/API",
+  "base_commit": "aee5a2203b00d53793f46ada9d81b82bde04ae37",
+  "documentation": {
+    "source": "current local code and existing zero diagnosis only",
+    "zero_diagnosis_sha256": "26560e1b2e78ceeefd8fad96f322f95e53eb58d5fccbeeac8cf464945ce6e629"
+  },
+  "files": [
+    {
+      "bytes": 0,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/backend-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 185,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/format.log",
+      "sha256": "9ae81c000891be6ea1ef2b83ece4bac8e35b2180b6d8140261195f6c1d6e2b9b"
+    },
+    {
+      "bytes": 361,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/green.log",
+      "sha256": "c0a5554c08bb3b252f4be0f6378cfc6a87e4bc399321728d829ba956185846df"
+    },
+    {
+      "bytes": 1512,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/keyless-fixture-route-diagnostic.log",
+      "sha256": "3b05a814c15fa04078aca10cfb30825d91a9800ce31ae8e1b324eae8425cb935"
+    },
+    {
+      "bytes": 799,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/protected-sections.json",
+      "sha256": "44f31a60f70ff62a886352a8c08d9abcd2337ac635dfde2c20f8303fa532e67c"
+    },
+    {
+      "bytes": 4621,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/evidence/red.log",
+      "sha256": "af32e51c8159f2633b53c77dc166cf23616ca26665bf1d57d01d3bb73589291f"
+    },
+    {
+      "bytes": 1288,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/plan.md",
+      "sha256": "af49b81ee172fc5036bd3b117d072f28026f3aae2af96eca23212a628e5742b7"
+    },
+    {
+      "bytes": 3648,
+      "path": ".codex/stages/content-factory-next-0qgn-search-admission-counts/summary.md",
+      "sha256": "a3450d98fe2fb5b909d2989f42bf7cf2130a57b07e12ec1fc7fe50cc5e3b5e99"
+    },
+    {
+      "bytes": 10466,
+      "path": "apps/backend/src/api/routes/content-source.controller.ts",
+      "sha256": "4da2ed1bb0a67c9539820f44a61d576a0b035a216802ff34083547777589eca6"
+    },
+    {
+      "bytes": 7587,
+      "path": "docs/product/source-search-admission.md",
+      "sha256": "fbbcee823c07ea787d3c83f7f5137f5ef66649d683bce365b74ae8b511f2019b"
+    },
+    {
+      "bytes": 94217,
+      "path": "libraries/nestjs-libraries/src/openai/web.research.service.ts",
+      "sha256": "0c3c3f69ca8ce6abad5c1c5e94c4e391594ec953441f3e95f8bbb69de54c53ba"
+    },
+    {
+      "bytes": 19416,
+      "path": "tests/web.research.admission-diagnostics.test.cjs",
+      "sha256": "cd6ce3f0fa44c699b85c4aa2b2a39a53e70e5f4514514fd28a1fe5cc6cf5d179"
+    }
+  ],
+  "format": "cf-reader-admission-counts-evidence/v1",
+  "resources": {
+    "asset_installs": 0,
+    "db_or_redis_calls": 0,
+    "host_reads_or_writes": 0,
+    "owned_dependency_symlink_removed": true,
+    "owned_runtime_leftovers": 0,
+    "provider_or_model_calls": 0,
+    "servers_or_containers_created": 0
+  },
+  "root_acceptance_required": true,
+  "state": "prepared/frozen; no source integration or delivery to host",
+  "verification": {
+    "diff_check": "git diff --check",
+    "diff_exit_code": 0,
+    "execution_scope": "actual service/controller methods with fake provider/model/usage transports; no Nest HTTP or live quality proof",
+    "existing_tests": 36,
+    "full_suite_run": false,
+    "green_command": "pnpm exec jest --runInBand --runTestsByPath tests/web.research.admission-diagnostics.test.cjs tests/web.research.source-admission.test.cjs",
+    "green_exit_code": 0,
+    "green_tests": 47,
+    "new_tests": 11,
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "red_command": "pnpm exec jest --runInBand --runTestsByPath tests/web.research.admission-diagnostics.test.cjs",
+    "red_exit_code": 1,
+    "red_failed": 4,
+    "red_passed": 4,
+    "types_command": "pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+    "types_exit_code": 0
+  }
+}

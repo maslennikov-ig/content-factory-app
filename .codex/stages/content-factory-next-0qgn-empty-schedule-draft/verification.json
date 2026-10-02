@@ -1,0 +1,118 @@
+{
+  "schema": "empty-schedule-draft-local-verification/v1",
+  "task": "content-factory-next-2q28.2.1",
+  "base_commit": "d70c2106295e0c396d3917545447da5c94c331a6",
+  "branch": "codex/empty-schedule-draft-2026-10-02",
+  "worktree": "/home/me/code/content-factory-next-worktrees/0qgn-empty-schedule-draft-20261002",
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "prisma": "6.5.0"
+  },
+  "input_sha256": {
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "8f72646cc1978dee70679fc88d45b9122a82a3dfc998214268108d50db76698b",
+    "libraries/nestjs-libraries/src/agent/agent.graph.service.ts": "8e3f4327cbe845d9c31b7dbb524f725e1253f0b673189f51d30e2e832e3f3714",
+    "libraries/nestjs-libraries/src/agent/generator-run-input.ts": "25f87d7fa2567d22283e3227958d47e00e3c2f2f7bba311febba33604132407f",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "c580146a6ad0aebb850eafd0fcfc4248dcd31793b3d0eab3dc840bf5b2145b0c",
+    "tests/draft-empty-schedule.test.cjs": "df8e3178479c0389565f2ecf893998dfd8111a7a0eb68a97fb3e1e625c355ea4"
+  },
+  "unchanged_protected_sha256": {
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "0526f7d0c48aef24af3979b7b570d6801281fb87c3b037f1fdad25bc35b6bfdf",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "59ce43d4d91d677a41e5b52b3b62e439b050f649a66630998bfda645965aedc7",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "3f92f5f51a270db40b245106ad7f4e8a98f4d379896d5c70b5ea9f09881f6cec",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.repository.ts": "de5e6f2ab080672be1870d076263fe7493bd09c3e05aea6e3235ea4b6427515a",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/adaptation-plan.ts": "a063a1c8bcff9f3f6221efd752d60b68a229a4d8cc38c7f7822bc9efa1710ac3",
+    "libraries/nestjs-libraries/src/dtos/generator/generator.dto.ts": "0cfde529ce55bc0026cf6c3794ba531732ad43366502a1d03d0e2b5141831cd9",
+    "libraries/nestjs-libraries/src/dtos/content-intelligence/content-piece.dto.ts": "d2645d2119922df1eba94b2a4484fa7400dec04e7b0f5d2ab573757ab03f04d7",
+    "libraries/nestjs-libraries/src/openai/ai.usage.service.ts": "445c5d404eb60384b99d3a582a0ecd1cb04d77815845f395330e94f662168620",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "fefaf7872f06e410cdd8fad4c45c35a4ccccafc588e1a8de1d10c6f41ce652bb",
+    "apps/backend/src/api/routes/posts.controller.ts": "e598f12f878a7e24c69d8f9224237b7b54eca0cf04b8c6ac91872eb2d34c5b6d",
+    "apps/backend/src/api/routes/root.controller.ts": "cd04910c4a51a36e0f77fca766bb93f535e00b47f89820c636124735e52bd07a",
+    "Dockerfile": "57b091f6f5aaf69cfdf82f9e629c7b07ac7617f08928baf6958145b0b6562a2f",
+    "pnpm-lock.yaml": "4bf855dd2c38233109b88ae86ed7224d43b476fd2f8d6a2f7d0e6d43f6bd5258",
+    "scripts/release/switch-host-image.sh": "8a4b2379d5cb373831e5f7d70592e09be1df8919544aa009b9c618b1827996c7",
+    "scripts/release/retain-host-artifacts.sh": "340dcbb9b349a70bbdc479b7684fdf3cf86610de289af3895f8ed5861f321fa1"
+  },
+  "development_red": {
+    "source_ref": "d70c2106295e0c396d3917545447da5c94c331a6",
+    "log": "focused-red.log.gz",
+    "failed": 26,
+    "passed": 7,
+    "skipped": 0,
+    "exit": 1,
+    "note": "Original 33-case reproducer before final coverage expansion to 41; two prior loader/setup failures are separately retained, not defect RED."
+  },
+  "development_green": {
+    "log": "focused-green.log.gz",
+    "passed": 33,
+    "skipped": 0,
+    "exit": 0,
+    "note": "Original focused reproducer; final acceptance additionally includes actual public-controller/preflight regressions."
+  },
+  "focused_final": {
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/draft-empty-schedule.test.cjs tests/channel-plan-mode.test.cjs tests/agent.generator-channel-profile.test.cjs tests/agent.draft-pick-graph.test.cjs tests/agent.generator-web-search.test.cjs tests/posts.generated-draft-tail.test.cjs tests/posts.save-refusal.test.cjs tests/piece-adaptation-workspace.test.cjs --coverage=false --detectOpenHandles --json --outputFile=.codex/stages/content-factory-next-0qgn-empty-schedule-draft/focused-final.json",
+    "log": "focused-final.log.gz",
+    "json": "focused-final.json",
+    "suites_passed": 8,
+    "passed": 270,
+    "failed": 0,
+    "skipped": 0,
+    "new_regression_passed": 41,
+    "open_handles": 0,
+    "exit": 0,
+    "natural_exit": true
+  },
+  "backend_types": {
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+    "log": "backend-types.log",
+    "exit": 0
+  },
+  "diff_check": {
+    "command": "git diff --check && git diff --cached --check",
+    "exit": 0
+  },
+  "installation": {
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm install --offline --frozen-lockfile --ignore-scripts",
+    "log": "setup.log.gz",
+    "offline": true,
+    "frozen_lockfile": true,
+    "packages": 2977,
+    "downloaded": 0,
+    "own_node_modules": true,
+    "prisma_generate": "Own client only, no DB; prisma-generate.log.gz.",
+    "bcrypt_local_build": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH npm_config_build_from_source=true npm_config_nodedir=/home/me/.nvm/versions/node/v22.23.2 pnpm rebuild bcrypt",
+      "version": "5.1.1",
+      "log": "bcrypt-local-build.log.gz",
+      "exit": 0,
+      "network_prevention": "Installed node-pre-gyp source-build branch returns do_build before download; existing local Node headers supplied. No download path used.",
+      "earlier_affected_attempt": "affected-before-native-setup.log.gz / .json: 6 suites, 74 checks passed; 2 old suites could not load missing native binding. Final full selected set rerun after own local dependency setup."
+    }
+  },
+  "resources": {
+    "live_db_api_provider_model_host_calls": 0,
+    "production_mutations": 0,
+    "temporary_server_containers_created": 0,
+    "active_test_build_sessions": 0,
+    "fake_timers": "Zero after each new fixture; restored in afterEach.",
+    "model_ports": "Fake RunnableLambda clients, four existing graph stages and one usage scope; no actual paid call.",
+    "worktree_dependencies_evidence": "Retained for root review/integration; no shared caches, primary files or other workers cleaned."
+  },
+  "claims": {
+    "local_candidate_verified": true,
+    "root_accepted": false,
+    "deployed": false,
+    "live_B1_verified": false,
+    "old_OOM_cause_proven": false,
+    "epic_complete": false,
+    "saas_ready": false
+  },
+  "limitations": [
+    "Actual services/compiled graph/controller/repository read methods with database/provider/model ports substituted; no real DB writes or provider/live request.",
+    "Horizon is a finite read-count bound, not a database-call timeout.",
+    "Non-draft Piece preliminary global slot and final existing channel scheduling/queue/Temporal contracts are intentionally retained.",
+    "Existing draft-date fallback is storage metadata; final locked mode re-read still owns actual planning.",
+    "An adaptation-save refusal may retain the already saved DRAFT as before; no new deletion/compensation/transaction.",
+    "SyntaxError/TypeError in the existing stored-JSON/list reader become sanitized validation; ordinary dependency Error is rethrown."
+  ]
+}

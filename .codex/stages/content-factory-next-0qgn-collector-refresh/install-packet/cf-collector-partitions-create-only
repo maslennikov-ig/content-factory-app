@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+if [ "$#" -ne 0 ]; then
+  printf '%s\n' 'This reviewed helper accepts no positional arguments.' >&2
+  exit 2
+fi
+exec /usr/bin/docker --config /usr/local/lib/cf-collector-partitions-create-only \
+  --host unix:///var/run/docker.sock exec -i \
+  --env "CF_COLLECTOR_PARTITIONS_NOW=${CF_COLLECTOR_PARTITIONS_NOW:-}" \
+  -w /code glitchtip-web-1 python - --apply \
+  < /usr/local/lib/cf-collector-partitions-create-only/collector-partitions-create-only.py

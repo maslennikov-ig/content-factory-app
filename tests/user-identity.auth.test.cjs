@@ -38,6 +38,7 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
 }
 
 const nest = {
+  ServiceUnavailableException: require('@nestjs/common').ServiceUnavailableException,
   Injectable: () => (target) => target,
   Controller: () => (target) => target,
   Get: () => () => undefined,
@@ -143,6 +144,12 @@ const { UsersRepository } = loadTypeScriptModule(
 );
 
 const authMocks = {
+  '../redis/redis.service': {
+    ioRedis: {
+      status: 'ready',
+      duplicate: () => { throw new Error('Unexpected registration Redis I/O'); },
+    },
+  },
   '@nestjs/common': nest,
   '@prisma/client': prisma,
   '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {

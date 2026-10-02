@@ -215,6 +215,15 @@ export type IntakePostOverridesV1 = {
  */
 export type GeneratorMaterialPolicyV1 = 'SEARCH_IF_EMPTY' | 'PIECE_ONLY';
 
+/**
+ * Server-only third argument of AgentGraphService.start, never a DTO/body
+ * field. PieceService resolves the effective owned mode before generation;
+ * its final channel lock still decides whether the saved version is planned.
+ */
+export type GeneratorSchedulingOptions = {
+  draftOnly?: boolean;
+};
+
 export type GeneratorRunInput = GeneratorDto & {
   intake?: IntakeGenerationHintsV1;
   materialPolicy?: GeneratorMaterialPolicyV1;

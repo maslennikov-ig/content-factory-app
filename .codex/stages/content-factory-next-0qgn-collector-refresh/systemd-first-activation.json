@@ -1,0 +1,19 @@
+{
+  "consequence": "First enable after today00:05 does not prove an immediate service run.",
+  "fact": "Missing stamp is created but last_trigger remains unset; the first calendar base is activation time.",
+  "format": "cf-collector-systemd-first-activation-review/v1",
+  "line_ranges": [
+    [
+      363,
+      375
+    ],
+    [
+      581,
+      621
+    ]
+  ],
+  "live_activation_performed": false,
+  "proposed_fix": "Explicitly start only the new service once after enabling its timer; preserve/never backdate stamp.",
+  "source": "https://raw.githubusercontent.com/systemd/systemd/v255/src/core/timer.c",
+  "version": "systemd255"
+}

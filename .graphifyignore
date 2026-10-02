@@ -27,7 +27,7 @@ __pycache__/
 # Local agent/runtime noise
 .claude/
 .agents/
-.codex/tmp/
+.codex/
 
 # Secrets and local environments
 .env

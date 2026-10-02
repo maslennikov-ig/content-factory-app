@@ -343,6 +343,21 @@ describe('generator voice has a single source', () => {
     expect(single.match(/They write as "we"/g)).toHaveLength(1);
   });
 
+  test('adaptation asks for connected paragraphs without breaking every sentence', async () => {
+    const post = 'I checked the plan. The date needed fixing.\n\nWe moved the meeting and told the team.';
+    modelResult = { content: { content: post } };
+    const service = new AgentGraphService({}, {});
+    const result = await service.generateContent(withProfile('first_person', 'conversational'));
+
+    expect(promptTemplate).not.toContain('after every "."');
+    expect(promptTemplate).not.toContain('between the lines');
+    expect(promptTemplate).toContain('Keep sentences about one thought together in a paragraph');
+    expect(promptTemplate).toContain('Do not put each sentence on its own line');
+    expect(promptTemplate).toContain('Follow an explicit paragraph or line-break pattern in the voice');
+    // The service passes the answer through; the prompt is the only change.
+    expect(result.content).toEqual({ content: post, usedCitationIds: [] });
+  });
+
   test('falls back to the previous default when the switch is absent too', async () => {
     modelResult = { hook: 'Hook' };
     const service = new AgentGraphService({}, {});

@@ -77,6 +77,7 @@ import {
 } from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import type {
   GeneratorRunInput,
+  GeneratorSchedulingOptions,
   IntakeGenerationHintsV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import type { RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -116,6 +117,8 @@ interface WorkflowChannelsState {
   category?: string;
   topic?: string;
   date?: string;
+  /** Trusted server intent, distinct from any flag in the HTTP body. */
+  draftOnly?: boolean;
   format: 'one_short' | 'one_long' | 'thread_short' | 'thread_long';
   tone?: 'personal' | 'company';
   language: ContentLanguage;
@@ -727,6 +730,7 @@ export class AgentGraphService {
         hook: null,
         content: null,
         date: null,
+        draftOnly: null,
         category: null,
         popularPosts: null,
         topic: null,
@@ -1085,8 +1089,8 @@ export class AgentGraphService {
           ''
         }- Open with the author's own observation, number or result. Never open with an objection, a disclaimer or a sentence about how the author judges the topic; an objection, if used at all, comes after the author's claim
         - ${ctaInstruction(state)}
-        - Make sure you add "\n" between the lines
-        - Add "\n" after every "."
+        - Keep sentences about one thought together in a paragraph; use a blank line when the thought changes. Do not put each sentence on its own line
+        - Follow an explicit paragraph or line-break pattern in the voice or the person's request; otherwise use connected paragraphs, without forcing a line break after each period
         {brief}
         {related}
         Hook:
@@ -1518,6 +1522,7 @@ export class AgentGraphService {
   }
 
   async postDateTime(state: WorkflowChannelsState) {
+    if (state.draftOnly === true) return {};
     return { date: await this._postsService.findFreeDateTime(state.orgId) };
   }
 
@@ -1717,7 +1722,11 @@ export class AgentGraphService {
    * карточка канала читается здесь в текущей области. Без обоих входов ни одна
    * строка промпта не меняется (`content-factory-next-tu3k.2`).
    */
-  async *start(orgId: string, body: GeneratorRunInput) {
+  async *start(
+    orgId: string,
+    body: GeneratorRunInput,
+    scheduling: GeneratorSchedulingOptions = {}
+  ) {
     const hints = body.intake;
     let resolvedChannelProfile: ResolvedChannelProfile | undefined;
 
@@ -1978,6 +1987,7 @@ export class AgentGraphService {
           language: body.language,
           question: body.research,
           orgId,
+          draftOnly: scheduling.draftOnly === true,
           contentContext,
           resolvedBrandProfile,
           draftJudge,

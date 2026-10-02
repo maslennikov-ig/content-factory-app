@@ -1,0 +1,19 @@
+[Unit]
+Description=Create only Content Factory collector daily event partitions
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/cf-collector-partitions-create-only
+TimeoutStartSec=60s
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cf-collector-partitions-create-only

@@ -116,12 +116,88 @@ export interface WebResearchDiscoveryJudgement {
   reason: { ru: string; en: string };
 }
 
+/** Traversed rows/decisions, never the full upstream result population. */
+export interface WebResearchProviderAdmissionCounts {
+  rowsVisited: number;
+  invalidUrl: number;
+  duplicateWithFact: number;
+  sourceCapStops: number;
+  noUsableExcerpt: number;
+  contentExhausted: number;
+  advertisingContextRejected: number;
+  truncationEmpty: number;
+}
+
+export interface WebResearchKeylessAdmissionCounts {
+  urlRowsChecked: number;
+  rowsVisited: number;
+  invalidUrl: number;
+  existingSourceSkipped: number;
+  sourceCapStops: number;
+  noUsableExcerpt: number;
+  contentExhausted: number;
+  advertisingContextRejected: number;
+  truncationEmpty: number;
+}
+
+export interface WebResearchAdmissionDiagnostics {
+  needsAdvertisingContext: boolean;
+  provider: WebResearchProviderAdmissionCounts;
+  keyless: WebResearchKeylessAdmissionCounts;
+  candidateSourceCount: number;
+  admittedFactCount: number;
+}
+
+// Saturation affects observation only, never traversal/admission or budgets.
+const boundedAdmissionCount = (value: number): number =>
+  Number.isFinite(value)
+    ? Math.min(1_000_000, Math.max(0, Math.floor(value)))
+    : 0;
+
+/** Explicit numeric allowlist for the authenticated reader response. */
+export const projectReaderAdmissionDiagnostics = (
+  value: WebResearchAdmissionDiagnostics
+): WebResearchAdmissionDiagnostics => ({
+  needsAdvertisingContext: value.needsAdvertisingContext === true,
+  provider: {
+    rowsVisited: boundedAdmissionCount(value.provider?.rowsVisited),
+    invalidUrl: boundedAdmissionCount(value.provider?.invalidUrl),
+    duplicateWithFact: boundedAdmissionCount(value.provider?.duplicateWithFact),
+    sourceCapStops: boundedAdmissionCount(value.provider?.sourceCapStops),
+    noUsableExcerpt: boundedAdmissionCount(value.provider?.noUsableExcerpt),
+    contentExhausted: boundedAdmissionCount(value.provider?.contentExhausted),
+    advertisingContextRejected: boundedAdmissionCount(
+      value.provider?.advertisingContextRejected
+    ),
+    truncationEmpty: boundedAdmissionCount(value.provider?.truncationEmpty),
+  },
+  keyless: {
+    urlRowsChecked: boundedAdmissionCount(value.keyless?.urlRowsChecked),
+    rowsVisited: boundedAdmissionCount(value.keyless?.rowsVisited),
+    invalidUrl: boundedAdmissionCount(value.keyless?.invalidUrl),
+    existingSourceSkipped: boundedAdmissionCount(
+      value.keyless?.existingSourceSkipped
+    ),
+    sourceCapStops: boundedAdmissionCount(value.keyless?.sourceCapStops),
+    noUsableExcerpt: boundedAdmissionCount(value.keyless?.noUsableExcerpt),
+    contentExhausted: boundedAdmissionCount(value.keyless?.contentExhausted),
+    advertisingContextRejected: boundedAdmissionCount(
+      value.keyless?.advertisingContextRejected
+    ),
+    truncationEmpty: boundedAdmissionCount(value.keyless?.truncationEmpty),
+  },
+  candidateSourceCount: boundedAdmissionCount(value.candidateSourceCount),
+  admittedFactCount: boundedAdmissionCount(value.admittedFactCount),
+});
+
 export interface WebResearchResult {
   summary: string;
   facts: WebResearchFact[];
   sources: WebResearchSource[];
   provider: SearchProvider | 'mixed';
   discovery?: WebResearchDiscoveryJudgement[];
+  /** Reader-only traversal snapshot; cached results retain the original counts. */
+  admissionDiagnostics?: WebResearchAdmissionDiagnostics;
   /**
    * Answered from the research cache: no search went out and no operation
    * was opened (review W4-23 F4). Absent on a fresh answer.
@@ -1097,12 +1173,33 @@ const containsCyrillic = (value: string) => /[А-ЯЁа-яё]/.test(value);
  * Источники без answer теперь могут отдельно обосновать сводку читателя,
  * но только через внутренний readerResponse; это не перевод пустой строки.
  */
-const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
-  summary.trim()
-    ? language === 'ru'
-      ? !containsCyrillic(summary)
-      : containsCyrillic(summary)
-    : false;
+const summaryNeedsLanguage = (summary: string, language: ContentLanguage) => {
+  const text = summary.slice(0, RESEARCH_SUMMARY_ANSWER_CHARS).trim();
+  const cyrillic = containsCyrillic(text);
+  const latin = /[A-Za-z]/.test(text);
+  if (!cyrillic && !latin) {
+    // Numeric/punctuation-only answers have no prose to translate. Other
+    // scripts retain the old non-Cyrillic fallback without a new detector.
+    return language === 'ru' && /\p{L}/u.test(text);
+  }
+  // Keep the single-script fast paths, including short answers. In mixed
+  // prose, one proper name is not evidence of the paragraph's language.
+  if (!cyrillic) return language === 'ru';
+  if (!latin) return language === 'en';
+
+  let russianWords = 0;
+  let englishWords = 0;
+  for (const word of text.match(/[А-ЯЁа-яё]+|[A-Za-z]+/g) ?? []) {
+    // Uppercase acronyms and single-letter product names do not vote.
+    if (/[а-яё]{2}/.test(word)) russianWords += 1;
+    else if (/[a-z]{2}/.test(word)) englishWords += 1;
+  }
+  const otherWords = language === 'ru' ? englishWords : russianWords;
+  const readerWords = language === 'ru' ? russianWords : englishWords;
+  // A spending heuristic, not language identification: ambiguous bilingual
+  // or short mixed text keeps the provider answer without a new model pass.
+  return otherWords >= 3 && otherWords >= 2 * readerWords;
+};
 
 export class WebSearchNotConfigured extends Error {
   readonly status = 409;
@@ -1961,9 +2058,52 @@ Untrusted research data: {evidence}`
         );
       }
     }
+    const admissionDiagnostics: WebResearchAdmissionDiagnostics | undefined =
+      options.readerResponse === true
+        ? {
+            needsAdvertisingContext,
+            provider: {
+              rowsVisited: 0,
+              invalidUrl: 0,
+              duplicateWithFact: 0,
+              sourceCapStops: 0,
+              noUsableExcerpt: 0,
+              contentExhausted: 0,
+              advertisingContextRejected: 0,
+              truncationEmpty: 0,
+            },
+            keyless: {
+              urlRowsChecked: 0,
+              rowsVisited: 0,
+              invalidUrl: 0,
+              existingSourceSkipped: 0,
+              sourceCapStops: 0,
+              noUsableExcerpt: 0,
+              contentExhausted: 0,
+              advertisingContextRejected: 0,
+              truncationEmpty: 0,
+            },
+            candidateSourceCount: 0,
+            admittedFactCount: 0,
+          }
+        : undefined;
+    const countProvider = (key: keyof WebResearchProviderAdmissionCounts) => {
+      if (admissionDiagnostics)
+        admissionDiagnostics.provider[key] = boundedAdmissionCount(
+          admissionDiagnostics.provider[key] + 1
+        );
+    };
+    const countKeyless = (key: keyof WebResearchKeylessAdmissionCounts) => {
+      if (admissionDiagnostics)
+        admissionDiagnostics.keyless[key] = boundedAdmissionCount(
+          admissionDiagnostics.keyless[key] + 1
+        );
+    };
     const laneRows = await encyclopedicLane;
     const laneUsable = laneRows.filter((row) => {
+      countKeyless('urlRowsChecked');
       const url = usableHttpsUrl(row.url);
+      if (!url) countKeyless('invalidUrl');
       return !!url;
     });
     const reservedForLane = Math.min(
@@ -1978,8 +2118,12 @@ Untrusted research data: {evidence}`
     let sourceCount = 0;
     for (const { provider, response } of responses) {
       for (const item of response.results || []) {
+        countProvider('rowsVisited');
         const url = usableHttpsUrl(item.url);
-        if (!url) continue;
+        if (!url) {
+          countProvider('invalidUrl');
+          continue;
+        }
         const excerpt =
           providerSnippetExcerpt(item.content) ??
           wholePageExcerpt(item.rawContent);
@@ -1990,9 +2134,15 @@ Untrusted research data: {evidence}`
         const alreadyHasFact = [...facts.values()].some(
           (fact) => fact.sourceUrl === url
         );
-        if (sources.has(url) && alreadyHasFact) continue;
+        if (sources.has(url) && alreadyHasFact) {
+          countProvider('duplicateWithFact');
+          continue;
+        }
         if (!sources.has(url)) {
-          if (sourceCount >= providerCap) break;
+          if (sourceCount >= providerCap) {
+            countProvider('sourceCapStops');
+            break;
+          }
           sourceCount += 1;
         }
         const score =
@@ -2010,11 +2160,15 @@ Untrusted research data: {evidence}`
           ...(score !== undefined ? { score } : {}),
           ...(text ? { text } : {}),
         });
-        if (!excerpt || remainingContent <= 0) continue;
+        if (!excerpt || remainingContent <= 0) {
+          countProvider(!excerpt ? 'noUsableExcerpt' : 'contentExhausted');
+          continue;
+        }
         if (
           needsAdvertisingContext &&
           !advertisingArticleContext(item.title, url, excerpt)
         ) {
+          countProvider('advertisingContextRejected');
           continue;
         }
         const sourceContent = truncateAtParagraph(
@@ -2022,7 +2176,10 @@ Untrusted research data: {evidence}`
           WEB_SEARCH_MAX_SOURCE_CHARS
         );
         const content = truncateAtParagraph(sourceContent, remainingContent);
-        if (!content) continue;
+        if (!content) {
+          countProvider('truncationEmpty');
+          continue;
+        }
         const key = `${url}|${content}`;
         if (!facts.has(key)) {
           facts.set(key, { text: content, sourceUrl: url });
@@ -2032,9 +2189,16 @@ Untrusted research data: {evidence}`
     }
 
     for (const row of laneUsable) {
+      countKeyless('rowsVisited');
       const url = usableHttpsUrl(row.url);
-      if (!url || sources.has(url)) continue;
-      if (sourceCount >= preset.maxSources) break;
+      if (!url || sources.has(url)) {
+        countKeyless(!url ? 'invalidUrl' : 'existingSourceSkipped');
+        continue;
+      }
+      if (sourceCount >= preset.maxSources) {
+        countKeyless('sourceCapStops');
+        break;
+      }
       sourceCount += 1;
       sources.set(url, {
         url,
@@ -2047,18 +2211,25 @@ Untrusted research data: {evidence}`
           ? { text: row.extract.slice(0, PAGE_TEXT_MAX_CHARS) }
           : {}),
       });
-      if (!row.extract || remainingContent <= 0) continue;
+      if (!row.extract || remainingContent <= 0) {
+        countKeyless(!row.extract ? 'noUsableExcerpt' : 'contentExhausted');
+        continue;
+      }
       if (
         needsAdvertisingContext &&
         !advertisingArticleContext(row.title, url, row.extract)
       ) {
+        countKeyless('advertisingContextRejected');
         continue;
       }
       const content = truncateAtParagraph(
         truncateAtParagraph(row.extract, WEB_SEARCH_MAX_SOURCE_CHARS),
         remainingContent
       );
-      if (!content) continue;
+      if (!content) {
+        countKeyless('truncationEmpty');
+        continue;
+      }
       const key = `${url}|${content}`;
       if (facts.has(key)) continue;
       facts.set(key, { text: content, sourceUrl: url });
@@ -2173,6 +2344,15 @@ Untrusted research data: {evidence}`
       summary,
       facts: [...facts.values()],
       sources: [...sources.values()],
+      ...(admissionDiagnostics
+        ? {
+            admissionDiagnostics: projectReaderAdmissionDiagnostics({
+              ...admissionDiagnostics,
+              candidateSourceCount: sources.size,
+              admittedFactCount: facts.size,
+            }),
+          }
+        : {}),
       ...(discovery ? { discovery } : {}),
     };
   }

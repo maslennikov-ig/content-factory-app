@@ -26,14 +26,14 @@ import { renderPostHabits } from './post-habits';
 import { renderPostLayout } from './post-layout';
 
 /**
- * The model's half: explain what was already counted.
+ * The model's half: interpret measured habits and quote-grounded author style.
  *
  * Map over samples, reduce into a proposal. Not because map-reduce is
  * fashionable but because attention falls off over a long input and a lost
  * observation costs more than the dedup a reduce step needs. The deterministic
  * layer runs first for a different reason again: the model receives the numbers
- * as given and explains them, instead of inventing a characterisation and
- * finding examples to fit it.
+ * as given and explains them. V2 also reads expressive habits directly from
+ * quotes, without inventing a counted measure to fit a characterisation.
  *
  * Every observation is checked against the sample it names before it is
  * allowed into the proposal. A quote the model composed reads exactly like the
@@ -196,7 +196,9 @@ export const mapPrompt = (
     .join('\n');
 
 /**
- * V2 asks for one grounded subject observation without changing the V1 text.
+ * V2 includes grounded qualitative style and subject observations without
+ * changing the V1 text. A nullable metric already represents this evidence;
+ * requiring every claim to explain a number hid expressive habits entirely.
  *
  * English instructions for every locale (`content-factory-next-97dq.97`,
  * owner request of 25.09.2026): V2 is built on the English V1 text, and one
@@ -210,11 +212,26 @@ export const mapPromptV2 = (
 ): string => {
   const topicInstruction =
     'Add at most one TOPICS observation naming the subject of this text. Its metric is null; a verbatim quote is still required.';
+  const styleInstructions = [
+    'For qualitative observations, set metric to null and name the concrete writing habit the quote demonstrates, not an invented counted measure.',
+    'Notice expressive habits such as humour, self-irony, imagery, directness and the way the author treats the reader when the words demonstrate them. For humour, say who or what the joke targets; self-irony means the author makes fun of their own mistake, expectation or pretension, not the reader.',
+    'Do not invent humour, biography or a personality trait from a topic or a numerical score. If no expressive habit is evidenced, omit it.',
+    'Within the existing limit of six observations, prioritise distinctive quote-grounded expressive habits for TONE or WHO_SPEAKS when present, alongside useful measured habits. Do not fill the limit with repeated sentence or layout statistics.',
+  ].join('\n');
   const languageInstruction = `Write every claim in ${languageNameOf(locale)}, the language of the author’s texts; every quote stays verbatim, in the text’s own words.`;
-  return mapPrompt(sample, measurement, 'en').replace(
-    '\nSAMPLE ',
-    `\n${topicInstruction}\n${languageInstruction}\nSAMPLE `
-  );
+  return mapPrompt(sample, measurement, 'en')
+    .replace(
+      'Explain what was counted. Do not judge, praise, or describe with adjectives.',
+      'Explain measured habits and identify qualitative author style directly visible in this sample. Do not judge or praise.'
+    )
+    .replace(
+      'Every observation must quote a phrase from this text verbatim and name the metric it explains. A post habit and a post layout measure both count as a metric too — their key is the one before the dot in the section below.',
+      'Every observation must quote a phrase from this text verbatim. Use a provided metric only when the claim explains that counted measure; never invent a metric.'
+    )
+    .replace(
+      '\nSAMPLE ',
+      `\n${styleInstructions}\n${topicInstruction}\n${languageInstruction}\nSAMPLE `
+    );
 };
 
 /**
@@ -290,7 +307,8 @@ export const reducePrompt = (
   ].join('\n');
 
 /**
- * V2 adds the grounded topics field while the exported V1 prompt stays stable.
+ * V2 adds grounded topics and preserves expressive habits in ordinary prose,
+ * while the exported V1 prompt stays stable.
  *
  * English instructions for every locale (`97dq.97`), as in `mapPromptV2`; the
  * fields, the topics and the portrait are shown to the owner, so the prompt
@@ -304,6 +322,12 @@ export const reducePromptV2 = (
 ): string => {
   const topicInstruction =
     'Return the TOPICS field: what the author writes about and considers important to say. Include only topics grounded in quotes.';
+  const styleInstructions = [
+    'Preserve recurring quote-grounded expressive habits in both TONE and the portrait instead of reducing the author to their activity or numerical habits. Call a habit recurring only when observations from different samples support it.',
+    'When observations demonstrate humour or self-irony, describe how it works and whom it targets. Do not add humour or another trait absent from the observations.',
+    'Write TONE as ordinary writing directions grounded in those observations. Do not turn TONE into sentence, paragraph or list statistics; those numbers already have their own analysis.',
+    'If a portrait question has no grounded answer, omit it instead of adding an analyst’s note about what cannot be established. Keep metric keys, counts, percentages and reference IDs out of the portrait and TONE text; put the supporting IDs only in observationRefs.',
+  ].join('\n');
   const languageInstruction = `Write every field, every topic and the portrait in ${languageNameOf(locale)}, the language of the author’s texts; every quote stays verbatim.`;
   const portraitHeading = '\n\nPORTRAIT.';
   return reducePrompt(
@@ -314,10 +338,15 @@ export const reducePromptV2 = (
     'en',
     habits,
     layout
-  ).replace(
-    portraitHeading,
-    `\n${topicInstruction}\n${languageInstruction}${portraitHeading}`
-  );
+  )
+    .replace(
+      portraitHeading,
+      `\n${topicInstruction}\n${styleInstructions}\n${languageInstruction}${portraitHeading}`
+    )
+    .replace(
+      '. Answer: what they do with their hands;',
+      '. Where supported by observations, describe: what they do with their hands;'
+    );
 };
 
 /**

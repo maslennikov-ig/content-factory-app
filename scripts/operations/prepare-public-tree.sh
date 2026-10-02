@@ -15,7 +15,7 @@
 # does" — shipped thirteen images carrying personal source texts. This script
 # copies the index, so an ignored file cannot get in even by accident.
 #
-# What is deliberately left behind: `.codex/stages/*/evidence/` — 1102 files,
+# What is deliberately left behind: `.codex/stages/*/**/evidence/` — 1102 files,
 # 677 screenshots, and the only remaining place with the three authors' full
 # names. The rest of `.codex` travels; process verification does not run
 # without it.
@@ -79,7 +79,7 @@ fi
 # What is left behind, written once and used twice: to select the files and to
 # decide what counts as a difference. Two copies of this rule would disagree,
 # and the day they did the refusal would be about a file that never travels.
-held_back_pathspec=':(exclude,glob,top).codex/stages/*/evidence/**'
+held_back_pathspec=':(exclude,glob,top).codex/stages/*/**/evidence/**'
 
 # The index is copied, so the index has to be the commit. `tree-differences.sh`
 # answers the same question for the release and excludes the three tooling

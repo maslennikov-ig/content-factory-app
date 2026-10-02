@@ -8,7 +8,11 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const throttlerModule = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/throttler/throttler.provider.ts',
-  {},
+  {
+    '@contentfactory/nestjs-libraries/redis/redis.service': {
+      ioRedis: { status: 'ready', eval: async () => undefined },
+    },
+  },
   {
     sources: {
       './transient-client-tracker':
@@ -19,6 +23,21 @@ const throttlerModule = loadTypeScriptModule(
 
 const { createTransientClientTracker, ThrottlerBehindProxyGuard } =
   throttlerModule;
+
+let originalSecret;
+let clock;
+beforeEach(() => {
+  originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'registration-guard-unit-secret-never-live';
+  clock = jest
+    .spyOn(Date, 'now')
+    .mockReturnValue(Date.UTC(2026, 9, 2, 12, 0, 10));
+});
+afterEach(() => {
+  if (originalSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = originalSecret;
+  clock.mockRestore();
+});
 
 // One handler identity per route, because `generateKey` mixes the handler name
 // into the storage key: two routes must not share a budget by accident, and the
@@ -246,15 +265,11 @@ describe('registration and recovery throttling', () => {
       at
     );
     const equivalent = createTransientClientTracker(
-      requestContext('/auth/register', '192.0.2.8')
-        .switchToHttp()
-        .getRequest(),
+      requestContext('/auth/register', '192.0.2.8').switchToHttp().getRequest(),
       at
     );
     const nextBucket = createTransientClientTracker(
-      requestContext('/auth/register', '192.0.2.8')
-        .switchToHttp()
-        .getRequest(),
+      requestContext('/auth/register', '192.0.2.8').switchToHttp().getRequest(),
       at + 60_000
     );
 
@@ -389,6 +404,30 @@ describe('registration and recovery throttling', () => {
 
     warning.mockRestore();
     storage.onApplicationShutdown();
+  });
+
+  test('registration attempt identity keeps the existing minute rotation boundary', async () => {
+    const { guard, storage } = createGuard();
+    const warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    await guard.onModuleInit();
+    try {
+      clock.mockReturnValue(Date.UTC(2026, 9, 2, 12, 0, 59, 999));
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        expect(await guard.canActivate(requestContext('/auth/register'))).toBe(
+          true
+        );
+      }
+      await expect(
+        guard.canActivate(requestContext('/auth/register'))
+      ).rejects.toBeInstanceOf(ThrottlerException);
+      clock.mockReturnValue(Date.UTC(2026, 9, 2, 12, 1, 0));
+      expect(await guard.canActivate(requestContext('/auth/register'))).toBe(
+        true
+      );
+    } finally {
+      warning.mockRestore();
+      storage.onApplicationShutdown();
+    }
   });
 
   test('a GET on a throttled path is left alone', async () => {

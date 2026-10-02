@@ -321,6 +321,178 @@ describe('сводка веб-поиска говорит на языке чит
     assert.equal(chatModelCalls.length, 1);
   });
 
+  // Saved public27 answer, 1C cloud search. This pins language/call behavior,
+  // not the factual accuracy of the provider's prices or migration advice.
+  const recorded1cSummary =
+    'The sources indicate that migrating 1С:Предприятие from a local server to the cloud in Russia involves several key considerations. The process includes a preliminary audit of the current 1С configuration, data volume, and network architecture, followed by selecting an optimal cloud provider and tariff plan based on performance, budget, and Service Level Agreement (SLA). The cost of migration and cloud rental varies; for instance, renting 1С for 10 or more users is around 13,000 rubles per month, while renting per user ranges from 1,300 to 2,100 rubles monthly depending on the configuration. The sources also highlight the benefits of cloud migration, such as avoiding the need for capital expenditures on new hardware, scalability, and centralized updates and maintenance by the cloud provider. However, the sources do not provide a definitive answer on the exact cost of migrating multiple databases or the specific licensing requirements for 1С in the cloud.';
+
+  const russianTechnicalSummary =
+    'Переезд в облако сохраняет работу приложения с PostgreSQL и Microsoft Azure. REST API и SLA описывают доступ к данным и требования к доступности сервиса.';
+
+  test.each([
+    ['public27 English with 1С names → ru', recorded1cSummary, 'ru', true],
+    ['public27 English with 1С names → en', recorded1cSummary, 'en', false],
+    ['Russian with technical names → ru', russianTechnicalSummary, 'ru', false],
+    ['Russian with technical names → en', russianTechnicalSummary, 'en', true],
+    ['short English → ru', 'Cloud migration.', 'ru', true],
+    ['short English → en', 'Cloud migration.', 'en', false],
+    ['uppercase English → ru', 'CLOUD MIGRATION', 'ru', true],
+    ['other-script fallback → ru', 'Μεταφορά στο νέφος.', 'ru', true],
+    ['other-script fallback → en', 'Μεταφορά στο νέφος.', 'en', false],
+    ['short Russian → ru', 'Переезд завершён.', 'ru', false],
+    ['short Russian → en', 'Переезд завершён.', 'en', true],
+    [
+      'numeric/acronym-only → ru',
+      '2026: 13,000 ₽ / 1С / SLA / API',
+      'ru',
+      false,
+    ],
+    [
+      'numeric/acronym-only → en',
+      '2026: 13,000 ₽ / 1С / SLA / API',
+      'en',
+      false,
+    ],
+    ['numeric-only → ru', '2026: 13,000 ₽ — 14%', 'ru', false],
+    ['numeric-only → en', '2026: 13,000 ₽ — 14%', 'en', false],
+    ['empty → ru', '   ', 'ru', false],
+    ['empty → en', '   ', 'en', false],
+    [
+      'balanced bilingual → ru',
+      'Cloud migration reduces hardware costs. Переезд в облако снижает расходы.',
+      'ru',
+      false,
+    ],
+    [
+      'balanced bilingual → en',
+      'Cloud migration reduces hardware costs. Переезд в облако снижает расходы.',
+      'en',
+      false,
+    ],
+    ['short mixed names → ru', 'Cloud Предприятие', 'ru', false],
+    ['short mixed names → en', 'Cloud Предприятие', 'en', false],
+  ])(
+    '%s uses at most the existing one correction',
+    async (_label, answer, language, rewrite) => {
+      searchAnswer.answer = answer;
+      const originalSources = searchAnswer.results.map((row) => ({ ...row }));
+      summaryResult = {
+        summary: 'Mocked existing reader-language correction.',
+      };
+
+      const result = await new WebResearchService(aiUsage).research(
+        'organization-a',
+        'переезд с 1С в облако',
+        { language, readerResponse: !!answer.trim() }
+      );
+
+      assert.equal(
+        result.summary,
+        rewrite ? summaryResult.summary : answer.trim() ? answer : ''
+      );
+      assert.equal(summaryCalls().length, rewrite ? 1 : 0);
+      assert.equal(chatModelCalls.length, rewrite ? 2 : 1);
+      assert.equal(
+        chatModelCalls.every(({ role }) => role === 'classify'),
+        true
+      );
+      assert.deepEqual(searchAnswer.results, originalSources);
+      assert.equal(result.facts.length, 1);
+      assert.equal(result.sources.length, 1);
+      assert.equal(result.facts[0].sourceUrl, originalSources[0].url);
+      assert.equal(result.sources[0].url, originalSources[0].url);
+      if (rewrite) {
+        const { input } = summaryCalls()[0];
+        assert.equal(input.language, language === 'ru' ? 'Russian' : 'English');
+        assert.deepEqual(JSON.parse(input.evidence).answers, [answer]);
+      }
+    }
+  );
+
+  test('supplied 1С queries do not buy a language correction', async () => {
+    searchAnswer.answer = recorded1cSummary;
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'переезд с 1С в облако',
+      { language: 'ru', readerResponse: true, queries: ['1C cloud migration'] }
+    );
+
+    assert.equal(result.summary, recorded1cSummary);
+    assert.equal(summaryCalls().length, 0);
+    assert.equal(chatModelCalls.length, 0);
+    assert.equal(result.facts.length, 1);
+    assert.equal(result.sources.length, 1);
+  });
+
+  test.each([
+    {
+      label: 'English prefix ignores a huge Russian tail for ru',
+      prefix: 'Cloud migration reduces hardware costs. '.repeat(110).slice(0, 4_000),
+      tail: 'Переезд в облако снижает расходы. '.repeat(40_000),
+      language: 'ru',
+      rewrite: true,
+    },
+    {
+      label: 'English prefix ignores a huge Russian tail for en',
+      prefix: 'Cloud migration reduces hardware costs. '.repeat(110).slice(0, 4_000),
+      tail: 'Переезд в облако снижает расходы. '.repeat(40_000),
+      language: 'en',
+      rewrite: false,
+    },
+    {
+      label: 'Russian prefix ignores a huge English tail for ru',
+      prefix: 'Переезд в облако снижает расходы. '.repeat(130).slice(0, 4_000),
+      tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
+      language: 'ru',
+      rewrite: false,
+    },
+    {
+      label: 'Russian prefix ignores a huge English tail for en',
+      prefix: 'Переезд в облако снижает расходы. '.repeat(130).slice(0, 4_000),
+      tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
+      language: 'en',
+      rewrite: true,
+    },
+    {
+      label: 'a letter at the last sampled character still uses the old fallback',
+      prefix: `${' '.repeat(3_999)}α`,
+      tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
+      language: 'ru',
+      rewrite: true,
+    },
+    {
+      label: 'whitespace-only prefix does not inspect the first excluded letter',
+      prefix: ' '.repeat(4_000),
+      tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
+      language: 'ru',
+      rewrite: false,
+    },
+  ])('$label', async ({ prefix, tail, language, rewrite }) => {
+    assert.equal(prefix.length, 4_000);
+    assert.ok(tail.length > 1_000_000);
+    const answer = prefix + tail;
+    searchAnswer.answer = answer;
+    summaryResult = { summary: 'Mocked bounded reader correction.' };
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'переезд с 1С в облако',
+      { language, readerResponse: true }
+    );
+
+    assert.equal(summaryCalls().length, rewrite ? 1 : 0);
+    assert.equal(chatModelCalls.length, rewrite ? 2 : 1);
+    assert.equal(result.summary, rewrite ? summaryResult.summary : answer);
+    assert.equal(searchAnswer.answer, answer);
+    assert.equal(result.facts.length, 1);
+    assert.equal(result.sources.length, 1);
+    assert.equal(result.facts[0].text, searchAnswer.results[0].content);
+    assert.equal(result.facts[0].sourceUrl, searchAnswer.results[0].url);
+    assert.equal(result.sources[0].url, searchAnswer.results[0].url);
+    if (rewrite) {
+      assert.deepEqual(JSON.parse(summaryCalls()[0].input.evidence).answers, [prefix]);
+    }
+  });
+
   test('сорванный перевод сводки не срывает поиск', async () => {
     summaryResult = null;
 

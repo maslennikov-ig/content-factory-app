@@ -1,0 +1,157 @@
+FAIL tests/runtime-monitor.readiness.test.cjs
+  public queue monitor contract
+    ○ skipped an invented queue is 404 before dependency work
+    ○ skipped a known unavailable queue is a sanitized 503
+    ○ skipped known queue success retains the public two-field response
+  actual runtime monitor dependencies and admission
+    ✕ array seconds is unavailable (82 ms)
+    ✕ whitespace seconds is unavailable (31 ms)
+    ✕ scientific seconds is unavailable (25 ms)
+    ✕ string nanos is unavailable (20 ms)
+    ✕ array timestamp is unavailable (14 ms)
+    ○ skipped readiness uses an ORM read, real PONG and namespace/main RPCs with a shared deadline
+    ○ skipped a provider queue needs activity pollers but no DB, PING or workflow read
+    ○ skipped main requires task type 1 as well as the other type
+    ○ skipped main requires task type 2 as well as the other type
+    ○ skipped unknown, hyphenated and adversarial names allocate no probes or I/O
+    ○ skipped all accepted names share a fixed bounded key set
+    ○ skipped DB read refusal fails closed without leaking the cause
+    ○ skipped unexpected Redis reply fails closed without leaking the cause
+    ○ skipped Redis command rejection fails closed without leaking the cause
+    ○ skipped Temporal not SERVING fails closed without leaking the cause
+    ○ skipped Temporal health rejection fails closed without leaking the cause
+    ○ skipped namespace refusal fails closed without leaking the cause
+    ○ skipped wrong namespace result fails closed without leaking the cause
+    ○ skipped missing namespace metadata fails closed without leaking the cause
+    ○ skipped task metadata refusal fails closed without leaking the cause
+    ○ skipped missing client fails closed without leaking the cause
+    ○ skipped missing configured namespace fails closed without leaking the cause
+    ○ skipped the actual MockRedis cannot satisfy runtime readiness
+    ○ skipped Redis status reconnecting cannot enqueue a PING
+    ○ skipped Redis status wait cannot enqueue a PING
+    ○ skipped Redis status end cannot enqueue a PING
+    ○ skipped Redis status undefined cannot enqueue a PING
+    ○ skipped no pollers is unavailable
+    ○ skipped no poller field is unavailable
+    ○ skipped malformed poller list is unavailable
+    ○ skipped null poller is unavailable
+    ○ skipped missing access timestamp is unavailable
+    ○ skipped missing seconds is unavailable
+    ○ skipped fractional seconds is unavailable
+    ○ skipped invalid seconds is unavailable
+    ○ skipped unsafe seconds is unavailable
+    ○ skipped negative nanos is unavailable
+    ○ skipped overflow nanos is unavailable
+    ○ skipped poller age 120000 ms has readiness true
+    ○ skipped poller age 120001 ms has readiness false
+    ○ skipped poller age -1 ms has readiness false
+    ○ skipped one fresh poller suffices among old entries and Long-like seconds decode safely
+    ○ skipped locally excluded known provider can be healthy on a remote worker
+    ○ skipped 50 concurrent readiness requests coalesce and clear their timers
+    ○ skipped cached true outcome expires exactly at five seconds
+    ○ skipped cached false outcome expires exactly at five seconds
+    ○ skipped stalled database returns within 2s and cannot enqueue replacements
+    ○ skipped stalled redis returns within 2s and cannot enqueue replacements
+    ○ skipped late DB resolve is observed and cannot overwrite the failed cache
+    ○ skipped late DB reject is observed and cannot overwrite the failed cache
+    ○ skipped a delayed event-loop completion cannot turn a budget overrun into success
+    ○ skipped early RPC refusal keeps admission while another RPC remains unfinished
+  actual Nest wiring and public routes
+    ○ skipped API module registers the same service token and leaves monitor outside auth middleware
+    ○ skipped real HTTP handlers retain liveness/success and send readiness503/unknown404 envelopes
+
+  ● actual runtime monitor dependencies and admission › array seconds is unavailable
+
+    expect(received).resolves.toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      442 |     const h = harness();
+      443 |     h.connection.workflowService.describeTaskQueue.mockResolvedValue(response);
+    > 444 |     await expect(h.service.isQueueReady('telegram')).resolves.toBe(false);
+          |                                                               ^
+      445 |   });
+      446 |
+      447 |   test.each([
+
+      at Object.toBe (node_modules/expect/build/index.js:174:22)
+      at tests/runtime-monitor.readiness.test.cjs:444:63
+
+  ● actual runtime monitor dependencies and admission › whitespace seconds is unavailable
+
+    expect(received).resolves.toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      442 |     const h = harness();
+      443 |     h.connection.workflowService.describeTaskQueue.mockResolvedValue(response);
+    > 444 |     await expect(h.service.isQueueReady('telegram')).resolves.toBe(false);
+          |                                                               ^
+      445 |   });
+      446 |
+      447 |   test.each([
+
+      at Object.toBe (node_modules/expect/build/index.js:174:22)
+      at tests/runtime-monitor.readiness.test.cjs:444:63
+
+  ● actual runtime monitor dependencies and admission › scientific seconds is unavailable
+
+    expect(received).resolves.toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      442 |     const h = harness();
+      443 |     h.connection.workflowService.describeTaskQueue.mockResolvedValue(response);
+    > 444 |     await expect(h.service.isQueueReady('telegram')).resolves.toBe(false);
+          |                                                               ^
+      445 |   });
+      446 |
+      447 |   test.each([
+
+      at Object.toBe (node_modules/expect/build/index.js:174:22)
+      at tests/runtime-monitor.readiness.test.cjs:444:63
+
+  ● actual runtime monitor dependencies and admission › string nanos is unavailable
+
+    expect(received).resolves.toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      442 |     const h = harness();
+      443 |     h.connection.workflowService.describeTaskQueue.mockResolvedValue(response);
+    > 444 |     await expect(h.service.isQueueReady('telegram')).resolves.toBe(false);
+          |                                                               ^
+      445 |   });
+      446 |
+      447 |   test.each([
+
+      at Object.toBe (node_modules/expect/build/index.js:174:22)
+      at tests/runtime-monitor.readiness.test.cjs:444:63
+
+  ● actual runtime monitor dependencies and admission › array timestamp is unavailable
+
+    expect(received).resolves.toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      442 |     const h = harness();
+      443 |     h.connection.workflowService.describeTaskQueue.mockResolvedValue(response);
+    > 444 |     await expect(h.service.isQueueReady('telegram')).resolves.toBe(false);
+          |                                                               ^
+      445 |   });
+      446 |
+      447 |   test.each([
+
+      at Object.toBe (node_modules/expect/build/index.js:174:22)
+      at tests/runtime-monitor.readiness.test.cjs:444:63
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 52 skipped, 57 total
+Snapshots:   0 total
+Time:        0.698 s, estimated 2 s
+Ran all test suites within paths "tests/runtime-monitor.readiness.test.cjs".

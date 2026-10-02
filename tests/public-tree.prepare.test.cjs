@@ -89,13 +89,27 @@ const prepare = (repo, target, flags = []) =>
 
 const targetFor = (repo) => path.join(repo, '..', `out-${path.basename(repo)}`);
 
+const nestedEvidence = {
+  '.codex/stages/content-factory-next-0qgn-search-reader-negative-state/bounded-language-sampling/evidence/verification.json': 'private recorded verification\n',
+  '.codex/stages/stage-a/child/grandchild/evidence/archive/run.log': 'private recorded output\n',
+  '.codex/stages/stage-a/child samples/evidence/line\nbreak.txt': 'private recorded output\n',
+};
+
+const publicStageFiles = {
+  '.codex/stages/stage-a/child/spec.md': '# reviewed specification\n',
+  '.codex/stages/stage-a/child/evidence-notes/summary.md': '# public artifact\n',
+  '.codex/stages/stage-a/child/evidence.md': '# public artifact\n',
+  '.codex/stages/evidence/summary.md': '# stage named evidence\n',
+  '.codex/tools/evidence/helper.cjs': 'module.exports = {};\n',
+};
+
 const describeIfWritable = workspace ? describe : describe.skip;
 
-describeIfWritable('preparing the public tree', () => {
-  afterAll(() => {
-    if (workspace) fs.rmSync(workspace, { recursive: true, force: true });
-  });
+afterAll(() => {
+  if (workspace) fs.rmSync(workspace, { recursive: true, force: true });
+});
 
+describeIfWritable('preparing the public tree', () => {
   test('copies tracked source and leaves stage evidence behind', () => {
     const { repo } = makeRepository();
     const target = targetFor(repo);
@@ -112,7 +126,7 @@ describeIfWritable('preparing the public tree', () => {
   });
 
   test('scripts/evidence is tooling and travels, despite the matching name', () => {
-    // The exclusion is anchored at `.codex/stages/*/evidence/`. A looser pattern
+    // The exclusion is anchored at `.codex/stages/<stage>/` and an evidence directory. A looser pattern
     // — anything containing `evidence` — would silently drop the measurement
     // tools the product's voice work runs on.
     const { repo } = makeRepository();
@@ -120,6 +134,36 @@ describeIfWritable('preparing the public tree', () => {
 
     expect(prepare(repo, target).status).toBe(0);
     expect(fs.existsSync(path.join(target, 'scripts/evidence/voice-eval/measure.cjs'))).toBe(true);
+  });
+
+  test('excludes evidence at every depth inside a stage and retains nearby public artifacts', () => {
+    const { repo } = makeRepository({ extraTracked: { ...nestedEvidence, ...publicStageFiles } });
+    const target = targetFor(repo);
+
+    const result = prepare(repo, target);
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    for (const relative of Object.keys(nestedEvidence)) {
+      expect(fs.existsSync(path.join(target, relative))).toBe(false);
+    }
+    for (const [relative, contents] of Object.entries(publicStageFiles)) {
+      expect(fs.readFileSync(path.join(target, relative), 'utf8')).toBe(contents);
+    }
+    expect(fs.readFileSync(path.join(target, 'LICENSE'), 'utf8')).toContain('AFFERO');
+  });
+
+  test('a change to nested held-back evidence does not block a clean source copy', () => {
+    const { repo } = makeRepository({ extraTracked: nestedEvidence });
+    for (const relative of Object.keys(nestedEvidence)) {
+      write(repo, relative, 'changed private run evidence\n');
+    }
+
+    const result = prepare(repo, targetFor(repo));
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    for (const relative of Object.keys(nestedEvidence)) {
+      expect(fs.existsSync(path.join(targetFor(repo), relative))).toBe(false);
+    }
   });
 
   test('an ignored corpus on disk does not reach the public tree', () => {
@@ -325,6 +369,44 @@ describeIfWritable('refreshing an existing public clone', () => {
     expect(fs.existsSync(path.join(clone, '.env.production'))).toBe(false);
   });
 
+  test('the final artifact guard refuses a nested evidence leak before refreshing the clone', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    const headBefore = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: clone, encoding: 'utf8' }).stdout;
+    const statusBefore = spawnSync('git', ['status', '--porcelain'], { cwd: clone, encoding: 'utf8' }).stdout;
+    const realGit = spawnSync('bash', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    expect(path.isAbsolute(realGit)).toBe(true);
+    const shims = path.join(workspace, `checkout-shim-${path.basename(repo)}`);
+    fs.mkdirSync(shims);
+    const leak = '.codex/stages/stage-a/child/evidence/injected.txt';
+    const shim = `#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const args = process.argv.slice(2);
+const result = spawnSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit' });
+if (result.status === 0 && args[0] === 'checkout-index') {
+  const prefix = args.find((arg) => arg.startsWith('--prefix=')).slice('--prefix='.length);
+  const file = path.join(prefix, ${JSON.stringify(leak)});
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, 'synthetic private evidence\\n');
+}
+process.exit(result.status === null ? 1 : result.status);
+`;
+    fs.writeFileSync(path.join(shims, 'git'), shim, { mode: 0o755 });
+
+    const result = spawnSync('bash', [path.join(repo, 'scripts/operations/prepare-public-tree.sh'), '--update', clone], {
+      cwd: repo, encoding: 'utf8', env: { ...process.env, ...gitEnv, PATH: `${shims}${path.delimiter}${process.env.PATH}` },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`stage evidence in the public tree: ${leak}`);
+    expect(result.stderr).toContain('The clone was not touched');
+    expect(fs.existsSync(path.join(clone, leak))).toBe(false);
+    expect(spawnSync('git', ['rev-parse', 'HEAD'], { cwd: clone, encoding: 'utf8' }).stdout).toBe(headBefore);
+    expect(spawnSync('git', ['status', '--porcelain'], { cwd: clone, encoding: 'utf8' }).stdout).toBe(statusBefore);
+  });
+
   test('without --update it refuses a non-empty target and says what to pass', () => {
     const { repo } = makeRepository();
     const clone = cloneOf(repo);
@@ -385,6 +467,30 @@ describeIfWritable('the refresh prepares what the release gate will need', () =>
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('carried over');
     expect(fs.existsSync(path.join(clone, 'var/release/suite-receipt.json'))).toBe(true);
+  });
+
+  test('refresh excludes nested evidence while preserving source identity, license, receipt, origin and history', () => {
+    const { repo } = makeRepository({ extraTracked: { ...nestedEvidence, ...publicStageFiles } });
+    const clone = cloneOf(repo);
+    const originBefore = spawnSync('git', ['remote', 'get-url', 'origin'], { cwd: clone, encoding: 'utf8' }).stdout;
+    const headBefore = headOf(clone);
+    writeReceipt(repo, headOf(repo));
+    const receipt = fs.readFileSync(path.join(repo, 'var/release/suite-receipt.json'));
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    for (const relative of Object.keys(nestedEvidence)) {
+      expect(fs.existsSync(path.join(clone, relative))).toBe(false);
+    }
+    for (const [relative, contents] of Object.entries(publicStageFiles)) {
+      expect(fs.readFileSync(path.join(clone, relative), 'utf8')).toBe(contents);
+    }
+    expect(fs.readFileSync(path.join(clone, 'LICENSE'), 'utf8')).toContain('AFFERO');
+    expect(fs.readFileSync(path.join(clone, 'var/release/suite-receipt.json'))).toEqual(receipt);
+    expect(fs.readFileSync(path.join(clone, '.git/PREPARE_PUBLIC_COMMIT_MSG'), 'utf8').trimEnd()).toMatch(new RegExp(`Source-Commit: ${headOf(repo)}$`));
+    expect(spawnSync('git', ['remote', 'get-url', 'origin'], { cwd: clone, encoding: 'utf8' }).stdout).toBe(originBefore);
+    expect(headOf(clone)).toBe(headBefore);
   });
 
   test('it refuses to carry a receipt for a different commit', () => {

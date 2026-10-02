@@ -1,4 +1,5 @@
 require('reflect-metadata');
+const { createHash } = require('node:crypto');
 const { Reflector } = require('@nestjs/core');
 const { HttpException, ValidationPipe, Logger } = require('@nestjs/common');
 const {
@@ -6,16 +7,28 @@ const {
   ThrottlerStorageService,
 } = require('@nestjs/throttler');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+const {
+  createRegistrationScriptRedis,
+} = require('./helpers/registration-script-redis.cjs');
+const registrationRedis = createRegistrationScriptRedis();
+const opaque = (label) =>
+  createHash('sha256').update(label).digest('hex').slice(0, 32);
 
 const limiter = loadTypeScriptModule(
-  'libraries/nestjs-libraries/src/throttler/registration-limiter.ts'
+  'libraries/nestjs-libraries/src/throttler/registration-limiter.ts',
+  { '../redis/redis.service': { ioRedis: registrationRedis } }
 );
 const { RegistrationEffectLimiter, RegistrationFormRefusal } = limiter;
 const { CreateOrgUserDto } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts'
 );
 const { ThrottlerBehindProxyGuard } = loadTypeScriptModule(
-  'libraries/nestjs-libraries/src/throttler/throttler.provider.ts'
+  'libraries/nestjs-libraries/src/throttler/throttler.provider.ts',
+  {
+    '@contentfactory/nestjs-libraries/redis/redis.service': {
+      ioRedis: registrationRedis,
+    },
+  }
 );
 const { AuthController } = loadTypeScriptModule(
   'apps/backend/src/api/routes/auth.controller.ts',
@@ -34,58 +47,90 @@ const { AuthController } = loadTypeScriptModule(
   }
 );
 
+let originalSecret;
 beforeEach(() => {
+  originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'registration-retry-unit-secret-never-live';
+  registrationRedis.reset();
   jest.useFakeTimers();
   jest.setSystemTime(Date.UTC(2026, 9, 1, 0, 0, 10));
 });
 afterEach(() => {
+  if (originalSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = originalSecret;
   jest.runOnlyPendingTimers();
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
 
 describe('registration effect reservation ownership', () => {
-  test('only one concurrent caller owns a given effect slot', () => {
-    const slots = new RegistrationEffectLimiter();
-    const first = slots.acquire('opaque-current', 'opaque-previous');
-    const second = slots.acquire('opaque-current', 'opaque-previous');
+  test('only one concurrent caller owns a given effect slot', async () => {
+    const slots = new RegistrationEffectLimiter(registrationRedis);
+    const [first, second] = await Promise.all([
+      slots.acquire(opaque('current'), opaque('previous')),
+      slots.acquire(opaque('current'), opaque('previous')),
+    ]);
     expect(first.allowed).toBe(true);
     expect(second).toEqual({ allowed: false, retryAfterSeconds: 60 });
   });
 
-  test('a pre-write release opens only that caller’s slot', () => {
-    const slots = new RegistrationEffectLimiter();
-    const first = slots.acquire('caller-a', 'caller-a-previous');
-    const other = slots.acquire('caller-b', 'caller-b-previous');
-    expect(slots.release(first.reservation)).toBe(true);
-    expect(slots.acquire('caller-a', 'caller-a-previous').allowed).toBe(true);
-    expect(slots.acquire('caller-b', 'caller-b-previous').allowed).toBe(false);
-    expect(slots.release(other.reservation)).toBe(true);
+  test('a pre-write release opens only that caller’s slot', async () => {
+    const slots = new RegistrationEffectLimiter(registrationRedis);
+    const first = await slots.acquire(
+      opaque('caller-a'),
+      opaque('caller-a-previous')
+    );
+    const other = await slots.acquire(
+      opaque('caller-b'),
+      opaque('caller-b-previous')
+    );
+    expect(await slots.release(first.reservation)).toBe(true);
+    expect(
+      (await slots.acquire(opaque('caller-a'), opaque('caller-a-previous')))
+        .allowed
+    ).toBe(true);
+    expect(
+      (await slots.acquire(opaque('caller-b'), opaque('caller-b-previous')))
+        .allowed
+    ).toBe(false);
+    expect(await slots.release(other.reservation)).toBe(true);
   });
 
-  test('an expired owner cannot release the newer owner of the same key', () => {
-    const slots = new RegistrationEffectLimiter();
-    const first = slots.acquire('same-key', 'previous-key');
+  test('an expired owner cannot release the newer owner of the same key', async () => {
+    const slots = new RegistrationEffectLimiter(registrationRedis);
+    const first = await slots.acquire(
+      opaque('same-key'),
+      opaque('previous-key')
+    );
     // Move the clock without delivering its timer yet: acquisition must also
     // enforce expiry, and the old request may still fail afterwards.
     jest.setSystemTime(Date.now() + 60_000);
-    const second = slots.acquire('same-key', 'previous-key');
+    const second = await slots.acquire(
+      opaque('same-key'),
+      opaque('previous-key')
+    );
     expect(second.allowed).toBe(true);
     expect(second.reservation.owner).not.toBe(first.reservation.owner);
-    expect(slots.release(first.reservation)).toBe(false);
-    expect(slots.acquire('same-key', 'previous-key').allowed).toBe(false);
+    expect(await slots.release(first.reservation)).toBe(false);
+    expect(
+      (await slots.acquire(opaque('same-key'), opaque('previous-key'))).allowed
+    ).toBe(false);
   });
 
-  test('minute rotation keeps the previous owner held for all sixty seconds', () => {
-    const slots = new RegistrationEffectLimiter();
-    slots.acquire('minute-one', 'minute-zero');
+  test('minute rotation keeps the previous owner held for all sixty seconds', async () => {
+    const slots = new RegistrationEffectLimiter(registrationRedis);
+    await slots.acquire(opaque('minute-one'), opaque('minute-zero'));
     jest.advanceTimersByTime(50_000);
-    expect(slots.acquire('minute-two', 'minute-one')).toEqual({
+    expect(
+      await slots.acquire(opaque('minute-two'), opaque('minute-one'))
+    ).toEqual({
       allowed: false,
       retryAfterSeconds: 10,
     });
     jest.advanceTimersByTime(10_000);
-    expect(slots.acquire('minute-two', 'minute-one').allowed).toBe(true);
+    expect(
+      (await slots.acquire(opaque('minute-two'), opaque('minute-one'))).allowed
+    ).toBe(true);
   });
 });
 
@@ -390,6 +435,47 @@ describe('registration corrections and independent budgets', () => {
     expect((await pending).statusCode).toBe(400);
     expect((await submit()).statusCode).toBe(200);
     expect(routeAuth).toHaveBeenCalledTimes(2);
+  });
+
+  test('the form refusal response waits for its Redis release before an immediate correction', async () => {
+    let completeRelease;
+    let enter;
+    const entered = new Promise((resolve) => {
+      enter = resolve;
+    });
+    const duplicate = registrationRedis.duplicate;
+    registrationRedis.duplicate = (options) => {
+      const connection = duplicate(options);
+      const evaluate = connection.eval;
+      connection.eval = async (script, ...args) => {
+        if (script.includes("redis.call('DEL'")) {
+          enter();
+          await new Promise((resolve) => {
+            completeRelease = resolve;
+          });
+        }
+        return evaluate(script, ...args);
+      };
+      return connection;
+    };
+    try {
+      routeAuth.mockRejectedValueOnce(
+        new RegistrationFormRefusal('email_already_exists')
+      );
+      let responded = false;
+      const pending = submit().then((response) => {
+        responded = true;
+        return response;
+      });
+      await entered;
+      await Promise.resolve();
+      expect(responded).toBe(false);
+      completeRelease();
+      expect((await pending).statusCode).toBe(400);
+      expect((await submit()).statusCode).toBe(200);
+    } finally {
+      registrationRedis.duplicate = duplicate;
+    }
   });
 
   test('a slow old refusal after expiry cannot unlock a later successful attempt', async () => {

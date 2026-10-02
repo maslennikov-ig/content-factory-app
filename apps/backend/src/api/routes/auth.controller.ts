@@ -106,7 +106,7 @@ export class AuthController {
   ) {
     // Global DTO validation has already run. Keep this outside the form-error
     // catch: an exhausted effect budget must remain HTTP 429.
-    const admission = acquireRegistrationEffect(request);
+    const admission = await acquireRegistrationEffect(request);
     if (admission.allowed === false) {
       response.header('Retry-After', String(admission.retryAfterSeconds));
       throw new ThrottlerException();
@@ -185,7 +185,7 @@ export class AuthController {
       });
     } catch (e: any) {
       if (e instanceof RegistrationFormRefusal) {
-        releaseRegistrationEffect(admission.reservation);
+        await releaseRegistrationEffect(admission.reservation);
       }
       // Unknown/partial-effect failures retain their slot; do not reinterpret
       // all 4xx responses or matching message strings as safe form errors.

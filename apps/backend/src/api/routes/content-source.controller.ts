@@ -24,7 +24,10 @@ import {
   SyncContentSourceDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-source.dto';
 import { ContentSourceRegistryService } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-registry.service';
-import { WebResearchService } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import {
+  WebResearchService,
+  projectReaderAdmissionDiagnostics,
+} from '@contentfactory/nestjs-libraries/openai/web.research.service';
 
 function safeHttpError(error: unknown): never {
   if (
@@ -137,6 +140,13 @@ export class ContentSourceController {
       return {
         summary: research.summary,
         provider: research.provider,
+        ...(research.admissionDiagnostics
+          ? {
+              admissionDiagnostics: projectReaderAdmissionDiagnostics(
+                research.admissionDiagnostics
+              ),
+            }
+          : {}),
         results: research.facts.map((fact) => {
           const source = sourceByUrl.get(fact.sourceUrl);
           return {

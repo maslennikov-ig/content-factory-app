@@ -1,0 +1,86 @@
+{
+  "activation": {
+    "enable_only": "cf-collector-partitions-create-only.timer",
+    "explicit_first_start_only": "cf-collector-partitions-create-only.service",
+    "first_activation_without_stamp": "v255 schedules from activation time; no catch-up of calendar times before first install",
+    "persistent_catchup": "preexisting older stamp only; never fabricate or backdate stamp",
+    "utc_2026_10_02_expected_delta_if_old_coverage_oct1_to_oct7": "Oct8 daily parent plus h0-h3 only; five tables; coverage ends Oct9T00:00Z"
+  },
+  "base_commit": "d70c2106295e0c396d3917545447da5c94c331a6",
+  "directories": [
+    {
+      "group": "root",
+      "mode": "0755",
+      "owner": "root",
+      "require_absent": true,
+      "target": "/usr/local/lib/cf-collector-partitions-create-only"
+    }
+  ],
+  "format": "cf-collector-create-only-install-packet/v1",
+  "own_systemd_generated_paths": [
+    "/etc/systemd/system/timers.target.wants/cf-collector-partitions-create-only.timer",
+    "/var/lib/systemd/timers/stamp-cf-collector-partitions-create-only.timer"
+  ],
+  "payloads": [
+    {
+      "group": "root",
+      "mode": "0644",
+      "owner": "root",
+      "require_target_absent": true,
+      "sha256": "1da9d24b13a3bb0d758ea10d39c0eb9d8aa25c846600333ba65b6107b24a484a",
+      "source": "scripts/operations/collector-partitions-create-only.py",
+      "target": "/usr/local/lib/cf-collector-partitions-create-only/collector-partitions-create-only.py"
+    },
+    {
+      "group": "root",
+      "mode": "0755",
+      "owner": "root",
+      "require_target_absent": true,
+      "sha256": "c478172bcb27e4b3ea0360b5e1ee12172279b129b89513763ab66a7e428c192a",
+      "source": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only",
+      "target": "/usr/local/sbin/cf-collector-partitions-create-only"
+    },
+    {
+      "group": "root",
+      "mode": "0644",
+      "owner": "root",
+      "require_target_absent": true,
+      "sha256": "a5f527f0fcbcb789593ed912b795b80004ef5b2914e19d7975819a753ae331d1",
+      "source": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only.service",
+      "target": "/etc/systemd/system/cf-collector-partitions-create-only.service"
+    },
+    {
+      "group": "root",
+      "mode": "0644",
+      "owner": "root",
+      "require_target_absent": true,
+      "sha256": "af2836f86cc69d0b6f7a82a49ad1a812aa1c8685e76b2a5aa765dc767232102c",
+      "source": ".codex/stages/content-factory-next-0qgn-collector-refresh/install-packet/cf-collector-partitions-create-only.timer",
+      "target": "/etc/systemd/system/cf-collector-partitions-create-only.timer"
+    }
+  ],
+  "refuse_preexisting_units_or_dropins": [
+    "cf-collector-partitions-create-only.service",
+    "cf-collector-partitions-create-only.timer",
+    "/etc/systemd/system/cf-collector-partitions-create-only.service.d",
+    "/etc/systemd/system/cf-collector-partitions-create-only.timer.d"
+  ],
+  "rollback": "disable own timer, wait own oneshot inactive, verify unchanged owned payload hashes, remove only exact listed payloads/own link/stamp, rmdir own empty helper directory; never DROP/DETACH partitions",
+  "root_acceptance_required": true,
+  "status": "proposed; not installed or activated",
+  "transfer_staging": {
+    "allowlisted_files": [
+      "collector-partitions-create-only.py",
+      "cf-collector-partitions-create-only",
+      "cf-collector-partitions-create-only.service",
+      "cf-collector-partitions-create-only.timer",
+      "SHA256SUMS"
+    ],
+    "cleanup": "verify owner and allowlisted file hashes, remove only these five files, then rmdir this exact empty directory",
+    "group": "root",
+    "mode": "0700",
+    "owner": "root",
+    "require_absent": true,
+    "target": "/tmp/cf-collector-partitions-install-1da9d24b13a3"
+  }
+}

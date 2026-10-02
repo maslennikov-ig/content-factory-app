@@ -112,7 +112,7 @@ const FOUND = {
   ],
 };
 
-const renderSearch = async () => {
+const renderSearch = async (language = 'ru') => {
   await act(async () => {
     render(
       React.createElement(
@@ -120,7 +120,7 @@ const renderSearch = async () => {
         { value: { provider: () => new Map(), dedupingInterval: 0 } },
         React.createElement(
           variables.VariableContextComponent,
-          { language: 'ru' },
+          { language },
           React.createElement(container.ContentSearchContainer, {})
         )
       )
@@ -147,6 +147,75 @@ afterEach(() => {
 });
 
 describe('панель поиска, живой прогон 05.09.2026', () => {
+  test.each([
+    [
+      'ru',
+      'Подходящих выдержек из источников не найдено. Попробуйте уточнить тему.',
+    ],
+    ['en', 'No suitable source excerpts were found. Try refining the subject.'],
+  ])(
+    'zero excerpts hide ungrounded prose for %s',
+    async (language, emptyCopy) => {
+      const ungrounded = 'A provider answer without any usable source excerpt.';
+      serve({
+        [`POST ${adapter.SEARCH_API}`]: ok({
+          ...FOUND,
+          summary: ungrounded,
+          results: [],
+        }),
+      });
+      await renderSearch(language);
+      await runSearch();
+
+      expect(screen.getByText(emptyCopy)).toBeTruthy();
+      expect(document.body.textContent).not.toContain(ungrounded);
+      expect(document.body.textContent).not.toContain('Коротко о найденном');
+      expect(document.body.textContent).not.toContain('What it says, briefly');
+      expect(document.querySelector('[data-content-search-accept]')).toBeNull();
+    }
+  );
+
+  test('rows removed by the existing adapter cannot ground the summary', async () => {
+    const ungrounded = 'A raw result count alone does not ground this answer.';
+    serve({
+      [`POST ${adapter.SEARCH_API}`]: ok({
+        ...FOUND,
+        summary: ungrounded,
+        results: [
+          { ...FOUND.results[0], excerpt: '  ' },
+          { ...FOUND.results[0], url: '  ' },
+        ],
+      }),
+    });
+    await renderSearch();
+    await runSearch();
+
+    expect(
+      screen.getByText(
+        'Подходящих выдержек из источников не найдено. Попробуйте уточнить тему.'
+      )
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toContain(ungrounded);
+    expect(document.querySelector('[data-content-search-result]')).toBeNull();
+  });
+
+  test.each(['ru', 'en'])(
+    'positive excerpts still display the summary for %s',
+    async (language) => {
+      serve({ [`POST ${adapter.SEARCH_API}`]: ok(FOUND) });
+      await renderSearch(language);
+      await runSearch();
+
+      expect(screen.getByText(FOUND.summary)).toBeTruthy();
+      expect(screen.getByText(FOUND.results[0].excerpt)).toBeTruthy();
+      expect(
+        document.querySelector(
+          '[data-content-search-accept="https://example.org/rate"]'
+        )
+      ).toBeTruthy();
+    }
+  );
+
   test('дата источника читается по-русски, а неразборная не показывается', async () => {
     serve({ [`POST ${adapter.SEARCH_API}`]: ok(FOUND) });
     await renderSearch();

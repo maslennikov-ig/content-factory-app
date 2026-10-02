@@ -8,13 +8,18 @@ import {
   HttpException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
   resolveBackendLocale,
   translateBackendText,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
-import { createTransientClientTracker } from './transient-client-tracker';
+import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
+import {
+  createRegistrationClientTracker,
+  createTransientClientTracker,
+} from './transient-client-tracker';
 
 export { createTransientClientTracker } from './transient-client-tracker';
 
@@ -42,6 +47,9 @@ const AUTH_THROTTLES = {
 } as const;
 
 type AuthThrottlePath = keyof typeof AUTH_THROTTLES;
+
+const REGISTRATION_GUARD_LIMIT = 16;
+let pendingRegistrationGuards = 0;
 
 function requestPath(req: Record<string, any>): string {
   const path = String(req.path || req.url || '').split('?', 1)[0];
@@ -142,10 +150,14 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
     context: ExecutionContext
   ): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+    const authPath = authThrottlePath(request);
+    if (authPath === '/auth/register') {
+      return this.canActivateRegistration(context);
+    }
     if (
       (request.method === 'POST' &&
         request.url.toLowerCase().includes('/public/v1/posts')) ||
-      authThrottlePath(request) ||
+      authPath ||
       isAiSpendingPath(request)
     ) {
       return super.canActivate(context);
@@ -154,12 +166,61 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
     return true;
   }
 
+  private async canActivateRegistration(
+    context: ExecutionContext
+  ): Promise<boolean> {
+    const unavailable = () =>
+      new ServiceUnavailableException({
+        code: 'registration_budget_unavailable',
+        message:
+          'Registration is temporarily unavailable. Please try again later.',
+      });
+    // A stand-in is not a shared abuse budget. Registration alone must not
+    // reach account/mail work without the actual store being ready.
+    if (
+      ioRedis.status !== 'ready' ||
+      typeof ioRedis.eval !== 'function' ||
+      pendingRegistrationGuards >= REGISTRATION_GUARD_LIMIT
+    ) {
+      throw unavailable();
+    }
+    pendingRegistrationGuards += 1;
+    const operation = super.canActivate(context);
+    // The shared Redis can keep its increment pending beyond our deadline.
+    // Hold this place until that operation actually settles, including late
+    // rejection, so repeated timeouts cannot grow the old queue without bound.
+    operation.then(
+      () => { pendingRegistrationGuards -= 1; },
+      () => { pendingRegistrationGuards -= 1; }
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        operation,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(unavailable()), 1_000);
+        }),
+      ]);
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === 429)
+        throw error;
+      // An existing storage increment can finish late after this denial; its
+      // promise never invokes the controller. Do not retry or refund it.
+      throw unavailable();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   protected override async getTracker(
     req: Record<string, any>,
     _context?: ExecutionContext
   ): Promise<string> {
-    if (authThrottlePath(req)) {
-      return createTransientClientTracker(req);
+    const authPath = authThrottlePath(req);
+    if (authPath) {
+      return authPath === '/auth/register'
+        ? createRegistrationClientTracker(req, Date.now(), 'attempt')
+        : createTransientClientTracker(req);
     }
 
     // The workspace pays for the model call, so the workspace is what the

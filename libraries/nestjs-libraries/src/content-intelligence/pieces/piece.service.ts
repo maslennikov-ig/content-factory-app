@@ -1573,9 +1573,16 @@ export class PieceService {
     let adaptationQuestion: PieceQuestionV1 | null = null;
     let failed = false;
     try {
+      const draftOnly =
+        (await this.adaptPlanMode(
+          organizationId,
+          plan.pieceId,
+          plan.channel.id
+        )) === 'draft';
       for await (const event of this.generator.start(
         organizationId,
-        request as any
+        request as any,
+        { draftOnly }
       )) {
         const raw = event as any;
         if (raw?.error) {
@@ -1706,9 +1713,11 @@ export class PieceService {
     const versionId = trimmed(output.brandProfileVersionId) || null;
 
     /*
-      Черновик и строка версии пишутся как до волны — на свободное время
-      области. Место в плане канала (`97dq.57`) решается следом, под коротким
-      замком канала и только записями в базу; Temporal — после фиксации (N2).
+      Без плана генератор не ищет слот: дата DRAFT ниже — существующее
+      хранилищное время, а не время публикации. Для остальных режимов остаётся
+      предварительное свободное время области. Место в плане канала (`97dq.57`)
+      решается следом, под коротким замком и с новым чтением режима; Temporal
+      — после фиксации (N2).
     */
     const draftDate = trimmed(output.date) || this.now().toISOString();
     const postId = await this.pieces.createDraft(organizationId, {

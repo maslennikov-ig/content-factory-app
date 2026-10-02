@@ -186,7 +186,7 @@ export async function runVoiceAssistV2(
  * prompt (`assist.pipeline.ts`, `voice-learning.ts`), which knows the locale.
  */
 export const VOICE_ASSIST_SYSTEM =
-  'You explain numbers that are already counted about how the author writes. Do not judge and do not praise. Every observation quotes the text verbatim.';
+  'You explain numbers that are already counted and identify quote-grounded qualitative habits of how the author writes. Do not judge and do not praise. Every observation quotes the text verbatim. Propose only traits supported by those observations, in ordinary prose without analyst commentary.';
 
 export const VOICE_LEARN_SYSTEM =
   'You name the author’s habits from what they correct in drafts written by someone else. Only about the manner of writing, never about the content. Short instructions, without praise and without judgement.';
@@ -225,7 +225,7 @@ export class VoiceAssistService {
             if (!parsed) throw new Error('model returned no structured answer');
             return parsed;
           },
-          // Explaining numbers already counted from the author's own text.
+          // Explaining measured and quote-grounded habits in the author's text.
           // Nothing is written here, so this need not be the drafting model.
           'extract'
         ),
