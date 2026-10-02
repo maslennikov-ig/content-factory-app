@@ -1,3 +1,4 @@
+import { omitIncompleteToneQuotation } from './proposal-quotation-guard';
 import {
   mapResultSchema,
   mapResultSchemaV2,
@@ -733,17 +734,22 @@ export async function runAssistV2({
   // than kept unfounded. The screen shows it as "нет основания", which is a
   // true statement about the corpus.
   const known = new Set(observations.map((one) => one.ref));
-  const grounded = reduced.value.fields.filter((field) =>
-    field.observationRefs.some(
-      (ref) =>
-        known.has(ref) &&
-        (field.field !== 'TOPICS' ||
-          observations.some(
-            (observation) =>
-              observation.ref === ref && observation.field === 'TOPICS'
-          ))
+  const grounded = reduced.value.fields
+    .filter((field) =>
+      field.observationRefs.some(
+        (ref) =>
+          known.has(ref) &&
+          (field.field !== 'TOPICS' ||
+            observations.some(
+              (observation) =>
+                observation.ref === ref && observation.field === 'TOPICS'
+            ))
+      )
     )
-  );
+    // Quality filtering stays outside attempt(): it buys no repair/retry call
+    // and affects only this newly generated V2 proposal, never historical reads.
+    .map((field) => omitIncompleteToneQuotation(field, observations))
+    .filter((field): field is NonNullable<typeof field> => field !== null);
 
   /**
    * One line per field, because the wizard shows one line per field.

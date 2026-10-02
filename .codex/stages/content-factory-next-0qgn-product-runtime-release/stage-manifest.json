@@ -301,5 +301,35 @@
     "focusedRepair": "3 suites/115 tests pass, natural exit, no open handles",
     "scope": "three tests only; product source unchanged",
     "next": "fresh exact full release after commit"
+  },
+  "currentApplicationDelivery": {
+    "privateSource": "3bc4bea11727f004c573b824f7e0ae3b88065318",
+    "publicRelease": "459378515e24611daaaf23572fc59b62ca3412d7",
+    "healthy": true,
+    "protectedRollback": "cb456e7b0479",
+    "exactLocalFullReceipt": "acceptance-receipt.final-hotfix-3bc4-20261002.json",
+    "actualPublicCI": "Build36974058930/CodeQuality36974058998SUCCESS",
+    "actualHotThreshold": "FAIL64.42-64.62%31samples1829.867s",
+    "ownerNoExistingBackupRestores": true
+  },
+  "nextCandidateSourceAcceptance": {
+    "readerChild": "5e6062bac8656e5b15953cb31e4d79d45d9aa3ff",
+    "blueskyChild": "73138e48f62aa34218d7dccc5edd11f8868e866a",
+    "integratedCodeHead": "d62c435c3ed883b9e2da769effabe26c793b702a",
+    "rootProofs": [
+      "reader-truncation-repair-459-root-acceptance.json",
+      "bluesky-lazy-root-source-acceptance.json",
+      "avatar-tone-guard-6ca-root-source-acceptance.json",
+      "graph-tone-root-acceptance-20261002.json"
+    ],
+    "fullReceiptOrImage": "PENDING combined final exact receipt",
+    "actualMemorySaving": "UNKNOWN",
+    "toneGuardChild": "6ca2e7a09319eea4b510d00c8e58184f34e5decf",
+    "preToneExactFullSourceAcceptance": {
+      "source": "a51cb1cc262e0d10a27d296005b45175114f9897",
+      "receipt": "a51cb-full-source-root-acceptance.json",
+      "status": "PASS; does not cover combined tone guard"
+    },
+    "actualNewToneAnalysis": "PENDING release and one otherwise-required owned analysis"
   }
 }

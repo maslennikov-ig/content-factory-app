@@ -11,14 +11,14 @@ import {
   SocialAbstract,
   ValidityMedia,
 } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
-import {
+import type {
   BskyAgent,
-  RichText,
   AppBskyEmbedVideo,
   AppBskyVideoDefs,
   AtpAgent,
   BlobRef,
 } from '@atproto/api';
+import { loadBlueskySdk } from '@contentfactory/nestjs-libraries/integrations/social/bluesky.sdk';
 import dayjs from 'dayjs';
 import { Integration } from '@prisma/client';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
@@ -110,6 +110,7 @@ async function uploadVideo(
   const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
   console.log('JobId:', jobStatus.jobId);
   let blob: BlobRef | undefined = jobStatus.blob;
+  const { AtpAgent } = await loadBlueskySdk();
   const videoAgent = new AtpAgent({ service: 'https://video.bsky.app' });
 
   let attempts = 0;
@@ -254,6 +255,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     }
 
     try {
+      const { BskyAgent } = await loadBlueskySdk();
       const agent = new BskyAgent({
         service: body.service,
       });
@@ -288,6 +290,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     const body = JSON.parse(
       AuthService.fixedDecryption(integration.customInstanceDetails!)
     );
+    const { BskyAgent } = await loadBlueskySdk();
     const agent = new BskyAgent({
       service: body.service,
     });
@@ -364,6 +367,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
 
     const { embed } = await this.uploadMediaForPost(agent, firstPost);
 
+    const { RichText } = await loadBlueskySdk();
     const rt = new RichText({
       text: firstPost.message,
     });
@@ -401,6 +405,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
 
     const { embed } = await this.uploadMediaForPost(agent, commentPost);
 
+    const { RichText } = await loadBlueskySdk();
     const rt = new RichText({
       text: commentPost.message,
     });
@@ -476,6 +481,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     const body = JSON.parse(
       AuthService.fixedDecryption(integration.customInstanceDetails!)
     );
+    const { BskyAgent } = await loadBlueskySdk();
     const agent = new BskyAgent({
       service: body.service,
     });
@@ -537,6 +543,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     const body = JSON.parse(
       AuthService.fixedDecryption(integration.customInstanceDetails!)
     );
+    const { BskyAgent } = await loadBlueskySdk();
     const agent = new BskyAgent({
       service: body.service,
     });
@@ -554,6 +561,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     // @ts-ignore
     if (getThread.data.thread.post?.likeCount >= +fields.likesAmount) {
       await timer(2000);
+      const { RichText } = await loadBlueskySdk();
       const rt = new RichText({
         text: stripHtmlValidation('normal', fields.post, true),
       });
@@ -593,6 +601,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
       AuthService.fixedDecryption(integration.customInstanceDetails!)
     );
 
+    const { BskyAgent } = await loadBlueskySdk();
     const agent = new BskyAgent({
       service: body.service,
     });

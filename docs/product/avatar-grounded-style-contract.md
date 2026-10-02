@@ -40,3 +40,22 @@ public27 fictional run still records the defect: all 46 observations had metrics
 self-irony. Semantic acceptance requires root's newly journaled paid run after
 the corrected source is released, with separate checks for presence of grounded
 humour, absence of analyst/meta prose and paragraph shape.
+
+New V2 reduce proposals additionally guard the recorded TONE cutoff at the
+existing 600 UTF-16-character field boundary. After schema parsing and quote
+admission, outside the paid repair loop, one unmatched trailing `«` qualifies
+only when its text is an exact prefix ending inside a word of a referenced
+admitted TONE quotation. The guard keeps only the exact preceding complete
+sentence prefix outside quotations; it adds no continuation or punctuation.
+Without a safe prefix it omits that field. Other fields, portrait, observations,
+quotations and reference arrays remain intact. V1 and historical proposal reads
+are unchanged, as are schema limits, prompts, transport, retry and billing.
+
+Sentence-boundary inspection is conservative: quoted internal stops, short or
+capitalized abbreviation candidates, known longer abbreviations, URL/decimal
+stops and ambiguous mixed quote forms do not establish a retained boundary.
+This may discard a usable line or abstain on other incomplete forms; it is a
+bounded generation guard, not a grammar or universal quotation verifier. The
+original upstream cutoff remains UNKNOWN. Offline exact neutral replay proves
+retained text and unchanged call counts; root still owns a newly authorized
+actual analysis after release, with no automatic paid replay or historic repair.

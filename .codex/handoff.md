@@ -1,14 +1,15 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-followup-release` (438release; hot memory threshold missed)
+Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (3bc/459 delivery; hot threshold missed)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-71m.8`
 
 ## Active programme — 02.10.2026
 
 Owner delegated completion and verification of the whole EPIC to root, including
-necessary actions. Native goal remains active; EPIC is not complete. All36 original
-criteria/owners are preserved in Beads and the immutable scope; Beads owns status.
+necessary actions and renewed execution with "continue". Native goal currently
+reports blocked; root continues authorised work. EPIC is incomplete. All36 original
+criteria/owners remain preserved; Beads owns status.
 [Spec](../docs/product/remaining-work-2026-10-01-spec.md),
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
 Legal/operator/region/support/Terms/Privacy and pricing are explicitly owner-deferred.
@@ -16,85 +17,88 @@ Claude.ai followup is owner-removed; actual ChatGPT remains required.
 
 ## Current delivery and candidate
 
-- LIVE private source `cb51db2bf840c1d9dbea8f935f911d1ac9a04caf`, public/image
-  `cb456e7b0479a8bf688391d444aa3ba354eac1f0`; private and public branches pushed.
-  GHCR index `sha256:4bc3628b5f75d9c1ac8743ef65eac7d07467177c95d8874323d62bc440f25428`;
-  host config `sha256:6be3b0a9fa3dec4eafe6736d07ae7d8be24026d4a7008fdc98a0489ed03b8265`.
-  App healthy/restarts0;1792MiB/all33queues. Protected rollback `27a3d02850c3`.
-- Exact cb51 nine-command receipt PASS: three typechecks/four-app build,
-  Jest602 suites/10601pass/9 explicit opt-in Redis skips, node122pass/0fail/4
-  explicit DB environment skips, Python50OK, branding/docs/process/diff.
-  Receipt `acceptance-receipt.final-quality-cb51-20261002.json` does not cover
-  later source/metadata changes. Public CodeQuality36958776126 succeeds;
-  Build36958776061 full/time-shift suite fails on missing owned Redis in its
-  funnel proof. CI harness repair is pending acceptance, not a product bypass.
-- Actual new-image Prisma diff EMPTY; Product77/1431 hash649a6ff2 and
-  Mastra45/838 hasha8cdfd91 unchanged. All39 other containers preserve identity
-  and runtime; compose preserved. Strict capacity/pull/native CLI gates pass.
-  API/login/Source/archive/version and DB/Redis/Temporal main+all32provider
-  readiness pass. Archive11709109B/SHA dc6135c7a057aa2239ab97bad0f1d3e2fc0256df3a872044376a79c8f73a9f84.
-- One explicitly recorded capacity exception removed only unreferenced older
-  own438 host tag after native config/layer/archive proof; registry/local438
-  retained. Its restoration time is unknown. Current/rollback preserved; no
-  shared cache, foreign images, volumes or databases pruned.
-- Root candidate source integrates search `fad57c463` and PDF `2af833f7e`/CI `ea16f6842`; it integrates accepted advertising-query context
-  repair; no freshness/admission/provider-budget change. Fresh live Telegram
-  quality still required after release; old missing query/candidate payloads
-  cannot establish the precise cause of the cb456 rejection.
-- Root canonical portal prose changed and actually published as same artifact
-  version6; CI harness v2 and conditional lazy LinkedIn PDF source are accepted and integrated.
-  Deterministic timestamp-only PDF test repair `2949292c2` accepted; current d67 full
-  found1 timestamp-test failure/603passed; no Node/Python halves or new receipt.
-  Full8219: Jest604/10643 and Node122 pass; Python49/50 fails missing handoff
-  contract fields, now restored. Fresh exact full receipt/build/delivery required.
+- LIVE private source `3bc4bea11727f004c573b824f7e0ae3b88065318`, public/image
+  `459378515e24611daaaf23572fc59b62ca3412d7`; private/public pushed.
+  GHCR index `sha256:ffeb76da381b84988122525c728fca1e2e555d6ebf8be7a2a3a41d26bc3e8ff5`;
+  host config `sha256:adf2aaa5777d72d1eb38c783fd994e5b6261383d8933fbffd0a0bbb39035f630`.
+  App healthy/restarts0;1792MiB/all33queues. Protected host rollback `cb456e7b0479`.
+- Exact3bc nine-command receipt PASS: three typechecks/four-app build,
+  Jest604/10643pass/9 Redis opt-in skips, node122pass/0fail/4 DB environment skips,
+  Python50OK, branding/docs/process/diff. Public Build36974058930 and
+  CodeQuality36974058998 SUCCESS. Full CI604/10641pass/11skips, node122/4skips,
+  Python50OK; all-three-halves guard, calendar400, native Docker/PG/Redis PASS.
+  Actual normal/calendar funnel each26PASS/0inner skips. `0qgn.6` CLOSED.
+  Historical cb/d67/8219 failed receipts retained;3bc does not cover later changes.
+- Native new-image Prisma diff EMPTY; Product77/1431 hash649a6ff2 and
+  Mastra45/838 hasha8cdfd91 unchanged. All39 other containers/configs/compose
+  preserved; only CF_IMAGE/CONTENT_FACTORY_RELEASE changed. Source/archive/API/
+  login200; readiness DB/Redis/Temporal main+all32providers PASS.
+  Archive11719711B/SHA d0975a3bcca61ba7b976444303e26991407911ce194ff07968b2e9189acf1ad2.
+- Strict first pull refused10.68GB<12.37GB. Exact one-off old27 host-tag retirement
+  proved0refs/all40 preserved and freed2.92GB; actual native recheck/pull passed.
+  Local/registry27 retained; re-pull time unknown. Currentcb remained and is now
+  new459 rollback. Normal retention kept459+cb and removed only two own438
+  config copies. No shared cache/images/volumes/data/SQL/GPG cleanup or restore.
+- Combined code `d62c435c3` integrates reader5e6062/c7f, Bluesky731 and TONE6ca:
+  exact recorded1Ccutoff gets one opted-in grounded reader pass;
+  SDK module deferred at nine original operations, agents/sessions per call.
+  Reader196/Bluesky86focused checks and affected types PASS; no retries/new
+  queries/budgets/Temporal/limits. Rawupstream cutoff cause UNKNOWN.
+  Pre-TONE exact a51cb nine-command receipt PASS:605/10696Jest/9skips,122node/4skips,
+  Python50/build/three types; no image/live saving proof. Accepted TONE6ca guard
+  has214focused/23new checks; next combined candidate needs its own full receipt.
 
-## Actual own product verification on cb456
+## Actual own product verification on459 and historical memory
 
-- B1 completes in18.4s, saves paired DRAFT/provenance with empty postingTimes;
-  coherent Russian paragraphs, no FailedToParse. One successful own agent
-  ledger/cost0.00070432USD. `2q28.2.1` CLOSED; original666 OOM cause remains unknown.
-- Three once-only actual search cases: single coherent Russian summaries and
-  preserved ВТБ name pass (`ec48.7` CLOSED). Telegram5 candidates all rejected
-  for advertising context;0 admitted, honest abstention. 1C five mostly off-topic
-  sources do not establish pricing/licensing facts. `fn33.132` remains unresolved.
-- Ordinary manual avatar six fields/consent/default/reload pass; assisted own
-  exact-eight-text portrait includes grounded self-irony/TONE. All43 quotes match
-  own corpus; qualitative observations contain no invented metrics. Actual split
-  six TRAIN/two HOLDOUT is uncalibrated TOO_FEW_OWN, not a quality calibration.
-- Actual selected-voice adaptation raw body and HTML preserve paragraphs and
-  bounded claims. One request completed; helper ledger guard failed after terminal
-  completion. Root recovered only stored own output from exactly two successful
-  agent/intake ledgers; original uncertainty preserved, no paid replay.
-- Actual Windows CDP readbacks at1440dark/390light: manual fields, assisted
-  portrait, saved adaptation/reload and all five guide views; no writes/errors
-  or overflow. Guide5/5 uses inert seeded channel/CORE/plan, not a client connection.
-  Semantic/UI evidence closes `2q28.38`; customer recognizability remains unobserved.
-- Registration correct-policy helper proves two400 email_already_exists refusals,
-  zero cookies/account creation/paid calls; source/distributed abuse guard preserved.
-  Earlier invalid fixture-password test and its once marker remain failed and
-  unchanged. `2q28.41` retains unproved historical cookie/section00/customer facts.
-- Main own6, avatar own4+2avatars+8texts, adaptation own6+avatar all retired;
-  old sessions401/403, credentials removed; soft-deleted data/ledgers/audits retained.
-  Local four exact credential files removed; neutral private outputs remain600.
-- Actual MCP initialize/tools-list200/66tools, no tool/provider calls; exact own5
-  rows/journal removed. This does not prove actual ChatGPT/OAuth acceptance.
-- Warm438 full31samples/1799.845s measured62.60–63.07% and failed original<60%.
-  cb456 first observer terminated143 after15samples; incomplete, all65.56–66.00%.
-  Full cb45631×61sec window05:00–05:30Z/1830.018s:64.3559–64.9179%, original FAIL;
-  all process/source/schema/queue/health guards and39othercontainers/configs preserved.
-  Conditional lazyPDF candidate needs exact release and a comparable full hot
-  window. No forcedGC, raised limit, excluded queues or memory-saving claim.
+- B1 completes23.2s with paired DRAFT/provenance/empty postingTimes, coherent
+  Russian paragraphs and one SUCCESS agent/cost0.0009272USD. No publishing.
+  Original666 OOM cause remains unknown;2q28.2.1 already CLOSED.
+- Original Telegram marking/ERIR subject now4 admitted Russian on-topic sources;
+  original1C migration subject5 Russian on-topic sources. Root source coverage
+  closes originalfn33.132 criterion; no independent legal/current-price claim.
+  Rate summary591chars coherent, current-versus-forecast/original ВТБ preserved;
+  originalec48.7 stays CLOSED. New1C summary ends mid-word, tracked0qgn.8.
+- Manual avatar six fields/default/consent/reload PASS. Actual same neutral eight
+  texts produce portrait+self-irony and4 populated proposal fields;9 SUCCESS
+  extraction ledgers, no pending. SixTRAIN/twoHOLDOUT TOO_FEW_OWN, not calibrated.
+  TONE stored/readback600chars has a cut word;transform identity/0cuts;originUNKNOWN.
+  Quality residue0qgn.9IN_PROGRESS: accepted isolated V2 new-generation guard6ca;
+  omit only a proved unfinished trailing quote sentence; no completion/retry/history rewrite.
+- Selected-manual-voice adaptation19.0s completes normally,439chars/three Russian
+  paragraphs/selected-avatar provenance/DRAFT/no scheduled time. Exact one agent
+  plus one intake SUCCESS ledger; corrected helper26offline checks, no retry.
+- Windows1440dark/390light: ten main-route cases; persisted manual fields,
+  assisted portrait, adaptation/reload and allfive guide views PASS; zero writes,
+  errors or overflow. Guide5/5 includes inert seeded channel/CORE/plan; no real
+  customer connection/publishing/recognizability. Avatar real counts1/5 preserved.
+- New main6/avatar4+2avatars+8texts/adaptation6+avatar retired; exact own credentials
+  revoked; allthree old sessions401. Five exact local credential files removed;
+  synthetic outputs/screenshots600 retained. Ledgers/drafts/versions/audits kept.
+- New MCP initialize/tools-list200/66tools; exact ownfive fixtures removed, no
+  tool/provider calls. Actual ChatGPT/OAuth acceptance remains separate.
+- Source-bound priorcb registration proves two ordinary-error400 retries/zero new
+  accounts/cookies and separate abuse guard. `2q28.41` CLOSED investigation:
+  section00 is25Sept/v1, before28Sept; historic429 screen/cookie cause UNKNOWN.
+- Old438 full31samples1799.845s62.60–63.07%, oldcb full31/1830s64.36–64.92% FAIL
+  original<60%. Interruptedcb15samples retained/incomplete. New459 startup55.47–
+  55.52% qualified incomplete due stale queue metadata; not comparable hot proof.
+- New459 comparable full31×61s observer started08:03Z after B1/search/avatar/
+  adaptation/MCP/frontend warm and own cleanup. Full1829.867s/31samples health/source/schema/
+  channel/all33 poller recency/process preservation PASS;64.42–64.62% FAIL.
+  No live switch/mutation during window; original71m.8 remains IN_PROGRESS.
+  Conditional lazyBluesky implementation now authorized after actual full FAIL;
+  fresh exact receipt/release/hot window is required after any implementation.
 
 ## Client and remaining original acceptance
 
 - `2q28.2` CLOSED: fresh task-timestamp-selected account active/unblocked and
   instance unlimited; actual B1 passes. Root acts as owner-delegated verifier;
   independent personal identity/customer walkthrough remains unobserved.
-- `2q28.11`: actual same feedback artifact5→6 published04:51:03Z; two existing
-  links/status/latest answers and all previous versions preserved. Existing OPEN
-  recipient page200/new text verified;50 field names/70 controls unchanged.
-  No new token, client message, actual Yulia read/submission or human owner walk.
-  Root technical guide walk is documented; human/customer steps remain unobserved.
+- `2q28.11` CLOSED: current459 release/rollback recorded in production-deploy.md;
+  delegated root guide walk and same portal artifact5→6 actual publication/
+  existing OPEN recipient copy200 satisfy originalS7 technical scope.
+  Fifty fields/seventy controls/two links/old answers/history preserved.
+  No new token/message/customer read/submission claimed; parent2q28 remains open.
 - `2q28.10` CLOSED: owner chose the existing separate portal feedback page.
   Telegram absent-tab-note `fn33.21` CLOSED by actual cookie-bound LINK200 and
   recovery in two Windows cases; no real provider exchange.
@@ -102,7 +106,8 @@ Claude.ai followup is owner-removed; actual ChatGPT remains required.
   Owned Windows CDP9334 is logged out; no access to owner normal profiles.
   `kcxz.48` CLOSED under its original reasoned-deferral alternative; no CaseID
   or submission. Reopen the same task when real publication facts/access exist.
-- Research `ec48`, `75xn`, `m0iy`: keyless HN/GitHub/arxiv sources remain defaultOFF;
+- Originalec48 CLOSED: all8children/source-label/search-language scope delivered.
+  Research `75xn`, `m0iy`: keyless HN/GitHub/arxiv sources remain defaultOFF;
   official Reddit account/API gate preserved. Nine saved cases manually assessed
   (`0qgn.3` CLOSED); curated samples do not reconstruct population denominators
   or accepted-reference fractions. `m0iy.10` threshold remains unproved;
@@ -168,18 +173,19 @@ GHCR remains content-factory-next. Never add public remote to private history.
 `docs/operations/production-deploy.md` owns release/schema/rollback; no production
 `prisma db push`. `docs/operations/postgres-backup.md` owns backup procedure.
 Voice contracts: voice-wiring.contract.ts/voice-composite.ts/post-layout.ts;
-manual/eight-source/raw adaptation proofs are bound to cb51/cb456 sources.
+manual/eight-source/raw adaptation proofs are bound to exact live459 source hashes.
 Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
 sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
 
-Next: freeze accepted CI/lazyPDF/search/timestamp-test candidate,
-root full nine-command acceptance/receipt, public CI repair proof, strict new image
-release, fresh bounded Telegram quality and full comparable hot memory window.
-Do not switch the live app during the current observer or replay paid once actions.
+Next: retain live459/protectedcb and actual full459HOTFAIL. Integrate accepted
+bounded TONE guard with reader/Bluesky, then a new exact full receipt/safe release.
+Run a new comparable full HOT window after required owned warm verification;
+do not switch the live app during that observer or replay paid once actions.
 Documentation: current operational facts reconciled; original spec/plan unchanged.
 docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.
 project-index: reviewed-updated
-graph-reviewed: updated — local AST0.9.45 ea16;26904nodes/53622edges;three source queries pass.
+graph-reviewed: updated local AST0.9.45 d62;26942nodes/53683edges/0model tokens;
+V2 guard/completeStop two extracted edges;five exact source hashes match, scoped only.
 
 ## Starter prompt for next orchestrator
 
