@@ -1085,6 +1085,20 @@ const wholePageExcerpt = (value: string | undefined) => {
 /** Narrow reader-only admission; regulator acronyms in an ad widget are not an article. */
 const RUSSIAN_AD_LABELING =
   /маркиров\p{L}{0,12}\s+(?:(?:интернет|онлайн|цифров\p{L}{0,8})[-\s]+)?реклам\p{L}{0,12}/iu;
+/** Keep explicit reader intent when the classifier substitutes a broader query. */
+const preserveAdvertisingQuery = (subject: string, query: string): string => {
+  const boundedSubject = String(subject)
+    .slice(0, CLASSIFIER_SUBJECT_CHARS)
+    .trim();
+  const register = /(?:^|[^\p{L}\p{N}])ЕРИР(?=$|[^\p{L}\p{N}])/iu;
+  const retainsContext =
+    /маркиров\p{L}{0,12}/iu.test(query) &&
+    /реклам\p{L}{0,12}/iu.test(query) &&
+    (!register.test(boundedSubject) || register.test(query));
+  // Reuse the original words, never invent keywords or buy another search.
+  // Article admission still judges only the returned evidence.
+  return retainsContext ? query : boundedSubject;
+};
 const RUSSIAN_AD_LAW =
   /реклам\p{L}{0,12}\s+(?:прав\p{L}{0,12}|закон\p{L}{0,12})|(?:закон\p{L}{0,12}|правил\p{L}{0,12})[^.!?\n]{0,40}реклам\p{L}{0,12}|оператор\p{L}{0,8}\s+рекламн\p{L}{0,8}\s+данных/iu;
 const NON_AD_ARTICLE_TITLE =
@@ -1802,16 +1816,19 @@ Untrusted research data: {evidence}`
      */
     const subjectLanguageQuery = classification.subjectLanguageQuery?.trim();
     const englishQuery = classification.englishQuery.trim();
-    const ownLanguageQuery =
+    const classifiedQuery =
       subjectLanguageQuery && !isEnglish(classification.subjectLanguage)
         ? subjectLanguageQuery
         : englishQuery;
+    const ownLanguageQuery = needsAdvertisingContext
+      ? preserveAdvertisingQuery(subject, classifiedQuery)
+      : classifiedQuery;
     const baseQueries =
       classification.scope === 'local'
         ? [ownLanguageQuery]
-        : ownLanguageQuery !== englishQuery
+        : classifiedQuery !== englishQuery
         ? [ownLanguageQuery, englishQuery]
-        : [englishQuery];
+        : [ownLanguageQuery];
 
     // Keep query generation deterministic and bounded. Additional slots are
     // only useful for a distinct locale query; repeating the same words would

@@ -18,7 +18,7 @@ import {
 import { Integration } from '@prisma/client';
 import { PostPlug } from '@contentfactory/helpers/decorators/post.plug';
 import { LinkedinDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/linkedin.dto';
-import imageToPDF from 'image-to-pdf';
+import { loadImageToPdf } from '@contentfactory/nestjs-libraries/integrations/social/linkedin.pdf.sdk';
 import { Readable } from 'stream';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
 
@@ -517,6 +517,8 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     if (!firstPost.media?.length) {
       return postDetails;
     }
+
+    const { default: imageToPDF } = await loadImageToPdf();
 
     // Fetch all images and get their dimensions
     const images = await Promise.all(

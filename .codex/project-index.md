@@ -74,7 +74,7 @@
   `organizations/organization.repository.ts` — совместимые `workspaceName`/`company`,
   ADMIN создателя и стартовые метки по умолчанию. Выбор `starterTemplate` снят
   решением `pdbe`; `scripts/evidence/run-public-funnel-database-proof.cjs` проверяет
-  LOCAL/OAuth и изоляцию двух организаций на временной PostgreSQL.
+  LOCAL/OAuth и изоляцию двух организаций на временных PostgreSQL и Redis.
 - `admin.controller.ts` и Prisma `public-growth/` — super-admin totals/ratios;
   оба `scripts/evidence/*public-funnel*` воспроизводят browser и DB proof.
 - `apps/orchestrator/` — Temporal workflows and activities; existing contracts are immutable.

@@ -1,200 +1,192 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-followup-release` (5d/438release; memory threshold missed)
+Accepted stage id: `content-factory-next-0qgn-followup-release` (438release; hot memory threshold missed)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-71m.8`
 
-Beads owns status; 01.10 lymv [audit](stages/content-factory-next-kcxz/evidence/status-reconciliation-2026-10-01.md) records the reconciliation.
-
 ## Active programme — 02.10.2026
 
-Owner delegated completion and verification of whole EPIC `0qgn` to root.
-All 36 original criteria/owners remain mapped in Beads and the immutable scope.
+Owner delegated completion and verification of the whole EPIC to root, including
+necessary actions. Native goal remains active; EPIC is not complete. All36 original
+criteria/owners are preserved in Beads and the immutable scope; Beads owns status.
 [Spec](../docs/product/remaining-work-2026-10-01-spec.md),
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
-Native goal is active; EPIC is not complete. Legal facts and pricing are explicitly
-owner-deferred; Claude.ai followup is owner-removed, actual ChatGPT remains required.
+Legal/operator/region/support/Terms/Privacy and pricing are explicitly owner-deferred.
+Claude.ai followup is owner-removed; actual ChatGPT remains required.
 
-## Current delivery
+## Current delivery and candidate
 
-- LIVE public/image `27a3d02850c3`, private source `d70c2106295e` on
-  `codex/remaining-followups-2026-10-01`; both branches pushed after ancestry gates.
-  Protected rollback `438665412829`; GHCR index digest
-  `sha256:27b19088a446f5419d21a5e5ba70af33b9ba1bb902c49c2f6faf97da52c07897`;
-  host config image `sha256:7faa4ceffd062be1b60757e1de71215972b9174f682f8ce5d34007cf8c9a7075`.
-- Exact d70 receipt: all9 release commands pass; four-app builds/types,
-  Jest597 suites/10,422 tests, node122 pass/0 fail/4 explicit DB environment skips,
-  Python50 OK, branding/docs/process/diff. Public Build36937864186 and
-  CodeQuality36937864264 both actual success. Metadata edits do not extend d70 coverage.
-- Signed encrypted product-only backup precedes guarded nullable
-  ContentLead.sourceRefsJson JSONB column. All1430 old Product definitions and
-  Mastra45/838 definitions unchanged; new-image Prisma diff EMPTY.
-  All39 other containers preserve identity AND runtime, compose/config preserved.
-  API/login/Source200; exact archive11,639,601B/SHA
-  `e0b6b640b35fed9099570a14bb2ef8fbd1f06eec1b9650c02bd15d34ea545988`.
-- Fresh normal owned login/settings confirm included/unlimited; ten actual
-  WindowsChrome authenticated route/viewport/theme cases load visible headings.
-  These prove technical route readiness, not avatar creation or client feedback.
-- Actual overlay2 pull passed two strict pre-login capacity gates; no cache/prune
-  or speculative reclamation. hf97 accepted; every next image has a fresh gate.
-- Prior438 MCP initialize/tools-list200/66tools; zero provider/tool calls,
-  exact5owned rows/privatejournal removed. OAuth/ChatGPT remains unproved;
-  ownChromeCDP9334 logged out, owner login request pending, normal profiles untouched.
-- Warm438 31samples/1799.845438s/PID locks intact:62.6022–63.0672% FAILS<60.
-- Real B1 on old666 FAILED Node512MiB heap exhaustion/PM2 backend restart despite
-  healthy container. No saved draft. Only own orphan was failed/possiblyBilledtrue,
-  costNULL retained; all6owned fixture rows disabled/credentials removed/0pending.
-  Small offline actualgraph did not reproduceOOM; fullbackend gap retained; no paid replay.
-- Public27 B1 reached post-time at21s and looped until357s: empty schedule is
-  recursively advanced forever, including draft mode. Root ended request and
-  recovered backend only; currentPID641/restarts2, Docker healthy/restarts0.
-  No saved draft; exact one own orphan failed/possiblyBilledtrue/costNULL;
-  six own rows retired, credentials revoked, ledger retained, zero pending.
-  Fix2q28.2.1 integrated locally; old666 OOM cause is not established by this diagnosis.
-- Public27 three once-only search cases: Telegram0 admitted excerpts/nonempty
-  summary MISS; 1C five Russian sources/English summary language defect;
-  rate five sources/Russian summary separates current value and named forecast.
-  Search admission cause unknown; raw provider candidates were not retained.
-  Root accepted diagnosis and integrated bounded language/zero-results UI repair.
-- Lead/search/HTML sources and PG17/focused proofs retained; source delivered27.
-  Actual B1 and sustained memory remain unfinished. Corrected QA deadline has
-  14 native HTTP checks; client timeout never proves backend/model termination.
-- Shared collector6.0.5 missing01Oct partitions repaired with exact35 CREATEs;
-  all6993 old objects unchanged. Two own frontend/SDK events recovered once and
-  stored with redaction. Create-only refresh installed; first service PASS, next03Oct00:05Z; Nest own event stored once/redacted.
-  Shared effective retention90days; repository standalone30days is not deployed.
-- Readiness99cb, registrationa074, draft93, search225/1c and diagnostics5e63 integrated.
-- Full65e all9 commands/three suite halves PASS/private pushed; public copy refused nested evidence before mutation. Guard3862 and grounded voice9d8 source accepted.
-- Own27 manual avatar/API/reload/UI PASS; assisted portrait FAILS self-irony/TONE. Exact4-row access and8texts retired; ledger retained.
-- Current stage evidence lives in `stages/content-factory-next-0qgn-product-runtime-release/`.
-  Historical initial e8/public666 delivery remains in `stages/content-factory-next-0qgn/`.
-  Other owners' prompts/worktrees/evidence preserved; no broad cleanup.
-- Private history: maslennikov-ig/content-factory-next; public output: content-factory-app.
-  Never add public remote here; registry ghcr.io/maslennikov-ig/content-factory-next.
+- LIVE private source `cb51db2bf840c1d9dbea8f935f911d1ac9a04caf`, public/image
+  `cb456e7b0479a8bf688391d444aa3ba354eac1f0`; private and public branches pushed.
+  GHCR index `sha256:4bc3628b5f75d9c1ac8743ef65eac7d07467177c95d8874323d62bc440f25428`;
+  host config `sha256:6be3b0a9fa3dec4eafe6736d07ae7d8be24026d4a7008fdc98a0489ed03b8265`.
+  App healthy/restarts0;1792MiB/all33queues. Protected rollback `27a3d02850c3`.
+- Exact cb51 nine-command receipt PASS: three typechecks/four-app build,
+  Jest602 suites/10601pass/9 explicit opt-in Redis skips, node122pass/0fail/4
+  explicit DB environment skips, Python50OK, branding/docs/process/diff.
+  Receipt `acceptance-receipt.final-quality-cb51-20261002.json` does not cover
+  later source/metadata changes. Public CodeQuality36958776126 succeeds;
+  Build36958776061 full/time-shift suite fails on missing owned Redis in its
+  funnel proof. CI harness repair is pending acceptance, not a product bypass.
+- Actual new-image Prisma diff EMPTY; Product77/1431 hash649a6ff2 and
+  Mastra45/838 hasha8cdfd91 unchanged. All39 other containers preserve identity
+  and runtime; compose preserved. Strict capacity/pull/native CLI gates pass.
+  API/login/Source/archive/version and DB/Redis/Temporal main+all32provider
+  readiness pass. Archive11709109B/SHA dc6135c7a057aa2239ab97bad0f1d3e2fc0256df3a872044376a79c8f73a9f84.
+- One explicitly recorded capacity exception removed only unreferenced older
+  own438 host tag after native config/layer/archive proof; registry/local438
+  retained. Its restoration time is unknown. Current/rollback preserved; no
+  shared cache, foreign images, volumes or databases pruned.
+- Root candidate source integrates search `fad57c463` and PDF `2af833f7e`/CI `ea16f6842`; it integrates accepted advertising-query context
+  repair; no freshness/admission/provider-budget change. Fresh live Telegram
+  quality still required after release; old missing query/candidate payloads
+  cannot establish the precise cause of the cb456 rejection.
+- Root canonical portal prose changed and actually published as same artifact
+  version6; CI harness v2 and conditional lazy LinkedIn PDF source are accepted and integrated.
+  Deterministic timestamp-only PDF test repair `2949292c2` accepted; current d67 full
+  found1 timestamp-test failure/603passed; no Node/Python halves or new receipt.
+  Full8219: Jest604/10643 and Node122 pass; Python49/50 fails missing handoff
+  contract fields, now restored. Fresh exact full receipt/build/delivery required.
 
-## Accepted implementation and remaining acceptance
+## Actual own product verification on cb456
 
-- Agent `kcxz`: 54 of 56 children closed. Web chat, avatars, channels, AI
-  settings, ideas, facts, media, analytics/help and per-person MCP OAuth shipped.
-  CopilotKit removed; the post window uses «Спросить агента».
-  Releases 5/6 fixed consent, task search, own/generated pictures and person-held
-  queue placement; see [release 5](stages/content-factory-next-kcxz/evidence/release-5-2026-09-30.md)
-  and [release 6](stages/content-factory-next-kcxz/evidence/release-6-2026-09-30.md).
-  Historical Claude walks1/2 retained; owner removed the Claude.ai followup01.10.
-  `kcxz.46` now requires actual ChatGPT verification; `kcxz.48` waits for it.
-- First client `2q28`: onboarding/help/auth shipped 25–26.09. Release work in
-  `2q28.11` is complete; root now owns verification; Yulia's actual second-round feedback remains unobserved.
-  `2q28.2` retains approval/limit/B1 owner checks; registration success alone
-  does not prove them. `2q28.41` owns observed registration friction, and
-  `2q28.38` retains the unresolved prompt-quality part. `2q28.10` resolved: owner selected the existing portal page for feedback.
-  Original Telegram missing-tab-note `fn33.21` CLOSED after actual cookie-bound
-  LINK200/absent-note recovery in two Windows browser cases; no provider exchange.
-- Wave97dq closed: all100 children; .43 maps all7 observations to delivery/supersession.
-  Exact e8 suite reused; no new blanket UX or browser acceptance inferred.
-  [Matrix](stages/content-factory-next-0qgn/evidence/ui-residue-reconciliation-2026-10-01.json).
-- Auditsc6k/odb8 closed with accepted child/owner evidence. Removed07.09 unused
-  sentence repair/VoiceRibbonContainer stalefn33.28.19.2 closed; history preserved.
-- Memory71m.8 in progress: old666 windows invalidated; warm438 window
-  62.60–63.07% failed. Public27 sustained hot proof has not run.
-  Original1792MiB/all32provider queues+main/noEXCLUDE/wrappers unchanged.
-  Offline HTML savings do not prove full-app memory or old666 OOM cause.
-  [Old windows](stages/content-factory-next-0qgn/evidence/connected-channel-memory-acceptance-2026-10-01.json).
-- Search quality and benefit measurement remain in `ec48`, `75xn`, `m0iy`.
-  `fn33.132` now belongs to `ec48`; phase 2 `m0iy.6` waits for the measured
-  benefit threshold in `m0iy.10`, not merely the expired observation date.
-  Manual saved-material assessment (`0qgn.3`) completed: nine saved cases show
-  useful selective facts and remaining quality defects; duplicated curated rows
-  do not prove population/human-acceptance threshold. No phase 2 permission inferred.
-  [Review](stages/content-factory-next-0qgn/evidence/manual-research-benefit-review-2026-10-01.md).
-  Old `ec48.6` inline-marker criterion is superseded by accepted label stripping
-  (`97dq.40`); this does not declare semantic source faithfulness universally proven.
-- `saas.2` closed at7f9f44a2d: root117/two suites plus real two-org PG26checks,
-  own ADMIN/default/replay and foreign tag/post/group/date refusals, clean resources.
-  pdbe removed templates; 03.09 moved export/delete to blockedsaas.7.
-  No universal lifecycle or PostsController HTTP claim.
-  [Receipt](stages/content-factory-next-0qgn/evidence/saas-two-org-acceptance-2026-10-01.json).
-  SaaS parent/.4/.7 retain owner legal/region gates. Originalsaas.5 doc-only
-  contract CLOSED with exact5d docsreceipt; expandedruntime/distributedabuse/
-  nullableledger/offsiteproofs explicitly preserved in0qgn.5, stillunfinished.
+- B1 completes in18.4s, saves paired DRAFT/provenance with empty postingTimes;
+  coherent Russian paragraphs, no FailedToParse. One successful own agent
+  ledger/cost0.00070432USD. `2q28.2.1` CLOSED; original666 OOM cause remains unknown.
+- Three once-only actual search cases: single coherent Russian summaries and
+  preserved ВТБ name pass (`ec48.7` CLOSED). Telegram5 candidates all rejected
+  for advertising context;0 admitted, honest abstention. 1C five mostly off-topic
+  sources do not establish pricing/licensing facts. `fn33.132` remains unresolved.
+- Ordinary manual avatar six fields/consent/default/reload pass; assisted own
+  exact-eight-text portrait includes grounded self-irony/TONE. All43 quotes match
+  own corpus; qualitative observations contain no invented metrics. Actual split
+  six TRAIN/two HOLDOUT is uncalibrated TOO_FEW_OWN, not a quality calibration.
+- Actual selected-voice adaptation raw body and HTML preserve paragraphs and
+  bounded claims. One request completed; helper ledger guard failed after terminal
+  completion. Root recovered only stored own output from exactly two successful
+  agent/intake ledgers; original uncertainty preserved, no paid replay.
+- Actual Windows CDP readbacks at1440dark/390light: manual fields, assisted
+  portrait, saved adaptation/reload and all five guide views; no writes/errors
+  or overflow. Guide5/5 uses inert seeded channel/CORE/plan, not a client connection.
+  Semantic/UI evidence closes `2q28.38`; customer recognizability remains unobserved.
+- Registration correct-policy helper proves two400 email_already_exists refusals,
+  zero cookies/account creation/paid calls; source/distributed abuse guard preserved.
+  Earlier invalid fixture-password test and its once marker remain failed and
+  unchanged. `2q28.41` retains unproved historical cookie/section00/customer facts.
+- Main own6, avatar own4+2avatars+8texts, adaptation own6+avatar all retired;
+  old sessions401/403, credentials removed; soft-deleted data/ledgers/audits retained.
+  Local four exact credential files removed; neutral private outputs remain600.
+- Actual MCP initialize/tools-list200/66tools, no tool/provider calls; exact own5
+  rows/journal removed. This does not prove actual ChatGPT/OAuth acceptance.
+- Warm438 full31samples/1799.845s measured62.60–63.07% and failed original<60%.
+  cb456 first observer terminated143 after15samples; incomplete, all65.56–66.00%.
+  Full cb45631×61sec window05:00–05:30Z/1830.018s:64.3559–64.9179%, original FAIL;
+  all process/source/schema/queue/health guards and39othercontainers/configs preserved.
+  Conditional lazyPDF candidate needs exact release and a comparable full hot
+  window. No forcedGC, raised limit, excluded queues or memory-saving claim.
 
-## Backup repair accepted — 01.10.2026
+## Client and remaining original acceptance
 
-- Owner authorized the exact cfiz packet. Same key/subkey renewed until 01.10.2027;
-  product-only helper installed 0700, shared script outside its insert unchanged.
-  Six retained plaintext SQL copies tightened to 0600 with unchanged hashes/owner.
-- New signed/encrypted artifact at `/srv/full-backup/2026-10-01_cfiz-0qgn-094906Z/`
-  is 1,847,036 bytes, private mode, checksum/signature/decryption verified.
-  Full SQL restore with ON_ERROR_STOP=1 passed in one isolated 256 MiB container;
-  product/Mastra/Listmonk/Temporal/visibility table counts 77/45/16/37/3 match source.
-  Exact proof container and private plaintext removed; live source preserved.
-  [Receipt](stages/content-factory-next-0qgn/evidence/cfiz-host-restore-2026-10-01.json).
-- cfiz and0qgn.1 CLOSED: first natural02Oct01:20:47–01:24:11Z productGPG1849437B/0600, checksum/signature/decryptPASS; no newSQL.
-  Unusable retained encrypted interval 26.09–pre-repair 01.10; earlier start unknown.
-  No irrecoverable data-loss interval asserted: old SQL remains privately preserved,
-  and the separate 27.09 product set passed hashes/catalogs. Historical cxd stays closed.
+- `2q28.2` CLOSED: fresh task-timestamp-selected account active/unblocked and
+  instance unlimited; actual B1 passes. Root acts as owner-delegated verifier;
+  independent personal identity/customer walkthrough remains unobserved.
+- `2q28.11`: actual same feedback artifact5→6 published04:51:03Z; two existing
+  links/status/latest answers and all previous versions preserved. Existing OPEN
+  recipient page200/new text verified;50 field names/70 controls unchanged.
+  No new token, client message, actual Yulia read/submission or human owner walk.
+  Root technical guide walk is documented; human/customer steps remain unobserved.
+- `2q28.10` CLOSED: owner chose the existing separate portal feedback page.
+  Telegram absent-tab-note `fn33.21` CLOSED by actual cookie-bound LINK200 and
+  recovery in two Windows cases; no real provider exchange.
+- `kcxz`: original implementation54/56 complete; `kcxz.46` actual ChatGPT required.
+  Owned Windows CDP9334 is logged out; no access to owner normal profiles.
+  `kcxz.48` CLOSED under its original reasoned-deferral alternative; no CaseID
+  or submission. Reopen the same task when real publication facts/access exist.
+- Research `ec48`, `75xn`, `m0iy`: keyless HN/GitHub/arxiv sources remain defaultOFF;
+  official Reddit account/API gate preserved. Nine saved cases manually assessed
+  (`0qgn.3` CLOSED); curated samples do not reconstruct population denominators
+  or accepted-reference fractions. `m0iy.10` threshold remains unproved;
+  phase2 `m0iy.6` waits for benefit, not merely the expired date.
+- `saas.2` CLOSED with117 focused checks plus actual two-org PG26 proof.
+  No universal lifecycle/PostsController claim. Original `saas.5` doc-only scope
+  CLOSED; expanded distributed/runtime/ledger/offsite work remains `0qgn.5`.
+- Wave97dq CLOSED/all100; .43 maps all7 observations to delivery/supersession.
+  Auditsc6k/odb8 CLOSED with accepted evidence. Historical unused sentence repair
+  and VoiceRibbon stale task closed by source proof; old records preserved.
+
+## Backup and shared operations
+
+- cfiz authorized repair accepted: same GPG key/subkey renewed until01.10.2027,
+  product helper0700/shared script outside insert unchanged, exact6 SQL copies600
+  with original hashes. New signed encrypted copy and isolated SQL restore pass
+  Product/Mastra/Listmonk/Temporal/visibility77/45/16/37/3; own plaintext/container gone.
+- cfiz and `0qgn.1` CLOSED: actual natural02Oct01:20:47–01:24:11Z timer backup,
+  productGPG1849437B/mode600/signature/decryptPASS; no new plaintext SQL.
+  This proves natural execution, not new offsite/disaster recovery.
+- Extra `0qgn.7` CLOSED: exact three retained own small SQL.gz files tightened
+  644→600 via identity-bound FD; bytes/owner/mtime preserved, no deletions.
+- Shared GlitchTip6.0.5: missing01Oct partitions exact35CREATEs repaired;
+  all6993 old objects preserved. Two own relay events recovered once/redacted.
+  Bounded create-only timer installed; first manual service PASS, next natural
+ 03Oct00:05Z is unobserved. Shared retention90days, not repository standalone30.
+  Actual aged-row pruning remains unproved; no synthetic age/data edits.
+- Native Nest own500 stored once/redacted/five frames; protected evidence reused
+  with explicit scope. Own retired usage-ledger allocation608KiB is a snapshot;
+  NULL cost/tokens remain unknown, possiblyBilled orphan not treated as free.
+- Offsite actual disabled/no appointed destination/decrypt-key custody facts.
+  Owner02Oct explicitly deferred restoring copies/recovery exercises; the live
+  service must work. No destination/key fact or guessed upload/export/enablement.
+  `0qgn.5` retains telemetry natural run/aging/invoice/offsite/SaaS limitations.
 
 ## Explicit defers
 
-- `or3.9`: tariff/trial/card owner decision; related payment wiring and old
-  tariff follow-ups are blocked under it. The accepted public funnel stays closed.
-- `kcxz.48` CLOSED under its original reasoned-deferral alternative; no Case ID/submission.
-  Reopen same task for real publication after ChatGPT/access/publisher/legal facts exist.
-- `hf97` CLOSED: original inventory/authority/preservation/headroom criteria passed;
-  fresh strict capacity guard for everycandidate; unknown sharedcache untouched.
-- Legal/provider/region decisions `saas.6` and `rry` were shelved by the owner,
-  not satisfied. `saas.4/.7` and runtime0qgn.5 retain gates; no residency/SLA promises
-  or new production-as-SaaS acceptance inferred from product releases.
-- `0qgn.1` first natural postrepair backup accepted02Oct; next invocation unobserved.
-  Scanner0qgn.4 and local followups now released438 with exact5d receipt.
-  Historical e8 receipt remains unchanged; it does not cover the new source.
-  Historical closed `3aw`, `c6k.16`, `2ua`, `ry5`, `cxd` and `71m.7` are not
-  current owner tasks. The accepted YouTube display risk `2la` is unchanged.
+All defers below are tracked in Beads under their existing task IDs.
 
-## Durable entrypoints
-
-- Agent: `docs/product/agent-harness-spec.md`, ADR-0012;
-  [stage summary](stages/content-factory-next-kcxz/summary.md),
-  `docs/operations/mcp-connect.md`.
-- Voice: `brand-voice/voice-wiring.contract.ts`, `voice-composite.ts`,
-  `post-layout.ts`; offline evidence tools under `scripts/evidence/`.
-  Before a voice evaluation, use `rebuild-voice.cjs --dry-run`; an old analysis
-  without the current norm fingerprint is not a usable comparison.
-- Content map: `docs/product/content-section-map.md`; decisions in sections
-  8–10, interface contracts in `docs/design/`, roles in `docs/product/roles-matrix.md`.
-- Client feedback: source `docs/client-answers/first-client-yulia-2026-09.html`;
-  preserve field names `sN_result|like|dislike|improve|shot` and the existing slug.
-  New submitted rounds require their own invitation token. Every client finding
-  becomes a `2q28` Bead with the original words; do not message a client in an audit.
-- Delivery/backup: `docs/operations/production-deploy.md`,
-  `docs/operations/postgres-backup.md`. Never `prisma db push` on production:
-  Mastra has its own DB, with 45 tables since the accepted agent upgrade.
-  `send_email` v1 is terminated; use versioned `send_email_v2`.
-- `retain-host-artifacts.sh` has only its standing scoped post-release authority:
-  two own images and three configuration copies, no unrelated host resources.
+- Owner deferred tariff/trial/card/pricing (`or3.9`) and legal/operator/provider/
+  residency facts (`saas.6`, `rry`); `saas.4/.7` retain their real gates. No SaaS
+  launch, payment wiring, legal fiction, new credential or social connection.
+- Missing actual ChatGPT login, client facts, historical research denominators,
+  offsite destination/custody and next natural collector event remain explicit.
+  Full EPIC must not be closed from local tests or a healthy production container.
+- `hf97` CLOSED original inventory/preservation/headroom scope; every new image
+  still has a fresh strict capacity gate. Standing retention script only removes
+  old own release tags/config copies after release checks, preserving rollback.
+- Other owners' prompts/worktrees/evidence and all shared resources preserved;
+  no broad cleanup. Historical `3aw/c6k.16/2ua/ry5/cxd/71m.7` are not new scope.
+  Accepted YouTube display risk `2la` stays unchanged.
 
 ## Next recommended
 
-Next stage id: content-factory-next-0qgn-product-runtime-release (current, unfinished).
-Recommended action: one fresh exact release of accepted integrated source
-set, strict pull/rollback gates and bounded actual B1 then sustained hot memory.
-Delivered27 full suite/schema/public/archive proofs remain SHA-bound to d70;
-65e Jest601/10,590, node122/Python50 PASS; accepted3862 nested export and9d8 grounded voice/paragraph prompts await fresh final receipt and live quality.
-No new hot window. Collector refresh installed/first service PASS;
-Nest proof and firstnatural0qgn.1 backup accepted. Actual ChatGPT,
-client history, research-population threshold, legal and payment gates remain.
-Do not infer client acceptance or repeat accepted September walkthroughs.
+Next stage id: `content-factory-next-0qgn-product-runtime-release`
+Recommended action: complete this same authorized release and runtime acceptance.
 
-Documentation: delivery/handoff evidence updated; obsolete starter-template navigation corrected.
-docs-reviewed: runtime routes, optional numeric search diagnostics and retry contracts recorded.
+## Durable entrypoints and next action
+
+Current evidence: `stages/content-factory-next-0qgn-product-runtime-release/evidence/`.
+Private origin is content-factory-next; public copied build output content-factory-app;
+GHCR remains content-factory-next. Never add public remote to private history.
+`docs/operations/production-deploy.md` owns release/schema/rollback; no production
+`prisma db push`. `docs/operations/postgres-backup.md` owns backup procedure.
+Voice contracts: voice-wiring.contract.ts/voice-composite.ts/post-layout.ts;
+manual/eight-source/raw adaptation proofs are bound to cb51/cb456 sources.
+Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
+sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
+
+Next: freeze accepted CI/lazyPDF/search/timestamp-test candidate,
+root full nine-command acceptance/receipt, public CI repair proof, strict new image
+release, fresh bounded Telegram quality and full comparable hot memory window.
+Do not switch the live app during the current observer or replay paid once actions.
+Documentation: current operational facts reconciled; original spec/plan unchanged.
+docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.
 project-index: reviewed-updated
-graph-reviewed: updated — local AST0.9.45, excluded agent artifacts, three source smokes pass.
+graph-reviewed: updated — local AST0.9.45 ea16;26904nodes/53622edges;three source queries pass.
 
 ## Starter prompt for next orchestrator
 
 Use $orchestrator-stage; read handoff/index/selected Bead/proof.
 Owner delegates necessary actions/root verification; legal/pricing remain deferred.
-Dev `localhost:4200`; Node `PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`.
-All three pnpm test halves required; regenerate stale Prisma client.
-No raw-screen Tailwind min/max arbitrary breakpoints; Nest optional union needs @Inject.
-Beads authoritative; enrolled GitHub trigger only, no GitHub-preferred pull.
+Node `PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`; pnpm10.6.1 only.
+All three pnpm test halves required; fresh receipt must cover exact candidate SHA.
+No raw-screen Tailwind min/max breakpoints; Nest optional union needs @Inject.
+Beads authoritative; preserve original36 criteria and external acceptance limits.
 This handoff is capped at200 lines.

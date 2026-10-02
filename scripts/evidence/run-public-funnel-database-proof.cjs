@@ -15,6 +15,7 @@ require('tsconfig-paths/register');
 require('reflect-metadata');
 
 const { Client } = require('pg');
+const { Redis } = require('ioredis');
 const { PrismaClient, Provider } = require('@prisma/client');
 const { Test } = require('@nestjs/testing');
 const { Module, ValidationPipe } = require('@nestjs/common');
@@ -54,21 +55,29 @@ if (!allowedEvidenceRoots.some(inside)) {
 const runId = `cf-public-funnel-${process.pid}-${randomUUID().slice(0, 8)}`;
 const resources = {
   container: `${runId}-postgres`,
+  redisContainer: `${runId}-redis`,
   volume: `${runId}-data`,
   network: `${runId}-network`,
 };
 const resourceLabel = `content-factory.public-funnel-proof=${runId}`;
 const postgresPassword = `proof-${randomUUID()}`;
+const redisPassword = `proof-${randomUUID()}`;
 const databaseName = 'content_factory_proof';
 const checks = [];
-const created = { container: false, volume: false, network: false };
+const created = {
+  container: false,
+  redisContainer: false,
+  volume: false,
+  network: false,
+};
 let app;
 let prisma;
 let pg;
+let redisVersion;
 let phase = 'initialization';
 let cleanupEvidence = {
   status: 'FAIL',
-  containers: [resources.container],
+  containers: [resources.container, resources.redisContainer],
   volumes: [resources.volume],
   networks: [resources.network],
 };
@@ -129,14 +138,11 @@ function dockerList(kind) {
 }
 
 /**
- * The proof never asks for Redis, but the backend services it loads through
- * ts-node reach `libraries/nestjs-libraries/src/redis/redis.service.ts`, which
- * opens one shared ioredis connection at module load whenever REDIS_URL is set.
- * That socket outlives every check: the run passes, writes its summary, and
- * then sits on an event loop that never empties, so the caller kills it on a
- * timeout and a healthy funnel reads as a broken one. Close what the load
- * opened. `disconnect()` rather than `quit()` because quit waits for a server
- * that may not be there, which is the same hang under a politer name.
+ * Registration uses the real distributed Redis budget. REDIS_URL is bound to
+ * this proof's disposable store before backend imports create the shared
+ * ioredis client. app.close() does not own that module-level connection;
+ * disconnect it before removing the owned Redis container, without waiting
+ * for a possibly failed server to acknowledge quit().
  */
 function closeSharedRedis() {
   let modulePath;
@@ -156,6 +162,53 @@ function closeSharedRedis() {
   return 'disconnected';
 }
 
+function removeOwnedContainer(name, removeVolumes = false) {
+  let inspected;
+  try {
+    inspected = JSON.parse(
+      command('docker', [
+        'container',
+        'inspect',
+        name,
+        '--format',
+        '{"id":{{json .Id}},"owner":{{json (index .Config.Labels "content-factory.public-funnel-proof")}}}',
+      ])
+    );
+  } catch (error) {
+    const stderr = String(error.stderr || '').trim();
+    if (
+      error.status === 1 &&
+      (stderr === `Error: No such container: ${name}` ||
+        stderr === `Error response from daemon: No such container: ${name}`)
+    ) {
+      return null;
+    }
+    return { container: name, reason: 'inspection-unavailable' };
+  }
+  if (inspected?.owner !== runId) {
+    return { container: name, reason: 'ownership-label-mismatch' };
+  }
+  if (
+    typeof inspected.id !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(inspected.id)
+  ) {
+    return { container: name, reason: 'invalid-container-id' };
+  }
+  try {
+    // The inspected immutable ID also prevents a replaced name from selecting
+    // a foreign container between this ownership check and removal.
+    command('docker', [
+      'rm',
+      '-f',
+      ...(removeVolumes ? ['-v'] : []),
+      inspected.id,
+    ]);
+    return null;
+  } catch {
+    return { container: name, reason: 'removal-failed' };
+  }
+}
+
 async function cleanup() {
   if (app) {
     await app.close().catch(() => undefined);
@@ -170,10 +223,15 @@ async function cleanup() {
     pg = undefined;
   }
   const sharedRedis = closeSharedRedis();
+  const containerCleanupFailures = [];
+  if (created.redisContainer) {
+    const failure = removeOwnedContainer(resources.redisContainer, true);
+    if (failure) containerCleanupFailures.push(failure);
+    created.redisContainer = false;
+  }
   if (created.container) {
-    try {
-      command('docker', ['rm', '-f', resources.container]);
-    } catch {}
+    const failure = removeOwnedContainer(resources.container);
+    if (failure) containerCleanupFailures.push(failure);
     created.container = false;
   }
   if (created.volume) {
@@ -195,8 +253,10 @@ async function cleanup() {
     volumes: dockerList('volume'),
     networks: dockerList('network'),
     sharedRedis,
+    containerCleanupFailures,
   };
   if (
+    cleanupEvidence.containerCleanupFailures.length ||
     cleanupEvidence.containers.length ||
     cleanupEvidence.volumes.length ||
     cleanupEvidence.networks.length
@@ -440,6 +500,68 @@ async function waitForPostgres(databaseUrl) {
   throw lastError || new Error('PostgreSQL did not become ready');
 }
 
+async function waitForRedis(redisUrl) {
+  let lastError;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const probe = new Redis(redisUrl, {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: null,
+      connectTimeout: 1_000,
+      commandTimeout: 1_000,
+    });
+    probe.on('error', () => {});
+    try {
+      await probe.connect();
+      assert.equal(await probe.ping(), 'PONG');
+      const version = (await probe.info('server')).match(
+        /^redis_version:([^\r\n]+)/m
+      )?.[1];
+      assert.match(version || '', /^7\.2\./);
+      return version;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      probe.disconnect();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw lastError || new Error('Owned Redis did not become ready');
+}
+
+async function bindOwnedRedis(redisUrl) {
+  process.env.REDIS_URL = redisUrl;
+  const {
+    ioRedis,
+  } = require('../../libraries/nestjs-libraries/src/redis/redis.service.ts');
+  const expected = new URL(redisUrl);
+  assert.ok(
+    ioRedis.options?.host === expected.hostname &&
+      ioRedis.options?.port === Number(expected.port) &&
+      ioRedis.options?.password === decodeURIComponent(expected.password),
+    "Backend Redis must use this proof's owned fixture"
+  );
+  let timer;
+  try {
+    assert.equal(
+      await Promise.race([
+        ioRedis.ping(),
+        new Promise((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Owned backend Redis readiness timed out')),
+            2_000
+          );
+        }),
+      ]),
+      'PONG'
+    );
+    assert.equal(ioRedis.status, 'ready');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function queryCounts() {
   const result = await pg.query(`
     SELECT
@@ -681,6 +803,61 @@ async function main() {
     .server_version;
   assert.match(serverVersion, /^17\./);
   process.env.DATABASE_URL = databaseUrl;
+  phase = 'owned-redis-create';
+  // Mark before run so cleanup also removes an owned container left by a
+  // partially failed Docker start. /data is tmpfs, not an anonymous volume.
+  created.redisContainer = true;
+  command('docker', [
+    'run',
+    '--detach',
+    '--name',
+    resources.redisContainer,
+    '--label',
+    resourceLabel,
+    '--network',
+    resources.network,
+    '--publish',
+    '127.0.0.1::6379',
+    '--tmpfs',
+    '/data:rw,noexec,nosuid,size=16m',
+    'redis:7.2-alpine',
+    'redis-server',
+    '--save',
+    '',
+    '--appendonly',
+    'no',
+    '--requirepass',
+    redisPassword,
+  ]);
+  const redisStorage = JSON.parse(
+    command('docker', [
+      'inspect',
+      resources.redisContainer,
+      '--format',
+      '{"mounts":{{json .Mounts}},"tmpfs":{{json .HostConfig.Tmpfs}}}',
+    ])
+  );
+  assert.ok(
+    redisStorage.tmpfs?.['/data'] &&
+      redisStorage.mounts.every((mount) => mount.Type !== 'volume'),
+    'Owned Redis must have tmpfs data and no persistent or anonymous volume'
+  );
+  const redisPortSpec = command('docker', [
+    'port',
+    resources.redisContainer,
+    '6379/tcp',
+  ]);
+  const redisPort = Number(
+    redisPortSpec.slice(redisPortSpec.lastIndexOf(':') + 1)
+  );
+  assert.ok(Number.isInteger(redisPort) && redisPort > 0);
+  const redisUrl = `redis://:${encodeURIComponent(
+    redisPassword
+  )}@127.0.0.1:${redisPort}`;
+  phase = 'owned-redis-readiness';
+  redisVersion = await waitForRedis(redisUrl);
+  phase = 'owned-backend-redis-binding';
+  await bindOwnedRedis(redisUrl);
   process.env.NODE_ENV = 'test';
   process.env.PUBLIC_GROWTH_DEDUPE_KEY =
     'local-public-funnel-proof-hmac-key-32-bytes-minimum';
@@ -1061,7 +1238,11 @@ async function main() {
   // ingress replaces this header; this loopback-only stand supplies synthetic
   // TEST-NET addresses and keeps the actual controller effect limiter enabled.
   // Same-caller retry scenarios below pass their address explicitly.
-  const authPost = (route, body, clientAddress = `198.51.100.${++proofClientSequence}`) =>
+  const authPost = (
+    route,
+    body,
+    clientAddress = `198.51.100.${++proofClientSequence}`
+  ) =>
     jsonRequest(baseUrl, route, {
       method: 'POST',
       headers: {
@@ -1779,9 +1960,14 @@ async function main() {
       assert.equal(first.status, 200);
       const before = await queryCounts();
       const intentCount = repositoryIntents.length;
-      const repeated = await authPost('/auth/register', {
-        ...body, email: 'effect-budget-second@example.test',
-      }, address);
+      const repeated = await authPost(
+        '/auth/register',
+        {
+          ...body,
+          email: 'effect-budget-second@example.test',
+        },
+        address
+      );
       assert.equal(repeated.status, 429);
       assert.deepEqual(await queryCounts(), before);
       assert.equal(repositoryIntents.length, intentCount);
@@ -1811,9 +1997,14 @@ async function main() {
       assert.equal(refused.status, 400);
       assert.deepEqual(await queryCounts(), before);
       assert.equal(repositoryIntents.length, intentCount);
-      const corrected = await authPost('/auth/register', {
-        ...body, email: 'form-correction@example.test',
-      }, address);
+      const corrected = await authPost(
+        '/auth/register',
+        {
+          ...body,
+          email: 'form-correction@example.test',
+        },
+        address
+      );
       assert.equal(corrected.status, 200);
       assert.deepEqual(await queryCounts(), {
         users: before.users + 1,
@@ -1821,7 +2012,10 @@ async function main() {
         tags: before.tags + 4,
       });
       assert.equal(repositoryIntents.length, intentCount + 1);
-      assert.deepEqual((await registrationRows('form-correction@example.test')).tags, workflowTags);
+      assert.deepEqual(
+        (await registrationRows('form-correction@example.test')).tags,
+        workflowTags
+      );
       authEvidence.formRetry = {
         refusedStatus: refused.status,
         correctedStatus: corrected.status,
@@ -2065,6 +2259,13 @@ async function main() {
     pnpm: pnpmVersion,
     postgres: serverVersion,
     postgresImage: 'postgres:17',
+    redisImage: 'redis:7.2-alpine',
+    redisServer: redisVersion,
+    redisOwned: true,
+    redisPersistence: 'tmpfs',
+    redisAnonymousVolumes: redisStorage.mounts.filter(
+      (mount) => mount.Type === 'volume'
+    ).length,
     dockerServer: command('docker', [
       'version',
       '--format',
@@ -2102,6 +2303,9 @@ async function main() {
         }
       })(),
       postgres: '17',
+      redis: redisVersion
+        ? redisVersion.split('.').slice(0, 2).join('.')
+        : null,
     },
     checks,
     resources: { ...resources, label: resourceLabel },
@@ -2109,7 +2313,11 @@ async function main() {
     failure: failure
       ? {
           name: failure.name,
-          message: failure.message,
+          message: [postgresPassword, redisPassword].reduce(
+            (message, secret) =>
+              String(message).split(secret).join('[redacted]'),
+            failure.message
+          ),
           code: failure.code,
           phase,
         }
