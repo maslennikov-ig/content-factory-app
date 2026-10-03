@@ -168,9 +168,13 @@ describe('the emoji button', () => {
       path.resolve(__dirname, '..', `${base}/adaptation-editor.tsx`),
       'utf8'
     );
+    const pickerSource = fs.readFileSync(
+      path.resolve(__dirname, '..', `${base}/adaptation-emoji-picker.tsx`),
+      'utf8'
+    );
     // Та же библиотека, что в окне поста, и без картинок с CDN.
-    expect(source).toMatch(/from 'emoji-picker-react'/);
-    expect(source).toMatch(/emojiStyle=\{EmojiStyle\.NATIVE\}/);
+    expect(pickerSource).toMatch(/import\('emoji-picker-react'\)/);
+    expect(pickerSource).toMatch(/emojiStyle=\{loaded\.EmojiStyle\.NATIVE\}/);
     expect(source).toMatch(/searchPlaceholder=\{t\.emojiSearch\}/);
 
     await openEditor();

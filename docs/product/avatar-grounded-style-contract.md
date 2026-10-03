@@ -80,7 +80,11 @@ New V2 proposals also inspect ordinary TONE/TOPICS prose at 599–600 UTF-16
 characters after grounding and the final reference union. With balanced `«…»`
 quotations and a letter-ending trailing clause, a structurally certified prior
 sentence boundary keeps the exact preceding prefix; without one, the field is
-omitted. Ambiguous abbreviations, initials, URLs, decimals, ellipses, mixed or
+omitted. The plain-tail syntax check temporarily removes only nonempty balanced
+quotation bodies grounded in a referenced observation for that same field. It
+does not alter output text. Unsupported or foreign-field quotations remain in
+the syntax input and abstain; the original uppercase-start check is preserved.
+Ambiguous abbreviations, initials, URLs, decimals, ellipses, mixed or
 nested quote forms, punctuation runs and malformed Unicode abstain. This is a
 bounded output policy, not a diagnosis of a provider cutoff or a general grammar
 test. Deliberately unpunctuated near-limit prose may lose its last sentence.
@@ -89,3 +93,8 @@ V1, historical reads, schema limits, model routing and call counts are preserved
 The retained current-release replay changes TONE599 to its exact559-character
 prefix and TOPICS600 to its exact591-character prefix. It proves the source
 policy for those recorded inputs; fresh model output still needs live acceptance.
+An additional neutral replay of the 618 release's TOPICS600 ending inside a word
+with four grounded closed quotation pairs omits that whole field and preserves
+the four complete fields, portrait and 42 observations. The actual failed
+618 result remains historical evidence; this replay does not establish the
+upstream cutoff cause or a fresh model pass.

@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import type { Editor } from '@tiptap/react';
-import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react';
-import { documentThemeMode } from '@contentfactory/frontend/components/layout/document-theme';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Hint } from '@contentfactory/react/layout/hint';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import {
   CheckmarkIcon,
   CloseIcon,
@@ -20,13 +19,31 @@ import {
 } from '@contentfactory/frontend/components/ui/icons';
 import { editorToolsFor } from './adaptation-toolbar';
 import { formatStoredMarkup } from './adaptation-markup';
-import { AdaptationRichText } from './adaptation-rich-text';
+import { AdaptationEmojiPicker } from './adaptation-emoji-picker';
 import {
   readLinkAddress,
   visibleLength,
   type AdaptationImageV1,
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
+
+type RichTextComponent = typeof import('./adaptation-rich-text').AdaptationRichText;
+
+let pendingRichText: Promise<RichTextComponent> | undefined;
+let richTextLoadFailed = false;
+
+function loadRichText() {
+  if (!pendingRichText) {
+    const request = import('./adaptation-rich-text').then(
+      (module) => module.AdaptationRichText
+    );
+    pendingRichText = request;
+    request.catch(() => {
+      if (pendingRichText === request) richTextLoadFailed = true;
+    });
+  }
+  return pendingRichText;
+}
 
 /**
  * Текст адаптации, который правят руками (`97dq.37`, §3.2; `97dq.46`).
@@ -97,12 +114,21 @@ export function AdaptationEditor({
   format?: string | null;
 }) {
   const t = piecesCopy[locale];
+  const common = useT(undefined, { useSuspense: false });
   const [editing, setEditing] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [RichText, setRichText] = useState<RichTextComponent | null>(null);
+  const [richTextFailed, setRichTextFailed] = useState(false);
+  const [richTextAttempt, setRichTextAttempt] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
-  const onEditor = useCallback((next: Editor | null) => setEditor(next), []);
+  const onEditor = useCallback((next: Editor | null) => {
+    // Set the initial selection before readiness; a delayed autofocus can
+    // otherwise overwrite the cursor selected while the popup is loading.
+    if (next) next.commands.focus('end');
+    setEditor(next);
+  }, []);
   const tools = editorToolsFor(format);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiRoot = useRef<HTMLSpanElement | null>(null);
@@ -141,6 +167,34 @@ export function AdaptationEditor({
   const over = maxLength !== null && maxLength > 0 && count > maxLength;
   const inEdit = editing && !readOnly;
   const ready = inEdit && editor !== null;
+
+  // Effects never run during SSR; reading the adaptation loads neither widget.
+  useEffect(() => {
+    if (!inEdit) return;
+    let mounted = true;
+    setRichTextFailed(false);
+    loadRichText().then(
+      (component) => {
+        if (mounted) setRichText(() => component);
+      },
+      () => {
+        if (mounted) setRichTextFailed(true);
+      }
+    );
+    return () => {
+      mounted = false;
+    };
+  }, [inEdit, richTextAttempt]);
+
+  const retryRichText = () => {
+    // A rejected import stays rejected until an explicit retry, even on remount.
+    if (richTextLoadFailed) {
+      pendingRichText = undefined;
+      richTextLoadFailed = false;
+    }
+    setRichTextFailed(false);
+    setRichTextAttempt((attempt) => attempt + 1);
+  };
 
   /*
     Один разговор о картинке ИИ на пять исходов (`kcxz.55`): рисуем сейчас —
@@ -376,26 +430,15 @@ export function AdaptationEditor({
                       data-editor-emoji-picker="true"
                       className="absolute start-0 top-[calc(100%+4px)] z-[300] max-w-[calc(100vw-32px)] rounded-[8px] shadow-menu"
                     >
-                      <EmojiPicker
-                        open
-                        width={320}
-                        height={360}
-                        // Системный шрифт, а не картинки с cdn.jsdelivr.net:
-                        // открытый выбор иначе сообщал бы CDN, кто пишет пост.
-                        emojiStyle={EmojiStyle.NATIVE}
-                        // The page's own theme (`document-theme.ts`), not a
-                        // storage key nothing writes.
-                        theme={
-                          documentThemeMode() === 'light'
-                            ? Theme.LIGHT
-                            : Theme.DARK
-                        }
+                      <AdaptationEmojiPicker
                         searchPlaceholder={t.emojiSearch}
-                        autoFocusSearch
-                        skinTonesDisabled
-                        lazyLoadEmojis
-                        previewConfig={{ showPreview: false }}
-                        onEmojiClick={(data) => insertEmoji(data.emoji)}
+                        loadingLabel={common('loading', 'Loading')}
+                        failedLabel={common(
+                          'error_occurred',
+                          'An error occurred. Please try again.'
+                        )}
+                        retryLabel={t.retry}
+                        onPick={insertEmoji}
                       />
                     </span>
                   ) : null}
@@ -541,7 +584,28 @@ export function AdaptationEditor({
       <div className="flex min-w-0 flex-col gap-[12px] p-[16px]">
         {inEdit ? (
           <div data-piece-draft-id={draftId} className="min-w-0">
-            {!ready ? (
+            {richTextFailed ? (
+              <div
+                role="alert"
+                className="mb-[8px] flex flex-col items-start gap-[8px]"
+              >
+                <p className="cf-body-sm text-cf-danger">
+                  {common(
+                    'error_occurred',
+                    'An error occurred. Please try again.'
+                  )}
+                </p>
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  onClick={retryRichText}
+                >
+                  {t.retry}
+                </Button>
+              </div>
+            ) : null}
+            {!ready && !richTextFailed ? (
               <p
                 role="status"
                 aria-busy="true"
@@ -551,13 +615,20 @@ export function AdaptationEditor({
                 {formatStoredMarkup(value)}
               </p>
             ) : null}
-            <AdaptationRichText
-              value={value}
-              onChange={onChange}
-              ariaLabel={t.editorLabel(platformLabel)}
-              onEditor={onEditor}
-              autoFocus
-            />
+            {richTextFailed ? (
+              <article className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]">
+                {formatStoredMarkup(value)}
+              </article>
+            ) : null}
+            {RichText ? (
+              <RichText
+                value={value}
+                onChange={onChange}
+                ariaLabel={t.editorLabel(platformLabel)}
+                onEditor={onEditor}
+                autoFocus={false}
+              />
+            ) : null}
           </div>
         ) : (
           <article

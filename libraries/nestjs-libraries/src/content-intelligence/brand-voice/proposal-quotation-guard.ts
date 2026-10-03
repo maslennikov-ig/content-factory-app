@@ -199,7 +199,20 @@ export function omitIncompleteBoundaryProse<T extends Field>(
   const tail = text.slice(complete).trimStart();
   if (
     !/^\p{Lu}/u.test(tail) ||
-    !/^[\p{L}\p{M}\p{N}\s,;:\p{Pd}]+$/u.test(tail)
+    !/^[\p{L}\p{M}\p{N}\s,;:\p{Pd}]+$/u.test(
+      tail.replace(/«([^«»]+)»/gu, (quoted, body: string) =>
+        body.trim() &&
+        observations.some(
+          (one) =>
+            refs.has(one.ref) &&
+            one.field === field.field &&
+            typeof one.quote === 'string' &&
+            quoteIsGrounded(body, one.quote)
+        )
+          ? ''
+          : quoted
+      )
+    )
   )
     return field;
   return complete >= 2 ? { ...field, text: raw.slice(0, complete) } : null;

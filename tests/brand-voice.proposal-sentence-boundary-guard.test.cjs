@@ -602,3 +602,233 @@ test('V1 generation and historical display preserve the exact current599 text', 
       field.text
     );
 });
+
+// Root-owned neutral618 projection: no tenant, run, account or provider IDs.
+const plainCap618 = require('./fixtures/avatar-topics618-neutral.json');
+const plainCap618Topics = plainCap618.fields.find(
+  (field) => field.field === 'TOPICS'
+);
+
+function plainCap618Harness(fields = plainCap618.fields) {
+  const groups = new Map();
+  for (const observation of plainCap618.observations) {
+    const group = groups.get(observation.sampleCode) ?? [];
+    group.push({
+      field: observation.field,
+      metric: null,
+      claim: observation.claim,
+      quote: observation.quote,
+    });
+    groups.set(observation.sampleCode, group);
+  }
+  const samples = [...groups].map(([code, observations]) => ({
+    code,
+    text: observations.map((one) => one.quote).join(' '),
+    observations,
+    language: 'ru',
+    contentHash: 'neutral-offline-plain-cap-fixture',
+  }));
+  const reduced = {
+    fields: JSON.parse(JSON.stringify(fields)),
+    portrait: JSON.parse(JSON.stringify(plainCap618.portrait)),
+    pointOfView: 'first_person',
+    formality: 'neutral',
+    emojiPolicy: 'none',
+    hashtagPolicy: 'none',
+    neverSay: [],
+  };
+  const seen = [];
+  const transport = {
+    complete: async ({ stage, prompt }) => {
+      seen.push(stage);
+      if (stage === 'reduce') return reduced;
+      const code = /smp-\d{2}/u.exec(prompt)[0];
+      return {
+        sampleCode: code,
+        observations: samples.find((sample) => sample.code === code)
+          .observations,
+      };
+    },
+  };
+  return { samples, reduced, seen, transport };
+}
+
+test('actual618 TOPICS600 balanced grounded quotes and unfinished plain tail omit only the field', () => {
+  assert.equal(plainCap618Topics.text.length, 600);
+  assert.ok(plainCap618Topics.text.endsWith('; об обратной связи и ред'));
+  const quotes = [...plainCap618Topics.text.matchAll(/«([^«»]+)»/gu)];
+  assert.equal(quotes.length, 4);
+  for (const [, quote] of quotes)
+    assert.ok(
+      plainCap618.observations.some(
+        (observation) =>
+          plainCap618Topics.observationRefs.includes(observation.ref) &&
+          observation.field === 'TOPICS' &&
+          contract.quoteIsGrounded(quote, observation.quote)
+      )
+    );
+  const before = JSON.stringify(plainCap618);
+  assert.equal(apply(plainCap618Topics, plainCap618.observations), null);
+  assert.equal(JSON.stringify(plainCap618), before);
+});
+
+test('actual618 V2 keeps all four completed fields, portrait and evidence with eight maps and one reduce', async () => {
+  const run = plainCap618Harness();
+  const before = JSON.stringify({ samples: run.samples, reduced: run.reduced });
+  const result = await execute(run);
+  assert.deepEqual(
+    result.proposal.fields,
+    run.reduced.fields.filter((field) => field.field !== 'TOPICS')
+  );
+  assert.equal(
+    result.proposal.fields.find((field) => field.field === 'TONE').text.length,
+    482
+  );
+  assert.deepEqual(result.proposal.portrait, run.reduced.portrait);
+  assert.equal(result.observations.length, plainCap618.observations.length);
+  for (const original of plainCap618.observations) {
+    const kept = result.observations.find((one) => one.ref === original.ref);
+    assert.equal(kept.quote, original.quote);
+    assert.equal(kept.claim, original.claim);
+    assert.equal(kept.field, original.field);
+  }
+  assert.deepEqual(run.seen, [...Array(8).fill('map'), 'reduce']);
+  assert.equal(result.calls.length, 9);
+  assert.ok(result.calls.every((call) => call.ok && call.attempt === 1));
+  assert.equal(
+    JSON.stringify({ samples: run.samples, reduced: run.reduced }),
+    before
+  );
+});
+
+test('actual618 service keeps the remaining grounded proposal without a whole-analysis retry', async () => {
+  const run = plainCap618Harness();
+  const forbidden = () => {
+    throw new Error('live provider call is forbidden');
+  };
+  const service = loadTypeScriptModule(base + 'voice-assist.service.ts', {
+    '@nestjs/common': { Injectable: () => (target) => target },
+    'openai/helpers/zod': { zodResponseFormat: forbidden },
+    '@contentfactory/nestjs-libraries/openai/ai.clients': {
+      getOpenAiClient: forbidden,
+      getModelForRole: forbidden,
+    },
+    '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
+      AiUsageService: class {},
+    },
+  });
+  const result = await service.runVoiceAssistV2(run.transport, {
+    samples: run.samples,
+    measurement,
+  });
+  assert.equal(result.proposal.fields.length, 4);
+  assert.ok(result.proposal.fields.every((field) => field.field !== 'TOPICS'));
+  assert.deepEqual(run.seen, [...Array(8).fill('map'), 'reduce']);
+  assert.equal(result.calls.length, 9);
+});
+
+test('balanced referenced quotation in an unfinished cap tail retains the exact previous complete sentence', () => {
+  const prefix = 'Проверяйте 🧩 и\u0301 условия вместе. ';
+  const quoted = /«[^«»]+»/u.exec(plainCap618Topics.text)[0];
+  const tail = ('Пишите о планировании: ' + quoted + '; обсуждайте ').padEnd(
+    600 - prefix.length,
+    'а'
+  );
+  const field = { ...plainCap618Topics, text: prefix + tail };
+  const before = JSON.stringify(field);
+  const kept = apply(field, plainCap618.observations);
+  assert.equal(kept.text, prefix.trimEnd());
+  assert.ok(field.text.startsWith(kept.text));
+  assert.equal(JSON.stringify(field), before);
+  assert.deepEqual(kept.observationRefs, field.observationRefs);
+  assert.strictEqual(apply(kept, plainCap618.observations), kept);
+});
+
+test('balanced cap quotes without referenced same-field bodies leave the original object exact', () => {
+  for (const observations of [
+    [],
+    plainCap618.observations.map((one) => ({ ...one, field: 'TONE' })),
+    plainCap618.observations.map((one) => ({ ...one, ref: 'foreign#1' })),
+    plainCap618.observations.map((one) => ({
+      ...one,
+      quote: 'Совершенно другой текст.',
+    })),
+    plainCap618.observations.filter(
+      (one) => one.ref !== plainCap618Topics.observationRefs[0]
+    ),
+  ])
+    assert.strictEqual(
+      apply(plainCap618Topics, observations),
+      plainCap618Topics
+    );
+});
+
+test('empty balanced quotation and a quote-starting ambiguous tail never create a complete prefix', () => {
+  const quoted = /«[^«»]+»/u.exec(plainCap618Topics.text)[0];
+  const empty = {
+    ...plainCap618Topics,
+    text: plainCap618Topics.text.replace(
+      quoted,
+      '«' + ' '.repeat(quoted.length - 2) + '»'
+    ),
+  };
+  assert.equal(empty.text.length, 600);
+  assert.strictEqual(apply(empty, plainCap618.observations), empty);
+  const ambiguous = {
+    ...plainCap618Topics,
+    text: ('Проверяйте условия вместе. ' + quoted + ' Пишите ').padEnd(
+      600,
+      'а'
+    ),
+  };
+  assert.strictEqual(apply(ambiguous, plainCap618.observations), ambiguous);
+});
+
+test('final ref union admits all four balanced quotation bodies before the cap policy without another call', async () => {
+  const winner = {
+    ...plainCap618Topics,
+    observationRefs: plainCap618Topics.observationRefs.slice(1),
+  };
+  const loser = {
+    field: 'TOPICS',
+    text: 'Пишите о проверке задач.',
+    observationRefs: [plainCap618Topics.observationRefs[0]],
+  };
+  assert.strictEqual(apply(winner, plainCap618.observations), winner);
+  const run = plainCap618Harness([
+    ...plainCap618.fields.filter((field) => field.field !== 'TOPICS'),
+    winner,
+    loser,
+  ]);
+  const result = await execute(run);
+  assert.ok(result.proposal.fields.every((field) => field.field !== 'TOPICS'));
+  assert.deepEqual(run.seen, [...Array(8).fill('map'), 'reduce']);
+});
+
+test('actual618 V1 and historical display preserve the exact600 text with no new calls', async () => {
+  const run = plainCap618Harness([{ ...plainCap618Topics, field: 'TONE' }]);
+  for (const sample of run.samples)
+    for (const observation of sample.observations)
+      if (observation.field === 'TOPICS') observation.field = 'TONE';
+  const result = await execute(run, true);
+  assert.deepEqual(result.proposal.fields, run.reduced.fields);
+  assert.deepEqual(run.seen, [...Array(8).fill('map'), 'reduce']);
+  let cuts = 0;
+  const words = loadTypeScriptModule(base + 'metric-words.ts', {
+    './text-truncate': {
+      truncateChars: () => {
+        cuts++;
+        throw new Error('unexpected display truncation');
+      },
+    },
+  });
+  assert.equal(
+    words.proposalInWords({ fields: [plainCap618Topics] }).fields[0].text,
+    plainCap618Topics.text
+  );
+  assert.equal(
+    words.voiceLineInWords(plainCap618Topics.text),
+    plainCap618Topics.text
+  );
+  assert.equal(cuts, 0);
+});
