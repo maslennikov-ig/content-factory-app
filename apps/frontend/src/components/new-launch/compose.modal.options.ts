@@ -29,8 +29,8 @@ export const COMPOSE_MODAL_OPTIONS = {
   removeLayout: true,
   closeOnEscape: false,
   /**
-   * Крестик рисует само окно, в правой верхней полосе: полос у окна две, и
-   * крестик оболочки встал бы поверх одной из них. См. `manage.modal.tsx`.
+   * Крестик рисует само окно в шапке редактора: крестик оболочки встал бы
+   * поверх одной из его полос. См. `manage.modal.tsx`.
    */
   withCloseButton: false,
   askClose: true,
@@ -38,7 +38,10 @@ export const COMPOSE_MODAL_OPTIONS = {
   classNames: {
     modal: 'w-[100%] max-w-[1400px] text-cf-ink',
   },
-  size: '80%',
+  // `removeLayout` renders its own wrapper and skips Dialog's viewport width
+  // cap. The editor owns its responsive width: full-screen on phones and 80%
+  // on desktop, matching the previous desktop layout.
+  size: '100%',
   /** Заголовок окно печатает само — «Создать пост», «Изменить», «Пост». */
   title: '',
 } as const;

@@ -732,10 +732,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   );
 
   return (
-    <div className="w-full h-full flex-1 p-[40px] flex relative">
-      <div className="flex flex-1 bg-cf-surface border border-cf-border rounded-[12px] flex-col">
-        <div className="flex-1 flex">
-          <div className="flex flex-col flex-1 border-e border-cf-border">
+    <div className="w-full h-full min-h-0 min-w-0 flex-1 p-4 lg:p-6 xl:flex-none xl:w-[80vw] xl:max-w-[1400px] xl:p-[40px] flex relative">
+      <div className="flex min-h-0 min-w-0 flex-1 bg-cf-surface border border-cf-border rounded-[12px] flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
+          <div className="flex min-h-[280px] min-w-0 flex-1 flex-col border-b border-cf-border xl:min-h-0 xl:border-b-0 xl:border-e">
             {/*
               * Значок происхождения снят с первого экрана окна
               * (`content-factory-next-fn33.28.10`).
@@ -752,7 +752,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               * это настоящий факт о записи. Убран он ровно оттуда, где всегда
               * показывал «WEB» и ничего больше.
               */}
-            <div className="bg-cf-canvas border-b border-cf-border h-[64px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] cf-heading-md">
+            <div className="bg-cf-canvas border-b border-cf-border min-h-[64px] shrink-0 rounded-t-[12px] xl:h-[64px] xl:rounded-s-[12px] xl:rounded-e-none !rounded-b-[0] flex items-center gap-[12px] px-[12px] xl:px-[20px] cf-heading-md">
               {/*
                 Заголовок называет то, что человек делает прямо сейчас
                 (`content-factory-next-fn33.90.10`). «Создать пост» стояло над
@@ -784,6 +784,31 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   {voiceLocale === 'ru' ? 'К заготовке' : 'Go to piece'}
                 </Link>
               )}
+              {/*
+                Крестик — кнопка, а не значок с обработчиком нажатия
+                (`content-factory-next-tu3k.9.11`). До этого закрыть окно
+                мышью было можно, а с клавиатуры нет: `<svg onClick>` не
+                получает фокус, не отзывается на Enter и Space и не имеет
+                имени, которое прочла бы программа чтения с экрана. Теперь это
+                обычная кнопка системы: имя у неё есть, фокус виден, обе
+                клавиши работают сами.
+
+                Кнопка стоит в шапке редактора, чтобы закрытие было доступно
+                и тогда, когда предпросмотр сложен под ним на узком экране.
+                Escape по-прежнему обрабатывает оболочка окна через `askClose`;
+                второго обработчика у крестика нет.
+              */}
+              <Button
+                type="button"
+                variant="quiet"
+                iconOnly
+                aria-label={t('close_post_window', 'Close the post window')}
+                title={t('close_post_window', 'Close the post window')}
+                className="shrink-0"
+                onClick={askClose}
+              >
+                <CloseIcon className="text-cf-ink-muted" />
+              </Button>
             </div>
             <div className="flex-1 flex flex-col gap-[16px]">
               <div
@@ -890,33 +915,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               </div>
             </div>
           </div>
-          <div className="w-[580px] flex flex-col">
-            <div className="bg-cf-canvas border-b border-cf-border h-[64px] rounded-e-[12px] !rounded-b-[0] flex items-center px-[20px] cf-heading-md">
+          <div className="flex h-[280px] w-full min-w-0 shrink-0 flex-col xl:h-auto xl:w-[580px] xl:shrink">
+            <div className="bg-cf-canvas border-b border-cf-border h-[64px] shrink-0 rounded-none xl:rounded-e-[12px] !rounded-b-[0] flex items-center px-[20px] cf-heading-md">
               <div className="flex-1">{t('post_preview', 'Post Preview')}</div>
-              {/*
-                Крестик — кнопка, а не значок с обработчиком нажатия
-                (`content-factory-next-tu3k.9.11`). До этого закрыть окно
-                мышью было можно, а с клавиатуры нет: `<svg onClick>` не
-                получает фокус, не отзывается на Enter и Space и не имеет
-                имени, которое прочла бы программа чтения с экрана. Теперь это
-                обычная кнопка системы: имя у неё есть, фокус виден, обе
-                клавиши работают сами.
-
-                Escape здесь не обрабатывается намеренно: оболочка окна
-                (`layout/new-modal.tsx`) вешает его на верхнее окно всегда и
-                спрашивает тем же вопросом. Второй обработчик задал бы вопрос
-                дважды.
-              */}
-              <Button
-                type="button"
-                variant="quiet"
-                iconOnly
-                aria-label={t('close_post_window', 'Close the post window')}
-                title={t('close_post_window', 'Close the post window')}
-                onClick={askClose}
-              >
-                <CloseIcon className="text-cf-ink-muted" />
-              </Button>
             </div>
             <div className="flex-1 relative">
               <Scrollable
@@ -991,12 +992,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           они называют состояние, которое человек снимает не здесь.
         */}
         {blockReason !== 'none' && (
-          <div className="select-none px-[20px] pb-[8px] flex items-center justify-end gap-[12px]">
+          <div className="select-none px-[12px] md:px-[20px] pb-[8px] flex items-center justify-end gap-[12px]">
             <ComposeBlockReasonNote reason={blockReason} t={t} />
           </div>
         )}
-        <div className="select-none h-[84px] py-[20px] border-t border-cf-border flex items-center">
-          <div className="flex-1 flex ps-[20px] gap-[8px]">
+        <div className="select-none flex min-h-[84px] shrink-0 flex-col gap-[12px] border-t border-cf-border py-[12px] xl:h-[84px] xl:flex-row xl:items-center xl:gap-0 xl:py-[20px]">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-[8px] ps-[12px] xl:flex-1 xl:flex-nowrap xl:ps-[20px]">
             {!dummy && (
               <TagsComponent
                 name="tags"
@@ -1043,7 +1044,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               />
             )}
           </div>
-          <div className="pe-[20px] flex items-center justify-end gap-[8px]">
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-[8px] pe-[12px] xl:w-auto xl:flex-nowrap xl:pe-[20px]">
             {existingData?.integration && canWritePosts && (
               <Button
                 variant="destructive"
