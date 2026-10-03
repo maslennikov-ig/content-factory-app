@@ -5,10 +5,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - apps/**
-      - '!apps/docs/**'
-      - libraries/**
+    # Every published main commit needs a fresh exact-head analysis, including
+    # changes to workflows and test infrastructure.
 
 
 jobs:

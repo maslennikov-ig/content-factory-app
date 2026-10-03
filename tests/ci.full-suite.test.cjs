@@ -87,6 +87,16 @@ describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequ
   });
 });
 
+describe('exact-head public CodeQL coverage', () => {
+  test('every main push starts analysis, including CI-only releases', () => {
+    const quality = YAML.parse(fs.readFileSync(path.join(root, '.github/workflows/codeql.yml'), 'utf8'));
+    expect(quality.on.push.branches).toContain('main');
+    expect(quality.on.push.paths).toBeUndefined();
+    expect(quality.on.push['paths-ignore']).toBeUndefined();
+    expect(quality.jobs.analyze.if).toBe("github.event.repository.visibility == 'public'");
+  });
+});
+
 describe('the suite-halves guard', () => {
   const JEST = 'Test Suites: 222 passed, 222 total\nTests:       1 skipped, 3049 passed, 3050 total\n';
   const NODE = '# pass 93\n# fail 0\n';
