@@ -28,6 +28,7 @@ import {
   WebResearchService,
   projectReaderAdmissionDiagnostics,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { projectReaderAssessment } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 
 function safeHttpError(error: unknown): never {
   if (
@@ -140,6 +141,13 @@ export class ContentSourceController {
       return {
         summary: research.summary,
         provider: research.provider,
+        ...(research.readerAssessment
+          ? {
+              readerAssessment: projectReaderAssessment(
+                research.readerAssessment
+              ),
+            }
+          : {}),
         ...(research.admissionDiagnostics
           ? {
               admissionDiagnostics: projectReaderAdmissionDiagnostics(

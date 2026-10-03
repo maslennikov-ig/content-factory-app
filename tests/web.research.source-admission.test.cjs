@@ -112,6 +112,11 @@ const { WebResearchService } = loadTypeScriptModule(
               });
               if (isClassifier) return classification;
               if (summaryError) throw summaryError;
+              if (input.reviewRequest && !summaryOutput?.sources)
+                return require('./helpers/reader-source-review.cjs').syntheticReaderReview(
+                  input.reviewRequest,
+                  summaryOutput
+                );
               return summaryOutput;
             },
           }),
@@ -214,14 +219,17 @@ describe('Russian advertising-labeling reader admission', () => {
     expect(calls.search[0].input.query).toBe(
       classification.subjectLanguageQuery
     );
-    expect(calls.model.map(({ role }) => role)).toEqual(['classify']);
+    expect(calls.model.map(({ role }) => role)).toEqual([
+      'classify',
+      'classify',
+    ]);
     expect(calls.rows).toHaveLength(1);
     expect(calls.rows[0]).toMatchObject({
       operation: 'web_research',
       succeeded: true,
     });
-    expect(summaryPrompts()).toHaveLength(0);
-    expect(result.summary).toBe(telegram.answer);
+    expect(summaryPrompts()).toHaveLength(1);
+    expect(result.summary).toBe(summaryOutput.summary);
   });
 
   test.each([
@@ -310,7 +318,7 @@ describe('Russian advertising-labeling reader admission', () => {
       admitted ? [{ text: content, sourceUrl: url }] : []
     );
     expect(calls.search).toHaveLength(1);
-    expect(calls.model).toHaveLength(1);
+    expect(calls.model).toHaveLength(admitted ? 2 : 1);
   });
 
   test.each([
@@ -410,7 +418,14 @@ describe('source-only reader summary and spend', () => {
     expect(result.provider).toBe('exa');
     expect(result.sources).toEqual(expectedSources(cloud));
     expect(result.sources).toEqual(baseline.sources);
-    expect(result.facts).toEqual(baseline.facts);
+    for (const fact of result.facts) {
+      expect(
+        baseline.facts
+          .find((f) => f.sourceUrl === fact.sourceUrl)
+          .text.startsWith(fact.text)
+      ).toBe(true);
+      expect(fact.text.length).toBeLessThanOrEqual(3000);
+    }
     expect(calls.search.map(({ provider }) => provider)).toEqual(['exa']);
     expect(calls.model.map(({ role }) => role)).toEqual([
       'classify',
@@ -419,17 +434,25 @@ describe('source-only reader summary and spend', () => {
     expect(calls.model[1].maxTokens).toBe(1_200);
     expect(summaryPrompts()).toHaveLength(1);
     const { input, template } = summaryPrompts()[0];
-    const evidence = JSON.parse(input.evidence);
-    expect(input.language).toBe('Russian');
-    expect(evidence.answers).toEqual([]);
+    const evidence = JSON.parse(
+      input.reviewRequest.split('Untrusted reader evidence:\n')[1]
+    );
+    expect(input.reviewRequest).toMatch(/summary claims in Russian/);
+    expect(evidence.answers).toBeUndefined();
     expect(evidence.sources).toHaveLength(5);
     expect(
       evidence.sources.every(
-        ({ excerpt }) => excerpt.length > 0 && excerpt.length <= 1_000
+        ({ excerpt }) => excerpt.length > 0 && excerpt.length <= 3_000
       )
     ).toBe(true);
-    expect(input.evidence.length).toBeLessThan(30_000);
-    expect(template).toMatch(/untrusted/i);
+    expect(Buffer.byteLength(JSON.stringify(evidence))).toBeLessThanOrEqual(
+      21000
+    );
+    expect(result.readerAssessment.inputBytes).toBeLessThanOrEqual(25000);
+    expect(result.facts).toEqual(
+      evidence.sources.map((s) => ({ sourceUrl: s.url, text: s.excerpt }))
+    );
+    expect(input.reviewRequest).toMatch(/untrusted/i);
     expect(calls.rows).toHaveLength(1);
     expect(calls.rows[0]).toMatchObject({
       operation: 'web_research',
@@ -453,7 +476,7 @@ describe('source-only reader summary and spend', () => {
     ['malformed output', { summary: 123 }, undefined],
     ['unavailable model', undefined, new Error('fixture model unavailable')],
   ])(
-    '%s keeps an empty fallback and all five results without retry',
+    '%s keeps candidates and no unreviewed facts without retry',
     async (_name, output, error) => {
       useExa();
       summaryOutput = output;
@@ -461,7 +484,9 @@ describe('source-only reader summary and spend', () => {
       const result = await search(cloud.subject);
       expect(result.summary).toBe('');
       expect(result.sources).toEqual(expectedSources(cloud));
-      expect(result.facts).toHaveLength(5);
+      expect(result.facts).toHaveLength(0);
+      expect(result.readerAssessment.status).toBe('review_unavailable');
+      expect(result.readerAssessment.evidence).toHaveLength(5);
       expect(summaryPrompts()).toHaveLength(1);
       expect(calls.model).toHaveLength(2);
       expect(calls.search).toHaveLength(1);
@@ -502,7 +527,11 @@ describe('source-only reader summary and spend', () => {
     const result = await search(cloud.subject);
     expect(result.sources).toHaveLength(9);
     expect(result.facts).toHaveLength(1);
-    const evidence = JSON.parse(summaryPrompts()[0].input.evidence);
+    const evidence = JSON.parse(
+      summaryPrompts()[0].input.reviewRequest.split(
+        'Untrusted reader evidence:\n'
+      )[1]
+    );
     expect(evidence.sources).toHaveLength(1);
     expect(evidence.sources[0].url).toBe(result.facts[0].sourceUrl);
     expect(evidence.sources[0].excerpt).toBe(result.facts[0].text);
@@ -588,7 +617,9 @@ describe('source-only reader summary and spend', () => {
       readerResponse: true,
     });
     expect(result.summary).toBe(summaryOutput.summary);
-    expect(summaryPrompts()[0].input.language).toBe('English');
+    expect(summaryPrompts()[0].input.reviewRequest).toMatch(
+      /summary claims in English/
+    );
     expect(calls.model).toHaveLength(2);
     expect(calls.search).toHaveLength(1);
   });
@@ -655,7 +686,7 @@ describe('reader and consumer cache identities', () => {
         expect(cached.facts).toHaveLength(option.readerResponse ? 2 : 5);
       }
       expect(calls.search).toHaveLength(2);
-      expect(calls.model).toHaveLength(2);
+      expect(calls.model).toHaveLength(3);
     }
   );
 });

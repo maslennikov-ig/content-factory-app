@@ -1,5 +1,13 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import {
+  READER_REVIEW_VERSION,
+  packReaderReview,
+  readerReviewJsonSchema,
+  validateReaderReview,
+  unavailableReaderReview,
+  type ReaderAssessment,
+} from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -198,6 +206,8 @@ export interface WebResearchResult {
   discovery?: WebResearchDiscoveryJudgement[];
   /** Reader-only traversal snapshot; cached results retain the original counts. */
   admissionDiagnostics?: WebResearchAdmissionDiagnostics;
+  /** Source-grounded reader assessment; never a claim of independent truth. */
+  readerAssessment?: ReaderAssessment;
   /**
    * Answered from the research cache: no search went out and no operation
    * was opened (review W4-23 F4). Absent on a fresh answer.
@@ -1474,6 +1484,46 @@ export class WebResearchService {
     }
   }
 
+  /** One opted-in source review; failure cannot restart provider work. */
+  private async reviewReaderSources(
+    organizationId: string,
+    subject: string,
+    sources: WebResearchSource[],
+    facts: WebResearchFact[],
+    language: ContentLanguage
+  ) {
+    const input = packReaderReview(
+      subject,
+      sources,
+      facts,
+      contentLanguageNames[language]
+    );
+    const assessment = unavailableReaderReview(input);
+    if (!input || !input.evidence.sources.length)
+      return { assessment, summary: '', facts: [] as WebResearchFact[] };
+    try {
+      const writer = (
+        await getChatModel(
+          organizationId,
+          0,
+          RESEARCH_SUMMARY_MAX_TOKENS,
+          'classify'
+        )
+      ).withStructuredOutput(readerReviewJsonSchema);
+      const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
+        .pipe(writer)
+        .invoke({ reviewRequest: input.prompt });
+      const reviewed = validateReaderReview(input, raw);
+      if (reviewed) return reviewed;
+    } catch {
+      // Provider work has already ended. Never send a reader failure through
+      // provider fallback, buy another review, or return an unreviewed answer.
+      this.logger.warn('Web research reader review unavailable.');
+    }
+    assessment.status = 'review_unavailable';
+    return { assessment, summary: '', facts: [] as WebResearchFact[] };
+  }
+
   /**
    * One reader summary, merging and translating in the same cheap pass
    * (`content-factory-next-ec48.7`). Source excerpts retain original names and
@@ -1580,14 +1630,22 @@ Untrusted research data: {evidence}`
     // ["a","bc"] collide into one key (`content-factory-next-97dq.3`, P3).
     // Reader admission/synthesis changes the result, so a reader response and
     // an automatic result must never reuse one another's cache entry.
+    const scopedReader =
+      options.readerResponse === true &&
+      !!options.language &&
+      !callerQueries(options, level).length &&
+      task !== 'discovery';
     const key = `${organizationId}|${searchRouteFingerprint(
       config.search
     )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${
       options.language ?? ''
-    }|${options.readerResponse === true ? 'reader' : 'consumer'}|${callerQueries(
-      options,
-      level
-    ).join('\n')}|${subject
+    }|${
+      options.readerResponse === true
+        ? scopedReader
+          ? READER_REVIEW_VERSION
+          : 'reader'
+        : 'consumer'
+    }|${callerQueries(options, level).join('\n')}|${subject
       .trim()
       .slice(0, CLASSIFIER_SUBJECT_CHARS)}`;
     const cached = this.cache.get(key);
@@ -1752,7 +1810,13 @@ Untrusted research data: {evidence}`
           'research'
         )
       );
-      this.cache.set(key, result);
+      // A new explicit outer request may recover from reader failure. Never
+      // cache it as a valid empty answer or retry within this request.
+      if (
+        !scopedReader ||
+        result.readerAssessment?.status !== 'review_unavailable'
+      )
+        this.cache.set(key, result);
       return result;
     } finally {
       await Promise.all(
@@ -2372,37 +2436,53 @@ Untrusted research data: {evidence}`
      * черновик поднимал ещё один вызов модели, невидимый нигде, кроме ленты
      * расхода (`content-factory-next-97dq.3`, P2-7).
      */
-    const summary =
+    const scopedReader =
+      options.readerResponse === true &&
+      !!options.language &&
       !supplied.length &&
-      (answers.length > 1 ||
-        sourceOnlySummary ||
-        cutWordSummary ||
-        (options.language &&
-          summaryNeedsLanguage(providerSummary, options.language)))
-        ? await this.readerSummary(
-            organizationId,
-            subject,
-            answers,
-            [...sources.values()].filter(
-              (source) => !citableUrls || citableUrls.has(source.url)
-            ),
-            [...facts.values()],
-            summaryLanguage
-          )
-        : providerSummary;
+      task !== 'discovery';
+    const reviewed = scopedReader
+      ? await this.reviewReaderSources(
+          organizationId,
+          subject,
+          [...sources.values()],
+          [...facts.values()],
+          options.language!
+        )
+      : undefined;
+    const summary = reviewed
+      ? reviewed.summary
+      : !supplied.length &&
+        (answers.length > 1 ||
+          sourceOnlySummary ||
+          cutWordSummary ||
+          (options.language &&
+            summaryNeedsLanguage(providerSummary, options.language)))
+      ? await this.readerSummary(
+          organizationId,
+          subject,
+          answers,
+          [...sources.values()].filter(
+            (source) => !citableUrls || citableUrls.has(source.url)
+          ),
+          [...facts.values()],
+          summaryLanguage
+        )
+      : providerSummary;
 
     return {
       provider:
         answeringProviders.length === 1 ? answeringProviders[0] : 'mixed',
       summary,
-      facts: [...facts.values()],
+      facts: reviewed?.facts ?? [...facts.values()],
       sources: [...sources.values()],
+      ...(reviewed ? { readerAssessment: reviewed.assessment } : {}),
       ...(admissionDiagnostics
         ? {
             admissionDiagnostics: projectReaderAdmissionDiagnostics({
               ...admissionDiagnostics,
               candidateSourceCount: sources.size,
-              admittedFactCount: facts.size,
+              admittedFactCount: reviewed?.facts.length ?? facts.size,
             }),
           }
         : {}),

@@ -122,9 +122,14 @@ const { WebResearchService } = loadTypeScriptModule(
       ChatPromptTemplate: {
         fromTemplate: (template) => ({
           pipe: () => ({
-            invoke: async () =>
+            invoke: async (input) =>
               template.includes('Classify the research subject')
                 ? classification
+                : input.reviewRequest
+                ? require('./helpers/reader-source-review.cjs').syntheticReaderReview(
+                    input.reviewRequest,
+                    { summary: 'Фрагменты предоставленных источников.' }
+                  )
                 : { summary: 'Фрагменты предоставленных источников.' },
           }),
         }),
@@ -161,7 +166,7 @@ test('a classifier dropping explicit advertising intent uses the bounded origina
     query: SUBJECT,
     options: { freshnessRequired: false },
   });
-  expect(calls.roles).toEqual(['classify']);
+  expect(calls.roles).toEqual(['classify', 'classify']);
   expect(calls.completed).toEqual([true]);
   expect(calls.keyless).toBe(0);
   expect(result.sources).toHaveLength(5);
@@ -181,7 +186,7 @@ test('a correct classifier query is sent without modification', async () => {
 
   expect(calls.search.map(({ query }) => query)).toEqual([CORRECT_QUERY]);
   expect(result.facts).toHaveLength(1);
-  expect(calls.roles).toEqual(['classify']);
+  expect(calls.roles).toEqual(['classify', 'classify']);
 });
 
 test.each([
@@ -230,7 +235,9 @@ test('the original subject fallback uses the existing classifier character bound
 
   expect(calls.search.map(({ query }) => query)).toEqual([boundedSubject]);
   expect(calls.search[0].query.length).toBeLessThanOrEqual(5_000);
-  expect(result.facts).toHaveLength(1);
+  expect(result.facts).toHaveLength(0);
+  expect(result.readerAssessment.status).toBe('review_unavailable');
+  expect(calls.roles).toEqual(['classify']);
 });
 
 test('an English original subject keeps its classifier query and admission boundary', async () => {
@@ -260,7 +267,7 @@ test('a Russian subject misclassified as English does not gain an extra query sl
   });
 
   expect(calls.search.map(({ query }) => query)).toEqual([SUBJECT]);
-  expect(calls.roles).toEqual(['classify']);
+  expect(calls.roles).toEqual(['classify', 'classify']);
   expect(result.facts).toHaveLength(1);
 });
 

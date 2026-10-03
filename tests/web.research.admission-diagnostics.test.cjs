@@ -112,6 +112,11 @@ const researchModule = loadTypeScriptModule(
               });
               if (isClassifier) return classification;
               if (summaryError) throw summaryError;
+              if (input.reviewRequest && !summaryOutput?.sources)
+                return require('./helpers/reader-source-review.cjs').syntheticReaderReview(
+                  input.reviewRequest,
+                  summaryOutput
+                );
               return summaryOutput;
             },
           }),
@@ -298,7 +303,10 @@ describe('reader-only admission decision counts', () => {
     expect(reader.sources).toHaveLength(4);
     expect(responses.tavily).toEqual(before);
     expect(calls.search).toHaveLength(1);
-    expect(calls.model.map(({ role }) => role)).toEqual(['classify']);
+    expect(calls.model.map(({ role }) => role)).toEqual([
+      'classify',
+      'classify',
+    ]);
     const diagnostics = JSON.stringify(reader.admissionDiagnostics);
     for (const privatePart of [
       'example.com',
@@ -387,7 +395,10 @@ describe('reader-only admission decision counts', () => {
     expect(cached.fromCache).toBe(true);
     expect(cached.admissionDiagnostics).toEqual(first.admissionDiagnostics);
     expect(calls.search).toHaveLength(1);
-    expect(calls.model.map(({ role }) => role)).toEqual(['classify']);
+    expect(calls.model.map(({ role }) => role)).toEqual([
+      'classify',
+      'classify',
+    ]);
     const internal = await service.research(
       'fixture-organization',
       telegram.subject,
@@ -490,7 +501,10 @@ describe('reader-only admission decision counts', () => {
     expect(result.admissionDiagnostics.candidateSourceCount).toBe(5);
     expect(result.admissionDiagnostics.admittedFactCount).toBe(2);
     expect(calls.search).toHaveLength(1);
-    expect(calls.model.map(({ role }) => role)).toEqual(['classify']);
+    expect(calls.model.map(({ role }) => role)).toEqual([
+      'classify',
+      'classify',
+    ]);
   });
 
   test('discovery receives no diagnostics without the explicit reader marker', async () => {

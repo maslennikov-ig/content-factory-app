@@ -78,6 +78,11 @@ const promptFor = (template) => ({
       if (template.includes('Classify the research subject'))
         return classification;
       if (summaryError) throw summaryError;
+      if (input.reviewRequest)
+        return require('./helpers/reader-source-review.cjs').syntheticReaderReview(
+          input.reviewRequest,
+          summaryResult
+        );
       return summaryResult;
     },
   }),
@@ -295,7 +300,8 @@ describe('сводка веб-поиска говорит на языке чит
       ],
     };
     summaryResult = {
-      summary: 'Ключевая ставка Банка России в сентябре 2026 года — 14% годовых.',
+      summary:
+        'Ключевая ставка Банка России в сентябре 2026 года — 14% годовых.',
     };
   });
 
@@ -425,7 +431,7 @@ describe('сводка веб-поиска говорит на языке чит
       const result = await new WebResearchService(aiUsage).research(
         'organization-a',
         'переезд с 1С в облако',
-        { language, readerResponse: !!answer.trim() }
+        { language } // Legacy language correction remains outside the new reader scope.
       );
 
       assert.equal(
@@ -469,14 +475,18 @@ describe('сводка веб-поиска говорит на языке чит
   test.each([
     {
       label: 'English prefix ignores a huge Russian tail for ru',
-      prefix: 'Cloud migration reduces hardware costs. '.repeat(110).slice(0, 4_000),
+      prefix: 'Cloud migration reduces hardware costs. '
+        .repeat(110)
+        .slice(0, 4_000),
       tail: 'Переезд в облако снижает расходы. '.repeat(40_000),
       language: 'ru',
       rewrite: true,
     },
     {
       label: 'English prefix ignores a huge Russian tail for en',
-      prefix: 'Cloud migration reduces hardware costs. '.repeat(110).slice(0, 4_000),
+      prefix: 'Cloud migration reduces hardware costs. '
+        .repeat(110)
+        .slice(0, 4_000),
       tail: 'Переезд в облако снижает расходы. '.repeat(40_000),
       language: 'en',
       rewrite: false,
@@ -496,14 +506,16 @@ describe('сводка веб-поиска говорит на языке чит
       rewrite: true,
     },
     {
-      label: 'a letter at the last sampled character still uses the old fallback',
+      label:
+        'a letter at the last sampled character still uses the old fallback',
       prefix: `${' '.repeat(3_999)}α`,
       tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
       language: 'ru',
       rewrite: true,
     },
     {
-      label: 'whitespace-only prefix does not inspect the first excluded letter',
+      label:
+        'whitespace-only prefix does not inspect the first excluded letter',
       prefix: ' '.repeat(4_000),
       tail: 'Cloud migration reduces hardware costs. '.repeat(40_000),
       language: 'ru',
@@ -518,7 +530,7 @@ describe('сводка веб-поиска говорит на языке чит
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
       'переезд с 1С в облако',
-      { language, readerResponse: true }
+      { language, readerResponse: false }
     );
 
     assert.equal(summaryCalls().length, rewrite ? 1 : 0);
@@ -531,7 +543,9 @@ describe('сводка веб-поиска говорит на языке чит
     assert.equal(result.facts[0].sourceUrl, searchAnswer.results[0].url);
     assert.equal(result.sources[0].url, searchAnswer.results[0].url);
     if (rewrite) {
-      assert.deepEqual(JSON.parse(summaryCalls()[0].input.evidence).answers, [prefix]);
+      assert.deepEqual(JSON.parse(summaryCalls()[0].input.evidence).answers, [
+        prefix,
+      ]);
     }
   });
 
@@ -561,14 +575,24 @@ describe('сводка веб-поиска говорит на языке чит
       { language: 'ru' }
     );
 
-    assert.equal(summaryCalls().length, 1, 'объединение и перевод — один вызов');
+    assert.equal(
+      summaryCalls().length,
+      1,
+      'объединение и перевод — один вызов'
+    );
     assert.equal(chatModelCalls.length, 2, 'классификация и одна сводка');
-    assert.equal(chatModelCalls.every(({ role }) => role === 'classify'), true);
+    assert.equal(
+      chatModelCalls.every(({ role }) => role === 'classify'),
+      true
+    );
     assert.equal(chatModelCalls[1].maxTokens > 0, true);
     assert.equal(chatModelCalls[1].maxTokens <= 1_200, true);
     const { template, input } = summaryCalls()[0];
     const evidence = JSON.parse(input.evidence);
-    assert.deepEqual(evidence.answers, rateResponses.map(({ answer }) => answer));
+    assert.deepEqual(
+      evidence.answers,
+      rateResponses.map(({ answer }) => answer)
+    );
     assert.equal(
       evidence.subject,
       'ключевая ставка Банка России в сентябре 2026 года'
@@ -605,8 +629,12 @@ describe('сводка веб-поиска говорит на языке чит
     {
       label: 'два русских ответа',
       language: 'ru',
-      answers: ['Текущая ставка — 14%.', 'Прогноз будущей ставки — 13,5–13,75%.'],
-      combined: 'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
+      answers: [
+        'Текущая ставка — 14%.',
+        'Прогноз будущей ставки — 13,5–13,75%.',
+      ],
+      combined:
+        'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
     },
     {
       label: 'два английских ответа',
@@ -625,7 +653,8 @@ describe('сводка веб-поиска говорит на языке чит
         'The current rate is 14%.',
         'A later rate cut to 13.5–13.75% is forecast.',
       ],
-      combined: 'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
+      combined:
+        'Текущая ставка — 14%; 13,5–13,75% — прогноз будущего снижения.',
     },
   ])(
     '$label тоже сводятся одним вызовом',
@@ -645,7 +674,10 @@ describe('сводка веб-поиска говорит на языке чит
       );
 
       assert.equal(summaryCalls().length, 1);
-      assert.deepEqual(JSON.parse(summaryCalls()[0].input.evidence).answers, answers);
+      assert.deepEqual(
+        JSON.parse(summaryCalls()[0].input.evidence).answers,
+        answers
+      );
       assert.equal(
         summaryCalls()[0].input.language,
         language === 'en' ? 'English' : 'Russian'
@@ -668,10 +700,10 @@ describe('сводка веб-поиска говорит на языке чит
     );
 
     const { input } = summaryCalls()[0];
-    assert.deepEqual(
-      JSON.parse(input.evidence).answers,
-      [rateResponses[1].answer, rateResponses[0].answer]
-    );
+    assert.deepEqual(JSON.parse(input.evidence).answers, [
+      rateResponses[1].answer,
+      rateResponses[0].answer,
+    ]);
     assert.equal(input.language, 'Russian');
     assert.equal(result.summary, summaryResult.summary);
     assert.equal(summaryCalls().length, 1);
@@ -693,9 +725,15 @@ describe('сводка веб-поиска говорит на языке чит
 
     const { template, input } = summaryCalls()[0];
     const evidence = JSON.parse(input.evidence);
-    assert.deepEqual(evidence.answers, bankResponses.map(({ answer }) => answer));
+    assert.deepEqual(
+      evidence.answers,
+      bankResponses.map(({ answer }) => answer)
+    );
     assert.equal(evidence.sources[0].title, bankResponses[0].results[0].title);
-    assert.equal(evidence.sources[0].excerpt, bankResponses[0].results[0].content);
+    assert.equal(
+      evidence.sources[0].excerpt,
+      bankResponses[0].results[0].content
+    );
     assert.match(template, /original.*names|names.*original/is);
     assert.match(
       template,
@@ -725,7 +763,10 @@ describe('сводка веб-поиска говорит на языке чит
 
     const evidence = JSON.parse(summaryCalls()[0].input.evidence);
     assert.deepEqual(evidence.answers, [bankResponses[1].answer]);
-    assert.equal(evidence.sources[0].excerpt, bankResponses[0].results[0].content);
+    assert.equal(
+      evidence.sources[0].excerpt,
+      bankResponses[0].results[0].content
+    );
     assert.equal(summaryCalls().length, 1);
     assert.equal(result.summary, summaryResult.summary);
   });
@@ -780,10 +821,7 @@ describe('сводка веб-поиска говорит на языке чит
   );
 
   test('пустая первая половина не становится запасной сводкой при сбое перевода', async () => {
-    useTwoResponses([
-      { ...rateResponses[0], answer: '   ' },
-      rateResponses[1],
-    ]);
+    useTwoResponses([{ ...rateResponses[0], answer: '   ' }, rateResponses[1]]);
     summaryError = new Error('summary model is unavailable');
 
     const result = await new WebResearchService(aiUsage).research(
@@ -842,30 +880,36 @@ describe('сводка веб-поиска говорит на языке чит
     assert.equal(result.facts.length, 5);
     assert.equal(result.sources.length, 5);
     const { template, input } = summaryCalls()[0];
-    const evidence = JSON.parse(input.evidence);
-    assert.deepEqual(evidence.answers, [original.answer]);
+    const evidence = JSON.parse(
+      input.reviewRequest.split('Untrusted reader evidence:\n')[1]
+    );
+    assert.equal(
+      evidence.answers,
+      undefined,
+      'provider answers are not source evidence'
+    );
     assert.equal(evidence.subject, original.subject);
     assert.match(evidence.sources[0].excerpt, /4 пользователя 1С/);
     assert.match(evidence.sources[0].excerpt, /10 190/);
-    assert.match(template, /case-specific|case.*general/i);
-    assert.match(template, /complete sentences/i);
+    assert.match(input.reviewRequest, /prices and bundles/);
+    assert.match(input.reviewRequest, /concise complete summary claims/);
   });
 
   test.each([
     [
       'finished Russian answer',
       'Перенос требует проверки лицензий и возможности забрать базу при необходимости.',
-      { language: 'ru', readerResponse: true },
+      { language: 'ru' },
     ],
     [
       'missing period alone',
       'Перенос требует проверки лицензий и возможности забрать базу',
-      { language: 'ru', readerResponse: true },
+      { language: 'ru' },
     ],
     [
       'unrelated fragment',
       'Перенос требует проверки лицензий. Возможности перевести ба',
-      { language: 'ru', readerResponse: true },
+      { language: 'ru' },
     ],
     [
       'no reader opt-in / automatic consumer',
@@ -895,19 +939,22 @@ describe('сводка веб-поиска говорит на языке чит
     [
       'answer above existing bounded prefix',
       'Полная фраза. '.repeat(400) + recordedTruncated1c.answer,
-      { language: 'ru', readerResponse: true },
+      { language: 'ru' },
     ],
-  ])('%s does not buy completion', async (_label, answer, options) => {
-    searchAnswer = { ...structuredClone(recordedTruncated1c), answer };
-    const result = await new WebResearchService(aiUsage).research(
-      'organization-a',
-      recordedTruncated1c.subject,
-      options
-    );
-    assert.equal(result.summary, answer);
-    assert.equal(summaryCalls().length, 0);
-    assert.equal(searchCalls.length, 1);
-  });
+  ])(
+    '%s retains legacy no-completion behavior',
+    async (_label, answer, options) => {
+      searchAnswer = { ...structuredClone(recordedTruncated1c), answer };
+      const result = await new WebResearchService(aiUsage).research(
+        'organization-a',
+        recordedTruncated1c.subject,
+        options
+      );
+      assert.equal(result.summary, answer);
+      assert.equal(summaryCalls().length, 0);
+      assert.equal(searchCalls.length, 1);
+    }
+  );
 
   test('cut answer without admitted excerpts does not buy completion', async () => {
     searchAnswer = {
@@ -919,13 +966,14 @@ describe('сводка веб-поиска говорит на языке чит
       recordedTruncated1c.subject,
       { language: 'ru', readerResponse: true }
     );
-    assert.equal(result.summary, searchAnswer.answer);
+    assert.equal(result.summary, '');
+    assert.equal(result.readerAssessment.status, 'insufficient_evidence');
     assert.equal(summaryCalls().length, 0);
     assert.equal(result.facts.length, 0);
   });
 
   test.each(['error', 'empty', 'malformed'])(
-    'reader completion %s keeps original context and names without retry',
+    'reader review %s retains candidate provenance without unreviewed fallback or retry',
     async (failure) => {
       searchAnswer = structuredClone(recordedTruncated1c);
       if (failure === 'error') summaryError = new Error('Reader unavailable');
@@ -937,13 +985,14 @@ describe('сводка веб-поиска говорит на языке чит
         recordedTruncated1c.subject,
         { language: 'ru', readerResponse: true }
       );
-      assert.equal(result.summary, recordedTruncated1c.answer);
+      assert.equal(result.summary, '');
+      assert.equal(result.readerAssessment.status, 'review_unavailable');
       assert.equal(summaryCalls().length, 1);
       assert.equal(searchCalls.length, 1);
-      assert.equal(result.facts.length, 5);
+      assert.equal(result.facts.length, 0);
       assert.equal(result.sources.length, 5);
-      assert.match(result.facts[0].text, /SynchroWB/);
-      assert.match(result.facts[0].text, /Ozon/);
+      assert.match(result.readerAssessment.evidence[0].excerpt, /SynchroWB/);
+      assert.match(result.readerAssessment.evidence[0].excerpt, /Ozon/);
     }
   );
 
@@ -984,7 +1033,9 @@ describe('сводка веб-поиска говорит на языке чит
     const sources = Array.from({ length: 20 }, (_, index) => ({
       title: `Источник ${index} ${'название '.repeat(150)}`,
       url: `https://example.org/long-source-${index}`,
-      content: `ВТБ сохранил исходное имя. Источник ${index}. ${'Длинная выдержка с фактами. '.repeat(300)}`,
+      content: `ВТБ сохранил исходное имя. Источник ${index}. ${'Длинная выдержка с фактами. '.repeat(
+        300
+      )}`,
       published_date: '2026-09-04',
     }));
     const responses = [
@@ -994,7 +1045,9 @@ describe('сводка веб-поиска говорит на языке чит
     // Каждый успешный ответ поисковика должен иметь хотя бы один результат.
     responses[1].results = [sources[0]];
     useTwoResponses(responses);
-    summaryResult = { summary: 'ВТБ: текущий факт и прогноз указаны отдельно.' };
+    summaryResult = {
+      summary: 'ВТБ: текущий факт и прогноз указаны отдельно.',
+    };
 
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
@@ -1005,10 +1058,16 @@ describe('сводка веб-поиска говорит на языке чит
     const { template, input } = summaryCalls()[0];
     const evidence = JSON.parse(input.evidence);
     assert.equal(evidence.answers.length, 2);
-    assert.equal(evidence.answers.every((answer) => answer.length <= 4_000), true);
+    assert.equal(
+      evidence.answers.every((answer) => answer.length <= 4_000),
+      true
+    );
     assert.equal(evidence.subject.length <= 2_000, true);
     assert.equal(evidence.sources.length <= 8, true);
-    assert.equal(evidence.sources.every(({ title }) => title.length <= 300), true);
+    assert.equal(
+      evidence.sources.every(({ title }) => title.length <= 300),
+      true
+    );
     assert.equal(
       evidence.sources.every(({ excerpt }) => excerpt.length <= 1_000),
       true
