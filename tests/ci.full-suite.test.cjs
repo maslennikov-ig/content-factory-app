@@ -70,6 +70,23 @@ describe('the full-suite CI job', () => {
   });
 });
 
+describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequisites', (jobName) => {
+  test('installs locked Chromium after dependencies and before the complete Jest run', () => {
+    const current = workflow.jobs[jobName];
+    const steps = current.steps;
+    const dependencies = steps.findIndex((step) => /pnpm install --frozen-lockfile/.test(step.run ?? ''));
+    const browser = steps.findIndex((step) => /^pnpm exec playwright install --with-deps chromium$/.test(step.run ?? ''));
+    const execute = steps.findIndex((step) => /pnpm test\b|pnpm run test:time-travel 400/.test(step.run ?? ''));
+
+    expect(dependencies).toBeGreaterThanOrEqual(0);
+    expect(browser).toBeGreaterThan(dependencies);
+    expect(execute).toBeGreaterThan(browser);
+    expect(steps[browser].if).toBeUndefined();
+    expect(steps[browser]['continue-on-error']).toBeUndefined();
+    expect(current['continue-on-error']).toBeUndefined();
+  });
+});
+
 describe('the suite-halves guard', () => {
   const JEST = 'Test Suites: 222 passed, 222 total\nTests:       1 skipped, 3049 passed, 3050 total\n';
   const NODE = '# pass 93\n# fail 0\n';

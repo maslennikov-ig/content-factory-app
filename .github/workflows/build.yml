@@ -93,6 +93,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Chromium for editor geometry tests
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Run the full suite
         env:
           # The jest half builds enough of the workspace to meet the same V8
@@ -145,6 +148,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for editor geometry tests
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Run the suite with the calendar moved forward
         env:

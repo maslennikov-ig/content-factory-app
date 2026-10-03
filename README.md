@@ -37,6 +37,16 @@ pnpm run dev
 
 ## Проверки
 
+Перед первым запуском проверок установите Chromium для тестов геометрии редактора:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+На Linux необходимые системные библиотеки устанавливаются командой
+`pnpm exec playwright install --with-deps chromium`. Оба задания Jest в CI
+выполняют эту подготовку перед запуском тестов.
+
 ```bash
 pnpm run build
 pnpm test
