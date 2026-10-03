@@ -1,0 +1,105 @@
+{
+  "source": "https://github.com/lipis/flag-icons",
+  "commit": "086f7e97d657358203916dbe84f61c2bccaa81eb",
+  "license": "MIT",
+  "licenseSha256": "8f1195d55a2fd315a07d812328470ca9ba2abb78c8d317ff19619d5125e00cea",
+  "scope": "16 existing shipped language flags, matching prior CDN assets; firstparty static delivery",
+  "files": [
+    {
+      "file": "sa.svg",
+      "upstreamPath": "flags/4x3/sa.svg",
+      "bytes": 9968,
+      "sha256": "5738c8cfca5fea63587cbcf69237996c8ce6283f8016853150686f37311b620e"
+    },
+    {
+      "file": "bd.svg",
+      "upstreamPath": "flags/4x3/bd.svg",
+      "bytes": 187,
+      "sha256": "1aabb4a772651fb9a673660233d5bc6f3d78dfc71df09d567769bc97b9eb554f"
+    },
+    {
+      "file": "de.svg",
+      "upstreamPath": "flags/4x3/de.svg",
+      "bytes": 221,
+      "sha256": "efd480af5a154a7651f29da23ee0d09dbc892410fb4041898ddf8face336c575"
+    },
+    {
+      "file": "gb.svg",
+      "upstreamPath": "flags/4x3/gb.svg",
+      "bytes": 504,
+      "sha256": "c8be1e7208798a4ae692ee1e937065d498bb29e741943f6172b29118b8ed8066"
+    },
+    {
+      "file": "es.svg",
+      "upstreamPath": "flags/4x3/es.svg",
+      "bytes": 80958,
+      "sha256": "f9cfaff858e95f830733ade9591037b5322dfb5827a53b70956a3d190bb49b9a"
+    },
+    {
+      "file": "fr.svg",
+      "upstreamPath": "flags/4x3/fr.svg",
+      "bytes": 241,
+      "sha256": "a526851c372e3372b1596be71af355ea72b1650bbc4c06e6e2c226900d3de6cc"
+    },
+    {
+      "file": "il.svg",
+      "upstreamPath": "flags/4x3/il.svg",
+      "bytes": 834,
+      "sha256": "04a099ac4370b5e856f5f8d44ce0822ec47a6d3bc395a7d048d3a46d69274d68"
+    },
+    {
+      "file": "it.svg",
+      "upstreamPath": "flags/4x3/it.svg",
+      "bytes": 289,
+      "sha256": "9fa88118818d9b64838f578e2babcca3d0630aed21b5c33b34aff7ac5ce506bc"
+    },
+    {
+      "file": "jp.svg",
+      "upstreamPath": "flags/4x3/jp.svg",
+      "bytes": 470,
+      "sha256": "bfea80baf9989383dc4bf7ca594ed95be0df0ff125bfc88d0bfa878eb0198022"
+    },
+    {
+      "file": "ge.svg",
+      "upstreamPath": "flags/4x3/ge.svg",
+      "bytes": 1313,
+      "sha256": "0280a1279c3d1d772f1e885ee821e37a1cdb4aa085ca2870825fe10bad8d7ff1"
+    },
+    {
+      "file": "kr.svg",
+      "upstreamPath": "flags/4x3/kr.svg",
+      "bytes": 1061,
+      "sha256": "7a6cd5b51d0e2841ed8b79b1147ad8a66cf3c09f6344d4a63b5e4413ffa5d15b"
+    },
+    {
+      "file": "pt.svg",
+      "upstreamPath": "flags/4x3/pt.svg",
+      "bytes": 8001,
+      "sha256": "a7a2cf0b44aaaaf4f3bdc0ee0fa308ec7085bdfedd3f72da1473d43fd2a569fb"
+    },
+    {
+      "file": "ru.svg",
+      "upstreamPath": "flags/4x3/ru.svg",
+      "bytes": 225,
+      "sha256": "7100aaae51ff3b6a2bf0ca932b3bc518bdc760814725e7cca31d821a26c3dd7c"
+    },
+    {
+      "file": "tr.svg",
+      "upstreamPath": "flags/4x3/tr.svg",
+      "bytes": 549,
+      "sha256": "256a1d6afbedb9f731566982331a1cd1ad14aba211b8a61d338855879505e74f"
+    },
+    {
+      "file": "vn.svg",
+      "upstreamPath": "flags/4x3/vn.svg",
+      "bytes": 490,
+      "sha256": "2355037201315d74581ab0ad60b5587a29a087d26b0525bdeb8676e64fae5b86"
+    },
+    {
+      "file": "cn.svg",
+      "upstreamPath": "flags/4x3/cn.svg",
+      "bytes": 813,
+      "sha256": "981da9bdf82d48e31691f20578cefcb26cf7d0bd95e4ebd5c0df00bdfe988c1a"
+    }
+  ]
+}

@@ -99,6 +99,7 @@ const Flag: FC<{ language: string }> = ({ language }) => (
   <ReactCountryFlag
     countryCode={getCountryCodeForFlag(language)}
     svg
+    cdnUrl="/svg/language-flags/"
     aria-hidden
     style={{ width: '18px', height: '18px', borderRadius: '4px' }}
   />

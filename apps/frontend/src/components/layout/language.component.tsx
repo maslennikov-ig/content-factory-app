@@ -114,6 +114,7 @@ export const ChangeLanguageComponent = () => {
             <ReactCountryFlag
               countryCode={getCountryCodeForFlag(language)}
               svg
+              cdnUrl="/svg/language-flags/"
               aria-hidden="true"
               style={{
                 width: '1.5em',
@@ -206,6 +207,7 @@ export const LanguageComponent = () => {
         <ReactCountryFlag
           countryCode={getCountryCodeForFlag(currentLanguage)}
           svg
+          cdnUrl="/svg/language-flags/"
           style={{
             width: '22px',
             height: '22px',

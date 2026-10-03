@@ -178,6 +178,81 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
+describe('first-party language flags keep the shipped country mapping', () => {
+  const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
+  const actualPresentation = loadTypeScriptModule('apps/frontend/src/components/layout/language.presentation.ts');
+  const { languages: actualLanguages } = loadTypeScriptModule('libraries/react-shared-libraries/src/translation/i18n.config.ts');
+  const originalFlag = mocks['react-country-flag'].default;
+  const originalCountries = mocks['@contentfactory/frontend/components/layout/language.presentation'].getCountryCodeForFlag;
+  const originalLanguages = mocks['@contentfactory/react/translation/i18n.config'].languages;
+  const flagRoot = path.join(repositoryRoot, 'apps/frontend/public/svg/language-flags');
+
+  beforeEach(() => {
+    mocks['react-country-flag'].default = require('react-country-flag').default;
+    mocks['@contentfactory/frontend/components/layout/language.presentation'].getCountryCodeForFlag = actualPresentation.getCountryCodeForFlag;
+    mocks['@contentfactory/react/translation/i18n.config'].languages = actualLanguages;
+  });
+  afterEach(() => {
+    mocks['react-country-flag'].default = originalFlag;
+    mocks['@contentfactory/frontend/components/layout/language.presentation'].getCountryCodeForFlag = originalCountries;
+    mocks['@contentfactory/react/translation/i18n.config'].languages = originalLanguages;
+  });
+  const expectLocalFlag = (image, language) => {
+    const file = actualPresentation.getCountryCodeForFlag(language).toLowerCase() + '.svg';
+    expect(image.getAttribute('src')).toBe('/svg/language-flags/' + file);
+    expect(fs.existsSync(path.join(flagRoot, file))).toBe(true);
+  };
+
+  test('the current header flag uses a local image without changing the account', () => {
+    cookie = 'ru';
+    const { container } = render(h(LanguageComponent, {}));
+    expectLocalFlag(container.querySelector('img'), 'ru');
+    expect(cookie).toBe('ru');
+    expect(changed).toEqual([]);
+    expect(requests).toEqual([]);
+  });
+
+  test('all sixteen modal flags have a matching local asset and unchanged selected state', () => {
+    cookie = 'ru';
+    const { container } = render(h(ChangeLanguageComponent, {}));
+    const images = Array.from(container.querySelectorAll('img'));
+    expect(images).toHaveLength(16);
+    actualLanguages.forEach((language, index) => expectLocalFlag(images[index], language));
+    expect(screen.getByRole('button', { name: 'ru' }).getAttribute('aria-pressed')).toBe('true');
+    expect(requests).toEqual([]);
+  });
+
+  test('the shared auth and public menu Flag also retains all sixteen local paths', () => {
+    const menuFile = path.join(repositoryRoot, 'apps/frontend/src/components/ui/language-menu.tsx');
+    const compiledMenu = ts.transpileModule(fs.readFileSync(menuFile, 'utf8'), {
+      fileName: menuFile,
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+    const menu = { exports: {} };
+    new Function('exports', 'require', compiledMenu + '\nexports.TestFlag = Flag;')(
+      menu.exports,
+      (request) => {
+        if (request.endsWith('/language.presentation')) return actualPresentation;
+        if (Object.prototype.hasOwnProperty.call(mocks, request)) return mocks[request];
+        if (request.startsWith('@contentfactory/')) return {};
+        return require(request);
+      }
+    );
+    const { container } = render(h('div', {}, actualLanguages.map((language) => h(menu.exports.TestFlag, { key: language, language }))));
+    const images = Array.from(container.querySelectorAll('img'));
+    expect(images).toHaveLength(16);
+    actualLanguages.forEach((language, index) => expectLocalFlag(images[index], language));
+  });
+
+  test('an unshipped profile region remains local without inventing a country fallback', () => {
+    cookie = 'en-US';
+    const { container } = render(h(LanguageComponent, {}));
+    expect(container.querySelector('img').getAttribute('src')).toBe('/svg/language-flags/us.svg');
+    expect(cookie).toBe('en-US');
+    expect(requests).toEqual([]);
+  });
+});
+
 test('a signed-in browser saves the choice on the account, not only in the cookie', async () => {
   render(h(ChangeLanguageComponent, {}));
 

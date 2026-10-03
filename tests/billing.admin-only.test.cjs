@@ -16,6 +16,82 @@ const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
+describe('ordinary screens do not load the payment SDK on a billing module import', () => {
+  const ts = require('typescript');
+  const vm = require('node:vm');
+  const stripeRoot = path.dirname(require.resolve('@stripe/stripe-js/package.json'));
+  const firstFile = 'apps/frontend/src/components/billing/first.billing.component.tsx';
+  const tick = async () => { await Promise.resolve(); await Promise.resolve(); };
+
+  // Evaluate the actual imported Stripe entry against an inert document. Appending
+  // a script records its URL; no DOM resource, checkout or provider is requested.
+  const importFirstBilling = () => {
+    const scripts = [];
+    const effects = [];
+    let stripe;
+    const document = {
+      querySelectorAll: () => scripts,
+      createElement: () => ({ src: '', addEventListener() {}, removeEventListener() {} }),
+      head: { appendChild: (script) => scripts.push(script) },
+    };
+    const localRequire = (request) => {
+      if (request === '@stripe/stripe-js' || request === '@stripe/stripe-js/pure') {
+        stripe = {};
+        vm.runInNewContext(
+          fs.readFileSync(path.join(stripeRoot, 'dist', request.endsWith('/pure') ? 'pure.js' : 'index.js'), 'utf8'),
+          { exports: stripe, window: {}, document, console: { warn() {} } }
+        );
+        return stripe;
+      }
+      if (request === 'react') return {
+        ...React,
+        useState: (initial) => [initial, () => {}],
+        useEffect: (effect) => effects.push(effect),
+        useCallback: (callback) => callback,
+        useMemo: (calculate) => calculate(),
+      };
+      if (request === 'react/jsx-runtime') return require(request);
+      if (request === 'clsx' || request === 'lodash') return require(request);
+      if (request === 'next/dynamic') return { __esModule: true, default: () => () => null };
+      if (request === 'swr') return { __esModule: true, default: () => ({}) };
+      if (request.endsWith('/variable.context')) return { useVariables: () => ({ stripeClient: 'synthetic-placeholder' }) };
+      if (request.endsWith('/user.context')) return { useUser: () => undefined };
+      if (request.endsWith('/custom.fetch')) return { useFetch: () => () => { throw new Error('checkout must not run'); } };
+      if (request.endsWith('/new-modal')) return { useModals: () => ({}) };
+      if (request.endsWith('/get.transation.service.client')) return { useT: () => (_key, fallback) => fallback };
+      if (request.endsWith('/organization.roles')) return { isOrganizationAdmin: () => false };
+      if (request.endsWith('/pricing')) return { pricing: {} };
+      return {};
+    };
+    const exports = {};
+    const compiled = ts.transpileModule(read(firstFile), {
+      fileName: firstFile,
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+    vm.runInNewContext(compiled, { exports, require: localRequire });
+    expect(typeof exports.FirstBillingComponent).toBe('function');
+    return { scripts, effects, Component: exports.FirstBillingComponent, getStripe: () => stripe };
+  };
+
+  test('an actual component module import alone does not insert a foreign script', async () => {
+    const loaded = importFirstBilling();
+    await tick();
+    expect(loaded.scripts).toEqual([]);
+    expect(loaded.effects).toEqual([]);
+  });
+
+  test('the existing explicit billing effect still loads the SDK once', async () => {
+    const loaded = importFirstBilling();
+    loaded.Component();
+    expect(loaded.effects).toHaveLength(1);
+    loaded.effects[0]();
+    await tick();
+    expect(loaded.scripts).toHaveLength(1);
+    expect(new URL(loaded.scripts[0].src).origin).toBe('https://js.stripe.com');
+    expect(typeof loaded.getStripe().loadStripe).toBe('function');
+  });
+});
+
 const { BillingManageView } = loadTypeScriptModule(
   'apps/frontend/src/components/billing/billing-manage.view.tsx'
 );
