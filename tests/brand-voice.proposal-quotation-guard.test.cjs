@@ -119,11 +119,6 @@ test('V1 generation and historical display keep the original600 text', async () 
 test.each([
   ['complete quoted text', 'Правило: «' + recordedQuote + '»'],
   ['ordinary full prose', 'Пишите прямо и обозначайте границы проверки.'],
-  ['quoted word boundary', recordedTone.replace(/отчё$/u, 'отч') + ' '],
-  [
-    'missing source quotation',
-    'А'.repeat(520) + ' Правило: «' + 'Б'.repeat(70),
-  ],
 ])('%s remains unchanged', async (_label, text) => {
   if (text.length > 600) text = text.slice(0, 600);
   const { result, seen } = await run(text);
@@ -134,17 +129,43 @@ test.each([
   assert.deepEqual(seen, ['map', 'reduce']);
 });
 
-test('referenced admitted quote is required even when another observation has the continuation', async () => {
+// The isolated quote guard still abstains; new final V2 cap policy omits
+// these malformed quotations rather than accepting or completing them.
+test.each([
+  ['quoted word boundary', recordedTone.replace(/отчё$/u, 'отч') + ' '],
+  [
+    'missing source quotation',
+    'А'.repeat(520) + ' Правило: «' + 'Б'.repeat(70),
+  ],
+])(
+  '%s malformed cap quotation is omitted by final V2 policy',
+  async (_label, text) => {
+    if (text.length > 600) text = text.slice(0, 600);
+    const { result, seen, reduced } = await run(text);
+    assert.equal(
+      result.proposal.fields.find((f) => f.field === 'TONE'),
+      undefined
+    );
+    assert.equal(reduced.fields[0].text, text);
+    assert.deepEqual(seen, ['map', 'reduce']);
+    assert.equal(result.calls.length, 2);
+    assert.ok(result.calls.every((one) => one.attempt === 1 && one.ok));
+  }
+);
+
+test('malformed cap quotation without referenced TONE grounds is omitted even when another observation has the continuation', async () => {
   const fields = [
     { field: 'TONE', text: recordedTone, observationRefs: ['neutral#2'] },
     { field: 'WHO_SPEAKS', text: otherText, observationRefs: ['neutral#2'] },
   ];
   const { result, seen } = await run(recordedTone, { fields });
   assert.equal(
-    result.proposal.fields.find((f) => f.field === 'TONE').text,
-    recordedTone
+    result.proposal.fields.find((f) => f.field === 'TONE'),
+    undefined
   );
+  assert.equal(fields[0].text, recordedTone);
   assert.deepEqual(seen, ['map', 'reduce']);
+  assert.equal(result.calls.length, 2);
 });
 
 const guard = loadTypeScriptModule(base + 'proposal-quotation-guard.ts');
@@ -998,7 +1019,7 @@ for (const unionOnly of [false, true]) {
   });
 }
 
-test('actual599 final ref union still abstains on two referenced matching quotes', async () => {
+test('actual599 final ref union with two referenced matching quotes keeps only a certified complete V2 prefix', async () => {
   const run = tone599Harness({ unionOnly: true });
   const duplicateSample = run.samples[0];
   duplicateSample.observations[0] = {
@@ -1016,10 +1037,13 @@ test('actual599 final ref union still abstains on two referenced matching quotes
     transport: run.transport,
     sampleLimit: 8,
   });
+  const kept = result.proposal.fields.find((one) => one.field === 'TONE');
   assert.equal(
-    result.proposal.fields.find((one) => one.field === 'TONE').text,
-    tone599Field.text
+    kept.text,
+    'Используйте самоиронию, направляя шутку на собственные привычки и промахи, а не на читателя.'
   );
+  assert.ok(tone599Field.text.startsWith(kept.text));
+  assert.equal(kept.text.includes('«'), false);
   assert.equal(
     result.observations.filter(
       (one) => one.quote === run.samples[3].observations[3].quote
@@ -1069,7 +1093,7 @@ test('below600 Unicode punctuation preserves only the exact complete emoji prefi
 });
 
 test.each(['unreferenced target', 'wrong observation field'])(
-  'V2 final ref union abstains for %s with nine calls',
+  'V2 final ref union keeps only a certified complete prefix for %s with nine calls',
   async (kind) => {
     const run = tone599Harness({ unionOnly: true });
     if (kind === 'unreferenced target')
@@ -1085,10 +1109,13 @@ test.each(['unreferenced target', 'wrong observation field'])(
       transport: run.transport,
       sampleLimit: 8,
     });
+    const kept = result.proposal.fields.find((one) => one.field === 'TONE');
     assert.equal(
-      result.proposal.fields.find((one) => one.field === 'TONE').text,
-      tone599Field.text
+      kept.text,
+      'Используйте самоиронию, направляя шутку на собственные привычки и промахи, а не на читателя.'
     );
+    assert.ok(tone599Field.text.startsWith(kept.text));
+    assert.equal(kept.text.includes('«'), false);
     assert.deepEqual(
       result.proposal.fields.find((one) => one.field === 'WHO_SPEAKS'),
       run.other

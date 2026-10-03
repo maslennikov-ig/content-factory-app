@@ -1977,7 +1977,10 @@ export class AgentGraphService {
 
     const app = workflow.compile();
 
-    const stream = this.aiUsage.executeAiStreamOperation(orgId, 'agent', () =>
+    // This graph writes content; `agent` belongs to the chat conductor. A
+    // paid adaptation leaves that conductor's admission before calling here,
+    // so its own generation must be accounted for and routed as writing.
+    const stream = this.aiUsage.executeAiStreamOperation(orgId, 'text_generation', () =>
       app.streamEvents(
         {
           messages: [new HumanMessage(body.research)],

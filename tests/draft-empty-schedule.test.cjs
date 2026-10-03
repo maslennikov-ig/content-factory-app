@@ -646,7 +646,7 @@ const adapt = async (fixture, request = {}, afterPrepare) => {
 };
 const assertSingleGeneration = (calls) => {
   expect(calls.models).toEqual(['category', 'topic', 'hook', 'content']);
-  expect(calls.scopes).toEqual([['org-a', 'agent']]);
+  expect(calls.scopes).toEqual([['org-a', 'text_generation']]);
   expect(calls.contexts).toHaveLength(1);
 };
 

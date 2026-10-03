@@ -1,84 +1,64 @@
 # Product and runtime release integration
 
-The whole EPIC0qgn is incomplete; native goal is active. Beads owns status and
-all36 original criteria/owners remain unchanged. Root is the delegated verifier.
+Whole EPIC0qgn/native goal remains active; all36 original criteria/owners preserved.
+Beads owns status. Root is owner-delegated verifier; no external proof is invented.
 
-## Current delivered boundary
+## Delivered boundary on03Oct
 
-LIVE private298ec244cf7d127ee34842c97e748cc8236d3019/public48f6a1a5fa4861dfc5303194931faf61a5c30fa7.
-Private8b99/public438f is built, published and pulled, NOT switched. Exact8b
-full9 PASS: Jest611/11008/9Redis skips, Node122/0fail/4DBskips, Python50.
-Actual438f CI normal/+400 each failed the same4 real-FD fixture cases; Node and
-Python did not run there. Native Docker31/build/quality jobs PASS; no overall
-CI acceptance exists. All failed logs and earlier48/b427 failures are retained.
-438f archive11784569B/b6c9002e98ec9d62fd024413daa38be65012f93a23bd4d71586306ad8181ea2a,
-registry/config/layers/source parity and new-image empty Prisma diff PASS.
-First pull refused strict capacity. Root then retired ONLY unused own D5 HOSTtag
-under current whole-EPIC authority, preserving serving48, rollback6076 and D5
-local/registry proofs; 2922639360B freed. Second unchanged strict pull PASS.
-Product77/Mastra45 definitions, all40 deep container states/three live roles and
-all33 recent queue pollers preserved; public API/login/source HTML200.
-App48 remains healthy0/1792MiB. Salted channel continuity and numeric late V8
-records are qualified: three roles report1879048192 constrained bytes; backend
-bucket farcaster55 counts Neynar CJS paths, not an exact SDK membership list.
-Latest thin58.168% is NOT full warmed1800s/<60 acceptance. Runtime bytes unchanged.
+LIVE private df1a0b903db9844e8d6edba4dfddd2d9bf41ee6d/public de6151715a70244263d9ea53de9fc045baf7f961.
+Exact full9 PASS: Jest611/11009, Node122/4PGskip, Python50/four builds/types/docs/process.
+Actual public Build37069977798 four jobs PASS, full suite allthree halves verified;
+old CodeQL accepted only by identical apps/libraries tree proof. Next source
+changes require fresh actual five jobs including CodeQL.
+Image indexd74d6127/config31a791b9/archive11785541B/bf739db7; actual switch22:27:43Z
+healthy0/1792MiB/all39 foreign/all33 recent queues/EMPTYdiff/Product77/Mastra45.
+No DDL, restore or foreign mutation. Hosted rollback48f6 retained.
 
-Actual48 neutral eight-text analysis9SUCCESS/0pending found TONE599/TOPICS600
-unfinished ordinary prose. Raw upstream cause UNKNOWN. Exact owned four access
-rows were revoked/session401; samples/avatar soft-retired, ledger/history kept.
-Unused empty A1 fixture also retired/four rows revoked/session401/credentials
-removed; no agent/model action ran there. Prepared v3 A1/A2 packet is accepted
-only as preparation: effective system search=true, stored workspace flag=false,
-allowance unlimited recorded; same13 model/card and15 ledger actions, <=3
-admissions per model action/<=39 overall. That is not a USD/quota guarantee.
-Unexpected search/media/operation or pending rows stop; no billing/default change.
+B1, source-coherent search, manual six lines, selected adaptation, Windows1440/390
+and MCP66 PASS. No real publishing/client/ChatGPT claim. Three stands retired,
+exact16 access rows revoked, histories/ledgers retained. A1 stand remains active.
+Actual neutral analysis client180s deadline preserved; later read-only ready result
+9SUCCESS/0pending shows malformed TONE/TOPICS600. QualityFAIL; corruption UNKNOWN.
+No original POST repeated. Safe synthetic current-output regression input retained.
+First A1 avatar+native skill+single ledger valid; original wrong-toolset failure
+preserved. Assistant did not request/list absent six fields. Diagnostic continuation
+only checks original artifact scenario/cards; first-turn interview remains FAIL.
 
-## Next combined source
+## Conditional combined source preparation
 
-New V2 near-limit TONE/TOPICS sentence policy54fb is source-accepted:159 focused
-checks and backend types PASS; old guard4061-byte prefix/old81tests byte-exact.
-Recorded current fields replay to exact559/591-character completed prefixes,
-with observations/portrait/refs/call counts unchanged. No word completion, extra
-call, V1 or history rewriting; ambiguous boundaries abstain. Deliberately
-unpunctuated near-limit prose may lose its last sentence; live quality is pending.
-Gauge test-only event-readiness correction46ec/fa474 was source-accepted,
-52 ordinary/+400 focused PASS, but actual438f CI failed after readiness. A
-controlled unsafe native constrainedMemory value reproduced exactly4 failures:
-Number(UINT64_MAX) exceeds the producer's safe integer contract and stops writes.
-Actual Ubuntu CI cgroup values were not captured: that platform explanation is
-inference. Minimum follow-up fixture pins the synthetic1792MiB limit and adds
-an unsafe-value fail-closed assertion;53 ordinary/+400 focused PASS. Production
-gauge/app/runtime bytes and all original52 assertions/deadlines remain unchanged.
-Exactd958 root full9 FAIL:611Jest/610pass/1fail,11008pass/1fail/9skip;
-native gauge suite PASS. Public funnel check22/request121 yielded202 vs429;
-Node/Python did not run, no release receipt and no new publication/image/host
-action. Tracker includes a minute bucket: actual failed-run rotation is inferred.
-Scoped25+50-line test-only fix reviewed: public guard calls actual tracker with
-one pinned instant; production guard/storage/tracker/global Date unchanged.
-Exact unmodified helper controlled minute-crossing RED21 then fixed GREEN26,
-final persistent native wrapper11/11PASS with0default/121explicit tracker calls.
-Runtime limit120/121st429, DTO400 and all26 real Nest/PG checks/cleanup retained.
-Actual failedd958 wall-clock rotation remains inference; raw failure is retained.
-After the scoped fixture correction root will run one exact full9, publish
-its isolated public snapshot/image, require actual CI success, then switch and
-run fresh owned A1/A2/tone/UI/MCP and comparable HOT under original criteria.
-Frozen v5 A1 preparation22 hashes/offline8 checks accepted as preparation ONLY;
-failed actual438f CI blocks invocation. No model/browser/live mutation ran there.
+720bb source accepted: new final V2-only malformed cap quotation policy preserves
+exact completed grounded prefix or omits; actual recorded synthetic TONE475/TOPICS
+omitted, nine calls unchanged. Focused227/backend types PASS. Original guard bodies,
+V1/history unchanged. Six old fullV2 malformed599/600 expectations deliberately
+changed, frozen original81 retained; whole legacy format warnings qualified.
+No source corruption mechanism inferred and no new live quality proof.
+Optional backend Farcaster/Neynar memoized dynamic SDK import source accepted;
+captured original key, metadata, signer parameters/output retained, failed promise
+reset. Six synthetic tests/backend types PASS; first-use async error tradeoff explicit.
+Production byte/memory benefit UNKNOWN; earlier full HOT failures justify testing
+this bounded candidate. Current de615 has no full HOT acceptance.
+Root isolated combined worktree does not change primary/deployed source.
+Exact3c full9/all3 suite halves PASS. Native A1 found additional kcxz.57: generator
+incorrectly admits agent/agent; real start/admission regression RED5/5, focused
+seven suites248 PASS after text_generation/draft correction. Paid adapter unchanged.
+Current own A1 stopped9agent+1intake terminal/0pending; CORE empty/one native question.
+It is not accepted; retire exactly own stand with original failed journals retained.
+New exact-source full9/five actual CI jobs/publication/new QA/HOT remain required.
 
-Documentation: operational handoff/index/style contract and stage note updated.
-docs-reviewed: updated — actual48, pulled438f, exact D5 capacity action and failed CI.
-project-index: reviewed-updated — V2, real-FD metadata and bounded public event proof.
-graph-reviewed: local AST refreshed at46ec;27066nodes/53858edges/zero model tokens.
-V2 caller edge/two hashes match; later test/docs evidence is qualified, no runtime change.
-documentation-decision: existing pinned runtime/source contracts reused; no deps changed.
+## Verification and limits
 
-## Explicit limits and retained evidence
-
-Legal/operator/region/support/Terms/Privacy/prices owner-deferred. Claude.ai removed;
-actual ChatGPT and real customer publishing/feedback remain unproved. Historical
-research denominators, invoice reconciliation, telemetry aging/natural03Oct and
-offsite facts remain unknown. Owner excludes existing-backup restoration and
-separate recovery drills; natural02Oct encrypted backup PASS, service operates.
-Inert Telegram A1/A2 fixtures cannot establish a real social account connection.
-Earlier HOT failures, incomplete windows, suite failures/corrections and unknown
-billing remain retained; original71m.8 remains IN_PROGRESS and <60% is unchanged.
+docs-reviewed: updated — actualde615 and conditional bounded next source.
+project-index: reviewed-updated — final V2 malformed cap policy.
+graph-reviewed: local AST refreshed at source40341020;27091nodes/53897edges, zero
+model tokens. V2 caller/grounding and Farcaster getClient entry paths reviewed.
+48 non-code configuration files yielded no nodes; graph is scoped orientation,
+not a completeness claim. Generated graph ignored and absent from staging.
+documentation-decision: existing source/pipeline/provider contracts reused; no deps changed.
+Startup3/60s53.65%/thin62.58% are not full warm>=1800s/strictmax<60 proof.
+All previous HOT/suite/deadline failures and unknown billing retained.
+Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai removed.
+Actual ChatGPT/client publication/feedback/historical benefit threshold unproved.
+Owner excludes existing-backup restoration and separate recovery drill; natural
+02Oct encrypted backup PASS and working service remain required.
+Natural03Oct00:05Z GlitchTip create-only timer PASS, five own future tables created,
+four installed hashes unchanged, native90days retained. Aged pruning/offsite unknown.

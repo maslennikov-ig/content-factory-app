@@ -1,10 +1,10 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (298ec/48f6 basic delivery; full HOT pending)
+Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (df1/de615 basic delivery; full HOT pending)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-0qgn`
 
-## Active programme — 02.10.2026
+## Active programme — 03.10.2026
 
 Owner delegated completion and verification of the whole EPIC to root, including
 necessary actions and renewed execution with "continue". Native goal currently
@@ -14,43 +14,40 @@ criteria/owners remain preserved; Beads owns status.
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
 Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai owner-removed; actual ChatGPT remains required.
 
-## Current delivery and candidate
+## Current delivery and candidate — 03.10.2026
 
-- LIVE private `298ec244cf7d127ee34842c97e748cc8236d3019`, public/image
-  `48f6a1a5fa4861dfc5303194931faf61a5c30fa7`; healthy0/1792MiB/rollback6076.
-  Index `sha256:eccb671981e4ac596c25b1b21a137c122dfc61ebf120702e3258f31375de9c0d`;
-  config `sha256:17a7d884ed68d7f7eec33f5e5448038b59def7690b7cd6d2c74ac359a714c35a`.
-- Actual48 archive11776919B/SHA
-  b83550e0960d72dbdadc3beff4eb4fab30e28ee0522485fe584b997de8450883; exact298ec full9/native switch/source/schema/33queues PASS/all39 preserved.
-- New exact private8b99e9e9f13b6eef14c1b08c6c9876d86b36d38e full9 PASS: Jest611/11008/9Redis skips, Node122/0fail/4PG skips/Python50/four builds/types.
-  Public438f5725752da7e41add2887adf6efb78e4e280e published; image from it/archive11784569B/SHAb6c9002e98ec9d62fd024413daa38be65012f93a23bd4d71586306ad8181ea2a.
-  Nativehelp/14layer registry identity PASS; image PULLED, NOT switched.
-- Actual438f normal/+400 CI both FAIL4native gauge tests;610/611suites PASS,
-  11002PASS/11skips/4FAIL; chained Node/Python notrun. Raw logs retained.
-  Controlled unsafe native constrained-memory value reproduces all4 failures; actualCI cgroup content remains INFERENCE. Minimum test-only fixture pins its
-  existing1792MiB contract;53normal/+400 focused PASS, unsafe rejection retained.
-  Integratedd958 gauge suitePASS in full run; full9 FAIL only public-event
-  check22/request121202vs429. Node/Python notrun; no publish/switch. Controlled
-  exact Nest/PG/Redis RED21 then GREEN26; test-only pinned caller time/final11PASS.
-  Actual original rotation inferred; final root new full9/actualCI pending.
-- Strict438f first pull refused before download. Exact unused hostedD5 tag
-  retirement freed2922639360B; serving48/prior6076/local+registryD5 preserved.
-  Second strict pull PASS; no force/prune/foreign/backup/capacity-policy change.
-  New438f readonly Prisma diff EMPTY; Product77/1431/Mastra45/838 unchanged.
-  Post pull/schema all40deep/live3/app/PIDs/all33recent preserved; public API,
-  login and exact48 source HTML200. No existing-backup restore or DDL.
-- Actual48 neutral8text analysis9SUCCESS/0pending found TONE599/TOPICS600
-  unfinished ordinary prose; semanticFAIL/raw upstream cause UNKNOWN.
-  Ownfouraccessrows revoked/token401/samples retired/credentials removed; V2 sentence-boundary54fb159focused PASS/replay559/591, live quality pending. EmptyownA1 also retired,
-  fourrows/session401/modelcalls0; no old credentials reused.
-- v3 A1/A2 preparation accepted: effective system search=true/stored=false/unlimited;13model/card+15ledger actions, <=3admissions/action/39overall
-  are operation bounds, not USD/hardquota guarantees. No actual A1/A2 walk yet.
-  New v5 fixture preparator accepted offline/22hashes, NOTexecuted; strict exactsource/CI/image/host/settledruntime receipts required. No default/billing change.
-- Existing48 late V8 all3 VERIFIED/constrained1792MiB/same processes/main-isolate; Thin58.168% is not full intendedwarm1800s/<60 proof.
-  Prior6076 HOT31/1829.935797s64.1037–64.8228% FAIL retained;71m.8 stillIN_PROGRESS.
-  Root QA/HOT/external/research/legal/pricing gates remain; EPIC incomplete.
+- LIVE private df1a0b903db9844e8d6edba4dfddd2d9bf41ee6d/public de6151715a70244263d9ea53de9fc045baf7f961.
+  Index d74d6127416c652bd6f7b3ca2090bab294afb241bf0bf8c7f1317d5631ce5726;
+  config31a791b9f17c736ef55d990d7d4e21512d412f3c0b0d14ad33f6fc374705f53f.
+  Healthy0/1792MiB/rollback48f6; archive11785541B/bf739db7906bb2903e6c91e940bbe1eb0d9a8a793872fbb9c2704ffd026b3fc0.
+- Exact df1 full9 and four actual public jobs PASS. Old CodeQL reused ONLY by
+  identical product tree proof; next source change requires a fresh CodeQL job.
+  Empty Prisma diff/Product77/1431/Mastra45/838/all39 foreign/all33 pollers preserved.
+- Actual B1, coherent search summary, manual avatar, selected adaptation and
+  Windows1440dark/390light PASS. Three stands retired/exact16 access rows revoked,
+  histories/ledgers retained. MCP66/no tool calls PASS; ChatGPT still unproved.
+- Actual eight-text analysis helper180s timed out; read-only reconciliation later
+  returned ready/9SUCCESS/0pending. TONE600/TOPICS600 malformed open quotations:
+  semanticFAIL, provider corruption UNKNOWN. No POST retry. Own avatar stand retired.
+- First A1 POST created exact own inactive avatar, one terminal agent ledger,
+  native avatars skill completed. Old toolset expectation failed; original journals
+  preserved. Assistant only announced manual six lines; missing-line interview
+  instruction FAIL. Root authorizes separate diagnostic continuation for original
+  persisted scenario/cards, never a false first-turn compliance claim or replay.
+- Prepared source720bb adds final V2 cap filter: exact grounded complete TONE475
+  prefix/TOPICS omitted on recorded synthetic input; nine calls unchanged.
+  Focused227/types PASS. Six old malformed-cap fullV2 expectations deliberately
+  updated, original81 frozen; old guard bodies/V1/history unchanged. No live proof.
+- Conditional combined worktree holds tone fix and backend Farcaster lazy SDK;
+  exact3c full9 PASS/all three test halves. New kcxz.57 corrects generator accounting:
+  real start/admission tests reproduced duplicate agent, focused248 PASS after fix.
+  Current A1 stopped at9agent+1intake terminal/0pending; native CORE has1question.
+  Retire only this own aborted stand, preserve history; no paid replay/A1 PASS.
+  New exact source/full9/five CI jobs/switch/fresh QA/HOT remain root-owned.
+- Startup3/60s53.65%, thin62.58% do not prove full warm>=1800s/strictmax<60.
+  All earlier full HOT failures and unknown billing remain;71m.8 IN_PROGRESS.
 
-## Actual own product verification on459 and historical memory
+## Historical own product verification on459 and earlier memory
 
 - B1 completes23.2s with paired DRAFT/provenance/empty postingTimes, coherent
   Russian paragraphs and one SUCCESS agent/cost0.0009272USD. No publishing.
@@ -135,7 +132,7 @@ Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai ow
 - Shared GlitchTip6.0.5: missing01Oct partitions exact35CREATEs repaired;
   all6993 old objects preserved. Two own relay events recovered once/redacted.
   Bounded create-only timer installed; first manual service PASS, next natural
- 03Oct00:05Z is unobserved. Shared retention90days, not repository standalone30.
+ 03Oct00:05Z natural create-only PASS/five tables. Shared retention stays90days.
   Actual aged-row pruning remains unproved; no synthetic age/data edits.
 - Native Nest own500 stored once/redacted/five frames; protected evidence reused
   with explicit scope. Own retired usage-ledger allocation608KiB is a snapshot;
@@ -175,13 +172,13 @@ GHCR remains content-factory-next. Never add public remote to private history.
 `docs/operations/production-deploy.md` owns release/schema/rollback; no production
 `prisma db push`. `docs/operations/postgres-backup.md` owns backup procedure.
 Voice contracts: voice-wiring.contract.ts/voice-composite.ts/post-layout.ts;
-Current own QA is bound to live6076; historical459/D5 proofs remain qualified.
+Current own QA is bound to livedf1/de615; older proofs remain qualified.
 Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
 sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
 
-Next: preserve live48/rollback6076; previous HOT64.10–64.82% FAIL original<60.
-V2 text boundary54fb and gauge test46ec/fa474 accepted; one full9 follows.
-One combined full9/newrelease/A1-A2/liveTone9 and comparable HOT required.
+Next: preserve livede615/rollback48; previous full HOT FAIL original<60.
+Complete kcxz.57 and retire stopped own A1; release combined source with fresh
+full9/all3 halves and five CI jobs, then fresh A1/A2/liveTone9/full warm HOT.
 Nostr socket captures and simple shared-i18n preload restriction are not accepted.
 Documentation: current operational facts reconciled; original spec/plan unchanged.
 docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.

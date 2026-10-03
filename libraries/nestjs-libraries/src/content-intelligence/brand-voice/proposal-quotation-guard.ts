@@ -1,3 +1,5 @@
+import { quoteIsGrounded } from './assist.contract';
+
 /** New V2 reduce output only; never a repair of a historical stored proposal. */
 type Field = {
   field?: string;
@@ -200,5 +202,92 @@ export function omitIncompleteBoundaryProse<T extends Field>(
     !/^[\p{L}\p{M}\p{N}\s,;:\p{Pd}]+$/u.test(tail)
   )
     return field;
+  return complete >= 2 ? { ...field, text: raw.slice(0, complete) } : null;
+}
+
+/**
+ * New V2 cap policy: malformed angle quotations cannot survive merely because
+ * their corrupted tail has no literal source match. Keep only a certified
+ * complete grounded prefix; ambiguous syntax omits the field, with no repair.
+ * A deliberately unclosed quotation at the cap is omitted by the same policy.
+ */
+export function omitIncompleteBoundaryQuotation<T extends Field>(
+  field: T,
+  observations: readonly GroundedQuote[]
+): T | null {
+  const raw = field.text;
+  if (
+    typeof raw !== 'string' ||
+    (field.field !== 'TONE' && field.field !== 'TOPICS') ||
+    raw.length > FIELD_LIMIT
+  )
+    return field;
+  const text = raw.trimEnd();
+  if (text.length < FIELD_LIMIT - 1) return field;
+
+  let depth = 0;
+  let unmatchedCloser = false;
+  for (const character of text) {
+    if (character === '«') depth++;
+    else if (character === '»') {
+      if (depth) depth--;
+      else unmatchedCloser = true;
+    }
+  }
+  if (!depth && !unmatchedCloser) return field;
+
+  const refs = new Set(field.observationRefs ?? []);
+  const sources = observations.filter(
+    (one) =>
+      refs.has(one.ref) &&
+      one.field === field.field &&
+      typeof one.quote === 'string'
+  );
+  if (
+    !sources.length ||
+    !/^\s*\p{Lu}/u.test(text) ||
+    /[“”"„'‘’‹›「」『』()[\]{}<>/\\@…\p{Cs}\p{Cf}]/u.test(text) ||
+    text.includes(String.fromCharCode(96)) ||
+    /[.!?]{2,}/u.test(text)
+  )
+    return null;
+
+  let open = -1;
+  let complete = 0;
+  for (let at = 0; at < text.length; at++) {
+    if (text[at] === '«') {
+      if (open >= 0) return null;
+      open = at;
+      continue;
+    }
+    if (text[at] === '»') {
+      if (open < 0) return null;
+      const quote = text.slice(open + 1, at);
+      if (
+        !quote.trim() ||
+        !sources.some((one) => quoteIsGrounded(quote, one.quote))
+      )
+        return null;
+      open = -1;
+      continue;
+    }
+    if (open >= 0) continue;
+    if (/[,;:]/u.test(text[at]) && /^\s+\p{Lu}/u.test(text.slice(at + 1)))
+      return null;
+    if (!/[.!?]/u.test(text[at])) continue;
+    if (!completeStop(text, at)) return null;
+    if (text[at - 1] === '»') {
+      if (/[.!?]/u.test(text[at - 2])) return null;
+    } else {
+      const word = /[\p{L}\p{M}\p{N}_\p{Pd}]+$/u.exec(text.slice(0, at))?.[0];
+      if (
+        !word ||
+        !(text[at] === '.' ? /^\p{Ll}{4,}$/u : /^\p{L}+$/u).test(word) ||
+        BOUNDARY_ABBREVIATIONS.has(word)
+      )
+        return null;
+    }
+    complete = at + 1;
+  }
   return complete >= 2 ? { ...field, text: raw.slice(0, complete) } : null;
 }

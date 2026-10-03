@@ -6,7 +6,7 @@
 - Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it.
 - Agent/MCP: `content-factory-next-kcxz`, `docs/product/agent-harness-spec.md`, ADR-0012; evidence and releases under `.codex/stages/content-factory-next-kcxz/`.
 - First-client onboarding/acceptance: `content-factory-next-2q28`, `.codex/stages/content-factory-next-2q28/`; preserve the existing client-page response field names.
-- Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`, `docs/product/avatar-grounded-style-contract.md`; search scopes `ec48`, `75xn`, `m0iy`. Reader completion: `web.research.service.ts`/`tests/web.research.summary-language.test.cjs`; V2 TONE quotation and TONE/TOPICS599–600 prose policy: `brand-voice/proposal-quotation-guard.ts`, outside paid retry/history reads.
+- Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`, `docs/product/avatar-grounded-style-contract.md`; search scopes `ec48`, `75xn`, `m0iy`. Reader completion: `web.research.service.ts`/`tests/web.research.summary-language.test.cjs`; V2 TONE quotation and TONE/TOPICS599–600 prose/malformed-quotation policy: `brand-voice/proposal-quotation-guard.ts`, outside paid retry/history reads.
 - Operations/SaaS navigation: `docs/operations/postgres-backup.md`, `production-deploy.md`, `saas-readiness.md`; current gates remain in Beads, not this index.
 - Historical programme `vme` was retired 31.08.2026. `cft` completed the public-tree move the same day; accepted `vme.1/.2/.3`, `9e9`, `0c8` and `or3` retain their stage receipts.
 

@@ -1,5 +1,6 @@
 import {
   omitIncompleteBoundaryProse,
+  omitIncompleteBoundaryQuotation,
   omitIncompleteToneQuotation,
 } from './proposal-quotation-guard';
 import {
@@ -796,6 +797,9 @@ export async function runAssistV2({
     .filter((field): field is NonNullable<typeof field> => field !== null)
     // Near-limit prose is filtered only after grounding and final ref union.
     .map((field) => omitIncompleteBoundaryProse(field, observations))
+    .filter((field): field is NonNullable<typeof field> => field !== null)
+    // Unsupported corrupted angle quotes also fail closed at the cap.
+    .map((field) => omitIncompleteBoundaryQuotation(field, observations))
     .filter((field): field is NonNullable<typeof field> => field !== null);
 
   return {
