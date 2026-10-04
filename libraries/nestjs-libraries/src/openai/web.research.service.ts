@@ -4,7 +4,8 @@ import {
   READER_REVIEW_VERSION,
   packReaderReview,
   requestedDate,
-  readerReviewJsonSchema,
+  readerReviewWireJsonSchema,
+  compileReaderReview,
   validateReaderReview,
   unavailableReaderReview,
   type ReaderAssessment,
@@ -609,17 +610,21 @@ export class ResearchQueryCache<T = unknown> {
     private readonly maximum = 10_000,
     private readonly ttlMs = RESEARCH_CACHE_TTL_MS
   ) {}
+  private releaseExpired(now: Date): void {
+    const timestamp = now.getTime();
+    for (const [key, stored] of this.values) {
+      if (timestamp - stored.storedAt >= this.ttlMs) this.values.delete(key);
+    }
+  }
   get(key: string, now = new Date()): T | undefined {
-    const stored = this.values.get(key);
-    const expired =
-      stored !== undefined && now.getTime() - stored.storedAt >= this.ttlMs;
-    if (expired) this.values.delete(key);
-    const value = expired ? undefined : stored?.value;
+    this.releaseExpired(now);
+    const value = this.values.get(key)?.value;
     this.entries.push({ key, hit: value !== undefined, at: now.toISOString() });
     if (this.entries.length > this.maximum) this.entries.shift();
     return value;
   }
   set(key: string, value: T, now = new Date()): void {
+    this.releaseExpired(now);
     this.values.delete(key);
     this.values.set(key, { value, storedAt: now.getTime() });
     while (this.values.size > this.maximum) {
@@ -1641,7 +1646,7 @@ export class WebResearchService {
         'classify'
       );
       phase = 'structured-output';
-      const writer = model.withStructuredOutput(readerReviewJsonSchema);
+      const writer = model.withStructuredOutput(readerReviewWireJsonSchema);
       phase = 'invocation';
       const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
         .pipe(writer)
@@ -1660,7 +1665,9 @@ export class WebResearchService {
           }
         );
       phase = 'validation';
-      const reviewed = validateReaderReview(input, raw);
+      const compiled = compileReaderReview(input, raw);
+      const reviewed =
+        compiled === null ? null : validateReaderReview(input, compiled);
       if (reviewed) return reviewed;
       this.logger.warn(
         readerReviewFailureLine(phase, 'validation_rejected', termination)

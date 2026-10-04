@@ -431,6 +431,26 @@ describe('shared web research service', () => {
       cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS))
     ).toBeUndefined();
     expect(RESEARCH_CACHE_TTL_MS).toBe(30 * 60 * 1000);
+
+    const expiresAt = new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS);
+    const liveStoredAt = new Date(storedAt.getTime() + 1_000);
+    for (const access of ['get', 'set']) {
+      const retained = new ResearchQueryCache();
+      const live = { answer: 2 };
+      retained.set('unrequested-expired', { answer: 1 }, storedAt);
+      retained.set('live', live, liveStoredAt);
+      expect(retained.size()).toBe(2);
+      if (access === 'get') {
+        expect(retained.get('live', expiresAt)).toBe(live);
+        expect(retained.size()).toBe(1);
+        expect(retained.journal()).toHaveLength(1);
+      } else {
+        retained.set('new', { answer: 3 }, expiresAt);
+        expect(retained.size()).toBe(2);
+        expect(retained.journal()).toHaveLength(0);
+        expect(retained.get('live', expiresAt)).toBe(live);
+      }
+    }
   });
 
   test('uses Tavily as primary and records the answering provider', async () => {

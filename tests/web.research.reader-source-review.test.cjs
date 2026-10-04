@@ -75,7 +75,7 @@ const h = new Function(
     set(input, answer, output, freshnessRequired=false) {
       classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired};
       responses={tavily:{answer,usage:{credits:2},results:input.sources.map(r=>({title:r.title,url:r.url,content:r.excerpt,published_date:r.publishedAt}))}};
-      summaryOutput=output;
+      summaryOutput=require('./helpers/reader-source-review.cjs').syntheticReaderWire(input,output);
     }, fail(error) {summaryError=error;},
     searchProvider(provider) {aiConfig.search.provider=provider;aiConfig.search.topic='news';aiConfig.search.apiKeys={[provider]:'fixture-search-key'};responses[provider]=responses.tavily;},
     failPhase(phase, error) {reviewPhaseError={phase,error};},
@@ -142,7 +142,7 @@ const pure = require('./helpers/reader-source-review.cjs');
 const {
   ChatPromptTemplate: RealPromptTemplate,
 } = require('@langchain/core/prompts');
-const actualInputBytes = async (prompt, schema = pure.readerReviewJsonSchema) =>
+const actualInputBytes = async (prompt, schema = pure.readerReviewWireJsonSchema) =>
   Buffer.byteLength(
     JSON.stringify({
       messages: await RealPromptTemplate.fromTemplate(
@@ -649,7 +649,8 @@ test('generic requested VTB mention stays contextual, exact and grounded beyond1
       subjectStart: start,
       subjectEnd: start + 3,
       status: 'contextual_mention',
-      ref: { source: 'S2', start: 1386, end: 1389 },
+      // Include the unique surrounding context instead of the repeated name.
+      ref: { source: 'S2', start: 1386, end: 1464 },
     },
   ];
   h.set(fixture.rate, fixture.rate.summary, output);
