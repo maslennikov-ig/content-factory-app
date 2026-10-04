@@ -90,7 +90,18 @@ export const readerReviewSchema = z
       .max(8),
   })
   .strict();
-export const readerReviewJsonSchema = toJsonSchema(readerReviewSchema);
+export const readerReviewJsonSchema = (() => {
+  // The endpoint resolves shared schemas through $defs, not property paths.
+  // Relocate this fixed shared reference without changing any Zod bounds or
+  // the input budget; cloning also leaves LangChain's cached schema untouched.
+  const schema = JSON.parse(JSON.stringify(toJsonSchema(readerReviewSchema)));
+  schema.$defs = { r: schema.properties.claims.items.properties.refs.items };
+  const ref = { $ref: '#/$defs/r' };
+  schema.properties.claims.items.properties.refs.items = ref;
+  schema.properties.claims.items.properties.dates.items.properties.ref = ref;
+  schema.properties.entities.items.properties.ref.anyOf[0] = ref;
+  return schema;
+})();
 type Review = z.infer<typeof readerReviewSchema>;
 type Ref = z.infer<typeof reference>;
 type SourceInput = { url: string; title: string; publishedAt: string | null };
@@ -174,7 +185,7 @@ function datesIn(text: string): string[] {
   }
   return [...new Set(values.filter((v): v is string => !!v))];
 }
-function requestedDate(subject: string): {
+export function requestedDate(subject: string): {
   date: string | null;
   ambiguous: boolean;
 } {

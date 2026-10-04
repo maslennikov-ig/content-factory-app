@@ -611,6 +611,39 @@ describe('per-organization AI clients', () => {
     expect(built.tavily[0]).toMatchObject({ topic: 'news', timeRange: 'month' });
   });
 
+  test('as-of general override removes Tavily recency despite workspace news', async () => {
+    const organization = register({
+      ...openrouter, search: { ...openrouter.search, topic: 'news' },
+    });
+    await clients.getWebSearchClient(organization, 'tavily', {
+      topic: 'general', freshnessRequired: false,
+    });
+    expect(built.tavily[0].topic).toBe('general');
+    expect(built.tavily[0]).not.toHaveProperty('timeRange');
+  });
+
+  test('as-of general override removes Exa category and dates despite workspace news', async () => {
+    const organization = register({
+      ...openrouter, search: {
+        ...openrouter.search, topic: 'news', provider: 'exa',
+        apiKeys: { exa: 'fixture-exa-key' },
+      },
+    });
+    const requests = [];
+    global.fetch = async (_url, init) => {
+      requests.push(JSON.parse(init.body));
+      return { ok: true, status: 200, async json() { return { results: [] }; } };
+    };
+    const exa = await clients.getWebSearchClient(organization, 'exa', {
+      topic: 'general', freshnessRequired: false,
+    });
+    await exa.invoke({ query: 'Current version as of 2026-10-01?' });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty('category');
+    expect(requests[0]).not.toHaveProperty('startPublishedDate');
+    expect(requests[0]).not.toHaveProperty('endPublishedDate');
+  });
+
   test('the window is a superset of what was asked for, never a subset', async () => {
     const organization = register(openrouter);
 

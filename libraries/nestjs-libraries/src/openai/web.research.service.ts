@@ -3,6 +3,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
   READER_REVIEW_VERSION,
   packReaderReview,
+  requestedDate,
   readerReviewJsonSchema,
   validateReaderReview,
   unavailableReaderReview,
@@ -2017,6 +2018,16 @@ Untrusted research data: {evidence}`
     const level = options.level ?? 'standard';
     const preset = RESEARCH_LEVEL_PRESETS[level];
     const supplied = callerQueries(options, level);
+    const scopedReader =
+      options.readerResponse === true &&
+      !!options.language &&
+      !supplied.length &&
+      task !== 'discovery';
+    const dateConstraint =
+      scopedReader && subject.length <= CLASSIFIER_SUBJECT_CHARS
+        ? requestedDate(subject)
+        : null;
+    const asOfRetrieval = !!dateConstraint?.date && !dateConstraint.ambiguous;
     const needsAdvertisingContext =
       options.readerResponse === true &&
       !!options.language &&
@@ -2096,16 +2107,23 @@ Untrusted research data: {evidence}`
     const searchOptions = {
       scope: classification.scope,
       country,
-      freshnessRequired: classification.freshnessRequired,
+      // Fact validity on a named date does not imply a recent publication.
+      freshnessRequired: asOfRetrieval ? false : classification.freshnessRequired,
       ...(options.levelWasExplicit ? { maxResults: preset.maxSources } : {}),
-      ...(options.windowDays ? { windowDays: options.windowDays } : {}),
+      ...(options.windowDays && !asOfRetrieval
+        ? { windowDays: options.windowDays }
+        : {}),
       /**
        * Discovery asks the news index first (`content-factory-next-75xn.23`):
        * it is the one Tavily mode that carries `published_date`, and a lead
        * announced as «свежее за 30 дней» is worthless without one. Thirty of
        * forty leads on 13.09 had no date for exactly this reason.
        */
-      ...(task === 'discovery' ? { topic: 'news' as 'news' | 'general' } : {}),
+      ...(asOfRetrieval
+        ? { topic: 'general' as const }
+        : task === 'discovery'
+        ? { topic: 'news' as 'news' | 'general' }
+        : {}),
     };
     const egressBudget: ResearchEgressBudget = {
       maxSearchQueries: preset.maxSearchQueries,
@@ -2592,11 +2610,6 @@ Untrusted research data: {evidence}`
      * черновик поднимал ещё один вызов модели, невидимый нигде, кроме ленты
      * расхода (`content-factory-next-97dq.3`, P2-7).
      */
-    const scopedReader =
-      options.readerResponse === true &&
-      !!options.language &&
-      !supplied.length &&
-      task !== 'discovery';
     const reviewed = scopedReader
       ? await this.reviewReaderSources(
           organizationId,

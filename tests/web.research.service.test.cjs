@@ -316,6 +316,44 @@ describe('shared web research service', () => {
     expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
   });
 
+  test.each(['tavily', 'exa'])(
+    'historical as-of provider options omit the rolling window for %s',
+    async (provider) => {
+      classification.scope = 'local';
+      classification.freshnessRequired = true;
+      aiConfig.search.provider = provider;
+      aiConfig.search.topic = 'news';
+      aiConfig.search.apiKeys = { [provider]: 'fixture-search-key' };
+      await new WebResearchService(aiUsage).research('organization-a',
+        'Current version as of 2026-10-01?',
+        { language: 'en', readerResponse: true, windowDays: 30 });
+      expect(clientFactoryCalls).toHaveLength(1);
+      expect(clientFactoryCalls[0]).toMatchObject({
+        provider, options: { topic: 'general', freshnessRequired: false },
+      });
+      expect(clientFactoryCalls[0].options).not.toHaveProperty('windowDays');
+      expect(invocations).toHaveLength(1);
+      expect(classifierInputs[0].subject).toBe('Current version as of 2026-10-01?');
+    }
+  );
+
+  test.each([
+    ['discovery', 'Current version as of 2026-10-01?', { task: 'discovery' }, 'news'],
+    ['undated', 'Latest current version?', {}, undefined],
+    ['ambiguous', 'Current version as of 2026-10-01T14Z?', {}, undefined],
+    ['automatic', 'Current version as of 2026-10-01?', { readerResponse: false }, undefined],
+    ['supplied query', 'Current version as of 2026-10-01?', { queries: ['exact claim'] }, undefined],
+  ])('date routing preserves %s retrieval', async (_name, subject, options, topic) => {
+    classification.scope = 'local';
+    classification.freshnessRequired = true;
+    await new WebResearchService(aiUsage).research('organization-a', subject,
+      { language: 'en', readerResponse: true, windowDays: 30, ...options });
+    expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
+    expect(clientFactoryCalls[0].options.topic).toBe(topic);
+    expect(clientFactoryCalls[0].options.freshnessRequired).toBe(
+      options.queries ? false : true);
+  });
+
   test('two tasks on one subject are two searches, not one cached answer', async () => {
     const service = new WebResearchService(aiUsage);
 

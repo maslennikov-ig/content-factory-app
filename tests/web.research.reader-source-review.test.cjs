@@ -24,6 +24,14 @@ const prefix = harnessText
   .replace('  modelLedgers: [],', '  modelLedgers: [], warnings: [],')
   .replace('warn() {}', 'warn(message) { calls.warnings.push(message); }')
   .replace(
+    'getWebSearchClient: async (_organizationId, provider) =>',
+    'getWebSearchClient: async (_organizationId, provider, options) =>'
+  )
+  .replace(
+    'calls.search.push({ provider, input });',
+    'calls.search.push({ provider, input, options });'
+  )
+  .replace(
     "'@contentfactory/nestjs-libraries/openai/ai.usage.service': {",
     `'@contentfactory/nestjs-libraries/openai/reader-source-review': {
        ...require('./helpers/reader-source-review.cjs'),
@@ -64,11 +72,12 @@ const h = new Function(
   prefix +
     `
   return {calls, WebResearchService, aiUsage, summaryPrompts, search,
-    set(input, answer, output) {
-      classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired:false};
+    set(input, answer, output, freshnessRequired=false) {
+      classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired};
       responses={tavily:{answer,usage:{credits:2},results:input.sources.map(r=>({title:r.title,url:r.url,content:r.excerpt,published_date:r.publishedAt}))}};
       summaryOutput=output;
     }, fail(error) {summaryError=error;},
+    searchProvider(provider) {aiConfig.search.provider=provider;aiConfig.search.topic='news';aiConfig.search.apiKeys={[provider]:'fixture-search-key'};responses[provider]=responses.tavily;},
     failPhase(phase, error) {reviewPhaseError={phase,error};},
     endMetadata(payload) {reviewTermination=payload;},
     resetDiagnostics() {reviewPhaseError=undefined;reviewTermination=undefined;}
@@ -186,6 +195,37 @@ const review = (input, claims = [claim(input.sources[0].excerpt)]) => ({
   claims,
   coverage: [{ question: input.subject, status: 'supported' }],
   entities: [],
+});
+
+test.each(['tavily', 'exa'])(
+  'historical as-of reader bypasses rolling news retrieval for %s',
+  async (provider) => {
+    const input = sample();
+    h.set(input, 'Непроверенная сводка.', review(input), true);
+    h.searchProvider(provider);
+    const out = await h.search(input.subject, {
+      language: 'ru', readerResponse: true, windowDays: 30,
+    });
+    expect(h.calls.search).toHaveLength(1);
+    expect(h.calls.search[0]).toMatchObject({
+      provider, options: { topic: 'general', freshnessRequired: false },
+    });
+    expect(h.calls.search[0].options).not.toHaveProperty('windowDays');
+    expect(out.facts).toHaveLength(1);
+    expect(out.sources[0].publishedAt).toBe('2026-10-02');
+    expect(out.readerAssessment.requestedDate).toBe('2026-10-01');
+    expect(evidence().subject).toBe(input.subject);
+    expect(h.calls.rows).toHaveLength(1);
+    expect(h.calls.model).toHaveLength(2);
+  }
+);
+
+test('retrieval reuses the existing strict civil-date parser', () => {
+  expect(pure.requestedDate(subject)).toEqual({ date: '2026-10-01', ambiguous: false });
+  expect(pure.requestedDate('Which version was current as at October 1, 2026?'))
+    .toEqual({ date: '2026-10-01', ambiguous: false });
+  expect(pure.requestedDate('Latest current version')).toEqual({ date: null, ambiguous: false });
+  expect(pure.requestedDate('Current version on 2026-10-01T14Z?').ambiguous).toBe(true);
 });
 
 test('later publication remains eligible for a supported fact effective at the requested date', async () => {
