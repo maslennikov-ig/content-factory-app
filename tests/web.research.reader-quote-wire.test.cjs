@@ -50,6 +50,58 @@ const validate = (input, output) => {
   return compiled === null ? null : pure.validateReaderReview(input, compiled);
 };
 
+test.each(['01.10.2026', '2026/10/01', '2026-10-1', '1 октября'])(
+  'v2 date wire rejects noncanonical %s before v1 validation',
+  (date) => {
+    const output = wire();
+    output.claims[0].dates[0].date = date;
+    expect(pure.readerReviewWireSchema.safeParse(output).success).toBe(false);
+    expect(pure.compileReaderReview(pack(), output)).toBeNull();
+  }
+);
+
+test.each(['01.10.2026', '1 октября 2026'])(
+  'canonical v2 dates preserve exact %s source quotes and original v1 assessment',
+  (dateQuote) => {
+    const input = pack(`😀 Отчёт: Альфа версия 2 действует по состоянию на ${dateQuote}.`);
+    const output = wire();
+    output.claims[0].dates[0].ref.quote = dateQuote;
+    const compiled = pure.compileReaderReview(input, output);
+    expect(compiled.claims[0].dates[0].date).toBe('2026-10-01');
+    expect(input.evidence.sources[0].excerpt.slice(
+      compiled.claims[0].dates[0].ref.start, compiled.claims[0].dates[0].ref.end
+    )).toBe(dateQuote);
+    expect(pure.validateReaderReview(input, compiled).assessment.status).toBe('supported');
+  }
+);
+
+test('a canonical date cannot borrow a quote from a source absent from its claim refs', () => {
+  const input = pure.packReaderReview(subject,
+    [
+      { url: 'https://example.org/claim', title: 'Версия', publishedAt: '2026-10-02' },
+      { url: 'https://example.org/other', title: 'Другая дата', publishedAt: '2026-10-02' },
+    ],
+    [
+      { sourceUrl: 'https://example.org/claim', text: article },
+      { sourceUrl: 'https://example.org/other', text: 'Другой отчёт на 1 октября 2026 года.' },
+    ], 'Russian');
+  const output = wire();
+  output.sources.push({ id: 'S2', relevance: 'relevant' });
+  output.claims[0].dates[0].ref.source = 'S2';
+  const compiled = pure.compileReaderReview(input, output);
+  expect(compiled).not.toBeNull();
+  expect(pure.validateReaderReview(input, compiled)).toBeNull();
+});
+
+test('a requested canonical date cannot replace the different date actually quoted', () => {
+  const input = pack('Альфа версия 2 действует по состоянию на 30.09.2026.');
+  const output = wire();
+  output.claims[0].dates[0].ref.quote = '30.09.2026';
+  const compiled = pure.compileReaderReview(input, output);
+  expect(compiled).not.toBeNull();
+  expect(pure.validateReaderReview(input, compiled)).toBeNull();
+});
+
 test('unique Cyrillic and astral quotes become exact UTF-16 spans while legacy split coordinates remain rejected', () => {
   const input = pack();
   const output = wire(),

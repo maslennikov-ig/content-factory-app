@@ -721,20 +721,24 @@ export const getWebSearchClient = async (
     : options.freshnessRequired || config.search.topic === 'news';
   const timeRange = tavilyTimeRange(options.windowDays);
   const country = options.scope === 'local' ? options.country : undefined;
+  // Tavily country boosts require general; freshness still sets the window.
+  // An explicit topic wins over this inferred geography choice.
+  const tavilyTopic =
+    options.topic ?? (freshnessRequired && !country ? 'news' : 'general');
   return webSearchMemo(
     identity(
       organizationId,
       config,
       `${provider}|${searchApiKey}|${options.scope || ''}|${country || ''}|${freshnessRequired}|${
         options.maxResults ?? ''
-      }|${options.windowDays ?? ''}`
+      }|${options.windowDays ?? ''}${provider === 'tavily' ? `|topic:${tavilyTopic}` : ''}`
     ),
     () => {
       if (provider === 'tavily') {
         return new TavilyWebSearch(
           new TavilySearch({
             tavilyApiKey: searchApiKey,
-            topic: freshnessRequired ? 'news' : 'general',
+            topic: tavilyTopic,
             searchDepth: config.search.depth,
             // Tavily accepts max_results 0–20 and the client does not clamp:
             // a larger value is a validation error, not more sources. Deep
@@ -755,7 +759,7 @@ export const getWebSearchClient = async (
               ? { timeRange: 'week' }
               : {}),
             // Tavily documents country boosting only for the general topic.
-            ...(!freshnessRequired && country
+            ...(tavilyTopic === 'general' && country
               ? { country }
               : {}),
           })

@@ -364,11 +364,12 @@ describe('per-organization AI clients', () => {
 
     expect(built.tavily[0]).toMatchObject({
       tavilyApiKey: `search-a-${tavilyOrganization}`,
-      topic: 'news',
+      topic: 'general',
+      country: 'russia',
+      timeRange: 'week',
       searchDepth: 'advanced',
       includeRawContent: true,
     });
-    expect(built.tavily[0]).not.toHaveProperty('country');
     expect(built.openai[0]).toMatchObject({
       apiKey: `key-a-${openrouterOrganization}`,
       baseURL: 'https://openrouter.example/api/v1',
@@ -710,7 +711,7 @@ describe('per-organization AI clients', () => {
     expect(JSON.parse(requests[0].init.body)).not.toHaveProperty('userLocation');
   });
 
-  test('pins news freshness without sending an unsupported country filter', async () => {
+  test('pins explicit news freshness without sending an unsupported country filter', async () => {
     const organization = register({
       ...openrouter,
       search: { ...openrouter.search, topic: 'general' },
@@ -720,6 +721,7 @@ describe('per-organization AI clients', () => {
       scope: 'local',
       country: 'russia',
       freshnessRequired: true,
+      topic: 'news',
     });
 
     expect(built.tavily[0]).toMatchObject({
@@ -728,6 +730,104 @@ describe('per-organization AI clients', () => {
       searchDepth: 'advanced',
     });
     expect(built.tavily[0]).not.toHaveProperty('country');
+  });
+
+
+  test.each([
+    ['fresh subject', 'general', true, undefined, 'week', 5],
+    ['workspace news default', 'news', false, undefined, 'week', 5],
+    ['named thirty-day window', 'general', true, 30, 'month', 7],
+  ])(
+    'preserves explicit Tavily geography with %s',
+    async (_label, workspaceTopic, freshnessRequired, windowDays, timeRange, maxResults) => {
+      const organization = register({
+        ...openrouter,
+        search: { ...openrouter.search, topic: workspaceTopic },
+      });
+      const client = await clients.getWebSearchClient(organization, 'tavily', {
+        scope: 'local', country: 'russia', freshnessRequired, windowDays, maxResults,
+      });
+      expect(built.tavily[0]).toMatchObject({
+        topic: 'general', country: 'russia', timeRange, maxResults,
+        searchDepth: 'advanced', includeAnswer: true, includeRawContent: true, includeUsage: true,
+      });
+      await client.invoke({ query: 'Маркировка рекламы в Telegram в России в 2026 году' });
+      expect(built.tavilyInvocations).toEqual([{
+        input: { query: 'Маркировка рекламы в Telegram в России в 2026 году' }, config: undefined,
+      }]);
+    }
+  );
+
+  test.each([
+    ['global country hint', { scope: 'global', country: 'russia' }],
+    ['local without country', { scope: 'local' }],
+  ])('keeps inferred Tavily news for %s', async (_label, location) => {
+    const organization = register({
+      ...openrouter, search: { ...openrouter.search, topic: 'general' },
+    });
+    await clients.getWebSearchClient(organization, 'tavily', {
+      ...location, freshnessRequired: true,
+    });
+    expect(built.tavily[0]).toMatchObject({ topic: 'news', timeRange: 'week' });
+    expect(built.tavily[0]).not.toHaveProperty('country');
+  });
+
+  test('explicit Tavily general keeps its existing override of inferred freshness', async () => {
+    const organization = register(openrouter);
+    await clients.getWebSearchClient(organization, 'tavily', {
+      scope: 'local', country: 'russia', freshnessRequired: true, topic: 'general',
+    });
+    expect(built.tavily[0]).toMatchObject({ topic: 'general', country: 'russia' });
+    expect(built.tavily[0]).not.toHaveProperty('timeRange');
+  });
+
+  test.each([false, true])(
+    'separates inferred general from explicit news in Tavily memo (news first=%s)',
+    async (newsFirst) => {
+      const organization = register({
+        ...openrouter, search: { ...openrouter.search, topic: 'general' },
+      });
+      const options = { scope: 'local', country: 'russia', freshnessRequired: true };
+      const inferred = () => clients.getWebSearchClient(organization, 'tavily', options);
+      const explicit = () => clients.getWebSearchClient(organization, 'tavily', {
+        ...options, topic: 'news',
+      });
+      const first = await (newsFirst ? explicit() : inferred());
+      const second = await (newsFirst ? inferred() : explicit());
+      expect(first).not.toBe(second);
+      expect(built.tavily).toHaveLength(2);
+      const byTopic = Object.fromEntries(built.tavily.map((config) => [config.topic, config]));
+      expect(byTopic.general).toMatchObject({ country: 'russia', timeRange: 'week' });
+      expect(byTopic.news).toMatchObject({ timeRange: 'week' });
+      expect(byTopic.news).not.toHaveProperty('country');
+      expect(await inferred()).toBe(newsFirst ? second : first);
+      expect(await explicit()).toBe(newsFirst ? first : second);
+      expect(built.tavily).toHaveLength(2);
+    }
+  );
+
+  test('local Tavily geography keeps diagnostic response fields and one invocation', async () => {
+    const organization = register(openrouter);
+    tavilyImplementation = async () => ({
+      answer: 'Provider answer', usage: { credits: 2 },
+      results: [{ title: 'Legal source', url: 'https://example.com/legal',
+        content: 'Selected snippet', raw_content: 'Original page', published_date: '2026-01-01', score: 0.8 }],
+    });
+    const client = await clients.getWebSearchClient(organization, 'tavily', {
+      scope: 'local', country: 'russia', freshnessRequired: true,
+    });
+    await expect(client.invoke({ query: 'Original query' })).resolves.toEqual({
+      answer: 'Provider answer', usage: { credits: 2 },
+      results: [{ title: 'Legal source', url: 'https://example.com/legal',
+        content: 'Selected snippet', rawContent: 'Original page', published_date: '2026-01-01', score: 0.8 }],
+    });
+    expect(built.tavilyInvocations).toHaveLength(1);
+    tavilyImplementation = async () => ({ error: 'quota exhausted', status: 429, code: 'TAVILY_RATE_LIMIT' });
+    await expect(client.invoke({ query: 'Original query' })).rejects.toMatchObject({
+      message: 'quota exhausted', status: 429, code: 'TAVILY_RATE_LIMIT',
+    });
+    expect(built.tavilyInvocations).toHaveLength(2);
+    expect(built.tavily).toHaveLength(1);
   });
 
   test("normalizes Tavily's empty-result error for fallback detection", async () => {

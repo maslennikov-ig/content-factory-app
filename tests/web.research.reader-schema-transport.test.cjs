@@ -55,7 +55,7 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
         text: 'Синтетический факт.',
         kind: 'context',
         refs: [{ source: 'S1', quote: '😀 точная цитата' }],
-        dates: [],
+        dates: [{ kind: 'as_of', date: '2026-10-01', ref: { source: 'S1', quote: '1 октября 2026' } }],
       },
     ],
     coverage: [{ question: 'synthetic', status: 'supported' }],
@@ -78,6 +78,9 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
         const schema = request.response_format.json_schema.schema;
         expect(JSON.stringify(schema)).not.toContain('#/properties/');
         expect(schema.$defs.q).toEqual(readerReviewWireJsonSchema.$defs.q);
+        expect(schema.properties.claims.items.properties.dates.items.properties.date).toEqual({
+          type: 'string', maxLength: 10, pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+        });
         return new Response(
           JSON.stringify({
             id: 'offline',
@@ -124,3 +127,32 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
     additionalProperties: false,
   });
 });
+
+test.each(['Russian', 'English', 'Haitian Creole'])(
+  'canonical date instruction and actual wire schema retain 4k rules and 25k aggregate for %s',
+  (language) => {
+    const { HumanMessage } = require('@langchain/core/messages');
+    const { packReaderReview } = require('./helpers/reader-source-review.cjs');
+    const sources = Array.from({ length: 8 }, (_, i) => ({
+      url: `https://example.org/date-budget/${i}`, title: 'слово'.repeat(100), publishedAt: '2026-10-02',
+    }));
+    const facts = sources.map(source => ({ sourceUrl: source.url, text: '😀\\"\n'.repeat(1000) }));
+    const input = packReaderReview('я'.repeat(5000), sources, facts, language);
+    expect(input).not.toBeNull();
+    const marker = 'Untrusted reader evidence:\n';
+    const rules = input.prompt.slice(0, input.prompt.indexOf(marker) + marker.length);
+    const actualBytes = prompt => Buffer.byteLength(JSON.stringify({
+      messages: [new HumanMessage(prompt)], schema: readerReviewWireJsonSchema,
+    }));
+    expect(rules).toContain('YYYY-MM-DD');
+    expect(rules).toContain('quote full dates from claim-cited sources');
+    expect(rules).toContain('no inferred/requested/current substitutions');
+    expect(actualBytes(rules)).toBeLessThanOrEqual(4000);
+    expect(input.inputBytes).toBe(actualBytes(input.prompt));
+    expect(input.inputBytes).toBeLessThanOrEqual(25000);
+    expect(Buffer.byteLength(JSON.stringify(input.evidence))).toBeLessThanOrEqual(21000);
+    expect(readerReviewJsonSchema.properties.claims.items.properties.dates.items.properties.date).toEqual({
+      type: 'string', maxLength: 10,
+    });
+  }
+);
