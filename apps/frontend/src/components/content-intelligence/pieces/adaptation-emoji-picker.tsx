@@ -65,7 +65,7 @@ export function AdaptationEmojiPicker({
 
   if (!loaded) {
     return (
-      <div className="flex w-[320px] max-w-full flex-col items-start gap-[8px] p-[12px]">
+      <div className="flex w-full max-w-full flex-col items-start gap-[8px] p-[12px]">
         <p
           role={failed ? 'alert' : 'status'}
           aria-busy={!failed}
@@ -86,7 +86,7 @@ export function AdaptationEmojiPicker({
   return (
     <Picker
       open
-      width={320}
+      width="100%"
       height={360}
       emojiStyle={loaded.EmojiStyle.NATIVE}
       theme={

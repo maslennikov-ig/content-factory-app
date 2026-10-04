@@ -71,7 +71,10 @@ const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const base = 'apps/frontend/src/components/content-intelligence/pieces';
 const toolbar = loadTypeScriptModule(`${base}/adaptation-toolbar.ts`);
-const { AdaptationEditor } = loadTypeScriptModule(`${base}/adaptation-editor.tsx`);
+const {
+  AdaptationEditor,
+  calculateEmojiPickerFrame,
+} = loadTypeScriptModule(`${base}/adaptation-editor.tsx`);
 
 afterEach(cleanup);
 
@@ -188,6 +191,95 @@ describe('the emoji button', () => {
     expect(picker.querySelector('input[placeholder="Найти эмодзи"]')).not.toBeNull();
   });
 
+  test('clamps anchors at both viewport widths and chooses a fitting vertical side', () => {
+    const anchor = (left, right, top = 100, bottom = 124) => ({
+      left,
+      right,
+      top,
+      bottom,
+    });
+    const horizontalCases = [
+      { viewport: 390, anchor: anchor(8, 24), left: 16 },
+      { viewport: 390, anchor: anchor(178, 194), left: 54 },
+      { viewport: 390, anchor: anchor(366, 382), left: 54 },
+      { viewport: 1440, anchor: anchor(8, 24), left: 16 },
+      { viewport: 1440, anchor: anchor(560, 576), left: 560 },
+      { viewport: 1440, anchor: anchor(1370, 1386), left: 1104 },
+    ];
+
+    for (const { viewport, anchor: trigger, left } of horizontalCases) {
+      const frame = calculateEmojiPickerFrame(trigger, viewport, 900, 360);
+      expect(frame.left).toBe(left);
+      expect(frame.left).toBeGreaterThanOrEqual(16);
+      expect(frame.left + frame.width).toBeLessThanOrEqual(viewport - 16);
+    }
+
+    expect(
+      calculateEmojiPickerFrame(anchor(178, 194, 100, 124), 390, 800, 360).top
+    ).toBe(128);
+    expect(
+      calculateEmojiPickerFrame(anchor(178, 194, 650, 674), 390, 800, 360).top
+    ).toBe(286);
+    const shortViewport = calculateEmojiPickerFrame(
+      anchor(178, 194),
+      390,
+      300,
+      360
+    );
+    expect(shortViewport.top).toBe(16);
+    expect(shortViewport.maxHeight).toBe(268);
+    expect(
+      calculateEmojiPickerFrame(anchor(178, 194), 390, 300, 56).top
+    ).toBe(128);
+  });
+
+  test('applies the measured, clamped frame to the open picker', async () => {
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    const originalHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    let rect;
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 700,
+    });
+
+    try {
+      await openEditor();
+      const trigger = screen.getByRole('button', { name: 'Эмодзи' });
+      rect = jest.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+        left: 178,
+        right: 194,
+        top: 100,
+        bottom: 124,
+        width: 16,
+        height: 24,
+        x: 178,
+        y: 100,
+        toJSON: () => ({}),
+      });
+      fireEvent.click(trigger);
+      await flush();
+
+      const panel = document.querySelector('[data-editor-emoji-picker]');
+      expect(panel.className).toContain('fixed');
+      expect(panel.style.left).toBe('54px');
+      expect(panel.style.top).toBe('128px');
+      expect(panel.style.width).toBe('320px');
+      expect(panel.style.maxHeight).toBe('668px');
+    } finally {
+      rect?.mockRestore();
+      if (originalWidth)
+        Object.defineProperty(window, 'innerWidth', originalWidth);
+      else delete window.innerWidth;
+      if (originalHeight)
+        Object.defineProperty(window, 'innerHeight', originalHeight);
+      else delete window.innerHeight;
+    }
+  });
+
   test('the picker follows the page theme on <body>, not a storage key (fourteenth walk, P3-5)', async () => {
     const source = fs.readFileSync(
       path.join(__dirname, '..', 'apps/frontend/src/components/content-intelligence/pieces/adaptation-editor.tsx'),
@@ -258,6 +350,20 @@ describe('the emoji button', () => {
     await flush();
     expect(document.querySelector('[data-editor-emoji-picker]')).not.toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' });
+    await flush();
+    expect(document.querySelector('[data-editor-emoji-picker]')).toBeNull();
+  });
+
+  test('clicking inside the portaled picker stays open; clicking outside closes it', async () => {
+    await openEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Эмодзи' }));
+    await flush();
+
+    const panel = document.querySelector('[data-editor-emoji-picker]');
+    fireEvent.mouseDown(panel.querySelector('input'));
+    expect(document.querySelector('[data-editor-emoji-picker]')).not.toBeNull();
+
+    fireEvent.mouseDown(document.body);
     await flush();
     expect(document.querySelector('[data-editor-emoji-picker]')).toBeNull();
   });

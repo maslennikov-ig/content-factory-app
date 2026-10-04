@@ -209,3 +209,17 @@ describe('kcxz.32 N2 (c): a thanks is not a request', () => {
     expect(content).toMatch(/`outcome: stale`[^\n]*nothing was applied and nothing more spent/);
   });
 });
+
+describe('content creation asks for a missing thought before calling piece.create', () => {
+  const { CONDUCTOR_SKILL_SPECS } = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts',
+    { '@mastra/core/skills': { createSkill: (spec) => spec } }
+  );
+  const content = CONDUCTOR_SKILL_SPECS.find((spec) => spec.name === 'content').instructions;
+
+  test('it asks and waits when no actual thought, text, or source was supplied', () => {
+    expect(content).toMatch(
+      /if the person asks to write from a thought but has supplied no actual thought, text or source, ask what they want to write from and wait; do not invent it or call `piece\.create`\./i
+    );
+  });
+});

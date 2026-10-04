@@ -1,10 +1,16 @@
 import type { INestApplication } from '@nestjs/common';
-import * as Sentry from '@sentry/nestjs';
+import type * as SentryLight from '@sentry/node-core/light' with {
+  'resolution-mode': 'require',
+};
 import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import {
   createErrorCollectionOptions,
   normalizeErrorCollectionDsn,
 } from '@contentfactory/helpers/errors/create.error.collection.options';
+
+// The public Light entry's export types need explicit resolution in this
+// CommonJS project. The type-only import is erased; initialization stays early.
+const Sentry: typeof SentryLight = require('@sentry/node-core/light');
 
 type ServerService = 'backend' | 'orchestrator';
 type Environment = Record<string, string | undefined>;

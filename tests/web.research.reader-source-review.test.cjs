@@ -18,8 +18,42 @@ const prefix = harnessText
     )
   )
   .replace(
+    'let summaryError;',
+    'let summaryError; let reviewPhaseError; let reviewTermination;'
+  )
+  .replace('  modelLedgers: [],', '  modelLedgers: [], warnings: [],')
+  .replace('warn() {}', 'warn(message) { calls.warnings.push(message); }')
+  .replace(
+    "'@contentfactory/nestjs-libraries/openai/ai.usage.service': {",
+    `'@contentfactory/nestjs-libraries/openai/reader-source-review': {
+       ...require('./helpers/reader-source-review.cjs'),
+       validateReaderReview(input, raw) {
+         if (reviewPhaseError?.phase === 'validation') throw reviewPhaseError.error;
+         return require('./helpers/reader-source-review.cjs').validateReaderReview(input, raw);
+       },
+     },
+     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {`
+  )
+  .replace(
     'return { withStructuredOutput: () => ({}) };',
-    'return { withStructuredOutput: (schema) => {calls.model.at(-1).schema=schema; return {}; } };'
+    `if (calls.model.length > 1 && reviewPhaseError?.phase === 'model-resolution') throw reviewPhaseError.error;
+     return { withStructuredOutput: (schema) => {
+       calls.model.at(-1).schema=schema;
+       if (calls.model.length > 1 && reviewPhaseError?.phase === 'structured-output') throw reviewPhaseError.error;
+       return {};
+     } };`
+  )
+  .replace(
+    '            invoke: async (input) => {',
+    '            invoke: async (input, config) => {'
+  )
+  .replace(
+    'if (isClassifier) return classification;',
+    `if (isClassifier) return classification;
+     if (reviewTermination !== undefined) {
+       for (const callback of config?.callbacks || []) await callback.handleLLMEnd?.(reviewTermination);
+     }
+     if (reviewPhaseError?.phase === 'invocation') throw reviewPhaseError.error;`
   );
 if (prefix.length < 5000)
   throw new Error('Existing real-service ports not found');
@@ -34,13 +68,19 @@ const h = new Function(
       classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired:false};
       responses={tavily:{answer,usage:{credits:2},results:input.sources.map(r=>({title:r.title,url:r.url,content:r.excerpt,published_date:r.publishedAt}))}};
       summaryOutput=output;
-    }, fail(error) {summaryError=error;}
+    }, fail(error) {summaryError=error;},
+    failPhase(phase, error) {reviewPhaseError={phase,error};},
+    endMetadata(payload) {reviewTermination=payload;},
+    resetDiagnostics() {reviewPhaseError=undefined;reviewTermination=undefined;}
   };
 `
 )(require, (callback) => {
   resetPorts = callback;
 });
-beforeEach(() => resetPorts());
+beforeEach(() => {
+  resetPorts();
+  h.resetDiagnostics();
+});
 const rejected = (input) => ({
   sources: input.sources.map((_, i) => ({
     id: `S${i + 1}`,
@@ -329,6 +369,235 @@ test('transport failure preserves completed search and both accounted attempts w
   expect(h.calls.rows).toHaveLength(1);
   expect(h.calls.rows[0].columns.promptTokens).toBe(200);
   expect(h.calls.rows[0].columns.costUsd).toBeCloseTo(0.0003);
+});
+
+const diagnostic = () => {
+  expect(h.calls.warnings).toHaveLength(1);
+  const prefix = 'Web research reader review unavailable. ';
+  expect(h.calls.warnings[0].startsWith(prefix)).toBe(true);
+  return JSON.parse(h.calls.warnings[0].slice(prefix.length));
+};
+const sensitiveReaderError = (
+  name,
+  status,
+  error = new Error('SENSITIVE_READER_MESSAGE')
+) => {
+  const touched = [];
+  error.name = name;
+  if (status !== undefined) error.status = status;
+  for (const field of [
+    'message',
+    'stack',
+    'cause',
+    'request',
+    'response',
+    'body',
+    'error',
+    'param',
+  ]) {
+    Object.defineProperty(error, field, {
+      get() {
+        touched.push(field);
+        throw new Error('SENSITIVE_READER_PROPERTY_ACCESSED');
+      },
+    });
+  }
+  return { error, touched };
+};
+
+test.each([
+  [
+    'model-resolution',
+    'AiUsageContextRequired',
+    undefined,
+    'usage_context_required',
+  ],
+  ['structured-output', 'SENSITIVE_READER_CLASS', undefined, 'unknown'],
+  ['invocation', 'APIError', 400, 'provider_rejected'],
+  ['validation', 'SyntaxError', undefined, 'json_parse'],
+])(
+  'reader %s exception logs only fixed diagnostics without sensitive fields',
+  async (phase, name, status, failure) => {
+    const input = sample();
+    h.set(input, 'Не возвращать запасной ответ.', review(input));
+    const { error, touched } = sensitiveReaderError(name, status);
+    h.failPhase(phase, error);
+    const out = await h.search(input.subject);
+    expect(out.readerAssessment.status).toBe('review_unavailable');
+    expect(out.summary).toBe('');
+    expect(out.facts).toEqual([]);
+    expect(diagnostic()).toEqual({
+      phase,
+      failure,
+      termination: 'unobserved',
+      providerCode: 'unobserved',
+    });
+    expect(touched).toEqual([]);
+    expect(JSON.stringify(h.calls.warnings)).not.toContain('SENSITIVE_READER');
+    expect(h.calls.search).toHaveLength(1);
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.model[1]).toMatchObject({
+      role: 'classify',
+      maxTokens: 1200,
+    });
+    expect(h.calls.rows).toHaveLength(1);
+    expect(h.calls.rows[0].succeeded).toBe(true);
+  }
+);
+
+test.each([
+  [{}, 'unknown'],
+  [
+    {
+      generations: [
+        [{ generationInfo: { finish_reason: 'SENSITIVE_READER_TERMINATION' } }],
+      ],
+    },
+    'unknown',
+  ],
+  [
+    { generations: [[{ generationInfo: { finish_reason: 'length' } }]] },
+    'length',
+  ],
+])(
+  'reader token termination is bounded and missing generations are safe: %j',
+  async (metadata, termination) => {
+    h.set(sample(), 'Не возвращать запасной ответ.', review(sample()));
+    h.endMetadata(metadata);
+    const { error, touched } = sensitiveReaderError('OutputParserException');
+    h.fail(error);
+    const out = await h.search(subject);
+    expect(out.readerAssessment.status).toBe('review_unavailable');
+    expect(diagnostic()).toEqual({
+      phase: 'invocation',
+      failure: 'output_parse',
+      termination,
+      providerCode: 'unobserved',
+    });
+    expect(touched).toEqual([]);
+    expect(JSON.stringify(h.calls.warnings)).not.toContain('SENSITIVE_READER');
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.search).toHaveLength(1);
+  }
+);
+
+test('reader validation rejection logs its fixed code without the rejected model payload', async () => {
+  const input = sample(),
+    output = review(input);
+  output.claims[0].text = 'SENSITIVE_READER_OUTPUT';
+  output.claims[0].refs[0].source = 'S9';
+  h.set(input, 'Не возвращать запасной ответ.', output);
+  const out = await h.search(input.subject);
+  expect(out.readerAssessment.status).toBe('review_unavailable');
+  expect(diagnostic()).toEqual({
+    phase: 'validation',
+    failure: 'validation_rejected',
+    termination: 'unobserved',
+    providerCode: 'unobserved',
+  });
+  expect(JSON.stringify(h.calls.warnings)).not.toContain(
+    'SENSITIVE_READER_OUTPUT'
+  );
+  expect(out.summary).toBe('');
+  expect(out.facts).toEqual([]);
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.search).toHaveLength(1);
+});
+
+test('reader success is unchanged when callback metadata omits generations', async () => {
+  const input = sample();
+  h.set(input, 'Готовый ответ.', review(input));
+  h.endMetadata({});
+  const out = await h.search(input.subject);
+  expect(out.readerAssessment.status).toBe('supported');
+  expect(out.facts).toHaveLength(1);
+  expect(out.summary).toBe('Версия 2 действовала на указанную дату.');
+  expect(h.calls.warnings).toEqual([]);
+  expect(h.calls.model).toHaveLength(2);
+});
+
+test.each([
+  [
+    'official SDK code',
+    'invalid_json_schema',
+    'invalid_request_error',
+    'invalid_json_schema',
+  ],
+  ['official SDK type', null, 'insufficient_quota', 'insufficient_quota'],
+  [
+    'untrusted code',
+    'SENSITIVE_READER_PROVIDER_CODE',
+    'invalid_request_error',
+    'unknown',
+  ],
+  ['nonexact code', ' invalid_schema ', undefined, 'unknown'],
+  ['missing code/type', undefined, undefined, 'unobserved'],
+])(
+  'reader provider code is exact and bounded: %s',
+  async (_label, code, type, providerCode) => {
+    const { APIError } = require('openai');
+    const apiError = new APIError(
+      400,
+      { code, type, message: 'SENSITIVE_READER_PROVIDER_MESSAGE' },
+      undefined,
+      undefined
+    );
+    const { error, touched } = sensitiveReaderError(
+      apiError.name,
+      400,
+      apiError
+    );
+    h.set(sample(), 'Не возвращать запасной ответ.', review(sample()));
+    h.fail(error);
+    const out = await h.search(subject);
+    expect(out.readerAssessment.status).toBe('review_unavailable');
+    expect(diagnostic()).toEqual({
+      phase: 'invocation',
+      failure: 'provider_rejected',
+      termination: 'unobserved',
+      providerCode,
+    });
+    expect(touched).toEqual([]);
+    expect(JSON.stringify(h.calls.warnings)).not.toContain('SENSITIVE_READER');
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.search).toHaveLength(1);
+  }
+);
+
+test.each(['code', 'type'])(
+  'reader provider code accessor %s is never evaluated or logged',
+  async (field) => {
+    const { error, touched } = sensitiveReaderError('APIError', 400);
+    Object.defineProperty(error, field, {
+      get() {
+        touched.push(field);
+        throw new Error('SENSITIVE_READER_CODE_GETTER');
+      },
+    });
+    h.set(sample(), 'Не возвращать запасной ответ.', review(sample()));
+    h.fail(error);
+    const out = await h.search(subject);
+    expect(out.readerAssessment.status).toBe('review_unavailable');
+    expect(diagnostic().providerCode).toBe('unknown');
+    expect(touched).toEqual([]);
+    expect(JSON.stringify(h.calls.warnings)).not.toContain('SENSITIVE_READER');
+  }
+);
+
+test('reader provider code object is never coerced into an observable string', async () => {
+  const { error, touched } = sensitiveReaderError('APIError', 400);
+  error.code = {
+    toString() {
+      touched.push('toString');
+      return 'invalid_schema';
+    },
+  };
+  h.set(sample(), 'Не возвращать запасной ответ.', review(sample()));
+  h.fail(error);
+  const out = await h.search(subject);
+  expect(out.readerAssessment.status).toBe('review_unavailable');
+  expect(diagnostic().providerCode).toBe('unknown');
+  expect(touched).toEqual([]);
 });
 
 test('generic requested VTB mention stays contextual, exact and grounded beyond1000', async () => {

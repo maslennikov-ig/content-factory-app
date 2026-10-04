@@ -1,7 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import clsx from 'clsx';
+import { createPortal } from 'react-dom';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
@@ -26,6 +33,57 @@ import {
   type AdaptationImageV1,
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
+
+const EMOJI_PICKER_WIDTH = 320;
+const EMOJI_PICKER_GUTTER = 16;
+const useClientLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+type EmojiAnchorRect = Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>;
+type EmojiPickerFrame = {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+};
+
+export function calculateEmojiPickerFrame(
+  anchor: EmojiAnchorRect,
+  viewportWidth: number,
+  viewportHeight: number,
+  panelHeight: number,
+  direction: 'ltr' | 'rtl' = 'ltr'
+): EmojiPickerFrame {
+  const width = Math.max(
+    0,
+    Math.min(EMOJI_PICKER_WIDTH, viewportWidth - EMOJI_PICKER_GUTTER * 2)
+  );
+  const maxHeight = Math.max(0, viewportHeight - EMOJI_PICKER_GUTTER * 2);
+  const height = Math.min(panelHeight, maxHeight);
+  const preferredLeft = direction === 'rtl' ? anchor.right - width : anchor.left;
+  const maxLeft = Math.max(
+    EMOJI_PICKER_GUTTER,
+    viewportWidth - width - EMOJI_PICKER_GUTTER
+  );
+  const left = Math.min(Math.max(preferredLeft, EMOJI_PICKER_GUTTER), maxLeft);
+
+  const below = anchor.bottom + 4;
+  const above = anchor.top - height - 4;
+  const bottomEdge = viewportHeight - EMOJI_PICKER_GUTTER;
+  const preferredTop =
+    below + height <= bottomEdge
+      ? below
+      : above >= EMOJI_PICKER_GUTTER && above + height <= bottomEdge
+      ? above
+      : below;
+  const maxTop = Math.max(
+    EMOJI_PICKER_GUTTER,
+    viewportHeight - height - EMOJI_PICKER_GUTTER
+  );
+  const top = Math.min(Math.max(preferredTop, EMOJI_PICKER_GUTTER), maxTop);
+
+  return { left, top, width, maxHeight };
+}
 
 type RichTextComponent = typeof import('./adaptation-rich-text').AdaptationRichText;
 
@@ -131,7 +189,60 @@ export function AdaptationEditor({
   }, []);
   const tools = editorToolsFor(format);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojiFrame, setEmojiFrame] = useState<EmojiPickerFrame | null>(null);
   const emojiRoot = useRef<HTMLSpanElement | null>(null);
+  const emojiTrigger = useRef<HTMLButtonElement | null>(null);
+  const emojiPanel = useRef<HTMLSpanElement | null>(null);
+
+  useClientLayoutEffect(() => {
+    if (!emojiOpen) return;
+
+    const measure = () => {
+      const trigger = emojiTrigger.current;
+      const panel = emojiPanel.current;
+      if (!trigger || !panel) return;
+
+      const picker = panel.querySelector<HTMLElement>('.EmojiPickerReact');
+      const panelHeight =
+        picker?.getBoundingClientRect().height ||
+        panel.scrollHeight ||
+        panel.getBoundingClientRect().height ||
+        360;
+      const anchor = trigger.getBoundingClientRect();
+      const direction = window.getComputedStyle(trigger).direction;
+      const next = calculateEmojiPickerFrame(
+        anchor,
+        window.innerWidth,
+        window.innerHeight,
+        panelHeight,
+        direction === 'rtl' ? 'rtl' : 'ltr'
+      );
+      setEmojiFrame((current) =>
+        current &&
+        current.left === next.left &&
+        current.top === next.top &&
+        current.width === next.width &&
+        current.maxHeight === next.maxHeight
+          ? current
+          : next
+      );
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(measure);
+    if (emojiPanel.current) resizeObserver?.observe(emojiPanel.current);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+      resizeObserver?.disconnect();
+    };
+  }, [emojiOpen]);
 
   /*
     Щелчок мимо и Escape закрывают выбор эмодзи — тем же порядком, что у
@@ -141,7 +252,10 @@ export function AdaptationEditor({
   useEffect(() => {
     if (!emojiOpen) return;
     const onPointer = (event: MouseEvent) => {
-      if (!emojiRoot.current?.contains(event.target as Node))
+      if (
+        !emojiRoot.current?.contains(event.target as Node) &&
+        !emojiPanel.current?.contains(event.target as Node)
+      )
         setEmojiOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
@@ -408,6 +522,7 @@ export function AdaptationEditor({
               {tools.includes('emoji') ? (
                 <span ref={emojiRoot} className="relative inline-flex">
                   <Button
+                    ref={emojiTrigger}
                     type="button"
                     variant="quiet"
                     density="dense"
@@ -423,25 +538,6 @@ export function AdaptationEditor({
                   >
                     <EmojiIcon aria-hidden="true" />
                   </Button>
-                  {emojiOpen ? (
-                    <span
-                      role="dialog"
-                      aria-label={t.toolEmoji}
-                      data-editor-emoji-picker="true"
-                      className="absolute start-0 top-[calc(100%+4px)] z-[300] max-w-[calc(100vw-32px)] rounded-[8px] shadow-menu"
-                    >
-                      <AdaptationEmojiPicker
-                        searchPlaceholder={t.emojiSearch}
-                        loadingLabel={common('loading', 'Loading')}
-                        failedLabel={common(
-                          'error_occurred',
-                          'An error occurred. Please try again.'
-                        )}
-                        retryLabel={t.retry}
-                        onPick={insertEmoji}
-                      />
-                    </span>
-                  ) : null}
                 </span>
               ) : null}
             </>
@@ -769,6 +865,38 @@ export function AdaptationEditor({
           </p>
         ) : null}
       </div>
+      {/* Body portal keeps fixed viewport coordinates outside animated ancestors. */}
+      {emojiOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <span
+              ref={emojiPanel}
+              role="dialog"
+              aria-label={t.toolEmoji}
+              data-editor-emoji-picker="true"
+              style={
+                emojiFrame ?? {
+                  left: EMOJI_PICKER_GUTTER,
+                  top: EMOJI_PICKER_GUTTER,
+                  width: EMOJI_PICKER_WIDTH,
+                  maxHeight: 'calc(100vh - 32px)',
+                }
+              }
+              className="fixed z-[300] max-w-[calc(100vw-32px)] overflow-y-auto rounded-[8px] shadow-menu"
+            >
+              <AdaptationEmojiPicker
+                searchPlaceholder={t.emojiSearch}
+                loadingLabel={common('loading', 'Loading')}
+                failedLabel={common(
+                  'error_occurred',
+                  'An error occurred. Please try again.'
+                )}
+                retryLabel={t.retry}
+                onPick={insertEmoji}
+              />
+            </span>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

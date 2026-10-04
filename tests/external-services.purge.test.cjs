@@ -246,6 +246,12 @@ describe('external services stay removed', () => {
         name: '@sentry/nextjs',
         version: '10.70.0',
       },
+      {
+        manifestPath: 'package.json',
+        section: 'dependencies',
+        name: '@sentry/node-core',
+        version: '10.70.0',
+      },
     ]);
 
     const allowedSources = new Set([

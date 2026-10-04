@@ -55,6 +55,135 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/research/encyclopedic-reference';
 import type { ResearchDnsResolver } from '@contentfactory/nestjs-libraries/content-intelligence/research/constrained-static-fetch';
 
+export type ReaderReviewPhase =
+  | 'model-resolution'
+  | 'structured-output'
+  | 'invocation'
+  | 'validation';
+export type ReaderReviewFailureCode =
+  | 'usage_context_required'
+  | 'output_parse'
+  | 'json_parse'
+  | 'timeout'
+  | 'connection'
+  | 'provider_auth'
+  | 'provider_rate_limit'
+  | 'provider_rejected'
+  | 'provider_failure'
+  | 'validation_rejected'
+  | 'unknown';
+export type ReaderReviewTermination =
+  | 'unobserved'
+  | 'stop'
+  | 'length'
+  | 'tool_calls'
+  | 'function_call'
+  | 'content_filter'
+  | 'unknown';
+export type ReaderReviewProviderCode =
+  | 'invalid_schema'
+  | 'invalid_json_schema'
+  | 'context_length_exceeded'
+  | 'unsupported_parameter'
+  | 'unsupported_value'
+  | 'model_not_found'
+  | 'invalid_api_key'
+  | 'rate_limit_exceeded'
+  | 'insufficient_quota'
+  | 'unknown'
+  | 'unobserved';
+
+const readerReviewErrorProperty = (error: unknown, key: 'name' | 'status') => {
+  if (!error || typeof error !== 'object') return undefined;
+  try {
+    return Reflect.get(error, key);
+  } catch {
+    return undefined;
+  }
+};
+
+/** Only fixed codes leave this function; never messages, stacks or causes. */
+export const readerReviewSafeFailure = (
+  error: unknown
+): ReaderReviewFailureCode => {
+  const name = readerReviewErrorProperty(error, 'name');
+  if (name === 'AiUsageContextRequired') return 'usage_context_required';
+  if (name === 'OutputParserException' || name === 'ZodError')
+    return 'output_parse';
+  if (name === 'SyntaxError') return 'json_parse';
+  if (
+    name === 'AbortError' ||
+    name === 'TimeoutError' ||
+    name === 'APIConnectionTimeoutError'
+  )
+    return 'timeout';
+  if (name === 'APIConnectionError') return 'connection';
+  const status = readerReviewErrorProperty(error, 'status');
+  if (status === 401 || status === 403) return 'provider_auth';
+  if (status === 429) return 'provider_rate_limit';
+  if (status === 408 || status === 504) return 'timeout';
+  if (status === 400 || status === 404 || status === 422)
+    return 'provider_rejected';
+  if (status === 500 || status === 502 || status === 503)
+    return 'provider_failure';
+  return 'unknown';
+};
+
+export const readerReviewSafeTermination = (
+  reason: unknown
+): ReaderReviewTermination => {
+  if (
+    reason === 'stop' ||
+    reason === 'length' ||
+    reason === 'tool_calls' ||
+    reason === 'function_call' ||
+    reason === 'content_filter'
+  )
+    return reason;
+  return 'unknown';
+};
+
+export const readerReviewSafeProviderCode = (
+  error: unknown
+): ReaderReviewProviderCode => {
+  if (!error || typeof error !== 'object') return 'unobserved';
+  try {
+    const code = Object.getOwnPropertyDescriptor(error, 'code');
+    const type = Object.getOwnPropertyDescriptor(error, 'type');
+    if ((code && !('value' in code)) || (type && !('value' in type)))
+      return 'unknown';
+    const values: unknown[] = [code?.value, type?.value];
+    if (values.every((value) => value === undefined || value === null))
+      return 'unobserved';
+    for (const value of values) {
+      if (
+        value === 'invalid_schema' ||
+        value === 'invalid_json_schema' ||
+        value === 'context_length_exceeded' ||
+        value === 'unsupported_parameter' ||
+        value === 'unsupported_value' ||
+        value === 'model_not_found' ||
+        value === 'invalid_api_key' ||
+        value === 'rate_limit_exceeded' ||
+        value === 'insufficient_quota'
+      )
+        return value;
+    }
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+};
+
+export const readerReviewFailureLine = (
+  phase: ReaderReviewPhase,
+  failure: ReaderReviewFailureCode,
+  termination: ReaderReviewTermination,
+  providerCode: ReaderReviewProviderCode = 'unobserved'
+) =>
+  'Web research reader review unavailable. ' +
+  JSON.stringify({ phase, failure, termination, providerCode });
+
 /**
  * Who brought the row. A search engine is chosen and paid for in settings;
  * `wikipedia` and `wikidata` are the keyless lane and are never selectable as
@@ -1501,24 +1630,51 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     if (!input || !input.evidence.sources.length)
       return { assessment, summary: '', facts: [] as WebResearchFact[] };
+    let phase: ReaderReviewPhase = 'model-resolution';
+    let termination: ReaderReviewTermination = 'unobserved';
     try {
-      const writer = (
-        await getChatModel(
-          organizationId,
-          0,
-          RESEARCH_SUMMARY_MAX_TOKENS,
-          'classify'
-        )
-      ).withStructuredOutput(readerReviewJsonSchema);
+      const model = await getChatModel(
+        organizationId,
+        0,
+        RESEARCH_SUMMARY_MAX_TOKENS,
+        'classify'
+      );
+      phase = 'structured-output';
+      const writer = model.withStructuredOutput(readerReviewJsonSchema);
+      phase = 'invocation';
       const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
         .pipe(writer)
-        .invoke({ reviewRequest: input.prompt });
+        .invoke(
+          { reviewRequest: input.prompt },
+          {
+            callbacks: [
+              {
+                handleLLMEnd(output) {
+                  termination = readerReviewSafeTermination(
+                    output?.generations?.[0]?.[0]?.generationInfo?.finish_reason
+                  );
+                },
+              },
+            ],
+          }
+        );
+      phase = 'validation';
       const reviewed = validateReaderReview(input, raw);
       if (reviewed) return reviewed;
-    } catch {
+      this.logger.warn(
+        readerReviewFailureLine(phase, 'validation_rejected', termination)
+      );
+    } catch (error) {
       // Provider work has already ended. Never send a reader failure through
       // provider fallback, buy another review, or return an unreviewed answer.
-      this.logger.warn('Web research reader review unavailable.');
+      this.logger.warn(
+        readerReviewFailureLine(
+          phase,
+          readerReviewSafeFailure(error),
+          termination,
+          readerReviewSafeProviderCode(error)
+        )
+      );
     }
     assessment.status = 'review_unavailable';
     return { assessment, summary: '', facts: [] as WebResearchFact[] };

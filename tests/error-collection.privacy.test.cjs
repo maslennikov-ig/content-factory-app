@@ -341,9 +341,9 @@ describe('first-party error collection privacy boundary', () => {
     // are the installed SDK's and not this file's idea of them. A factory only
     // attaches its process listener from `setup(client)`, which stubbed `init`
     // never reaches.
-    const realSentry = require('@sentry/nestjs');
+    const realSentry = require('@sentry/node-core/light');
     const initializer = loadTypeScriptModule(sentryInitializerPath, {
-      '@sentry/nestjs': {
+      '@sentry/node-core/light': {
         init: (options) => initCalls.push(options),
         onUncaughtExceptionIntegration:
           realSentry.onUncaughtExceptionIntegration,
@@ -483,7 +483,7 @@ describe('first-party error collection privacy boundary', () => {
   });
 
   test('10.70 prepares a real exception before sanitizing and sends no attachment', async () => {
-    const Sentry = require('@sentry/nestjs');
+    const Sentry = require('@sentry/node-core/light');
     const { createErrorCollectionOptions } = errorCollectionOptionsModule();
     const envelopes = [];
     const secret = 'owner@example.com prompt: private launch';
@@ -544,7 +544,7 @@ describe('first-party error collection privacy boundary', () => {
         ].sort()
       );
       expect(payload.sdk).toMatchObject({
-        name: 'sentry.javascript.nestjs',
+        name: 'sentry.javascript.node-light',
         version: '10.70.0',
       });
       expect(JSON.stringify(envelopes)).not.toContain(secret);
@@ -554,7 +554,7 @@ describe('first-party error collection privacy boundary', () => {
   });
 
   test('ambient Sentry variables cannot add Spotlight or tracing', async () => {
-    const Sentry = require('@sentry/nestjs');
+    const Sentry = require('@sentry/node-core/light');
     const { createErrorCollectionOptions } = errorCollectionOptionsModule();
     const previousSpotlight = process.env.SENTRY_SPOTLIGHT;
     const previousTraceRate = process.env.SENTRY_TRACES_SAMPLE_RATE;

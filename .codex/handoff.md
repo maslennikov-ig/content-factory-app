@@ -1,10 +1,10 @@
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
-Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (df1/de615 basic delivery; full HOT pending)
+Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (C6/6dcc delivery + qualified voice/editor/manual chat; reader/native15/emoji/full HOT pending)
 Selected Beads epic: `content-factory-next-0qgn`
 Selected Beads goal: `content-factory-next-0qgn`
 
-## Active programme — 03.10.2026
+## Active programme — 04.10.2026
 
 Owner delegated completion and verification of the whole EPIC to root, including
 necessary actions and renewed execution with "continue". Native goal currently
@@ -14,79 +14,42 @@ criteria/owners remain preserved; Beads owns status.
 [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md).
 Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai owner-removed; actual ChatGPT remains required.
 
-## Current delivery and candidate — 03.10.2026
+## Current delivery and live verification — 04.10.2026
 
-- LIVE private df1a0b903db9844e8d6edba4dfddd2d9bf41ee6d/public de6151715a70244263d9ea53de9fc045baf7f961.
-  Index d74d6127416c652bd6f7b3ca2090bab294afb241bf0bf8c7f1317d5631ce5726;
-  config31a791b9f17c736ef55d990d7d4e21512d412f3c0b0d14ad33f6fc374705f53f.
-  Healthy0/1792MiB/rollback48f6; archive11785541B/bf739db7906bb2903e6c91e940bbe1eb0d9a8a793872fbb9c2704ffd026b3fc0.
-- Exact df1 full9 and four actual public jobs PASS. Old CodeQL reused ONLY by
-  identical product tree proof; next source change requires a fresh CodeQL job.
-  Empty Prisma diff/Product77/1431/Mastra45/838/all39 foreign/all33 pollers preserved.
-- Actual B1, coherent search summary, manual avatar, selected adaptation and
-  Windows1440dark/390light PASS. Three stands retired/exact16 access rows revoked,
-  histories/ledgers retained. MCP66/no tool calls PASS; ChatGPT still unproved.
-- Actual eight-text analysis helper180s timed out; read-only reconciliation later
-  returned ready/9SUCCESS/0pending. TONE600/TOPICS600 malformed open quotations:
-  semanticFAIL, provider corruption UNKNOWN. No POST retry. Own avatar stand retired.
-- First A1 POST created exact own inactive avatar, one terminal agent ledger,
-  native avatars skill completed. Old toolset expectation failed; original journals
-  preserved. Assistant only announced manual six lines; missing-line interview
-  instruction FAIL. Root authorizes separate diagnostic continuation for original
-  persisted scenario/cards, never a false first-turn compliance claim or replay.
-- Prepared source720bb adds final V2 cap filter: exact grounded complete TONE475
-  prefix/TOPICS omitted on recorded synthetic input; nine calls unchanged.
-  Focused227/types PASS. Six old malformed-cap fullV2 expectations deliberately
-  updated, original81 frozen; old guard bodies/V1/history unchanged. No live proof.
-- Conditional combined worktree holds tone fix and backend Farcaster lazy SDK;
-  exact3c full9 PASS/all three test halves. New kcxz.57 corrects generator accounting:
-  real start/admission tests reproduced duplicate agent, focused248 PASS after fix.
-  Current A1 stopped at9agent+1intake terminal/0pending; native CORE has1question.
-  Retire only this own aborted stand, preserve history; no paid replay/A1 PASS.
-  New exact source/full9/five CI jobs/switch/fresh QA/HOT remain root-owned.
-- Startup3/60s53.65%, thin62.58% do not prove full warm>=1800s/strictmax<60.
-  All earlier full HOT failures and unknown billing remain;71m.8 IN_PROGRESS.
+- CURRENT C6LIVE: private86fb17a3ecc9/public6dcc5f15b97e; healthy0/1792MiB, rollbackf7 retained.
+  Full9/all3/full5CI/empty77+45schema/source archive PASS. Original channel and39foreign preserved at switch.
+  Initial extra Temporal pollers FAIL retained; unchanged21:49 read-only PASS32activity+1main/native3.
+- CI metadata count fix accepted:14manifestrows+index=15physical files. Fresh current-source QA executed once.
+- Actual voice8maps+1reduce9SUCCESS/0pending: complete grounded portrait/four fields;0qgn.9 CLOSED.
+  Synthetic8texts still TOO_FEW_OWN; old malformed proposal/upstream causeUNKNOWN preserved.
+- Actual manual-avatar chat asks all six lines directly; one call stored six usertexts verbatim;
+  published-version readonly proof PASS; kcxz.58 CLOSED. Later native15 send-piece FAIL:
+  unsupported thought/extra piece.create created emptyCORE1;9terminal/0pending/no posts. kcxz.57 OPEN.
+- Original3 reader searches EMPTY; distinct diagnostic review_unavailable,input17814B/eight usable sources.
+  Packing refusal disproved; exact cause UNKNOWN because catch discarded it.0qgn.10 OPEN.
+- B1 and selected-voice adaptation saved coherent DRAFT/provenance PASS; normal Windows4cases functional PASS.
+  Root screenshot found OPEN mobile emoji clipped/page shift; separate0qgn.12 IN_PROGRESS.
+- Fresh model0 Set1 Windows4cases390/1440/light/dark:8opened Add/Edit geometry snapshots PASS;
+  close/save reachable, Add/cancel/Edit/reopen/history/zero-model ORM PASS;0qgn.11 CLOSED.
+- All5 owned stands retired/exact27 access rows; same5original cookies401/local10credential files scrubbed.
+  CORE/avatar/drafts/Set/usage/journals retained. MCP66/static initialization PASS/model0; actual ChatGPT UNPROVED.
+- Numeric V8 main isolates/native3 same PID/source verified; Docker-equivalent64.65–65.36% exceeds60.
+  Full warmed>=1800s/strictmax<60 PENDING;71m.8 IN_PROGRESS. No cap change, forcedGC or restore.
+- W7 `codex/qa-reader-interview-repair-20261004`, BASE86fb, physical dependencies ready:
+  missing-thought0qgn.13 ask/wait15focusedPASS; safe reader phase/error/provider enums83focusedPASS; emoji clamp13/frontend types PASS.
+  Sentry light source66focused/backend+orchestrator types/concurrent scope PASS, live memory unknown. No W7 release/product acceptance yet.
+- Exact evidence/previous releases and failures: [central artifact](/home/me/code/content-factory-next/.codex/stages/content-factory-next-0qgn-product-runtime-release/evidence/next-ops-parallel-streams.json).
+  New root results: [actual QA](/home/me/code/content-factory-next/.codex/stages/content-factory-next-0qgn-product-runtime-release/evidence/c6-actual-product-native-qa-root-20261003/).
 
-## Historical own product verification on459 and earlier memory
+## Historical verification retained
 
-- B1 completes23.2s with paired DRAFT/provenance/empty postingTimes, coherent
-  Russian paragraphs and one SUCCESS agent/cost0.0009272USD. No publishing.
-  Original666 OOM cause remains unknown;2q28.2.1 already CLOSED.
-- Original Telegram marking/ERIR subject now4 admitted Russian on-topic sources;
-  original1C migration subject5 Russian on-topic sources. Root source coverage
-  closes originalfn33.132 criterion; no independent legal/current-price claim.
-  Rate summary591chars coherent, current-versus-forecast/original ВТБ preserved;
-  originalec48.7 stays CLOSED. New1C summary ends mid-word, tracked0qgn.8.
-- Manual avatar six fields/default/consent/reload PASS. Actual same neutral eight
-  texts produce portrait+self-irony and4 populated proposal fields;9 SUCCESS
-  extraction ledgers, no pending. SixTRAIN/twoHOLDOUT TOO_FEW_OWN, not calibrated.
-  TONE stored/readback600chars has a cut word;transform identity/0cuts;originUNKNOWN.
-  Quality residue0qgn.9IN_PROGRESS: accepted isolated V2 new-generation guard6ca;
-  omit only a proved unfinished trailing quote sentence; no completion/retry/history rewrite.
-- Selected-manual-voice adaptation19.0s completes normally,439chars/three Russian
-  paragraphs/selected-avatar provenance/DRAFT/no scheduled time. Exact one agent
-  plus one intake SUCCESS ledger; corrected helper26offline checks, no retry.
-- Windows1440dark/390light: ten main-route cases; persisted manual fields,
-  assisted portrait, adaptation/reload and allfive guide views PASS; zero writes,
-  errors or overflow. Guide5/5 includes inert seeded channel/CORE/plan; no real
-  customer connection/publishing/recognizability. Avatar real counts1/5 preserved.
-- New main6/avatar4+2avatars+8texts/adaptation6+avatar retired; exact own credentials
-  revoked; allthree old sessions401. Five exact local credential files removed;
-  synthetic outputs/screenshots600 retained. Ledgers/drafts/versions/audits kept.
-- New MCP initialize/tools-list200/66tools; exact ownfive fixtures removed, no
-  tool/provider calls. Actual ChatGPT/OAuth acceptance remains separate.
-- Source-bound priorcb registration proves two ordinary-error400 retries/zero new
-  accounts/cookies and separate abuse guard. `2q28.41` CLOSED investigation:
-  section00 is25Sept/v1, before28Sept; historic429 screen/cookie cause UNKNOWN.
-- Old438 full31samples1799.845s62.60–63.07%, oldcb full31/1830s64.36–64.92% FAIL
-  original<60%. Interruptedcb15samples retained/incomplete. New459 startup55.47–
-  55.52% qualified incomplete due stale queue metadata; not comparable hot proof.
-- New459 comparable full31×61s observer started08:03Z after B1/search/avatar/
-  adaptation/MCP/frontend warm and own cleanup. Full1829.867s/31samples health/source/schema/
-  channel/all33 poller recency/process preservation PASS;64.42–64.62% FAIL.
-  No live switch/mutation during window; original71m.8 remains IN_PROGRESS.
-  Conditional lazyBluesky implementation now authorized after actual full FAIL;
-  fresh exact receipt/release/hot window is required after any implementation.
+- Earlier B1/search/manual avatar/selected-voice adaptation/Windows/MCP checks
+  remain qualified to their exact images; retired own fixtures/same-cookie401/
+  credential archives and usage histories are retained. Never replay those stands.
+- Source-bound ordinary registration400 retries/abuse guard accepted;2q28.41
+  original25Sept investigation CLOSED. Historical429/cookie origin UNKNOWN.
+- Prior comparable HOT438/cb/459/D5/6076 failures preserved; each had all33queues
+  and unchanged limits. No source change or cold observation overrides them.
 
 ## Client and remaining original acceptance
 
@@ -172,19 +135,22 @@ GHCR remains content-factory-next. Never add public remote to private history.
 `docs/operations/production-deploy.md` owns release/schema/rollback; no production
 `prisma db push`. `docs/operations/postgres-backup.md` owns backup procedure.
 Voice contracts: voice-wiring.contract.ts/voice-composite.ts/post-layout.ts;
-Current own QA is bound to livedf1/de615; older proofs remain qualified.
+Current tested source W6/86fb; live C6/6dcc config7efd/CIDe966; f7 retained HOST rollback. Older E14/515/618/ce194 proofs remain qualified history.
 Feedback canonical `docs/client-answers/first-client-yulia-2026-09.html`; preserve
 sN_result|like|dislike|improve|shot and existing artifact/links/answer history.
 
-Next: preserve livede615/rollback48; previous full HOT FAIL original<60.
-Complete kcxz.57 and retire stopped own A1; release combined source with fresh
-full9/all3 halves and five CI jobs, then fresh A1/A2/liveTone9/full warm HOT.
-Nostr socket captures and simple shared-i18n preload restriction are not accepted.
-Documentation: current operational facts reconciled; original spec/plan unchanged.
-docs-reviewed: retry/readiness/search/voice contracts and same feedback page reviewed.
+Next: finish W7 missing-thought/reader-diagnostic/emoji repairs and accepted memory proposal,
+then one root exactsource full9/receipt/public-tree/image/capacity/schema/switch acceptance.
+Fresh nextrelease owned native15 and search must verify real product behavior; no oldstand replay.
+C6 actual source/release results and closed9/11/kcxz58 are qualified;57/10/12/full HOT stay open.
+All5 C6 QA stands retired, same5original cookies401; histories/oldfailures retained.
+Owner date policy remains effective facts then, retrospective laterarticles allowed.
+Actual ChatGPT/client facts/historical denominators/legal/pricing/offsite/natural events retain gates.
+Documentation: current facts reconciled; original36/spec/plan unchanged.
+docs-reviewed: retry/readiness/search/voice and same feedback page contracts.
 project-index: reviewed-updated
-graph-reviewed: local AST0.9.45 refreshed46ec;27066nodes/53858edges/0model tokens;
-runAssistV2→omitIncompleteBoundaryProse and two exact indexed source hashes match.
+graph-reviewed: updated W7 local AST0.9.45 at accepted candidate/BASE86fb;27222nodes/54075edges/1563communities;
+52noncode inputs have zero-node limitation;source hashes match;0model tokens; other maps/hooks preserved.
 
 ## Starter prompt for next orchestrator
 

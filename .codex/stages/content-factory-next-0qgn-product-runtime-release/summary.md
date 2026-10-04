@@ -1,64 +1,64 @@
 # Product and runtime release integration
 
 Whole EPIC0qgn/native goal remains active; all36 original criteria/owners preserved.
-Beads owns status. Root is owner-delegated verifier; no external proof is invented.
+Beads owns status. Root is owner-delegated verifier; external proof stays explicit.
 
-## Delivered boundary on03Oct
+## Current accepted delivery
 
-LIVE private df1a0b903db9844e8d6edba4dfddd2d9bf41ee6d/public de6151715a70244263d9ea53de9fc045baf7f961.
-Exact full9 PASS: Jest611/11009, Node122/4PGskip, Python50/four builds/types/docs/process.
-Actual public Build37069977798 four jobs PASS, full suite allthree halves verified;
-old CodeQL accepted only by identical apps/libraries tree proof. Next source
-changes require fresh actual five jobs including CodeQL.
-Image indexd74d6127/config31a791b9/archive11785541B/bf739db7; actual switch22:27:43Z
-healthy0/1792MiB/all39 foreign/all33 recent queues/EMPTYdiff/Product77/Mastra45.
-No DDL, restore or foreign mutation. Hosted rollback48f6 retained.
+C6 LIVE private86fb17a3ecc9727bb24caf40d103a34821281a11/public6dcc5f15b97e92c1913689d2e3ade32c3132520f.
+Exact full9/allthree suite halves/allfive actual public CI jobs PASS.
+Image config7efd8bcd532ca5b6367384362db819e1296fa7b779f3749d56429c192ff709d4;
+healthy0/1792MiB, source archive12377845B/d3e602e0, HOST rollbackf7 retained.
+Actual switch preserves all39 foreign containers and original channel identity.
+Empty product77/Mastra45 schema diff; no DDL or restore. Initial extra Temporal
+pollers FAIL retained; unchanged21:49 startup PASS32activity+1main/native3.
 
-B1, source-coherent search, manual six lines, selected adaptation, Windows1440/390
-and MCP66 PASS. No real publishing/client/ChatGPT claim. Three stands retired,
-exact16 access rows revoked, histories/ledgers retained. A1 stand remains active.
-Actual neutral analysis client180s deadline preserved; later read-only ready result
-9SUCCESS/0pending shows malformed TONE/TOPICS600. QualityFAIL; corruption UNKNOWN.
-No original POST repeated. Safe synthetic current-output regression input retained.
-First A1 avatar+native skill+single ledger valid; original wrong-toolset failure
-preserved. Assistant did not request/list absent six fields. Diagnostic continuation
-only checks original artifact scenario/cards; first-turn interview remains FAIL.
+Fresh C6 voice8maps+1reduce9SUCCESS/0pending yields complete grounded portrait
+and four fields; original0qgn.9 CLOSED, synthetic8 calibration TOO_FEW_OWN explicit.
+Manual-avatar first response asks allsix fields; six actual usertexts stored
+verbatim/published-version read-only proof; originalkcxz.58 CLOSED.
+B1 and selected-voice adaptation save coherent DRAFT/provenance PASS. Fresh
+model0 Set1 Windows390/1440/light/dark actual8 Add/Edit opened geometries, close/
+save/cancel/reopen/history/zero-model PASS; original0qgn.11 CLOSED.
+Allfive owned stands retired/exact27 access rows; samefive original cookies401;
+exact10 local credential files scrubbed, histories/CORE/avatar/drafts/Set retained.
+MCP66 initialization PASS with zero tool/model/provider calls; actual ChatGPT unproved.
 
-## Conditional combined source preparation
+Failures remain: native15 invoked piece.create before an actual thought was
+supplied, leaving emptyCORE1/9terminal/0pending/no posts; originalkcxz.57 OPEN.
+Originalthree searches returned empty summary/results. A separate bounded
+diagnostic had eight usable presented sources/input17814B but review_unavailable;
+packing refusal disproved, underlying error discarded by catch. Original0qgn.10 OPEN.
+Root opened mobile emoji screenshot shows clipping/page shift; separate0qgn.12 OPEN.
+Docker-equivalent64.65–65.36% exceeds strict60, same native PIDs/limits; complete
+warm>=1800s acceptance unproved. Prior HOT failures remain;71m.8 OPEN.
 
-720bb source accepted: new final V2-only malformed cap quotation policy preserves
-exact completed grounded prefix or omits; actual recorded synthetic TONE475/TOPICS
-omitted, nine calls unchanged. Focused227/backend types PASS. Original guard bodies,
-V1/history unchanged. Six old fullV2 malformed599/600 expectations deliberately
-changed, frozen original81 retained; whole legacy format warnings qualified.
-No source corruption mechanism inferred and no new live quality proof.
-Optional backend Farcaster/Neynar memoized dynamic SDK import source accepted;
-captured original key, metadata, signer parameters/output retained, failed promise
-reset. Six synthetic tests/backend types PASS; first-use async error tradeoff explicit.
-Production byte/memory benefit UNKNOWN; earlier full HOT failures justify testing
-this bounded candidate. Current de615 has no full HOT acceptance.
-Root isolated combined worktree does not change primary/deployed source.
-Exact3c full9/all3 suite halves PASS. Native A1 found additional kcxz.57: generator
-incorrectly admits agent/agent; real start/admission regression RED5/5, focused
-seven suites248 PASS after text_generation/draft correction. Paid adapter unchanged.
-Current own A1 stopped9agent+1intake terminal/0pending; CORE empty/one native question.
-It is not accepted; retire exactly own stand with original failed journals retained.
-New exact-source full9/five actual CI jobs/publication/new QA/HOT remain required.
+## W7 combined candidate
 
-## Verification and limits
+BASE86fb; physical worktree dependencies. Missing-thought policy now asks/waits
+before piece.create; focused15 PASS, actual new native15 acceptance pending.
+Reader safe fixed phase/failure/termination/provider-code diagnostics: focused83
+PASS, installed SDK offline schema-method proof. No raw errors/customer data,
+schema/input/output caps, fact-date policy, retry, fallback or result changes.
+Actual search repair is not claimed; a fresh source-bound result is required.
+Emoji measured frame/body portal clamps viewport width/height and preserves
+lazy import, theme, cursor insertion/Escape/outside click. Focused13/frontend
+types PASS; actual OPEN panel rectangles/screenshots/overflow are still required.
+Reviewed server-only public Sentry Light candidate keeps actual Nest setup filter,
+process error handlers and privacy sanitizer. Four actual offline SDK arms PASS;
+SDK name node-light/ALS strategy explicit. Implemented public erased type seam,
+focused66/real concurrent isolation/backend+orchestrator types PASS. Exact full9,
+actual collector delivery and memory savings remain unaccepted.
+Next pull must pass a fresh capacity gate preserving serving/rollback and floor.
 
-docs-reviewed: updated — actualde615 and conditional bounded next source.
-project-index: reviewed-updated — final V2 malformed cap policy.
-graph-reviewed: local AST refreshed at source40341020;27091nodes/53897edges, zero
-model tokens. V2 caller/grounding and Farcaster getClient entry paths reviewed.
-48 non-code configuration files yielded no nodes; graph is scoped orientation,
-not a completeness claim. Generated graph ignored and absent from staging.
-documentation-decision: existing source/pipeline/provider contracts reused; no deps changed.
-Startup3/60s53.65%/thin62.58% are not full warm>=1800s/strictmax<60 proof.
-All previous HOT/suite/deadline failures and unknown billing retained.
+## Verification and remaining limits
+
+docs-reviewed: updated — C6 actual results and W7 source-only candidate; documentation-decision: installed public Sentry10.70.0 declarations/filter/process/privacy packet reused for direct node-core/light dependency; no model/network call.
+project-index: reviewed-updated — reader diagnostics, popup placement, server SDK seam.
+graph-reviewed: updated — W7 local AST at accepted candidate/BASE86fb:27222nodes/54075clusterededges/1563communities; focused initializeSentry two neighbors/current hashes match. 52non-code inputs have zero-node limitation; model tokens0; other owner maps preserved.
+All historical suite/deadline/startup/HOT failures and unknown billing retained.
 Legal/operator/region/support/Terms/Privacy/pricing owner-deferred; Claude.ai removed.
-Actual ChatGPT/client publication/feedback/historical benefit threshold unproved.
-Owner excludes existing-backup restoration and separate recovery drill; natural
-02Oct encrypted backup PASS and working service remain required.
-Natural03Oct00:05Z GlitchTip create-only timer PASS, five own future tables created,
-four installed hashes unchanged, native90days retained. Aged pruning/offsite unknown.
+Actual ChatGPT/client publication/feedback/historical research denominators unproved.
+Owner excludes backup restoration/recovery drills; natural02Oct encrypted backup
+PASS and working service remain required. Offsite destination/custody unknown.
+Natural03Oct00:05Z collector create-only timer PASS; actual aged pruning unknown.
