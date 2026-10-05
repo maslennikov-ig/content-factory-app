@@ -50,7 +50,7 @@ module.exports.syntheticReaderWire = (input, output) => {
   };
   return {
     ...output,
-    version: module.exports.READER_REVIEW_WIRE_VERSION,
+    version: module.exports.READER_REVIEW_WIRE_V2_VERSION,
     claims: output.claims?.map((claim) => ({
       ...claim,
       refs: claim.refs?.map(quoteRef),
@@ -62,3 +62,19 @@ module.exports.syntheticReaderWire = (input, output) => {
     })),
   };
 };
+
+// Explicit v3 fixtures only. Legacy malformed spans keep using the unchanged
+// v2 converter above so new fixture convenience cannot repair old negatives.
+module.exports.syntheticReaderAnchorWire = (output) => ({
+  ...output,
+  version: module.exports.READER_REVIEW_WIRE_VERSION,
+  claims: output.claims.map(({ dates, ...claim }) => ({
+    ...claim,
+    dates: dates.map(({ kind, ref }) => ({ kind, dateLiteral: ref.quote, ref })),
+  })),
+  entities: output.entities.map(({ name, status, ref }) => ({
+    subjectQuote: name,
+    status,
+    ref,
+  })),
+});

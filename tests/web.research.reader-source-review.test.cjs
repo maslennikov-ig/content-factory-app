@@ -201,6 +201,45 @@ const review = (input, claims = [claim(input.sources[0].excerpt)]) => ({
   entities: [],
 });
 
+test.each([false, true])(
+  'current v3 real-service reader preserves one paid admission and no retry when entity proof invalid=%s',
+  async (invalid) => {
+    const request = '😀 По состоянию на 1 октября 2026 года: версия Альфа?';
+    const text = '😀 Альфа версия 2 действует по состоянию на 1 октября 2026 года.';
+    const input = sample(text, request);
+    const output = review(input);
+    output.claims[0].text = 'Альфа версия 2 действовала на указанную дату.';
+    output.entities = [{
+      name:'Альфа',subjectStart:request.indexOf('Альфа'),subjectEnd:request.indexOf('Альфа')+5,
+      status:'supported_claim',ref:ref(text,'Альфа'),
+    }];
+    const wire = pure.syntheticReaderAnchorWire(pure.syntheticReaderWire(input, output));
+    if (invalid) wire.entities[0].ref.quote = 'версия 2';
+    h.set(input, 'Не использовать ответ провайдера.', wire);
+    const result = await h.search(request);
+    expect(h.calls.search).toHaveLength(1);
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.rows).toHaveLength(1);
+    expect(h.calls.rows[0].succeeded).toBe(true);
+    expect(h.calls.model[1].schema.properties.version.const).toBe('reader-source-review-wire/v3');
+    if (invalid) {
+      expect(result.facts).toHaveLength(0);
+      expect(result.summary).toBe('');
+      expect(result.readerAssessment.failureDiagnostic).toMatchObject({
+        stage:'compile_wire_v3',predicate:'entity_source_quote',failure:'validation_rejected',
+      });
+    } else {
+      expect(result.facts).toHaveLength(1);
+      expect(result.readerAssessment.version).toBe('reader-source-review/v1');
+      expect(result.readerAssessment.status).toBe('supported');
+      expect(result.readerAssessment.entities[0]).toMatchObject({
+        name:'Альфа',subjectStart:request.indexOf('Альфа'),subjectEnd:request.indexOf('Альфа')+5,
+      });
+      expect(result.readerAssessment.claims[0].dates[0].date).toBe('2026-10-01');
+    }
+  }
+);
+
 test.each(['tavily', 'exa'])(
   'historical as-of reader bypasses rolling news retrieval for %s',
   async (provider) => {
@@ -532,7 +571,7 @@ test('own reader failure distinguishes wire-schema rejection from v1 coverage re
   h.set(input, 'Не возвращать запасной ответ.', badQuote);
   const compiler = await h.search(input.subject);
   expect(compiler.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v2',
+    stage: 'compile_wire_v3',
     predicate: 'wire_schema',
     failure: 'validation_rejected',
     wireIssueFamily: 'refs',

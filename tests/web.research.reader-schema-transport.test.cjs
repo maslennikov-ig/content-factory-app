@@ -46,7 +46,7 @@ test('each reference retains the same strict bounds without changing validation'
   expect(readerReviewSchema.safeParse({ ...valid, claims: [{ ...valid.claims[0], refs: [{ source: 'S1', start: 0, end: 1, extra: true }] }] }).success).toBe(false);
 });
 
-test('quote wire v2 reaches the actual SDK with public named definitions and unchanged token limit', async () => {
+test('anchor wire v3 reaches the actual SDK with public named definitions and unchanged token limit', async () => {
   const output = {
     version: READER_REVIEW_WIRE_VERSION,
     sources: [{ id: 'S1', relevance: 'relevant' }],
@@ -55,7 +55,7 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
         text: 'Синтетический факт.',
         kind: 'context',
         refs: [{ source: 'S1', quote: '😀 точная цитата' }],
-        dates: [{ kind: 'as_of', date: '2026-10-01', ref: { source: 'S1', quote: '1 октября 2026' } }],
+        dates: [{ kind: 'as_of', dateLiteral: '1 октября 2026', ref: { source: 'S1', quote: '1 октября 2026' } }],
       },
     ],
     coverage: [{ question: 'synthetic', status: 'supported' }],
@@ -78,9 +78,15 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
         const schema = request.response_format.json_schema.schema;
         expect(JSON.stringify(schema)).not.toContain('#/properties/');
         expect(schema.$defs.q).toEqual(readerReviewWireJsonSchema.$defs.q);
-        expect(schema.properties.claims.items.properties.dates.items.properties.date).toEqual({
-          type: 'string', maxLength: 10, pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+        expect(schema.properties.claims.items.properties.dates.items.properties.dateLiteral).toEqual({
+          type: 'string', minLength: 1, maxLength: 80,
         });
+        expect(schema.properties.claims.items.properties.dates.items.properties).not.toHaveProperty('date');
+        expect(schema.properties.entities.items.properties.subjectQuote).toEqual({
+          type: 'string', minLength: 1, maxLength: 80,
+        });
+        for (const field of ['name', 'subjectStart', 'subjectEnd'])
+          expect(schema.properties.entities.items.properties).not.toHaveProperty(field);
         return new Response(
           JSON.stringify({
             id: 'offline',
@@ -129,7 +135,7 @@ test('quote wire v2 reaches the actual SDK with public named definitions and unc
 });
 
 test.each(['Russian', 'English', 'Haitian Creole'])(
-  'canonical date instruction and actual wire schema retain 4k rules and 25k aggregate for %s',
+  'literal anchor instruction and actual wire schema retain 4k rules and 25k aggregate for %s',
   (language) => {
     const { HumanMessage } = require('@langchain/core/messages');
     const { packReaderReview } = require('./helpers/reader-source-review.cjs');
@@ -144,9 +150,11 @@ test.each(['Russian', 'English', 'Haitian Creole'])(
     const actualBytes = prompt => Buffer.byteLength(JSON.stringify({
       messages: [new HumanMessage(prompt)], schema: readerReviewWireJsonSchema,
     }));
-    expect(rules).toContain('YYYY-MM-DD');
-    expect(rules).toContain('quote full dates from claim-cited sources');
-    expect(rules).toContain('no inferred/requested/current substitutions');
+    expect(rules).toContain('dateLiteral copies a full verbatim date');
+    expect(rules).toContain('within its claim-cited source quote');
+    expect(rules).toContain('no conversion/inferred/requested/current substitutions');
+    expect(rules).toContain('full requested name verbatim');
+    expect(rules).toContain('included verbatim in its entity source quote');
     expect(actualBytes(rules)).toBeLessThanOrEqual(4000);
     expect(input.inputBytes).toBe(actualBytes(input.prompt));
     expect(input.inputBytes).toBeLessThanOrEqual(25000);
