@@ -1752,7 +1752,7 @@ export class WebResearchService {
           }
         );
       phase = 'validation';
-      stage = 'compile_wire_v3';
+      stage = 'compile_wire_v4';
       const compiled = compileReaderReview(input, raw, onReject);
       if (compiled !== null) stage = 'validate_api_v1';
       const reviewed =

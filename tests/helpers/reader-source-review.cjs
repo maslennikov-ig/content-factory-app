@@ -67,7 +67,7 @@ module.exports.syntheticReaderWire = (input, output) => {
 // v2 converter above so new fixture convenience cannot repair old negatives.
 module.exports.syntheticReaderAnchorWire = (output) => ({
   ...output,
-  version: module.exports.READER_REVIEW_WIRE_VERSION,
+  version: module.exports.READER_REVIEW_WIRE_V3_VERSION,
   claims: output.claims.map(({ dates, ...claim }) => ({
     ...claim,
     dates: dates.map(({ kind, ref }) => ({ kind, dateLiteral: ref.quote, ref })),
@@ -78,3 +78,16 @@ module.exports.syntheticReaderAnchorWire = (output) => ({
     ref,
   })),
 });
+
+// Explicit v4 positives only; legacy v2/v3 invalid annotations are not repaired.
+module.exports.syntheticReaderDateQuoteWire = (output) => {
+  const anchored = module.exports.syntheticReaderAnchorWire(output);
+  return {
+    ...anchored,
+    version: module.exports.READER_REVIEW_WIRE_VERSION,
+    claims: anchored.claims.map(({ dates, ...claim }) => ({
+      ...claim,
+      dates: dates.map(({ dateLiteral, ...date }) => date),
+    })),
+  };
+};
