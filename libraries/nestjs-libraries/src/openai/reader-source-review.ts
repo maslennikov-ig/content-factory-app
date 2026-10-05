@@ -392,28 +392,228 @@ export type ReaderReviewInput = NonNullable<
   ReturnType<typeof packReaderReview>
 >;
 /** Fail closed before v1 validation; no source/quote normalization or remap. */
+const readerReviewRejections = [
+  'wire_schema',
+  'quote_source',
+  'quote_unique_match',
+  'quote_surrogate_boundary',
+  'claim_quote_propagation',
+  'date_quote_propagation',
+  'entity_quote_propagation',
+  'v1_schema',
+  'v1_source_set',
+  'v1_claim_reference',
+  'v1_date_kind_unique',
+  'v1_date_reference_grounding',
+  'v1_effective_interval_order',
+  'v1_forecast_date_order',
+  'v1_entity_subject_span',
+  'v1_entity_source_span',
+  'v1_entity_supported_claim',
+  'v1_entity_context_reference',
+  'v1_entity_absence_reference',
+  'v1_coverage_subject',
+] as const;
+export type ReaderReviewRejection = (typeof readerReviewRejections)[number];
+const readerWireIssueFamilies = [
+  'version',
+  'sources',
+  'claims',
+  'refs',
+  'dates',
+  'coverage',
+  'entities',
+  'root',
+  'unknown',
+] as const;
+const readerWireIssueCodes = [
+  'invalid_type',
+  'invalid_literal',
+  'custom',
+  'invalid_union',
+  'invalid_union_discriminator',
+  'invalid_enum_value',
+  'unrecognized_keys',
+  'invalid_arguments',
+  'invalid_return_type',
+  'invalid_date',
+  'invalid_string',
+  'too_small',
+  'too_big',
+  'invalid_intersection_types',
+  'not_multiple_of',
+  'not_finite',
+  'unknown',
+] as const;
+export interface ReaderWireIssueDiagnostic {
+  family: (typeof readerWireIssueFamilies)[number];
+  code: (typeof readerWireIssueCodes)[number];
+}
+/** Only the first Zod issue's allowlisted family/code; never its path/message/value. */
+const readerWireIssueDiagnostic = (
+  result: z.SafeParseReturnType<unknown, unknown>
+): ReaderWireIssueDiagnostic => {
+  try {
+    const issue = result.success ? undefined : result.error.issues[0];
+    const path = issue?.path;
+    let family: ReaderWireIssueDiagnostic['family'] = 'unknown';
+    if (Array.isArray(path)) {
+      if (!path.length) family = 'root';
+      else if (path[0] === 'claims')
+        family =
+          path[2] === 'refs'
+            ? 'refs'
+            : path[2] === 'dates'
+            ? 'dates'
+            : 'claims';
+      else if (
+        path[0] === 'version' ||
+        path[0] === 'sources' ||
+        path[0] === 'coverage' ||
+        path[0] === 'entities'
+      )
+        family = path[0];
+    }
+    const code =
+      readerWireIssueCodes.find((code) => code === issue?.code) ?? 'unknown';
+    return { family, code };
+  } catch {
+    return { family: 'unknown', code: 'unknown' };
+  }
+};
+export type ReaderReviewRejectObserver = (
+  code: ReaderReviewRejection,
+  issue?: ReaderWireIssueDiagnostic
+) => void;
+/** Observation cannot affect a review decision or expose the rejected value. */
+const readerRejectObserver = (observer?: ReaderReviewRejectObserver) => {
+  let observed = false;
+  return (
+    code: ReaderReviewRejection,
+    issue?: ReaderWireIssueDiagnostic
+  ): null => {
+    if (!observed) {
+      observed = true;
+      try {
+        observer?.(code, issue);
+      } catch {
+        /* Diagnostic consumers cannot reject work. */
+      }
+    }
+    return null;
+  };
+};
+const readerFailureDiagnosticSchema = z
+  .object({
+    stage: z.enum([
+      'model-resolution',
+      'structured-output',
+      'invocation',
+      'compile_wire_v2',
+      'validate_api_v1',
+    ]),
+    predicate: z.enum(['unobserved', ...readerReviewRejections]),
+    failure: z.enum([
+      'usage_context_required',
+      'output_parse',
+      'json_parse',
+      'timeout',
+      'connection',
+      'provider_auth',
+      'provider_rate_limit',
+      'provider_rejected',
+      'provider_failure',
+      'validation_rejected',
+      'unknown',
+    ]),
+    termination: z
+      .enum([
+        'unobserved',
+        'stop',
+        'length',
+        'tool_calls',
+        'function_call',
+        'content_filter',
+        'unknown',
+      ])
+      .nullable(),
+    providerCode: z.enum([
+      'invalid_schema',
+      'invalid_json_schema',
+      'context_length_exceeded',
+      'unsupported_parameter',
+      'unsupported_value',
+      'model_not_found',
+      'invalid_api_key',
+      'rate_limit_exceeded',
+      'insufficient_quota',
+      'unknown',
+      'unobserved',
+    ]),
+    contentUtf8Bytes: z.number().int().min(0).max(1_048_576).nullable(),
+    toolArgumentsUtf8Bytes: z.number().int().min(0).max(1_048_576).nullable(),
+    wireIssueFamily: z.enum(readerWireIssueFamilies).optional(),
+    wireIssueCode: z.enum(readerWireIssueCodes).optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      (value.wireIssueFamily === undefined &&
+        value.wireIssueCode === undefined) ||
+      (value.stage === 'compile_wire_v2' &&
+        value.predicate === 'wire_schema' &&
+        value.wireIssueFamily !== undefined &&
+        value.wireIssueCode !== undefined)
+  );
+export type ReaderFailureDiagnostic = z.infer<
+  typeof readerFailureDiagnosticSchema
+>;
+/** Reject extra fields and accessors before parsing; never inspect raw errors. */
+const projectReaderFailureDiagnostic = (
+  value: unknown
+): ReaderFailureDiagnostic | null => {
+  if (!value || typeof value !== 'object') return null;
+  try {
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    if (Object.values(descriptors).some((d) => !('value' in d))) return null;
+    const parsed = readerFailureDiagnosticSchema.safeParse(
+      Object.fromEntries(
+        Object.entries(descriptors).map(([key, descriptor]) => [
+          key,
+          descriptor.value,
+        ])
+      )
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+};
 export function compileReaderReview(
   input: ReaderReviewInput,
-  raw: unknown
+  raw: unknown,
+  onReject?: ReaderReviewRejectObserver
 ): Review | null {
+  const reject = readerRejectObserver(onReject);
   const parsed = readerReviewWireSchema.safeParse(raw);
-  if (!parsed.success) return null;
+  if (!parsed.success)
+    return reject('wire_schema', readerWireIssueDiagnostic(parsed));
   const wire = parsed.data;
   const byId = new Map(
     input.evidence.sources.map((source) => [source.id, source])
   );
   const compileRef = (ref: z.infer<typeof quoteReference>): Ref | null => {
     const source = byId.get(ref.source);
-    if (!source) return null;
+    if (!source) return reject('quote_source');
     const start = source.excerpt.indexOf(ref.quote);
     if (start < 0 || source.excerpt.indexOf(ref.quote, start + 1) !== -1)
-      return null;
+      return reject('quote_unique_match');
     const end = start + ref.quote.length;
     if (
       /[\uDC00-\uDFFF]/.test(source.excerpt[start]) ||
       /[\uD800-\uDBFF]/.test(source.excerpt[end - 1])
     )
-      return null;
+      return reject('quote_surrogate_boundary');
     return { source: ref.source, start, end };
   };
   const claims: Review['claims'] = [];
@@ -421,13 +621,13 @@ export function compileReaderReview(
     const refs: Ref[] = [];
     for (const ref of claim.refs) {
       const compiled = compileRef(ref);
-      if (!compiled) return null;
+      if (!compiled) return reject('claim_quote_propagation');
       refs.push(compiled);
     }
     const dates: Review['claims'][number]['dates'] = [];
     for (const date of claim.dates) {
       const ref = compileRef(date.ref);
-      if (!ref) return null;
+      if (!ref) return reject('date_quote_propagation');
       dates.push({ ...date, ref });
     }
     claims.push({ ...claim, refs, dates });
@@ -435,7 +635,8 @@ export function compileReaderReview(
   const entities: Review['entities'] = [];
   for (const entity of wire.entities) {
     const ref = entity.ref === null ? null : compileRef(entity.ref);
-    if (entity.ref !== null && ref === null) return null;
+    if (entity.ref !== null && ref === null)
+      return reject('entity_quote_propagation');
     entities.push({ ...entity, ref });
   }
   return { sources: wire.sources, claims, coverage: wire.coverage, entities };
@@ -455,6 +656,7 @@ export interface ReaderAssessment {
   coverage: Review['coverage'];
   entities: Review['entities'];
   sources: Review['sources'];
+  failureDiagnostic?: ReaderFailureDiagnostic;
 }
 export function unavailableReaderReview(
   input: ReaderReviewInput | null
@@ -479,14 +681,16 @@ export function unavailableReaderReview(
 }
 export function validateReaderReview(
   input: ReaderReviewInput,
-  raw: unknown
+  raw: unknown,
+  onReject?: ReaderReviewRejectObserver
 ): {
   assessment: ReaderAssessment;
   summary: string;
   facts: FactInput[];
 } | null {
+  const reject = readerRejectObserver(onReject);
   const parsed = readerReviewSchema.safeParse(raw);
-  if (!parsed.success) return null;
+  if (!parsed.success) return reject('v1_schema');
   const review = parsed.data;
   const byId = new Map(input.evidence.sources.map((s) => [s.id, s]));
   const verdicts = new Map(review.sources.map((s) => [s.id, s.relevance]));
@@ -495,7 +699,7 @@ export function validateReaderReview(
     verdicts.size !== byId.size ||
     [...verdicts.keys()].some((id) => !byId.has(id))
   )
-    return null;
+    return reject('v1_source_set');
   const validRef = (ref: Ref) => {
     const s = byId.get(ref.source);
     return (
@@ -513,9 +717,9 @@ export function validateReaderReview(
         (r) => !validRef(r) || verdicts.get(r.source) !== 'relevant'
       )
     )
-      return null;
+      return reject('v1_claim_reference');
     const dates = new Map(claim.dates.map((d) => [d.kind, d.date]));
-    if (dates.size !== claim.dates.length) return null;
+    if (dates.size !== claim.dates.length) return reject('v1_date_kind_unique');
     for (const d of claim.dates) {
       if (
         !validRef(d.ref) ||
@@ -532,21 +736,21 @@ export function validateReaderReview(
             .excerpt.slice(Math.max(0, d.ref.start - 1), d.ref.end + 1)
         ).includes(d.date)
       )
-        return null;
+        return reject('v1_date_reference_grounding');
     }
     if (
       dates.has('effective_from') &&
       dates.has('effective_until') &&
       dates.get('effective_from')! > dates.get('effective_until')!
     )
-      return null;
+      return reject('v1_effective_interval_order');
     if (
       claim.kind === 'forecast' &&
       dates.has('announced') &&
       dates.has('target') &&
       dates.get('announced')! > dates.get('target')!
     )
-      return null;
+      return reject('v1_forecast_date_order');
     const asOf = input.evidence.requestedDate;
     if (asOf) {
       if (claim.kind === 'context') continue;
@@ -576,7 +780,7 @@ export function validateReaderReview(
       input.evidence.subject.slice(entity.subjectStart, entity.subjectEnd) !==
         entity.name
     )
-      return null;
+      return reject('v1_entity_subject_span');
     if (
       entity.ref &&
       (!validRef(entity.ref) ||
@@ -585,7 +789,7 @@ export function validateReaderReview(
           .excerpt.slice(entity.ref.start, entity.ref.end)
           .includes(entity.name))
     )
-      return null;
+      return reject('v1_entity_source_span');
     if (
       entity.status === 'supported_claim' &&
       (!entity.ref ||
@@ -595,8 +799,9 @@ export function validateReaderReview(
             c.refs.some((r) => r.source === entity.ref!.source)
         ))
     )
-      return null;
-    if (entity.status === 'contextual_mention' && !entity.ref) return null;
+      return reject('v1_entity_supported_claim');
+    if (entity.status === 'contextual_mention' && !entity.ref)
+      return reject('v1_entity_context_reference');
     if (
       entity.status === 'not_observed_in_presented_evidence' &&
       (input.evidence.bounds.omittedCount > 0 ||
@@ -608,10 +813,10 @@ export function validateReaderReview(
         entity.status === 'unknown_due_to_bounds') &&
       entity.ref
     )
-      return null;
+      return reject('v1_entity_absence_reference');
   }
   if (review.coverage.some((c) => !input.evidence.subject.includes(c.question)))
-    return null;
+    return reject('v1_coverage_subject');
   const coverage = review.coverage.map((c) => ({
     ...c,
     status: !validClaims.length
@@ -667,7 +872,18 @@ export function validateReaderReview(
 export function projectReaderAssessment(
   value: ReaderAssessment
 ): ReaderAssessment {
+  let diagnostic: ReaderFailureDiagnostic | null = null;
+  if (value.status === 'review_unavailable') {
+    try {
+      const field = Object.getOwnPropertyDescriptor(value, 'failureDiagnostic');
+      if (field && 'value' in field)
+        diagnostic = projectReaderFailureDiagnostic(field.value);
+    } catch {
+      /* An unavailable diagnostic cannot change the response. */
+    }
+  }
   return {
+    ...(diagnostic ? { failureDiagnostic: diagnostic } : {}),
     version: READER_REVIEW_VERSION,
     status: value.status,
     requestedDate: value.requestedDate,

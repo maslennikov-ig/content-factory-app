@@ -24,6 +24,10 @@ const prefix = harnessText
   .replace('  modelLedgers: [],', '  modelLedgers: [], warnings: [],')
   .replace('warn() {}', 'warn(message) { calls.warnings.push(message); }')
   .replace(
+    'const { WebResearchService } = loadTypeScriptModule(',
+    'const { WebResearchService, readerReviewOutputObservation } = loadTypeScriptModule('
+  )
+  .replace(
     'getWebSearchClient: async (_organizationId, provider) =>',
     'getWebSearchClient: async (_organizationId, provider, options) =>'
   )
@@ -35,9 +39,9 @@ const prefix = harnessText
     "'@contentfactory/nestjs-libraries/openai/ai.usage.service': {",
     `'@contentfactory/nestjs-libraries/openai/reader-source-review': {
        ...require('./helpers/reader-source-review.cjs'),
-       validateReaderReview(input, raw) {
+       validateReaderReview(input, raw, onReject) {
          if (reviewPhaseError?.phase === 'validation') throw reviewPhaseError.error;
-         return require('./helpers/reader-source-review.cjs').validateReaderReview(input, raw);
+         return require('./helpers/reader-source-review.cjs').validateReaderReview(input, raw, onReject);
        },
      },
      '@contentfactory/nestjs-libraries/openai/ai.usage.service': {`
@@ -71,7 +75,7 @@ const h = new Function(
   'beforeEach',
   prefix +
     `
-  return {calls, WebResearchService, aiUsage, summaryPrompts, search,
+  return {calls, WebResearchService, aiUsage, summaryPrompts, search, outputObservation: readerReviewOutputObservation,
     set(input, answer, output, freshnessRequired=false) {
       classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired};
       responses={tavily:{answer,usage:{credits:2},results:input.sources.map(r=>({title:r.title,url:r.url,content:r.excerpt,published_date:r.publishedAt}))}};
@@ -520,6 +524,441 @@ test.each([
     expect(h.calls.search).toHaveLength(1);
   }
 );
+
+test('own reader failure distinguishes wire-schema rejection from v1 coverage rejection', async () => {
+  const input = sample();
+  const badQuote = review(input);
+  badQuote.claims[0].refs[0].source = 'S9';
+  h.set(input, 'Не возвращать запасной ответ.', badQuote);
+  const compiler = await h.search(input.subject);
+  expect(compiler.readerAssessment.failureDiagnostic).toMatchObject({
+    stage: 'compile_wire_v2',
+    predicate: 'wire_schema',
+    failure: 'validation_rejected',
+    wireIssueFamily: 'refs',
+    wireIssueCode: 'too_small',
+  });
+  expect(compiler.summary).toBe('');
+  expect(compiler.facts).toEqual([]);
+  expect(diagnostic().phase).toBe('validation');
+  h.resetDiagnostics();
+  const badCoverage = review(input);
+  badCoverage.coverage[0].question = 'SYNTHETIC_NOT_IN_SUBJECT';
+  h.set(input, 'Не возвращать запасной ответ.', badCoverage);
+  const validator = await h.search(input.subject + ' ');
+  expect(validator.readerAssessment.failureDiagnostic).toMatchObject({
+    stage: 'validate_api_v1',
+    predicate: 'v1_coverage_subject',
+    failure: 'validation_rejected',
+  });
+});
+
+test('own reader failure exposes only safe parser class and observed UTF8 byte counts', async () => {
+  const input = sample();
+  h.set(input, 'Не возвращать запасной ответ.', review(input));
+  const content = 'НЕ_ЭКСПОРТИРОВАТЬ🙂';
+  const argumentsText = '{"нейтрально":"🙂"}';
+  h.endMetadata({
+    generations: [
+      [
+        {
+          generationInfo: { finish_reason: 'stop' },
+          message: {
+            content,
+            additional_kwargs: {
+              tool_calls: [{ function: { arguments: argumentsText } }],
+            },
+          },
+        },
+      ],
+    ],
+  });
+  h.failPhase('invocation', new SyntaxError('НЕ_ЭКСПОРТИРОВАТЬ_ОШИБКУ'));
+  const out = await h.search(input.subject);
+  expect(out.readerAssessment.failureDiagnostic).toEqual({
+    stage: 'invocation',
+    predicate: 'unobserved',
+    failure: 'json_parse',
+    termination: 'stop',
+    providerCode: 'unobserved',
+    contentUtf8Bytes: Buffer.byteLength(content),
+    toolArgumentsUtf8Bytes: Buffer.byteLength(argumentsText),
+  });
+  expect(JSON.stringify(out.readerAssessment.failureDiagnostic)).not.toContain(
+    'НЕ_ЭКСПОРТИРОВАТЬ'
+  );
+  expect(out.summary).toBe('');
+  expect(out.facts).toEqual([]);
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.rows).toHaveLength(1);
+  expect(h.calls.rows[0].succeeded).toBe(true);
+  expect(h.calls.search).toHaveLength(1);
+});
+
+test('reader reject observer reports first nested source gate without changing compiler outcome', () => {
+  const input = pack();
+  const raw = pure.syntheticReaderWire(input.evidence, review(sample()));
+  raw.claims[0].refs[0].source = 'S9';
+  const seen = [];
+  expect(pure.compileReaderReview(input, raw, (code) => seen.push(code))).toBe(
+    null
+  );
+  expect(seen[0]).toBe('quote_source');
+  expect(
+    pure.compileReaderReview(input, raw, () => {
+      throw Error('SYNTHETIC_OBSERVER_ERROR');
+    })
+  ).toBe(null);
+});
+
+test('wire issue diagnostics expose only first fixed field family and Zod code', () => {
+  const input = pack();
+  const wire = pure.syntheticReaderWire(input.evidence, review(sample()));
+  wire.claims[0].refs[0].quote = '';
+  const seen = [];
+  expect(
+    pure.compileReaderReview(input, wire, (predicate, issue) =>
+      seen.push({ predicate, issue })
+    )
+  ).toBe(null);
+  expect(seen).toEqual([
+    { predicate: 'wire_schema', issue: { family: 'refs', code: 'too_small' } },
+  ]);
+  expect(JSON.stringify(seen)).not.toContain('quote');
+});
+
+test.each([
+  [
+    'version',
+    'invalid_literal',
+    (wire) => {
+      wire.version = 'SYNTHETIC_PRIVATE';
+    },
+  ],
+  [
+    'sources',
+    'invalid_enum_value',
+    (wire) => {
+      wire.sources[0].relevance = 'SYNTHETIC_PRIVATE';
+    },
+  ],
+  [
+    'claims',
+    'invalid_enum_value',
+    (wire) => {
+      wire.claims[0].kind = 'SYNTHETIC_PRIVATE';
+    },
+  ],
+  [
+    'dates',
+    'invalid_string',
+    (wire) => {
+      wire.claims[0].dates = [
+        { kind: 'as_of', date: 'bad', ref: wire.claims[0].refs[0] },
+      ];
+    },
+  ],
+  [
+    'coverage',
+    'invalid_enum_value',
+    (wire) => {
+      wire.coverage[0].status = 'SYNTHETIC_PRIVATE';
+    },
+  ],
+  [
+    'entities',
+    'invalid_type',
+    (wire) => {
+      wire.entities = [
+        {
+          name: 1,
+          subjectStart: 0,
+          subjectEnd: 1,
+          status: 'unknown_due_to_bounds',
+          ref: null,
+        },
+      ];
+    },
+  ],
+  [
+    'root',
+    'unrecognized_keys',
+    (wire) => {
+      wire.SYNTHETIC_PRIVATE = 'SYNTHETIC_PRIVATE';
+    },
+  ],
+])(
+  'wire issue family %s never exports messages, paths or rejected values',
+  (family, code, mutate) => {
+    const input = pack();
+    const wire = pure.syntheticReaderWire(input.evidence, review(sample()));
+    mutate(wire);
+    const seen = [];
+    expect(
+      pure.compileReaderReview(input, wire, (predicate, issue) =>
+        seen.push({ predicate, issue })
+      )
+    ).toBe(null);
+    expect(seen).toEqual([
+      { predicate: 'wire_schema', issue: { family, code } },
+    ]);
+    expect(JSON.stringify(seen)).not.toContain('SYNTHETIC_PRIVATE');
+  }
+);
+
+test('wire issue diagnostics project both optional fixed scalars only at the wire-schema failure', () => {
+  const unavailable = pure.unavailableReaderReview(pack());
+  unavailable.status = 'review_unavailable';
+  const failure = {
+    stage: 'compile_wire_v2',
+    predicate: 'wire_schema',
+    failure: 'validation_rejected',
+    termination: null,
+    providerCode: 'unobserved',
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+    wireIssueFamily: 'refs',
+    wireIssueCode: 'too_small',
+  };
+  unavailable.failureDiagnostic = failure;
+  expect(pure.projectReaderAssessment(unavailable).failureDiagnostic).toEqual(
+    failure
+  );
+  for (const patch of [
+    { wireIssueFamily: 'SYNTHETIC_PRIVATE' },
+    { wireIssueCode: 'SYNTHETIC_PRIVATE' },
+    { stage: 'invocation' },
+    { predicate: 'v1_schema' },
+    { wireIssueCode: undefined },
+  ]) {
+    unavailable.failureDiagnostic = { ...failure, ...patch };
+    expect(
+      pure.projectReaderAssessment(unavailable).failureDiagnostic
+    ).toBeUndefined();
+  }
+  let touched = false;
+  unavailable.failureDiagnostic = { ...failure };
+  Object.defineProperty(unavailable.failureDiagnostic, 'wireIssueCode', {
+    enumerable: true,
+    get() {
+      touched = true;
+      throw Error('SYNTHETIC_PRIVATE');
+    },
+  });
+  expect(
+    pure.projectReaderAssessment(unavailable).failureDiagnostic
+  ).toBeUndefined();
+  expect(touched).toBe(false);
+});
+
+test('reader unavailable diagnostic projection is strict and never invokes diagnostic getters', () => {
+  const out = pure.unavailableReaderReview(pack());
+  out.status = 'review_unavailable';
+  const safe = {
+    stage: 'invocation',
+    predicate: 'unobserved',
+    failure: 'json_parse',
+    termination: null,
+    providerCode: 'unobserved',
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+  };
+  out.failureDiagnostic = safe;
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toEqual(safe);
+  out.failureDiagnostic = { ...safe, raw: 'SYNTHETIC_PRIVATE' };
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+  let touched = false;
+  out.failureDiagnostic = { ...safe };
+  Object.defineProperty(out.failureDiagnostic, 'failure', {
+    enumerable: true,
+    get() {
+      touched = true;
+      throw Error('SYNTHETIC_PRIVATE');
+    },
+  });
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+  expect(touched).toBe(false);
+});
+
+test('valid review and v1 projection are unchanged with an observer; throwing observers do not change rejection', () => {
+  const input = pack();
+  const wire = pure.syntheticReaderWire(input.evidence, review(sample()));
+  const compiled = pure.compileReaderReview(input, wire);
+  const compileEvents = [],
+    validationEvents = [];
+  expect(
+    pure.compileReaderReview(input, wire, (code) => compileEvents.push(code))
+  ).toEqual(compiled);
+  const valid = pure.validateReaderReview(input, compiled);
+  expect(
+    pure.validateReaderReview(input, compiled, (code) =>
+      validationEvents.push(code)
+    )
+  ).toEqual(valid);
+  expect(compileEvents).toEqual([]);
+  expect(validationEvents).toEqual([]);
+  expect(
+    pure.projectReaderAssessment(valid.assessment).failureDiagnostic
+  ).toBeUndefined();
+  compiled.coverage[0].question = 'SYNTHETIC_NOT_IN_SUBJECT';
+  const seen = [];
+  expect(
+    pure.validateReaderReview(input, compiled, (code) => seen.push(code))
+  ).toBe(null);
+  expect(seen).toEqual(['v1_coverage_subject']);
+  expect(
+    pure.validateReaderReview(input, compiled, () => {
+      throw Error('SYNTHETIC_PRIVATE');
+    })
+  ).toBe(null);
+});
+
+test.each([
+  { stage: 'SYNTHETIC_PRIVATE' },
+  { predicate: 'SYNTHETIC_PRIVATE' },
+  { failure: 'SYNTHETIC_PRIVATE' },
+  { termination: 'SYNTHETIC_PRIVATE' },
+  { providerCode: 'SYNTHETIC_PRIVATE' },
+  { contentUtf8Bytes: 1_048_577 },
+  { contentUtf8Bytes: -1 },
+  { toolArgumentsUtf8Bytes: 0.5 },
+])('reader diagnostic refuses unknown enum or counter values: %j', (patch) => {
+  const out = pure.unavailableReaderReview(pack());
+  out.status = 'review_unavailable';
+  out.failureDiagnostic = {
+    stage: 'invocation',
+    predicate: 'unobserved',
+    failure: 'json_parse',
+    termination: null,
+    providerCode: 'unobserved',
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+    ...patch,
+  };
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+});
+
+test('diagnostic getter on assessment and diagnostics on successful review stay absent', () => {
+  const unavailable = pure.unavailableReaderReview(pack());
+  unavailable.status = 'review_unavailable';
+  let touched = false;
+  Object.defineProperty(unavailable, 'failureDiagnostic', {
+    get() {
+      touched = true;
+      throw Error('SYNTHETIC_PRIVATE');
+    },
+  });
+  expect(
+    pure.projectReaderAssessment(unavailable).failureDiagnostic
+  ).toBeUndefined();
+  expect(touched).toBe(false);
+  const successful = pure.validateReaderReview(
+    pack(),
+    review(sample())
+  ).assessment;
+  successful.failureDiagnostic = {
+    stage: 'invocation',
+    predicate: 'unobserved',
+    failure: 'json_parse',
+    termination: null,
+    providerCode: 'unobserved',
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+  };
+  expect(
+    pure.projectReaderAssessment(successful).failureDiagnostic
+  ).toBeUndefined();
+});
+
+test('output observation ignores content getters and absent callbacks without changing a successful review', async () => {
+  const message = {};
+  let touched = false;
+  Object.defineProperty(message, 'content', {
+    enumerable: true,
+    get() {
+      touched = true;
+      throw Error('SYNTHETIC_PRIVATE');
+    },
+  });
+  h.set(sample(), 'Готовый ответ.', review(sample()));
+  h.endMetadata({
+    generations: [[{ generationInfo: { finish_reason: 'stop' }, message }]],
+  });
+  const out = await h.search(subject);
+  expect(out.readerAssessment.status).toBe('supported');
+  expect(out.readerAssessment.failureDiagnostic).toBeUndefined();
+  expect(touched).toBe(false);
+  expect(h.calls.warnings).toHaveLength(0);
+});
+
+test('missing reader completion metadata stays nullable in own unavailable diagnostic', async () => {
+  h.set(sample(), 'Не возвращать запасной ответ.', review(sample()));
+  h.failPhase('invocation', new SyntaxError('SYNTHETIC_PRIVATE'));
+  const out = await h.search(subject);
+  expect(out.readerAssessment.failureDiagnostic).toMatchObject({
+    stage: 'invocation',
+    predicate: 'unobserved',
+    failure: 'json_parse',
+    termination: null,
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+  });
+  expect(diagnostic().termination).toBe('unobserved');
+});
+
+test('output observer counts multibyte content blocks and arguments with strict size and accessor boundaries', () => {
+  const blocks = [{ text: 'Нейтрально' }, { text: '🙂' }];
+  const payload = {
+    generations: [
+      [
+        {
+          message: {
+            content: blocks,
+            response_metadata: { finish_reason: 'length' },
+            additional_kwargs: {
+              tool_calls: [
+                { function: { arguments: '{"a":1}' } },
+                { function: { arguments: '{}' } },
+              ],
+            },
+          },
+        },
+      ],
+    ],
+  };
+  expect(h.outputObservation(payload)).toEqual({
+    termination: 'length',
+    contentUtf8Bytes: Buffer.byteLength('Нейтрально🙂'),
+    toolArgumentsUtf8Bytes: 9,
+  });
+  expect(
+    h.outputObservation({
+      generations: [[{ message: { content: 'x'.repeat(1_048_577) } }]],
+    }).contentUtf8Bytes
+  ).toBe(null);
+  let touched = false;
+  const block = {};
+  Object.defineProperty(block, 'text', {
+    get() {
+      touched = true;
+      throw Error('SYNTHETIC_PRIVATE');
+    },
+  });
+  expect(
+    h.outputObservation({ generations: [[{ message: { content: [block] } }]] })
+      .contentUtf8Bytes
+  ).toBe(null);
+  expect(touched).toBe(false);
+  const { proxy, revoke } = Proxy.revocable([], {});
+  revoke();
+  expect(
+    h.outputObservation({ generations: [[{ message: { content: proxy } }]] })
+  ).toEqual({
+    termination: null,
+    contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+  });
+});
 
 test('reader validation rejection logs its fixed code without the rejected model payload', async () => {
   const input = sample(),

@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
+  type ReaderFailureDiagnostic,
+  type ReaderReviewRejection,
+  type ReaderWireIssueDiagnostic,
   READER_REVIEW_VERSION,
   packReaderReview,
   requestedDate,
@@ -185,6 +188,68 @@ export const readerReviewFailureLine = (
 ) =>
   'Web research reader review unavailable. ' +
   JSON.stringify({ phase, failure, termination, providerCode });
+
+/** Counts only already-observed output. No getters, text retention or parser change. */
+export const readerReviewOutputObservation = (output: unknown) => {
+  try {
+    const value = (object: unknown, key: string): unknown => {
+      if (!object || typeof object !== 'object') return undefined;
+      try {
+        return Object.getOwnPropertyDescriptor(object, key)?.value;
+      } catch {
+        return undefined;
+      }
+    };
+    const utf8 = (text: unknown): number | null => {
+      if (typeof text !== 'string' || text.length > 1_048_576) return null;
+      const bytes = Buffer.byteLength(text);
+      return bytes <= 1_048_576 ? bytes : null;
+    };
+    const sum = (
+      array: unknown,
+      text: (item: unknown) => unknown
+    ): number | null => {
+      const length = value(array, 'length');
+      if (!Array.isArray(array) || typeof length !== 'number' || length > 32)
+        return null;
+      let total = 0;
+      for (let i = 0; i < length; i++) {
+        const bytes = utf8(text(value(array, String(i))));
+        if (bytes === null || total + bytes > 1_048_576) return null;
+        total += bytes;
+      }
+      return total;
+    };
+    const generation = value(value(value(output, 'generations'), '0'), '0');
+    const message = value(generation, 'message');
+    const content = value(message, 'content');
+    const finish =
+      value(value(generation, 'generationInfo'), 'finish_reason') ??
+      value(value(message, 'response_metadata'), 'finish_reason');
+    return {
+      termination:
+        finish === undefined || finish === null
+          ? null
+          : readerReviewSafeTermination(finish),
+      contentUtf8Bytes:
+        content === undefined
+          ? utf8(value(generation, 'text'))
+          : Array.isArray(content)
+          ? sum(content, (item) => value(item, 'text'))
+          : utf8(content),
+      toolArgumentsUtf8Bytes: sum(
+        value(value(message, 'additional_kwargs'), 'tool_calls'),
+        (item) => value(value(item, 'function'), 'arguments')
+      ),
+    };
+  } catch {
+    return {
+      termination: null,
+      contentUtf8Bytes: null,
+      toolArgumentsUtf8Bytes: null,
+    };
+  }
+};
 
 /**
  * Who brought the row. A search engine is chosen and paid for in settings;
@@ -1638,6 +1703,25 @@ export class WebResearchService {
       return { assessment, summary: '', facts: [] as WebResearchFact[] };
     let phase: ReaderReviewPhase = 'model-resolution';
     let termination: ReaderReviewTermination = 'unobserved';
+    let stage: ReaderFailureDiagnostic['stage'] = phase;
+    let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
+    let wireIssue: ReaderWireIssueDiagnostic | undefined;
+    let failure: ReaderReviewFailureCode = 'validation_rejected';
+    let providerCode: ReaderReviewProviderCode = 'unobserved';
+    let observation: ReturnType<typeof readerReviewOutputObservation> = {
+      termination: null,
+      contentUtf8Bytes: null,
+      toolArgumentsUtf8Bytes: null,
+    };
+    const onReject = (
+      code: ReaderReviewRejection,
+      issue?: ReaderWireIssueDiagnostic
+    ) => {
+      if (predicate === 'unobserved') {
+        predicate = code;
+        wireIssue = issue;
+      }
+    };
     try {
       const model = await getChatModel(
         organizationId,
@@ -1646,8 +1730,10 @@ export class WebResearchService {
         'classify'
       );
       phase = 'structured-output';
+      stage = phase;
       const writer = model.withStructuredOutput(readerReviewWireJsonSchema);
       phase = 'invocation';
+      stage = phase;
       const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
         .pipe(writer)
         .invoke(
@@ -1659,15 +1745,20 @@ export class WebResearchService {
                   termination = readerReviewSafeTermination(
                     output?.generations?.[0]?.[0]?.generationInfo?.finish_reason
                   );
+                  observation = readerReviewOutputObservation(output);
                 },
               },
             ],
           }
         );
       phase = 'validation';
-      const compiled = compileReaderReview(input, raw);
+      stage = 'compile_wire_v2';
+      const compiled = compileReaderReview(input, raw, onReject);
+      if (compiled !== null) stage = 'validate_api_v1';
       const reviewed =
-        compiled === null ? null : validateReaderReview(input, compiled);
+        compiled === null
+          ? null
+          : validateReaderReview(input, compiled, onReject);
       if (reviewed) return reviewed;
       this.logger.warn(
         readerReviewFailureLine(phase, 'validation_rejected', termination)
@@ -1675,16 +1766,23 @@ export class WebResearchService {
     } catch (error) {
       // Provider work has already ended. Never send a reader failure through
       // provider fallback, buy another review, or return an unreviewed answer.
+      failure = readerReviewSafeFailure(error);
+      providerCode = readerReviewSafeProviderCode(error);
       this.logger.warn(
-        readerReviewFailureLine(
-          phase,
-          readerReviewSafeFailure(error),
-          termination,
-          readerReviewSafeProviderCode(error)
-        )
+        readerReviewFailureLine(phase, failure, termination, providerCode)
       );
     }
     assessment.status = 'review_unavailable';
+    assessment.failureDiagnostic = {
+      stage,
+      predicate,
+      failure,
+      providerCode,
+      ...observation,
+      ...(wireIssue
+        ? { wireIssueFamily: wireIssue.family, wireIssueCode: wireIssue.code }
+        : {}),
+    };
     return { assessment, summary: '', facts: [] as WebResearchFact[] };
   }
 

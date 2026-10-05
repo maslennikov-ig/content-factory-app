@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { Catch, type ArgumentsHost, type INestApplication } from '@nestjs/common';
 import type * as SentryLight from '@sentry/node-core/light' with {
   'resolution-mode': 'require',
 };
@@ -15,6 +15,62 @@ const Sentry: typeof SentryLight = require('@sentry/node-core/light');
 type ServerService = 'backend' | 'orchestrator';
 type Environment = Record<string, string | undefined>;
 type FilterHost = Pick<INestApplication, 'getHttpAdapter' | 'useGlobalFilters'>;
+
+@Catch()
+class CorrelatedSentryGlobalFilter extends SentryGlobalFilter {
+  constructor(private readonly adapter: ReturnType<FilterHost['getHttpAdapter']>) {
+    super(adapter);
+  }
+
+  catch(exception: unknown, host: ArgumentsHost) {
+    let unsubscribe: (() => void) | undefined;
+    let inCatch = true;
+    let correlated = false;
+
+    // beforeSend strips event mechanisms. The unchanged capture hint identifies
+    // this exception; a shared lastEventId could belong to another request.
+    try {
+      if (
+        host.getType() === 'http' && typeof exception === 'object' && exception !== null &&
+        Sentry.isEnabled()
+      ) {
+        const response = host.getArgByIndex(1);
+        unsubscribe = Sentry.getClient()?.on('beforeSendEvent', (event, hint) => {
+          try {
+            if (
+              !inCatch || correlated || hint?.originalException !== exception ||
+              hint?.mechanism?.type !== 'auto.http.nestjs.global_filter'
+            ) return;
+
+            if (
+              typeof event.event_id === 'string' && /^[a-f0-9]{32}$/.test(event.event_id) &&
+              !this.adapter.isHeadersSent(response)
+            ) {
+              correlated = true;
+              this.adapter.setHeader(response, 'X-Error-ID', event.event_id);
+            }
+          } catch {
+            // Correlation is optional and cannot block the original response.
+          }
+        });
+      }
+    } catch {
+      // No client or a failed observer leaves capture/response to the base filter.
+    }
+
+    try {
+      return super.catch(exception, host);
+    } finally {
+      // Late/async events omit the header; neither waiting nor recapture is safe.
+      inCatch = false;
+      try {
+        unsubscribe?.();
+      } catch {
+        // Cleanup faults cannot replace the base filter's result or exception.
+      }
+    }
+  }
+}
 
 /**
  * The default integration set is off, so anything we want has to be named. These
@@ -80,7 +136,7 @@ export const setupSentryErrorHandler = (
   }
 
   try {
-    app.useGlobalFilters(new SentryGlobalFilter(app.getHttpAdapter()));
+    app.useGlobalFilters(new CorrelatedSentryGlobalFilter(app.getHttpAdapter()));
     return true;
   } catch {
     return false;

@@ -33,6 +33,8 @@ async function verifyServer(service) {
   const envelopes = [];
   const prepared = [];
   let transportFailure = false;
+  let beforeSendMode = 'normal';
+  let releaseDelayed;
   function loadSource(relative) {
     if (modules.has(relative)) return modules.get(relative);
     const filename = path.join(root, relative);
@@ -60,13 +62,24 @@ async function verifyServer(service) {
               ...options,
               beforeSend(event, hint) {
                 prepared.push({
+                  eventId: event.event_id,
                   value: event.exception?.values?.[0]?.value,
                   mechanism: event.exception?.values?.[0]?.mechanism?.type,
                   user: event.user?.id,
                   isolation: event.extra?.isolation,
                   local: event.extra?.local,
                 });
-                return options.beforeSend(event, hint);
+                const sanitized = options.beforeSend(
+                  beforeSendMode === 'invalid' ? { ...event, event_id: 'INVALID_ID' } : event,
+                  hint
+                );
+                if (beforeSendMode === 'drop') return null;
+                if (beforeSendMode === 'async') {
+                  return new Promise((resolve) => {
+                    releaseDelayed = () => resolve(sanitized);
+                  });
+                }
+                return sanitized;
               },
               transport() {
                 if (transportFailure) throw new Error('SYNTHETIC_TRANSPORT_FAILURE');
@@ -99,6 +112,9 @@ async function verifyServer(service) {
   const existingUncaught = () => existingUncaughtCalls++;
   process.on('uncaughtException', existingUncaught);
   let Sentry;
+  let capturedClient;
+  let originalCaptureException;
+  let captureCalls = 0;
   try {
     const initializer = loadSource('libraries/nestjs-libraries/src/sentry/initialize.sentry.ts');
     assert.equal(Object.keys(require.cache).some((file) =>
@@ -119,16 +135,35 @@ async function verifyServer(service) {
       ...environment, CONTENT_FACTORY_ERROR_ORIGIN: 'https://different.invalid',
     }), false);
     assert.equal(initializer.initializeSentry(service, environment), true);
+    capturedClient = Sentry.getClient();
+    originalCaptureException = capturedClient.captureException;
+    capturedClient.captureException = function (...args) {
+      captureCalls++;
+      return originalCaptureException.apply(this, args);
+    };
     assert.deepEqual(Sentry.getClient().getOptions().integrations.map(({ name }) => name),
       ['OnUncaughtException', 'OnUnhandledRejection']);
     assert.equal(Sentry.getClient().getOptions().defaultIntegrations, false);
 
     const replies = [];
+    const replyHeaders = [];
     const filters = [];
     const adapter = {
-      reply: (_response, _body, status) => replies.push(status),
-      isHeadersSent: () => false,
-      end() {},
+      reply: (response, _body, status) => {
+        if (response.replyError) throw response.replyError;
+        replies.push(status);
+        replyHeaders.push({ ...response.headers });
+        response.status = status;
+        response.body = _body;
+      },
+      setHeader: (response, name, value) => {
+        if (response.headerError) throw response.headerError;
+        response.headers ??= {};
+        response.headers[name] = value;
+        response.headerWrites = (response.headerWrites ?? 0) + 1;
+      },
+      isHeadersSent: (response) => Boolean(response.headersSent),
+      end(response) { response.ended = true; },
     };
     assert.equal(initializer.setupSentryErrorHandler({
       getHttpAdapter: () => adapter,
@@ -155,6 +190,16 @@ async function verifyServer(service) {
       filters[0].catch(new TypeError('SYNTHETIC_HTTP_SECRET'), host);
       await Sentry.flush(1_000);
     });
+    const httpEvent = envelopes[0][1][0][1];
+    assert.match(response.headers?.['X-Error-ID'] ?? '', /^[a-f0-9]{32}$/);
+    assert.equal(response.headers['X-Error-ID'], httpEvent.event_id);
+    assert.equal(replyHeaders[0]['X-Error-ID'], httpEvent.event_id,
+      'the same sanitized event ID must be set before the original 500 reply');
+    assert(!Object.hasOwn(httpEvent.exception.values[0], 'mechanism'),
+      'correlation must work with a stripped event mechanism');
+    assert.equal(response.headerWrites, 1);
+    assert.equal(captureCalls, 1, 'one HTTP error must invoke the real client capture exactly once');
+    assert.deepEqual(response.body, { statusCode: 500, message: 'Internal server error' });
     const beforeExpected = envelopes.length;
     filters[0].catch(new HttpException('Expected synthetic refusal', 401), host);
     await Sentry.flush(1_000);
@@ -225,11 +270,243 @@ async function verifyServer(service) {
     assert.equal(Object.keys(require.cache).filter((file) =>
       /[\\/]@opentelemetry[\\/]/.test(file)
     ).length, 0);
+
+    const client = Sentry.getClient();
+    const originalOn = client.on;
+    let activeListeners = 0;
+    let registrationFailure = false;
+    let removalFailure = false;
+    let correlationCases = 1; // The normal same-event-before-reply proof above.
+    client.on = function (hook, callback) {
+      if (hook !== 'beforeSendEvent') return originalOn.call(this, hook, callback);
+      if (registrationFailure) throw new Error('SYNTHETIC_OBSERVER_FAILURE');
+      const remove = originalOn.call(this, hook, callback);
+      activeListeners++;
+      return () => {
+        remove();
+        activeListeners--;
+        if (removalFailure) throw new Error('SYNTHETIC_CLEANUP_FAILURE');
+      };
+    };
+    const ownHost = (ownResponse = {}, type = 'http') => ({
+      response: ownResponse,
+      getType: () => type,
+      getArgByIndex: (index) => index === 1 ? ownResponse : request,
+      switchToHttp: () => ({ getRequest: () => request, getResponse: () => ownResponse }),
+    });
+    const noHeader = (ownResponse) => assert.equal(ownResponse.headers?.['X-Error-ID'], undefined);
+    const checked = () => {
+      assert.equal(activeListeners, 0, 'each catch must release its public SDK listener');
+      correlationCases++;
+    };
+    let injectedException;
+    let nestedHost;
+    let injected = false;
+    client.addEventProcessor((event, hint) => {
+      if (hint?.originalException === injectedException && !injected) {
+        injected = true;
+        const noise = { event_id: 'a'.repeat(32) };
+        client.emit('beforeSendEvent', noise, {
+          originalException: new Error('SYNTHETIC_FOREIGN_EVENT'),
+          mechanism: { type: 'auto.http.nestjs.global_filter' },
+        });
+        client.emit('beforeSendEvent', noise, {
+          originalException: injectedException,
+          mechanism: { type: 'auto.node.onuncaughtexception' },
+        });
+        client.emit('beforeSendEvent', noise);
+        client.emit('beforeSendEvent', noise, {
+          get originalException() { throw new Error('SYNTHETIC_HINT_FAILURE'); },
+        });
+        client.emit('beforeSendEvent', noise, {
+          originalException: injectedException,
+          get mechanism() { throw new Error('SYNTHETIC_MECHANISM_FAILURE'); },
+        });
+        client.emit('beforeSendEvent', {
+          get event_id() { throw new Error('SYNTHETIC_EVENT_ID_FAILURE'); },
+        }, {
+          originalException: injectedException,
+          mechanism: { type: 'auto.http.nestjs.global_filter' },
+        });
+        client.emit('beforeSendEvent', { event_id: 'INVALID_ID' }, {
+          originalException: injectedException,
+          mechanism: { type: 'auto.http.nestjs.global_filter' },
+        });
+        assert.equal(activeListeners, 1);
+        filters[0].catch(new TypeError('SYNTHETIC_NESTED_HTTP'), nestedHost);
+        assert.equal(activeListeners, 1, 'the nested catch must release only its own listener');
+      }
+      return event;
+    });
+    const correlationStart = envelopes.length;
+    const correlationStartCalls = captureCalls;
+    try {
+      assert.equal(initializer.setupSentryErrorHandler({
+        getHttpAdapter() { assert.fail('invalid DSN must not access the adapter'); },
+        useGlobalFilters() { assert.fail('invalid DSN must not install a filter'); },
+      }, {}), false);
+      assert.equal(initializer.setupSentryErrorHandler({
+        getHttpAdapter() { assert.fail('invalid DSN must not access the adapter'); },
+        useGlobalFilters() { assert.fail('invalid DSN must not install a filter'); },
+      }, { ...environment, CONTENT_FACTORY_ERROR_DSN: 'not-a-dsn' }), false);
+      checked();
+
+      for (const status of [401, 500]) {
+        const expected = ownHost();
+        const before = envelopes.length;
+        filters[0].catch(new HttpException('Expected synthetic refusal', status), expected);
+        await Sentry.flush(1_000);
+        assert.equal(expected.response.status, status);
+        assert.equal(envelopes.length, before);
+        noHeader(expected.response);
+        checked();
+      }
+
+      injectedException = new TypeError('SYNTHETIC_OUTER_HTTP');
+      const outerHost = ownHost();
+      nestedHost = ownHost();
+      filters[0].catch(injectedException, outerHost);
+      await Sentry.flush(1_000);
+      for (const [value, ownResponse] of [
+        ['SYNTHETIC_OUTER_HTTP', outerHost.response],
+        ['SYNTHETIC_NESTED_HTTP', nestedHost.response],
+      ]) {
+        assert.equal(ownResponse.headers['X-Error-ID'], prepared.find((item) => item.value === value).eventId);
+        assert.equal(ownResponse.headerWrites, 1);
+        assert.equal(ownResponse.status, 500);
+        assert.notEqual(ownResponse.headers['X-Error-ID'], 'a'.repeat(32));
+      }
+      assert.notEqual(outerHost.response.headers['X-Error-ID'], nestedHost.response.headers['X-Error-ID']);
+      injectedException = undefined;
+      checked();
+
+      const concurrent = await Promise.all(['A', 'B'].map((label) => Sentry.withIsolationScope(async () => {
+        await turn();
+        const currentHost = ownHost();
+        filters[0].catch(new TypeError(`SYNTHETIC_CONCURRENT_HTTP_${label}`), currentHost);
+        assert.equal(currentHost.response.headers['X-Error-ID'], prepared.find((item) =>
+          item.value === `SYNTHETIC_CONCURRENT_HTTP_${label}`
+        ).eventId);
+        return currentHost.response;
+      })));
+      await Sentry.flush(1_000);
+      assert.notEqual(concurrent[0].headers['X-Error-ID'], concurrent[1].headers['X-Error-ID']);
+      checked();
+
+      for (const mode of ['drop', 'invalid']) {
+        beforeSendMode = mode;
+        const dropped = ownHost();
+        const before = envelopes.length;
+        filters[0].catch(new TypeError('SYNTHETIC_DROPPED_HTTP'), dropped);
+        beforeSendMode = 'normal';
+        await Sentry.flush(1_000);
+        assert.equal(envelopes.length, before);
+        assert.equal(dropped.response.status, 500);
+        noHeader(dropped.response);
+        checked();
+      }
+
+      beforeSendMode = 'async';
+      const delayed = ownHost();
+      const beforeDelayed = envelopes.length;
+      filters[0].catch(new TypeError('SYNTHETIC_DELAYED_HTTP'), delayed);
+      beforeSendMode = 'normal';
+      assert.equal(delayed.response.status, 500, 'the response must not wait for async telemetry');
+      noHeader(delayed.response);
+      assert.equal(activeListeners, 0);
+      releaseDelayed();
+      await Sentry.flush(1_000);
+      assert.equal(envelopes.length, beforeDelayed + 1);
+      noHeader(delayed.response);
+      checked();
+
+      const scope = Sentry.getCurrentScope();
+      scope.setClient(undefined);
+      try {
+        const absent = ownHost();
+        const before = envelopes.length;
+        filters[0].catch(new TypeError('SYNTHETIC_NO_CLIENT'), absent);
+        assert.equal(absent.response.status, 500);
+        assert.equal(envelopes.length, before);
+        noHeader(absent.response);
+        checked();
+      } finally {
+        scope.setClient(client);
+      }
+
+      client.getOptions().enabled = false;
+      try {
+        const disabled = ownHost();
+        const before = envelopes.length;
+        filters[0].catch(new TypeError('SYNTHETIC_DISABLED_CLIENT'), disabled);
+        await Sentry.flush(1_000);
+        assert.equal(disabled.response.status, 500);
+        assert.equal(envelopes.length, before);
+        noHeader(disabled.response);
+        checked();
+      } finally {
+        client.getOptions().enabled = true;
+      }
+
+      const sent = ownHost({ headersSent: true });
+      filters[0].catch(new TypeError('SYNTHETIC_HEADERS_SENT'), sent);
+      assert.equal(sent.response.ended, true);
+      assert.equal(sent.response.status, undefined);
+      noHeader(sent.response);
+      checked();
+
+      registrationFailure = true;
+      const observerFailure = ownHost();
+      filters[0].catch(new TypeError('SYNTHETIC_OBSERVER_HTTP'), observerFailure);
+      registrationFailure = false;
+      assert.equal(observerFailure.response.status, 500);
+      noHeader(observerFailure.response);
+      checked();
+
+      const headerFailure = ownHost({ headerError: new Error('SYNTHETIC_HEADER_FAILURE') });
+      filters[0].catch(new TypeError('SYNTHETIC_HEADER_HTTP'), headerFailure);
+      assert.equal(headerFailure.response.status, 500);
+      noHeader(headerFailure.response);
+      checked();
+
+      const replyError = new Error('SYNTHETIC_REPLY_FAILURE');
+      assert.throws(() => filters[0].catch(new TypeError('SYNTHETIC_THROWING_REPLY'),
+        ownHost({ replyError })), (error) => error === replyError);
+      checked();
+
+      removalFailure = true;
+      const cleanupFailure = ownHost();
+      filters[0].catch(new TypeError('SYNTHETIC_CLEANUP_HTTP'), cleanupFailure);
+      removalFailure = false;
+      assert.equal(cleanupFailure.response.status, 500);
+      assert.match(cleanupFailure.response.headers['X-Error-ID'], /^[a-f0-9]{32}$/);
+      checked();
+
+      const graphqlError = new HttpException('Expected synthetic refusal', 401);
+      const nonHttp = ownHost({}, 'graphql');
+      assert.throws(() => filters[0].catch(graphqlError, nonHttp), (error) => error === graphqlError);
+      noHeader(nonHttp.response);
+      checked();
+      await Sentry.flush(1_000);
+      assert.equal(envelopes.length - correlationStart, 10,
+        'only the ten native filter captures admitted by these scenarios may be sent');
+      assert.equal(captureCalls - correlationStartCalls, 13,
+        'ten sent plus exactly three dropped/invalid/disabled captures, with no extra capture');
+      for (const envelope of envelopes) {
+        assert(!JSON.stringify(envelope).includes('SYNTHETIC_'));
+      }
+    } finally {
+      beforeSendMode = 'normal';
+      releaseDelayed?.();
+      client.on = originalOn;
+    }
+    assert.equal(correlationCases, 17);
     await Sentry.close(1_000);
     transportFailure = true;
     assert.equal(initializer.initializeSentry(service, environment), false);
     assert.equal(networkAttempts, 0);
   } finally {
+    if (capturedClient) capturedClient.captureException = originalCaptureException;
     await Sentry?.close(1_000);
     for (const [name, original] of listeners) {
       for (const listener of process.listeners(name)) {
@@ -238,7 +515,7 @@ async function verifyServer(service) {
       assert.equal(process.listeners(name).length, original.size);
     }
   }
-  return { status: 'PASS', service, events: 7, networkAttempts, listenersRestored: true };
+  return { status: 'PASS', service, events: 7, correlationCases: 17, networkAttempts, listenersRestored: true };
 }
 
 if (process.argv[2] === '--sentry-light-child') {
@@ -261,7 +538,7 @@ if (process.argv[2] === '--sentry-light-child') {
         expect(result.stderr).toBe('');
         expect(result.status).toBe(0);
         expect(JSON.parse(result.stdout)).toEqual({
-          status: 'PASS', service, events: 7, networkAttempts: 0, listenersRestored: true,
+          status: 'PASS', service, events: 7, correlationCases: 17, networkAttempts: 0, listenersRestored: true,
         });
       }
     );
