@@ -133,7 +133,7 @@ export class ContentSourceController {
         // This route returns evidence directly to the reader. The internal
         // opt-in is server-owned; a language alone also occurs in automatic
         // generation and intake, which discard the provider summary.
-        { language: body.language, readerResponse: true }
+        { language: body.language, readerResponse: true, task: 'research' }
       );
       const sourceByUrl = new Map(
         research.sources.map((source) => [source.url, source])

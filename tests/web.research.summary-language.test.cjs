@@ -1148,7 +1148,7 @@ describe('отказ поиска приходит с кодом', () => {
     assert.equal(/Tavily|OpenRouter|8000/.test(body.message), false);
   });
 
-  test('маршрут задаёт язык и внутренний признак читателя, не принимая его из body', async () => {
+  test('маршрут задаёт язык, режим исследования и внутренний признак читателя', async () => {
     const calls = [];
     const controller = controllerWithResearch({
       research: async (...args) => {
@@ -1163,7 +1163,11 @@ describe('отказ поиска приходит с кодом', () => {
     );
 
     assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0][2], { language: 'ru', readerResponse: true });
+    assert.deepEqual(calls[0][2], {
+      language: 'ru',
+      readerResponse: true,
+      task: 'research',
+    });
   });
 
   test('DTO принимает только известные языки', async () => {

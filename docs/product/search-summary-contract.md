@@ -6,6 +6,15 @@ Beads owns status and preserves the original observed examples and acceptance.
 ## Opted-in source readers
 
 The source-search controller alone sets the internal `readerResponse === true`.
+
+This user-triggered search for supports appoints the existing `research` task
+on the server, without an explicit level. Automatic drafting retains the
+unnamed `facts` default. The existing router chooses the engine and credential
+source using available keys and operator policies; the DTO cannot appoint a
+task, provider or level. Query generation, date and grounding rules, bounds
+and failure behavior remain unchanged. Routing does not guarantee the
+usefulness of a future result.
+
 An unsupplied request with an explicit `ru` or `en` reader language, outside
 discovery, receives at most one combined source review/synthesis invocation.
 It replaces the old reader-summary call; a complete same-language engine answer

@@ -1248,15 +1248,63 @@ test('controller uses the content-intelligence route and sends request tenant to
       },
     }
   );
+  const searchTasks = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/openai/ai.search-tasks.ts'
+  );
+  const searchRoute = {
+    provider: 'exa',
+    apiKeys: { exa: 'test-exa-key', tavily: 'test-tavily-key' },
+  };
   const calls = [];
+  const researchCalls = [];
+  const selectedProviders = [];
   const controller = new controllerModule.ContentSourceController(
     {
       listSources: async (...args) => calls.push(args),
     },
-    { research: async () => ({ summary: '', facts: [], sources: [], provider: 'tavily' }) }
+    {
+      research: async (...args) => {
+        researchCalls.push(args);
+        const provider = searchTasks.providerForSearchTask(
+          args[2].task ?? searchTasks.DEFAULT_SEARCH_TASK,
+          searchRoute
+        );
+        selectedProviders.push(provider);
+        return { summary: '', facts: [], sources: [], provider };
+      },
+    }
   );
   await controller.list({ id: 'org-request' });
   assert.deepEqual(calls, [['org-request']]);
+  const subjects = [
+    { subject: 'Compare deployment, costs and licences', language: 'en' },
+    { subject: 'Сравнить варианты размещения, стоимость и лицензии', language: 'ru' },
+  ];
+  for (const input of subjects) {
+    await controller.searchForEvidence(
+      { id: 'org-request' },
+      {
+        ...input,
+        // Extra request fields cannot choose the internal task or level.
+        task: 'facts',
+        level: 'deep',
+        queries: ['unasked override'],
+        provider: 'tavily',
+      }
+    );
+  }
+  assert.deepEqual(researchCalls, subjects.map(({ subject, language }) => [
+    'org-request',
+    subject,
+    { language, readerResponse: true, task: 'research' },
+  ]));
+  assert.deepEqual(selectedProviders, ['exa', 'exa']);
+  // The controller appoints human research; automatic unnamed calls keep facts.
+  assert.equal(searchTasks.DEFAULT_SEARCH_TASK, 'facts');
+  assert.equal(
+    searchTasks.providerForSearchTask(searchTasks.DEFAULT_SEARCH_TASK, searchRoute),
+    'tavily'
+  );
   assert.equal(
     Reflect.getMetadata('path', controllerModule.ContentSourceController),
     '/content-intelligence/sources'
