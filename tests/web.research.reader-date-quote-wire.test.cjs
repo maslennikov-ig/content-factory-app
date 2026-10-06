@@ -62,14 +62,14 @@ test.each([
 });
 
 test.each([
-  ['multiple distinct dates', '1 октября 2026 до 2 октября 2026', '1 октября 2026 до 2 октября 2026'],
-  ['invalid civil date', '31 февраля 2026', '31 февраля 2026'],
-  ['adjacent day prefix', '21 октября 2026', '1 октября 2026'],
-  ['adjacent year suffix', '1 октября 20261', '1 октября 2026'],
-])('v4 %s rejects at the fixed quote-grounding boundary', (_label, sourceDate, quote) => {
+  ['multiple distinct dates', '1 октября 2026 до 2 октября 2026', '1 октября 2026 до 2 октября 2026', 'date_ambiguous'],
+  ['invalid civil date', '31 февраля 2026', '31 февраля 2026', 'date_missing'],
+  ['adjacent day prefix', '21 октября 2026', '1 октября 2026', 'date_token_boundary'],
+  ['adjacent year suffix', '1 октября 20261', '1 октября 2026', 'date_token_boundary'],
+])('v4 %s rejects at the fixed quote-grounding boundary', (_label, sourceDate, quote, groundingReason) => {
   const reasons = [];
-  expect(pure.compileReaderReview(pack(article(sourceDate)), wire(quote), reason => reasons.push(reason))).toBeNull();
-  expect(reasons).toEqual(['date_quote_grounding']);
+  expect(pure.compileReaderReview(pack(article(sourceDate)), wire(quote), (predicate, _issue, _match, reason) => reasons.push({ predicate, reason }))).toBeNull();
+  expect(reasons).toEqual([{ predicate: 'date_quote_grounding', reason: groundingReason }]);
 });
 
 test('v4 repeated exact quote refuses an arbitrary occurrence; one unique context quote can repeat the same civil date', () => {
@@ -91,8 +91,8 @@ test('v4 cannot borrow an exact date from another presented source absent from t
   const output = wire(); output.sources.push({id:'S2',relevance:'relevant'});
   output.claims[0].dates[0].ref.source = 'S2';
   const reasons = [];
-  expect(pure.compileReaderReview(input, output, reason => reasons.push(reason))).toBeNull();
-  expect(reasons).toEqual(['date_quote_grounding']);
+  expect(pure.compileReaderReview(input, output, (predicate, _issue, _match, reason) => reasons.push({ predicate, reason }))).toBeNull();
+  expect(reasons).toEqual([{ predicate: 'date_quote_grounding', reason: 'date_source_mismatch' }]);
 });
 
 test('v4 preserves final v1 date ordering and literal requested names instead of repairing claims', () => {

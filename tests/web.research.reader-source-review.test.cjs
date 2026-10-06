@@ -684,6 +684,108 @@ test('own reader failure exposes only safe parser class and observed UTF8 byte c
   expect(h.calls.search).toHaveLength(1);
 });
 
+test.each([
+  ['entity_ref_missing', (output) => { output.entities[0].ref = null; }],
+  ['entity_claim_missing', (output) => { output.claims = []; }],
+  ['entity_name_missing', (output) => { output.claims[0].text = 'Ставка равна 14%.'; }],
+  ['entity_source_mismatch', (output) => { output.entities[0].ref.source = 'S2'; }],
+])('entity grounding subreason %s survives the real v5 service and safe projection', async (reason, mutate) => {
+  const text = 'Банк Альфа установил ставку 14%.';
+  const input = sample(text, 'Банк Альфа: ставка?');
+  input.sources.push({ ...input.sources[0], url: 'https://example.org/other' });
+  const output = review(input, [{
+    text, kind: 'context', refs: [ref(text, text)], dates: [],
+  }]);
+  output.sources.push({ id: 'S2', relevance: 'relevant' });
+  output.entities = [{
+    name: 'Банк Альфа', subjectStart: 0, subjectEnd: 10,
+    status: 'supported_claim', ref: ref(text, 'Банк Альфа'),
+  }];
+  mutate(output);
+  h.set(input, 'Не использовать непроверенный ответ.', output);
+  const result = await h.search(input.subject);
+  const failure = result.readerAssessment.failureDiagnostic;
+  expect(failure).toMatchObject({
+    stage: 'validate_api_v1', predicate: 'v1_entity_supported_claim',
+    failure: 'validation_rejected', groundingReason: reason,
+  });
+  expect(pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic).toEqual(failure);
+  expect(JSON.stringify(failure)).not.toContain('Альфа');
+  expect(result.summary).toBe('');
+  expect(result.facts).toEqual([]);
+  expect(h.calls.search).toHaveLength(1);
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.rows).toHaveLength(1);
+  expect(h.calls.rows[0].succeeded).toBe(true);
+});
+
+test('date grounding subreason survives the real v5 service without another request', async () => {
+  const input = sample();
+  input.sources.push({ ...input.sources[0], url: 'https://example.org/other' });
+  const output = review(input);
+  output.sources.push({ id: 'S2', relevance: 'relevant' });
+  h.set(input, 'Не использовать непроверенный ответ.', (request) => {
+    const raw = pure.syntheticReaderV5Fixture(input, output, request);
+    const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+    const otherDate = view.sources[1][5].find(a => a[3] === 'd' &&
+      view.sources[1][4].slice(a[1], a[2] + 1).join('').includes('1 октября 2026'));
+    raw.claims[0].dates[0].ref = otherDate[0];
+    return raw;
+  });
+  const result = await h.search(input.subject);
+  const failure = result.readerAssessment.failureDiagnostic;
+  expect(failure).toMatchObject({
+    stage: 'compile_wire_v5', predicate: 'date_quote_grounding',
+    failure: 'validation_rejected', groundingReason: 'date_source_mismatch',
+  });
+  expect(pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic).toEqual(failure);
+  expect(result.summary).toBe('');
+  expect(result.facts).toEqual([]);
+  expect(h.calls.search).toHaveLength(1);
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.rows).toHaveLength(1);
+  expect(h.calls.rows[0].succeeded).toBe(true);
+});
+
+test.each([
+  ['date_missing', 'compile_wire_v5', 'date_quote_grounding'],
+  ['date_ambiguous', 'compile_wire_v4', 'date_quote_grounding'],
+  ['date_source_mismatch', 'compile_wire_v5', 'date_quote_grounding'],
+  ['date_token_boundary', 'compile_wire_v4', 'date_quote_grounding'],
+  ['entity_ref_missing', 'validate_api_v1', 'v1_entity_supported_claim'],
+  ['entity_claim_missing', 'validate_api_v1', 'v1_entity_supported_claim'],
+  ['entity_name_missing', 'validate_api_v1', 'v1_entity_supported_claim'],
+  ['entity_source_mismatch', 'validate_api_v1', 'v1_entity_supported_claim'],
+])('grounding subreason %s is allowlisted only at its own validation boundary', (reason, stage, predicate) => {
+  const out = pure.unavailableReaderReview(pack());
+  out.status = 'review_unavailable';
+  const failure = {
+    stage, predicate, failure: 'validation_rejected', groundingReason: reason,
+    termination: null, providerCode: 'unobserved', contentUtf8Bytes: null,
+    toolArgumentsUtf8Bytes: null,
+  };
+  out.failureDiagnostic = failure;
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toEqual(failure);
+  for (const patch of [
+    { groundingReason: 'SYNTHETIC_PRIVATE' }, { groundingReason: null },
+    { groundingReason: 0 }, { failure: 'provider_failure' },
+    { stage: 'invocation' }, { predicate: 'wire_schema' },
+    { groundingReason: reason.startsWith('date_') ? 'entity_ref_missing' : 'date_missing' },
+    { raw: 'SYNTHETIC_PRIVATE' },
+  ]) {
+    out.failureDiagnostic = { ...failure, ...patch };
+    expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+  }
+  let touched = false;
+  out.failureDiagnostic = { ...failure };
+  Object.defineProperty(out.failureDiagnostic, 'groundingReason', {
+    enumerable: true,
+    get() { touched = true; throw Error('SYNTHETIC_PRIVATE_GETTER'); },
+  });
+  expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+  expect(touched).toBe(false);
+});
+
 test('reader reject observer reports first nested source gate without changing compiler outcome', () => {
   const input = pack();
   const raw = pure.syntheticReaderWire(input.evidence, review(sample()));

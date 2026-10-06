@@ -115,7 +115,7 @@ Compilation, date parsing and final v1 validation remain authoritative and rejec
 the entire invalid review. This narrows an observed invalid-output class; the
 selected IDs of the historical TG/RATE failures were not retained, so it does not
 prove their particular cause or fresh search usefulness. Existing finite failure
-diagnostics remain unchanged; no extra raw-output parsing or retention is added.
+diagnostic predicates remain unchanged; no extra raw-output parsing or retention is added.
 
 Offline retained TG/1C/RATE checks measure the actual current service schema,
 rules, HumanMessage serializer and validators against the exact captured reader
@@ -145,6 +145,24 @@ output, reference/source ID or private identifier. Historical diagnostics may
 omit the field, so absence does not determine a past failure's cause. This
 observation adds no model/provider call or retry and changes no quote, source,
 date, provenance or v1 eligibility rule.
+
+For a grounded-date or supported-entity rejection, the optional public diagnostic
+adds one allowlisted `groundingReason`. Dates distinguish `date_missing`,
+`date_ambiguous`, `date_source_mismatch` and `date_token_boundary`; entities
+distinguish `entity_ref_missing`, `entity_claim_missing`, `entity_name_missing`
+and `entity_source_mismatch`. Projection permits date reasons only at the v4/v5
+compiler's `date_quote_grounding`, and entity reasons only at v1 validation's
+`v1_entity_supported_claim`, with `validation_rejected`. No names, dates,
+source IDs, quotations or raw rejected values enter this field. The first
+rejection and original eligibility decisions stay unchanged; missing historical
+reasons do not identify a past cause.
+
+The v5 rules state the same-source date/entity conditions explicitly. Provider
+excerpt cleanup removes a numeric list marker only when its separator is followed
+by whitespace, preserving dotted dates such as `01.10.2026` and decimal rate
+prefixes such as `14.00%`. Ordinary numbered lists and nested bullet/table
+markers still clean normally. Local regressions prove this preservation; the
+specific causal link to historical live refusals remains unknown.
 
 Both query classification and combined review use the existing `classify` role;
 there is no new role or operation. The review output remains capped at 1200

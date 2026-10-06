@@ -1180,7 +1180,8 @@ const MARKDOWN_LINK = /\[([^\]]*)\]\([^)]*\)/g;
 const ABSOLUTE_URL = /\b(?:https?|blob|data|ftp|mailto):\S+/gi;
 /** `/account/register`, `/Magazine` — a menu that lost its markup. */
 const SITE_RELATIVE_PATH = /(?:^|\s)\/[^\s)]+/g;
-const LEADING_LIST_MARKER = /^\s*(?:[*+•-]|\d+[.)]|#{1,6}|>|\|)\s*/;
+/** A numeric list marker needs whitespace; dotted dates and rates are evidence. */
+const LEADING_LIST_MARKER = /^\s*(?:[*+•-]|\d+[.)](?=\s)|#{1,6}|>|\|)\s*/;
 const PAGE_CHROME =
   /^(?:skip to\b|jump to\b|top of page\b|back to top\b|menu\b|main menu\b|navigation\b|share this\b|follow us\b|sign in\b|log ?in\b|sign up\b|subscribe\b|subscribers\b|newsletter\b|cookie|accept all\b|advertisement\b|report ad\b|image:|©|all rights reserved\b|privacy policy\b|terms of\b|terms (?:&|and) conditions\b)/i;
 /**
@@ -1741,6 +1742,7 @@ export class WebResearchService {
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
     let quoteMatch: ReaderQuoteMatch | undefined;
+    let groundingReason: ReaderFailureDiagnostic['groundingReason'];
     let failure: ReaderReviewFailureCode = 'validation_rejected';
     let providerCode: ReaderReviewProviderCode = 'unobserved';
     let observation: ReturnType<typeof readerReviewOutputObservation> = {
@@ -1751,12 +1753,14 @@ export class WebResearchService {
     const onReject = (
       code: ReaderReviewRejection,
       issue?: ReaderWireIssueDiagnostic,
-      match?: ReaderQuoteMatch
+      match?: ReaderQuoteMatch,
+      reason?: ReaderFailureDiagnostic['groundingReason']
     ) => {
       if (predicate === 'unobserved') {
         predicate = code;
         wireIssue = issue;
         quoteMatch = match;
+        groundingReason = reason;
       }
     };
     try {
@@ -1842,6 +1846,7 @@ export class WebResearchService {
         ? { wireIssueFamily: wireIssue.family, wireIssueCode: wireIssue.code }
         : {}),
       ...(quoteMatch ? { quoteMatch } : {}),
+      ...(groundingReason ? { groundingReason } : {}),
     };
     return { assessment, summary: '', facts: [] as WebResearchFact[] };
   }

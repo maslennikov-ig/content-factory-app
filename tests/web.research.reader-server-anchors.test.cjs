@@ -63,6 +63,21 @@ test('v5 uses deep-frozen exact server anchors while original v4 stays available
   expect(pure.READER_REVIEW_WIRE_VERSION).toBe('reader-source-review-wire/v4');
 });
 
+test('v5 prompt states literal entity and same-source date grounding within its existing bound', () => {
+  const input = prepare('Банк Альфа действует с 1 октября 2026.');
+  expect(input).not.toBeNull();
+  const marker = 'Untrusted reader evidence:\n';
+  const rules = input.prompt.slice(0, input.prompt.indexOf(marker) + marker.length);
+  expect(rules).toContain("listed 'd' K ID containing exactly one distinct complete civil date");
+  expect(rules).toContain("source must also occur in the same claim's refs");
+  expect(rules).toContain('full exact requested name, unique in subject');
+  expect(rules).toContain('supported_claim, ref is non-null');
+  expect(rules).toContain('claim.text includes subjectQuote verbatim');
+  expect(rules).toContain('same source as entity.ref');
+  expect(rules).toContain('later retrospectives remain eligible');
+  expect(pure.serializedReaderV5InputBytes(rules)).toBeLessThanOrEqual(4000);
+});
+
 test.each([
   'unknownId',
   'missingId',
@@ -330,7 +345,7 @@ test('the prepared byte bound includes the exact generation schema and cannot be
   expect(input.inputBytes).toBeLessThanOrEqual(25000);
   expect(pure.readerReviewV5GenerationSchema?.(structuredClone(input))).toBeNull();
   expect(Object.isFrozen(schema)).toBe(true);
-  expect(input.prompt).toContain('each date ref must use a');
+  expect(input.prompt).toContain('Each date ref selects a listed');
 });
 
 test('near-cap escaped multibyte evidence prunes only optional bridges with the dynamic schema charged', () => {
@@ -356,7 +371,7 @@ test('near-cap escaped multibyte evidence prunes only optional bridges with the 
     Array.from({ length: 4 }, (_, i) => ({ sourceUrl: `https://example.invalid/${i}`, text })), 'Russian');
   // Exercise the preparation port's hard limit while keeping every source
   // unchanged and the full escaped subject within its existing character cap.
-  original.evidence.subject += 'Ж😀\\"'.repeat(208);
+  original.evidence.subject += 'Ж😀\\"'.repeat(198);
   const input = guarded.prepareReaderReviewV5(original);
   expect(input).not.toBeNull();
   expect(rejectedFits).toBeGreaterThan(0);

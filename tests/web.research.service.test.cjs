@@ -1326,6 +1326,50 @@ describe('shared web research service', () => {
     ]);
   });
 
+  test.each([
+    [
+      'dotted dates and rates in a provider table',
+      'Дата | Ставка |\n| 01.10.2026 | 14,00 |\n| 30.09.2026 | 14.00 |',
+      'Дата | Ставка |\n01.10.2026 | 14,00 |\n30.09.2026 | 14.00 |',
+    ],
+    [
+      'a decimal rate at the beginning of a prose line',
+      '14.00% годовых — ставка по состоянию на 01.10.2026.',
+      '14.00% годовых — ставка по состоянию на 01.10.2026.',
+    ],
+    [
+      'numbered list contents after whitespace-separated markers',
+      '1. Проверить дату 01.10.2026.\n2)\tПроверить ставку 14.00%.',
+      'Проверить дату 01.10.2026.\nПроверить ставку 14.00%.',
+    ],
+    [
+      'a numeric prose prefix without a list separator',
+      '1.Версия отчёта содержит ставку 14.00% и дату 01.10.2026.',
+      '1.Версия отчёта содержит ставку 14.00% и дату 01.10.2026.',
+    ],
+    [
+      'nested bullets, pipes and paragraph boundaries',
+      '> * 1. Дата решения 01.10.2026.\n\n\n| * 2) Ставка 14.00%.',
+      'Дата решения 01.10.2026.\n\nСтавка 14.00%.',
+    ],
+  ])('provider excerpt cleanup preserves %s', async (_label, content, expected) => {
+    implementations.tavily = async () => ({
+      results: [
+        { title: 'Rate history', url: 'https://example.com/rate', content },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ставка'
+    );
+
+    expect(result.facts).toEqual([
+      { sourceUrl: 'https://example.com/rate', text: expected },
+    ]);
+    expect(invocations).toHaveLength(1);
+  });
+
   test('a one-line snippet that cites its source stays a claim (review P1-3)', async () => {
     implementations.tavily = async () => ({
       results: [
