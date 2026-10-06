@@ -46,6 +46,42 @@ test('each reference retains the same strict bounds without changing validation'
   expect(readerReviewSchema.safeParse({ ...valid, claims: [{ ...valid.claims[0], refs: [{ source: 'S1', start: 0, end: 1, extra: true }] }] }).success).toBe(false);
 });
 
+test.each([true, false])('the actual SDK sends the catalogue-specific date schema (dates=%s)', async (hasDate) => {
+  const pure = require('./helpers/reader-source-review.cjs');
+  const input = pure.prepareReaderReviewV5(pure.packReaderReview('Что известно?',
+    [{ url: 'https://example.invalid/article', title: 'Контекст', publishedAt: null }],
+    [{ sourceUrl: 'https://example.invalid/article', text: hasDate ? 'Изменение действует с 1 октября 2026.' : 'Изменение описано в источнике.' }],
+    'Russian'));
+  const schema = pure.readerReviewV5GenerationSchema(input);
+  const table = input.catalogue.view.sources[0][5];
+  const selected = hasDate ? table.find(row => row[3] === 'd')[0] : table[0][0];
+  const output = { version: 'reader-source-review-wire/v5', catalogue: input.catalogue.binding,
+    sources: [{ id: 'S1', relevance: 'relevant' }],
+    claims: [{ text: 'Изменение описано в источнике.', kind: 'observed', refs: [selected], dates: hasDate ? [{ kind: 'as_of', ref: selected }] : [] }],
+    coverage: [{ question: 'Что известно?', status: 'partial' }], entities: [] };
+  const calls = [];
+  const model = new ChatOpenAI({ apiKey: 'offline-no-secret', model: 'openai/gpt-6-luna', maxTokens: 1200,
+    maxRetries: 0, disableStreaming: true,
+    configuration: { baseURL: 'https://offline.invalid/v1', fetch: async (url, init) => {
+      expect(String(url)).toBe('https://offline.invalid/v1/chat/completions');
+      const request = JSON.parse(init.body); calls.push(request);
+      expect(request.response_format.json_schema.schema).toEqual(schema);
+      const dates = request.response_format.json_schema.schema.properties.claims.items.properties.dates;
+      if (hasDate) {
+        expect(dates.items.properties.ref).toEqual({ $ref: '#/$defs/d' });
+        expect(request.response_format.json_schema.schema.$defs.d.enum).toContain(selected);
+      } else expect(dates.maxItems).toBe(0);
+      return new Response(JSON.stringify({ id: 'offline', object: 'chat.completion', created: 0, model: request.model,
+        choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify(output) }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    } } });
+  const raw = await model.withStructuredOutput(schema).invoke(input.prompt);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].max_tokens).toBe(1200);
+  expect(JSON.stringify(calls[0].response_format.json_schema.schema)).not.toContain('#/properties/');
+  expect(pure.compileReaderReviewV5(input, raw)).not.toBeNull();
+});
+
 test('date quote wire v4 reaches the actual SDK with public named definitions and unchanged token limit', async () => {
   const output = {
     version: READER_REVIEW_WIRE_VERSION,

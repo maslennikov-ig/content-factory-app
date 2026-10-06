@@ -102,6 +102,21 @@ bindings, quotations or raw model text. The scoped cache discriminator is
 `reader-source-review/v1:wire/v5`; existing tenant, route, task, language and
 TTL boundaries remain intact.
 
+The provider generation schema restricts each claim's date reference to the
+current catalogue's `d` rows. Ordinary claim/entity references retain their
+existing full ID grammar. If no `d` rows exist, generation permits only empty
+date arrays. The reader must cite that date's source in the same claim's ordinary
+references; this source relationship remains enforced by the original compiler.
+The schema is derived from the immutable, request-bound catalogue, with no
+caller-supplied override. Its actual serialized bytes, rules and message envelope
+count toward the unchanged 25,000-byte ceiling; existing optional-bridge pruning
+uses that same schema, and the 21,000-byte evidence envelope is unchanged.
+Compilation, date parsing and final v1 validation remain authoritative and reject
+the entire invalid review. This narrows an observed invalid-output class; the
+selected IDs of the historical TG/RATE failures were not retained, so it does not
+prove their particular cause or fresh search usefulness. Existing finite failure
+diagnostics remain unchanged; no extra raw-output parsing or retention is added.
+
 Offline retained TG/1C/RATE checks measure the actual current service schema,
 rules, HumanMessage serializer and validators against the exact captured reader
 boundary evidence through synthetic test ports. Provider tails beyond that

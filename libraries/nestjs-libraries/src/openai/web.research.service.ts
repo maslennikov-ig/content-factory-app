@@ -9,7 +9,7 @@ import {
   packReaderReview,
   requestedDate,
   prepareReaderReviewV5,
-  readerReviewWireV5JsonSchema,
+  readerReviewV5GenerationSchema,
   compileReaderReviewV5,
   validateReaderReview,
   unavailableReaderReview,
@@ -1741,7 +1741,9 @@ export class WebResearchService {
         );
         phase = 'structured-output';
         stage = phase;
-        const writer = model.withStructuredOutput(readerReviewWireV5JsonSchema);
+        const generationSchema = readerReviewV5GenerationSchema(anchored);
+        if (!generationSchema) throw new Error('Reader catalogue is unavailable');
+        const writer = model.withStructuredOutput(generationSchema);
         phase = 'invocation';
         stage = phase;
         const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')

@@ -284,3 +284,92 @@ test('all wire IDs pass membership before any selected source quotation lookup',
   }
   expect(selectedSourceLookups).toBe(0);
 });
+
+const generationSchema = (input) =>
+  pure.readerReviewV5GenerationSchema?.(input) ?? pure.readerReviewWireV5JsonSchema;
+const referencedDefinition = (schema, ref) =>
+  schema.$defs[ref.$ref.split('/').at(-1)];
+const schemaAllowsId = (definition, id) =>
+  definition.type === 'string' &&
+  (!definition.pattern || new RegExp(definition.pattern).test(id)) &&
+  (!definition.enum || definition.enum.includes(id));
+
+test('the provider date-reference schema excludes an available non-date anchor', () => {
+  const input = prepare('Банк Альфа представлен в контексте. ' + Array.from({ length: 24 }, (_, i) => `Контекст раздела ${i}. `).join('') + 'Действует с 1 октября 2026.');
+  const table = input.catalogue.view.sources.flatMap(row => row[5]);
+  const date = table.find(row => row[3] === 'd')[0];
+  const nonDate = table.find(row => row[3] !== 'd')[0];
+  const schema = generationSchema(input);
+  const claims = schema.properties.claims.items.properties;
+  const dateDefinition = referencedDefinition(schema, claims.dates.items.properties.ref);
+  const ordinaryDefinition = referencedDefinition(schema, claims.refs.items);
+  expect(schemaAllowsId(dateDefinition, date)).toBe(true);
+  expect(schemaAllowsId(dateDefinition, nonDate)).toBe(false);
+  expect(schemaAllowsId(ordinaryDefinition, nonDate)).toBe(true);
+  expect(schemaAllowsId(dateDefinition, 'Kzz')).toBe(false);
+  expect(ordinaryDefinition).toEqual(pure.readerReviewWireV5JsonSchema.$defs.a);
+  expect(schema.properties.entities).toEqual(pure.readerReviewWireV5JsonSchema.properties.entities);
+});
+
+test('a catalogue without civil dates permits only an empty dates array at generation', () => {
+  const input = prepare('Банк Альфа представлен в контексте.');
+  const schema = generationSchema(input);
+  expect(schema.properties.claims.items.properties.dates.maxItems).toBe(0);
+  expect(JSON.stringify(schema)).not.toContain('"enum":[]');
+  expect(schema.properties.claims.items.properties.refs.maxItems).toBe(2);
+  expect(schema.properties.claims.maxItems).toBe(8);
+});
+
+test('the prepared byte bound includes the exact generation schema and cannot be supplied by a clone', () => {
+  const input = prepare('Банк Альфа действует с 1 октября 2026.');
+  const schema = generationSchema(input);
+  const { HumanMessage } = require('@langchain/core/messages');
+  expect(input.inputBytes).toBe(Buffer.byteLength(JSON.stringify({
+    messages: [new HumanMessage(input.prompt)], schema,
+  }), 'utf8'));
+  expect(input.inputBytes).toBeLessThanOrEqual(25000);
+  expect(pure.readerReviewV5GenerationSchema?.(structuredClone(input))).toBeNull();
+  expect(Object.isFrozen(schema)).toBe(true);
+  expect(input.prompt).toContain('each date ref must use a');
+});
+
+test('near-cap escaped multibyte evidence prunes only optional bridges with the dynamic schema charged', () => {
+  const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+  const actual = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-anchored-catalogue.ts');
+  let baseline, rejectedFits = 0;
+  const guarded = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-source-review.ts', {
+    './reader-anchored-catalogue': { ...actual,
+      buildReaderCatalogue(evidence, tools, fits) {
+        baseline = actual.buildReaderCatalogue(evidence, tools, () => true);
+        return actual.buildReaderCatalogue(evidence, tools, view => {
+          const allowed = fits(view);
+          if (!allowed) rejectedFits++;
+          return allowed;
+        });
+      },
+    },
+  });
+  const text = 'Событие действует с 1 октября 2026. ' + Array.from({ length: 40 }, (_, i) =>
+    `Раздел ${i}: нейтральное пояснение без дополнительной даты. `).join('');
+  const original = guarded.packReaderReview('Как действуют общие правила?',
+    Array.from({ length: 4 }, (_, i) => ({ url: `https://example.invalid/${i}`, title: 'Контекст', publishedAt: null })),
+    Array.from({ length: 4 }, (_, i) => ({ sourceUrl: `https://example.invalid/${i}`, text })), 'Russian');
+  // Exercise the preparation port's hard limit while keeping every source
+  // unchanged and the full escaped subject within its existing character cap.
+  original.evidence.subject += 'Ж😀\\"'.repeat(208);
+  const input = guarded.prepareReaderReviewV5(original);
+  expect(input).not.toBeNull();
+  expect(rejectedFits).toBeGreaterThan(0);
+  expect(input.evidence).toEqual(original.evidence);
+  expect(baseline.anchors.filter(a => a.role !== 'bridge')).toEqual(input.catalogue.anchors.filter(a => a.role !== 'bridge'));
+  expect(input.catalogue.anchors.length).toBeLessThan(baseline.anchors.length);
+  const marker = 'Untrusted reader evidence:\n';
+  const ruleText = input.prompt.slice(0, input.prompt.indexOf(marker) + marker.length);
+  expect(guarded.serializedReaderV5InputBytes(ruleText + JSON.stringify(baseline.view))).toBeLessThanOrEqual(25000);
+  const schema = guarded.readerReviewV5GenerationSchema(input);
+  const { HumanMessage } = require('@langchain/core/messages');
+  expect(input.inputBytes).toBe(Buffer.byteLength(JSON.stringify({ messages: [new HumanMessage(input.prompt)], schema }), 'utf8'));
+  expect(input.inputBytes).toBeLessThanOrEqual(25000);
+  expect(guarded.serializedReaderV5InputBytes(input.prompt, schema)).toBeGreaterThan(guarded.serializedReaderV5InputBytes(input.prompt));
+  expect(input.catalogue.work.anchoredDateSpans).toBe(input.catalogue.work.completeDateSpans);
+});

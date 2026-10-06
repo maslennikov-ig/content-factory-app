@@ -1851,7 +1851,9 @@ test('current service uses only v5 schema, exact serializer, one existing reader
   expect(first.readerAssessment.status).toBe('supported');
   expect(h.calls.model).toHaveLength(2);
   expect(h.calls.model[1]).toMatchObject({ role: 'classify', maxTokens: 1200 });
-  expect(h.calls.model[1].schema).toEqual(pure.readerReviewWireV5JsonSchema);
+  const expectedGenerationSchema = structuredClone(pure.readerReviewWireV5JsonSchema);
+  expectedGenerationSchema.properties.claims.items.properties.dates.maxItems = 0;
+  expect(h.calls.model[1].schema).toEqual(expectedGenerationSchema);
   expect(first.readerAssessment.inputBytes).toBe(
     await actualInputBytes(
       h.summaryPrompts()[0].input.reviewRequest,
