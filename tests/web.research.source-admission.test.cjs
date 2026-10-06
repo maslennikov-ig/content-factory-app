@@ -403,7 +403,7 @@ describe('source-only reader summary and spend', () => {
     classification.englishQuery = '1C cloud migration cost licenses';
   };
 
-  test('recorded five Exa sources produce one bounded accounted summary, retaining facts', async () => {
+  test('recorded five Exa sources produce one bounded accounted summary, retaining verbatim source windows', async () => {
     useExa();
     const baseline = await search(cloud.subject, {
       language: 'ru',
@@ -420,11 +420,15 @@ describe('source-only reader summary and spend', () => {
     expect(result.provider).toBe('exa');
     expect(result.sources).toEqual(expectedSources(cloud));
     expect(result.sources).toEqual(baseline.sources);
+    expect(result.facts).toHaveLength(5);
     for (const fact of result.facts) {
+      // A bounded window may begin later in the same original article.
+      // Source identity, contiguous text and the existing budget stay exact.
+      expect(fact.text.length).toBeGreaterThan(0);
       expect(
         baseline.facts
           .find((f) => f.sourceUrl === fact.sourceUrl)
-          .text.startsWith(fact.text)
+          .text.includes(fact.text)
       ).toBe(true);
       expect(fact.text.length).toBeLessThanOrEqual(3000);
     }

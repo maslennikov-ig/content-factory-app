@@ -52,6 +52,17 @@ observed facts. Invalid/reversed dates or ungrounded spans fail validation;
 unknown applicability cannot become a current dated claim/card. Mixed articles
 are filtered by claim, without rejecting the entire page for its later date.
 
+A uniquely stated RU/EN `from … to …` interval in claim prose must agree with
+its `effective_from`/`effective_until` annotations. A complete stated boundary
+can expose a contradiction; an omitted/shared year stays unknown. After the
+original date/source/token and interval-order checks, only contradicted
+annotations are omitted, without supplying replacement dates. Undated output
+may retain the cited claim with partial coverage; dated output still needs the
+original grounded applicability proof and cannot bypass a stated boundary
+using another event's `as_of` quote. Concise claims do not have to repeat every
+separately cited date. This is a narrow explicit-interval check, not general
+verification of date-kind semantics or resolution of conflicting sources.
+
 This conservative rule sacrifices recall: an actual decision with no certified
 end or matching as-of statement may remain unknown. Retrospective current-rate
 usefulness has not been proved by these offline guards. Contradictions remain
@@ -59,14 +70,27 @@ attributed, not resolved by invention. An exact requested name in related
 headlines can only be a contextual mention, not a fabricated forecast. Absence
 within clipped or omitted context is `unknown_due_to_bounds`; original spelling
 and subject/source spans must match.
+Contextual entity qualifications mention a requested date only when there is
+an explicit requested civil date. Undated qualifications remain neutral and
+do not promote a contextual mention into a supported claim.
 
 The full existing subject bound is 5000 UTF-16 units. At most eight sources have
 up to 3000 context units each; URL/title/publication limits are 500/300/100.
 Over-bound URLs are excluded whole. Packing shares available context fairly,
 protects surrogate boundaries and records every presented excerpt's SHA-256,
 original cleaned-excerpt digest, retained length, clipping and omission counts.
-No unseen tail is admitted or shown in a card. Actual evidence JSON is at most
-21,000 UTF-8 bytes; the complete serialized application HumanMessage/schema
+For long admitted text, bounded contiguous paragraph windows are ranked by
+the actual subject's lexical terms and complete requested-date evidence before
+catalogue construction. Selection scans at most 12,000 UTF-16 units per source,
+uses at most 128 candidate windows and 64 distinct subject terms, and keeps the
+original prefix on ties or absent matching evidence. It has no domain/provider
+preference, does not join distant paragraphs and supplies no additional fetch
+or model invocation. A moved window cannot hide a trailing letter/year suffix
+at its cut. Exact citation offsets remain relative to the selected excerpt;
+clipped or omitted context still makes whole-source absence unknown. Window
+ranking is a retrieval heuristic, not factual or temporal admission. No text
+outside the selected excerpt is admitted or shown in a card. Actual evidence
+JSON is at most 21,000 UTF-8 bytes; the complete serialized application HumanMessage/schema
 input, including rules, language and escaping, is at most 25,000 bytes. The
 fixed message/rules/schema allowance is at most 4000 bytes. Hidden provider
 transport headers/tokens are outside this application-size measure. An input
@@ -94,8 +118,9 @@ request-owned catalogue retains the full SHA-256 digest; the wire echoes its
 membership are checked before lookup. Unknown IDs, missing fields, extra/free
 quotations, stale bindings and any invalid claim reject the whole wire. Server
 lookup supplies exact source quotations to the unchanged v4 compiler and then
-the unchanged v1/date/provenance validators. Entity anchors still contain the
-exact requested name occurrence. Older wire schemas and their explicit parsers
+the v1/date/provenance validators with the explicit-interval consistency check.
+Entity anchors still contain the exact requested name occurrence. Older wire
+schemas and their explicit parsers
 remain available; the current service has no legacy-output fallback. Catalogue
 preparation and v5 compilation expose only finite diagnostic enums, never IDs,
 bindings, quotations or raw model text. The scoped cache discriminator is
@@ -132,6 +157,17 @@ A valid review with no eligible claims gives `insufficient_evidence`, preserving
 candidate/provenance records. This prevents unsupported admission, not a
 promise of useful retrieval. The three recorded search outputs remain immutable;
 fresh semantic acceptance is root-owned and still pending.
+
+Valid reviewed output may add a bounded `claimDisposition` observation:
+`empty_claims`, `all_claims_temporally_filtered`,
+`some_claims_temporally_filtered` or `claims_retained`, plus provided/accepted/
+temporally-filtered claim counts (0–8) and omitted contradictory annotation
+count (0–40). It contains no raw model output, source/body text or identifiers.
+Strict projection rejects extra fields, unknown enums, inconsistent counts and
+accessor properties. It is distinct from fatal `failureDiagnostic`; historical
+assessments may omit it and cannot identify a past empty-result cause. The
+retained C18 RATE suffix and raw wire remain unknown; synthetic window and
+temporal regressions do not prove that its live usefulness is repaired.
 
 For an exact-quote compiler rejection, the optional public failure diagnostic
 adds only `quoteMatch: absent | repeated`. `absent` means no exact substring
