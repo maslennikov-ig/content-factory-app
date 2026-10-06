@@ -1226,7 +1226,7 @@ test('controller uses the content-intelligence route and sends request tenant to
       '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-source.dto':
         dtoModule,
       '@contentfactory/nestjs-libraries/openai/reader-source-review':
-        loadTypeScriptModule(
+        require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
           'libraries/nestjs-libraries/src/openai/reader-source-review.ts'
         ),
       '@contentfactory/nestjs-libraries/user/org.from.request': {

@@ -79,7 +79,7 @@ const h = new Function(
     set(input, answer, output, freshnessRequired=false) {
       classification={scope:'local',subjectLanguage:'ru',englishQuery:'fixture query',subjectLanguageQuery:input.subject,freshnessRequired};
       responses={tavily:{answer,usage:{credits:2},results:input.sources.map(r=>({title:r.title,url:r.url,content:r.excerpt,published_date:r.publishedAt}))}};
-      summaryOutput=require('./helpers/reader-source-review.cjs').syntheticReaderWire(input,output);
+      summaryOutput=typeof output === 'function' ? output : request => require('./helpers/reader-source-review.cjs').syntheticReaderV5Fixture(input,output,request);
     }, fail(error) {summaryError=error;},
     searchProvider(provider) {aiConfig.search.provider=provider;aiConfig.search.topic='news';aiConfig.search.apiKeys={[provider]:'fixture-search-key'};responses[provider]=responses.tavily;},
     failPhase(phase, error) {reviewPhaseError={phase,error};},
@@ -107,7 +107,9 @@ const evidence = () => {
   const input = h.summaryPrompts()[0].input;
   return input.evidence
     ? JSON.parse(input.evidence)
-    : JSON.parse(input.reviewRequest.split('Untrusted reader evidence:\n')[1]);
+    : require('./helpers/reader-source-review.cjs').syntheticReaderModelEvidence(
+        input.reviewRequest
+      );
 };
 
 test('recorded off-topic 1C candidates never become takeable relevant facts', async () => {
@@ -131,13 +133,11 @@ test('a complete Russian provider answer buys exactly one combined reader review
 test('the recorded VTB tail beyond1000 is actually presented and receipt-bound', async () => {
   h.set(fixture.rate, '', rejected(fixture.rate));
   const out = await h.search(fixture.rate.subject);
-  const source = evidence().sources.find(
-    (r) => r.url === fixture.rate.sources[1].url
-  );
+  const source = evidence().sources.find((r) => r.id === 'S2');
   expect(source.excerpt.indexOf('ВТБ')).toBe(1386);
   expect(source.excerpt.indexOf('ВТБ', 1387)).toBe(1461);
   expect(
-    out.readerAssessment.evidence.find((r) => r.url === source.url).excerpt
+    out.readerAssessment.evidence.find((r) => r.id === source.id).excerpt
   ).toBe(source.excerpt);
   expect(source.excerpt.length).toBeLessThanOrEqual(3000);
 });
@@ -146,7 +146,10 @@ const pure = require('./helpers/reader-source-review.cjs');
 const {
   ChatPromptTemplate: RealPromptTemplate,
 } = require('@langchain/core/prompts');
-const actualInputBytes = async (prompt, schema = pure.readerReviewWireJsonSchema) =>
+const actualInputBytes = async (
+  prompt,
+  schema = pure.readerReviewWireJsonSchema
+) =>
   Buffer.byteLength(
     JSON.stringify({
       messages: await RealPromptTemplate.fromTemplate(
@@ -202,40 +205,71 @@ const review = (input, claims = [claim(input.sources[0].excerpt)]) => ({
 });
 
 test.each([false, true])(
-  'current v4 real-service reader preserves one paid admission and no retry when entity proof invalid=%s',
+  'current v5 real-service reader preserves one paid admission and no retry when entity proof invalid=%s',
   async (invalid) => {
     const request = '😀 По состоянию на 1 октября 2026 года: версия Альфа?';
-    const text = '😀 Альфа версия 2 действует по состоянию на 1 октября 2026 года.';
+    const text =
+      '😀 Альфа версия 2 действует по состоянию на 1 октября 2026 года. ' +
+      Array.from({ length: 50 }, (_, i) => `Иная часть статьи ${i}. `).join('');
     const input = sample(text, request);
     const output = review(input);
     output.claims[0].text = 'Альфа версия 2 действовала на указанную дату.';
-    output.entities = [{
-      name:'Альфа',subjectStart:request.indexOf('Альфа'),subjectEnd:request.indexOf('Альфа')+5,
-      status:'supported_claim',ref:ref(text,'Альфа'),
-    }];
-    const wire = pure.syntheticReaderDateQuoteWire(pure.syntheticReaderWire(input, output));
-    if (invalid) wire.entities[0].ref.quote = 'версия 2';
-    h.set(input, 'Не использовать ответ провайдера.', wire);
+    output.entities = [
+      {
+        name: 'Альфа',
+        subjectStart: request.indexOf('Альфа'),
+        subjectEnd: request.indexOf('Альфа') + 5,
+        status: 'supported_claim',
+        ref: ref(text, 'Альфа'),
+      },
+    ];
+    const wire = pure.syntheticReaderDateQuoteWire(
+      pure.syntheticReaderWire(input, output)
+    );
+    h.set(input, 'Не использовать ответ провайдера.', (request) => {
+      const current = pure.syntheticReaderV5Fixture(input, wire, request);
+      if (invalid) {
+        const view = JSON.parse(
+          request.split('Untrusted reader evidence:\n')[1]
+        );
+        current.entities[0].ref = view.sources[0][5].find(
+          (a) =>
+            !view.sources[0][4]
+              .slice(a[1], a[2] + 1)
+              .join('')
+              .includes('Альфа')
+        )[0];
+      }
+      return current;
+    });
     const result = await h.search(request);
     expect(h.calls.search).toHaveLength(1);
     expect(h.calls.model).toHaveLength(2);
     expect(h.calls.rows).toHaveLength(1);
     expect(h.calls.rows[0].succeeded).toBe(true);
-    expect(h.calls.model[1].schema.properties.version.const).toBe('reader-source-review-wire/v4');
+    expect(h.calls.model[1].schema.properties.version.const).toBe(
+      'reader-source-review-wire/v5'
+    );
     if (invalid) {
       expect(result.facts).toHaveLength(0);
       expect(result.summary).toBe('');
       expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-        stage:'compile_wire_v4',predicate:'entity_source_quote',failure:'validation_rejected',
+        stage: 'compile_wire_v5',
+        predicate: 'entity_source_quote',
+        failure: 'validation_rejected',
       });
     } else {
       expect(result.facts).toHaveLength(1);
       expect(result.readerAssessment.version).toBe('reader-source-review/v1');
       expect(result.readerAssessment.status).toBe('supported');
       expect(result.readerAssessment.entities[0]).toMatchObject({
-        name:'Альфа',subjectStart:request.indexOf('Альфа'),subjectEnd:request.indexOf('Альфа')+5,
+        name: 'Альфа',
+        subjectStart: request.indexOf('Альфа'),
+        subjectEnd: request.indexOf('Альфа') + 5,
       });
-      expect(result.readerAssessment.claims[0].dates[0].date).toBe('2026-10-01');
+      expect(result.readerAssessment.claims[0].dates[0].date).toBe(
+        '2026-10-01'
+      );
     }
   }
 );
@@ -247,11 +281,14 @@ test.each(['tavily', 'exa'])(
     h.set(input, 'Непроверенная сводка.', review(input), true);
     h.searchProvider(provider);
     const out = await h.search(input.subject, {
-      language: 'ru', readerResponse: true, windowDays: 30,
+      language: 'ru',
+      readerResponse: true,
+      windowDays: 30,
     });
     expect(h.calls.search).toHaveLength(1);
     expect(h.calls.search[0]).toMatchObject({
-      provider, options: { topic: 'general', freshnessRequired: false },
+      provider,
+      options: { topic: 'general', freshnessRequired: false },
     });
     expect(h.calls.search[0].options).not.toHaveProperty('windowDays');
     expect(out.facts).toHaveLength(1);
@@ -264,11 +301,20 @@ test.each(['tavily', 'exa'])(
 );
 
 test('retrieval reuses the existing strict civil-date parser', () => {
-  expect(pure.requestedDate(subject)).toEqual({ date: '2026-10-01', ambiguous: false });
-  expect(pure.requestedDate('Which version was current as at October 1, 2026?'))
-    .toEqual({ date: '2026-10-01', ambiguous: false });
-  expect(pure.requestedDate('Latest current version')).toEqual({ date: null, ambiguous: false });
-  expect(pure.requestedDate('Current version on 2026-10-01T14Z?').ambiguous).toBe(true);
+  expect(pure.requestedDate(subject)).toEqual({
+    date: '2026-10-01',
+    ambiguous: false,
+  });
+  expect(
+    pure.requestedDate('Which version was current as at October 1, 2026?')
+  ).toEqual({ date: '2026-10-01', ambiguous: false });
+  expect(pure.requestedDate('Latest current version')).toEqual({
+    date: null,
+    ambiguous: false,
+  });
+  expect(
+    pure.requestedDate('Current version on 2026-10-01T14Z?').ambiguous
+  ).toBe(true);
 });
 
 test('later publication remains eligible for a supported fact effective at the requested date', async () => {
@@ -568,10 +614,14 @@ test('own reader failure distinguishes wire-schema rejection from v1 coverage re
   const input = sample();
   const badQuote = review(input);
   badQuote.claims[0].refs[0].source = 'S9';
-  h.set(input, 'Не возвращать запасной ответ.', badQuote);
+  h.set(input, 'Не возвращать запасной ответ.', (request) => {
+    const wire = currentWireFromRequest(request);
+    wire.claims[0].refs = [];
+    return wire;
+  });
   const compiler = await h.search(input.subject);
   expect(compiler.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v4',
+    stage: 'compile_wire_v5',
     predicate: 'wire_schema',
     failure: 'validation_rejected',
     wireIssueFamily: 'refs',
@@ -649,6 +699,154 @@ test('reader reject observer reports first nested source gate without changing c
     })
   ).toBe(null);
 });
+
+test.each([
+  ['claim', 'absent', 'SYNTHETIC_PRIVATE_QUOTE'],
+  ['claim', 'repeated', 'Альфа версия 2'],
+  ['claim', 'repeated', 'aa'],
+  ['date', 'absent', '2 октября 2026'],
+  ['date', 'repeated', '1 октября 2026'],
+  ['entity', 'absent', 'SYNTHETIC_PRIVATE_ENTITY'],
+  ['entity', 'repeated', 'Альфа'],
+])(
+  'quote match observer classifies %s/%s without exposing a reference',
+  (kind, quoteMatch, quote) => {
+    const source =
+      'Альфа версия 2. Альфа версия 2. aaa. 1 октября 2026. 1 октября 2026.';
+    const input = pack(sample(source, 'Что известно об Альфа?'));
+    const wire = pure.syntheticReaderDateQuoteWire(
+      pure.syntheticReaderWire(
+        input.evidence,
+        review(sample(source), [claim(source, 'context', [])])
+      )
+    );
+    const reference = { source: 'S1', quote };
+    if (kind === 'claim') wire.claims[0].refs = [reference];
+    else if (kind === 'date')
+      wire.claims[0].dates = [{ kind: 'as_of', ref: reference }];
+    else
+      wire.entities = [
+        { subjectQuote: 'Альфа', status: 'contextual_mention', ref: reference },
+      ];
+    const original = structuredClone(wire),
+      seen = [];
+    expect(
+      pure.compileReaderReview(input, wire, (predicate, issue, match) =>
+        seen.push({ predicate, issue, quoteMatch: match })
+      )
+    ).toBeNull();
+    expect(seen).toEqual([
+      { predicate: 'quote_unique_match', issue: undefined, quoteMatch },
+    ]);
+    expect(wire).toEqual(original);
+    expect(JSON.stringify(seen)).not.toMatch(
+      /SYNTHETIC_PRIVATE|S1|Альфа|октября/
+    );
+    let calls = 0;
+    expect(
+      pure.compileReaderReview(input, wire, () => {
+        calls++;
+        throw Error('SYNTHETIC_PRIVATE_OBSERVER');
+      })
+    ).toBeNull();
+    expect(calls).toBe(1);
+  }
+);
+
+test.each(['absent', 'repeated'])(
+  'current service rejects legacy free quote=%s wholly without retry; legacy observer remains pure',
+  async (quoteMatch) => {
+    const input = sample(article + ' Повторная дата: 1 октября 2026.');
+    const wire = pure.syntheticReaderDateQuoteWire(
+      pure.syntheticReaderWire(input, review(input))
+    );
+    wire.claims[0].refs[0].quote =
+      quoteMatch === 'absent' ? 'SYNTHETIC_PRIVATE_QUOTE' : '1 октября 2026';
+    h.set(input, 'Не возвращать запасной ответ.', wire);
+    h.endMetadata({
+      generations: [
+        [
+          {
+            generationInfo: { finish_reason: 'stop' },
+            message: { content: 'SYNTHETIC_PRIVATE_MODEL_OUTPUT' },
+          },
+        ],
+      ],
+    });
+    const result = await h.search(input.subject);
+    const diagnostic = result.readerAssessment.failureDiagnostic;
+    expect(diagnostic).toMatchObject({
+      stage: 'compile_wire_v5',
+      predicate: 'wire_schema',
+    });
+    expect(diagnostic).not.toHaveProperty('quoteMatch');
+    expect(
+      pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic
+    ).toEqual(diagnostic);
+    expect(result.readerAssessment.status).toBe('review_unavailable');
+    expect(result.summary).toBe('');
+    expect(result.facts).toEqual([]);
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.search).toHaveLength(1);
+    expect(h.calls.rows).toHaveLength(1);
+    expect(h.calls.rows[0].succeeded).toBe(true);
+    expect(JSON.stringify(diagnostic)).not.toMatch(
+      /SYNTHETIC_PRIVATE|S1|октября/
+    );
+    expect(JSON.stringify(h.calls.warnings)).not.toContain('SYNTHETIC_PRIVATE');
+  }
+);
+
+test.each(['compile_wire_v2', 'compile_wire_v3', 'compile_wire_v4'])(
+  'quoteMatch public projection permits only its matching rejection stage %s',
+  (stage) => {
+    const out = pure.unavailableReaderReview(pack());
+    out.status = 'review_unavailable';
+    const failure = {
+      stage,
+      predicate: 'quote_unique_match',
+      failure: 'validation_rejected',
+      termination: null,
+      providerCode: 'unobserved',
+      contentUtf8Bytes: null,
+      toolArgumentsUtf8Bytes: null,
+      quoteMatch: 'absent',
+    };
+    for (const quoteMatch of ['absent', 'repeated']) {
+      out.failureDiagnostic = { ...failure, quoteMatch };
+      expect(pure.projectReaderAssessment(out).failureDiagnostic).toEqual(
+        out.failureDiagnostic
+      );
+    }
+    for (const patch of [
+      { quoteMatch: 'SYNTHETIC_PRIVATE' },
+      { quoteMatch: 'unique' },
+      { quoteMatch: null },
+      { quoteMatch: 0 },
+      { stage: 'validate_api_v1' },
+      { predicate: 'wire_schema' },
+      { failure: 'provider_failure' },
+      { rawQuote: 'SYNTHETIC_PRIVATE' },
+      { source: 'S1' },
+    ]) {
+      out.failureDiagnostic = { ...failure, ...patch };
+      expect(
+        pure.projectReaderAssessment(out).failureDiagnostic
+      ).toBeUndefined();
+    }
+    let touched = false;
+    out.failureDiagnostic = { ...failure };
+    Object.defineProperty(out.failureDiagnostic, 'quoteMatch', {
+      enumerable: true,
+      get() {
+        touched = true;
+        throw Error('SYNTHETIC_PRIVATE_GETTER');
+      },
+    });
+    expect(pure.projectReaderAssessment(out).failureDiagnostic).toBeUndefined();
+    expect(touched).toBe(false);
+  }
+);
 
 test('wire issue diagnostics expose only first fixed field family and Zod code', () => {
   const input = pack();
@@ -1616,3 +1814,114 @@ test.each(['missing last year digit', 'missing first day digit'])(
     expect(pure.validateReaderReview(pack(input), output)).toBeNull();
   }
 );
+
+// Current v5 model ports select server IDs; production never converts legacy output.
+const currentWireFromRequest = (request) => {
+  const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  return {
+    version: 'reader-source-review-wire/v5',
+    catalogue: view.catalogue.binding,
+    sources: view.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
+    claims: [
+      {
+        text: 'Article context is available.',
+        kind: 'context',
+        refs: [view.sources[0][5][0][0]],
+        dates: [],
+      },
+    ],
+    coverage: [{ question: view.subject.slice(0, 500), status: 'supported' }],
+    entities: [],
+  };
+};
+test('current service uses only v5 schema, exact serializer, one existing reader and scoped cache', async () => {
+  const input = sample('Article context is available.', 'What is known?');
+  h.set(input, 'Ignore provider summary.', currentWireFromRequest);
+  const service = new h.WebResearchService(h.aiUsage);
+  const seenKeys = [],
+    originalGet = service.cache.get.bind(service.cache);
+  service.cache.get = (key) => {
+    seenKeys.push(key);
+    return originalGet(key);
+  };
+  const first = await service.research('org', input.subject, {
+    language: 'ru',
+    readerResponse: true,
+  });
+  expect(first.readerAssessment.status).toBe('supported');
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.model[1]).toMatchObject({ role: 'classify', maxTokens: 1200 });
+  expect(h.calls.model[1].schema).toEqual(pure.readerReviewWireV5JsonSchema);
+  expect(first.readerAssessment.inputBytes).toBe(
+    await actualInputBytes(
+      h.summaryPrompts()[0].input.reviewRequest,
+      h.calls.model[1].schema
+    )
+  );
+  expect(seenKeys[0]).toContain(pure.READER_REVIEW_CACHE_V5_VERSION);
+  const cached = await service.research('org', input.subject, {
+    language: 'ru',
+    readerResponse: true,
+  });
+  expect(cached.fromCache).toBe(true);
+  expect(h.calls.model).toHaveLength(2);
+  expect(h.calls.search).toHaveLength(1);
+  expect(h.calls.rows).toHaveLength(1);
+});
+test.each(['unknown', 'stale', 'free-quote'])(
+  'current service rejects %s IDs/wire wholly with finite public diagnostics and no retry',
+  async (kind) => {
+    const input = sample('Article context is available.', 'What is known?');
+    h.set(input, 'Ignore provider summary.', (request) => {
+      const wire = currentWireFromRequest(request);
+      if (kind === 'unknown') wire.claims[0].refs = ['Kzz'];
+      if (kind === 'stale') wire.catalogue = '0'.repeat(32);
+      if (kind === 'free-quote')
+        wire.claims[0].refs = [
+          { source: 'S1', quote: 'SYNTHETIC_PRIVATE_QUOTE' },
+        ];
+      return wire;
+    });
+    const result = await h.search(input.subject);
+    expect(result.readerAssessment.status).toBe('review_unavailable');
+    expect(result.facts).toEqual([]);
+    expect(result.summary).toBe('');
+    expect(result.readerAssessment.failureDiagnostic).toMatchObject({
+      stage: 'compile_wire_v5',
+      predicate: {
+        unknown: 'catalogue_unknown_id',
+        stale: 'catalogue_binding',
+        'free-quote': 'wire_schema',
+      }[kind],
+    });
+    expect(
+      pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic
+    ).toEqual(result.readerAssessment.failureDiagnostic);
+    expect(
+      JSON.stringify(result.readerAssessment.failureDiagnostic)
+    ).not.toMatch(/Kzz|SYNTHETIC_PRIVATE|S1/);
+    expect(h.calls.model).toHaveLength(2);
+    expect(h.calls.search).toHaveLength(1);
+    expect(h.calls.rows).toHaveLength(1);
+  }
+);
+test('mandatory date catalogue failure ends before the reader model and keeps source evidence', async () => {
+  const input = sample(
+    '1 October 2026 2 October 2026 1 October 2026 2 October 2026',
+    'What happened?'
+  );
+  h.set(input, 'Ignore provider summary.', currentWireFromRequest);
+  const result = await h.search(input.subject);
+  expect(result.readerAssessment.status).toBe('review_unavailable');
+  expect(result.readerAssessment.failureDiagnostic).toMatchObject({
+    stage: 'prepare_catalogue_v5',
+    predicate: 'catalogue_date_anchor',
+  });
+  expect(result.readerAssessment.evidence[0].excerpt).toBe(
+    input.sources[0].excerpt
+  );
+  expect(h.calls.model).toHaveLength(1);
+  expect(h.summaryPrompts()).toHaveLength(0);
+  expect(h.calls.search).toHaveLength(1);
+  expect(h.calls.rows).toHaveLength(1);
+});

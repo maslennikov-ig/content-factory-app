@@ -889,10 +889,10 @@ describe('сводка веб-поиска говорит на языке чит
       'provider answers are not source evidence'
     );
     assert.equal(evidence.subject, original.subject);
-    assert.match(evidence.sources[0].excerpt, /4 пользователя 1С/);
-    assert.match(evidence.sources[0].excerpt, /10 190/);
-    assert.match(input.reviewRequest, /prices and bundles/);
-    assert.match(input.reviewRequest, /concise complete summary claims/);
+    assert.match(evidence.sources[0][4].join(''), /4 пользователя 1С/);
+    assert.match(evidence.sources[0][4].join(''), /10 190/);
+    assert.match(input.reviewRequest, /prices, bundles/);
+    assert.match(input.reviewRequest, /concise complete Russian claims/);
   });
 
   test.each([

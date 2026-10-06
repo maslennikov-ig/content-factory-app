@@ -112,6 +112,8 @@ const { WebResearchService } = loadTypeScriptModule(
               });
               if (isClassifier) return classification;
               if (summaryError) throw summaryError;
+              if (typeof summaryOutput === 'function')
+                return summaryOutput(input.reviewRequest);
               if (input.reviewRequest && !summaryOutput?.sources)
                 return require('./helpers/reader-source-review.cjs').syntheticReaderReview(
                   input.reviewRequest,
@@ -437,12 +439,12 @@ describe('source-only reader summary and spend', () => {
     const evidence = JSON.parse(
       input.reviewRequest.split('Untrusted reader evidence:\n')[1]
     );
-    expect(input.reviewRequest).toMatch(/summary claims in Russian/);
+    expect(input.reviewRequest).toMatch(/concise complete Russian claims/);
     expect(evidence.answers).toBeUndefined();
     expect(evidence.sources).toHaveLength(5);
     expect(
       evidence.sources.every(
-        ({ excerpt }) => excerpt.length > 0 && excerpt.length <= 3_000
+        (row) => row[4].join('').length > 0 && row[4].join('').length <= 3_000
       )
     ).toBe(true);
     expect(Buffer.byteLength(JSON.stringify(evidence))).toBeLessThanOrEqual(
@@ -450,7 +452,10 @@ describe('source-only reader summary and spend', () => {
     );
     expect(result.readerAssessment.inputBytes).toBeLessThanOrEqual(25000);
     expect(result.facts).toEqual(
-      evidence.sources.map((s) => ({ sourceUrl: s.url, text: s.excerpt }))
+      result.readerAssessment.evidence.map((s) => ({
+        sourceUrl: s.url,
+        text: s.excerpt,
+      }))
     );
     expect(input.reviewRequest).toMatch(/untrusted/i);
     expect(calls.rows).toHaveLength(1);
@@ -533,8 +538,11 @@ describe('source-only reader summary and spend', () => {
       )[1]
     );
     expect(evidence.sources).toHaveLength(1);
-    expect(evidence.sources[0].url).toBe(result.facts[0].sourceUrl);
-    expect(evidence.sources[0].excerpt).toBe(result.facts[0].text);
+    expect(evidence.sources[0][0]).toBe(result.readerAssessment.evidence[0].id);
+    expect(result.readerAssessment.evidence[0].url).toBe(
+      result.facts[0].sourceUrl
+    );
+    expect(evidence.sources[0][4].join('')).toBe(result.facts[0].text);
     expect(calls.search).toHaveLength(1);
     expect(calls.model).toHaveLength(2);
   });
@@ -618,7 +626,7 @@ describe('source-only reader summary and spend', () => {
     });
     expect(result.summary).toBe(summaryOutput.summary);
     expect(summaryPrompts()[0].input.reviewRequest).toMatch(
-      /summary claims in English/
+      /concise complete English claims/
     );
     expect(calls.model).toHaveLength(2);
     expect(calls.search).toHaveLength(1);

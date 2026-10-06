@@ -74,6 +74,42 @@ that cannot fit whole subject/metadata returns `review_unavailable` before a
 model call. Existing explicit evidence acceptance stores the chosen bounded
 excerpt unchanged through its immutable tenant-scoped snapshot path.
 
+The current internal generation wire is `reader-source-review-wire/v5`.
+Before the single review invocation, the server constructs at most 96 exact,
+unique contiguous anchors from those same presented excerpts. The model sees
+a bounded catalogue with short IDs and lossless text parts; a shared six-column
+header removes duplicate metadata without removing any source text, dates or
+rules. Every complete civil date has an anchor accepted by the original date
+and adjacent-token guards, or the entire preparation becomes unavailable before
+the reader model. UTF-16 cuts preserve code points and complete date tokens.
+Already certified date-compatible core anchors can cover repeated identical
+dates; remaining date windows use a bounded suffix index and nearest different
+dates. Only optional bridges may be pruned for fit. This may reduce usable
+cross-part context; it cannot truncate the chosen excerpts or silently omit a
+date. Index work, date scanning and retained strings have explicit bounds.
+
+The v5 model supplies IDs instead of free quotations or coordinates. A frozen,
+request-owned catalogue retains the full SHA-256 digest; the wire echoes its
+128-bit content binding. Full input integrity, exact binding and strict ID
+membership are checked before lookup. Unknown IDs, missing fields, extra/free
+quotations, stale bindings and any invalid claim reject the whole wire. Server
+lookup supplies exact source quotations to the unchanged v4 compiler and then
+the unchanged v1/date/provenance validators. Entity anchors still contain the
+exact requested name occurrence. Older wire schemas and their explicit parsers
+remain available; the current service has no legacy-output fallback. Catalogue
+preparation and v5 compilation expose only finite diagnostic enums, never IDs,
+bindings, quotations or raw model text. The scoped cache discriminator is
+`reader-source-review/v1:wire/v5`; existing tenant, route, task, language and
+TTL boundaries remain intact.
+
+Offline retained TG/1C/RATE checks measure the actual current service schema,
+rules, HumanMessage serializer and validators against the exact captured reader
+boundary evidence through synthetic test ports. Provider tails beyond that
+captured boundary are unavailable. These checks prove input fit and retained
+valid-claim projection; TG's failed raw wire remains absent and its historical
+match class remains unknown. They prove neither generation quality nor live
+search usefulness, and add no model or provider calls.
+
 Review transport/parse/quality failure is handled locally: empty summary,
 zero takeable facts, `review_unavailable`, no unreviewed engine-answer fallback,
 no second review, search retry, quality-triggered provider fallback or verifier.
@@ -81,6 +117,19 @@ A valid review with no eligible claims gives `insufficient_evidence`, preserving
 candidate/provenance records. This prevents unsupported admission, not a
 promise of useful retrieval. The three recorded search outputs remain immutable;
 fresh semantic acceptance is root-owned and still pending.
+
+For an exact-quote compiler rejection, the optional public failure diagnostic
+adds only `quoteMatch: absent | repeated`. `absent` means no exact substring
+match in the referenced presented excerpt; `repeated` means a second match,
+including an overlapping occurrence. The original `quote_unique_match`
+predicate and failed-review outcome remain unchanged. Only the first rejection
+is observed, and a diagnostic observer throwing cannot change that outcome.
+The strict public projection permits this field only with that predicate,
+compiler stage and `validation_rejected`; it exports no quotation, raw model
+output, reference/source ID or private identifier. Historical diagnostics may
+omit the field, so absence does not determine a past failure's cause. This
+observation adds no model/provider call or retry and changes no quote, source,
+date, provenance or v1 eligibility rule.
 
 Both query classification and combined review use the existing `classify` role;
 there is no new role or operation. The review output remains capped at 1200
@@ -147,8 +196,8 @@ useful provider context/absence answers; the service retains its candidate prove
 consumers keep their established behavior. This
 UI guard does not weaken source admission or turn candidate links into evidence.
 
-Rollback is the local search-service/test diff; no schema, workflow or dependency
-changes. Offline recorded-shape fixtures cover the reported forecast/current
+Rollback is the local search-service/test diff; no database schema, workflow or
+dependency changes. Offline recorded-shape fixtures cover the reported forecast/current
 example and Russian names, prompt grounding, one-call budgets and failure
 behavior. They prove contracts, not live model faithfulness. The original real
 search and semantic acceptance remain explicit until separately authorized and

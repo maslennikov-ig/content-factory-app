@@ -4,11 +4,13 @@ import {
   type ReaderFailureDiagnostic,
   type ReaderReviewRejection,
   type ReaderWireIssueDiagnostic,
-  READER_REVIEW_VERSION,
+  type ReaderQuoteMatch,
+  READER_REVIEW_CACHE_V5_VERSION,
   packReaderReview,
   requestedDate,
-  readerReviewWireJsonSchema,
-  compileReaderReview,
+  prepareReaderReviewV5,
+  readerReviewWireV5JsonSchema,
+  compileReaderReviewV5,
   validateReaderReview,
   unavailableReaderReview,
   type ReaderAssessment,
@@ -1701,11 +1703,12 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     if (!input || !input.evidence.sources.length)
       return { assessment, summary: '', facts: [] as WebResearchFact[] };
-    let phase: ReaderReviewPhase = 'model-resolution';
+    let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = phase;
+    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v5';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
+    let quoteMatch: ReaderQuoteMatch | undefined;
     let failure: ReaderReviewFailureCode = 'validation_rejected';
     let providerCode: ReaderReviewProviderCode = 'unobserved';
     let observation: ReturnType<typeof readerReviewOutputObservation> = {
@@ -1715,51 +1718,60 @@ export class WebResearchService {
     };
     const onReject = (
       code: ReaderReviewRejection,
-      issue?: ReaderWireIssueDiagnostic
+      issue?: ReaderWireIssueDiagnostic,
+      match?: ReaderQuoteMatch
     ) => {
       if (predicate === 'unobserved') {
         predicate = code;
         wireIssue = issue;
+        quoteMatch = match;
       }
     };
     try {
-      const model = await getChatModel(
-        organizationId,
-        0,
-        RESEARCH_SUMMARY_MAX_TOKENS,
-        'classify'
-      );
-      phase = 'structured-output';
-      stage = phase;
-      const writer = model.withStructuredOutput(readerReviewWireJsonSchema);
-      phase = 'invocation';
-      stage = phase;
-      const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
-        .pipe(writer)
-        .invoke(
-          { reviewRequest: input.prompt },
-          {
-            callbacks: [
-              {
-                handleLLMEnd(output) {
-                  termination = readerReviewSafeTermination(
-                    output?.generations?.[0]?.[0]?.generationInfo?.finish_reason
-                  );
-                  observation = readerReviewOutputObservation(output);
-                },
-              },
-            ],
-          }
+      const anchored = prepareReaderReviewV5(input, onReject);
+      if (anchored) {
+        assessment.inputBytes = anchored.inputBytes;
+        phase = 'model-resolution';
+        stage = phase;
+        const model = await getChatModel(
+          organizationId,
+          0,
+          RESEARCH_SUMMARY_MAX_TOKENS,
+          'classify'
         );
-      phase = 'validation';
-      stage = 'compile_wire_v4';
-      const compiled = compileReaderReview(input, raw, onReject);
-      if (compiled !== null) stage = 'validate_api_v1';
-      const reviewed =
-        compiled === null
-          ? null
-          : validateReaderReview(input, compiled, onReject);
-      if (reviewed) return reviewed;
+        phase = 'structured-output';
+        stage = phase;
+        const writer = model.withStructuredOutput(readerReviewWireV5JsonSchema);
+        phase = 'invocation';
+        stage = phase;
+        const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
+          .pipe(writer)
+          .invoke(
+            { reviewRequest: anchored.prompt },
+            {
+              callbacks: [
+                {
+                  handleLLMEnd(output) {
+                    termination = readerReviewSafeTermination(
+                      output?.generations?.[0]?.[0]?.generationInfo
+                        ?.finish_reason
+                    );
+                    observation = readerReviewOutputObservation(output);
+                  },
+                },
+              ],
+            }
+          );
+        phase = 'validation';
+        stage = 'compile_wire_v5';
+        const compiled = compileReaderReviewV5(anchored, raw, onReject);
+        if (compiled !== null) stage = 'validate_api_v1';
+        const reviewed =
+          compiled === null
+            ? null
+            : validateReaderReview(anchored, compiled, onReject);
+        if (reviewed) return reviewed;
+      }
       this.logger.warn(
         readerReviewFailureLine(phase, 'validation_rejected', termination)
       );
@@ -1782,6 +1794,7 @@ export class WebResearchService {
       ...(wireIssue
         ? { wireIssueFamily: wireIssue.family, wireIssueCode: wireIssue.code }
         : {}),
+      ...(quoteMatch ? { quoteMatch } : {}),
     };
     return { assessment, summary: '', facts: [] as WebResearchFact[] };
   }
@@ -1904,7 +1917,7 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_VERSION
+          ? READER_REVIEW_CACHE_V5_VERSION
           : 'reader'
         : 'consumer'
     }|${callerQueries(options, level).join('\n')}|${subject
