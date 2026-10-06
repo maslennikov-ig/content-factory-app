@@ -10,7 +10,10 @@ module.exports.syntheticReaderReview = (request, summary) => {
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
   if (evidence.sourceColumns)
     return {
-      version: module.exports.READER_REVIEW_WIRE_V5_VERSION,
+      version:
+        evidence.catalogue.version === 'v6'
+          ? 'reader-source-review-wire/v6'
+          : module.exports.READER_REVIEW_WIRE_V5_VERSION,
       catalogue: evidence.catalogue.binding,
       sources: evidence.sources.map((row) => ({
         id: row[0],
@@ -121,11 +124,12 @@ module.exports.syntheticReaderDateQuoteWire = (output) => {
 // Direct legacy compiler tests remain byte-for-byte inputs. Invalid legacy wire
 // is passed through and the current production boundary rejects its version.
 module.exports.syntheticReaderV5Fixture = (input, output, request) => {
+  const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
   if (
     !output?.sources ||
     output.version === module.exports.READER_REVIEW_WIRE_V5_VERSION
   )
-    return output;
+    return module.exports.syntheticReaderCurrentSubjectWire(view, output);
   const packed = module.exports.packReaderReview(
     input.subject,
     input.sources,
@@ -167,7 +171,6 @@ module.exports.syntheticReaderV5Fixture = (input, output, request) => {
       JSON.stringify(compiled.claims.map((c) => c.dates.map((d) => d.date)))
   )
     return legacy;
-  const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
   const anchors = view.sources.flatMap((row) =>
     row[5].map((a) => ({
       id: a[0],
@@ -196,7 +199,7 @@ module.exports.syntheticReaderV5Fixture = (input, output, request) => {
       'Kzz'
     );
   };
-  return {
+  return module.exports.syntheticReaderCurrentSubjectWire(view, {
     version: module.exports.READER_REVIEW_WIRE_V5_VERSION,
     catalogue: view.catalogue.binding,
     sources: compiled.sources,
@@ -212,6 +215,41 @@ module.exports.syntheticReaderV5Fixture = (input, output, request) => {
       status: e.status,
       ref: select(e.ref),
     })),
+  });
+};
+// Fake model transport only: select literal Q ranges for otherwise valid legacy
+// fixtures. Unknown/ambiguous names stay invalid, stale bindings stay stale,
+// and direct historical compiler tests continue to receive their original wire.
+module.exports.syntheticReaderCurrentSubjectWire = (view, output) => {
+  if (
+    view.catalogue?.version !== 'v6' ||
+    output?.version !== module.exports.READER_REVIEW_WIRE_V5_VERSION
+  )
+    return output;
+  let offset = 0;
+  const positions = view.subjectParts.map(([id, text]) => {
+    const start = offset;
+    offset += text.length;
+    return { id, start, end: offset };
+  });
+  return {
+    ...output,
+    version: 'reader-source-review-wire/v6',
+    entities: output.entities?.map(({ subjectQuote, ...entity }) => {
+      const start =
+        typeof subjectQuote === 'string'
+          ? view.subject.indexOf(subjectQuote)
+          : -1;
+      const unique =
+        start >= 0 && view.subject.indexOf(subjectQuote, start + 1) === -1;
+      const first = unique && positions.find((p) => p.start === start);
+      const last =
+        unique && positions.find((p) => p.end === start + subjectQuote.length);
+      return {
+        ...entity,
+        subjectRef: { first: first?.id ?? 'Qzzz', last: last?.id ?? 'Qzzz' },
+      };
+    }),
   };
 };
 module.exports.syntheticReaderModelEvidence = (request) => {

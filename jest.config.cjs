@@ -13,6 +13,8 @@ module.exports = {
   moduleNameMapper: {
     '^@contentfactory/nestjs-libraries/openai/reader-source-review$':
       '<rootDir>/tests/helpers/reader-source-review.cjs',
+    '^@contentfactory/nestjs-libraries/openai/reader-subject-review$':
+      '<rootDir>/tests/helpers/reader-subject-review.cjs',
     '^react-hotkeys-hook$': '<rootDir>/tests/helpers/react-hotkeys-hook.stub.cjs',
     // The role ranking is imported by controllers, repositories and screens
     // that a dozen suites load through their own module loaders. Mapped here

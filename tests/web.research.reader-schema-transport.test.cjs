@@ -82,6 +82,146 @@ test.each([true, false])('the actual SDK sends the catalogue-specific date schem
   expect(pure.compileReaderReviewV5(input, raw)).not.toBeNull();
 });
 
+test.each([true, false])(
+  'v6 subject IDs and original date restrictions survive the actual SDK (dates=%s)',
+  async (hasDate) => {
+    const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+    const pure = require('./helpers/reader-source-review.cjs');
+    const current = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/openai/reader-subject-review.ts'
+    );
+    const input = current.prepareReaderReviewV6(
+      pure.packReaderReview(
+        'Что известно о Банка России?',
+        [
+          {
+            url: 'https://example.invalid/article',
+            title: 'Synthetic context',
+            publishedAt: null,
+          },
+        ],
+        [
+          {
+            sourceUrl: 'https://example.invalid/article',
+            text: hasDate
+              ? 'Обзор Банка России действует с 1 октября 2026.'
+              : 'Обзор Банка России описан в источнике.',
+          },
+        ],
+        'Russian'
+      )
+    );
+    const schema = current.readerReviewV6GenerationSchema(input);
+    const row = input.catalogue.view.sources[0];
+    const selected = row[5].find((a) =>
+      row[4]
+        .slice(a[1], a[2] + 1)
+        .join('')
+        .includes('Банка России')
+    )[0];
+    const parts = input.catalogue.view.subjectParts;
+    const output = {
+      version: current.READER_REVIEW_WIRE_V6_VERSION,
+      catalogue: input.catalogue.binding,
+      sources: [{ id: 'S1', relevance: 'relevant' }],
+      claims: [
+        {
+          text: 'Обзор Банка России описан в источнике.',
+          kind: hasDate ? 'observed' : 'context',
+          refs: [selected],
+          dates: hasDate
+            ? [
+                {
+                  kind: 'effective_from',
+                  ref: row[5].find((a) => a[3] === 'd')[0],
+                },
+              ]
+            : [],
+        },
+      ],
+      coverage: [{ question: 'Что известно', status: 'partial' }],
+      entities: [
+        {
+          subjectRef: {
+            first: parts.find((p) => p[1] === 'Банка')[0],
+            last: parts.find((p) => p[1] === 'России')[0],
+          },
+          status: 'supported_claim',
+          ref: selected,
+        },
+      ],
+    };
+    const calls = [];
+    const model = new ChatOpenAI({
+      apiKey: 'offline-no-secret',
+      model: 'openai/gpt-6-luna',
+      maxTokens: 1200,
+      maxRetries: 0,
+      disableStreaming: true,
+      configuration: {
+        baseURL: 'https://offline.invalid/v1',
+        fetch: async (url, init) => {
+          expect(String(url)).toBe(
+            'https://offline.invalid/v1/chat/completions'
+          );
+          const request = JSON.parse(init.body);
+          calls.push(request);
+          const actual = request.response_format.json_schema.schema;
+          expect(actual).toEqual(schema);
+          expect(JSON.stringify(actual)).not.toContain('#/properties/');
+          expect(
+            actual.properties.entities.items.properties.subjectRef.properties
+          ).toEqual({
+            first: { $ref: '#/$defs/s' },
+            last: { $ref: '#/$defs/s' },
+          });
+          expect(actual.$defs.s.enum).toEqual(parts.map((p) => p[0]));
+          expect(
+            actual.properties.entities.items.properties
+          ).not.toHaveProperty('subjectQuote');
+          return new Response(
+            JSON.stringify({
+              id: 'offline',
+              object: 'chat.completion',
+              created: 0,
+              model: request.model,
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: 'assistant',
+                    content: JSON.stringify(output),
+                  },
+                  finish_reason: 'stop',
+                },
+              ],
+              usage: {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } }
+          );
+        },
+      },
+    });
+    const raw = await model.withStructuredOutput(schema).invoke(input.prompt);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].max_tokens).toBe(1200);
+    const compiled = current.compileReaderReviewV6(input, raw);
+    expect(compiled.entities[0].name).toBe('Банка России');
+    expect(pure.validateReaderReview(input, compiled)).not.toBeNull();
+    expect(input.inputBytes).toBe(
+      pure.serializedReaderV5InputBytes(
+        input.prompt,
+        calls[0].response_format.json_schema.schema
+      )
+    );
+    expect(input.inputBytes).toBeLessThanOrEqual(25000);
+  }
+);
+
 test('date quote wire v4 reaches the actual SDK with public named definitions and unchanged token limit', async () => {
   const output = {
     version: READER_REVIEW_WIRE_VERSION,
@@ -503,10 +643,11 @@ describe('scoped reader deadline through the installed SDK and usage transport',
   });
 
   test('a fast grounded reader keeps its original two calls and cache hit without leaking a deadline', async () => {
-    const input = pure.prepareReaderReviewV5(pure.packReaderReview('fast reader',
+    const current = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-subject-review.ts');
+    const input = current.prepareReaderReviewV6(pure.packReaderReview('fast reader',
       [{ url: 'https://example.invalid/context', title: 'Context', publishedAt: null }],
       [{ sourceUrl: 'https://example.invalid/context', text: 'Synthetic context from the source.' }], 'English'));
-    const output = { version: 'reader-source-review-wire/v5', catalogue: input.catalogue.binding,
+    const output = { version: current.READER_REVIEW_WIRE_V6_VERSION, catalogue: input.catalogue.binding,
       sources: [{ id: 'S1', relevance: 'relevant' }],
       claims: [{ text: 'Synthetic context from the source.', kind: 'context', refs: [input.catalogue.view.sources[0][5][0][0]], dates: [] }],
       coverage: [{ question: 'fast reader', status: 'supported' }], entities: [] };

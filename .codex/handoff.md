@@ -1,3 +1,19 @@
+## ROOT reader subject-ID source candidate — 6 October 2026
+
+Live C20 remains private3768/public808; both owner UI fixes0qgn.14/.15 delivered.
+Fresh original MAIN accepted bounded useful Telegram/1C search and B1 DRAFT;
+RATE failed empty review at entity_subject_quote. Own6 access rows retired,
+all5 model ledger records terminal/pending0; failed action retained/no replay.
+Root now owns reader-subject-anchors-20261006 at baseline3768: v6 literal Q IDs
+with unchanged v5/v4/v1 source/date/name gates and pre-invocation v5 size fallback.
+Spec docs/product/reader-subject-anchors-spec.md. Focused tests/backend types
+passed; full release and fresh live verification pending. Beads0qgn.10/EPIC
+remain in_progress; original36/7AC and owner defers preserved. No backup restore.
+Docs reviewed/updated; graph reviewed through existing local graph orientation,
+exact current reader/service paths and callers confirmed. Full HOT still pending.
+
+Earlier source checkpoints below historical:
+
 ## Owner UI feedback implementation — 6 October 2026
 
 Isolated branch codex/adaptation-feedback-loading-20261006 from current production SOURCE89e221e50f27. Beads0qgn.14/.15 in_progress. Editable draft adaptation actions are before its body/preview; explicit RU/EN Give AI instructions reuses selected-variant rewrite and signed acceptance. Shared question cards show Button loading+WorkingLine for pending page/channel/chat requests. Browser exposed WorkingLine width utility collision; fixed owned96px track priority, preserving a visible caption. Questions answers and instructions survive errors, duplicate submits are blocked. Focused244 tests/frontend types PASS; separate streamed-response regression46PASS and working-width/design38PASS. Final WindowsChrome1440/390/light/dark component fixture checks include actual fixed track/visible caption, no model or production calls. Full release checks/delivery still pending; production remains C19 private89/publicea3. Original epic36/7AC/owners/external defers preserved, epic ACTIVE incomplete.

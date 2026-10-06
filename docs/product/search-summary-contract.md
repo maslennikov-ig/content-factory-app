@@ -98,7 +98,10 @@ that cannot fit whole subject/metadata returns `review_unavailable` before a
 model call. Existing explicit evidence acceptance stores the chosen bounded
 excerpt unchanged through its immutable tenant-scoped snapshot path.
 
-The current internal generation wire is `reader-source-review-wire/v5`.
+The current internal generation wire is `reader-source-review-wire/v6`, with
+the existing v5 producer selected before invocation only if the new subject
+catalogue exceeds the unchanged bounds. This choice adds no model call and
+does not accept legacy output from a v6 invocation.
 Before the single review invocation, the server constructs at most 96 exact,
 unique contiguous anchors from those same presented excerpts. The model sees
 a bounded catalogue with short IDs and lossless text parts; a shared six-column
@@ -112,7 +115,7 @@ dates. Only optional bridges may be pruned for fit. This may reduce usable
 cross-part context; it cannot truncate the chosen excerpts or silently omit a
 date. Index work, date scanning and retained strings have explicit bounds.
 
-The v5 model supplies IDs instead of free quotations or coordinates. A frozen,
+The model supplies source IDs instead of free quotations or coordinates. A frozen,
 request-owned catalogue retains the full SHA-256 digest; the wire echoes its
 128-bit content binding. Full input integrity, exact binding and strict ID
 membership are checked before lookup. Unknown IDs, missing fields, extra/free
@@ -122,10 +125,22 @@ the v1/date/provenance validators with the explicit-interval consistency check.
 Entity anchors still contain the exact requested name occurrence. Older wire
 schemas and their explicit parsers
 remain available; the current service has no legacy-output fallback. Catalogue
-preparation and v5 compilation expose only finite diagnostic enums, never IDs,
+preparation and v5/v6 compilation expose only finite diagnostic enums, never IDs,
 bindings, quotations or raw model text. The scoped cache discriminator is
-`reader-source-review/v1:wire/v5`; existing tenant, route, task, language and
+`reader-source-review/v1:wire/v6`; existing tenant, route, task, language and
 TTL boundaries remain intact.
+
+V6 entities select contiguous first/last Q IDs from lossless parts of the
+original query. The server renders the exact original substring, preserving
+inflection, case, whitespace, punctuation and Unicode. A private immutable
+request binding covers that table and the source catalogue. Unknown/reversed
+IDs, repeated names, spans exceeding 80 UTF-16 units, extra free names and
+foreign inputs reject the whole review; there is no normalization or repair.
+The rendered name passes through the unchanged v5/v4/v1 source and claim
+grounding checks. Up to 384 subject parts and their actual generation schema
+count toward the existing 21,000/25,000-byte limits; fixed rules/schema stay
+within 4,000 bytes. A larger catalogue uses v5 before the single invocation,
+preserving the full 5,000-unit query. See `reader-subject-anchors-spec.md`.
 
 The provider generation schema restricts each claim's date reference to the
 current catalogue's `d` rows. Ordinary claim/entity references retain their
@@ -186,14 +201,14 @@ For a grounded-date or supported-entity rejection, the optional public diagnosti
 adds one allowlisted `groundingReason`. Dates distinguish `date_missing`,
 `date_ambiguous`, `date_source_mismatch` and `date_token_boundary`; entities
 distinguish `entity_ref_missing`, `entity_claim_missing`, `entity_name_missing`
-and `entity_source_mismatch`. Projection permits date reasons only at the v4/v5
+and `entity_source_mismatch`. Projection permits date reasons only at the v4/v5/v6
 compiler's `date_quote_grounding`, and entity reasons only at v1 validation's
 `v1_entity_supported_claim`, with `validation_rejected`. No names, dates,
 source IDs, quotations or raw rejected values enter this field. The first
 rejection and original eligibility decisions stay unchanged; missing historical
 reasons do not identify a past cause.
 
-The v5 rules state the same-source date/entity conditions explicitly. Provider
+The v5/v6 rules state the same-source date/entity conditions explicitly. Provider
 excerpt cleanup removes a numeric list marker only when its separator is followed
 by whitespace, preserving dotted dates such as `01.10.2026` and decimal rate
 prefixes such as `14.00%`. Ordinary numbered lists and nested bullet/table

@@ -5,7 +5,6 @@ import {
   type ReaderReviewRejection,
   type ReaderWireIssueDiagnostic,
   type ReaderQuoteMatch,
-  READER_REVIEW_CACHE_V5_VERSION,
   packReaderReview,
   requestedDate,
   prepareReaderReviewV5,
@@ -15,6 +14,12 @@ import {
   unavailableReaderReview,
   type ReaderAssessment,
 } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
+import {
+  READER_REVIEW_CACHE_V6_VERSION,
+  prepareReaderReviewV6,
+  readerReviewV6GenerationSchema,
+  compileReaderReviewV6,
+} from '@contentfactory/nestjs-libraries/openai/reader-subject-review';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -1738,7 +1743,7 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v5';
+    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v6';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
     let quoteMatch: ReaderQuoteMatch | undefined;
@@ -1767,7 +1772,17 @@ export class WebResearchService {
       readerDeadline?.check();
       if (!input || !input.evidence.sources.length)
         return { assessment, summary: '', facts: [] as WebResearchFact[] };
-      const anchored = prepareReaderReviewV5(input, onReject);
+      let preparationFailure: ReaderReviewRejection | undefined;
+      const current = prepareReaderReviewV6(input, (code) => {
+        preparationFailure = code;
+      });
+      // Choose the existing producer before invocation only for size bounds.
+      // A catalogue-integrity/date failure must not select a weaker producer.
+      const useLegacy = !current && preparationFailure === 'catalogue_bounds';
+      if (useLegacy) stage = 'prepare_catalogue_v5';
+      else if (!current && preparationFailure) onReject(preparationFailure);
+      const legacy = useLegacy ? prepareReaderReviewV5(input, onReject) : null;
+      const anchored = current ?? legacy;
       if (anchored) {
         assessment.inputBytes = anchored.inputBytes;
         phase = 'model-resolution';
@@ -1781,7 +1796,9 @@ export class WebResearchService {
         readerDeadline?.check();
         phase = 'structured-output';
         stage = phase;
-        const generationSchema = readerReviewV5GenerationSchema(anchored);
+        const generationSchema = current
+          ? readerReviewV6GenerationSchema(current)
+          : readerReviewV5GenerationSchema(legacy!);
         if (!generationSchema) throw new Error('Reader catalogue is unavailable');
         const writer = model.withStructuredOutput(generationSchema);
         phase = 'invocation';
@@ -1811,8 +1828,10 @@ export class WebResearchService {
           );
         readerDeadline?.check();
         phase = 'validation';
-        stage = 'compile_wire_v5';
-        const compiled = compileReaderReviewV5(anchored, raw, onReject);
+        stage = current ? 'compile_wire_v6' : 'compile_wire_v5';
+        const compiled = current
+          ? compileReaderReviewV6(current, raw, onReject)
+          : compileReaderReviewV5(legacy!, raw, onReject);
         if (compiled !== null) stage = 'validate_api_v1';
         const reviewed =
           compiled === null
@@ -1970,7 +1989,7 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_CACHE_V5_VERSION
+          ? READER_REVIEW_CACHE_V6_VERSION
           : 'reader'
         : 'consumer'
     }|${callerQueries(options, level).join('\n')}|${subject
