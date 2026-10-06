@@ -15,11 +15,11 @@ import {
   type ReaderAssessment,
 } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 import {
-  READER_REVIEW_CACHE_V6_VERSION,
-  prepareReaderReviewV6,
-  readerReviewV6GenerationSchema,
-  compileReaderReviewV6,
-} from '@contentfactory/nestjs-libraries/openai/reader-subject-review';
+  READER_REVIEW_CACHE_V7_VERSION,
+  prepareReaderReviewV7,
+  readerReviewV7GenerationSchema,
+  compileReaderReviewV7,
+} from '@contentfactory/nestjs-libraries/openai/reader-proof-review';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -1743,7 +1743,7 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v6';
+    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v7';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
     let quoteMatch: ReaderQuoteMatch | undefined;
@@ -1773,7 +1773,7 @@ export class WebResearchService {
       if (!input || !input.evidence.sources.length)
         return { assessment, summary: '', facts: [] as WebResearchFact[] };
       let preparationFailure: ReaderReviewRejection | undefined;
-      const current = prepareReaderReviewV6(input, (code) => {
+      const current = prepareReaderReviewV7(input, (code) => {
         preparationFailure = code;
       });
       // Choose the existing producer before invocation only for size bounds.
@@ -1797,7 +1797,7 @@ export class WebResearchService {
         phase = 'structured-output';
         stage = phase;
         const generationSchema = current
-          ? readerReviewV6GenerationSchema(current)
+          ? readerReviewV7GenerationSchema(current)
           : readerReviewV5GenerationSchema(legacy!);
         if (!generationSchema) throw new Error('Reader catalogue is unavailable');
         const writer = model.withStructuredOutput(generationSchema);
@@ -1828,9 +1828,9 @@ export class WebResearchService {
           );
         readerDeadline?.check();
         phase = 'validation';
-        stage = current ? 'compile_wire_v6' : 'compile_wire_v5';
+        stage = current ? 'compile_wire_v7' : 'compile_wire_v5';
         const compiled = current
-          ? compileReaderReviewV6(current, raw, onReject)
+          ? compileReaderReviewV7(current, raw, onReject)
           : compileReaderReviewV5(legacy!, raw, onReject);
         if (compiled !== null) stage = 'validate_api_v1';
         const reviewed =
@@ -1989,7 +1989,7 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_CACHE_V6_VERSION
+          ? READER_REVIEW_CACHE_V7_VERSION
           : 'reader'
         : 'consumer'
     }|${callerQueries(options, level).join('\n')}|${subject

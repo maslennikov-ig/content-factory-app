@@ -1,36 +1,12 @@
-## ROOT compact subject envelope follow-up — 6 October 2026
+## ROOT v7 proof producer integrated; release pending — 2026-10-07
 
-Current LIVE remains C20 private3768/public808/config7337/CID54981; owner UI14/15 CLOSED. Published privatef2d91/publicb9c48 candidate genuinely passed exact9, all5 publicCI, image/help/nginx/registry/native pull/empty schema, but is NO_GO for live switch: byte-exact retained C20 envelopes24539/24027/24343 overflow naive v6 for Telegram/RATE. No C21 actor or model call; explicit E2 switch guard prevents delivery. Public head b9 is a candidate, not the live808 source.
+LIVE remains C22 privatef8fb8c727f8/publicf26f751445a8/config15b9bdeb/CID4ddcb698; rollback808 retained. UI0qgn.14/.15 remain delivered/CLOSED. C22 MAIN retained Telegram/RATE FAIL, bounded partial1C and saved groundedB1 PASS; four terminal usage rows/pending0, six own access rows retired. No paid replay or backup restore. All8/native15/HOT and original36/7AC/owners/business/ChatGPT/offsite defers remain; Beads0qgn.10/EPIC ACTIVE incomplete.
 
-ROOT follow-up preserves all original source parts/windows and date enums, v5/v4/v1 compilers and the25000/4000 bounds. Lossless Qid:literal rows omit duplicate plain subject; concise rules preserve evidence/date/name constraints. Real preserved three-envelope reconstruction and large-catalogue/colon/Unicode regression cover the missed bound. Six affected suites/319 tests PASS; release acceptance and fresh actual owned MAIN still pending. This is a child of publishedf2; do not amend or replay earlier source/paid runs. Beads0qgn.10/EPIC remain in_progress; original36/7AC/all8/native15/HOT and owner defers unchanged. No backup restore, foreign mutation or live schema change.
+Root source integrates the separate v7 proof producer/cache with bounds-only v5 preinvoke choice. Source-local numeric claim/date proofs and exact numeric query spans resolve through unchanged v5/v4/v1 compiler bodies; finite preparation/compilation diagnostics now include v7. Fake model fixtures alone convert valid legacy fixtures into their equivalent current wire; malformed legacy references are not repaired. Real installed-SDK transport fixture now answers v7. Focused262 checks/backend types/docs177 PASS; strict foreign-source date, entity-source, unknown local reference, stale binding, extra/free quotation and mandatory-date preparation negatives retain empty outputs and no additional call/search. Original C20+C22 three cases x three languages18 complete-catalogue checks PASS, largest24995 serialized bytes without clipping any original source/date span. Full release acceptance/fresh live usefulness remain pending; local proof is not live proof.
 
-Docs reviewed: versioned input representation/spec and actual counterexample. Graph reviewed: exact current reader/service paths and callers, existing root graph orientation; compilers/source topology unchanged in this follow-up. Current evidence P/reader-subject-envelope-20261006; rejected candidate evidence P/reader-subject-anchors-final-20261006 remains immutable history.
+Evidence P/reader-proof-integration-20261007 (P is primary stage evidence). Parent506733aa is the locally accepted preparation commit, itself child of livef8. This integration uses the same private branch and will publish only after exact release checks. Public clone remains an output; source/history/registry safeguards and strict fresh disk/schema/current2/nonce/foreign21 guards remain. Docs/index reviewed-updated with source candidate vs live distinction; graph-reviewed through existing root read-only graph orientation and exact current reader/service paths, no dependency topology change. Earlier checkpoint statements below are historical.
 
-Earlier source checkpoints below historical:
-
-## ROOT reader subject-ID source candidate — 6 October 2026
-
-Live C20 remains private3768/public808; both owner UI fixes0qgn.14/.15 delivered.
-Fresh original MAIN accepted bounded useful Telegram/1C search and B1 DRAFT;
-RATE failed empty review at entity_subject_quote. Own6 access rows retired,
-all5 model ledger records terminal/pending0; failed action retained/no replay.
-Root now owns reader-subject-anchors-20261006 at baseline3768: v6 literal Q IDs
-with unchanged v5/v4/v1 source/date/name gates and pre-invocation v5 size fallback.
-Spec docs/product/reader-subject-anchors-spec.md. Focused tests/backend types
-passed; full release and fresh live verification pending. Beads0qgn.10/EPIC
-remain in_progress; original36/7AC and owner defers preserved. No backup restore.
-Docs reviewed/updated; graph reviewed through existing local graph orientation,
-exact current reader/service paths and callers confirmed. Full HOT still pending.
-
-Earlier source checkpoints below historical:
-
-## Owner UI feedback implementation — 6 October 2026
-
-Isolated branch codex/adaptation-feedback-loading-20261006 from current production SOURCE89e221e50f27. Beads0qgn.14/.15 in_progress. Editable draft adaptation actions are before its body/preview; explicit RU/EN Give AI instructions reuses selected-variant rewrite and signed acceptance. Shared question cards show Button loading+WorkingLine for pending page/channel/chat requests. Browser exposed WorkingLine width utility collision; fixed owned96px track priority, preserving a visible caption. Questions answers and instructions survive errors, duplicate submits are blocked. Focused244 tests/frontend types PASS; separate streamed-response regression46PASS and working-width/design38PASS. Final WindowsChrome1440/390/light/dark component fixture checks include actual fixed track/visible caption, no model or production calls. Full release checks/delivery still pending; production remains C19 private89/publicea3. Original epic36/7AC/owners/external defers preserved, epic ACTIVE incomplete.
-
-Docs: docs/product/adaptation-feedback-processing-spec.md and updated component inventory. project-index: reviewed-updated - UI spec pointer added. docs-reviewed: updated - guidance and processing contract/inventory. documentation-decision: no-versioned-change - existing React/form/rewrite interfaces, local source authoritative. graph-reviewed: existing root46ec graph read-only orientation; exact89 files confirmed, UI impact reviewed, no new dependency boundary.
-
-Earlier handoff below historical:
+Historical state below; current scope/status is Beads and the current root checkpoint above. Prior checkpoints are preserved in Git and P/reader-proof-integration-20261007/handoff-before-limit-correction.actual.md.
 
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`

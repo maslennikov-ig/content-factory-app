@@ -1,5 +1,10 @@
 # Literal subject references in the search reader
 
+Historical v6 contract. The current source service selects the versioned
+[source-bound v7 proofs](reader-proof-binding-spec.md); v6 producers and their
+recorded acceptance remain available and unchanged. Delivery/live acceptance
+is recorded separately in the handoff and Beads.
+
 The current C20 live rate query returned no useful answer. Its four presented
 sources included the official rate table and decision; the paid call settled.
 The recorded rejection is `compile_wire_v5/entity_subject_quote`. The exact

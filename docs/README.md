@@ -46,6 +46,7 @@
 | Понять принятые архитектурные решения                  | [ADR](adr/README.md)                                                                           |
 | Передать полный редизайн Opus 5                        | [Готовый промт](prompts/opus-5-content-factory-brand-redesign.md)                              |
 | Выбрать поисковый бэкенд для генератора                | [Промт для deep research](prompts/deep-research-search-backend.md)                             |
+| Проверить привязку поисковых цитат и дат               | [Кандидат формата ссылок на источники](product/reader-proof-binding-spec.md)                   |
 | Передать эпик Telegram-конвейера и поиска исполнителю  | [Промт для GPT-5.6](prompts/gpt-5.6-telegram-pipeline-and-search.md)                           |
 | Обновлять документацию и граф                          | [Сопровождение документации](maintenance/documentation.md)                                     |
 | Расшифровать термины                                   | [Глоссарий](glossary.md)                                                                       |
