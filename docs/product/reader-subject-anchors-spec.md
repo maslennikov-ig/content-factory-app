@@ -19,6 +19,20 @@ Unknown IDs, reversed ranges, spans over 80 UTF-16 units, foreign tables and
 ambiguous rendered names must fail closed. Existing v1/v4/v5 consumers and
 historical results remain unchanged.
 
+The provider view encodes each query part as `Qid:literal`, separating at the
+first colon only. Literals retain colons, quotes, whitespace and Unicode; their
+ordered concatenation is the complete original query. This view omits the
+duplicate plain subject. The trusted server input still retains the full
+original subject and positions; the compiler never parses model-written
+literal rows. Source parts, source windows and date anchor enums are identical
+to the existing v5 catalogue. Compact fixed instructions leave room for the
+query without reducing source evidence or increasing either byte limit.
+
+A realistic large catalogue is part of acceptance: reconstruct the retained
+reader evidence with the original v5 input size, then require the new format to
+fit the same source/date catalogue. A small successful fixture alone misses
+the case where query duplication forces the original failing producer back in.
+
 Prepare and freeze the subject parts before model invocation. Count their
 generation schema and prompt in the existing 25,000-byte bound; retain the existing
 v5 producer before the single model call if the new catalogue cannot fit.

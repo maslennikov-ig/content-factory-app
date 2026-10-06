@@ -1920,6 +1920,9 @@ test.each(['missing last year digit', 'missing first day digit'])(
 // Current v6 model ports select server IDs; production never converts legacy output.
 const currentWireFromRequest = (request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  const subject = view.catalogue.version === 'v6'
+    ? view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
+    : view.subject;
   return {
     version: view.catalogue.version === 'v6' ? 'reader-source-review-wire/v6' : 'reader-source-review-wire/v5',
     catalogue: view.catalogue.binding,
@@ -1932,7 +1935,7 @@ const currentWireFromRequest = (request) => {
         dates: [],
       },
     ],
-    coverage: [{ question: view.subject.slice(0, 500), status: 'supported' }],
+    coverage: [{ question: subject.slice(0, 500), status: 'supported' }],
     entities: [],
   };
 };

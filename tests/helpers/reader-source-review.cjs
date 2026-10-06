@@ -8,6 +8,10 @@ module.exports.syntheticReaderReview = (request, summary) => {
   if (typeof summary?.summary !== 'string' || !summary.summary.trim())
     return summary;
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (evidence.catalogue?.version === 'v6')
+    evidence.subject = evidence.subjectParts.map((part) =>
+      part.slice(part.indexOf(':') + 1)
+    ).join('');
   if (evidence.sourceColumns)
     return {
       version:
@@ -227,9 +231,14 @@ module.exports.syntheticReaderCurrentSubjectWire = (view, output) => {
   )
     return output;
   let offset = 0;
-  const positions = view.subjectParts.map(([id, text]) => {
+  let subject = '';
+  const positions = view.subjectParts.map((part) => {
+    const delimiter = part.indexOf(':');
+    const id = part.slice(0, delimiter);
+    const text = part.slice(delimiter + 1);
     const start = offset;
     offset += text.length;
+    subject += text;
     return { id, start, end: offset };
   });
   return {
@@ -238,10 +247,10 @@ module.exports.syntheticReaderCurrentSubjectWire = (view, output) => {
     entities: output.entities?.map(({ subjectQuote, ...entity }) => {
       const start =
         typeof subjectQuote === 'string'
-          ? view.subject.indexOf(subjectQuote)
+          ? subject.indexOf(subjectQuote)
           : -1;
       const unique =
-        start >= 0 && view.subject.indexOf(subjectQuote, start + 1) === -1;
+        start >= 0 && subject.indexOf(subjectQuote, start + 1) === -1;
       const first = unique && positions.find((p) => p.start === start);
       const last =
         unique && positions.find((p) => p.end === start + subjectQuote.length);
@@ -257,6 +266,9 @@ module.exports.syntheticReaderModelEvidence = (request) => {
   if (!view.sourceColumns) return view;
   return {
     ...view,
+    ...(view.catalogue?.version === 'v6'
+      ? { subject: view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('') }
+      : {}),
     sources: view.sources.map((row) => ({
       id: row[0],
       title: row[1],

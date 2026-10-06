@@ -119,7 +119,10 @@ test.each([true, false])(
         .join('')
         .includes('Банка России')
     )[0];
-    const parts = input.catalogue.view.subjectParts;
+    const parts = input.catalogue.view.subjectParts.map((part) => {
+      const delimiter = part.indexOf(':');
+      return [part.slice(0, delimiter), part.slice(delimiter + 1)];
+    });
     const output = {
       version: current.READER_REVIEW_WIRE_V6_VERSION,
       catalogue: input.catalogue.binding,

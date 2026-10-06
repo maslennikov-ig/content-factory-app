@@ -131,7 +131,10 @@ bindings, quotations or raw model text. The scoped cache discriminator is
 TTL boundaries remain intact.
 
 V6 entities select contiguous first/last Q IDs from lossless parts of the
-original query. The server renders the exact original substring, preserving
+original query. Provider rows are `Qid:literal`, separated at the first colon;
+their ordered literals reconstruct the whole query without a duplicate plain
+subject. The trusted original subject, source catalogue and date enums remain.
+The server renders the exact original substring, preserving
 inflection, case, whitespace, punctuation and Unicode. A private immutable
 request binding covers that table and the source catalogue. Unknown/reversed
 IDs, repeated names, spans exceeding 80 UTF-16 units, extra free names and

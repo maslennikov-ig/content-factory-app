@@ -1,3 +1,13 @@
+## ROOT compact subject envelope follow-up — 6 October 2026
+
+Current LIVE remains C20 private3768/public808/config7337/CID54981; owner UI14/15 CLOSED. Published privatef2d91/publicb9c48 candidate genuinely passed exact9, all5 publicCI, image/help/nginx/registry/native pull/empty schema, but is NO_GO for live switch: byte-exact retained C20 envelopes24539/24027/24343 overflow naive v6 for Telegram/RATE. No C21 actor or model call; explicit E2 switch guard prevents delivery. Public head b9 is a candidate, not the live808 source.
+
+ROOT follow-up preserves all original source parts/windows and date enums, v5/v4/v1 compilers and the25000/4000 bounds. Lossless Qid:literal rows omit duplicate plain subject; concise rules preserve evidence/date/name constraints. Real preserved three-envelope reconstruction and large-catalogue/colon/Unicode regression cover the missed bound. Six affected suites/319 tests PASS; release acceptance and fresh actual owned MAIN still pending. This is a child of publishedf2; do not amend or replay earlier source/paid runs. Beads0qgn.10/EPIC remain in_progress; original36/7AC/all8/native15/HOT and owner defers unchanged. No backup restore, foreign mutation or live schema change.
+
+Docs reviewed: versioned input representation/spec and actual counterexample. Graph reviewed: exact current reader/service paths and callers, existing root graph orientation; compilers/source topology unchanged in this follow-up. Current evidence P/reader-subject-envelope-20261006; rejected candidate evidence P/reader-subject-anchors-final-20261006 remains immutable history.
+
+Earlier source checkpoints below historical:
+
 ## ROOT reader subject-ID source candidate — 6 October 2026
 
 Live C20 remains private3768/public808; both owner UI fixes0qgn.14/.15 delivered.

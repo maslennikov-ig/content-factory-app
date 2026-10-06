@@ -20,8 +20,12 @@ const packed = (query = subject, source = text) =>
     [{ sourceUrl: 'https://example.test/article', text: source }],
     'Russian'
   );
+const subjectParts = (input) => input.catalogue.view.subjectParts.map((row) => {
+  const delimiter = row.indexOf(':');
+  return [row.slice(0, delimiter), row.slice(delimiter + 1)];
+});
 const selectSubject = (input, name) => {
-  const parts = input.catalogue.view.subjectParts;
+  const parts = subjectParts(input);
   for (let first = 0; first < parts.length; first++) {
     let quote = '';
     for (let last = first; last < parts.length; last++) {
@@ -87,11 +91,11 @@ test('v6 freezes and binds query parts, full prompt and actual generation schema
     old.serializedReaderV5InputBytes(input.prompt, schema)
   );
   expect(input.inputBytes).toBeLessThanOrEqual(old.READER_REVIEW_INPUT_BYTES);
-  expect(input.catalogue.view.subjectParts.map((p) => p[1]).join('')).toBe(
+  expect(subjectParts(input).map((p) => p[1]).join('')).toBe(
     subject
   );
   expect(schema.$defs.s.enum).toEqual(
-    input.catalogue.view.subjectParts.map((p) => p[0])
+    subjectParts(input).map((p) => p[0])
   );
   expect(
     schema.properties.entities.items.properties.subjectRef.properties.first
@@ -104,9 +108,33 @@ test('v6 freezes and binds query parts, full prompt and actual generation schema
       .filter((a) => a[3] === 'd')
       .map((a) => a[0])
   );
-  expect(Object.isFrozen(input.catalogue.view.subjectParts[0])).toBe(true);
+  expect(Object.isFrozen(input.catalogue.view.subjectParts)).toBe(true);
+  expect(input.catalogue.view).not.toHaveProperty('subject');
   original.evidence.subject = 'Different query';
   expect(current.compileReaderReviewV6(input, wire(input))).not.toBeNull();
+});
+test('compact query rows preserve colons, quotes, whitespace and supplementary Unicode literally', () => {
+  const name = 'Банка России:😀';
+  const query = `Что известно о «${name}»?\nСохрани "ВТБ" и \\ слеш.`;
+  const input = current.prepareReaderReviewV6(packed(query, `В заметке упоминается «${name}».`));
+  expect(subjectParts(input).map((part) => part[1]).join('')).toBe(query);
+  const row = input.catalogue.view.sources[0];
+  const reference = row[5].find((anchor) =>
+    row[4].slice(anchor[1], anchor[2] + 1).join('').includes(name)
+  )[0];
+  const review = current.compileReaderReviewV6(input, {
+    version: current.READER_REVIEW_WIRE_V6_VERSION,
+    catalogue: input.catalogue.binding,
+    sources: [{ id: 'S1', relevance: 'relevant' }],
+    claims: [],
+    coverage: [{ question: query, status: 'unsupported' }],
+    entities: [{ subjectRef: selectSubject(input, name), status: 'contextual_mention', ref: reference }],
+  });
+  expect(review.entities[0]).toMatchObject({
+    name,
+    subjectStart: query.indexOf(name),
+    subjectEnd: query.indexOf(name) + name.length,
+  });
 });
 test.each([
   'unknown',
@@ -125,8 +153,8 @@ test.each([
       [output.entities[0].subjectRef.last, output.entities[0].subjectRef.first];
   if (kind === 'overlong')
     output.entities[0].subjectRef = {
-      first: input.catalogue.view.subjectParts[0][0],
-      last: input.catalogue.view.subjectParts.at(-1)[0],
+      first: subjectParts(input)[0][0],
+      last: subjectParts(input).at(-1)[0],
     };
   if (kind === 'stale') output.catalogue = '0'.repeat(32);
   if (kind === 'free-name') output.entities[0].subjectQuote = 'Банк России';
@@ -156,6 +184,31 @@ test('oversized subject catalogue refuses before invocation while unchanged v5 r
   const legacy = old.prepareReaderReviewV5(original);
   expect(legacy).not.toBeNull();
   expect(legacy.inputBytes).toBeLessThanOrEqual(old.READER_REVIEW_INPUT_BYTES);
+});
+test('a long rate query retains a complete large source catalogue inside the existing provider limit', () => {
+  const sources = Array.from({ length: 4 }, (_, index) => ({
+    url: `https://example.test/article-${index}`,
+    title: `Синтетический контекст ${index}`,
+    publishedAt: null,
+  }));
+  const facts = sources.map((source, index) => ({
+    sourceUrl: source.url,
+    text: 'На 1 октября 2026 года опубликован синтетический обзор ключевой ставки Банка России. ' +
+      Array.from({ length: 25 }, (_, paragraph) =>
+        `Учебный абзац ${index}-${paragraph}: контекст помогает сверить дату и отличить описание решения от предположения. `
+      ).join(''),
+  }));
+  const original = old.packReaderReview(subject, sources, facts, 'Russian');
+  const legacy = old.prepareReaderReviewV5(original);
+  expect(legacy.inputBytes).toBeGreaterThan(24_000);
+  const input = current.prepareReaderReviewV6(original);
+  expect(input).not.toBeNull();
+  expect(input.inputBytes).toBeLessThanOrEqual(old.READER_REVIEW_INPUT_BYTES);
+  expect(input.catalogue.view.sources).toEqual(legacy.catalogue.view.sources);
+  expect(input.evidence).toEqual(legacy.evidence);
+  expect(current.readerReviewV6GenerationSchema(input).$defs.d).toEqual(
+    old.readerReviewV5GenerationSchema(legacy).$defs.d
+  );
 });
 test.each(['Russian', 'English', 'Haitian Creole'])('fixed v6 rules/schema preserve the original 4000-byte allowance for %s', (language) => {
   const original = packed();

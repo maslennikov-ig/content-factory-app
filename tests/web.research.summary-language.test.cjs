@@ -888,7 +888,10 @@ describe('сводка веб-поиска говорит на языке чит
       undefined,
       'provider answers are not source evidence'
     );
-    assert.equal(evidence.subject, original.subject);
+    const exactSubject = evidence.catalogue?.version === 'v6'
+      ? evidence.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
+      : evidence.subject;
+    assert.equal(exactSubject, original.subject);
     assert.match(evidence.sources[0][4].join(''), /4 пользователя 1С/);
     assert.match(evidence.sources[0][4].join(''), /10 190/);
     assert.match(input.reviewRequest, /prices, bundles/);
