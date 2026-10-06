@@ -162,6 +162,28 @@ request with its normal accounted search/review. There is no automatic retry.
 Valid or insufficient-evidence reader entries and non-reader fallbacks retain
 their existing 30-minute TTL, hit behavior and `fromCache` marker.
 
+Scoped reader research has one absolute 170-second internal deadline, measured
+from entry to `research`, within the existing 180-second caller envelope. Query
+classification and source review share its SDK request cancellation signal;
+model fallback does not restart the deadline. The signal is carried in SDK
+request options rather than Runnable cancellation, so the service awaits the
+actual transport and its usage recording before the original single
+finalization. Cancellation marks the admitted operation failed while retaining
+already observed usage and possibly-billed attempts; missing cost is not zero.
+It returns `review_unavailable`, an empty summary and no takeable facts, and
+cannot cache a success or start another model/search stage.
+
+Search tools retain their existing bounded primary/fallback waits. Since their
+fetch cannot be canceled through the current adapter, scoped dispatch requires
+room for the original 12 + 8 second search window; each actual provider dispatch
+also checks its remaining bounded wait after admission/client resolution. A
+search window that no longer fits makes the reader unavailable without a new
+provider request. These guards may stop useful work earlier than the deadline.
+The keyless lane likewise requires its existing eight-second window before a
+new lookup. General consumer/discovery timing and provider policies are
+unchanged. The ten-second settlement margin is a budget, not proof of live
+provider responsiveness or fresh search usefulness.
+
 ## Existing non-reader and supplied-query behavior
 
 Automatic generation/intake/copilot, supplied fact-review queries, discovery

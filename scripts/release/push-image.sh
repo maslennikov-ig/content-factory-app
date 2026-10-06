@@ -43,7 +43,7 @@ remote_image="$registry/$namespace/content-factory-next:$tag"
 
 if ! docker image inspect "$local_image" >/dev/null 2>&1; then
   echo "No local image $local_image. Build it first:" >&2
-  echo "  docker build --target runtime -t $local_image -f Dockerfile ." >&2
+  echo "  scripts/release/build-local-image.sh $tag --min-free-gib <planned-headroom>" >&2
   exit 1
 fi
 

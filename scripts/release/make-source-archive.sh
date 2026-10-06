@@ -81,4 +81,4 @@ echo "  $archive"
 echo "  $bytes bytes, sha256 $checksum"
 echo
 echo "Build the image from the same commit:"
-echo "  docker build --target runtime -t content-factory-next:$short -f Dockerfile ."
+echo "  scripts/release/build-local-image.sh $short --min-free-gib <planned-headroom>"

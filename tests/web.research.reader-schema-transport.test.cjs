@@ -199,3 +199,328 @@ test.each(['Russian', 'English', 'Haitian Creole'])(
     });
   }
 );
+
+describe('scoped reader deadline through the installed SDK and usage transport', () => {
+  const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+  const chain = require('@contentfactory/nestjs-libraries/openai/ai.text-chain');
+  const pure = require('./helpers/reader-source-review.cjs');
+  const classification = {
+    scope: 'global',
+    subjectLanguage: 'en',
+    englishQuery: 'synthetic context',
+    subjectLanguageQuery: null,
+    freshnessRequired: false,
+  };
+  const config = {
+    usageMode: 'included',
+    provider: 'openrouter',
+    apiKey: 'offline-no-secret',
+    search: {
+      enabled: true,
+      provider: 'exa',
+      apiKeys: { exa: 'offline-search' },
+      keySources: { exa: 'system' },
+      topic: 'general',
+      depth: 'advanced',
+    },
+  };
+  const response = (output) =>
+    new Response(
+      JSON.stringify({
+        id: 'offline',
+        object: 'chat.completion',
+        created: 0,
+        model: 'openai/gpt-6-luna',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: JSON.stringify(output) },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    );
+
+  const setup = ({
+    classifierDelay = 0,
+    stopAt = 'reader',
+    readerFallback = false,
+    usageMode = 'included',
+    readerOutput,
+  } = {}) => {
+    const aiConfig = { ...config, usageMode, search: { ...config.search,
+      keySources: { exa: usageMode === 'workspace_key' ? 'own' : 'system' } } };
+    const calls = [];
+    const invokeOptions = [];
+    const rows = [];
+    const events = [];
+    let classifierCalls = 0;
+    let readerCalls = 0;
+    let searches = 0;
+    let fallbackSearches = 0;
+    const transport = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const reader = body.max_tokens === chain.withReasoningHeadroom(1200);
+      const index = reader ? ++readerCalls : ++classifierCalls;
+      calls.push({ reader, index, body, signal: init.signal });
+      if (!reader && stopAt !== 'classifier') {
+        if (classifierDelay)
+          await new Promise((resolve) => setTimeout(resolve, classifierDelay));
+        return response(classification);
+      }
+      if (reader && readerFallback && index === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 30_000));
+        return new Response(
+          JSON.stringify({
+            error: { code: 503, message: 'offline unavailable' },
+          }),
+          { status: 503 }
+        );
+      }
+      if (reader && readerOutput) return response(readerOutput);
+      return new Promise((_resolve, reject) => {
+        const settle = () =>
+          setTimeout(() => {
+            events.push('transport-settled');
+            reject(init.signal.reason);
+          }, 5);
+        if (init.signal.aborted) settle();
+        else init.signal.addEventListener('abort', settle, { once: true });
+      });
+    };
+    const getChatModel = async (_organization, _temperature, maxTokens) => {
+      const model = new ChatOpenAI({
+        apiKey: 'offline-no-secret',
+        model: 'openai/gpt-6-luna',
+        maxTokens,
+        maxRetries: 0,
+        disableStreaming: true,
+        timeout: 1_085_000,
+        configuration: {
+          baseURL: 'https://offline.invalid/v1',
+          fetch: chain.createTextChainFetch(
+            {
+              usageMode,
+              provider: 'openrouter',
+              textChain: chain.defaultTextChainSettings(),
+            },
+            transport
+          ),
+        },
+      });
+      const structured = model.withStructuredOutput.bind(model);
+      model.withStructuredOutput = (...args) => {
+        const writer = structured(...args);
+        const invoke = writer.invoke.bind(writer);
+        writer.invoke = (input, options) => {
+          invokeOptions.push(options);
+          return invoke(input, options);
+        };
+        return writer;
+      };
+      return model;
+    };
+    const aiUsage = {
+      beginAiOperationWithConfig: async () => {
+        const ledger = new chain.TextUsageLedger();
+        const row = { finishCount: 0 };
+        rows.push(row);
+        return {
+          run: (callback) => chain.runWithUsageLedger(ledger, callback),
+          track: (callback) => chain.runWithUsageLedger(ledger, callback),
+          finish: async (succeeded) => {
+            events.push('usage-finished');
+            row.finishCount++;
+            row.succeeded = succeeded;
+            row.columns = ledger.columns();
+          },
+        };
+      },
+    };
+    const { WebResearchService } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/openai/web.research.service.ts',
+      {
+        '@nestjs/common': {
+          Injectable: () => (target) => target,
+          Optional: () => () => {},
+          Inject: () => () => {},
+          Logger: class {
+            log() {}
+            warn() {}
+            debug() {}
+          },
+        },
+        '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+          getActiveAiConfig: () => aiConfig,
+          loadAiConfig: async () => aiConfig,
+          requireActiveAiConfig: async () => aiConfig,
+          withActiveAiConfig: (_organization, _config, callback) => callback(),
+        },
+        '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
+          AiUsageService: class {},
+        },
+        '@contentfactory/nestjs-libraries/openai/ai.text-chain': chain,
+        '@contentfactory/nestjs-libraries/openai/reader-source-review': pure,
+        '@contentfactory/nestjs-libraries/openai/ai.clients': {
+          WEB_SEARCH_PRIMARY_TIMEOUT_MS: 12_000,
+          WEB_SEARCH_FALLBACK_TIMEOUT_MS: 8_000,
+          WEB_SEARCH_MAX_SOURCE_CHARS: 8000,
+          WEB_SEARCH_MAX_RESULT_CHARS: 32000,
+          getChatModel,
+          getWebSearchClient: async (_organization, provider) => ({
+            invoke: async () => {
+              searches++;
+              if (provider === 'tavily') fallbackSearches++;
+              return {
+                results: [
+                  {
+                    url: 'https://example.invalid/context',
+                    title: 'Context',
+                    content: 'Synthetic context from the source.',
+                  },
+                ],
+              };
+            },
+          }),
+        },
+      }
+    );
+    return {
+      service: new WebResearchService(aiUsage),
+      rows,
+      calls,
+      invokeOptions,
+      events,
+      counts: () => ({
+        classifierCalls,
+        readerCalls,
+        searches,
+        fallbackSearches,
+      }),
+    };
+  };
+
+  beforeEach(() =>
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    })
+  );
+  afterEach(() => jest.useRealTimers());
+
+  test.each(['classifier', 'reader'])(
+    'a slow %s settles its transport before the single failed usage finish',
+    async (stopAt) => {
+      const run = setup({
+        stopAt,
+        classifierDelay: 40_000,
+        readerFallback: true,
+      });
+      let result;
+      let failure;
+      const pending = run.service
+        .research('offline-organization', `slow ${stopAt}`, {
+          readerResponse: true,
+          language: 'en',
+        })
+        .then(
+          (value) => {
+            result = value;
+          },
+          (error) => {
+            failure = error;
+          }
+        );
+      await jest.advanceTimersByTimeAsync(170_000);
+      expect(run.calls.at(-1).signal.aborted).toBe(true);
+      expect(run.rows[0].finishCount).toBe(0);
+      await jest.advanceTimersByTimeAsync(5);
+      await pending;
+      expect(failure).toBeUndefined();
+      expect(result).toMatchObject({
+        summary: '',
+        facts: [],
+        readerAssessment: { status: 'review_unavailable' },
+      });
+      expect(run.rows).toHaveLength(1);
+      expect(run.rows[0]).toMatchObject({
+        finishCount: 1,
+        succeeded: false,
+        columns: { possiblyBilled: true },
+      });
+      expect(run.rows[0].columns.costUsd).toBeNull();
+      if (stopAt === 'reader') {
+        expect(run.rows[0].columns).toMatchObject({ promptTokens: 10, completionTokens: 5 });
+        expect(result.sources).toHaveLength(1);
+        expect(result.readerAssessment.failureDiagnostic.failure).toBe('timeout');
+      }
+      expect(run.events.at(-2)).toBe('transport-settled');
+      expect(run.events.at(-1)).toBe('usage-finished');
+      expect(run.counts()).toEqual(
+        stopAt === 'classifier'
+          ? {
+              classifierCalls: 3,
+              readerCalls: 0,
+              searches: 0,
+              fallbackSearches: 0,
+            }
+          : {
+              classifierCalls: 1,
+              readerCalls: 3,
+              searches: 1,
+              fallbackSearches: 0,
+            }
+      );
+      const signals = run.invokeOptions.map(
+        (options) => options.options.signal
+      );
+      expect(signals.every((signal) => signal === signals[0])).toBe(true);
+      expect(signals[0].aborted).toBe(true);
+      expect(run.service.cache.size()).toBe(0);
+      expect(jest.getTimerCount()).toBe(0);
+    }
+  );
+
+  test('classification cannot dispatch search when its original 20 second window no longer fits', async () => {
+    const run = setup({ classifierDelay: 151_000, usageMode: 'workspace_key' });
+    let result;
+    const pending = run.service
+      .research('offline-organization', 'late classifier', {
+        readerResponse: true,
+        language: 'en',
+      })
+      .then((value) => {
+        result = value;
+      });
+    await jest.advanceTimersByTimeAsync(151_000);
+    expect(result).toBeDefined();
+    await pending;
+    expect(result.readerAssessment.status).toBe('review_unavailable');
+    expect(run.counts().searches).toBe(0);
+    expect(run.rows[0]).toMatchObject({ finishCount: 1, succeeded: false });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('a fast grounded reader keeps its original two calls and cache hit without leaking a deadline', async () => {
+    const input = pure.prepareReaderReviewV5(pure.packReaderReview('fast reader',
+      [{ url: 'https://example.invalid/context', title: 'Context', publishedAt: null }],
+      [{ sourceUrl: 'https://example.invalid/context', text: 'Synthetic context from the source.' }], 'English'));
+    const output = { version: 'reader-source-review-wire/v5', catalogue: input.catalogue.binding,
+      sources: [{ id: 'S1', relevance: 'relevant' }],
+      claims: [{ text: 'Synthetic context from the source.', kind: 'context', refs: [input.catalogue.view.sources[0][5][0][0]], dates: [] }],
+      coverage: [{ question: 'fast reader', status: 'supported' }], entities: [] };
+    const run = setup({ readerOutput: output });
+    const result = await run.service.research('offline-organization', 'fast reader', { readerResponse: true, language: 'en' });
+    expect(result.readerAssessment.status).toBe('supported');
+    expect(result.facts).toEqual([{ text: 'Synthetic context from the source.', sourceUrl: 'https://example.invalid/context' }]);
+    expect(run.counts()).toEqual({ classifierCalls: 1, readerCalls: 1, searches: 1, fallbackSearches: 0 });
+    expect(run.rows[0]).toMatchObject({ finishCount: 1, succeeded: true, columns: { promptTokens: 20, completionTokens: 10 } });
+    expect(run.rows[0].columns).not.toHaveProperty('possiblyBilled');
+    expect(run.invokeOptions[0].options.signal).toBe(run.invokeOptions[1].options.signal);
+    const cached = await run.service.research('offline-organization', 'fast reader', { readerResponse: true, language: 'en' });
+    expect(cached).toEqual({ ...result, fromCache: true });
+    expect(run.rows).toHaveLength(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+});

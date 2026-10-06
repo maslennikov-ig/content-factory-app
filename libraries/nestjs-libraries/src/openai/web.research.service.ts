@@ -971,14 +971,38 @@ const withDeadline = <T>(work: Promise<T>, milliseconds: number) => {
 const invokeWithDeadline = async (
   clientFactory: () => ReturnType<typeof getWebSearchClient>,
   query: string,
-  milliseconds: number
+  milliseconds: number,
+  readerDeadline?: ScopedReaderDeadline
 ) => {
+  readerDeadline?.check(milliseconds);
   const deadline = Date.now() + milliseconds;
   const client = await withDeadline(clientFactory(), milliseconds);
   const remaining = deadline - Date.now();
   if (remaining <= 0) throw new WebSearchDeadlineExceeded(milliseconds);
+  readerDeadline?.check(remaining);
   return withDeadline(client.invoke({ query }), remaining);
 };
+
+// Leave 10 seconds of the reader caller's 180-second envelope for settlement.
+const READER_RESEARCH_DEADLINE_MS = 170_000;
+const scopedReaderDeadline = (startedAt: number) => {
+  const controller = new AbortController();
+  const expiresAt = startedAt + READER_RESEARCH_DEADLINE_MS;
+  const expire = () =>
+    controller.abort(
+      new DOMException('Reader research deadline exceeded.', 'TimeoutError')
+    );
+  const timer = setTimeout(expire, Math.max(0, expiresAt - Date.now()));
+  return {
+    signal: controller.signal,
+    check: (reservedMs = 0) => {
+      if (Date.now() + reservedMs >= expiresAt) expire();
+      controller.signal.throwIfAborted();
+    },
+    release: () => clearTimeout(timer),
+  };
+};
+type ScopedReaderDeadline = ReturnType<typeof scopedReaderDeadline>;
 
 const errorStatus = (error: unknown) => {
   if (error && typeof error === 'object' && 'status' in error) {
@@ -1613,8 +1637,14 @@ export class WebResearchService {
     },
     task: SearchTask,
     attempt: SearchAttempt,
-    egressCheck?: (provider: SearchProvider) => void
+    egressCheck?: (provider: SearchProvider) => void,
+    readerDeadline?: ScopedReaderDeadline
   ): Promise<ProviderSearchResult> {
+    // Search tools cannot cancel their fetch. Dispatch only when their entire
+    // existing primary/fallback window fits inside the reader request.
+    readerDeadline?.check(
+      WEB_SEARCH_PRIMARY_TIMEOUT_MS + WEB_SEARCH_FALLBACK_TIMEOUT_MS
+    );
     const primary = providerForSearchTask(task, config.search);
     try {
       egressCheck?.(primary);
@@ -1622,7 +1652,8 @@ export class WebResearchService {
         invokeWithDeadline(
           () => getWebSearchClient(organizationId, primary, options),
           query,
-          WEB_SEARCH_PRIMARY_TIMEOUT_MS
+          WEB_SEARCH_PRIMARY_TIMEOUT_MS,
+          readerDeadline
         )
       );
       if (!response.results?.length) throw new EmptyWebSearchResults();
@@ -1660,12 +1691,14 @@ export class WebResearchService {
         )}); retrying via ${reserve}.`
       );
       try {
+        readerDeadline?.check(WEB_SEARCH_FALLBACK_TIMEOUT_MS);
         egressCheck?.(reserve);
         const response = await attempt(reserve, () =>
           invokeWithDeadline(
             () => getWebSearchClient(organizationId, reserve, options),
             query,
-            WEB_SEARCH_FALLBACK_TIMEOUT_MS
+            WEB_SEARCH_FALLBACK_TIMEOUT_MS,
+            readerDeadline
           )
         );
         if (!response.results?.length) throw new EmptyWebSearchResults();
@@ -1692,7 +1725,8 @@ export class WebResearchService {
     subject: string,
     sources: WebResearchSource[],
     facts: WebResearchFact[],
-    language: ContentLanguage
+    language: ContentLanguage,
+    readerDeadline?: ScopedReaderDeadline
   ) {
     const input = packReaderReview(
       subject,
@@ -1701,8 +1735,6 @@ export class WebResearchService {
       contentLanguageNames[language]
     );
     const assessment = unavailableReaderReview(input);
-    if (!input || !input.evidence.sources.length)
-      return { assessment, summary: '', facts: [] as WebResearchFact[] };
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
     let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v5';
@@ -1728,6 +1760,9 @@ export class WebResearchService {
       }
     };
     try {
+      readerDeadline?.check();
+      if (!input || !input.evidence.sources.length)
+        return { assessment, summary: '', facts: [] as WebResearchFact[] };
       const anchored = prepareReaderReviewV5(input, onReject);
       if (anchored) {
         assessment.inputBytes = anchored.inputBytes;
@@ -1739,6 +1774,7 @@ export class WebResearchService {
           RESEARCH_SUMMARY_MAX_TOKENS,
           'classify'
         );
+        readerDeadline?.check();
         phase = 'structured-output';
         stage = phase;
         const generationSchema = readerReviewV5GenerationSchema(anchored);
@@ -1751,6 +1787,11 @@ export class WebResearchService {
           .invoke(
             { reviewRequest: anchored.prompt },
             {
+              // SDK request options cancel the actual transport. Runnable's
+              // top-level signal races invoke and can finalize usage too early.
+              ...(readerDeadline
+                ? { options: { signal: readerDeadline.signal } }
+                : {}),
               callbacks: [
                 {
                   handleLLMEnd(output) {
@@ -1764,6 +1805,7 @@ export class WebResearchService {
               ],
             }
           );
+        readerDeadline?.check();
         phase = 'validation';
         stage = 'compile_wire_v5';
         const compiled = compileReaderReviewV5(anchored, raw, onReject);
@@ -1772,6 +1814,7 @@ export class WebResearchService {
           compiled === null
             ? null
             : validateReaderReview(anchored, compiled, onReject);
+        readerDeadline?.check();
         if (reviewed) return reviewed;
       }
       this.logger.warn(
@@ -1780,7 +1823,9 @@ export class WebResearchService {
     } catch (error) {
       // Provider work has already ended. Never send a reader failure through
       // provider fallback, buy another review, or return an unreviewed answer.
-      failure = readerReviewSafeFailure(error);
+      failure = readerDeadline?.signal.aborted
+        ? 'timeout'
+        : readerReviewSafeFailure(error);
       providerCode = readerReviewSafeProviderCode(error);
       this.logger.warn(
         readerReviewFailureLine(phase, failure, termination, providerCode)
@@ -1890,6 +1935,7 @@ Untrusted research data: {evidence}`
     subject: string,
     options: WebResearchOptions = {}
   ): Promise<WebResearchResult> {
+    const startedAt = Date.now();
     const level = options.level ?? 'standard';
     const levelWasExplicit = options.level !== undefined;
     const config =
@@ -2035,11 +2081,14 @@ Untrusted research data: {evidence}`
     };
 
     const attempt: SearchAttempt = async (provider, invoke) => {
+      readerDeadline?.check();
       const tracked = await scopeFor(provider);
       try {
-        const response = await tracked.scope.run(() =>
-          meteredSearch(provider, invoke)
-        );
+        readerDeadline?.check();
+        const response = await tracked.scope.run(() => {
+          readerDeadline?.check();
+          return meteredSearch(provider, invoke);
+        });
         tracked.succeeded = true;
         return response;
       } catch (error) {
@@ -2051,7 +2100,11 @@ Untrusted research data: {evidence}`
     // Gate the primary source before classification or any provider work. A
     // fallback opens its own source lazily in `attempt`.
     const primaryScope = await scopeFor(primary);
+    const readerDeadline = scopedReader
+      ? scopedReaderDeadline(startedAt)
+      : undefined;
     try {
+      readerDeadline?.check();
       // The classifier and the summary run on the generation key, and their
       // tokens are part of this search (`content-factory-next-ia7s`): they are
       // billed to the primary row. Search requests inside `attempt` still go
@@ -2082,7 +2135,8 @@ Untrusted research data: {evidence}`
               organizationId,
               subject,
               { ...options, level, levelWasExplicit },
-              attempt
+              attempt,
+              readerDeadline
             ),
           'research'
         )
@@ -2095,7 +2149,32 @@ Untrusted research data: {evidence}`
       )
         this.cache.set(key, result);
       return result;
+    } catch (error) {
+      if (!readerDeadline?.signal.aborted) throw error;
+      const assessment = unavailableReaderReview(
+        packReaderReview(
+          subject,
+          [],
+          [],
+          contentLanguageNames[options.language!]
+        )
+      );
+      assessment.status = 'review_unavailable';
+      return {
+        provider: primary,
+        summary: '',
+        facts: [],
+        sources: [],
+        readerAssessment: assessment,
+      };
     } finally {
+      readerDeadline?.release();
+      if (readerDeadline?.signal.aborted) {
+        for (const tracked of scopes.values()) {
+          tracked.succeeded = false;
+          tracked.error = readerDeadline.signal.reason;
+        }
+      }
       await Promise.all(
         [...scopes.values()].map(({ scope, succeeded, error }) =>
           scope.finish(succeeded, error)
@@ -2108,9 +2187,11 @@ Untrusted research data: {evidence}`
     organizationId: string,
     subject: string,
     options: WebResearchOptions & { levelWasExplicit?: boolean },
-    attempt: SearchAttempt
+    attempt: SearchAttempt,
+    readerDeadline?: ScopedReaderDeadline
   ): Promise<WebResearchResult> {
     const config = await requireActiveAiConfig(organizationId);
+    readerDeadline?.check();
     /**
      * What this search is for, and through it which engine it reaches.
      *
@@ -2174,18 +2255,30 @@ Untrusted research data: {evidence}`
           subjectLanguageQuery: null,
           freshnessRequired: false,
         }
-      : await ChatPromptTemplate.fromTemplate(RESEARCH_CLASSIFY_PROMPT)
-          .pipe(
-            (
-              await getChatModel(organizationId, 0, undefined, 'classify')
-            ).withStructuredOutput(subjectClassification)
-          )
-          .invoke({
-            subject: String(subject).slice(0, CLASSIFIER_SUBJECT_CHARS),
-            outputLanguage: options.language
-              ? contentLanguageNames[options.language]
-              : 'unknown',
-          });
+      : await (async () => {
+          const model = await getChatModel(
+            organizationId,
+            0,
+            undefined,
+            'classify'
+          );
+          readerDeadline?.check();
+          const modelOptions: Parameters<typeof model.invoke>[1] = readerDeadline
+            ? { options: { signal: readerDeadline.signal } }
+            : undefined;
+          return ChatPromptTemplate.fromTemplate(RESEARCH_CLASSIFY_PROMPT)
+            .pipe(model.withStructuredOutput(subjectClassification))
+            .invoke(
+              {
+                subject: String(subject).slice(0, CLASSIFIER_SUBJECT_CHARS),
+                outputLanguage: options.language
+                  ? contentLanguageNames[options.language]
+                  : 'unknown',
+              },
+              modelOptions
+            );
+        })();
+    readerDeadline?.check();
 
     /**
      * The subject's own language goes first and English second. Both queries
@@ -2274,6 +2367,7 @@ Untrusted research data: {evidence}`
      */
     const researchStartedAt = Date.now();
     const egressCheck = (queryIndex: number) => (provider: SearchProvider) => {
+      readerDeadline?.check();
       const decision = decideResearchEgress({
         organizationId,
         providerId: provider,
@@ -2317,6 +2411,7 @@ Untrusted research data: {evidence}`
      * никогда не отменяет уже полученный ответ.
      */
     const encyclopedicAllowed = (provider: EncyclopedicProvider) => {
+      readerDeadline?.check(ENCYCLOPEDIC_LANE_TIMEOUT_MS);
       const decision = decideResearchEgress({
         organizationId,
         providerId: provider,
@@ -2413,7 +2508,8 @@ Untrusted research data: {evidence}`
             queryOptions,
             task,
             attempt,
-            egressCheck(indexOffset + index)
+            egressCheck(indexOffset + index),
+            readerDeadline
           )
         )
       );
@@ -2736,7 +2832,8 @@ Untrusted research data: {evidence}`
           subject,
           [...sources.values()],
           [...facts.values()],
-          options.language!
+          options.language!,
+          readerDeadline
         )
       : undefined;
     const summary = reviewed

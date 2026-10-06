@@ -1,0 +1,46 @@
+{
+  "schema_version": "verification-manifest/v2",
+  "producer": "orchestration-setup",
+  "required_steps": [
+    "capacity-regressions"
+  ],
+  "steps": [
+    {
+      "id": "capacity-regressions",
+      "command": "pnpm exec jest --runInBand tests/local-build-capacity.execution.test.cjs tests/host-pull-capacity.execution.test.cjs",
+      "cwd": ".",
+      "inputs": [
+        "scripts/release/check-local-build-capacity.py",
+        "scripts/release/build-local-image.sh",
+        "scripts/release/pull-image-on-host.sh",
+        "scripts/release/measure-image-unpacked.py",
+        "tests/local-build-capacity.execution.test.cjs",
+        "tests/host-pull-capacity.execution.test.cjs",
+        "tests/helpers/source-tree-guard.cjs",
+        "jest.config.cjs",
+        "package.json"
+      ],
+      "lockfiles": [
+        "pnpm-lock.yaml"
+      ],
+      "tools": [
+        {
+          "name": "node",
+          "executable": "node"
+        },
+        {
+          "name": "pnpm",
+          "executable": "pnpm"
+        }
+      ],
+      "environment": [
+        "NODE_OPTIONS"
+      ],
+      "dependencies": [],
+      "cache": {
+        "eligible": false,
+        "reason": "The recipe reuses a shared dependency install; run fresh rather than assume complete executable dependency inputs."
+      }
+    }
+  ]
+}

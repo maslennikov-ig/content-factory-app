@@ -2526,9 +2526,12 @@ git add -A && git commit -F .git/PREPARE_PUBLIC_COMMIT_MSG && git push origin ma
 # а не в рабочем каталоге, и <новый-sha> — короткий коммит ИМЕННО этого
 # репозитория: образ собран из него, и по нему же версию можно открыть.
 ./scripts/release/make-source-archive.sh
-docker build --target runtime -t content-factory-next:<новый-sha> -f Dockerfile .
+./scripts/release/build-local-image.sh <новый-sha> --min-free-gib <запас-для-сборки>
 ./scripts/release/verify-nginx-config.sh content-factory-next:<новый-sha>
 
+# build-local-image сначала измеряет место в Docker, отдельно от WSL и хоста;
+# запас задаётся явно, пример 12 ГиБ не является измеренным пиком сборки.
+# Подробности: docs/operations/local-feedback.md.
 # спросить у собранного образа, стартует ли приложение команд. Обязан ответить
 # списком команд и выйти с кодом 0; см. «Команды в образе» ниже.
 docker run --rm --network host -e DATABASE_URL="<адрес базы стенда>" -e REDIS_URL="<адрес redis стенда>" \
