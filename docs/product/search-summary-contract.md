@@ -98,14 +98,17 @@ that cannot fit whole subject/metadata returns `review_unavailable` before a
 model call. Existing explicit evidence acceptance stores the chosen bounded
 excerpt unchanged through its immutable tenant-scoped snapshot path.
 
-The current internal generation wire is `reader-source-review-wire/v7`. The
-existing v5 producer is selected before invocation only when the complete v7
+The current source candidate's generation wire is `reader-source-review-wire/v8`. The
+existing v5 producer is selected before invocation only when the complete v8
 catalogue exceeds unchanged bounds. Integrity or date-catalogue failures do
-not select a weaker producer. The choice adds no model call, and a v7 invocation
+not select a weaker producer. The choice adds no model call, and a v8 invocation
 never accepts a legacy wire. The scoped cache discriminator is
-`reader-source-review/v1:wire/v7`; tenant, route, task, language and TTL
+`reader-source-review/v1:wire/v8`; tenant, route, task, language and TTL
 boundaries remain intact. This is the source contract, not a claim of delivery
-or fresh live usefulness. Earlier v6 live results stay bound to their release.
+or fresh live usefulness. V7 release checks passed but all three original live
+searches failed at reader invocation with an unobserved upstream rejection
+reason. Production was rolled back to C22/v6, retaining both owner UI fixes.
+Every prior result stays bound to its release.
 
 Before the single review invocation, the server constructs at most 96 exact,
 unique contiguous anchors from those same presented excerpts. All complete
@@ -116,13 +119,15 @@ remaining date windows use a bounded suffix index and nearest different dates.
 Only optional bridges may be pruned for fit. No chosen excerpt is truncated
 and no date is silently omitted. Index work and retained strings are bounded.
 
-Each claim supplies a `proofs` record keyed by its declared source. A group
-contains numeric local `refs` and local `dates`. Reference0 and date0 refer only
+Each claim supplies a bounded `proofs` array. A group contains required
+`source`, numeric local `refs` and local `dates`. Reference0 and date0 refer only
 to that source's existing private anchors; they cannot select a different
 article's span. Up to two groups retain the original total two references
-and five dates. The generation schema permits actual source keys, finite
-integer index bounds and empty date arrays for sources without dates. The
-compiler rejects indices missing from a source's shorter table and checks all
+and five dates. Every schema object property is required; source IDs are
+restricted to the actual catalogue and numeric indices have finite bounds.
+When all sources lack dates, the shared schema permits only an empty date array.
+The compiler rejects duplicate groups, dates absent from a source and indices
+missing from a source's shorter table, and checks all
 membership independently of the provider schema. Every otherwise-valid
 multi-source legacy proof remains representable; references are never moved,
 deduplicated or inferred. Provider rows encode `index:first:last[:dateIndex]`
@@ -148,7 +153,8 @@ the entire wire. Server lookup supplies the same private global K IDs to the
 unchanged v5/v4/v1 compilers and date/provenance validators, including the
 explicit-interval check. Legacy producers/parsers remain available. Preparation
 and compilation expose only finite diagnostics, now including
-`prepare_catalogue_v7` and `compile_wire_v7`; no raw paths, IDs, bindings,
+`prepare_catalogue_v8` and `compile_wire_v8`, while retaining older stages;
+no raw paths, IDs, bindings,
 quotations or model text are exported. Nested proof-schema issues retain only
 the existing finite refs/dates family and issue code.
 

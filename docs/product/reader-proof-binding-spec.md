@@ -1,8 +1,11 @@
 # Source-bound reader proofs
 
-Status: integrated source candidate. The service selects v7 with a distinct
-cache version and a bounds-only v5 choice before invocation. Release and
-fresh live usefulness acceptance are still pending; the live C22 source uses v6.
+Status: v8 source candidate. The service selects v8 with a distinct cache
+version and a bounds-only v5 choice before invocation. C23/v7 passed release
+checks but all three original live searches returned an empty review with
+`invocation/provider_rejected`. The raw upstream reason was not recorded.
+Production was rolled back to C22/v6; both owner UI fixes remain available.
+V8 release and fresh live usefulness acceptance are pending.
 
 Beads `content-factory-next-0qgn.10` retains the original acceptance and owner.
 The C22 live checks returned empty Telegram and rate answers after rejecting
@@ -12,19 +15,27 @@ model outputs. The saved outputs and billing records stay unchanged.
 
 ## Versioned producer contract
 
-Add wire v7 and a separate cache version. Keep v6/v5/v4/v1 producers and
+Add wire v8 and a separate cache version. Keep v7/v6/v5/v4/v1 producers and
 validators intact. A claim groups its proofs by declared source: each group
 has one source ID, one or two numeric local references from that source, and
-its numeric local date references. The source ID is the group key in
-`claim.proofs`; each value contains `refs` and `dates`. Reference0 and date0
+its numeric local date references. `claim.proofs` is a bounded array of
+objects with required `source`, `refs` and `dates` fields. Reference0 and date0
 are local to that source and resolve only to its existing K anchors.
 A reference cannot select an anchor in another source. The generation schema
 uses integer bounds equivalent to the finite contiguous local index sets,
 reuses the proof shape, and
-allows only the actual source keys. The compiler also rejects a local index
+allows only actual source IDs. Every object property is required and extra
+properties are forbidden, matching the provider's
+[structured output contract](https://developers.openai.com/api/docs/guides/structured-outputs).
+V7's dynamically named proof object violated that documented required-field
+contract. A regression reproduces the discrepancy for one, three and five
+sources; this does not identify the unobserved upstream response message.
+The compiler rejects duplicate source groups and a local index
 outside the declared source's shorter table. A source without date
-anchors permits only an empty dates array. The compiler checks the same
-membership even when output did not follow the schema.
+anchors permits only an empty dates array. The compiler enforces this for
+each source; when every source lacks dates, the generation schema also has
+`dates.maxItems=0` with complete `items`. Source-specific membership remains
+mandatory even when output did not follow the generation schema.
 
 Flattening groups retains the existing overall limits of two claim references
 and five date references. At most two distinct source groups are allowed.

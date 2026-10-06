@@ -205,7 +205,7 @@ const review = (input, claims = [claim(input.sources[0].excerpt)]) => ({
 });
 
 test.each([false, true])(
-  'current v7 real-service reader preserves one paid admission and no retry when entity source invalid=%s',
+  'current v8 real-service reader preserves one paid admission and no retry when entity source invalid=%s',
   async (invalid) => {
     const request = '😀 По состоянию на 1 октября 2026 года: версия Альфа?';
     const text =
@@ -239,13 +239,13 @@ test.each([false, true])(
     expect(h.calls.rows).toHaveLength(1);
     expect(h.calls.rows[0].succeeded).toBe(true);
     expect(h.calls.model[1].schema.properties.version.const).toBe(
-      'reader-source-review-wire/v7'
+      'reader-source-review-wire/v8'
     );
     if (invalid) {
       expect(result.facts).toHaveLength(0);
       expect(result.summary).toBe('');
       expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-        stage: 'compile_wire_v7',
+        stage: 'compile_wire_v8',
         predicate: 'entity_source_quote',
         failure: 'validation_rejected',
       });
@@ -607,12 +607,12 @@ test('own reader failure distinguishes wire-schema rejection from v1 coverage re
   badQuote.claims[0].refs[0].source = 'S9';
   h.set(input, 'Не возвращать запасной ответ.', (request) => {
     const wire = currentWireFromRequest(request);
-    wire.claims[0].proofs.S1.refs = [];
+    wire.claims[0].proofs[0].refs = [];
     return wire;
   });
   const compiler = await h.search(input.subject);
   expect(compiler.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v7',
+    stage: 'compile_wire_v8',
     predicate: 'wire_schema',
     failure: 'validation_rejected',
     wireIssueFamily: 'refs',
@@ -680,7 +680,7 @@ test.each([
   ['entity_claim_missing', (output) => { output.claims = []; }],
   ['entity_name_missing', (output) => { output.claims[0].text = 'Ставка равна 14%.'; }],
   ['entity_source_mismatch', (output) => { output.entities[0].ref.source = 'S2'; }],
-])('entity grounding subreason %s survives the real v7 service and safe projection', async (reason, mutate) => {
+])('entity grounding subreason %s survives the real v8 service and safe projection', async (reason, mutate) => {
   const text = 'Банк Альфа установил ставку 14%.';
   const input = sample(text, 'Банк Альфа: ставка?');
   input.sources.push({ ...input.sources[0], url: 'https://example.org/other' });
@@ -720,7 +720,7 @@ test('source-local date0 stays with its claim source in the real service without
     const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
     const otherDate = view.sources[1][5].find(a => a.split(':')[3] === '0');
     expect(otherDate).toBeDefined();
-    raw.claims[0].proofs.S1.dates[0].ref = +otherDate.split(':')[3];
+    raw.claims[0].proofs[0].dates[0].ref = +otherDate.split(':')[3];
     return raw;
   });
   const result = await h.search(input.subject);
@@ -865,7 +865,7 @@ test.each(['absent', 'repeated'])(
     const result = await h.search(input.subject);
     const diagnostic = result.readerAssessment.failureDiagnostic;
     expect(diagnostic).toMatchObject({
-      stage: 'compile_wire_v7',
+      stage: 'compile_wire_v8',
       predicate: 'wire_schema',
     });
     expect(diagnostic).not.toHaveProperty('quoteMatch');
@@ -1904,16 +1904,16 @@ test.each(['missing last year digit', 'missing first day digit'])(
   }
 );
 
-// Current v7 model ports select source-local indices; production never converts legacy output.
+// Current v8 model ports select source-local indices; production never converts legacy output.
 const currentWireFromRequest = (request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  const subject = ['v6', 'v7'].includes(view.catalogue.version)
+  const subject = ['v6', 'v8'].includes(view.catalogue.version)
     ? view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
     : view.subject;
-  if (view.catalogue.version === 'v7') return {
-    version: 'reader-source-review-wire/v7', catalogue: view.catalogue.binding,
+  if (view.catalogue.version === 'v8') return {
+    version: 'reader-source-review-wire/v8', catalogue: view.catalogue.binding,
     sources: view.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
-    claims: [{ text: 'Article context is available.', kind: 'context', proofs: { [view.sources[0][0]]: { refs: [0], dates: [] } } }],
+    claims: [{ text: 'Article context is available.', kind: 'context', proofs: [{ source: view.sources[0][0], refs: [0], dates: [] }] }],
     coverage: [{ question: subject.slice(0, 500), status: 'supported' }], entities: [],
   };
   return {
@@ -1932,7 +1932,7 @@ const currentWireFromRequest = (request) => {
     entities: [],
   };
 };
-test('current service uses v7 schema, exact serializer, one existing reader and scoped cache', async () => {
+test('current service uses v8 schema, exact serializer, one existing reader and scoped cache', async () => {
   const input = sample('Article context is available.', 'What is known?');
   h.set(input, 'Ignore provider summary.', currentWireFromRequest);
   const service = new h.WebResearchService(h.aiUsage);
@@ -1949,9 +1949,9 @@ test('current service uses v7 schema, exact serializer, one existing reader and 
   expect(first.readerAssessment.status).toBe('supported');
   expect(h.calls.model).toHaveLength(2);
   expect(h.calls.model[1]).toMatchObject({ role: 'classify', maxTokens: 1200 });
-  const current = require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-proof-review.ts');
-  const prepared = current.prepareReaderReviewV7(pack(input));
-  const expectedGenerationSchema = current.readerReviewV7GenerationSchema(prepared);
+  const current = require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-proof-review-v8.ts');
+  const prepared = current.prepareReaderReviewV8(pack(input));
+  const expectedGenerationSchema = current.readerReviewV8GenerationSchema(prepared);
   expect(h.calls.model[1].schema).toEqual(expectedGenerationSchema);
   expect(first.readerAssessment.inputBytes).toBe(
     await actualInputBytes(
@@ -1959,7 +1959,7 @@ test('current service uses v7 schema, exact serializer, one existing reader and 
       h.calls.model[1].schema
     )
   );
-  expect(seenKeys[0]).toContain(current.READER_REVIEW_CACHE_V7_VERSION);
+  expect(seenKeys[0]).toContain(current.READER_REVIEW_CACHE_V8_VERSION);
   const cached = await service.research('org', input.subject, {
     language: 'ru',
     readerResponse: true,
@@ -1983,7 +1983,7 @@ test('large query chooses v5 before the single reader invocation, retains full s
   expect(h.summaryPrompts()).toHaveLength(1);
   expect(h.calls.rows).toHaveLength(1);
 });
-test('invalid subject ID rejects the complete review with safe v7 diagnostics and one model call', async () => {
+test('invalid subject ID rejects the complete review with safe v8 diagnostics and one model call', async () => {
   const input = sample(
     'Обзор Банка России доступен.',
     'Что известно о Банка России?'
@@ -2003,7 +2003,7 @@ test('invalid subject ID rejects the complete review with safe v7 diagnostics an
   expect(result.summary).toBe('');
   expect(result.facts).toEqual([]);
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v7',
+    stage: 'compile_wire_v8',
     predicate: 'entity_subject_quote',
     failure: 'validation_rejected',
   });
@@ -2023,10 +2023,10 @@ test.each(['unknown', 'stale', 'free-quote'])(
     const input = sample('Article context is available.', 'What is known?');
     h.set(input, 'Ignore provider summary.', (request) => {
       const wire = currentWireFromRequest(request);
-      if (kind === 'unknown') wire.claims[0].proofs.S1.refs = [95];
+      if (kind === 'unknown') wire.claims[0].proofs[0].refs = [95];
       if (kind === 'stale') wire.catalogue = '0'.repeat(32);
       if (kind === 'free-quote')
-        wire.claims[0].proofs.S1.refs = [
+        wire.claims[0].proofs[0].refs = [
           { source: 'S1', quote: 'SYNTHETIC_PRIVATE_QUOTE' },
         ];
       return wire;
@@ -2036,7 +2036,7 @@ test.each(['unknown', 'stale', 'free-quote'])(
     expect(result.facts).toEqual([]);
     expect(result.summary).toBe('');
     expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-      stage: 'compile_wire_v7',
+      stage: 'compile_wire_v8',
       predicate: {
         unknown: 'catalogue_unknown_id',
         stale: 'catalogue_binding',
@@ -2063,7 +2063,7 @@ test('mandatory date catalogue failure ends before the reader model and keeps so
   const result = await h.search(input.subject);
   expect(result.readerAssessment.status).toBe('review_unavailable');
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'prepare_catalogue_v7',
+    stage: 'prepare_catalogue_v8',
     predicate: 'catalogue_date_anchor',
   });
   expect(result.readerAssessment.evidence[0].excerpt).toBe(
@@ -2079,14 +2079,14 @@ test('a foreign source date spelling fails current wire validation without anoth
   const input = sample();
   h.set(input, 'Ignore provider summary.', (request) => {
     const wire = currentWireFromRequest(request);
-    wire.claims[0].proofs.S1.dates = [{ kind: 'as_of', ref: 'S2:0' }];
+    wire.claims[0].proofs[0].dates = [{ kind: 'as_of', ref: 'S2:0' }];
     return wire;
   });
   const result = await h.search(input.subject);
   expect(result.summary).toBe('');
   expect(result.facts).toEqual([]);
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v7', predicate: 'wire_schema',
+    stage: 'compile_wire_v8', predicate: 'wire_schema',
     wireIssueFamily: 'dates', wireIssueCode: 'invalid_type',
   });
   expect(pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic)
