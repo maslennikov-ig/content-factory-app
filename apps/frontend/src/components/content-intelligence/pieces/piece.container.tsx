@@ -1444,6 +1444,7 @@ export function PieceContainer({
             ...(question.why ? { why: question.why } : {}),
           }))}
           busy={busy}
+          busyLabel={w.adaptingFor(adaptingName)}
           onSubmit={(given, decideKeys) =>
             answer(
               given.map((one) => ({

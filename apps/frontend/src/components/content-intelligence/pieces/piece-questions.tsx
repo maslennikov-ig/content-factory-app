@@ -166,6 +166,7 @@ export function PieceQuestions({
           ...(question.why ? { why: question.why } : {}),
         }))}
         busy={busy || linkSaving}
+        busyLabel={linkSaving ? t.saving : t.clarifyBusy}
         extra={
           link ? (
             <div

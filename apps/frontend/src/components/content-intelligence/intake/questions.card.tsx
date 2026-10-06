@@ -10,6 +10,7 @@ import {
 } from '@contentfactory/react/choice/radio.group';
 import clsx from 'clsx';
 import { Status } from '../../ui/surface';
+import { WorkingLine } from '../../ui/working-line';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import type { BriefField, IntakeQuestionV1 } from './intake.adapter';
 
@@ -229,6 +230,8 @@ export function QuestionsCard({
           type="button"
           variant="primary"
           disabled={busy || !answered}
+          loading={busy}
+          loadingLabel={t.writing}
           onClick={() => submit(false)}
         >
           {t.write}
@@ -256,6 +259,7 @@ export function QuestionsCard({
           </p>
         )}
       </footer>
+      {busy ? <WorkingLine label={t.writing} /> : null}
     </Panel>
   );
 }
@@ -325,6 +329,7 @@ export function SuggestedQuestionsCard({
   words,
   questions,
   busy = false,
+  busyLabel = words.send,
   onSubmit,
   onSkipAll,
   extra,
@@ -333,6 +338,8 @@ export function SuggestedQuestionsCard({
   words: SuggestedQuestionsWords;
   questions: readonly SuggestedQuestion[];
   busy?: boolean;
+  /** Localized work for this step, shown throughout the pending request. */
+  busyLabel?: string;
   /**
    * A fixed question of the same step that is not a model question — «Какую
    * ссылку поставить в пост?» (`97dq.89`). It stands after the others and is
@@ -620,7 +627,14 @@ export function SuggestedQuestionsCard({
       {extra}
 
       <footer className="flex flex-wrap items-center gap-[8px]">
-        <Button type="button" variant="primary" disabled={busy} onClick={submit}>
+        <Button
+          type="button"
+          variant="primary"
+          disabled={busy}
+          loading={busy}
+          loadingLabel={busyLabel}
+          onClick={submit}
+        >
           {words.send}
         </Button>
         {/*
@@ -639,6 +653,7 @@ export function SuggestedQuestionsCard({
           </Button>
         ) : null}
       </footer>
+      {busy ? <WorkingLine label={busyLabel} /> : null}
     </>
   );
 

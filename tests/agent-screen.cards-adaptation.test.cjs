@@ -119,7 +119,8 @@ describe('the adaptation interview card', () => {
       },
     ]);
     // One answer: the card locks while it goes.
-    expect(within(card).getByRole('button', { name: pieces.ru.interviewSend }).disabled).toBe(true);
+    expect(within(card).getByRole('button', { name: `${ru.conversation.thinking} ${pieces.ru.interviewSend}` }).disabled).toBe(true);
+    expect(within(card).getByRole('progressbar', { name: ru.conversation.thinking })).toBeTruthy();
   });
 
   test('«Так и есть» confirms the suggested text', async () => {

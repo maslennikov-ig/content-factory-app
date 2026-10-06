@@ -16,7 +16,8 @@ import { Progress } from './progress';
  * takes whatever is left and truncates, which is why the bar can no longer be
  * squeezed out of the row.
  */
-const TRACK = 'w-[96px] shrink-0';
+// Progress's w-full sorts after arbitrary widths in the generated stylesheet.
+const TRACK = '!w-[96px] shrink-0';
 
 export type WorkingLineProps = Readonly<{
   /**

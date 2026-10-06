@@ -62,3 +62,10 @@ Actual ChatGPT/client publication/feedback/historical research denominators unpr
 Owner excludes backup restoration/recovery drills; natural02Oct encrypted backup
 PASS and working service remain required. Offsite destination/custody unknown.
 Natural03Oct00:05Z collector create-only timer PASS; actual aged pruning unknown.
+
+
+## Owner UI feedback 6 October 2026
+
+0qgn.14/.15: current draft instructions before body reuse existing selected adaptation rewrite+explicit acceptance; shared page/chat question processing visible through request/stream. WorkingLine96px width priority fixed after actual Windows browser found caption collapse. Source candidate delivery remains pending; original36/7AC and product/native/HOT acceptance remain unwaived.
+
+project-index: reviewed-updated - UI specification linked. docs-reviewed: updated - docs/product/adaptation-feedback-processing-spec.md and component inventory. documentation-decision: no-versioned-change - existing local React/form/rewrite interfaces only. graph-reviewed: root46ec graph used for orientation, exact89 files checked; UI ownership and callers reviewed.

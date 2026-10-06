@@ -433,6 +433,12 @@ export const piecesCopy = {
     // человек ждал, что текст перестанет читаться как машинный.
     removeAiTells: 'Убрать следы ИИ',
     rewritePrompt: 'Что перегенерировать?',
+    adaptationInstructions: 'Дать указания ИИ',
+    adaptationInstructionsPrompt: 'Что изменить в этой адаптации?',
+    adaptationInstructionsExample:
+      'Например: сократите вступление, сохраните цифры и добавьте вопрос в конце.',
+    adaptationInstructionsHint:
+      'ИИ предложит правки к этому варианту. Текст изменится, когда вы примете выбранные правки.',
     rewriteOnlyTitle: 'Только заголовок',
     rewriteWholeText: 'Весь текст',
     regenerating: 'Перегенерируем…',
@@ -887,6 +893,12 @@ export const piecesCopy = {
       'Search and AI may use your included allowance or incur charges with your connected provider. Sources may not cover every claim.',
     removeAiTells: 'Remove AI tells',
     rewritePrompt: 'What should change?',
+    adaptationInstructions: 'Give AI instructions',
+    adaptationInstructionsPrompt: 'What should change in this adaptation?',
+    adaptationInstructionsExample:
+      'For example: shorten the opening, keep the numbers and add a question at the end.',
+    adaptationInstructionsHint:
+      'AI will suggest changes to this variant. The text changes when you accept the selected edits.',
     rewriteOnlyTitle: 'Only title',
     rewriteWholeText: 'Whole text',
     regenerating: 'Regenerating…',

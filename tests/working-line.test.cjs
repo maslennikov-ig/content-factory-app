@@ -96,6 +96,26 @@ describe('the row says what is running', () => {
 });
 
 describe('the width is the component’s', () => {
+  test('the compiled track width wins over Progress’s full-width default', async () => {
+    const { container } = renderLine();
+    const bar = container.querySelector('[role="progressbar"]');
+    const postcss = require('postcss');
+    const tailwind = require('tailwindcss');
+    const config = require(path.join(repositoryRoot, 'apps/frontend/tailwind.config.cjs'));
+    const raw = [WORKING_LINE, 'apps/frontend/src/components/ui/progress.tsx']
+      .map(file => fs.readFileSync(path.join(repositoryRoot, file), 'utf8')).join('\n');
+    const css = await postcss([tailwind({ ...config, content: [{ raw }] })])
+      .process('@tailwind utilities;', { from: undefined });
+    const matchingWidths = [];
+    css.root.walkRules(rule => {
+      if (!bar.matches(rule.selector)) return;
+      rule.walkDecls('width', declaration => matchingWidths.push(declaration));
+    });
+    // Matching width utilities have equal specificity; importance, then emitted order decides.
+    const important = matchingWidths.filter(declaration => declaration.important);
+    expect((important.length ? important : matchingWidths).at(-1).value).toBe('96px');
+  });
+
   test('the track is a fixed width the call site never passes', () => {
     const { container } = renderLine({ className: 'flex-1' });
     const bar = container.querySelector('[role="progressbar"]');

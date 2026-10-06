@@ -1,3 +1,11 @@
+## Owner UI feedback implementation — 6 October 2026
+
+Isolated branch codex/adaptation-feedback-loading-20261006 from current production SOURCE89e221e50f27. Beads0qgn.14/.15 in_progress. Editable draft adaptation actions are before its body/preview; explicit RU/EN Give AI instructions reuses selected-variant rewrite and signed acceptance. Shared question cards show Button loading+WorkingLine for pending page/channel/chat requests. Browser exposed WorkingLine width utility collision; fixed owned96px track priority, preserving a visible caption. Questions answers and instructions survive errors, duplicate submits are blocked. Focused244 tests/frontend types PASS; separate streamed-response regression46PASS and working-width/design38PASS. Final WindowsChrome1440/390/light/dark component fixture checks include actual fixed track/visible caption, no model or production calls. Full release checks/delivery still pending; production remains C19 private89/publicea3. Original epic36/7AC/owners/external defers preserved, epic ACTIVE incomplete.
+
+Docs: docs/product/adaptation-feedback-processing-spec.md and updated component inventory. project-index: reviewed-updated - UI spec pointer added. docs-reviewed: updated - guidance and processing contract/inventory. documentation-decision: no-versioned-change - existing React/form/rewrite interfaces, local source authoritative. graph-reviewed: existing root46ec graph read-only orientation; exact89 files confirmed, UI impact reviewed, no new dependency boundary.
+
+Earlier handoff below historical:
+
 # Content Factory Handoff
 Current stage id: `content-factory-next-0qgn-product-runtime-release`
 Accepted stage id: `content-factory-next-0qgn-product-runtime-release` (C6/6dcc delivery + qualified voice/editor/manual chat; reader/native15/emoji/full HOT pending)

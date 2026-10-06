@@ -83,6 +83,7 @@ export function InterviewCard({
           ...(one.why ? { why: one.why } : {}),
         }))}
         busy={busy || sent}
+        busyLabel={words.conversation.thinking}
         onSubmit={(given, decideKeys) => send(interviewAnswer(given, decideKeys))}
         onSkipAll={
           question.canDecideForPerson

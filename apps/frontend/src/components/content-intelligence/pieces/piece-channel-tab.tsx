@@ -361,6 +361,9 @@ export function PieceChannelTab({
                 </div>
               ) : null}
 
+              {/* Instructions are visible before even a long post; queued text keeps manual editing only. */}
+              {editable && adaptation.state === 'draft' ? actionRow : null}
+
               {previewing ? (
                 <PostPreview
                   locale={locale}
@@ -469,8 +472,6 @@ export function PieceChannelTab({
                 ? materialSlot
                 : null}
 
-              {/* Проверки и перепись — только у черновика: очередь правится руками. */}
-              {editable && adaptation.state === 'draft' ? actionRow : null}
               <ScheduleBar
                 locale={locale}
                 state={adaptation.state}

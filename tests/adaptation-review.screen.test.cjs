@@ -132,6 +132,41 @@ beforeEach(() => {
   handler = (call) => ok(result(call.payload.mode));
 });
 afterEach(cleanup);
+
+test.each([
+  ['ru', 'Дать указания ИИ', 'Что изменить в этой адаптации?'],
+  ['en', 'Give AI instructions', 'What should change in this adaptation?'],
+])('adaptation instructions are discoverable and target only the current variant (%s)', async (locale, label, prompt) => {
+  handler = () => ok(result('rewrite'));
+  draw({ locale, adaptationId: 'selected-variant' });
+  await choose(label);
+  const input = screen.getByRole('textbox', { name: prompt });
+  expect(input.placeholder).not.toBe('');
+  expect(input).toBe(document.activeElement);
+  expect(calls).toHaveLength(0);
+  fireEvent.change(input, { target: { value: '  Shorten the opening and keep the numbers.  ' } });
+  await choose(locale === 'ru' ? 'Переписать' : 'Rewrite');
+  expect(calls).toHaveLength(1);
+  expect(calls[0].url).toContain('/adaptations/selected-variant/rewrite?');
+  expect(calls[0].payload).toEqual({ instruction: 'Shorten the opening and keep the numbers.' });
+  expect(base.onAccepted).not.toHaveBeenCalled();
+});
+
+test('failed instruction request keeps the guidance and unlocks a retry without accepting text', async () => {
+  let finish;
+  handler = () => new Promise(resolve => { finish = resolve; });
+  draw();
+  await choose('Дать указания ИИ');
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Сохрани пример, сократи вступление' } });
+  await choose('Переписать');
+  expect(screen.getByRole('button', { name: 'Перегенерируем… Переписать' }).disabled).toBe(true);
+  expect(base.onAccepted).not.toHaveBeenCalled();
+  await act(async () => finish({ ok: false, json: async () => ({ message: 'Временная ошибка' }) }));
+  expect(screen.getByRole('textbox').value).toBe('Сохрани пример, сократи вступление');
+  expect(screen.getByRole('button', { name: 'Переписать' }).disabled).toBe(false);
+  expect(screen.getByText('Временная ошибка')).toBeTruthy();
+  expect(base.onAccepted).not.toHaveBeenCalled();
+});
 /*
   Десятый заход (`97dq.37`, `97dq.39` C5): у адаптации нет «Ещё ▾». Три
   действия видны кнопками — «Убрать следы ИИ», «Проверить факты»,
@@ -154,7 +189,7 @@ test('the adaptation row shows its three actions as buttons and spends nothing u
   expect(screen.getByRole('group', { name: 'Действия с текстом' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Убрать следы ИИ' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Проверить факты' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Переписать…' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Дать указания ИИ' })).toBeTruthy();
   expect(calls).toHaveLength(0);
 });
 test('the core row carries research instead of AI tells — one row, two capability lists', () => {
@@ -613,7 +648,7 @@ describe('the fact check reports what it did, including doing nothing', () => {
 
 test('regeneration chips only fill instruction, one request, no-change hides all acceptance', async () => {
  handler = () => ok({...result('rewrite'), changes: [], summary: 'Всё хорошо'});
- draw(); await choose('Переписать…');
+ draw(); await choose('Дать указания ИИ');
  expect(calls).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'Только заголовок'}));
  expect(screen.getByRole('textbox').value).toBe('Только заголовок');

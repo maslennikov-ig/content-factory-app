@@ -444,6 +444,7 @@ export function AdaptationReview({
       (change) => change.basket !== 'ask' && !isEditableReviewChange(change)
     ) ?? [];
   const idle = disabled || !!busy;
+  const rewriteLabel = adaptationId ? t.adaptationInstructions : t.rewriteOpen;
   return (
     <div
       className="flex w-full min-w-0 flex-col gap-[12px]"
@@ -512,32 +513,41 @@ export function AdaptationReview({
               setRewrite((open) => !open);
             }}
           >
-            {t.rewriteOpen}
+            {rewriteLabel}
           </Button>
         ) : null}
       </div>
       {rewrite ? (
         <section
-          aria-label={t.rewriteOpen}
+          aria-label={rewriteLabel}
           className="flex flex-col gap-[8px]"
         >
           <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
-            {t.rewritePrompt}
+            {adaptationId ? t.adaptationInstructionsPrompt : t.rewritePrompt}
             <Textarea
               standalone
               layout="content"
               required
+              autoFocus
+              disabled={idle}
+              placeholder={adaptationId ? t.adaptationInstructionsExample : undefined}
               maxLength={2000}
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
             />
           </label>
+          {adaptationId ? (
+            <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted">
+              {t.adaptationInstructionsHint}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-[8px]">
             {[t.rewriteOnlyTitle, t.rewriteWholeText].map((value) => (
               <Button
                 key={value}
                 variant="quiet"
                 density="dense"
+                disabled={idle}
                 onClick={() => setInstruction(value)}
               >
                 {value}

@@ -759,14 +759,16 @@ describe('the channel tab with an adaptation', () => {
     expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
   });
 
-  test('the plan row sits right under the text actions; the text column has no delete (97dq.78)', () => {
+  test('instructions are before the post and planning remains after it in the text column', () => {
     drawChannel({
       actionRow: React.createElement('div', { 'data-action-row': 'true' }, 'Убрать следы'),
     });
     const bar = document.querySelector('[data-schedule-bar]');
     const actions = document.querySelector('[data-action-row]');
-    // Сразу под рядом «Убрать следы · Проверить факты · Переписать».
-    expect(actions.nextElementSibling).toBe(bar);
+    const text = document.querySelector('[data-adaptation-editor]');
+    expect(text).not.toBeNull();
+    expect(actions.compareDocumentPosition(text) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(text.compareDocumentPosition(bar) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(bar.closest('aside')).toBeNull();
     expect(bar.getAttribute('data-plan-row')).toBe('off');
     expect(bar.textContent).toContain('Черновик');

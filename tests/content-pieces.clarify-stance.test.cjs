@@ -64,6 +64,34 @@ beforeAll(async () => {
 });
 afterEach(cleanup);
 
+test.each([
+  ['ru', 'Переписываем суть…'],
+  ['en', 'Rewriting the core…'],
+])('busy question submission shows progress until it settles and retains answers (%s)', (locale, busyLabel) => {
+  const onSubmit = jest.fn();
+  const props = {
+    words: { ...words, send: piecesCopy[locale].interviewSend },
+    questions: [{ key: 'position', question: 'Ваше мнение?', suggested: null }],
+    busyLabel,
+    onSubmit,
+  };
+  const view = render(withLanguage(React.createElement(SuggestedQuestionsCard, props)));
+  fireEvent.change(document.querySelector('[name="piece-answer-position"]'), { target: { value: 'Мой ответ' } });
+  view.rerender(withLanguage(React.createElement(SuggestedQuestionsCard, { ...props, busy: true })));
+  const progress = view.getByRole('progressbar', { name: busyLabel });
+  expect(progress).toBeTruthy();
+  expect(view.getByTitle(busyLabel)).toBeTruthy();
+  const submit = view.getByRole('button', { name: `${busyLabel} ${props.words.send}` });
+  expect(submit.disabled).toBe(true);
+  expect(submit.getAttribute('aria-busy')).toBe('true');
+  fireEvent.click(submit);
+  expect(onSubmit).not.toHaveBeenCalled();
+  view.rerender(withLanguage(React.createElement(SuggestedQuestionsCard, { ...props, busy: false })));
+  expect(view.queryByRole('progressbar')).toBeNull();
+  expect(document.querySelector('[name="piece-answer-position"]').value).toBe('Мой ответ');
+  expect(view.getByRole('button', { name: props.words.send }).disabled).toBe(false);
+});
+
 const CLARIFY = 'Я согласен частично и хочу уточнить свою позицию';
 const STANCES = [
   'Я согласен с позицией автора исходного поста',

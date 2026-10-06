@@ -1267,6 +1267,38 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(sent.textContent).toContain('Хочу пост о том, что я выступил на радио.');
   });
 
+  test('question processing stays visible through the response stream and unlocks on an error', async () => {
+    let endRead;
+    let requests = 0;
+    serve(table({
+      detail: ok(ASKED_DETAIL),
+      answer: () => {
+        requests++;
+        return {
+          ok: true,
+          body: { getReader: () => ({ read: () => new Promise(resolve => { endRead = resolve; }) }) },
+        };
+      },
+    }));
+    await open();
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    await click(within(card.querySelector('[data-piece-question="position"]')).getByRole('radio', { name: 'Поправить' }));
+    const field = document.querySelector('[name="piece-answer-position"]');
+    await act(async () => fireEvent.change(field, { target: { value: 'Моя позиция остаётся в форме' } }));
+    await click(within(card).getByRole('button', { name: 'Дальше' }), () => !!endRead);
+    expect(within(card).getByRole('progressbar', { name: 'Переписываем суть…' })).toBeTruthy();
+    const pending = within(card).getByRole('button', { name: 'Переписываем суть… Дальше' });
+    expect(pending.disabled).toBe(true);
+    await act(async () => fireEvent.click(pending));
+    expect(requests).toBe(1);
+    await act(async () => endRead({ done: false, value: new TextEncoder().encode('{"name":"error","message":"ИИ временно недоступен"}\n') }));
+    await act(async () => endRead({ done: true }));
+    await settle(() => within(card).queryByRole('progressbar') === null);
+    expect(field.value).toBe('Моя позиция остаётся в форме');
+    expect(within(card).getByRole('button', { name: 'Дальше' }).disabled).toBe(false);
+    expect(requests).toBe(1);
+  });
+
   test('an answer travels by field, and the piece is read again', async () => {
     const answered = [];
     serve(
