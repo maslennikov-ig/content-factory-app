@@ -205,7 +205,7 @@ const review = (input, claims = [claim(input.sources[0].excerpt)]) => ({
 });
 
 test.each([false, true])(
-  'current v10 real-service reader preserves one paid admission and no retry when entity source invalid=%s',
+  'current v11 real-service reader preserves one paid admission and no retry when entity source invalid=%s',
   async (invalid) => {
     const request = '😀 По состоянию на 1 октября 2026 года: версия Альфа?';
     const text =
@@ -239,13 +239,13 @@ test.each([false, true])(
     expect(h.calls.rows).toHaveLength(1);
     expect(h.calls.rows[0].succeeded).toBe(true);
     expect(h.calls.model[1].schema.properties.version.const).toBe(
-      'reader-source-review-wire/v10'
+      'reader-source-review-wire/v11'
     );
     if (invalid) {
       expect(result.facts).toHaveLength(0);
       expect(result.summary).toBe('');
       expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-        stage: 'compile_wire_v10',
+        stage: 'compile_wire_v11',
         predicate: 'catalogue_unknown_id',
         failure: 'validation_rejected',
       });
@@ -601,7 +601,7 @@ test.each([
   }
 );
 
-test('own reader failure distinguishes wire-schema rejection from v1 coverage rejection', async () => {
+test('current reader rejects free-form coverage before unchanged v1 rather than accepting a paraphrase', async () => {
   const input = sample();
   const badQuote = review(input);
   badQuote.claims[0].refs[0].source = 'S9';
@@ -612,7 +612,7 @@ test('own reader failure distinguishes wire-schema rejection from v1 coverage re
   });
   const compiler = await h.search(input.subject);
   expect(compiler.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v10',
+    stage: 'compile_wire_v11',
     predicate: 'wire_schema',
     failure: 'validation_rejected',
     wireIssueFamily: 'refs',
@@ -627,8 +627,8 @@ test('own reader failure distinguishes wire-schema rejection from v1 coverage re
   h.set(input, 'Не возвращать запасной ответ.', badCoverage);
   const validator = await h.search(input.subject + ' ');
   expect(validator.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'validate_api_v1',
-    predicate: 'v1_coverage_subject',
+    stage: 'compile_wire_v11',
+    predicate: 'wire_schema',
     failure: 'validation_rejected',
   });
 });
@@ -871,7 +871,7 @@ test.each(['absent', 'repeated'])(
     const result = await h.search(input.subject);
     const diagnostic = result.readerAssessment.failureDiagnostic;
     expect(diagnostic).toMatchObject({
-      stage: 'compile_wire_v10',
+      stage: 'compile_wire_v11',
       predicate: 'wire_schema',
     });
     expect(diagnostic).not.toHaveProperty('quoteMatch');
@@ -1910,10 +1910,10 @@ test.each(['missing last year digit', 'missing first day digit'])(
   }
 );
 
-// Current v10 model ports select source-local indices; production never converts legacy output.
+// Current v11 model ports select source-local indices; production never converts legacy output.
 const currentWireFromRequest = (request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  if (view.catalogue.version === 'v10') return require('./helpers/reader-proof-review-v10.cjs').syntheticReaderV10Review(view, {summary:'Article context is available.'});
+  if (view.catalogue.version === 'v11') return require('./helpers/reader-proof-review-v11.cjs').syntheticReaderV11Review(view, {summary:'Article context is available.'});
   const subject = ['v6', 'v9'].includes(view.catalogue.version)
     ? view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
     : view.subject;
@@ -1939,7 +1939,7 @@ const currentWireFromRequest = (request) => {
     entities: [],
   };
 };
-test('current service uses v10 schema, exact serializer, one existing reader and scoped cache', async () => {
+test('current service uses v11 schema, exact serializer, one existing reader and scoped cache', async () => {
   const input = sample('Article context is available.', 'What is known?');
   h.set(input, 'Ignore provider summary.', currentWireFromRequest);
   const service = new h.WebResearchService(h.aiUsage);
@@ -1956,9 +1956,9 @@ test('current service uses v10 schema, exact serializer, one existing reader and
   expect(first.readerAssessment.status).toBe('supported');
   expect(h.calls.model).toHaveLength(2);
   expect(h.calls.model[1]).toMatchObject({ role: 'classify', maxTokens: 1200 });
-  const current = require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-proof-review-v10.ts');
-  const prepared = current.prepareReaderReviewV10(pack(input));
-  const expectedGenerationSchema = current.readerReviewV10GenerationSchema(prepared);
+  const current = require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-proof-review-v11.ts');
+  const prepared = current.prepareReaderReviewV11(pack(input));
+  const expectedGenerationSchema = current.readerReviewV11GenerationSchema(prepared);
   expect(h.calls.model[1].schema).toEqual(expectedGenerationSchema);
   expect(first.readerAssessment.inputBytes).toBe(
     await actualInputBytes(
@@ -1966,7 +1966,7 @@ test('current service uses v10 schema, exact serializer, one existing reader and
       h.calls.model[1].schema
     )
   );
-  expect(seenKeys[0]).toContain(current.READER_REVIEW_CACHE_V10_VERSION);
+  expect(seenKeys[0]).toContain(current.READER_REVIEW_CACHE_V11_VERSION);
   const cached = await service.research('org', input.subject, {
     language: 'ru',
     readerResponse: true,
@@ -1976,6 +1976,27 @@ test('current service uses v10 schema, exact serializer, one existing reader and
   expect(h.calls.search).toHaveLength(1);
   expect(h.calls.rows).toHaveLength(1);
 });
+test('scoped reader cache distinguishes exact subjects with leading whitespace and still reuses an identical question', async () => {
+  const firstInput = sample('Article context is available.', ' x');
+  h.set(firstInput, 'Ignore provider summary.', currentWireFromRequest);
+  const service = new h.WebResearchService(h.aiUsage);
+  const options = { language: 'ru', readerResponse: true };
+  const first = await service.research('org', firstInput.subject, options);
+  expect(first.readerAssessment.coverage[0].question).toBe(' x');
+  const secondInput = sample('Article context is available.', 'x');
+  h.set(secondInput, 'Ignore provider summary.', currentWireFromRequest);
+  const second = await service.research('org', secondInput.subject, options);
+  expect(second.fromCache).not.toBe(true);
+  expect(second.readerAssessment.coverage[0].question).toBe('x');
+  expect(h.calls.model).toHaveLength(4);
+  const cached = await service.research('org', secondInput.subject, options);
+  expect(cached.fromCache).toBe(true);
+  expect(cached.readerAssessment).toEqual(second.readerAssessment);
+  expect(h.calls.model).toHaveLength(4);
+  expect(h.calls.search).toHaveLength(2);
+  expect(h.calls.rows).toHaveLength(2);
+});
+
 test('large query chooses v5 before the single reader invocation, retains full subject and never retries', async () => {
   const input = sample('Article context is available.', 'я '.repeat(2499));
   h.set(input, 'Ignore provider summary.', currentWireFromRequest);
@@ -1990,7 +2011,7 @@ test('large query chooses v5 before the single reader invocation, retains full s
   expect(h.summaryPrompts()).toHaveLength(1);
   expect(h.calls.rows).toHaveLength(1);
 });
-test('invalid subject ID rejects the complete review with safe v10 diagnostics and one model call', async () => {
+test('invalid subject ID rejects the complete review with safe v11 diagnostics and one model call', async () => {
   const input = sample(
     'Обзор Банка России доступен.',
     'Что известно о Банка России?'
@@ -2009,7 +2030,7 @@ test('invalid subject ID rejects the complete review with safe v10 diagnostics a
   expect(result.summary).toBe('');
   expect(result.facts).toEqual([]);
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v10',
+    stage: 'compile_wire_v11',
     predicate: 'entity_subject_quote',
     failure: 'validation_rejected',
   });
@@ -2042,7 +2063,7 @@ test.each(['unknown', 'stale', 'free-quote'])(
     expect(result.facts).toEqual([]);
     expect(result.summary).toBe('');
     expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-      stage: 'compile_wire_v10',
+      stage: 'compile_wire_v11',
       predicate: {
         unknown: 'catalogue_unknown_id',
         stale: 'catalogue_binding',
@@ -2069,7 +2090,7 @@ test('mandatory date catalogue failure ends before the reader model and keeps so
   const result = await h.search(input.subject);
   expect(result.readerAssessment.status).toBe('review_unavailable');
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'prepare_catalogue_v10',
+    stage: 'prepare_catalogue_v11',
     predicate: 'catalogue_date_anchor',
   });
   expect(result.readerAssessment.evidence[0].excerpt).toBe(
@@ -2089,7 +2110,7 @@ test('a missing date-via slot has a safe distinct current-service predicate and 
   });
   const result=await h.search(input.subject);
   expect(result.summary).toBe('');expect(result.facts).toEqual([]);
-  expect(result.readerAssessment.failureDiagnostic).toMatchObject({stage:'compile_wire_v10',predicate:'date_reference_slot',failure:'validation_rejected'});
+  expect(result.readerAssessment.failureDiagnostic).toMatchObject({stage:'compile_wire_v11',predicate:'date_reference_slot',failure:'validation_rejected'});
   expect(pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic).toEqual(result.readerAssessment.failureDiagnostic);
   expect(h.calls.model).toHaveLength(2);expect(h.calls.search).toHaveLength(1);expect(h.calls.rows).toHaveLength(1);
 });
@@ -2105,7 +2126,7 @@ test('a foreign source date spelling fails current wire validation without anoth
   expect(result.summary).toBe('');
   expect(result.facts).toEqual([]);
   expect(result.readerAssessment.failureDiagnostic).toMatchObject({
-    stage: 'compile_wire_v10', predicate: 'wire_schema',
+    stage: 'compile_wire_v11', predicate: 'wire_schema',
     wireIssueFamily: 'dates', wireIssueCode: 'invalid_type',
   });
   expect(pure.projectReaderAssessment(result.readerAssessment).failureDiagnostic)

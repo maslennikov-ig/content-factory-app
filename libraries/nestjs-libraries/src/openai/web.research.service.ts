@@ -15,12 +15,13 @@ import {
   type ReaderAssessment,
 } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 import {
-  READER_REVIEW_CACHE_V10_VERSION,
-  prepareReaderReviewV10,
-  readerReviewV10GenerationSchema,
-  compileReaderReviewV10,
-  validateReaderReviewV10,
-} from '@contentfactory/nestjs-libraries/openai/reader-proof-review-v10';
+  READER_REVIEW_CACHE_V11_VERSION,
+  prepareReaderReviewV11,
+  readerReviewV11GenerationSchema,
+  compileReaderReviewV11,
+  validateReaderReviewV11,
+} from '@contentfactory/nestjs-libraries/openai/reader-proof-review-v11';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -1744,7 +1745,7 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v10';
+    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v11';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
     let quoteMatch: ReaderQuoteMatch | undefined;
@@ -1774,7 +1775,7 @@ export class WebResearchService {
       if (!input || !input.evidence.sources.length)
         return { assessment, summary: '', facts: [] as WebResearchFact[] };
       let preparationFailure: ReaderReviewRejection | undefined;
-      const current = prepareReaderReviewV10(input, (code) => {
+      const current = prepareReaderReviewV11(input, (code) => {
         preparationFailure = code;
       });
       // Choose the existing producer before invocation only for size bounds.
@@ -1798,7 +1799,7 @@ export class WebResearchService {
         phase = 'structured-output';
         stage = phase;
         const generationSchema = current
-          ? readerReviewV10GenerationSchema(current)
+          ? readerReviewV11GenerationSchema(current)
           : readerReviewV5GenerationSchema(legacy!);
         if (!generationSchema) throw new Error('Reader catalogue is unavailable');
         const writer = model.withStructuredOutput(generationSchema);
@@ -1829,16 +1830,16 @@ export class WebResearchService {
           );
         readerDeadline?.check();
         phase = 'validation';
-        stage = current ? 'compile_wire_v10' : 'compile_wire_v5';
+        stage = current ? 'compile_wire_v11' : 'compile_wire_v5';
         const compiled = current
-          ? compileReaderReviewV10(current, raw, onReject)
+          ? compileReaderReviewV11(current, raw, onReject)
           : compileReaderReviewV5(legacy!, raw, onReject);
         if (compiled !== null) stage = 'validate_api_v1';
         const reviewed =
           compiled === null
             ? null
             : current
-            ? validateReaderReviewV10(current, compiled, onReject, validateReaderReview)
+            ? validateReaderReviewV11(current, compiled, onReject, validateReaderReview)
             : validateReaderReview(anchored, compiled, onReject);
         readerDeadline?.check();
         if (reviewed) return reviewed;
@@ -1992,12 +1993,14 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_CACHE_V10_VERSION
+          ? READER_REVIEW_CACHE_V11_VERSION
           : 'reader'
         : 'consumer'
-    }|${callerQueries(options, level).join('\n')}|${subject
-      .trim()
-      .slice(0, CLASSIFIER_SUBJECT_CHARS)}`;
+    }|${callerQueries(options, level).join('\n')}|${
+      scopedReader
+        ? createHash('sha256').update(subject, 'utf16le').digest('hex')
+        : subject.trim().slice(0, CLASSIFIER_SUBJECT_CHARS)
+    }`;
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);
