@@ -709,6 +709,7 @@ const readerReviewRejections = [
   'catalogue_date_anchor',
   'catalogue_binding',
   'catalogue_unknown_id',
+  'date_reference_slot',
   'catalogue_integrity',
   'quote_source',
   'quote_unique_match',
@@ -858,8 +859,10 @@ const readerFailureDiagnosticSchema = z
       'compile_wire_v6',
       'prepare_catalogue_v7',
       'prepare_catalogue_v8',
+      'prepare_catalogue_v9',
       'compile_wire_v7',
       'compile_wire_v8',
+      'compile_wire_v9',
       'validate_api_v1',
     ]),
     predicate: z.enum(['unobserved', ...readerReviewRejections]),
@@ -920,7 +923,8 @@ const readerFailureDiagnosticSchema = z
         value.stage === 'compile_wire_v5' ||
         value.stage === 'compile_wire_v6' ||
         value.stage === 'compile_wire_v7' ||
-        value.stage === 'compile_wire_v8') &&
+        value.stage === 'compile_wire_v8' ||
+        value.stage === 'compile_wire_v9') &&
         value.predicate === 'wire_schema' &&
         value.wireIssueFamily !== undefined &&
         value.wireIssueCode !== undefined)
@@ -934,7 +938,8 @@ const readerFailureDiagnosticSchema = z
         value.stage === 'compile_wire_v5' ||
         value.stage === 'compile_wire_v6' ||
         value.stage === 'compile_wire_v7' ||
-        value.stage === 'compile_wire_v8') &&
+        value.stage === 'compile_wire_v8' ||
+        value.stage === 'compile_wire_v9') &&
         value.predicate === 'quote_unique_match' &&
         value.failure === 'validation_rejected')
   )
@@ -946,7 +951,8 @@ const readerFailureDiagnosticSchema = z
           value.stage === 'compile_wire_v5' ||
           value.stage === 'compile_wire_v6' ||
           value.stage === 'compile_wire_v7' ||
-          value.stage === 'compile_wire_v8') &&
+          value.stage === 'compile_wire_v8' ||
+          value.stage === 'compile_wire_v9') &&
           value.predicate === 'date_quote_grounding' &&
           dateGroundingReasons.some(
             (reason) => reason === value.groundingReason

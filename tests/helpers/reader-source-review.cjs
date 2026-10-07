@@ -8,10 +8,16 @@ module.exports.syntheticReaderReview = (request, summary) => {
   if (typeof summary?.summary !== 'string' || !summary.summary.trim())
     return summary;
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  if (['v6', 'v7', 'v8'].includes(evidence.catalogue?.version))
+  if (['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version))
     evidence.subject = evidence.subjectParts.map((part) =>
       part.slice(part.indexOf(':') + 1)
     ).join('');
+  if (evidence.catalogue?.version === 'v9') return {
+    version: 'reader-source-review-wire/v9', catalogue: evidence.catalogue.binding,
+    sources: evidence.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
+    claims: [{ text: summary.summary, kind: 'context', refs: [{ source: evidence.sources[0][0], ref: 0 }], dates: [] }],
+    coverage: [{ question: evidence.subject.slice(0, 500), status: 'supported' }], entities: [],
+  };
   if (evidence.catalogue?.version === 'v8') return {
     version: 'reader-source-review-wire/v8', catalogue: evidence.catalogue.binding,
     sources: evidence.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
@@ -141,6 +147,8 @@ module.exports.syntheticReaderDateQuoteWire = (output) => {
 // is passed through and the current production boundary rejects its version.
 module.exports.syntheticReaderV5Fixture = (input, output, request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (view.catalogue?.version === 'v9')
+    return require('./reader-proof-review-v9.cjs').syntheticReaderV9Fixture(input, output, request);
   if (view.catalogue?.version === 'v8')
     return require('./reader-proof-review-v8.cjs').syntheticReaderV8Fixture(input, output, request);
   if (view.catalogue?.version === 'v7')
@@ -282,7 +290,7 @@ module.exports.syntheticReaderModelEvidence = (request) => {
   if (!view.sourceColumns) return view;
   return {
     ...view,
-    ...(['v6', 'v7', 'v8'].includes(view.catalogue?.version)
+    ...(['v6', 'v7', 'v8', 'v9'].includes(view.catalogue?.version)
       ? { subject: view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('') }
       : {}),
     sources: view.sources.map((row) => ({

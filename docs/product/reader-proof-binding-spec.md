@@ -1,11 +1,11 @@
 # Source-bound reader proofs
 
-Status: v8 source candidate. The service selects v8 with a distinct cache
-version and a bounds-only v5 choice before invocation. C23/v7 passed release
-checks but all three original live searches returned an empty review with
-`invocation/provider_rejected`. The raw upstream reason was not recorded.
-Production was rolled back to C22/v6; both owner UI fixes remain available.
-V8 release and fresh live usefulness acceptance are pending.
+Status: historical v8 producer contract. C24/v8 passed release gates, then
+fresh original live searches rejected wire aggregate/group shape or entity
+qualification and returned empty reviews. The raw rejected model wire was
+not saved; the exact TG/RATE branch remains unknown. Native rollback restored
+C22 with both owner UI fixes. Current source candidate is described in
+[Reader v9](reader-proof-v9-spec.md); its release/live acceptance is pending.
 
 Beads `content-factory-next-0qgn.10` retains the original acceptance and owner.
 The C22 live checks returned empty Telegram and rate answers after rejecting
