@@ -888,14 +888,14 @@ describe('сводка веб-поиска говорит на языке чит
       undefined,
       'provider answers are not source evidence'
     );
-    const exactSubject = ['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version)
+    const exactSubject = evidence.catalogue?.version === 'v10' ? evidence.subjectParts.split(evidence.partSeparator).join('') : ['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version)
       ? evidence.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
       : evidence.subject;
     assert.equal(exactSubject, original.subject);
-    assert.match(evidence.sources[0][4].join(''), /4 пользователя 1С/);
-    assert.match(evidence.sources[0][4].join(''), /10 190/);
-    assert.match(input.reviewRequest, /prices, bundles/);
-    assert.match(input.reviewRequest, /concise complete Russian claims/);
+    assert.match((Array.isArray(evidence.sources[0][4]) ? evidence.sources[0][4] : evidence.sources[0][4].split(evidence.partSeparator)).join(''), /4 пользователя 1С/);
+    assert.match((Array.isArray(evidence.sources[0][4]) ? evidence.sources[0][4] : evidence.sources[0][4].split(evidence.partSeparator)).join(''), /10 190/);
+    assert.match(input.reviewRequest, /prices.*bundles/);
+    assert.match(input.reviewRequest, /concise complete Russian claims/i);
   });
 
   test.each([

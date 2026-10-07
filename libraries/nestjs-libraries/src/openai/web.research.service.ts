@@ -15,12 +15,12 @@ import {
   type ReaderAssessment,
 } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 import {
-  READER_REVIEW_CACHE_V9_VERSION,
-  prepareReaderReviewV9,
-  readerReviewV9GenerationSchema,
-  compileReaderReviewV9,
-  validateReaderReviewV9,
-} from '@contentfactory/nestjs-libraries/openai/reader-proof-review-v9';
+  READER_REVIEW_CACHE_V10_VERSION,
+  prepareReaderReviewV10,
+  readerReviewV10GenerationSchema,
+  compileReaderReviewV10,
+  validateReaderReviewV10,
+} from '@contentfactory/nestjs-libraries/openai/reader-proof-review-v10';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -1744,7 +1744,7 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v9';
+    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v10';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
     let wireIssue: ReaderWireIssueDiagnostic | undefined;
     let quoteMatch: ReaderQuoteMatch | undefined;
@@ -1774,7 +1774,7 @@ export class WebResearchService {
       if (!input || !input.evidence.sources.length)
         return { assessment, summary: '', facts: [] as WebResearchFact[] };
       let preparationFailure: ReaderReviewRejection | undefined;
-      const current = prepareReaderReviewV9(input, (code) => {
+      const current = prepareReaderReviewV10(input, (code) => {
         preparationFailure = code;
       });
       // Choose the existing producer before invocation only for size bounds.
@@ -1798,7 +1798,7 @@ export class WebResearchService {
         phase = 'structured-output';
         stage = phase;
         const generationSchema = current
-          ? readerReviewV9GenerationSchema(current)
+          ? readerReviewV10GenerationSchema(current)
           : readerReviewV5GenerationSchema(legacy!);
         if (!generationSchema) throw new Error('Reader catalogue is unavailable');
         const writer = model.withStructuredOutput(generationSchema);
@@ -1829,16 +1829,16 @@ export class WebResearchService {
           );
         readerDeadline?.check();
         phase = 'validation';
-        stage = current ? 'compile_wire_v9' : 'compile_wire_v5';
+        stage = current ? 'compile_wire_v10' : 'compile_wire_v5';
         const compiled = current
-          ? compileReaderReviewV9(current, raw, onReject)
+          ? compileReaderReviewV10(current, raw, onReject)
           : compileReaderReviewV5(legacy!, raw, onReject);
         if (compiled !== null) stage = 'validate_api_v1';
         const reviewed =
           compiled === null
             ? null
             : current
-            ? validateReaderReviewV9(current, compiled, onReject, validateReaderReview)
+            ? validateReaderReviewV10(current, compiled, onReject, validateReaderReview)
             : validateReaderReview(anchored, compiled, onReject);
         readerDeadline?.check();
         if (reviewed) return reviewed;
@@ -1992,7 +1992,7 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_CACHE_V9_VERSION
+          ? READER_REVIEW_CACHE_V10_VERSION
           : 'reader'
         : 'consumer'
     }|${callerQueries(options, level).join('\n')}|${subject

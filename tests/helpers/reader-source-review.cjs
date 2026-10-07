@@ -8,6 +8,8 @@ module.exports.syntheticReaderReview = (request, summary) => {
   if (typeof summary?.summary !== 'string' || !summary.summary.trim())
     return summary;
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (evidence.catalogue?.version === 'v10')
+    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Review(evidence, summary);
   if (['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version))
     evidence.subject = evidence.subjectParts.map((part) =>
       part.slice(part.indexOf(':') + 1)
@@ -147,6 +149,8 @@ module.exports.syntheticReaderDateQuoteWire = (output) => {
 // is passed through and the current production boundary rejects its version.
 module.exports.syntheticReaderV5Fixture = (input, output, request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (view.catalogue?.version === 'v10')
+    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Fixture(input, output, request);
   if (view.catalogue?.version === 'v9')
     return require('./reader-proof-review-v9.cjs').syntheticReaderV9Fixture(input, output, request);
   if (view.catalogue?.version === 'v8')
@@ -287,6 +291,8 @@ module.exports.syntheticReaderCurrentSubjectWire = (view, output) => {
 };
 module.exports.syntheticReaderModelEvidence = (request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (view.catalogue?.version === 'v10')
+    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Evidence(view);
   if (!view.sourceColumns) return view;
   return {
     ...view,
