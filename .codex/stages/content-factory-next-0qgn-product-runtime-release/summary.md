@@ -69,3 +69,14 @@ Natural03Oct00:05Z collector create-only timer PASS; actual aged pruning unknown
 0qgn.14/.15: current draft instructions before body reuse existing selected adaptation rewrite+explicit acceptance; shared page/chat question processing visible through request/stream. WorkingLine96px width priority fixed after actual Windows browser found caption collapse. Source candidate delivery remains pending; original36/7AC and product/native/HOT acceptance remain unwaived.
 
 project-index: reviewed-updated - UI specification linked. docs-reviewed: updated - docs/product/adaptation-feedback-processing-spec.md and component inventory. documentation-decision: no-versioned-change - existing local React/form/rewrite interfaces only. graph-reviewed: root46ec graph used for orientation, exact89 files checked; UI ownership and callers reviewed.
+
+## Remaining-work completion pass — 8 October 2026
+
+Accepted isolated sources: rollback protection678a350fb, evidence-led style-retain
+6f7774000 and simple reader86841a333. Original criteria and runtime history stay.
+Root owns fresh model/UI/search/HOT proof and final release; no source-only pass
+is presented as runtime acceptance. Central child delivery/acceptance/safe cleanup
+is in ../content-factory-next-0qgn-completion-20261008/child-delivery-acceptance.json.
+docs-reviewed: updated - reader summary, retained style decision and executable rollback/schema preflight runbook.
+project-index: reviewed-updated - completion plan on existing navigation row.
+graph-reviewed: used - graphify query runAssistV2 --graph /home/me/code/content-factory-next/graphify-out/graph.json --budget 700; owner46ec graph used for orientation, exact current reader/agent/release sources inspected, no external extraction.

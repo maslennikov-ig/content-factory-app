@@ -2,24 +2,17 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
   type ReaderFailureDiagnostic,
-  type ReaderReviewRejection,
-  type ReaderWireIssueDiagnostic,
-  type ReaderQuoteMatch,
   packReaderReview,
   requestedDate,
-  prepareReaderReviewV5,
-  readerReviewV5GenerationSchema,
-  compileReaderReviewV5,
-  validateReaderReview,
   unavailableReaderReview,
   type ReaderAssessment,
 } from '@contentfactory/nestjs-libraries/openai/reader-source-review';
 import {
-  READER_REVIEW_CACHE_V6_VERSION,
-  prepareReaderReviewV6,
-  readerReviewV6GenerationSchema,
-  compileReaderReviewV6,
-} from '@contentfactory/nestjs-libraries/openai/reader-subject-review';
+  READER_SUMMARY_CACHE_VERSION,
+  prepareReaderSummary,
+  readerSummaryJsonSchema,
+  compileReaderSummary,
+} from '@contentfactory/nestjs-libraries/content-intelligence/research/reader-summary';
 import { z } from 'zod';
 import {
   WEB_SEARCH_FALLBACK_TIMEOUT_MS,
@@ -1734,7 +1727,7 @@ export class WebResearchService {
     language: ContentLanguage,
     readerDeadline?: ScopedReaderDeadline
   ) {
-    const input = packReaderReview(
+    const input = prepareReaderSummary(
       subject,
       sources,
       facts,
@@ -1743,11 +1736,8 @@ export class WebResearchService {
     const assessment = unavailableReaderReview(input);
     let phase: ReaderReviewPhase = 'validation';
     let termination: ReaderReviewTermination = 'unobserved';
-    let stage: ReaderFailureDiagnostic['stage'] = 'prepare_catalogue_v6';
+    let stage: ReaderFailureDiagnostic['stage'] = 'validate_api_v1';
     let predicate: ReaderFailureDiagnostic['predicate'] = 'unobserved';
-    let wireIssue: ReaderWireIssueDiagnostic | undefined;
-    let quoteMatch: ReaderQuoteMatch | undefined;
-    let groundingReason: ReaderFailureDiagnostic['groundingReason'];
     let failure: ReaderReviewFailureCode = 'validation_rejected';
     let providerCode: ReaderReviewProviderCode = 'unobserved';
     let observation: ReturnType<typeof readerReviewOutputObservation> = {
@@ -1755,91 +1745,54 @@ export class WebResearchService {
       contentUtf8Bytes: null,
       toolArgumentsUtf8Bytes: null,
     };
-    const onReject = (
-      code: ReaderReviewRejection,
-      issue?: ReaderWireIssueDiagnostic,
-      match?: ReaderQuoteMatch,
-      reason?: ReaderFailureDiagnostic['groundingReason']
-    ) => {
-      if (predicate === 'unobserved') {
-        predicate = code;
-        wireIssue = issue;
-        quoteMatch = match;
-        groundingReason = reason;
-      }
-    };
     try {
       readerDeadline?.check();
       if (!input || !input.evidence.sources.length)
         return { assessment, summary: '', facts: [] as WebResearchFact[] };
-      let preparationFailure: ReaderReviewRejection | undefined;
-      const current = prepareReaderReviewV6(input, (code) => {
-        preparationFailure = code;
-      });
-      // Choose the existing producer before invocation only for size bounds.
-      // A catalogue-integrity/date failure must not select a weaker producer.
-      const useLegacy = !current && preparationFailure === 'catalogue_bounds';
-      if (useLegacy) stage = 'prepare_catalogue_v5';
-      else if (!current && preparationFailure) onReject(preparationFailure);
-      const legacy = useLegacy ? prepareReaderReviewV5(input, onReject) : null;
-      const anchored = current ?? legacy;
-      if (anchored) {
-        assessment.inputBytes = anchored.inputBytes;
-        phase = 'model-resolution';
-        stage = phase;
-        const model = await getChatModel(
-          organizationId,
-          0,
-          RESEARCH_SUMMARY_MAX_TOKENS,
-          'classify'
-        );
-        readerDeadline?.check();
-        phase = 'structured-output';
-        stage = phase;
-        const generationSchema = current
-          ? readerReviewV6GenerationSchema(current)
-          : readerReviewV5GenerationSchema(legacy!);
-        if (!generationSchema) throw new Error('Reader catalogue is unavailable');
-        const writer = model.withStructuredOutput(generationSchema);
-        phase = 'invocation';
-        stage = phase;
-        const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
-          .pipe(writer)
-          .invoke(
-            { reviewRequest: anchored.prompt },
-            {
-              // SDK request options cancel the actual transport. Runnable's
-              // top-level signal races invoke and can finalize usage too early.
-              ...(readerDeadline
-                ? { options: { signal: readerDeadline.signal } }
-                : {}),
-              callbacks: [
-                {
-                  handleLLMEnd(output) {
-                    termination = readerReviewSafeTermination(
-                      output?.generations?.[0]?.[0]?.generationInfo
-                        ?.finish_reason
-                    );
-                    observation = readerReviewOutputObservation(output);
-                  },
+      phase = 'model-resolution';
+      stage = phase;
+      const model = await getChatModel(
+        organizationId,
+        0,
+        RESEARCH_SUMMARY_MAX_TOKENS,
+        'classify'
+      );
+      readerDeadline?.check();
+      phase = 'structured-output';
+      stage = phase;
+      const writer = model.withStructuredOutput(readerSummaryJsonSchema);
+      phase = 'invocation';
+      stage = phase;
+      const raw = await ChatPromptTemplate.fromTemplate('{reviewRequest}')
+        .pipe(writer)
+        .invoke(
+          { reviewRequest: input.prompt },
+          {
+            // SDK request options cancel the actual transport. Runnable's
+            // top-level signal races invoke and can finalize usage too early.
+            ...(readerDeadline
+              ? { options: { signal: readerDeadline.signal } }
+              : {}),
+            callbacks: [
+              {
+                handleLLMEnd(output) {
+                  termination = readerReviewSafeTermination(
+                    output?.generations?.[0]?.[0]?.generationInfo
+                      ?.finish_reason
+                  );
+                  observation = readerReviewOutputObservation(output);
                 },
-              ],
-            }
-          );
-        readerDeadline?.check();
-        phase = 'validation';
-        stage = current ? 'compile_wire_v6' : 'compile_wire_v5';
-        const compiled = current
-          ? compileReaderReviewV6(current, raw, onReject)
-          : compileReaderReviewV5(legacy!, raw, onReject);
-        if (compiled !== null) stage = 'validate_api_v1';
-        const reviewed =
-          compiled === null
-            ? null
-            : validateReaderReview(anchored, compiled, onReject);
-        readerDeadline?.check();
-        if (reviewed) return reviewed;
-      }
+              },
+            ],
+          }
+        );
+      readerDeadline?.check();
+      phase = 'validation';
+      stage = 'validate_api_v1';
+      const reviewed = compileReaderSummary(input, raw);
+      if (!reviewed) predicate = 'wire_schema';
+      readerDeadline?.check();
+      if (reviewed) return reviewed;
       this.logger.warn(
         readerReviewFailureLine(phase, 'validation_rejected', termination)
       );
@@ -1861,11 +1814,6 @@ export class WebResearchService {
       failure,
       providerCode,
       ...observation,
-      ...(wireIssue
-        ? { wireIssueFamily: wireIssue.family, wireIssueCode: wireIssue.code }
-        : {}),
-      ...(quoteMatch ? { quoteMatch } : {}),
-      ...(groundingReason ? { groundingReason } : {}),
     };
     return { assessment, summary: '', facts: [] as WebResearchFact[] };
   }
@@ -1989,7 +1937,7 @@ Untrusted research data: {evidence}`
     }|${
       options.readerResponse === true
         ? scopedReader
-          ? READER_REVIEW_CACHE_V6_VERSION
+          ? READER_SUMMARY_CACHE_VERSION
           : 'reader'
         : 'consumer'
     }|${callerQueries(options, level).join('\n')}|${subject

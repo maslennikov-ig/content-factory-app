@@ -646,14 +646,11 @@ describe('scoped reader deadline through the installed SDK and usage transport',
   });
 
   test('a fast grounded reader keeps its original two calls and cache hit without leaking a deadline', async () => {
-    const current = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/reader-subject-review.ts');
-    const input = current.prepareReaderReviewV6(pure.packReaderReview('fast reader',
-      [{ url: 'https://example.invalid/context', title: 'Context', publishedAt: null }],
-      [{ sourceUrl: 'https://example.invalid/context', text: 'Synthetic context from the source.' }], 'English'));
-    const output = { version: current.READER_REVIEW_WIRE_V6_VERSION, catalogue: input.catalogue.binding,
-      sources: [{ id: 'S1', relevance: 'relevant' }],
-      claims: [{ text: 'Synthetic context from the source.', kind: 'context', refs: [input.catalogue.view.sources[0][5][0][0]], dates: [] }],
-      coverage: [{ question: 'fast reader', status: 'supported' }], entities: [] };
+    const output = {
+      answer: 'Synthetic context from the source.',
+      references: [{ id: 'S1', relevance: 'relevant' }],
+      gaps: [],
+    };
     const run = setup({ readerOutput: output });
     const result = await run.service.research('offline-organization', 'fast reader', { readerResponse: true, language: 'en' });
     expect(result.readerAssessment.status).toBe('supported');

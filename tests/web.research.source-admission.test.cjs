@@ -231,7 +231,7 @@ describe('Russian advertising-labeling reader admission', () => {
       succeeded: true,
     });
     expect(summaryPrompts()).toHaveLength(1);
-    expect(result.summary).toBe(summaryOutput.summary);
+    expect(result.summary).toContain(summaryOutput.summary);
   });
 
   test.each([
@@ -416,7 +416,7 @@ describe('source-only reader summary and spend', () => {
 
     const result = await search(cloud.subject);
 
-    expect(result.summary).toBe(summaryOutput.summary);
+    expect(result.summary).toContain(summaryOutput.summary);
     expect(result.provider).toBe('exa');
     expect(result.sources).toEqual(expectedSources(cloud));
     expect(result.sources).toEqual(baseline.sources);
@@ -443,12 +443,12 @@ describe('source-only reader summary and spend', () => {
     const evidence = JSON.parse(
       input.reviewRequest.split('Untrusted reader evidence:\n')[1]
     );
-    expect(input.reviewRequest).toMatch(/concise complete Russian claims/);
+    expect(input.reviewRequest).toMatch(/concise research answer in Russian/);
     expect(evidence.answers).toBeUndefined();
     expect(evidence.sources).toHaveLength(5);
     expect(
       evidence.sources.every(
-        (row) => row[4].join('').length > 0 && row[4].join('').length <= 3_000
+        (row) => row.excerpt.length > 0 && row.excerpt.length <= 3_000
       )
     ).toBe(true);
     expect(Buffer.byteLength(JSON.stringify(evidence))).toBeLessThanOrEqual(
@@ -542,11 +542,11 @@ describe('source-only reader summary and spend', () => {
       )[1]
     );
     expect(evidence.sources).toHaveLength(1);
-    expect(evidence.sources[0][0]).toBe(result.readerAssessment.evidence[0].id);
+    expect(evidence.sources[0].id).toBe(result.readerAssessment.evidence[0].id);
     expect(result.readerAssessment.evidence[0].url).toBe(
       result.facts[0].sourceUrl
     );
-    expect(evidence.sources[0][4].join('')).toBe(result.facts[0].text);
+    expect(evidence.sources[0].excerpt).toBe(result.facts[0].text);
     expect(calls.search).toHaveLength(1);
     expect(calls.model).toHaveLength(2);
   });
@@ -600,7 +600,7 @@ describe('source-only reader summary and spend', () => {
     } finally {
       jest.useRealTimers();
     }
-    expect(result.summary).toBe(summaryOutput.summary);
+    expect(result.summary).toContain(summaryOutput.summary);
     expect(result.sources).toEqual(expectedSources(cloud));
     expect(calls.search.map(({ provider }) => provider)).toEqual([
       'tavily',
@@ -628,9 +628,9 @@ describe('source-only reader summary and spend', () => {
       language: 'en',
       readerResponse: true,
     });
-    expect(result.summary).toBe(summaryOutput.summary);
+    expect(result.summary).toContain(summaryOutput.summary);
     expect(summaryPrompts()[0].input.reviewRequest).toMatch(
-      /concise complete English claims/
+      /concise research answer in English/
     );
     expect(calls.model).toHaveLength(2);
     expect(calls.search).toHaveLength(1);

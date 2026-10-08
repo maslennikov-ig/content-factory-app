@@ -180,5 +180,5 @@ cat <<MESSAGE
 
 Switched. Still to do, in this order:
   1. the checks in «Проверки после развёртывания»
-  2. CF_DEPLOY_HOST=${host} scripts/release/retain-host-artifacts.sh
+  2. CF_DEPLOY_HOST=${host} CF_ROLLBACK_TAG=<verified-previous-tag> scripts/release/retain-host-artifacts.sh
 MESSAGE

@@ -8,6 +8,12 @@ module.exports.syntheticReaderReview = (request, summary) => {
   if (typeof summary?.summary !== 'string' || !summary.summary.trim())
     return summary;
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
+  if (request.includes('Return answer, references and gaps.'))
+    return {
+      answer: summary.summary,
+      references: evidence.sources.map(({ id }) => ({ id, relevance: 'relevant' })),
+      gaps: [],
+    };
   if (evidence.catalogue?.version === 'v6')
     evidence.subject = evidence.subjectParts.map((part) =>
       part.slice(part.indexOf(':') + 1)

@@ -29,8 +29,8 @@
 #     script refuses without removing anything: the running tag then names
 #     nothing in our row of tags, and the "rollback target" it would keep would
 #     be chosen from a different row than the one serving requests.
-#   - The rollback target is the newest remaining tag after the running one,
-#     and it is never a candidate either.
+#   - The operator supplies the verified rollback tag explicitly. Creation time
+#     cannot distinguish an accepted release from a pulled candidate.
 #   - The app container must be healthy first. Deleting the previous image
 #     while the new one is failing removes the way back.
 #
@@ -43,11 +43,13 @@
 # contain secrets is 78 chances for one of them to be mis-permissioned later,
 # and a directory nobody can read is a directory nobody checks.
 #
-# Usage: CF_DEPLOY_HOST=root@<host> scripts/release/retain-host-artifacts.sh [--dry-run]
+# Usage: CF_DEPLOY_HOST=root@<host> CF_ROLLBACK_TAG=<verified-tag> scripts/release/retain-host-artifacts.sh [--dry-run]
 #
 # Environment:
 #   CF_DEPLOY_HOST   required, same as the other release scripts. No default:
 #                    the host is not named in this repository.
+#   CF_ROLLBACK_TAG required verified rollback tag in our repository. There is
+#                    no age-based fallback. It must already exist on the host.
 #   CF_KEEP          how many of our tags to keep, default 2. Below 2 is
 #                    refused — one tag means no rollback target.
 #   CF_KEEP_BACKUPS  how many configuration copies to keep per family, default
@@ -59,6 +61,7 @@ set -euo pipefail
 
 host="${CF_DEPLOY_HOST:-}"
 keep="${CF_KEEP:-2}"
+rollback="${CF_ROLLBACK_TAG:-}"
 keep_backups="${CF_KEEP_BACKUPS:-3}"
 remote_dir="${CF_REMOTE_DIR:-/srv/content-factory-next}"
 registry="${CF_REGISTRY:-ghcr.io}"
@@ -80,7 +83,7 @@ if [ -z "$host" ]; then
   cat >&2 <<'MESSAGE'
 CF_DEPLOY_HOST is not set. It names the production host and is
 deliberately absent from this repository:
-  CF_DEPLOY_HOST=root@<host> scripts/release/retain-host-artifacts.sh
+  CF_DEPLOY_HOST=root@<host> CF_ROLLBACK_TAG=<verified-tag> scripts/release/retain-host-artifacts.sh
 MESSAGE
   exit 2
 fi
@@ -92,6 +95,11 @@ fi
 
 if ! [ "$keep_backups" -ge 1 ] 2>/dev/null; then
   echo "CF_KEEP_BACKUPS must be 1 or more." >&2
+  exit 2
+fi
+
+if ! [[ "$rollback" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+  echo "CF_ROLLBACK_TAG must name the verified rollback tag in our repository. Nothing removed." >&2
   exit 2
 fi
 
@@ -114,13 +122,13 @@ running_repository="${running_image%:*}"
 echo "Running: ${running_image}"
 
 #    And it has to be OUR image. Everything below reasons about one row of
-#    tags: the running tag heads the keep list, the rollback target is the next
-#    tag in that row, and the configuration copies are kept by matching those
+#    tags: the running tag heads the keep list, the verified rollback tag is the other
+#    protected tag in that row, and the configuration copies are kept by matching those
 #    two names. If the container is running something else — a hotfix built
 #    from another repository, a `docker run` by hand, an image that lost its
 #    tag and shows as a digest — then `running_tag` names nothing in our row.
 #    The keep list would then be one short, the tag we actually run would be a
-#    removal candidate, and the "rollback target" would be a tag chosen from a
+#    removal candidate, and the "rollback target" would be a tag from a
 #    different row than the one serving requests. Refuse instead of guessing.
 if [ "$running_repository" != "$repository" ]; then
   cat >&2 <<MESSAGE
@@ -131,17 +139,34 @@ MESSAGE
   exit 1
 fi
 
+# A named verified rollback is required before either images or copies change.
+if [ "$rollback" = "$running_tag" ]; then
+  echo "Rollback must differ from the active tag. Nothing removed." >&2
+  exit 1
+fi
+if ! run "docker image inspect ${repository}:${rollback} >/dev/null 2>&1"; then
+  echo "Verified rollback ${repository}:${rollback} is missing. Nothing removed." >&2
+  exit 1
+fi
+
 # 3. Our tags on the host, newest first.
 mapfile -t tags < <(run "docker images --filter reference='${repository}' --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | cut -f2")
+
+for tag in "${tags[@]}"; do
+  if ! [[ "$tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+    echo "Unexpected image tag in inventory. Nothing removed." >&2
+    exit 1
+  fi
+done
 
 if [ "${#tags[@]}" -eq 0 ]; then
   echo "No ${repository} images on the host."
 fi
 
 # The running tag is always first in the keep list, wherever it sorts.
-keep_list=("$running_tag")
+keep_list=("$running_tag" "$rollback")
 for tag in "${tags[@]}"; do
-  [ "$tag" = "$running_tag" ] && continue
+  [[ "$tag" = "$running_tag" || "$tag" = "$rollback" ]] && continue
   [ "${#keep_list[@]}" -ge "$keep" ] && break
   keep_list+=("$tag")
 done
@@ -174,7 +199,6 @@ else
 fi
 
 # 5. Prove the rollback target survived and the stack is whole.
-rollback="${keep_list[1]:-}"
 if [ -n "$rollback" ]; then
   run "docker image inspect ${repository}:${rollback} --format 'rollback target present: {{.Id}}'"
 fi

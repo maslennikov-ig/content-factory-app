@@ -239,7 +239,7 @@ describe('running the script against a fake host', () => {
 
   test('it keeps the running tag and the rollback target, and removes the rest by name', () => {
     host = hostWithFourTags();
-    const result = host.run(SCRIPT);
+    const result = host.run(SCRIPT, [], { CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(0);
     expect(host.removed()).toEqual([
@@ -248,6 +248,36 @@ describe('running the script against a fake host', () => {
     ]);
     expect(result.stdout).toContain(`Keeping 2: ${TAGS[0]} ${TAGS[1]}`);
     expect(result.stdout).toContain('rollback target present');
+  });
+
+  test.each([false, true])('explicit older rollback survives newer unaccepted candidates (dry-run=%s)', (dryRun) => {
+    const families = ['.env', 'app.env', 'docker-compose.yaml'];
+    host = hostWithFourTags({
+      extraFiles: TAGS.flatMap((tag) => families.map((family) => `${family}.bak-before-${tag}`)),
+    });
+    const before = host.remoteFiles();
+    const result = host.run(SCRIPT, dryRun ? ['--dry-run'] : [], {
+      CF_ROLLBACK_TAG: TAGS[3], CF_KEEP_BACKUPS: '1',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`Keeping 2: ${TAGS[0]} ${TAGS[3]}`);
+    expect(result.stdout).toContain(`Removing 2: ${TAGS[1]} ${TAGS[2]}`);
+    expect(host.removed()).toEqual(dryRun ? [] : [
+      `${REPOSITORY}:${TAGS[1]}`, `${REPOSITORY}:${TAGS[2]}`,
+    ]);
+    for (const family of families) {
+      expect(host.remoteFiles()).toContain(`${family}.bak-before-${TAGS[0]}`);
+      expect(host.remoteFiles()).toContain(`${family}.bak-before-${TAGS[3]}`);
+      expect(host.remoteFiles()).toContain(family);
+    }
+    if (dryRun) expect(host.remoteFiles()).toEqual(before);
+  });
+
+  test.each(['', 'missing', TAGS[0], 'foreign/repo:tag'])('unknown or unsafe rollback %s removes nothing', (rollback) => {
+    host = hostWithFourTags();
+    const result = host.run(SCRIPT, [], { CF_ROLLBACK_TAG: rollback });
+    expect(result.status).not.toBe(0);
+    expect(host.removed()).toEqual([]);
   });
 
   test('an image from another repository stops the step before anything is removed', () => {
@@ -259,7 +289,7 @@ describe('running the script against a fake host', () => {
     host = hostWithFourTags({
       runningImage: 'ghcr.io/maslennikov-ig/some-other-product:dddd00000004',
     });
-    const result = host.run(SCRIPT);
+    const result = host.run(SCRIPT, [], { CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('some-other-product');
@@ -270,7 +300,7 @@ describe('running the script against a fake host', () => {
     host = hostWithFourTags({
       runningImage: `${REPOSITORY}@sha256:${'0'.repeat(64)}`,
     });
-    const result = host.run(SCRIPT);
+    const result = host.run(SCRIPT, [], { CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(1);
     expect(host.removed()).toEqual([]);
@@ -278,7 +308,7 @@ describe('running the script against a fake host', () => {
 
   test('an unhealthy container removes nothing', () => {
     host = hostWithFourTags({ health: 'unhealthy' });
-    const result = host.run(SCRIPT);
+    const result = host.run(SCRIPT, [], { CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("cf-next-app is 'unhealthy'");
@@ -290,7 +320,7 @@ describe('running the script against a fake host', () => {
       extraFiles: TAGS.map((tag) => `.env.bak-before-${tag}`),
     });
     const before = host.remoteFiles();
-    const result = host.run(SCRIPT, ['--dry-run']);
+    const result = host.run(SCRIPT, ['--dry-run'], { CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(0);
     expect(host.removed()).toEqual([]);
@@ -310,7 +340,7 @@ describe('running the script against a fake host', () => {
     host = hostWithFourTags({
       extraFiles: TAGS.map((tag) => `.env.bak-before-${tag}`),
     });
-    const result = host.run(SCRIPT, [], { CF_KEEP_BACKUPS: '1' });
+    const result = host.run(SCRIPT, [], { CF_KEEP_BACKUPS: '1', CF_ROLLBACK_TAG: TAGS[1] });
 
     expect(result.status).toBe(0);
     const remaining = host.remoteFiles();

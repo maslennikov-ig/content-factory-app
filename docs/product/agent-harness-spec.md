@@ -1524,3 +1524,14 @@ Owner items: the paid stand calls for the spike and before each release, the can
 - **W6 — proof and closing.** Recorded scenario suite; live stand run and its fix wave; the
   CopilotKit leftovers (post-editor helper) decided and the dependency removed; help and docs
   (D9); owner walk; releases as listed above.
+
+### Adaptation before channel scheduling — 8 October 2026
+
+Fresh owned A1 found that a reserve channel with no posting times lost paid
+generated text in the generator's preliminary organization-wide slot search
+(`content-factory-next-0qgn.23`). With the Content Factory plan store, generation
+now produces a draft first. The existing locked per-channel placement runs after
+persistence. If no valid time or reusable future reservation exists, the saved
+adaptation remains an unscheduled draft with an actionable note; no queue or
+publication is claimed. Valid reserve/autopilot placement, consent, replacement
+and the ordinary legacy generator path retain their contracts.

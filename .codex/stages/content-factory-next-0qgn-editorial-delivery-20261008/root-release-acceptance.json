@@ -1,0 +1,338 @@
+{
+  "boundary": "authorized bounded push/merge/deploy .20; original EPIC not accepted/closed",
+  "acceptedAt": "2026-10-08T17:21:00.257362+00:00",
+  "privateCodeCommit": "5ab9548af74fd98c7100f967d9ad220e1f36ae89",
+  "originalSourceCommit": "9ca4f7855f8c11df1080e7b8274b33528276e6af",
+  "publicCommit": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+  "registry": "ghcr.io/maslennikov-ig/content-factory-next",
+  "registryDigest": "sha256:27abb02a316940d4a0df8ce75080067272aaa9ef97039e5033cb10cf5fcf99cb",
+  "imageConfig": "sha256:b0a30d6627a34911bd57e31ffe6cd4c24b7b3bd6b86833f5e4cbfb59ca065201",
+  "runtime": {
+    "Id": "677777cad0bbafa58be96b41dfbd4b8383c87f76244bab54efbae6d9fc00043a",
+    "Image": "sha256:b0a30d6627a34911bd57e31ffe6cd4c24b7b3bd6b86833f5e4cbfb59ca065201",
+    "RestartCount": 0,
+    "imageTag": "ghcr.io/maslennikov-ig/content-factory-next:4a8e57d96545",
+    "state": "running",
+    "health": "healthy",
+    "startedAt": "2026-10-08T17:09:09.574328717Z"
+  },
+  "rollback": {
+    "imageTag": "ghcr.io/maslennikov-ig/content-factory-next:f26f751445a8",
+    "imageConfig": "sha256:15b9bdeb72a42d1bb49640c017d41cfddd78265136d83ed87d2082c705dae019",
+    "retainedOnHost": true,
+    "previousRuntimeSnapshot": {
+      "Id": "ad3ae5f425e9314b23bffc52bc06fce2139f43e51c76cb1634231daeb0769493",
+      "Image": "sha256:15b9bdeb72a42d1bb49640c017d41cfddd78265136d83ed87d2082c705dae019",
+      "RestartCount": 0,
+      "imageTag": "ghcr.io/maslennikov-ig/content-factory-next:f26f751445a8",
+      "state": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-07T04:50:52.725068537Z"
+    },
+    "note": "Previous runtime snapshot is historical; retained image is available for rollback, not a second running app."
+  },
+  "suite": {
+    "commit": "5ab9548af74fd98c7100f967d9ad220e1f36ae89",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-08T16:41:42Z",
+    "jest": {
+      "suites": "Test Suites: 627 passed, 627 total",
+      "tests": "Tests:       9 skipped, 11508 passed, 11517 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 122",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "additionalChecks": {
+    "frontendTypes": {
+      "exitCode": 0,
+      "log": "frontend-types.actual.log"
+    },
+    "orchestratorTypes": {
+      "exitCode": 0,
+      "log": "orchestrator-types.actual.log"
+    },
+    "branding": {
+      "exitCode": 0,
+      "log": "brand.actual.log"
+    },
+    "documentation": {
+      "exitCode": 0,
+      "log": "docs.actual.log"
+    }
+  },
+  "privateBuildAndBackendTypesAndProcess": {
+    "exitCode": 0,
+    "logs": [
+      "private-build-final.actual.log",
+      "backend-types.actual.log",
+      "process.actual.log"
+    ]
+  },
+  "imageUnitChecks": {
+    "suites": 2,
+    "passed": 154,
+    "log": "image-affected-unit.actual.log",
+    "network": "none",
+    "realModelCalls": 0
+  },
+  "imageNginxAndCommandsHelp": {
+    "exitCode": 0,
+    "logs": [
+      "image-nginx.actual.log",
+      "image-help.actual.log"
+    ]
+  },
+  "imageSourcePins": {
+    "publicCommit": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+    "privateSource": "5ab9548af74fd98c7100f967d9ad220e1f36ae89",
+    "sourceManifest": {
+      "commit": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+      "shortCommit": "4a8e57d96545",
+      "archive": "content-factory-source.tar.gz",
+      "downloadName": "content-factory-4a8e57d96545.tar.gz",
+      "bytes": 12461150,
+      "sha256": "436e061ad4648e79698d8bf014cdf882c97e17ae7ba1e2a0cff12b9815d1f610",
+      "builtAt": "2026-10-08T16:44:47Z"
+    },
+    "hashes": {
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/core-write.ts": "0161f65847eebc0d81f28453a8f391dec3c8b584d4c36c05e9025c892183b45c",
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "f0dd0b9fb561eeda32dcaa8fb23db2947ed048a93416f897d840a775f389fd8e",
+      "libraries/nestjs-libraries/src/content-intelligence/text-quality/audience-remark.ts": "13063cc66ee9c35a5937fd0820fa9e2fc7b68f5dc459b9e18954aedc71c728eb",
+      "apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx": "a2ad80662abc7e8e8f3a6365002777df81f2b0af5752f3025fac9764ac419028",
+      "apps/backend/dist/apps/backend/src/main.js": "fd7751c423ecc2ba04328e3b97da9c5099d723d4e0e6c5a436db075ada1b7be8",
+      "apps/orchestrator/dist/apps/orchestrator/src/main.js": "9edb1d6539d5df7b04097fd0056fe22dbecfcc02c89c5ea2031ee5f3e13ca63e",
+      "var/source/content-factory-source.tar.gz": "436e061ad4648e79698d8bf014cdf882c97e17ae7ba1e2a0cff12b9815d1f610"
+    },
+    "archiveByteExact": true,
+    "modelOrNetworkCalls": 0
+  },
+  "deployedSourcePins": {
+    "runtime": {
+      "Id": "677777cad0bbafa58be96b41dfbd4b8383c87f76244bab54efbae6d9fc00043a",
+      "Image": "sha256:b0a30d6627a34911bd57e31ffe6cd4c24b7b3bd6b86833f5e4cbfb59ca065201",
+      "RestartCount": 0,
+      "imageTag": "ghcr.io/maslennikov-ig/content-factory-next:4a8e57d96545",
+      "state": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-08T17:09:09.574328717Z"
+    },
+    "hashes": {
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/core-write.ts": "0161f65847eebc0d81f28453a8f391dec3c8b584d4c36c05e9025c892183b45c",
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "f0dd0b9fb561eeda32dcaa8fb23db2947ed048a93416f897d840a775f389fd8e",
+      "libraries/nestjs-libraries/src/content-intelligence/text-quality/audience-remark.ts": "13063cc66ee9c35a5937fd0820fa9e2fc7b68f5dc459b9e18954aedc71c728eb",
+      "apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx": "a2ad80662abc7e8e8f3a6365002777df81f2b0af5752f3025fac9764ac419028",
+      "apps/backend/dist/apps/backend/src/main.js": "fd7751c423ecc2ba04328e3b97da9c5099d723d4e0e6c5a436db075ada1b7be8",
+      "apps/orchestrator/dist/apps/orchestrator/src/main.js": "9edb1d6539d5df7b04097fd0056fe22dbecfcc02c89c5ea2031ee5f3e13ca63e",
+      "var/source/content-factory-source.tar.gz": "436e061ad4648e79698d8bf014cdf882c97e17ae7ba1e2a0cff12b9815d1f610"
+    },
+    "imageCodeAndExecutableBundlesExact": true
+  },
+  "schemaBefore": {
+    "exitCode": 0,
+    "schemaApplied": false,
+    "newImage": "ghcr.io/maslennikov-ig/content-factory-next:4a8e57d96545",
+    "statementCount": 0,
+    "stderrPresent": false
+  },
+  "schemaAfter": {
+    "exitCode": 0,
+    "schemaApplied": false,
+    "newImage": "ghcr.io/maslennikov-ig/content-factory-next:4a8e57d96545",
+    "statementCount": 0,
+    "stderrPresent": false
+  },
+  "databasesBeforeAfterExact": true,
+  "containerPreservation": {
+    "changed": {
+      "cf-next-app": {
+        "before": "ad3ae5f425e9",
+        "after": "677777cad0bb"
+      }
+    },
+    "otherContainersPreserved": 21
+  },
+  "http": {
+    "/api/": {
+      "status": 200,
+      "bytes": 15
+    },
+    "/auth/login": {
+      "status": 200,
+      "bytes": 29965
+    },
+    "/api/public/source": {
+      "status": 200,
+      "bytes": 2120
+    },
+    "/api/public/source/version": {
+      "status": 200,
+      "bytes": 115,
+      "version": {
+        "commit": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+        "shortCommit": "4a8e57d96545",
+        "builtAt": "2026-10-08T16:44:47Z"
+      }
+    },
+    "/api/public/source/archive": {
+      "status": 200,
+      "bytes": 12461150,
+      "sha256": "436e061ad4648e79698d8bf014cdf882c97e17ae7ba1e2a0cff12b9815d1f610"
+    }
+  },
+  "pm2": [
+    {
+      "name": "backend",
+      "pid": 25,
+      "status": "online",
+      "restarts": 0,
+      "script": "/app/apps/backend/dist/apps/backend/src/main.js"
+    },
+    {
+      "name": "orchestrator",
+      "pid": 26,
+      "status": "online",
+      "restarts": 0,
+      "script": "/app/apps/orchestrator/dist/apps/orchestrator/src/main.js"
+    },
+    {
+      "name": "frontend",
+      "pid": 37,
+      "status": "online",
+      "restarts": 0,
+      "script": "/app/node_modules/next/dist/bin/next"
+    }
+  ],
+  "publicCi": [
+    {
+      "conclusion": "success",
+      "databaseId": 37811093853,
+      "headSha": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+      "name": "Code Quality Analysis",
+      "status": "completed",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/37811093853"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37811093809,
+      "headSha": "4a8e57d965450e60b6aa0738737e92e71acfd628",
+      "name": "Build",
+      "status": "completed",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/37811093809"
+    }
+  ],
+  "ownedCleanup": {
+    "temporaryRemoteSchemaEngineRemoved": true,
+    "temporaryLocalCommandEnvRemoved": true,
+    "applicationEnvironmentChanged": false,
+    "imageRetentionDestructiveRun": false,
+    "unrelatedWorktreesOrContainersRemoved": false
+  },
+  "hostFreeBytesAfter": 12792868864,
+  "retention": "dry-run only; would remove actual rollbackf26, so destructive retention skipped; enough current capacity",
+  "newModelCalls": 0,
+  "providerProseLatencyInvoiceQuality": "not measured or claimed",
+  "protectedRuntimeFilesExact": 1054,
+  "pendingFollowups": [
+    "content-factory-next-0qgn.21",
+    "content-factory-next-0qgn.22"
+  ],
+  "pendingSearchAndStyle": [
+    "content-factory-next-0qgn.10",
+    "content-factory-next-0qgn.10.1",
+    "content-factory-next-0qgn.10.2",
+    "content-factory-next-0qgn.17"
+  ],
+  "epicStatus": "in_progress",
+  "rootAcceptanceMethod": "configured release checks executed directly once to matching success; exact receipt/image/runtime proof reused; no redundant broad rerun",
+  "docsReviewed": "updated: current deploy/runbook/handoff and source editorial contract",
+  "graphReviewed": "used: prior bounded source-stage exact caller orientation; only writer implementation changed, no new module/API/entrypoint or graph backend",
+  "beadsCloseout": {
+    "originalEpicFieldsUnchanged": true,
+    "originalEpicStatus": "in_progress",
+    "tasks": [
+      {
+        "id": "content-factory-next-0qgn.20",
+        "title": "Выложить комплексную правку и сохранение текста адаптаций",
+        "status": "closed",
+        "labels": [
+          "delivered",
+          "orchestration",
+          "scope-preserved",
+          "short-stages-by-owner"
+        ],
+        "close_reason": "Authorized Push/Merge/Deploy completed: tested private5ab, public/live4a8e57d96545; required release and runtime checks pass; rollback retained; bounded operational defers .21/.22 recorded; original EPIC remains open."
+      },
+      {
+        "id": "content-factory-next-0qgn.21",
+        "title": "Явно закреплять рабочую версию отката при очистке релизных образов",
+        "status": "open",
+        "labels": [
+          "awaiting-next-stage-selection",
+          "bounded-followup",
+          "delivery-safety",
+          "orchestration",
+          "scope-preserved",
+          "short-stages-by-owner"
+        ],
+        "close_reason": null
+      },
+      {
+        "id": "content-factory-next-0qgn.22",
+        "title": "Сделать проверку схемы воспроизводимой из чистого релизного образа",
+        "status": "open",
+        "labels": [
+          "awaiting-next-stage-selection",
+          "bounded-followup",
+          "delivery-safety",
+          "orchestration",
+          "scope-preserved",
+          "short-stages-by-owner"
+        ],
+        "close_reason": null
+      },
+      {
+        "id": "content-factory-next-0qgn.17",
+        "title": "Проверить упрощение анализа стиля без потери качества",
+        "status": "open",
+        "labels": [
+          "awaiting-next-stage-selection",
+          "next-bounded-stage-required",
+          "orchestration",
+          "owner-human-review",
+          "owner-low-cognitive-load",
+          "product-simplification",
+          "scope-preserved",
+          "short-stages-by-owner"
+        ],
+        "close_reason": null
+      },
+      {
+        "id": "content-factory-next-0qgn.10",
+        "title": "Обеспечить релевантность и заданную дату поисковых источников",
+        "status": "in_progress",
+        "labels": [
+          "citation-guards-local-only",
+          "free-translation-selected",
+          "next-bounded-stage-required",
+          "orchestration",
+          "owner-quality-first",
+          "scope-preserved",
+          "semantic-validation-required"
+        ],
+        "close_reason": null
+      }
+    ]
+  },
+  "documentationCloseout": {
+    "docsCheck": 0,
+    "processVerification": 0,
+    "gitDiffCheck": 0,
+    "codeInputsUnchangedFromPrivateCodeCommit": true,
+    "processLog": "evidence/process-closeout.actual.log"
+  },
+  "continuousGoal": null
+}

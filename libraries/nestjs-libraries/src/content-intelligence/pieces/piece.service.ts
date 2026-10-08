@@ -693,6 +693,10 @@ type QueuePostLike = {
 };
 
 const PLAN_NOTES = {
+  unscheduledDraft: {
+    ru: 'У канала пока нет расписания. Текст сохранён черновиком; добавьте время, чтобы поставить его в план.',
+    en: 'The channel has no posting times yet. The text was saved as a draft; add a time to place it in the plan.',
+  },
   noTimes: {
     ru: 'У канала не задано время публикации, поэтому автопилот не поставил версию в очередь.',
     en: 'The channel has no posting times, so the autopilot did not queue this version.',
@@ -1577,7 +1581,10 @@ export class PieceService {
           organizationId,
           plan.pieceId,
           plan.channel.id
-        )) === 'draft';
+        )) === 'draft' || !!this.planStore();
+      // CF persists the text before its locked per-channel placement below.
+      // A missing slot must not discard an already paid generation. The
+      // ordinary generator path without this plan store keeps its contract.
       for await (const event of this.generator.start(
         organizationId,
         request as any,
@@ -1695,9 +1702,8 @@ export class PieceService {
     const versionId = trimmed(output.brandProfileVersionId) || null;
 
     /*
-      Без плана генератор не ищет слот: дата DRAFT ниже — существующее
-      хранилищное время, а не время публикации. Для остальных режимов остаётся
-      предварительное свободное время области. Место в плане канала (`97dq.57`)
+      При наличии хранилища плана генератор не ищет слот: дата DRAFT ниже —
+      хранилищное время, а не обещание публикации. Место в плане канала (`97dq.57`)
       решается следом, под коротким замком и с новым чтением режима; Temporal
       — после фиксации (N2).
     */
@@ -2272,6 +2278,17 @@ export class PieceService {
 
         let note: string | null = null;
         let effects = NO_EFFECTS;
+        if (!date) {
+          const note = PLAN_NOTES.unscheduledDraft[language];
+          await db.setPlan(organizationId, adaptationId, {
+            plan: 'draft',
+            planNote: note,
+          });
+          return {
+            plan: { status: 'draft', date: null, autopilot: false, current: true, note },
+            effects: NO_EFFECTS,
+          };
+        }
         if (mode === 'autopilot' && !queueAllowed) {
           // The mode read under the lock is autopilot, and nobody consented
           // to the queue on this call: a reserve with the reason (W2 F2).

@@ -770,7 +770,7 @@ describe('actual PieceService -> compiled graph -> owned draft save', () => {
   });
 
   test.each(['reserve', 'autopilot'])(
-    '%s with empty times finishes with validation/error, no false save/done',
+    '%s with empty times preserves generated prose as an honest unscheduled draft',
     async (mode) => {
       const fixture = channelFixture({ mode });
       const { events, failure } = await adapt(fixture, {
@@ -778,39 +778,43 @@ describe('actual PieceService -> compiled graph -> owned draft save', () => {
         options: { isPicture: false, draftOnly: true },
       });
       expect(failure).toBeNull();
-      expect(events.find((event) => event.name === 'error')?.message).toMatch(
-        /posting/i
-      );
-      expect(
-        events.find((event) => event.name === 'adaptation')
-      ).toBeUndefined();
-      expect(fixture.calls.draft).toHaveLength(0);
-      expect(fixture.calls.adaptation).toHaveLength(0);
+      expect(events.filter((event) => event.name === 'error')).toEqual([]);
+      const saved = events.find((event) => event.name === 'adaptation')?.adaptation;
+      expect(saved).toMatchObject({ state: 'draft', date: null, plan: {
+        status: 'draft', date: null, autopilot: false,
+      } });
+      expect(saved.plan.note).toMatch(/время|расписани/);
+      expect(fixture.calls.draft).toHaveLength(1);
+      expect(fixture.calls.adaptation).toHaveLength(1);
+      expect(fixture.posts.get('post-a').state).toBe('DRAFT');
+      expect(fixture.variants[0].plan).toBe('draft');
+      expect(fixture.calls.draft[0].content).toContain('Канбан');
+      expect(fixture.scheduler.calls.integrations).toHaveLength(0);
       expect(fixture.scheduler.calls.posts).toHaveLength(0);
-      expect(fixture.calls.starts[0][2]?.draftOnly).not.toBe(true);
+      expect(fixture.calls.starts[0][2]).toEqual({ draftOnly: true });
       assertSingleGeneration(fixture.calls);
     }
   );
 
   test.each(['reserve', 'autopilot'])(
-    '%s with malformed times refuses without a false adaptation',
+    '%s with malformed times saves prose without claiming a reservation',
     async (mode) => {
       const fixture = channelFixture({ mode, raw: '{' });
       const { events, failure } = await adapt(fixture);
       expect(failure).toBeNull();
-      expect(events.find((event) => event.name === 'error')?.message).toBe(
-        'Invalid posting times.'
-      );
-      expect(
-        events.find((event) => event.name === 'adaptation')
-      ).toBeUndefined();
-      expect(fixture.calls.draft).toHaveLength(0);
+      expect(events.filter((event) => event.name === 'error')).toEqual([]);
+      expect(events.find((event) => event.name === 'adaptation')?.adaptation.plan)
+        .toMatchObject({ status: 'draft', date: null, autopilot: false });
+      expect(fixture.calls.draft).toHaveLength(1);
+      expect(fixture.posts.get('post-a').state).toBe('DRAFT');
+      expect(fixture.variants[0].plan).toBe('draft');
+      expect(fixture.scheduler.calls.integrations).toHaveLength(0);
       expect(fixture.scheduler.calls.posts).toHaveLength(0);
       assertSingleGeneration(fixture.calls);
     }
   );
 
-  test('own reserve override on draft channel retains preliminary slot search', async () => {
+  test('own reserve override on draft channel uses only the locked channel slot', async () => {
     const fixture = channelFixture({
       mode: 'draft',
       ownMode: 'reserve',
@@ -818,8 +822,8 @@ describe('actual PieceService -> compiled graph -> owned draft save', () => {
     });
     const { events, failure } = await adapt(fixture);
     expect(failure).toBeNull();
-    expect(fixture.scheduler.calls.integrations).toHaveLength(1);
-    expect(fixture.scheduler.calls.posts).toHaveLength(1);
+    expect(fixture.scheduler.calls.integrations).toHaveLength(0);
+    expect(fixture.scheduler.calls.posts).toHaveLength(0);
     expect(
       events.find((event) => event.name === 'adaptation')?.adaptation.plan
         .status

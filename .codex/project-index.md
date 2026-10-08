@@ -1,7 +1,7 @@
 # Content Factory Project Index
 ## Current Programme
 - Beads owns current scope/status; `.codex/handoff.md` owns the operational snapshot.
-- Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it.
+- Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it. Completion-pass design: `stages/content-factory-next-0qgn-completion-20261008/plan.md`.
 - Reader quality/overengineering evidence: [bounded audit](stages/content-factory-next-0qgn-reader-semantic-control-20261008/overengineering-audit.md); current priorities and follow-ups remain in Beads.
 - Product simplification evidence: [voice/core/editorial audit](stages/content-factory-next-0qgn-product-simplification-20261008/audit.md); source comparison beside it, implementation follow-ups in Beads.
 - Core/adaptation editorial simplification: [bounded source plan](../docs/superpowers/plans/2026-10-08-content-editorial-simplification.md); behavior in `pieces/core-write.ts`/`piece.service.ts`, local acceptance under `stages/content-factory-next-0qgn-editorial-simplification-20261008/`. Delivery scope/status stays in Beads.
@@ -127,6 +127,7 @@
 
 ## Verification
 
+- Editorial delivery proof: `.codex/stages/content-factory-next-0qgn-editorial-delivery-20261008/root-release-acceptance.json`; current host version lives in handoff/runbook, statuses in Beads.
 - Runtime selection: `nvm use` then `node --version` and `pnpm --version`.
 - Dependency baseline: `pnpm install --frozen-lockfile`.
 - Build: `pnpm run build`; tests: `pnpm test`; repository checks: `git diff --check` and `scripts/orchestration/run_process_verification.sh`.

@@ -1,0 +1,20 @@
+{
+  "ops": {
+    "deliveredCommit": "9bd7b438b5bfa81d1a545ea8941a87c7de2784c3",
+    "focusedTestsPassed": 45,
+    "acceptance": "source accepted for integration; host preflight/retention remains root-owned",
+    "cleanup": "only owned temporary test resources; worktree/history retained"
+  },
+  "style": {
+    "deliveredCommit": "e23ac0095d3feaa0fb7c50740ccf7f68ca5be014",
+    "acceptance": "INCONCLUSIVE -> RETAIN_CURRENT under explicit .17 criterion; no batch-quality claim, no app/default/profile change",
+    "checks": "4 source/4 historical receipt pins and scoped links/diff; new-worktree ignored historical cfiz receipt absent, no new broken link",
+    "cleanup": "no external/DB/model resources; worktree/history retained"
+  },
+  "search": {
+    "deliveredCommit": "a1a9c8dd87c2761392ed6c8a5d04254714253cfb",
+    "focusedChecks": "14 suites/524 passed, final backend types/diff; legacy4 modules/31 pure cases retained",
+    "acceptance": "source accepted for integration; root fresh model/retrieval/release remains pending",
+    "cleanup": "no live/model/DB resources; original historical wire/ledger and worktree preserved"
+  }
+}

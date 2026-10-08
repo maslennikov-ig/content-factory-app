@@ -888,14 +888,11 @@ describe('сводка веб-поиска говорит на языке чит
       undefined,
       'provider answers are not source evidence'
     );
-    const exactSubject = evidence.catalogue?.version === 'v6'
-      ? evidence.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
-      : evidence.subject;
-    assert.equal(exactSubject, original.subject);
-    assert.match(evidence.sources[0][4].join(''), /4 пользователя 1С/);
-    assert.match(evidence.sources[0][4].join(''), /10 190/);
-    assert.match(input.reviewRequest, /prices, bundles/);
-    assert.match(input.reviewRequest, /concise complete Russian claims/);
+    assert.equal(evidence.subject, original.subject);
+    assert.match(evidence.sources[0].excerpt, /4 пользователя 1С/);
+    assert.match(evidence.sources[0].excerpt, /10 190/);
+    assert.match(input.reviewRequest, /numbers, units, prices, dates/);
+    assert.match(input.reviewRequest, /concise research answer in Russian/);
   });
 
   test.each([
@@ -999,7 +996,7 @@ describe('сводка веб-поиска говорит на языке чит
     }
   );
 
-  test('пустой ответ с цитируемыми фактами покупает одну сводку для читателя', async () => {
+  test('пустой ответ покупает одну сводку; неподтвержденный год в ней остается видимой оговоркой', async () => {
     searchAnswer.answer = '  ';
 
     const result = await new WebResearchService(aiUsage).research(
@@ -1008,11 +1005,13 @@ describe('сводка веб-поиска говорит на языке чит
       { language: 'ru', readerResponse: true }
     );
 
-    assert.equal(result.summary, summaryResult.summary);
+    assert.ok(result.summary.startsWith(summaryResult.summary));
+    assert.match(result.summary, /не найдены числа: 2026/);
+    assert.equal(result.readerAssessment.status, 'partial');
     assert.equal(summaryCalls().length, 1);
     assert.equal(chatModelCalls.length, 2);
     assert.equal(result.sources.length, 1);
-    assert.equal(result.facts.length, 1);
+    assert.equal(result.facts.length, 0);
   });
 
   test('пустой ответ без цитируемых фактов не вызывает модель сводки', async () => {
