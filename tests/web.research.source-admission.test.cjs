@@ -443,12 +443,12 @@ describe('source-only reader summary and spend', () => {
     const evidence = JSON.parse(
       input.reviewRequest.split('Untrusted reader evidence:\n')[1]
     );
-    expect(input.reviewRequest).toMatch(/concise complete Russian claims/i);
+    expect(input.reviewRequest).toMatch(/concise complete Russian claims/);
     expect(evidence.answers).toBeUndefined();
     expect(evidence.sources).toHaveLength(5);
     expect(
       evidence.sources.every(
-        (row) => (Array.isArray(row[4]) ? row[4] : row[4].split(evidence.partSeparator)).join('').length > 0 && (Array.isArray(row[4]) ? row[4] : row[4].split(evidence.partSeparator)).join('').length <= 3_000
+        (row) => row[4].join('').length > 0 && row[4].join('').length <= 3_000
       )
     ).toBe(true);
     expect(Buffer.byteLength(JSON.stringify(evidence))).toBeLessThanOrEqual(
@@ -546,7 +546,7 @@ describe('source-only reader summary and spend', () => {
     expect(result.readerAssessment.evidence[0].url).toBe(
       result.facts[0].sourceUrl
     );
-    expect((Array.isArray(evidence.sources[0][4]) ? evidence.sources[0][4] : evidence.sources[0][4].split(evidence.partSeparator)).join('')).toBe(result.facts[0].text);
+    expect(evidence.sources[0][4].join('')).toBe(result.facts[0].text);
     expect(calls.search).toHaveLength(1);
     expect(calls.model).toHaveLength(2);
   });
@@ -630,7 +630,7 @@ describe('source-only reader summary and spend', () => {
     });
     expect(result.summary).toBe(summaryOutput.summary);
     expect(summaryPrompts()[0].input.reviewRequest).toMatch(
-      /concise complete English claims/i
+      /concise complete English claims/
     );
     expect(calls.model).toHaveLength(2);
     expect(calls.search).toHaveLength(1);

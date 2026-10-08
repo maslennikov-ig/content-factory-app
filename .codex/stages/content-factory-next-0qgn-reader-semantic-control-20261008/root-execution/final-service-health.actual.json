@@ -1,0 +1,10 @@
+{
+  "id": "ad3ae5f425e9314b23bffc52bc06fce2139f43e51c76cb1634231daeb0769493",
+  "name": "/cf-next-app",
+  "image": "sha256:15b9bdeb72a42d1bb49640c017d41cfddd78265136d83ed87d2082c705dae019",
+  "tag": "ghcr.io/maslennikov-ig/content-factory-next:f26f751445a8",
+  "running": true,
+  "health": "healthy",
+  "restarts": 0,
+  "at": "2026-10-08T06:13:13.664363+00:00"
+}

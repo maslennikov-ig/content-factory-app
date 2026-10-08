@@ -1,0 +1,83 @@
+{
+  "audit_head": "5c02ba6303ce09d2cd34b3a96bdd7405fdc7cba5",
+  "previously_accepted_release": "f8fb8c727f8f744357026681575872e4f0a98bf2",
+  "evidence_boundary": "Current source inspection; exact Git release comparison, no fresh runtime/browser/model/latency acceptance",
+  "files": [
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/brand-voice/assist.pipeline.ts",
+      "matches_release": true,
+      "sha256": "dc5a8e4e899a07869731fb780d4cbd0722ce76f2d974e5a499b9c585c606fe11"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-assist.service.ts",
+      "matches_release": true,
+      "sha256": "09fe9087ba25bb85972b818d112ef78e5edfd0a102b3a1417acaee97c1cbf891"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/brand-voice/proposal-quotation-guard.ts",
+      "matches_release": true,
+      "sha256": "7c6ee0e7f3b2e40b950445e4a69c510f3e1308fc1f6210891a57d06c3d005197"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice.service.ts",
+      "matches_release": true,
+      "sha256": "db78ce903ac64eb089edefc4e4ca4d813020670a0f44c14db9f94530bf3a099d"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/pieces/core-write.ts",
+      "matches_release": true,
+      "sha256": "478c9662d12c5fd93b94b3597a39188a2366a25e4893fe370ffe651380cf6fd0"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/text-quality/audience-remark.ts",
+      "matches_release": true,
+      "sha256": "e8ad4db7d36037ef32a265ba9434d11ece5885ffbab1493dab872b4bb6ff4374"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/pieces/core-questions.ts",
+      "matches_release": true,
+      "sha256": "f688dd0046fc88720e062495d28138774407a817706387de2c89259d0b81db2a"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/pieces/adaptation-checks.ts",
+      "matches_release": true,
+      "sha256": "3e1017e83e8b5361f0845fd161ae7492a84aa3cdff2c8bf639da5f99558d0834"
+    },
+    {
+      "path": "apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx",
+      "matches_release": false,
+      "sha256": "c1b96b00eb0e4a19b63ea05ce50e4bef5814915bba250e4f20b7386d0248a432"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts",
+      "matches_release": true,
+      "sha256": "c580146a6ad0aebb850eafd0fcfc4248dcd31793b3d0eab3dc840bf5b2145b0c"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/content-intelligence/pieces/review.v3.ts",
+      "matches_release": true,
+      "sha256": "a88d4ed8280fd43294530672842ae0afdeeeb06b5c4c9705d22b07221a8f2025"
+    }
+  ],
+  "followups": [
+    {
+      "id": "content-factory-next-0qgn.17",
+      "title": "Быстрый профиль стиля; глубокий анализ по желанию",
+      "status": "open"
+    },
+    {
+      "id": "content-factory-next-0qgn.18",
+      "title": "Общий лимит автоматических переписей черновика",
+      "status": "open"
+    },
+    {
+      "id": "content-factory-next-0qgn.19",
+      "title": "Предлагать редакторские удаления вместо незаметной обрезки текста",
+      "status": "open"
+    }
+  ],
+  "original_epic_fields_preserved": true,
+  "graph_review": "stale primary46ec4108 orientation, exact current files confirmed; no refresh",
+  "model_calls_in_this_audit": 0,
+  "runtime_mutations_in_this_audit": 0
+}

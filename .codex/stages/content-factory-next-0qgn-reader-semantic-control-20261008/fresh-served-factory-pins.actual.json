@@ -1,0 +1,41 @@
+{
+  "status": "PASS_FRESH_SERVED_FACTORY_SOURCE_PINS",
+  "rows": [
+    {
+      "path": "libraries/helpers/src/auth/auth.service.ts",
+      "sha256": "40bcaf672908ddada2e0a4a381e71acdfd7c4fc31d111f7ca560b5fcab0ad7b3",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/helpers/src/auth/auth.service.ts",
+      "bytes": 2630
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.provider.config.ts",
+      "sha256": "85a49cb428df4b5f3b89785e5c13807d09ff9029e720d990220f23a2a1870a5a",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/nestjs-libraries/src/openai/ai.provider.config.ts",
+      "bytes": 28243
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.roles.ts",
+      "sha256": "0a50fb7e286380f8ff502dd87952b003b61b7da00480f11d1b8a5b39da13aff5",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/nestjs-libraries/src/openai/ai.roles.ts",
+      "bytes": 7381
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.search-tasks.ts",
+      "sha256": "9058c9c07e18f4a6286bb2293e3b5e97bf59c19d5ccfbb6be89a05d53a1b4858",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/nestjs-libraries/src/openai/ai.search-tasks.ts",
+      "bytes": 12863
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "sha256": "48bc009b2512f117b683d9965eff59e844c0198487e77a58dd3b6b5381e43a5a",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "bytes": 55672
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.clients.ts",
+      "sha256": "b12955bc5be032bfeeb5e704140b93104dc904a7af59489d183b683391d7820c",
+      "archiveEntry": "content-factory-f26f751445a8/libraries/nestjs-libraries/src/openai/ai.clients.ts",
+      "bytes": 31795
+    }
+  ]
+}

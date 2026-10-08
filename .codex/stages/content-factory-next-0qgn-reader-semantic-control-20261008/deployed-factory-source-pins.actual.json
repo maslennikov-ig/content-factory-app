@@ -1,0 +1,30 @@
+{
+  "privateSource": "f8fb8c727f8f744357026681575872e4f0a98bf2",
+  "publicSource": "f26f751445a813d56145cd4aad034d58817f716c",
+  "pins": [
+    {
+      "path": "libraries/helpers/src/auth/auth.service.ts",
+      "sha256": "40bcaf672908ddada2e0a4a381e71acdfd7c4fc31d111f7ca560b5fcab0ad7b3"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.provider.config.ts",
+      "sha256": "85a49cb428df4b5f3b89785e5c13807d09ff9029e720d990220f23a2a1870a5a"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.roles.ts",
+      "sha256": "0a50fb7e286380f8ff502dd87952b003b61b7da00480f11d1b8a5b39da13aff5"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.search-tasks.ts",
+      "sha256": "9058c9c07e18f4a6286bb2293e3b5e97bf59c19d5ccfbb6be89a05d53a1b4858"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "sha256": "48bc009b2512f117b683d9965eff59e844c0198487e77a58dd3b6b5381e43a5a"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/openai/ai.clients.ts",
+      "sha256": "b12955bc5be032bfeeb5e704140b93104dc904a7af59489d183b683391d7820c"
+    }
+  ]
+}

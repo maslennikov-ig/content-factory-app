@@ -1,0 +1,50 @@
+{
+  "status": "PASS_FRESH_INSTALLED_SDK_PINS",
+  "rows": [
+    {
+      "name": "@langchain/openai",
+      "version": "1.4.3",
+      "packageJsonSha256": "32aa96bff7ed5f29a26a6aa03587406bcc271a8c14fcfcb4720654b0282c3b68",
+      "files": [
+        {
+          "path": "dist/chat_models/base.cjs",
+          "sha256": "4ededab3f442891ad0e05e82815302b4011ed67a13af629352da690dbab5940d"
+        },
+        {
+          "path": "dist/chat_models/completions.cjs",
+          "sha256": "4b2adaaee47d9152a3434b3551eed98ad08d2eb6721b5af20be011639ab6df25"
+        }
+      ]
+    },
+    {
+      "name": "@langchain/core",
+      "version": "1.1.39",
+      "packageJsonSha256": "08078335c03b1c9caa762459a1d425b54dbe564b36501af36dd4d175775dd1d2",
+      "files": [
+        {
+          "path": "dist/prompts/chat.cjs",
+          "sha256": "9c33a166df60f1a8c3a026a34c60f10304e565ab683aa4512cea95b3cc920795"
+        },
+        {
+          "path": "dist/language_models/chat_models.cjs",
+          "sha256": "8169c82e398b1d41dc1a7bb3ed96a128cf76f1e01f7bf877727a58937a8bfa72"
+        },
+        {
+          "path": "dist/language_models/structured_output.cjs",
+          "sha256": "84b13687b92120d7647223047b5db70d73d9e8ac4b5e01a34a15b4c07d95c3e5"
+        }
+      ]
+    },
+    {
+      "name": "openai",
+      "version": "6.27.0",
+      "packageJsonSha256": "0bc352e06cbbc3a6400523a97b77868ac6b48ba5c13cce38d5fb1cabc34745d5",
+      "files": [
+        {
+          "path": "client.js",
+          "sha256": "eb33d1d409a611bbb4a5fec2bb1eeab2504cba6cf69d49fe4bcd1b324dbba8ac"
+        }
+      ]
+    }
+  ]
+}

@@ -888,14 +888,14 @@ describe('сводка веб-поиска говорит на языке чит
       undefined,
       'provider answers are not source evidence'
     );
-    const exactSubject = ['v10', 'v11'].includes(evidence.catalogue?.version) ? (Array.isArray(evidence.subjectParts) ? evidence.subjectParts : evidence.subjectParts.split(evidence.partSeparator)).join('') : ['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version)
+    const exactSubject = evidence.catalogue?.version === 'v6'
       ? evidence.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('')
       : evidence.subject;
     assert.equal(exactSubject, original.subject);
-    assert.match((Array.isArray(evidence.sources[0][4]) ? evidence.sources[0][4] : evidence.sources[0][4].split(evidence.partSeparator)).join(''), /4 пользователя 1С/);
-    assert.match((Array.isArray(evidence.sources[0][4]) ? evidence.sources[0][4] : evidence.sources[0][4].split(evidence.partSeparator)).join(''), /10 190/);
-    assert.match(input.reviewRequest, /prices.*bundles/);
-    assert.match(input.reviewRequest, /concise complete Russian claims/i);
+    assert.match(evidence.sources[0][4].join(''), /4 пользователя 1С/);
+    assert.match(evidence.sources[0][4].join(''), /10 190/);
+    assert.match(input.reviewRequest, /prices, bundles/);
+    assert.match(input.reviewRequest, /concise complete Russian claims/);
   });
 
   test.each([

@@ -1279,6 +1279,21 @@ describe('адаптация под канал', () => {
     );
   });
 
+  test.each([
+    ['ru', 'Первая мысль важна для команды. Этот пост предназначен для руководителей небольших команд. Вторая мысль остаётся частью публикации.'],
+    ['en', 'The first idea matters to the team. This post is aimed at small teams. The second idea remains part of the publication.'],
+  ])('stylistic phrases survive adaptation body, post and event (%s)', async (language, generated) => {
+    const { service, calls } = buildPieces({ generated });
+    const plan = await service.prepareAdapt(
+      'org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, language
+    );
+    const [written] = named(await drain(service.adapt('org-a', plan)), 'adaptation');
+    expect(written.adaptation.body).toBe(generated);
+    expect(calls.createAdaptation[0][1].body).toBe(generated);
+    expect(calls.createDraft[0][1].content).toBe(`<p>${generated}</p>`);
+    expect(modelCalls).toHaveLength(0);
+  });
+
   /**
    * Метки строк блока материала — не слова текста
    * (`content-factory-next-97dq.40`). Десятый заход 22.09.2026: Telegram

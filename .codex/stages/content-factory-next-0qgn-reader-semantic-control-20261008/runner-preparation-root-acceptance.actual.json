@@ -1,0 +1,31 @@
+{
+  "schema": "reader-control-runner-root-acceptance/v1",
+  "at": "2026-10-08T06:08:00.123Z",
+  "child": "reader_control_prepare",
+  "delivery": "accepted",
+  "rootGuards": {
+    "tests": 9,
+    "passed": 9,
+    "failed": 0,
+    "command": "Node22.23.2 --test control.test.cjs fixture.guard.test.cjs",
+    "toolChunk": "6d14a3"
+  },
+  "factoryRecompiledModules": 6,
+  "servedFactoryHashesMatched": 6,
+  "candidateRequestsRecreated": 3,
+  "liveSDKPackagesMatched": 3,
+  "liveSDKFilesMatched": 6,
+  "packetSha256": "943988853537b45b7ed2dfca6053d81902018e979dc397dc652d6f47db9fe48d",
+  "bundleSha256": "6b731f463c3fbce54ee10f642b866b80b4cc574e888bca5cd2d6382725b650f6",
+  "runnerSha256": {
+    "runtime.cjs": "9edb2478d17eb529f2fe2e49303e1f61e37df5134ac0434a038312acfbca3f0a",
+    "control.cjs": "8601b4990497f61e10abff03dbc3b7a008ba35946f1193b6942ba6c819c2ec5f"
+  },
+  "childCleanup": {
+    "removed": 0,
+    "targets": []
+  },
+  "sourceAcceptance": "54b81be24af66d6d1b4e7a9f42a43c8c7d8dc76a",
+  "modelCallsSoFar": 0,
+  "semanticAcceptance": "UNKNOWN"
+}

@@ -315,10 +315,8 @@ describe('P3-E: a post does not say whom it is for', () => {
     }
   });
 
-  test('the core’s meta-speech check sees it too, and the adaptation is cleaned before it is stored', () => {
+  test('the core’s meta-speech check recognizes the address for a model repair', () => {
     expect(meta.metaSpeechIn(WALK)).toEqual(['Эта мысль адресована небольшим командам']);
-    const service = source('libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts');
-    expect(service).toContain('withoutAudienceRemarks(text, { minLength: CHANNEL_MIN_IDEAL_LENGTH })');
   });
 });
 

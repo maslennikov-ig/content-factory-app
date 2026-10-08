@@ -98,73 +98,67 @@ that cannot fit whole subject/metadata returns `review_unavailable` before a
 model call. Existing explicit evidence acceptance stores the chosen bounded
 excerpt unchanged through its immutable tenant-scoped snapshot path.
 
-The current source candidate's generation wire is `reader-source-review-wire/v8`. The
-existing v5 producer is selected before invocation only when the complete v8
-catalogue exceeds unchanged bounds. Integrity or date-catalogue failures do
-not select a weaker producer. The choice adds no model call, and a v8 invocation
-never accepts a legacy wire. The scoped cache discriminator is
-`reader-source-review/v1:wire/v8`; tenant, route, task, language and TTL
-boundaries remain intact. This is the source contract, not a claim of delivery
-or fresh live usefulness. V7 release checks passed but all three original live
-searches failed at reader invocation with an unobserved upstream rejection
-reason. Production was rolled back to C22/v6, retaining both owner UI fixes.
-Every prior result stays bound to its release.
-
+The current internal generation wire is `reader-source-review-wire/v6`, with
+the existing v5 producer selected before invocation only if the new subject
+catalogue exceeds the unchanged bounds. This choice adds no model call and
+does not accept legacy output from a v6 invocation.
 Before the single review invocation, the server constructs at most 96 exact,
-unique contiguous anchors from those same presented excerpts. All complete
-civil dates have anchors accepted by the original date/token guards, or
-preparation becomes unavailable. UTF-16 cuts preserve code points and date
-tokens. Certified date-compatible core anchors may cover repeated dates;
-remaining date windows use a bounded suffix index and nearest different dates.
-Only optional bridges may be pruned for fit. No chosen excerpt is truncated
-and no date is silently omitted. Index work and retained strings are bounded.
+unique contiguous anchors from those same presented excerpts. The model sees
+a bounded catalogue with short IDs and lossless text parts; a shared six-column
+header removes duplicate metadata without removing any source text, dates or
+rules. Every complete civil date has an anchor accepted by the original date
+and adjacent-token guards, or the entire preparation becomes unavailable before
+the reader model. UTF-16 cuts preserve code points and complete date tokens.
+Already certified date-compatible core anchors can cover repeated identical
+dates; remaining date windows use a bounded suffix index and nearest different
+dates. Only optional bridges may be pruned for fit. This may reduce usable
+cross-part context; it cannot truncate the chosen excerpts or silently omit a
+date. Index work, date scanning and retained strings have explicit bounds.
 
-Each claim supplies a bounded `proofs` array. A group contains required
-`source`, numeric local `refs` and local `dates`. Reference0 and date0 refer only
-to that source's existing private anchors; they cannot select a different
-article's span. Up to two groups retain the original total two references
-and five dates. Every schema object property is required; source IDs are
-restricted to the actual catalogue and numeric indices have finite bounds.
-When all sources lack dates, the shared schema permits only an empty date array.
-The compiler rejects duplicate groups, dates absent from a source and indices
-missing from a source's shorter table, and checks all
-membership independently of the provider schema. Every otherwise-valid
-multi-source legacy proof remains representable; references are never moved,
-deduplicated or inferred. Provider rows encode `index:first:last[:dateIndex]`
-and retain all source text parts and original span/date boundaries.
+The model supplies source IDs instead of free quotations or coordinates. A frozen,
+request-owned catalogue retains the full SHA-256 digest; the wire echoes its
+128-bit content binding. Full input integrity, exact binding and strict ID
+membership are checked before lookup. Unknown IDs, missing fields, extra/free
+quotations, stale bindings and any invalid claim reject the whole wire. Server
+lookup supplies exact source quotations to the unchanged v4 compiler and then
+the v1/date/provenance validators with the explicit-interval consistency check.
+Entity anchors still contain the exact requested name occurrence. Older wire
+schemas and their explicit parsers
+remain available; the current service has no legacy-output fallback. Catalogue
+preparation and v5/v6 compilation expose only finite diagnostic enums, never IDs,
+bindings, quotations or raw model text. The scoped cache discriminator is
+`reader-source-review/v1:wire/v6`; existing tenant, route, task, language and
+TTL boundaries remain intact.
 
-Entities select `[first,last]` numeric query-part indices and a declared source
-or null. Query rows are `index:literal`, split at their first colon; their
-ordered literals reconstruct the exact original query. The indices map to the
-original trusted Q table. The server retains case, inflection, whitespace,
-punctuation and Unicode, and selects the shortest existing unique source
-anchor containing the literal name, with catalogue order breaking ties. A name
-absent from that declared source fails. Unknown/reversed/noninteger ranges,
-repeated names, spans over80 UTF-16 units and extra free names reject the review.
-Absence/unknown statuses still require null; supported claims still name the
-entity and cite the same source. Headlines alone remain context, not a dated
-financial claim. No normalization or new source span is admitted.
+V6 entities select contiguous first/last Q IDs from lossless parts of the
+original query. Provider rows are `Qid:literal`, separated at the first colon;
+their ordered literals reconstruct the whole query without a duplicate plain
+subject. The trusted original subject, source catalogue and date enums remain.
+The server renders the exact original substring, preserving
+inflection, case, whitespace, punctuation and Unicode. A private immutable
+request binding covers that table and the source catalogue. Unknown/reversed
+IDs, repeated names, spans exceeding 80 UTF-16 units, extra free names and
+foreign inputs reject the whole review; there is no normalization or repair.
+The rendered name passes through the unchanged v5/v4/v1 source and claim
+grounding checks. Up to 384 subject parts and their actual generation schema
+count toward the existing 21,000/25,000-byte limits; fixed rules/schema stay
+within 4,000 bytes. A larger catalogue uses v5 before the single invocation,
+preserving the full 5,000-unit query. See `reader-subject-anchors-spec.md`.
 
-A frozen request-owned catalogue retains the complete input digest and exposes
-its128-bit binding. Preparation binds the full source catalogue, original Q
-table and language. Full integrity, binding and membership are checked before
-lookup. Stale bindings, free quotations, extra fields and invalid claims reject
-the entire wire. Server lookup supplies the same private global K IDs to the
-unchanged v5/v4/v1 compilers and date/provenance validators, including the
-explicit-interval check. Legacy producers/parsers remain available. Preparation
-and compilation expose only finite diagnostics, now including
-`prepare_catalogue_v8` and `compile_wire_v8`, while retaining older stages;
-no raw paths, IDs, bindings,
-quotations or model text are exported. Nested proof-schema issues retain only
-the existing finite refs/dates family and issue code.
-
-Up to384 query parts and the actual generation schema count toward unchanged
-21,000/25,000-byte limits; fixed rules/schema remain within4,000 bytes. A
-bounds-only v5 choice preserves the full5,000-unit query before one invocation.
-See [source-bound proofs](reader-proof-binding-spec.md) for the current contract
-and [literal subject references](reader-subject-anchors-spec.md) for v6 history.
-The historical TG/RATE raw Q/K pairs were not retained, so these new guards
-cannot identify their particular failure or prove live usefulness.
+The provider generation schema restricts each claim's date reference to the
+current catalogue's `d` rows. Ordinary claim/entity references retain their
+existing full ID grammar. If no `d` rows exist, generation permits only empty
+date arrays. The reader must cite that date's source in the same claim's ordinary
+references; this source relationship remains enforced by the original compiler.
+The schema is derived from the immutable, request-bound catalogue, with no
+caller-supplied override. Its actual serialized bytes, rules and message envelope
+count toward the unchanged 25,000-byte ceiling; existing optional-bridge pruning
+uses that same schema, and the 21,000-byte evidence envelope is unchanged.
+Compilation, date parsing and final v1 validation remain authoritative and reject
+the entire invalid review. This narrows an observed invalid-output class; the
+selected IDs of the historical TG/RATE failures were not retained, so it does not
+prove their particular cause or fresh search usefulness. Existing finite failure
+diagnostic predicates remain unchanged; no extra raw-output parsing or retention is added.
 
 Offline retained TG/1C/RATE checks measure the actual current service schema,
 rules, HumanMessage serializer and validators against the exact captured reader

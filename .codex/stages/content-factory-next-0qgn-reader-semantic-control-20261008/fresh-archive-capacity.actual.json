@@ -1,0 +1,23 @@
+{
+  "archiveSha256": "570240d7b245680a5ca8f23ca2cde89111f25d31f3e31a03349d74a2d17c554b",
+  "archiveBytes": 12459335,
+  "node": "v22.23.2",
+  "uid": 0,
+  "cwd": "/app",
+  "stats": {
+    "BlockIO": "291MB / 19.4MB",
+    "CPUPerc": "16.00%",
+    "Container": "ad3ae5f425e9314b23bffc52bc06fce2139f43e51c76cb1634231daeb0769493",
+    "ID": "ad3ae5f425e9",
+    "MemPerc": "52.92%",
+    "MemUsage": "948.3MiB / 1.75GiB",
+    "Name": "cf-next-app",
+    "NetIO": "147MB / 188MB",
+    "PIDs": "102"
+  },
+  "capacityLines": [
+    "Filesystem        1-blocks        Used   Available Capacity Mounted on",
+    "/dev/vda3      84366438400 64770678784 15723384832      81% /",
+    "/dev/vda3      84366438400 64770678784 15723384832      81% /"
+  ]
+}

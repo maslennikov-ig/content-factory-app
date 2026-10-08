@@ -186,7 +186,6 @@ import {
 import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 import { editorHtml } from '../brief/editor-html';
 import { stripCitationLabels } from '../text-quality/citation-labels';
-import { withoutAudienceRemarks } from '../text-quality/audience-remark';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { linksOf } from '../intake/intake-kind';
 import { oneLine } from '../intake/intake.prompts';
@@ -1657,19 +1656,6 @@ export class PieceService {
     };
   }
 
-  /** Адаптация без фразы «этот пост адресован …», со следом в журнале. */
-  private withoutAudienceRemark(pieceId: string, text: string): string {
-    const cleaned = trimmed(
-      withoutAudienceRemarks(text, { minLength: CHANNEL_MIN_IDEAL_LENGTH })
-    );
-    if (cleaned !== trimmed(text)) {
-      this.logger.log(
-        `Adaptation of piece ${pieceId}: removed a sentence about its audience (${trimmed(text).length - cleaned.length} characters).`
-      );
-    }
-    return cleaned;
-  }
-
   /**
    * Черновик, строка происхождения и событие о них.
    *
@@ -1693,13 +1679,9 @@ export class PieceService {
     */
     const content = (output.content as any[])
       .map((item) => ({
-        // Нет и фразы о том, кому адресован текст (живой прогон W3, P3-E;
-        // разбор F3): адресат — строка брифа, в посте её не читают. Пост
-        // короче порога или пустой ради неё не режется.
-        content: this.withoutAudienceRemark(
-          plan.pieceId,
-          stripCitationLabels(trimmed(item?.content))
-        ),
+        // Technical citation labels stay out of the editor; meaningful
+        // sentences are preserved rather than silently edited by code (.19).
+        content: stripCitationLabels(trimmed(item?.content)),
         usedCitationIds: Array.isArray(item?.usedCitationIds)
           ? item.usedCitationIds.filter((id: unknown) => trimmed(id))
           : [],

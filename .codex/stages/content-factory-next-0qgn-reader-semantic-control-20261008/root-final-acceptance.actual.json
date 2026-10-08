@@ -1,0 +1,146 @@
+{
+  "schema": "reader-control-and-overengineering-root-closeout/v1",
+  "scope": "three fresh retained-input reader controls, followed by owner-directed bounded overengineering audit",
+  "stageCompleted": true,
+  "candidate": "54b81be24af66d6d1b4e7a9f42a43c8c7d8dc76a",
+  "ownerPriority": "useful readable good text; no academic clause-by-clause acceptance",
+  "logicalModelInvocations": 3,
+  "searchCalls": 0,
+  "additionalModelCallsAfterOwnerSteering": 0,
+  "additionalAgentsAfterOwnerSteering": 0,
+  "rootGuardTests": {
+    "passed": 9,
+    "failed": 0,
+    "receipt": "runner-preparation-root-acceptance.actual.json"
+  },
+  "terminalAttribution": {
+    "schema": "root-reader-control-terminal-attribution/v1",
+    "run": "6fc17611-cba5-4683-bfe3-ed64cbc5af4a",
+    "logicalInvocations": 3,
+    "terminalOwnRows": 3,
+    "pendingOwnUsage": 0,
+    "searchCalls": 0,
+    "reportedCostUsd": "0.00435948",
+    "cases": [
+      {
+        "case": "telegram-labeling",
+        "sdkTermination": [
+          "stop"
+        ],
+        "status": "succeeded",
+        "reportedCostUsd": "0.00140001",
+        "promptTokens": 4427,
+        "completionTokens": 4550,
+        "sharedAttemptCount": 1,
+        "compiled": false,
+        "compileRejections": [
+          {
+            "code": "entity_subject_quote",
+            "issue": null,
+            "match": null,
+            "reason": null
+          }
+        ],
+        "reasoningTokens": 4142,
+        "nonReasoningCompletionTokensBySubtraction": 408,
+        "requestedMaxTokens": 1200
+      },
+      {
+        "case": "1c-cloud",
+        "sdkTermination": [
+          "stop"
+        ],
+        "status": "succeeded",
+        "reportedCostUsd": "0.0010269",
+        "promptTokens": 4061,
+        "completionTokens": 3134,
+        "sharedAttemptCount": 1,
+        "compiled": true,
+        "compileRejections": [],
+        "reasoningTokens": 2552,
+        "nonReasoningCompletionTokensBySubtraction": 582,
+        "requestedMaxTokens": 1200
+      },
+      {
+        "case": "rate-summary",
+        "sdkTermination": [
+          "stop"
+        ],
+        "status": "succeeded",
+        "reportedCostUsd": "0.00193257",
+        "promptTokens": 5078,
+        "completionTokens": 6539,
+        "sharedAttemptCount": 1,
+        "compiled": false,
+        "compileRejections": [
+          {
+            "code": "entity_subject_quote",
+            "issue": null,
+            "match": null,
+            "reason": null
+          }
+        ],
+        "reasoningTokens": 6112,
+        "nonReasoningCompletionTokensBySubtraction": 427,
+        "requestedMaxTokens": 1200
+      }
+    ],
+    "invoiceReconciled": false,
+    "globalProviderCallCount": "UNKNOWN",
+    "rawWireRetainedBeforeCandidateCompile": true,
+    "sourceCandidate": "54b81be24af66d6d1b4e7a9f42a43c8c7d8dc76a",
+    "candidateDeployed": false,
+    "hardProviderTotalTokenCapVerified": false,
+    "tokenObservationBoundary": "Configured maxTokens1200 is preserved; provider completion counts include reasoning. The subtraction is a reported-usage calculation, not an independent tokenizer or invoice measurement."
+  },
+  "serviceAfter": {
+    "id": "ad3ae5f425e9314b23bffc52bc06fce2139f43e51c76cb1634231daeb0769493",
+    "name": "/cf-next-app",
+    "image": "sha256:15b9bdeb72a42d1bb49640c017d41cfddd78265136d83ed87d2082c705dae019",
+    "tag": "ghcr.io/maslennikov-ig/content-factory-next:f26f751445a8",
+    "running": true,
+    "health": "healthy",
+    "restarts": 0,
+    "at": "2026-10-08T06:13:13.664363+00:00"
+  },
+  "ownFixtureRetirement": {
+    "status": "OWN_FIXTURE_RETIRED",
+    "rowCount": 4,
+    "terminalUsageRows": 3,
+    "pendingOwnUsage": 0,
+    "usageHistoryPreserved": true,
+    "accessEnabled": false
+  },
+  "ownTemporaryCleanup": {
+    "status": "EXACT_OWN_TEMPORARY_FILES_REMOVED",
+    "files": 25,
+    "directories": 1,
+    "usageHistoryPreserved": true,
+    "appFilesChanged": false
+  },
+  "strictCandidateProtocolControl": "NO_GO: two entity_subject_quote rejections",
+  "productQualityObservation": "useful content remains; specific coverage/decision-date/quote gaps retained",
+  "independentReview": {
+    "agent": "reader_semantic_review",
+    "status": "interrupted_on_owner_steering",
+    "fullSemanticAcceptance": false,
+    "receivedFindings": "semantic-review/received-findings-root-record.md",
+    "deliveryAcceptedAs": "bounded diagnostic findings only",
+    "cleanupTargets": []
+  },
+  "audit": "overengineering-audit.md",
+  "nextBoundedTasks": [
+    "content-factory-next-0qgn.10.1",
+    "content-factory-next-0qgn.10.2"
+  ],
+  "epicClosed": false,
+  "originalTaskFieldsPreserved": true,
+  "deployment": false,
+  "fullSuite": false,
+  "newRetrieval": false,
+  "schemaOrBackupRestoration": false,
+  "continuousGoal": null,
+  "sourceIntegration": false,
+  "graph": "prior46ec4108 read-only orientation; exact files/source pins confirmed; no refresh boundary",
+  "docs": "plan steering, audit, received findings, handoff/index updated"
+}

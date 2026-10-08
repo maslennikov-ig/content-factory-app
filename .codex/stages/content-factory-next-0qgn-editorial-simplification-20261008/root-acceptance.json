@@ -1,0 +1,97 @@
+{
+  "boundary": "root-owned local source acceptance, no live model/provider/browser/DB/deploy proof",
+  "base": "a18f7eda31f962c5de644fe177b7640ac156465e",
+  "tasks": [
+    "content-factory-next-0qgn.18",
+    "content-factory-next-0qgn.19"
+  ],
+  "jest": {
+    "exit_code": 0,
+    "suites": 8,
+    "tests_passed": 274,
+    "log": "focused-final.actual.log",
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/core-write-v13.test.cjs tests/core-write-v15.test.cjs tests/core-write-v16.test.cjs tests/content-pieces.service.test.cjs tests/content-intake.service.test.cjs tests/agent-w3-final-recheck-fixes.test.cjs tests/agent-w3-review-fixes.test.cjs tests/agent-w3-walk-fixes.test.cjs --no-coverage"
+  },
+  "typescript": {
+    "exit_code": 0,
+    "log": "backend-types.actual.log",
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false"
+  },
+  "red": {
+    "exit_code": 1,
+    "failed": 5,
+    "passed": 146,
+    "log": "red.actual.log"
+  },
+  "code_and_test_hashes": {
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/core-write.ts": "0161f65847eebc0d81f28453a8f391dec3c8b584d4c36c05e9025c892183b45c",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "f0dd0b9fb561eeda32dcaa8fb23db2947ed048a93416f897d840a775f389fd8e",
+    "libraries/nestjs-libraries/src/content-intelligence/text-quality/audience-remark.ts": "13063cc66ee9c35a5937fd0820fa9e2fc7b68f5dc459b9e18954aedc71c728eb",
+    "tests/agent-w3-final-recheck-fixes.test.cjs": "3f64ded74ba6e6b2f56b9d281467938678059fd7b2b91eef68471130b8d07de6",
+    "tests/agent-w3-walk-fixes.test.cjs": "3c9124a3a6b3ffd8edfce21abbf5de0fb09e93377167611a2f0e3ee2f7c635aa",
+    "tests/content-pieces.service.test.cjs": "ec00e61339ba64c431e3356b678ea7b635962461d08bbd6f160ada5c597b167e",
+    "tests/core-write-v13.test.cjs": "e96dba7ed113c7c6a543a2c3cbfa102f7f06411f9406cb9b04fa3a6fb07f55ce"
+  },
+  "protected_style_and_prompt_files_unchanged": 86,
+  "graph_review": "used stale primary graph46ec4108 for exact caller orientation, no refresh/integration",
+  "new_subagents": 0,
+  "real_model_calls": 0,
+  "schema_changes": false,
+  "deployed": false,
+  "semantic_quality_and_latency": "not measured; bounded source behavior only",
+  "cases": [
+    "clean core: one logical invocation",
+    "copy plus meta: one combined repair, two total",
+    "repair introducing meta: no third invocation",
+    "empty/failed repair: first answer retained",
+    "more/longer copied spans: rejected repair, original decisions retained",
+    "accepted repair: only its decisions, missing decisions not inherited",
+    "residual audience phrase preserved in core",
+    "RU/EN adaptation content preserved in body/post/event",
+    "technical citation labels handled separately",
+    "no new mandatory user approvals or questions"
+  ],
+  "remaining": [
+    "not deployed",
+    "actual provider prose/latency/invoice not measured",
+    "profile field filters/sample coverage unchanged; .17 remains pending",
+    "search simplification .10.1/.10.2 outside this stage"
+  ],
+  "delivery_task": "content-factory-next-0qgn.20",
+  "original_epic_fields_preserved": true,
+  "github_sync": {
+    "triggers": [
+      {
+        "id": "content-factory-next-0qgn.18",
+        "exit_code": 0,
+        "result": "maslennikov-ig/content-factory-next: enqueued content-factory-next-0qgn.18",
+        "error": ""
+      },
+      {
+        "id": "content-factory-next-0qgn.19",
+        "exit_code": 0,
+        "result": "maslennikov-ig/content-factory-next: enqueued content-factory-next-0qgn.19",
+        "error": ""
+      },
+      {
+        "id": "content-factory-next-0qgn.20",
+        "exit_code": 0,
+        "result": "maslennikov-ig/content-factory-next: enqueued content-factory-next-0qgn.20",
+        "error": ""
+      },
+      {
+        "id": "content-factory-next-0qgn.17",
+        "exit_code": 0,
+        "result": "maslennikov-ig/content-factory-next: enqueued content-factory-next-0qgn.17",
+        "error": ""
+      },
+      {
+        "id": "content-factory-next-0qgn",
+        "exit_code": 0,
+        "result": "maslennikov-ig/content-factory-next: enqueued content-factory-next-0qgn",
+        "error": ""
+      }
+    ],
+    "remote_convergence": "not verified; Beads is authoritative"
+  }
+}

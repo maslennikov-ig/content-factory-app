@@ -1,0 +1,80 @@
+{
+  "schema": "root-reader-control-terminal-attribution/v1",
+  "run": "6fc17611-cba5-4683-bfe3-ed64cbc5af4a",
+  "logicalInvocations": 3,
+  "terminalOwnRows": 3,
+  "pendingOwnUsage": 0,
+  "searchCalls": 0,
+  "reportedCostUsd": "0.00435948",
+  "cases": [
+    {
+      "case": "telegram-labeling",
+      "sdkTermination": [
+        "stop"
+      ],
+      "status": "succeeded",
+      "reportedCostUsd": "0.00140001",
+      "promptTokens": 4427,
+      "completionTokens": 4550,
+      "sharedAttemptCount": 1,
+      "compiled": false,
+      "compileRejections": [
+        {
+          "code": "entity_subject_quote",
+          "issue": null,
+          "match": null,
+          "reason": null
+        }
+      ],
+      "reasoningTokens": 4142,
+      "nonReasoningCompletionTokensBySubtraction": 408,
+      "requestedMaxTokens": 1200
+    },
+    {
+      "case": "1c-cloud",
+      "sdkTermination": [
+        "stop"
+      ],
+      "status": "succeeded",
+      "reportedCostUsd": "0.0010269",
+      "promptTokens": 4061,
+      "completionTokens": 3134,
+      "sharedAttemptCount": 1,
+      "compiled": true,
+      "compileRejections": [],
+      "reasoningTokens": 2552,
+      "nonReasoningCompletionTokensBySubtraction": 582,
+      "requestedMaxTokens": 1200
+    },
+    {
+      "case": "rate-summary",
+      "sdkTermination": [
+        "stop"
+      ],
+      "status": "succeeded",
+      "reportedCostUsd": "0.00193257",
+      "promptTokens": 5078,
+      "completionTokens": 6539,
+      "sharedAttemptCount": 1,
+      "compiled": false,
+      "compileRejections": [
+        {
+          "code": "entity_subject_quote",
+          "issue": null,
+          "match": null,
+          "reason": null
+        }
+      ],
+      "reasoningTokens": 6112,
+      "nonReasoningCompletionTokensBySubtraction": 427,
+      "requestedMaxTokens": 1200
+    }
+  ],
+  "invoiceReconciled": false,
+  "globalProviderCallCount": "UNKNOWN",
+  "rawWireRetainedBeforeCandidateCompile": true,
+  "sourceCandidate": "54b81be24af66d6d1b4e7a9f42a43c8c7d8dc76a",
+  "candidateDeployed": false,
+  "hardProviderTotalTokenCapVerified": false,
+  "tokenObservationBoundary": "Configured maxTokens1200 is preserved; provider completion counts include reasoning. The subtraction is a reported-usage calculation, not an independent tokenizer or invoice measurement."
+}

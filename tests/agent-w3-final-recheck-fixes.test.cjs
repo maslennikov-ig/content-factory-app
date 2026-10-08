@@ -82,7 +82,7 @@ describe('F-3a: the audience is a brief line, never a sentence of the core or th
     }
   });
 
-  describe('the core written by the model passes through it (writeCoreWithDecisions)', () => {
+  describe('current writer preserves model content; repair belongs to the model (.18/.19)', () => {
     let responses = [];
     const modelCalls = [];
     const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, {
@@ -125,9 +125,13 @@ describe('F-3a: the audience is a brief line, never a sentence of the core or th
       modelCalls.length = 0;
     });
 
-    test('«Решите за меня» decided the audience: it is a decision, not a sentence, and costs no rewrite', async () => {
+    test('a residual audience phrase is retained verbatim after one model repair', async () => {
       const warn = jest.fn();
       responses = [
+        {
+          text: RECHECK_CORE,
+          decisions: [{ key: 'audience', text: 'Сотрудники, которые открывают кофейню и начинают утреннюю смену.' }],
+        },
         {
           text: RECHECK_CORE,
           decisions: [{ key: 'audience', text: 'Сотрудники, которые открывают кофейню и начинают утреннюю смену.' }],
@@ -138,13 +142,13 @@ describe('F-3a: the audience is a brief line, never a sentence of the core or th
         slopCheck: null,
         warn,
       });
-      expect(modelCalls).toHaveLength(1);
-      expect(core.text).not.toMatch(/обращаюсь/iu);
-      expect(core.text).toContain('\n\nКороткий список помогает быстро увидеть');
+      expect(modelCalls).toHaveLength(2);
+      expect(core.text).toBe(RECHECK_CORE);
       expect(decisions).toEqual([
         { key: 'audience', text: 'Сотрудники, которые открывают кофейню и начинают утреннюю смену.' },
       ]);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('removed without the model'));
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('removed without the model'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('still contains meta speech'));
     });
   });
 });

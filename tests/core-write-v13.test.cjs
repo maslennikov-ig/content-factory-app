@@ -187,7 +187,7 @@ describe('ordinary author sentences pass the guard (fifteenth F8)', () => {
   });
 });
 
-describe('the meta rewrite keeps the anti-copy guarantee (fifteenth F7)', () => {
+describe('one combined repair keeps the anti-copy guarantee (.18)', () => {
   const FOREIGN =
     'Когда все задачи команды лежат на одной общей доске вопросы о статусе отпадают сами собой и чат затихает';
   const { wordShingles } = loadWithMocks(`${base}/text-quality/anti-copy.ts`);
@@ -196,22 +196,78 @@ describe('the meta rewrite keeps the anti-copy guarantee (fifteenth F7)', () => 
   const OWN_META = 'Общая доска сняла у нас вопросы о статусе. Здесь можно рассказать о результате.';
   const OWN = 'Общая доска сняла у нас вопросы о статусе, и созвонов стало в полтора раза меньше.';
 
-  test('the anti-copy hint goes into the meta rewrite prompt with the meta hint', async () => {
-    responses = [{ text: COPIED }, { text: OWN_META }, { text: OWN }];
+  test('both initial findings share one repair with both hints', async () => {
+    responses = [{ text: COPIED }, { text: OWN }];
     const { core } = await coreWrite.writeCoreWithDecisions(input({ foreignShingles: shingles }), deps());
-    expect(modelCalls).toHaveLength(3);
-    expect(modelCalls[2].prompt).toContain(v14.CORE_WRITE_REPAIR_V14);
-    expect(modelCalls[2].prompt).toContain(v14.CORE_WRITE_META_REPAIR_V14);
+    expect(modelCalls).toHaveLength(2);
+    expect(modelCalls[1].prompt).toContain(v14.CORE_WRITE_REPAIR_V14);
+    expect(modelCalls[1].prompt).toContain(v14.CORE_WRITE_META_REPAIR_V14);
     expect(core.text).toBe(OWN);
   });
 
   test('a meta rewrite that brings the copy back is not taken', async () => {
     const warn = jest.fn();
-    responses = [{ text: COPIED }, { text: OWN_META }, { text: `${FOREIGN}.` }];
+    responses = [{ text: OWN_META }, { text: `${FOREIGN}.` }];
     const { core } = await coreWrite.writeCoreWithDecisions(input({ foreignShingles: shingles }), deps(warn));
-    expect(modelCalls).toHaveLength(3);
+    expect(modelCalls).toHaveLength(2);
     expect(core.text).toBe(OWN_META);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('repeated the source post'));
+  });
+
+  test('meta speech introduced by a copy repair does not trigger a third invocation', async () => {
+    const warn = jest.fn();
+    responses = [{ text: `${FOREIGN}.` }, { text: OWN_META }];
+    const { core } = await coreWrite.writeCoreWithDecisions(input({ foreignShingles: shingles }), deps(warn));
+    expect(modelCalls).toHaveLength(2);
+    expect(core.text).toBe(OWN_META);
+    expect(core.writtenBy).toBe('model');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('still contains meta speech'));
+  });
+
+  test('a longer copied span is rejected even when the number of spans is unchanged; first decisions survive', async () => {
+    const original = `${FOREIGN.split(' ').slice(0, 8).join(' ')}. Здесь можно рассказать о результате.`;
+    const firstDecisions = [{ key: 'audience', text: 'Руководители команд.' }];
+    const repairedDecisions = [{ key: 'audience', text: 'Начинающие специалисты.' }];
+    responses = [
+      { text: original, decisions: firstDecisions },
+      { text: `${FOREIGN}.`, decisions: repairedDecisions },
+    ];
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({
+      foreignShingles: shingles,
+      delegated: [{ key: 'audience', question: 'Для кого текст?', authorMaterial: false }],
+    }), deps());
+    expect(modelCalls).toHaveLength(2);
+    expect(core.text).toBe(original);
+    expect(decisions).toEqual(firstDecisions);
+  });
+
+  test('an accepted combined repair carries its own delegated decisions', async () => {
+    const repairedDecisions = [{ key: 'audience', text: 'Начинающие специалисты.' }];
+    responses = [
+      { text: COPIED, decisions: [{ key: 'audience', text: 'Руководители команд.' }] },
+      { text: OWN, decisions: repairedDecisions },
+    ];
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({
+      foreignShingles: shingles,
+      delegated: [{ key: 'audience', question: 'Для кого текст?', authorMaterial: false }],
+    }), deps());
+    expect(modelCalls).toHaveLength(2);
+    expect(core.text).toBe(OWN);
+    expect(decisions).toEqual(repairedDecisions);
+  });
+
+  test('an accepted repair without decisions does not inherit decisions from the discarded draft', async () => {
+    responses = [
+      { text: COPIED, decisions: [{ key: 'audience', text: 'Руководители команд.' }] },
+      { text: OWN },
+    ];
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({
+      foreignShingles: shingles,
+      delegated: [{ key: 'audience', question: 'Для кого текст?', authorMaterial: false }],
+    }), deps());
+    expect(core.text).toBe(OWN);
+    expect(decisions).toEqual([]);
+    expect(modelCalls).toHaveLength(2);
   });
 
   test('without a foreign post the meta rewrite carries only its own hint', async () => {
@@ -251,6 +307,16 @@ describe('writeCoreWithDecisions and the guard', () => {
     responses = [{ text: CNT36_META_CORE }, { text: '' }];
     const { core } = await coreWrite.writeCoreWithDecisions(input(), deps());
     expect(core.text).toBe(CNT36_META_CORE);
+  });
+
+  test('a failed repair preserves the useful first answer rather than replacing it with fallback', async () => {
+    const warn = jest.fn();
+    responses = [{ text: CNT36_META_CORE }, new Error('repair unavailable')];
+    const { core } = await coreWrite.writeCoreWithDecisions(input(), deps(warn));
+    expect(modelCalls).toHaveLength(2);
+    expect(core.text).toBe(CNT36_META_CORE);
+    expect(core.writtenBy).toBe('model');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('keeping the first text'));
   });
 });
 

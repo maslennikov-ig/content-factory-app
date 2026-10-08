@@ -55,11 +55,10 @@
  * it goes whole.
  *
  * Pure and deterministic. `audienceRemarksIn` feeds the core's meta-speech
- * check (one rewrite, `meta-speech.ts`); `withoutAudienceRemarks` removes the
- * remark from an adaptation before it is stored and from a model-written core
- * (`core-write.ts`) — no model call, the rest of the text byte for byte — and
- * never when that would leave the text empty or shorter than a post
- * (`minLength`).
+ * check (one combined repair, `core-write.ts`). `withoutAudienceRemarks`
+ * remains a historical standalone utility for receipts/tests; active core
+ * writing and adaptation persistence preserve the model's meaningful text
+ * and no longer call this stylistic deletion helper (.19).
  */
 
 const L = '\\p{L}\\p{Nd}';

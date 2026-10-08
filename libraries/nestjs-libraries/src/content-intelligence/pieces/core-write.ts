@@ -48,11 +48,9 @@ import {
 } from '../brand-profile/delegated-policy';
 import { personTextWithoutAdded } from './core-edit';
 import { metaSpeechIn } from '../text-quality/meta-speech';
-import { withoutAudienceRemarks } from '../text-quality/audience-remark';
-import { CHANNEL_MIN_IDEAL_LENGTH } from '../channels/channel-writing-profile';
 export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v16';
 /**
- * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
+ * Суть заготовки: первый вызов роли `draft` и, при находках, одна общая правка.
  *
  * `content-factory-next-tu3k.9.3`, решения владельца 06.09.2026 (§11 карты
  * раздела). Суть — нейтральный текст о том, что человек хочет рассказать: без
@@ -74,11 +72,9 @@ export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v16';
  *    из брифа и помечается `writtenBy: 'fallback'`: черновики человек всё
  *    равно получит, а квитанция честно скажет, кто писал.
  *
- * Цена: один `getChatModel(…, 'draft')` под операцией `intake`. Второй заход
- * бывает ровно в одном случае — если суть по чужому посту унесла восемь слов
- * подряд из исходника; он идёт внутри той же операции, тем же ходом, каким это
- * делает граф генератора (`repairForeignCopy`), и без чужого поста не бывает
- * никогда.
+ * Цена: один `getChatModel(…, 'draft')` под операцией `intake`. Антикопия и
+ * метаречь проверяются вместе; при находках возможна одна общая перепись
+ * внутри той же операции. Код не удаляет содержательные фразы из ответа.
  */
 
 import { z } from 'zod';
@@ -701,10 +697,6 @@ export async function writeCore(
   return (await writeCoreWithDecisions(input, deps)).core;
 }
 
-/** Суть без фразы о том, для кого она (F-3a); короче поста не режется. */
-const withoutCoreAudienceRemarks = (text: string): string =>
-  text ? trimmed(withoutAudienceRemarks(text, { minLength: CHANNEL_MIN_IDEAL_LENGTH })) : text;
-
 /**
  * Суть и решения по отданным вопросам — одним вызовом (`97dq.56`).
  *
@@ -756,20 +748,6 @@ export async function writeCoreWithDecisions(
         const answer = (await model.invoke(prompt)) as any;
         decided = answer?.decisions ?? null;
         const first = trimmed(answer?.text);
-        /*
-          Один повторный заход с подсказкой; берётся второй текст, если он
-          есть, и решения вместе с ним. Дальше находка остаётся находкой —
-          переписывать текст за человека здесь нечем и незачем.
-        */
-        const rewrite = async (hint: string, current: string) => {
-          const repaired = (await model.invoke(`${prompt}\n\n${hint}`)) as any;
-          const next = trimmed(repaired?.text);
-          if (next && Array.isArray(repaired?.decisions)) {
-            decided = repaired.decisions;
-          }
-          return next || current;
-        };
-        let result = first;
         /** Отрезки чужого поста в тексте; пусто, когда сверять не с чем. */
         const copiedRuns = (text: string) =>
           input.foreignShingles.length && text
@@ -777,48 +755,53 @@ export async function writeCoreWithDecisions(
                 minWords: ANTI_COPY_MIN_WORDS,
               }).runs
             : [];
-        // Антикопия ровно та же, что у графа: восемь слов подряд и один
-        // повторный заход.
-        let antiCopyHint = '';
-        const copied = copiedRuns(result);
+        // One repair budget for all initial findings (.18), not one per rule.
+        const hints: string[] = [];
+        const copied = copiedRuns(first);
         if (copied.length) {
           const quoted = copied.map((run) => `«${run.text}»`).join(', ');
-          antiCopyHint = `${CORE_WRITE_REPAIR_V16}${quoted}`;
-          result = await rewrite(antiCopyHint, result);
+          hints.push(`${CORE_WRITE_REPAIR_V16}${quoted}`);
         }
-        // Речь о тексте вместо текста (`97dq.90`): одна перепись. Фраза о
-        // том, для кого текст, снимается ниже без модели (F-3a), и платной
-        // переписи ради неё нет — если снять её можно.
-        const meta = result
-          ? metaSpeechIn(withoutCoreAudienceRemarks(stripCitationLabels(result)))
-          : [];
+        const meta = metaSpeechIn(stripCitationLabels(first));
         if (meta.length) {
           deps.warn?.(`The core talked about its input; rewriting once: ${meta.join(' | ')}`);
-          /*
-            Ревью W1 пятнадцатого захода, F7: перепись начинается с того же
-            промпта, поэтому подсказка антикопии идёт в неё вместе со своей —
-            иначе снятый повтор чужого поста возвращался. И проверка
-            антикопии после неё повторяется: текст, в котором чужих слов
-            больше, чем было до переписи, не берётся.
-          */
-          const before = result;
-          const decidedBefore = decided;
-          const beforeRuns = copiedRuns(before).length;
-          const metaHint = `${CORE_WRITE_META_REPAIR_V16}${meta.map((hit) => `«${hit}»`).join(', ')}`;
-          const next = await rewrite(
-            antiCopyHint ? `${antiCopyHint}\n\n${metaHint}` : metaHint,
-            before
-          );
-          if (next !== before && copiedRuns(next).length > beforeRuns) {
-            deps.warn?.(
-              'The meta-speech rewrite of the core repeated the source post; keeping the text before it'
-            );
-            decided = decidedBefore;
-          } else {
-            result = next;
-          }
+          hints.push(`${CORE_WRITE_META_REPAIR_V16}${meta.map((hit) => `«${hit}»`).join(', ')}`);
         }
-        return result;
+        if (!hints.length) return first;
+
+        let repaired;
+        try {
+          repaired = (await model.invoke(`${prompt}\n\n${hints.join('\n\n')}`)) as any;
+        } catch (error) {
+          deps.warn?.(
+            `The core repair failed; keeping the first text: ${error instanceof Error ? error.message : String(error)}`
+          );
+          return first;
+        }
+        const next = trimmed(repaired?.text);
+        if (!next) return first;
+        const nextCopied = copiedRuns(next);
+        const copiedLength = (runs: typeof copied) =>
+          runs.reduce((total, run) => total + run.end - run.start, 0);
+        if (
+          nextCopied.length > copied.length ||
+          copiedLength(nextCopied) > copiedLength(copied)
+        ) {
+          deps.warn?.(
+            'The core repair repeated the source post more; keeping the first text'
+          );
+          return first;
+        }
+        if (nextCopied.length) {
+          deps.warn?.('The core repair still contains source copying; no further automatic rewrite');
+        }
+        if (metaSpeechIn(stripCitationLabels(next)).length) {
+          deps.warn?.('The core repair still contains meta speech; no further automatic rewrite');
+        }
+        // Decisions belong to the selected text; omitted decisions must not
+        // silently inherit choices from the discarded first draft.
+        decided = repaired?.decisions ?? null;
+        return next;
       },
       'draft'
     );
@@ -836,22 +819,8 @@ export async function writeCoreWithDecisions(
   // (`content-factory-next-97dq.40`). Суть человек читает и правит — меток
   // источника в ней не бывает ни при каком ответе.
   text = trimmed(stripCitationLabels(text));
-  /*
-    Для кого текст — строка брифа, а не фраза сути (финальный живой прогон
-    W3, F-3a): «Решите за меня» решил адресата, правило отданных вопросов
-    велит отвечать на них в сути, и суть написала «Я обращаюсь к
-    сотрудникам, которые открывают кофейню…: …» — дальше это ушло в пост.
-    Снимается здесь, без модели, в любой сути, которую написала модель:
-    первой, после ответов, пересобранной. Своё, написанное человеком, и
-    запасная суть из его слов не трогаются.
-  */
-  const cleaned = withoutCoreAudienceRemarks(text);
-  if (cleaned !== text) {
-    deps.warn?.(
-      `The core said whom it is for; removed without the model (${text.length - cleaned.length} characters).`
-    );
-    text = cleaned;
-  }
+  // Preserve meaningful model text (.19); editorial changes belong to the
+  // single model repair or an explicit human edit, never a deletion pattern.
   if (text) {
     return {
       core: shaped(text, 'model'),

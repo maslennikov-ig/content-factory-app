@@ -709,7 +709,6 @@ const readerReviewRejections = [
   'catalogue_date_anchor',
   'catalogue_binding',
   'catalogue_unknown_id',
-  'date_reference_slot',
   'catalogue_integrity',
   'quote_source',
   'quote_unique_match',
@@ -857,16 +856,6 @@ const readerFailureDiagnosticSchema = z
       'compile_wire_v5',
       'prepare_catalogue_v6',
       'compile_wire_v6',
-      'prepare_catalogue_v7',
-      'prepare_catalogue_v8',
-      'prepare_catalogue_v9',
-      'prepare_catalogue_v10',
-      'prepare_catalogue_v11',
-      'compile_wire_v7',
-      'compile_wire_v8',
-      'compile_wire_v9',
-      'compile_wire_v10',
-      'compile_wire_v11',
       'validate_api_v1',
     ]),
     predicate: z.enum(['unobserved', ...readerReviewRejections]),
@@ -925,12 +914,7 @@ const readerFailureDiagnosticSchema = z
         value.stage === 'compile_wire_v3' ||
         value.stage === 'compile_wire_v4' ||
         value.stage === 'compile_wire_v5' ||
-        value.stage === 'compile_wire_v6' ||
-        value.stage === 'compile_wire_v7' ||
-        value.stage === 'compile_wire_v8' ||
-        value.stage === 'compile_wire_v9' ||
-        value.stage === 'compile_wire_v10' ||
-        value.stage === 'compile_wire_v11') &&
+        value.stage === 'compile_wire_v6') &&
         value.predicate === 'wire_schema' &&
         value.wireIssueFamily !== undefined &&
         value.wireIssueCode !== undefined)
@@ -942,12 +926,7 @@ const readerFailureDiagnosticSchema = z
         value.stage === 'compile_wire_v3' ||
         value.stage === 'compile_wire_v4' ||
         value.stage === 'compile_wire_v5' ||
-        value.stage === 'compile_wire_v6' ||
-        value.stage === 'compile_wire_v7' ||
-        value.stage === 'compile_wire_v8' ||
-        value.stage === 'compile_wire_v9' ||
-        value.stage === 'compile_wire_v10' ||
-        value.stage === 'compile_wire_v11') &&
+        value.stage === 'compile_wire_v6') &&
         value.predicate === 'quote_unique_match' &&
         value.failure === 'validation_rejected')
   )
@@ -957,12 +936,7 @@ const readerFailureDiagnosticSchema = z
       (value.failure === 'validation_rejected' &&
         (((value.stage === 'compile_wire_v4' ||
           value.stage === 'compile_wire_v5' ||
-          value.stage === 'compile_wire_v6' ||
-          value.stage === 'compile_wire_v7' ||
-          value.stage === 'compile_wire_v8' ||
-          value.stage === 'compile_wire_v9' ||
-          value.stage === 'compile_wire_v10' ||
-          value.stage === 'compile_wire_v11') &&
+          value.stage === 'compile_wire_v6') &&
           value.predicate === 'date_quote_grounding' &&
           dateGroundingReasons.some(
             (reason) => reason === value.groundingReason

@@ -8,32 +8,10 @@ module.exports.syntheticReaderReview = (request, summary) => {
   if (typeof summary?.summary !== 'string' || !summary.summary.trim())
     return summary;
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  if (evidence.catalogue?.version === 'v11')
-    return require('./reader-proof-review-v11.cjs').syntheticReaderV11Review(evidence, summary);
-  if (evidence.catalogue?.version === 'v10')
-    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Review(evidence, summary);
-  if (['v6', 'v7', 'v8', 'v9'].includes(evidence.catalogue?.version))
+  if (evidence.catalogue?.version === 'v6')
     evidence.subject = evidence.subjectParts.map((part) =>
       part.slice(part.indexOf(':') + 1)
     ).join('');
-  if (evidence.catalogue?.version === 'v9') return {
-    version: 'reader-source-review-wire/v9', catalogue: evidence.catalogue.binding,
-    sources: evidence.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
-    claims: [{ text: summary.summary, kind: 'context', refs: [{ source: evidence.sources[0][0], ref: 0 }], dates: [] }],
-    coverage: [{ question: evidence.subject.slice(0, 500), status: 'supported' }], entities: [],
-  };
-  if (evidence.catalogue?.version === 'v8') return {
-    version: 'reader-source-review-wire/v8', catalogue: evidence.catalogue.binding,
-    sources: evidence.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
-    claims: [{ text: summary.summary, kind: 'context', proofs: [{ source: evidence.sources[0][0], refs: [0], dates: [] }] }],
-    coverage: [{ question: evidence.subject.slice(0, 500), status: 'supported' }], entities: [],
-  };
-  if (evidence.catalogue?.version === 'v7') return {
-    version: 'reader-source-review-wire/v7', catalogue: evidence.catalogue.binding,
-    sources: evidence.sources.map((row) => ({ id: row[0], relevance: 'relevant' })),
-    claims: [{ text: summary.summary, kind: 'context', proofs: { [evidence.sources[0][0]]: { refs: [0], dates: [] } } }],
-    coverage: [{ question: evidence.subject.slice(0, 500), status: 'supported' }], entities: [],
-  };
   if (evidence.sourceColumns)
     return {
       version:
@@ -151,16 +129,6 @@ module.exports.syntheticReaderDateQuoteWire = (output) => {
 // is passed through and the current production boundary rejects its version.
 module.exports.syntheticReaderV5Fixture = (input, output, request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  if (view.catalogue?.version === 'v11')
-    return require('./reader-proof-review-v11.cjs').syntheticReaderV11Fixture(input, output, request);
-  if (view.catalogue?.version === 'v10')
-    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Fixture(input, output, request);
-  if (view.catalogue?.version === 'v9')
-    return require('./reader-proof-review-v9.cjs').syntheticReaderV9Fixture(input, output, request);
-  if (view.catalogue?.version === 'v8')
-    return require('./reader-proof-review-v8.cjs').syntheticReaderV8Fixture(input, output, request);
-  if (view.catalogue?.version === 'v7')
-    return require('./reader-proof-review.cjs').syntheticReaderV7Fixture(input, output, request);
   if (
     !output?.sources ||
     output.version === module.exports.READER_REVIEW_WIRE_V5_VERSION
@@ -295,14 +263,10 @@ module.exports.syntheticReaderCurrentSubjectWire = (view, output) => {
 };
 module.exports.syntheticReaderModelEvidence = (request) => {
   const view = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
-  if (view.catalogue?.version === 'v11')
-    return require('./reader-proof-review-v11.cjs').syntheticReaderV11Evidence(view);
-  if (view.catalogue?.version === 'v10')
-    return require('./reader-proof-review-v10.cjs').syntheticReaderV10Evidence(view);
   if (!view.sourceColumns) return view;
   return {
     ...view,
-    ...(['v6', 'v7', 'v8', 'v9'].includes(view.catalogue?.version)
+    ...(view.catalogue?.version === 'v6'
       ? { subject: view.subjectParts.map((part) => part.slice(part.indexOf(':') + 1)).join('') }
       : {}),
     sources: view.sources.map((row) => ({
