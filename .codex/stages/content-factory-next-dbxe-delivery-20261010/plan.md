@@ -56,3 +56,14 @@ were corrected without changing a legacy Temporal body or production schema;
 affected 3 suites/15 tests passed. The R2 session-store refinement now bounds
 pending reads/writes at5s, with6 suites/90 tests and9 native PG cases passing.
 The failed runs are retained locally and are not release acceptance.
+
+The3de7e3ab6e5b source candidate passed all configured release checks, including
+647 Jest suites,123 node:test cases and50 Python tests. Its public snapshot
+6f880466c67d built successfully but failed the unchanged image-weight gate:
+965,495,710 bytes versus the prior image,32% growth against25% allowed. No image
+push, production schema change or application switch occurred. Native comparison
+isolated322MiB of new `.next/cache/turbopack` compiler state; runtime dependencies
+and compiled frontend assets did not grow. Disable only the release build cache,
+preserve the rejected candidate's evidence, free only proven owned failed-build
+artifacts, then repeat exact-SHA acceptance and rebuild. Existing criteria and
+delivery guard thresholds remain unchanged.

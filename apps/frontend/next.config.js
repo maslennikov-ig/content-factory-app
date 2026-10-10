@@ -4,6 +4,8 @@
 const nextConfig = {
   experimental: {
     proxyTimeout: 90_000,
+    // Release containers do not reuse compiler state between builds.
+    turbopackFileSystemCacheForBuild: false,
   },
   reactStrictMode: false,
   // Значок разработки Next по умолчанию стоит в левом нижнем углу — ровно

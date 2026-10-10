@@ -65,6 +65,16 @@ are the necessary API-compatible transitions: actual native conversion, Nest
 multipart buffer/nested fields/limit errors and SMTP message/envelope are checked.
 All selected engines support Node22.23.2; pnpm10.6.1 is unchanged.
 
+Release packaging disables `experimental.turbopackFileSystemCacheForBuild` in
+Next config. The installed Next16.3.8 compiler enables its persistent build cache
+by default; the first release candidate copied322MiB of compiler state into the
+runtime image and failed the unchanged25% image-weight gate. Release containers
+do not reuse that build state. Development caching and compiled server/static
+assets retain their existing behavior. This is the documented
+[Next build-cache option](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache),
+not a change to the weight threshold or application data retention. The corrected
+candidate requires a new exact-commit release receipt and a measured native image.
+
 ## Retained exceptions and reevaluation triggers
 
 These are applicability decisions for inspected callers, not removed findings.
