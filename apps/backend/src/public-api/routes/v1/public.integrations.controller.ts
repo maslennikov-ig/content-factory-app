@@ -95,6 +95,7 @@ export class PublicIntegrationsController {
   ) {}
 
   @Post('/upload')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new CustomFileValidationPipe())
   async uploadSimple(
@@ -114,6 +115,7 @@ export class PublicIntegrationsController {
   }
 
   @Post('/upload-from-url')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async uploadsFromUrl(
     @GetOrgFromRequest() org: Organization,
     @Body() body: UploadDto
@@ -197,7 +199,10 @@ export class PublicIntegrationsController {
   }
 
   @Post('/posts')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   @ApiConflictResponse({
     description:
       '`{ code: "CF_QUEUE_BUSY", message }`: the post is a Content Factory variant and another variant of the same piece is already scheduled in this channel. Unschedule that one first; nothing was written.',
@@ -282,6 +287,7 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/posts/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deletePost(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -291,6 +297,7 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/posts/group/:group')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   deletePostByGroup(
     @GetOrgFromRequest() org: Organization,
     @Param('group') group: string
@@ -339,7 +346,10 @@ export class PublicIntegrationsController {
   }
 
   @Get('/social/:integration')
-  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.CHANNEL],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
   async getIntegrationUrl(
     @Param('integration') integration: string,
     @Query('refresh') refresh: string,
@@ -394,6 +404,7 @@ export class PublicIntegrationsController {
   }
 
   @Post('/generate-video')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   generateVideo(
     @GetOrgFromRequest() org: Organization,
     @Body() body: VideoDto
@@ -402,6 +413,7 @@ export class PublicIntegrationsController {
   }
 
   @Post('/video/function')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   videoFunction(@Body() body: VideoFunctionDto) {
     return this._mediaService.videoFunction(
       body.identifier,
@@ -411,6 +423,7 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/integrations/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -485,6 +498,7 @@ export class PublicIntegrationsController {
   }
 
   @Put('/posts/:id/status')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   @ApiConflictResponse({
     description:
       '`{ code: "CF_QUEUE_BUSY", message }`: the post is a Content Factory variant and another variant of the same piece is already scheduled in this channel. Unschedule that one first; nothing was written.',
@@ -500,6 +514,7 @@ export class PublicIntegrationsController {
   }
 
   @Put('/posts/:id/release-id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async updateReleaseId(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -527,6 +542,7 @@ export class PublicIntegrationsController {
   }
 
   @Post('/integration-trigger/:id')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async triggerIntegrationTool(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,

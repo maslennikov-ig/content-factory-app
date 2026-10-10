@@ -1,0 +1,44 @@
+{
+  "boundary": "synthetic disposable PostgreSQL, no live media/account/provider calls",
+  "baseline": "db4d271e0fe8f5cbdf2817734d5a3ce3a2d98898",
+  "checks": [
+    {
+      "name": "disposable-schema",
+      "exitCode": 0,
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "push",
+        "--skip-generate",
+        "--schema",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma"
+      ]
+    },
+    {
+      "name": "native-postgres",
+      "exitCode": 0,
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--runTestsByPath",
+        "tests/media-ownership.postgres.test.cjs",
+        "--json",
+        "--outputFile=/home/me/code/content-factory-next/.codex/stages/content-factory-next-dbxe-media-ownership-stage/native-jest.local.json"
+      ]
+    }
+  ],
+  "status": "PASS",
+  "fixture": {
+    "container": "b048a6a322b453aa0c99baaa3433bd9ae36e6a57347a64e21d9adfe2d29bd2df",
+    "name": "cf-dbxe-media-a033dc91e5af",
+    "loopbackOnly": true,
+    "database": "cf_media_dbxe_test"
+  },
+  "ownedFixtureRemoved": true,
+  "preexistingContainerCount": 69,
+  "foreignContainersMissing": []
+}

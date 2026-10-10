@@ -10,9 +10,10 @@ export class InfiniteWorkflowRegister implements OnModuleInit {
       try {
         await this._temporalService.client
           ?.getRawClient()
-          ?.workflow?.start('missingPostWorkflow', {
-            workflowId: 'missing-post-workflow',
+          ?.workflow?.start('missingPostWorkflowV109', {
+            workflowId: 'missing-post-workflow-v108',
             taskQueue: 'main',
+            workflowIdConflictPolicy: 'USE_EXISTING',
           });
       } catch (err) {}
     }

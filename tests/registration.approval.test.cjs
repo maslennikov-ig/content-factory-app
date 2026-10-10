@@ -411,6 +411,9 @@ const { AuthService } = loadTypeScriptModule(
       AuthService: {
         comparePassword: () => true,
         signJWT: (user) => `session:${user.id}`,
+        signSessionJWT: (user) => `session:${user.id}`,
+        signActivationJWT: (user) => `session:${user.id}`,
+        verifyActivationJWT: (...args) => verifyJWT(...args),
         verifyJWT: (...args) => verifyJWT(...args),
       },
     },

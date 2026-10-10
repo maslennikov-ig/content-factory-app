@@ -80,3 +80,20 @@ is in ../content-factory-next-0qgn-completion-20261008/child-delivery-acceptance
 docs-reviewed: updated - reader summary, retained style decision and executable rollback/schema preflight runbook.
 project-index: reviewed-updated - completion plan on existing navigation row.
 graph-reviewed: used - graphify query runAssistV2 --graph /home/me/code/content-factory-next/graphify-out/graph.json --budget 700; owner46ec graph used for orientation, exact current reader/agent/release sources inspected, no external extraction.
+
+## Root completion delivery — 8 October 2026
+
+Source e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d/publiccae3 delivered. All9
+configured release checks/three suite halves and all5 publicCI jobs PASS.
+Actual adaptation/explicitreserve/A2/3freshreader replies accepted; own actor
+retired/session401/history retained. Exact source/schema/archive/foreign
+containers and actual rollback preserved; originalEPIC stays open. Full memory window PASS:31/1830.10sec,56.79–57.58% strict<60,cap1792/native33 preserved. Canonical root proof:
+completion-20261008/root-acceptance.json; current statuses remain Beads-owned.
+docs-reviewed: updated — practical reader contract, retained-style comparison,
+Prisma preflight/explicit rollback/runbook and source-bound handoff/outcome.
+project-index: reviewed-updated — current completion proof linked in existing row.
+graph-reviewed: updated — isolated current AST27470nodes/54436clusterededges/
+1617communities, local update+cluster-only/focused reader caller query;54zero-node
+non-code inputs acknowledged, external model calls0, primary owner map preserved.
+cleanup: owned access/helpers/credentials retired; author history and unrelated
+primary untracked work retained. No restored backup or actual social publication.

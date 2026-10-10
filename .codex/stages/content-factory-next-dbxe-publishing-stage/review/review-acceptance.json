@@ -1,0 +1,156 @@
+{
+  "schema": "cf-publishing-followup-acceptance/v1",
+  "reviewedDelivery": "12180218bfd6669005963e27887c7367efce3766",
+  "boundary": "local V106 preparation/receipt and disposable PostgreSQL; no deployment",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "owned-schema",
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "push",
+        "--skip-generate",
+        "--schema",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma"
+      ],
+      "exitCode": 0,
+      "seconds": 1.979
+    },
+    {
+      "name": "affected-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/publication-v106.test.cjs",
+        "tests/publication-v106.postgres.test.cjs",
+        "tests/post-fire-guard.test.cjs",
+        "tests/post-comments-tenant.guard.test.cjs",
+        "tests/posts.change-date-state-race.test.cjs",
+        "tests/publish-escaping.test.cjs",
+        "tests/temporal-contract-signature.guard.test.cjs",
+        "tests/temporal.search.attributes.test.cjs",
+        "tests/posts.save-refusal.test.cjs",
+        "tests/posts.refusal-language.test.cjs",
+        "tests/cf-queue-gate.postiz.test.cjs",
+        "tests/posts.generated-draft-tail.test.cjs",
+        "tests/production.analytics.test.cjs",
+        "tests/post.research.sources.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 6.6
+    },
+    {
+      "name": "orchestrator-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/orchestrator/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 11.306
+    },
+    {
+      "name": "backend-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/backend/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 14.451
+    }
+  ],
+  "startedAt": "2026-10-09T13:10:18.145507+00:00",
+  "ownedFixtureId": "b27361dacb3bcdf36b561200ea120937dcec5af93cd9443f980f1d411ba3f228",
+  "ownedFixtureRemoved": true,
+  "foreignContainersMissing": [],
+  "inputs": {
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "libraries/nestjs-libraries/src/database/prisma/posts/publication-store.v106.ts": "d4c791e5a4bb292546cefde0fae9a1265bc7950c14bb01ffb913d9baf2769eff",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "4d60840bb49a0f526d79286670cdceb36137f971ec78a86136b284e88b091a82",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "5af9508756aaf8c31db9bada71caed6693ec422a3aea19b76c8411c6292ed4e0",
+    "tests/publication-v106.test.cjs": "652f0ac833a60e69edef9638bab1a3bd07b3c6784854f2d1bdbe8943d036d27d",
+    "tests/publication-v106.postgres.test.cjs": "5689e62c39f62f0e7640c15f92e948d4cdd5abeb44c8ea0ddf215746122606e0"
+  },
+  "logDigests": {
+    "process.local.log": "7704bd3e9d2394bfb873ebbcd88291fded909c2fdc9312124aaf0ef704118be4",
+    "backend-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs.local.log": "34f8e0ebdba0c708b0231b38330b97bd019b8c8db32fb75019d3bc422653909f",
+    "owned-schema.local.log": "fc1f1b8cbedbbfdc8ef4e7ad960976b88eb402fe7fc73d5bd92c635cd07a0bcf",
+    "diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "publication-diagnostic.local.log": "3173c0ffc72495b7ad631c5c1d7e49cd48772dc60773bc261a8a994f9daf651e",
+    "orchestrator-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "prompt.local.log": "dd9b89e41801e6a60d20d82bf1ca9b542f29ecc02a3c274bc84e750ea916f34c",
+    "preparation-red.local.log": "400df5204dda35339ffad1ad16237292095f02f45bc416109344b45f9fd7dd7e",
+    "preparation-green.local.log": "bb9b0ef4e51188ae917b78eb6956a2f8b9b73dab5141b11a2f018453518a4b58",
+    "affected-acceptance.local.log": "81d5963a9a9ad12cc4fad533e225589e811e206d5ce9705299cbb67947f8eb00"
+  },
+  "completedAt": "2026-10-09T13:23:41.319865+00:00",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "verification": {
+    "jestSuites": 14,
+    "jestTests": 265,
+    "skips": 0,
+    "actualPostgreSQLTests": 9,
+    "publicationRegressionTests": 25,
+    "orchestratorTypes": "PASS",
+    "backendTypes": "PASS"
+  },
+  "documentationChecks": {
+    "docs": "PASS (183 files)",
+    "process": "PASS",
+    "diff": "PASS",
+    "prompt": "PASS (1489 chars; zero warnings)"
+  },
+  "originalCriteriaPreserved": 30,
+  "legacyFilesPreserved": 17,
+  "originalStageReceiptSha256": "ac4541219b8d1dc5ddbee2f87b9254a52f02faeffcaf4df59f485d54b5e0edfa",
+  "reusedProofInputs": {
+    "apps/orchestrator/src/workflows/index.ts": "ac10cb804da4cd22d82ef30ba114860722679a3323f8b258f8427a398eb9521d",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "docs/operations/publication-journal-v106-schema-apply.sql": "929d92cc15e2c9c7f9e05a31f61ddf9e124da785846e895bb957cdc76d69de8d",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/temporal-contract-signature.baseline.json": "cace0504b4a33ca69443c003a424eb9878008902dbadb9205aaa5fe77a9bffea"
+  },
+  "beadsChildCounts": {
+    "open": 22,
+    "in_progress": 1,
+    "closed": 6
+  },
+  "selectedTask6": "closed locally",
+  "task8": "in_progress; original full release acceptance required",
+  "nextTask7": "open, not started",
+  "realProviderCalls": 0,
+  "productionMutation": false,
+  "remotePush": false,
+  "reviewDocumentationInputs": {
+    ".codex/handoff.md": "81fa3511e7101b4bcd82c375fb8da78cb04163a21862a4acfe88ab2219b4d31a",
+    ".codex/project-index.md": "4e57ce8b04dff7cf0640d09bb03e74d8f257f237092a74dc2ff64eb21b4ae3d3",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/outcome.md": "0f2606dbee6a032dd3067d6aa10727a07140985aea20ae3245adacf4f5cb677b",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/summary.md": "5ccbe5f2bfc6aa5f5a0a1037eb98f8047c5ddad829d8f837923525cb0328972d",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/plan.md": "b59d35a09cb6e986fa823ef21acd8c31325bf17f0e99d5f057195c750b1a020a",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/next-stage-prompt.md": "b0143c4de052e375637a8312744f9126646b6138ff2880911b8d655a6f252a13",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/review/review.md": "652eff9a3a8b8412d2a522f7be76924ef765105cfb224f3c4a31fddc5979f2a3",
+    "docs/operations/publication-recovery-v106.md": "1ef85c0652817813820bf208cd7ff5a239d9e71c46583f009b62f6d47e8657e9"
+  }
+}

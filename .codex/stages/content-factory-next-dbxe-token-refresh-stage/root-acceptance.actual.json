@@ -1,0 +1,192 @@
+{
+  "schema": "content-factory-root-acceptance/v1",
+  "date": "2026-10-10",
+  "stage": "content-factory-next-dbxe-token-refresh-stage",
+  "task": "content-factory-next-dbxe.19",
+  "baseline": "d8862356e5dbeeea84f51ad0c2060303e7427c16",
+  "result": "PASS",
+  "acceptance_boundary": "bounded local channel token refresh; root-owned closeout-lite",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "PATH_prefix": "/home/me/.nvm/versions/node/v22.23.2/bin",
+    "nestjs-command": "3.1.5",
+    "nestjs-temporal-core": "3.2.3"
+  },
+  "commands": {
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/token-refresh.test.cjs tests/access-provider-credentials.test.cjs tests/temporal-contract-signature.guard.test.cjs --json --outputFile=.codex/stages/content-factory-next-dbxe-token-refresh-stage/jest.local.json",
+      "exit_code": 0,
+      "suites": 3,
+      "tests": 93,
+      "skips": 0,
+      "new_token_refresh_cases": 30,
+      "actual_nest_command_subprocesses": 6
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.build.json --noEmit --incremental false",
+      "exit_code": 0
+    },
+    "orchestrator_types": {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.build.json --noEmit --incremental false",
+      "exit_code": 0
+    },
+    "commands_types": {
+      "command": "pnpm exec tsc --project apps/commands/tsconfig.build.json --noEmit --incremental false",
+      "exit_code": 0
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit_code": 0,
+      "files": 189
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "original_diagnostic": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/token-refresh.test.cjs",
+      "exit_code": 1,
+      "baseline_source": "d8862356e5dbeeea84f51ad0c2060303e7427c16",
+      "tests": 2,
+      "expected_failures": [
+        "only first channel attempted",
+        "Dribbble attempted prohibited external request"
+      ],
+      "not_final_acceptance": true
+    },
+    "staged_diff": {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  },
+  "input_sha256": {
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "f51afe7933f1470df977a1ee5d521c6cfe3fc95672226de4168ed8de0ac3da16",
+    "libraries/nestjs-libraries/src/integrations/social/dribbble.provider.ts": "41fff649d49da5cb8a302925615e0871860c6cd0c3ae0f98b1c835a2f62b81d8",
+    "apps/commands/src/tasks/refresh.tokens.ts": "76ca021098a2adca5391c53d142d18126f108f53cddb2f3e78df3bc3a0009bd8",
+    "tests/token-refresh.test.cjs": "74e7d6238a57243e37364a5518cb1be0f10eee54b9f84cdb4c1ad9b2e25cb195",
+    "tests/helpers/token-refresh.module.cjs": "05079e56cd5f93f09fa01dc8de0c4dbb73c21492fe09055123df3caf56eb3148",
+    "tests/helpers/token-refresh-command.runner.cjs": "0d75673d2d007915e25e6085ae9142441e567dad73cd64346e82051f14d2ad14",
+    "docs/operations/token-refresh.md": "d7cc157dd47f329781d84a21ca1d341196e0211ded11e71873012455117e1da6",
+    "docs/README.md": "3b9a70a8eb8abee74171ca092329857aebe034532bfba2850d2d27f09d38d277",
+    ".codex/handoff.md": "1a06ecd450eb9efe0155de7f6db6526ed6731fedba02394274d7a95af1133e5b",
+    ".codex/project-index.md": "96b241c2d1f928311b89079ea607f02eba3c788268e6699d725a240804cb6400",
+    ".codex/stages/content-factory-next-dbxe-token-refresh-stage/plan.md": "c0c41da469f27e10f642ff906aae5651b9c3d7a5aaa59af8cafc7646d597a25d",
+    ".codex/stages/content-factory-next-dbxe-token-refresh-stage/outcome.md": "030b141a11f48fe5922464838e140aa09947e5ea0facfc91c93a11f269017f42",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    ".nvmrc": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a",
+    "tsconfig.json": "6ab9dbbac0fb5647c93cbf0cbd665330d42da8ffdec12751b48e03d6ad6c2695",
+    "tsconfig.base.json": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c",
+    "apps/backend/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/orchestrator/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/commands/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/commands/tsconfig.json": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782",
+    "tests/access-provider-credentials.test.cjs": "06381a2c4ff5a015432a0cb8596a15141ff0848458058f992e223b923c7a7582",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tests/temporal-contract-signature.baseline.json": "4044438026581a91ca08d85393e806ce50eda2b2aa4bad50e430c5cfefbd4743",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/integration-service.module.cjs": "05380e55c764dea378fe5e1c99731ede0948e9a8ef66ec7dc13e51a1b487f994",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "61d73768d1627e180e540aa3f4b3e946655519d12be33f97d5ab97c6cde5d188",
+    "libraries/nestjs-libraries/src/integrations/refresh.integration.service.ts": "9e6beb84b144dceb0cb3890b401d86f23f1aa50404f151600bf5195bf1da8dfd",
+    "libraries/nestjs-libraries/src/integrations/integration.manager.ts": "f3d282863c50f818bc365bf4a474a816189517ff6fa64ded677c35248959bcba",
+    "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts": "8698e73e77d6f20688eca437ffb832bedb088996cbb12c11dedc8c7436b1e57a",
+    "libraries/nestjs-libraries/src/integrations/social.abstract.ts": "c507e32b29fa0d3be2d3657cacfc43d1304a0b4f7ba523be3e98f6dd2dce97b5",
+    "libraries/nestjs-libraries/src/integrations/social/credential-families.ts": "cbf505861272ae639e4caeab46fbcffad97c03bf7fc653639ad230fd16da9bec",
+    "node_modules/nestjs-temporal-core/dist/decorators/activity.decorator.js": "77c73b00b6c22a065b07874d44a8a14dc4c4a751408fdd085f59dae7dac182a9",
+    "node_modules/nestjs-temporal-core/dist/services/temporal-metadata.service.js": "5d5088afd359326a533da8aba012be3b60f94fc58e5fd291a587e3ccc5379507",
+    "node_modules/nestjs-command/dist/command.service.js": "3265663e13f662e58f665cb4c3f18fb924c2a201d99b9264e78e9cbc130573b6",
+    "node_modules/nestjs-command/dist/command-explorer.service.js": "df68df21e4cef4f4d302bbc831270758e5be60cd8f4f620067677ded0740ceb2"
+  },
+  "temporal_sha256_unchanged": {
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/activities/post.activity.v107.ts": "29f25bb57273619a98d95ed8a09c9500fbeead7249ddddd7a16553b24f65ea32",
+    "apps/orchestrator/src/activities/post.activity.v108.ts": "aa77887c9496d51e21fc4f740e90d6530ea2c790a662db63997132291836bcab",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/index.ts": "e0ba3d453ece6b2749ad636ca1834eb903fbbc6c095303a63368fc7cd1d8a8d1",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": "ad930480035ad1b0845581d4e4c72136aa7d8fb1d87c9f4e3fcde45eefc357e6",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v108.ts": "2d71b4f459e353d14c8d0bc4bbbf2cfbe2e3aecbde0086e3775f7006b7c9bc7f",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": "954c87d8780a25b825743baee037c78d36f755f1d4e13855ca50d50a8df811f2",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts": "60a7e830cc98d97f168da4becd58353d637c6923672bc817182a64f130ce8734",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8"
+  },
+  "signature_baseline_byte_identical": true,
+  "scope": {
+    "criteria_preserved": 30,
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "selected_task_only": true,
+    "epic": "open",
+    "release_gate_dbxe_8": "in_progress",
+    "canonical_readback": "only .19 CLOSED; all30 criteria/titles/descriptions and29 unselected statuses unchanged",
+    "beads_github_sync": "triggered asynchronously; remote convergence not claimed",
+    "criterion_snapshot_verbatim_match": true
+  },
+  "proof": {
+    "batch": "actual service/repository over memory Prisma-shaped adapter; inert provider/notification fixtures; first/middle/last failure, original tokens, subsequent work and tenant scopes",
+    "command": "actual Nest decorator/discovery/yargs, six subprocesses; counts and exit0/1, fixed fatal error, natural exit",
+    "dribbble": "explicit DRIBBBLE_RECONNECT_REQUIRED; no fetch in batch or existing single-channel path",
+    "flat_alias": "actual installed SDK aggregate discovery extractor selects PostActivity.refreshToken; IntegrationsActivity has no duplicate; original error wrapper returns false"
+  },
+  "external_research": {
+    "primary": "https://developer.dribbble.com/v2/oauth/",
+    "observed": "published code/access-token OAuth flow does not document a refresh grant",
+    "decision": "explicit reconnect-only provider result, no invented renewal endpoint"
+  },
+  "limits": [
+    "no PostgreSQL persistence or real provider/token/notification proof",
+    "no native Temporal execution or deployed recovery proof",
+    "provider rotation and existing cohort save can precede persistence failure; no cross-provider transaction/rollback promise",
+    "no full suite/build, push/deploy, schema, live mutation or automatic retry/history migration"
+  ],
+  "docs_reviewed": "updated — token-refresh output/exit/reconnect, navigation and handoff",
+  "graph_reviewed": "used — stale46ec4108 bounded IntegrationService/DribbbleProvider, current methods/callers confirmed; Dribbble/manager hashes match; no refresh/API/hooks",
+  "cleanup": {
+    "owned_nest_contexts": "closed",
+    "owned_command_processes": "exited naturally",
+    "network_or_database_runtime": "none",
+    "delegated_work": "none",
+    "unrelated_work": "preserved"
+  },
+  "owned_files": [
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts",
+    "libraries/nestjs-libraries/src/integrations/social/dribbble.provider.ts",
+    "apps/commands/src/tasks/refresh.tokens.ts",
+    "tests/token-refresh.test.cjs",
+    "tests/helpers/token-refresh.module.cjs",
+    "tests/helpers/token-refresh-command.runner.cjs",
+    "docs/operations/token-refresh.md",
+    "docs/README.md",
+    ".codex/handoff.md",
+    ".codex/project-index.md",
+    ".codex/stages/content-factory-next-dbxe-token-refresh-stage/plan.md",
+    ".codex/stages/content-factory-next-dbxe-token-refresh-stage/outcome.md",
+    ".codex/stages/content-factory-next-dbxe-token-refresh-stage/root-acceptance.actual.json"
+  ]
+}

@@ -70,7 +70,7 @@ export class EmailService {
   ) {
     return this._temporalService.client
       .getRawClient()
-      ?.workflow.signalWithStart('sendEmailWorkflowV2', {
+      ?.workflow.signalWithStart('sendEmailWorkflowV3', {
         taskQueue: 'main',
         workflowId: 'send_email_v2',
         signal: 'sendEmail',

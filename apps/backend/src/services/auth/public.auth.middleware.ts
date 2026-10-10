@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { OAuthService } from '@contentfactory/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { HttpForbiddenException } from '@contentfactory/nestjs-libraries/services/exception.filter';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 @Injectable()
 export class PublicAuthMiddleware implements NestMiddleware {
@@ -37,6 +38,18 @@ export class PublicAuthMiddleware implements NestMiddleware {
         }
 
         const org = authorization.organization;
+        const membership = authorization.user.organizations.find(
+          (member) => member.organizationId === org.id && !member.disabled
+        );
+        if (!membership) {
+          res.status(HttpStatus.UNAUTHORIZED).json({ msg: 'No active workspace membership' });
+          return;
+        }
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+          !isOrganizationEditor(membership.role)) {
+          res.status(HttpStatus.FORBIDDEN).json({ msg: 'Workspace role does not allow mutations' });
+          return;
+        }
         if (!!process.env.STRIPE_SECRET_KEY && !org.subscription) {
           res
             .status(HttpStatus.UNAUTHORIZED)
@@ -44,13 +57,10 @@ export class PublicAuthMiddleware implements NestMiddleware {
           return;
         }
 
-        // `content-factory-next-fn33.19`: the key stands in for an
-        // administrator of this workspace, not for the instance. `ADMIN` and
-        // `SUPERADMIN` open exactly the same doors (`permissions.service.ts`),
-        // so nothing the key could reach before is closed now; what changes is
-        // that no request carries a role the product no longer hands out.
+        // A user grant follows its current tenant membership; unlike an
+        // organization key, it does not stand in for an administrator.
         // @ts-ignore
-        req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
+        req.org = { ...org, users: [{ role: membership.role }] };
       } else {
         const org = await this._organizationService.getOrgByApiKey(auth);
         if (!org) {
@@ -85,7 +95,7 @@ export class PublicAuthMiddleware implements NestMiddleware {
         // so nothing the key could reach before is closed now; what changes is
         // that no request carries a role the product no longer hands out.
         // @ts-ignore
-        req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
+        req.org = { ...org, users: [{ role: 'ADMIN' }] };
       }
     } catch (err) {
       throw new HttpForbiddenException();

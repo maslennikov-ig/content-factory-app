@@ -1,0 +1,100 @@
+{
+  "schema": "cf-bounded-task-acceptance/v1",
+  "status": "pass",
+  "task": "content-factory-next-dbxe.13",
+  "boundary": "local source/server persistence, not deployment or actual Chrome renewal",
+  "baseline": "b6c6cd1802460c0b16181a1a30255ed6cdf2d754",
+  "tests": {
+    "command": [
+      "pnpm",
+      "exec",
+      "jest",
+      "--runInBand",
+      "--runTestsByPath",
+      "tests/extension-refresh.security.test.cjs",
+      "tests/extension-refresh.postgres.test.cjs",
+      "tests/access-provider-credentials.test.cjs",
+      "tests/access-token-purpose.test.cjs",
+      "tests/product-events.backend.test.cjs",
+      "tests/workspace-activation.growth-event.test.cjs",
+      "tests/channel-connect.role.test.cjs",
+      "tests/role-doors.three-roles.test.cjs"
+    ],
+    "suites": 8,
+    "passed": 150,
+    "skipped": 0,
+    "actual_postgresql": 8
+  },
+  "types": {
+    "command": [
+      "pnpm",
+      "exec",
+      "tsc",
+      "--project",
+      "apps/backend/tsconfig.build.json",
+      "--noEmit",
+      "--incremental",
+      "false"
+    ],
+    "exit_code": 0
+  },
+  "tools": {
+    "node": "v22.23.2",
+    "pnpm": "10.6.1",
+    "prisma": "6.5.0",
+    "postgres_image": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
+  },
+  "inputs_sha256": {
+    "apps/backend/src/api/routes/no.auth.integrations.controller.ts": "bd331548b1c53973b1d25341067eb11fbb77bfc756f745f28b84d87064d5741e",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "64ef2911bbe0f732619018ce6c4ac28e80f79e1852e847d34a4dcd817df52343",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "61d73768d1627e180e540aa3f4b3e946655519d12be33f97d5ab97c6cde5d188",
+    "libraries/nestjs-libraries/src/integrations/social/skool.provider.ts": "7263d1520a74da702b8475993dcf02974e5127ba7ab652d4e0de7cf2f9e39ad7",
+    "libraries/helpers/src/auth/auth.service.ts": "56e46229422da985f8819852cb7eabaf8f1d3df5ccf6cbbf52dd0ad4cdb6b40b",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "tests/extension-refresh.security.test.cjs": "5398cd2fd3dd190c20d0234e1a5a1fc0992381d708c345ec913a5c4d3a1fbf25",
+    "tests/extension-refresh.postgres.test.cjs": "529d49185d84eaf487a447833f2c6d27086501827bb9ef3501cf4dc8c32d58a1",
+    "tests/helpers/extension-refresh.module.cjs": "9f8a3b919a933d27ac1c6f4dc07f5f8d5698c4bf9a0114abca2f3bb2db06f007",
+    "tests/helpers/integration-service.module.cjs": "05380e55c764dea378fe5e1c99731ede0948e9a8ef66ec7dc13e51a1b487f994",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/unpoliced-doors-allowlist.json": "09ab214ff2c7558f6256cf01921bd71312557be215a61efc206a2ef8d3af3924",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05"
+  },
+  "original_criteria": {
+    "anchor": ".codex/goals/content-factory-next-dbxe/scope-criterion-snapshot.json",
+    "count": 30,
+    "exactly_preserved": true
+  },
+  "cleanup": {
+    "owned_temporary_db_removed": true,
+    "preexisting_containers_retained": true,
+    "count": 68
+  },
+  "docs": "updated, links184 PASS",
+  "graph": "used, stale46ec4108 orientation; exact sources confirmed",
+  "child": {
+    "id": "/root/extension_refresh_contract",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "accepted": "read-only consumer map",
+    "writes": 0,
+    "runtime_cleanup": "none"
+  },
+  "compatibility": "old untagged extension refresh grants need one normal reconnect after a future release; legacy AES/JWT cookie reads retained",
+  "remaining": [
+    "dbxe.14 actual packaged-browser permissions/renewal/errors",
+    "dbxe.8 exact-SHA full release acceptance",
+    "epic remains open"
+  ],
+  "production_mutation": false,
+  "push": false,
+  "deploy": false,
+  "real_accounts_or_provider_calls": false,
+  "beads_after_close": {
+    "task13": "closed",
+    "epic": "open",
+    "task8": "in_progress",
+    "task14": "open",
+    "all_original_criteria_exact": 30
+  }
+}

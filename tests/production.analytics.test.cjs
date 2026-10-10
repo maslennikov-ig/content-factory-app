@@ -37,6 +37,7 @@ const loadPostsRepository = () =>
   loadTypeScriptModule(
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
     {
+    './publication-store.v106': { PublicationStoreV106: class {} },
       // Правило держателя слота (`97dq.57`): без вытесненных версий.
       '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan': {
         supersededDraftPostIds: async (...args) => {

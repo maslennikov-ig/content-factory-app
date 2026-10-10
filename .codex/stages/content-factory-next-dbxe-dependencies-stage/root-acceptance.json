@@ -1,0 +1,158 @@
+{
+  "schema": "cf-dependency-root-acceptance/v1",
+  "boundary": "local-dependency/loopback/build; no release/deploy",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "checks": [
+    {
+      "name": "affected-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/dependency-security.compatibility.test.cjs",
+        "tests/mcp.e2e.test.cjs",
+        "tests/mcp.server.test.cjs",
+        "tests/mcp-oauth.test.cjs",
+        "tests/mcp-confirmation.test.cjs",
+        "tests/mcp-consent.answer.test.cjs",
+        "tests/mcp-discovery.nginx.test.cjs",
+        "tests/agent-capabilities.mcp-redaction.test.cjs",
+        "tests/backend-memory.mcp-lazy.test.cjs",
+        "tests/backend-memory.linkedin-pdf-lazy.test.cjs",
+        "tests/media.upload-limit.test.cjs",
+        "tests/media.upload-failure.test.cjs",
+        "tests/upload-module.wiring.test.cjs",
+        "tests/frontend-upload-stream-lifetime.test.cjs",
+        "tests/brand-voice.sample-files.test.cjs",
+        "tests/brand-voice.materials.test.cjs",
+        "tests/brand-voice.routes.test.cjs",
+        "tests/webhook.delivery.ssrf.test.cjs",
+        "tests/server-url-ssrf.test.cjs",
+        "tests/backend.cors.test.cjs",
+        "tests/voice-stream-liveness.test.cjs",
+        "tests/voice-analysis-stream.test.cjs",
+        "tests/new-launch.ndjson-splitter.test.cjs",
+        "tests/adaptation-rich-text.test.cjs",
+        "tests/adaptation-inline-marks.test.cjs",
+        "tests/adaptation-editor.emoji.test.cjs",
+        "tests/editor-html.bold.test.cjs",
+        "tests/editorial-stage.editor-wiring.test.cjs",
+        "tests/image-editor.behavior.test.cjs",
+        "tests/image-editor.engine.test.cjs",
+        "tests/temporal-contract-signature.guard.test.cjs",
+        "tests/temporal.search.attributes.test.cjs",
+        "tests/email-service-silent-vs-broken.guard.test.cjs",
+        "tests/email-configuration-checker-resend-key.guard.test.cjs",
+        "tests/email-resend-provider-swallow.guard.test.cjs",
+        "tests/access-cookie-origin.test.cjs",
+        "tests/access-public-policies.test.cjs",
+        "tests/auth-middleware-membership.test.cjs",
+        "tests/permissions.service.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 24.73
+    },
+    {
+      "name": "source-acceptance",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "tests/content-source-registry.test.cjs",
+        "tests/content-source-fetch-gateway.test.cjs",
+        "tests/content-search-evidence.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 2.52
+    },
+    {
+      "name": "production-builds",
+      "command": [
+        "pnpm",
+        "-r",
+        "--workspace-concurrency=1",
+        "--filter",
+        "./apps/frontend",
+        "--filter",
+        "./apps/backend",
+        "--filter",
+        "./apps/orchestrator",
+        "--filter",
+        "./apps/commands",
+        "run",
+        "build"
+      ],
+      "exitCode": 0,
+      "seconds": 94.88
+    },
+    {
+      "name": "extension-vite-build",
+      "command": [
+        "pnpm",
+        "--filter",
+        "./apps/extension",
+        "exec",
+        "vite",
+        "build"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "extension-python-zip",
+      "exitCode": 0,
+      "files": 4,
+      "sha256": "bdfc34758bd179a565e347f4a87b46f0692a25d05d3d33330310346a3f5d5a32",
+      "manifestAndBundleByteExact": true
+    },
+    {
+      "name": "built-next-loopback-smoke",
+      "results": {
+        "login": {
+          "status": 200,
+          "bytes": 33286
+        },
+        "remote_image": {
+          "status": 400,
+          "body": "\"url\" parameter is not allowed"
+        }
+      },
+      "exitCode": 0
+    }
+  ],
+  "status": "PASS",
+  "unacceptedAttempt": {
+    "name": "extension-build",
+    "command": [
+      "pnpm",
+      "--filter",
+      "./apps/extension",
+      "run",
+      "build"
+    ],
+    "exitCode": 1,
+    "seconds": 0.92
+  },
+  "packagingFallback": "System zip absent. Actual Vite build and Python standard-library ZIP with CRC/manifest/bundle equality; no pnpm extension packaging-script success claim.",
+  "baselineHead": "64b6a34fe0b642a232d3fec128b75ef0fb13304a",
+  "ownedNextRemoved": true,
+  "inputs": {
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    "tests/dependency-security.compatibility.test.cjs": "966251b66f5a9890c73c76451d34fa2c93ef7c4ff4138ce4d21a9bd368f2854c",
+    "apps/frontend/next.config.js": "4ff66c4363959cb31249741c2bbc6d6c48a5a2553da45fccc37778a8e3a562cb",
+    "apps/extension/vite.config.ts": "3ef432bd06bba34f94dda00efff203d7b530022464d70351a9f8ef72c21903e1",
+    "apps/extension/manifest.json": "2291f963ac6484a13e6653063833126fc520649a0fe61ec89adf3d47c3aaab28"
+  },
+  "checkLogDigests": {
+    "affected-acceptance.local.log": "13e354b42fddbd850a8e88f61e299802dd49cc360385f5bc6c13a084b374051f",
+    "source-acceptance.local.log": "c028c38cf29b21b274093dbca429398820be29521b483605910b7d32900c01d7",
+    "production-builds.local.log": "3c68b99fd8bfb75876ef8a74f79c7f96b5fee8551f576f891367eaf4e2056529",
+    "extension-vite-acceptance.local.log": "eab41dc57e3e1690b97121fcbac001240ab35551ba5f1c40e243f60040fa26ce",
+    "next-start.local.log": "f2189bddab4892bcaea26e7578b6de47bdd646277a7d4b8910792e317481429e",
+    "frozen-install-final.local.log": "3373c3b2bf5051c26e0ccd8efd98786e59b63eec32b89db8f7264770b9ba82fd"
+  }
+}

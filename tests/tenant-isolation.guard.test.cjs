@@ -323,10 +323,6 @@ const ALLOWED = new Map([
     'Read on 05.09.2026. `POST /integrations/:id/nickname` resolves the channel through `getIntegrationById(org.id, id)` and refuses when it is not there, before the provider is called and this write happens.',
   ],
   [
-    `${PRISMA}/integrations/integration.repository.ts integration.updateMany in createOrUpdateIntegration`,
-    'Deduplicates by `rootInternalId` across organisations by design: one reconnected account must not leave two live rows.',
-  ],
-  [
     `${PRISMA}/integrations/integration.repository.ts post.findFirst in getIntegrationForOrder`,
     'Marketplace order lookup, filtered by seller and buyer identity instead; the upstream marketplace is not enabled here.',
   ],

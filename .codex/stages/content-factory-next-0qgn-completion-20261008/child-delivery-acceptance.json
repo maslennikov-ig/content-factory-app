@@ -2,19 +2,22 @@
   "ops": {
     "deliveredCommit": "9bd7b438b5bfa81d1a545ea8941a87c7de2784c3",
     "focusedTestsPassed": 45,
-    "acceptance": "source accepted for integration; host preflight/retention remains root-owned",
-    "cleanup": "only owned temporary test resources; worktree/history retained"
+    "acceptance": "Source and delivered publiccae3 runtime accepted: empty Prisma diff before/after, explicit active/verified rollback retention, all other containers preserved.",
+    "cleanup": "Only owned helper/QA tmp files removed; actual rollback retained; author worktree/history preserved.",
+    "deliveryEvidence": "operations-root-acceptance.actual.json"
   },
   "style": {
     "deliveredCommit": "e23ac0095d3feaa0fb7c50740ccf7f68ca5be014",
     "acceptance": "INCONCLUSIVE -> RETAIN_CURRENT under explicit .17 criterion; no batch-quality claim, no app/default/profile change",
     "checks": "4 source/4 historical receipt pins and scoped links/diff; new-worktree ignored historical cfiz receipt absent, no new broken link",
-    "cleanup": "no external/DB/model resources; worktree/history retained"
+    "cleanup": "no external/DB/model resources; worktree/history retained",
+    "deliveryEvidence": "docs/product/style-analysis-comparison-20261008.md; .17 closed under explicit retain-current alternative"
   },
   "search": {
     "deliveredCommit": "a1a9c8dd87c2761392ed6c8a5d04254714253cfb",
     "focusedChecks": "14 suites/524 passed, final backend types/diff; legacy4 modules/31 pure cases retained",
-    "acceptance": "source accepted for integration; root fresh model/retrieval/release remains pending",
-    "cleanup": "no live/model/DB resources; original historical wire/ledger and worktree preserved"
+    "acceptance": "Source,3 actual retained-model controls,3 fresh retrieval replies and delivered publiccae3 accepted under practical good-text/source/gaps contract; no universal entailment certificate.",
+    "cleanup": "Owned actor retired/session401; core/post/usage history retained, credentials and own host/app helpers removed; author worktree preserved.",
+    "deliveryEvidence": "reader-retrieval-root-review.actual.json and reader-model-root-review.actual.json"
   }
 }

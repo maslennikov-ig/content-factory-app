@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import dayjs from 'dayjs';
 import { Integration, Prisma, State } from '@prisma/client';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
@@ -7,6 +7,12 @@ import { IntegrationTimeDto } from '@contentfactory/nestjs-libraries/dtos/integr
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@contentfactory/nestjs-libraries/dtos/plugs/plug.dto';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
+import { credentialProviderFamily } from '@contentfactory/nestjs-libraries/integrations/social/credential-families';
+
+export type ExtensionIntegrationSnapshot = Pick<Integration,
+  'id' | 'organizationId' | 'internalId' | 'providerIdentifier' | 'token' | 'customInstanceDetails'>;
+export type ExtensionIntegrationUpdate = Pick<Prisma.IntegrationUpdateManyMutationInput,
+  'token' | 'refreshToken' | 'tokenExpiration' | 'customInstanceDetails' | 'refreshNeeded'>;
 
 /**
  * The posting slots a newly connected channel starts with
@@ -387,6 +393,10 @@ export class IntegrationRepository {
           internalId,
           organizationId: org,
         },
+        // The legacy unique key has no provider. Keep the provider in the
+        // write predicate so a coincident external ID cannot replace a channel,
+        // including when two different connections race to create that key.
+        providerIdentifier: provider,
       },
       create: {
         type: type as any,
@@ -434,6 +444,21 @@ export class IntegrationRepository {
         deletedAt: null,
         refreshNeeded: false,
       },
+    }).catch(async (error: unknown) => {
+      const code = (error as { code?: string })?.code;
+      if (code === 'P2002' || code === 'P2025') {
+        const existing = await this._integration.model.integration.findUnique({
+          where: { organizationId_internalId: { organizationId: org, internalId } },
+          select: { providerIdentifier: true },
+        });
+        if (existing && existing.providerIdentifier !== provider) {
+          throw new ConflictException({
+            code: 'CF_CHANNEL_PROVIDER_COLLISION',
+            message: 'This connection conflicts with another channel in this workspace. Your existing channel has not been changed.',
+          });
+        }
+      }
+      throw error;
     });
 
     if (oneTimeToken) {
@@ -453,6 +478,8 @@ export class IntegrationRepository {
             not: upsert.id,
           },
           rootInternalId: rootId,
+          organizationId: org,
+          providerIdentifier: { in: credentialProviderFamily(provider) },
         },
         data: {
           token,
@@ -522,6 +549,26 @@ export class IntegrationRepository {
         id,
       },
     });
+  }
+
+  async updateExtensionIntegration(
+    snapshot: ExtensionIntegrationSnapshot,
+    data: ExtensionIntegrationUpdate
+  ) {
+    const { count } = await this._integration.model.integration.updateMany({
+      where: {
+        id: snapshot.id,
+        organizationId: snapshot.organizationId,
+        internalId: snapshot.internalId,
+        providerIdentifier: snapshot.providerIdentifier,
+        token: snapshot.token,
+        customInstanceDetails: snapshot.customInstanceDetails,
+        deletedAt: null,
+        disabled: false,
+      },
+      data,
+    });
+    return count === 1;
   }
 
   async getIntegrationForOrder(

@@ -1,5 +1,6 @@
 import { Command, Option } from 'nestjs-command';
 import { Injectable, Logger } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import {
@@ -41,6 +42,7 @@ import { hasBoldPair } from '@contentfactory/helpers/utils/bold-markers';
 export type BoldBackfillRow = {
   id: string;
   body: string | null;
+  updatedAt: Date;
   post: {
     id: string;
     content: string | null;
@@ -57,7 +59,7 @@ export type BoldBackfillClient = {
     findMany(args: unknown): Promise<BoldBackfillRow[]>;
   };
   post: {
-    updateMany(args: unknown): Promise<{ count: number }>;
+    updateMany(args: Prisma.PostUpdateManyArgs): Promise<{ count: number }>;
   };
 };
 
@@ -148,6 +150,7 @@ export class RerenderAdaptationBold {
         select: {
           id: true,
           body: true,
+          updatedAt: true,
           post: {
             select: {
               id: true,
@@ -185,10 +188,22 @@ export class RerenderAdaptationBold {
             organizationId: organization.id,
             state: 'DRAFT',
             deletedAt: null,
+            content: post.content,
+            // Между чтением и записью человек мог изменить пост или тело.
+            // Сравнение идёт в том же UPDATE, по исходным данным без trim.
+            contentDerivations: {
+              some: {
+                id: row.id,
+                organizationId: organization.id,
+                body: row.body,
+                updatedAt: row.updatedAt,
+              },
+            },
           },
           data: { content: fresh },
         });
         rewritten += count;
+        if (count === 0) skipped.push(post.id);
       }
     }
 

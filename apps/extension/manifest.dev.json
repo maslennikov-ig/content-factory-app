@@ -1,28 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Content Factory",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Content Factory browser extension for connecting channels",
   "icons": {
     "32": "icon-32.png",
     "128": "icon-128.png"
   },
-  "permissions": [
-    "cookies",
-    "alarms",
-    "storage"
-  ],
+  "permissions": ["cookies", "alarms", "storage"],
   "host_permissions": [
-    "*://*.skool.com/*"
+    "*://*.skool.com/*",
+    "http://localhost/*",
+    "https://localhost/*"
   ],
+  "action": { "default_title": "Content Factory" },
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "externally_connectable": {
-    "matches": [
-      "http://localhost/*",
-      "https://localhost/*"
-    ]
+    "matches": ["http://localhost/*", "https://localhost/*"]
   }
 }

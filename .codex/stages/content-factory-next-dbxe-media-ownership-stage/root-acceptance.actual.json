@@ -1,0 +1,120 @@
+{
+  "schema": "content-factory-root-acceptance/v1",
+  "date": "2026-10-10",
+  "stage": "content-factory-next-dbxe-media-ownership-stage",
+  "task": "content-factory-next-dbxe.21",
+  "baseline": "a30a6d997d009222ac67554873bdeec7b8ad9891",
+  "result": "PASS",
+  "acceptance_boundary": "local source/fake R2/Redis/controller/Uppy/owned native PostgreSQL; no deployment/provider effect",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "verification": {
+    "diagnostic": {
+      "preFixFailures": 2,
+      "result": "reproduced"
+    },
+    "jest": {
+      "suites": 6,
+      "tests": 90,
+      "skips": 0,
+      "exitCode": 0,
+      "newFakeHttpCases": 49,
+      "log": "focused-final.local.log"
+    },
+    "nativePostgres": {
+      "tests": 9,
+      "skips": 0,
+      "exitCode": 0,
+      "ownedFixtureRemoved": true,
+      "preexistingContainersPreserved": 69,
+      "log": "native-postgres.local.log"
+    },
+    "backendTypes": {
+      "exitCode": 0,
+      "log": "backend-types-final.local.log"
+    },
+    "frontendTypes": {
+      "exitCode": 0,
+      "log": "frontend-types.local.log"
+    },
+    "docs": {
+      "exitCode": 0,
+      "log": "../content-factory-next-dbxe-delivery-20261010/docs-final.local.log"
+    },
+    "process": {
+      "exitCode": 0,
+      "log": "../content-factory-next-dbxe-delivery-20261010/process-precommit.local.log",
+      "initialFailure": "handoff length and required next-stage tokens; corrected without policy change"
+    },
+    "diff": {
+      "exitCode": 0
+    },
+    "temporal": {
+      "filesByteIdentical": 39,
+      "allSignaturesIdentical": true
+    },
+    "tracker": {
+      "originalCriterionSnapshotPreserved": true,
+      "other28ChildStatusAndCriteriaPreserved": true,
+      "epicOpen": true
+    }
+  },
+  "inputs": {
+    "apps/backend/src/api/routes/media.controller.ts": "650f031e6f8fd3f8eefed61cd8fd8b8663490923f043dd2105645280d53cb920",
+    "libraries/nestjs-libraries/src/upload/r2.uploader.ts": "92a886c01d5655cd3d73a08ecd930bf305153f1a21f293ef42a82ae0394cf58c",
+    "libraries/nestjs-libraries/src/upload/r2.upload.session.ts": "9f735f73657d1faa3cebc7658a2cef039f44a8648545c8067dd83f5bf4c10ca1",
+    "libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts": "129a8341008bec611a2d4fa6c36ff0770f1b27d836debf03b05d4e9945f9d4c8",
+    "libraries/nestjs-libraries/src/database/prisma/media/media.repository.ts": "76043cf0570be6608ecb86930ee71fee3f7a2e60f8adcfdf4ffb1ed5999a96c3",
+    "libraries/nestjs-libraries/src/database/prisma/media/media.service.ts": "683757e1bcccbf5aa0a5431f82915d5462cd6296d6e351de01b731e8d6fc97f1",
+    "libraries/react-shared-libraries/src/helpers/uppy.upload.ts": "1dcb74b72e5844bf254927b77b2ee9c60287583acd1fb1ef47e7f033ad8e6733",
+    "tests/helpers/media-ownership.module.cjs": "75617f80d05c2a30ba77a5e42356d96170a5cd34614a9ab71941e2cf76aa0174",
+    "tests/media-ownership.test.cjs": "22e9a35c09f4f409c0b085014619165f32e1c481820262ffa4e82a6b4985660a",
+    "tests/media-ownership.postgres.test.cjs": "a11e6756ef00fa5273063ba3e8650503033d2ae158df63ec15e460fbb5a4d282",
+    "docs/operations/media-ownership.md": "bdcd8aa4839907ea1cd4f094e3983dea593cd122ca4ef2a8106f6fe7c84059d3",
+    ".codex/handoff.md": "41873e3b7605e1755743482d19b1c3e5ea83350d074bc414e0c2a8d42747b245",
+    ".codex/project-index.md": "8beef51625e1e62c6ccdc88384c3d2c25988c7d3a476ac3e7bdab611c79d44af",
+    ".codex/stages/content-factory-next-dbxe-media-ownership-stage/plan.md": "bcc729944ac1300a81633737aa07c5dd6f4e60d37e9f0dd0a4b1957d6dd1f45a",
+    ".codex/stages/content-factory-next-dbxe-media-ownership-stage/outcome.md": "614378126486539617b292a1d2952c8e1a0b7ebac1d8a5a0feada1a22a478abd",
+    ".codex/stages/content-factory-next-dbxe-media-ownership-stage/native-postgres.py": "082e192eb0cefa977c0eaa0159b993d49c44c14c37a2f155fb5fbd93286dab0f",
+    ".codex/stages/content-factory-next-dbxe-media-ownership-stage/native-postgres.actual.json": "925e8f507803cac457dc632b1b0d1e4b5d0b8a8148534af5fa45a812d970c527"
+  },
+  "delivery": "separately authorized accumulated release follows through dbxe.8; no automatic other-task/epic completion",
+  "initialAcceptance": {
+    "sourceCommit": "d1cd8e100096b81ee8316ef42cd4d1b3ec2cadf9",
+    "jestSuites": 6,
+    "jestTests": 88,
+    "newFakeHttpCases": 47,
+    "skips": 0,
+    "inputSha256": {
+      "apps/backend/src/api/routes/media.controller.ts": "650f031e6f8fd3f8eefed61cd8fd8b8663490923f043dd2105645280d53cb920",
+      "libraries/nestjs-libraries/src/upload/r2.uploader.ts": "92a886c01d5655cd3d73a08ecd930bf305153f1a21f293ef42a82ae0394cf58c",
+      "libraries/nestjs-libraries/src/upload/r2.upload.session.ts": "6f3c1e97d684bdaddb75a468b4220f98bb92e539d14f8221b10cd0cc55bf560e",
+      "libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts": "129a8341008bec611a2d4fa6c36ff0770f1b27d836debf03b05d4e9945f9d4c8",
+      "libraries/nestjs-libraries/src/database/prisma/media/media.repository.ts": "76043cf0570be6608ecb86930ee71fee3f7a2e60f8adcfdf4ffb1ed5999a96c3",
+      "libraries/nestjs-libraries/src/database/prisma/media/media.service.ts": "683757e1bcccbf5aa0a5431f82915d5462cd6296d6e351de01b731e8d6fc97f1",
+      "libraries/react-shared-libraries/src/helpers/uppy.upload.ts": "1dcb74b72e5844bf254927b77b2ee9c60287583acd1fb1ef47e7f033ad8e6733",
+      "tests/helpers/media-ownership.module.cjs": "8d4c548d0cdfa1daa29a14870cb36238a33f06a6d259488e036db7f440d6f7d0",
+      "tests/media-ownership.test.cjs": "e161913691736f4e97284131fd303ce7984fc781788d2c39950a2ed9685b00a7",
+      "tests/media-ownership.postgres.test.cjs": "a11e6756ef00fa5273063ba3e8650503033d2ae158df63ec15e460fbb5a4d282",
+      "docs/operations/media-ownership.md": "97b0333979b46aa28255c790e5d35b24e4d9e673f68874f3e937a8eb2baec9b4",
+      ".codex/handoff.md": "946b32a8657f2a37e1a5c9e6e0e847d0330bd2474fa4dfe5b9eaf09225a5607d",
+      ".codex/project-index.md": "8beef51625e1e62c6ccdc88384c3d2c25988c7d3a476ac3e7bdab611c79d44af",
+      ".codex/stages/content-factory-next-dbxe-media-ownership-stage/plan.md": "bcc729944ac1300a81633737aa07c5dd6f4e60d37e9f0dd0a4b1957d6dd1f45a",
+      ".codex/stages/content-factory-next-dbxe-media-ownership-stage/outcome.md": "78827ee463da5fcf299f0b3d59ab42aa523f9a72d4960b2b80b8c16624b6ca13",
+      ".codex/stages/content-factory-next-dbxe-media-ownership-stage/native-postgres.py": "082e192eb0cefa977c0eaa0159b993d49c44c14c37a2f155fb5fbd93286dab0f",
+      ".codex/stages/content-factory-next-dbxe-media-ownership-stage/native-postgres.actual.json": "4be56764f8703f1e17dcb42bde912d2475f2ece8283c0a3758d7ac7e65f75ab8"
+    }
+  },
+  "releaseIntegrationRefinement": {
+    "pendingRedisReadWriteTimeoutMs": 5000,
+    "diagnosticLog": "redis-stuck-red.local.log",
+    "preFixFailures": 2,
+    "focusedResult": "PASS",
+    "fixtureCorrections": "delivery-20261010/fixture-corrections.local.log",
+    "fixtureSuites": 3,
+    "fixtureTests": 15,
+    "scope": "test loaders/owned synthetic Post DDL; no legacy Temporal contract changes"
+  }
+}

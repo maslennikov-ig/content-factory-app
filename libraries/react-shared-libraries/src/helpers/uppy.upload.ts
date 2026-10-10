@@ -15,6 +15,9 @@ const fetchUploadApiEndpoint = async (
       'Content-Type': 'application/json',
     },
   });
+  if (!res.ok) {
+    throw new Error('Upload request failed. Please retry.');
+  }
   return res.json();
 };
 

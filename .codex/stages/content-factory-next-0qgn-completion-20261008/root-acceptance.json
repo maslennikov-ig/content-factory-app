@@ -1,0 +1,278 @@
+{
+  "acceptedAt": "2026-10-08T20:01:28.592774+00:00",
+  "boundedCompletionPass": "Delivered all selected executable source/runtime repairs and accepted owned QA. Original EPIC/external/factual/operational gates remain explicit in Beads.",
+  "privateCodeCommit": "e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d",
+  "publicCommit": "cae3cd8340e06058365a9c9adca8194858abbb12",
+  "registry": "ghcr.io/maslennikov-ig/content-factory-next:cae3cd8340e0",
+  "registryDigest": "sha256:53cefe055fa9c3a2559afbb2f029932836d391715c53805132c1ac246ea669b0",
+  "imageConfig": "sha256:a70e865a332aeae3701bfabc5fbb97f9c9b1d04596ab64536fa3c8eef0e8a053",
+  "runtimeContainer": "3d0effee1ab4dc018955e539c050c25834a0ae6d4fbb9d6fb27e1a1c6ec7d083",
+  "rollback": "4a8e57d96545 / b0a30d6627a3",
+  "configuredReleaseChecks": {
+    "result": "PASS",
+    "count": 9,
+    "receipt": "configured-release-acceptance.actual.json"
+  },
+  "suite": {
+    "commit": "e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-08T19:03:07Z",
+    "jest": {
+      "suites": "Test Suites: 629 passed, 629 total",
+      "tests": "Tests:       9 skipped, 11493 passed, 11502 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 122",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "publicCi": {
+    "publicCommit": "cae3cd8340e06058365a9c9adca8194858abbb12",
+    "buildRun": 37829206271,
+    "qualityRun": 37829206155,
+    "allFiveJobs": "PASS",
+    "jobs": [
+      {
+        "name": "The suite, one year on",
+        "conclusion": "success"
+      },
+      {
+        "name": "Docker-capable execution proofs (required)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Full test suite (required)",
+        "conclusion": "success"
+      },
+      {
+        "name": "build (22.23.2)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Analyze (javascript-typescript)",
+        "conclusion": "success"
+      }
+    ],
+    "summaries": [
+      "2026-10-08T19:20:21.9227050Z Test Suites: 629 passed, 629 total",
+      "2026-10-08T19:20:21.9227358Z Tests:       11 skipped, 11491 passed, 11502 total",
+      "2026-10-08T19:05:48.0395080Z Test Suites: 3 passed, 3 total",
+      "2026-10-08T19:05:48.0395441Z Tests:       31 passed, 31 total",
+      "2026-10-08T19:27:16.4080059Z Test Suites: 629 passed, 629 total",
+      "2026-10-08T19:27:16.4080620Z Tests:       11 skipped, 11491 passed, 11502 total",
+      "2026-10-08T19:27:27.2702956Z # pass 122",
+      "2026-10-08T19:27:27.2703229Z # fail 0",
+      "2026-10-08T19:27:27.2703711Z # skipped 4",
+      "2026-10-08T19:27:28.8906765Z Ran 50 tests in 1.168s",
+      "2026-10-08T19:27:28.9536349Z jest: Test Suites: 629 passed, 629 total / Tests:       11 skipped, 11491 passed, 11502 total",
+      "2026-10-08T19:27:28.9537107Z node --test: # pass 122 / # fail 0",
+      "2026-10-08T19:27:28.9537585Z python unittest: Ran 50 tests in 1.168s / OK",
+      "2026-10-08T19:27:28.9537962Z All 3 suite halves reported."
+    ],
+    "rawLogs": [
+      "public-build.actual.log",
+      "public-quality.actual.log"
+    ]
+  },
+  "imageVerification": {
+    "logicTestsPassed": 308,
+    "permissionTestsWithReadonlyDocumentsPassed": 29,
+    "initialMissingDocFailuresPreserved": true,
+    "nginx": "PASS",
+    "commandsHelp": "PASS with disposable no-network Prisma connection stub; no DB-command functionality claim"
+  },
+  "sourceManifest": {
+    "commit": "cae3cd8340e06058365a9c9adca8194858abbb12",
+    "shortCommit": "cae3cd8340e0",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-cae3cd8340e0.tar.gz",
+    "bytes": 12485122,
+    "sha256": "aaa8594fb03fbe1947eb25e842d5df0087f97194d12b0cb35402b39a9e7ca089",
+    "builtAt": "2026-10-08T19:04:38Z"
+  },
+  "sourceArchiveAndBundlesExact": true,
+  "schemasUnchanged": {
+    "productTables": 77,
+    "mastraTables": 45,
+    "schemaApplied": false
+  },
+  "otherContainerIdentitiesPreserved": 21,
+  "actualProduct": {
+    "privateSource": "e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d",
+    "publicCommit": "cae3cd8340e06058365a9c9adca8194858abbb12",
+    "actorRun": "completion-20261008180728-49883ece",
+    "a1": {
+      "manualVoiceSixFieldsActive": true,
+      "connectionApprovalAndInstructionCard": true,
+      "fixtureOnlyIntegrationAfterConsent": true,
+      "emptyThoughtDidNotCreateCore": true,
+      "oneThoughtOneCoreOneAnswer": true,
+      "actualFixedAdaptation": "qa/after-fixed-adapt.actual.json",
+      "requestedReservationUtc": "2026-10-10T18:00:00Z",
+      "draftTextPreserved": true,
+      "publicationQueue": 0,
+      "pendingUsage": 0,
+      "usageRowsThroughA1": 23,
+      "successfulChatAdaptationRows": [
+        {
+          "id": "57d7b651-41a2-4993-8960-9bea8cf53877",
+          "operation": "agent",
+          "role": "agent",
+          "status": "succeeded",
+          "attempt": 1,
+          "model": "openai/gpt-6-luna",
+          "createdAt": "2026-10-08T19:17:12.698Z",
+          "promptTokens": 108899,
+          "completionTokens": 555,
+          "costUsd": "0.00227159",
+          "possiblyBilled": null
+        },
+        {
+          "id": "35bf440b-0892-4260-9f9a-53900b23a828",
+          "operation": "intake",
+          "role": "extract",
+          "status": "succeeded",
+          "attempt": 1,
+          "model": "openai/gpt-6-luna",
+          "createdAt": "2026-10-08T19:17:35.743Z",
+          "promptTokens": 637,
+          "completionTokens": 76,
+          "costUsd": "0.00005034",
+          "possiblyBilled": null
+        },
+        {
+          "id": "e02f85f3-3cbc-45cc-b1c8-07b3bb469b5a",
+          "operation": "text_generation",
+          "role": "draft",
+          "status": "succeeded",
+          "attempt": 1,
+          "model": "openai/gpt-6-luna",
+          "createdAt": "2026-10-08T19:17:45.686Z",
+          "promptTokens": 3742,
+          "completionTokens": 913,
+          "costUsd": "0.00044965",
+          "possiblyBilled": null
+        }
+      ],
+      "planTurnRows": [
+        {
+          "id": "54f562b6-cd00-402b-bc65-02d1111d9331",
+          "operation": "agent",
+          "role": "agent",
+          "status": "succeeded",
+          "attempt": 1,
+          "model": "openai/gpt-6-luna",
+          "createdAt": "2026-10-08T19:19:34.431Z",
+          "promptTokens": 110176,
+          "completionTokens": 499,
+          "costUsd": "0.00226314",
+          "possiblyBilled": null
+        }
+      ],
+      "previousTerminalFailuresRetained": true
+    },
+    "a2": {
+      "recordKinds": [
+        "avatar",
+        "channel",
+        "piece",
+        "adaptation"
+      ],
+      "fiveContexts": "avatar, channel, core, draft adaptation, reserved adaptation; reserve card points to same stored adaptation",
+      "sidePanelsResolved": true,
+      "guidanceControlVisible": true,
+      "mobileOverflow": false,
+      "pageErrors": [],
+      "unexpectedWrites": [],
+      "source": "qa/a2-readback.actual.json"
+    },
+    "realSocialPublication": false,
+    "fixtureRetirement": {
+      "actorAccessDisabled": true,
+      "oldSessionHttp": 401,
+      "pendingUsage": 0,
+      "historyPreserved": true,
+      "knownObservedCostUsd": 0.05683885,
+      "unknownInvoiceCostNotAssumedZero": true,
+      "usageRows": 26,
+      "localCredentialFilesRemoved": [
+        "credentials.private.json",
+        "browser-state.private.json"
+      ],
+      "remoteReceipt": "owned-remote-cleanup.actual.json"
+    }
+  },
+  "actualReaderSemanticReview": "reader-model-root-review.actual.json / reader-retrieval-root-review.actual.json",
+  "actualMemory": {
+    "acceptedAt": "2026-10-08T20:01:28.592774+00:00",
+    "criterion": "Original strictly below60% Docker-equivalent,1792MiB,connected channels/all queues/native process identities,>=1800sec",
+    "passed": true,
+    "samples": 31,
+    "observedSeconds": 1830.100593,
+    "memorySummary": {
+      "raw_percent_min": 66.81365966796875,
+      "raw_percent_max": 67.60842459542411,
+      "docker_equivalent_percent_min": 56.78601946149554,
+      "docker_equivalent_percent_max": 57.58056640625
+    },
+    "preservation": {
+      "all_scheduled_samples_complete": true,
+      "every_sample_runtime_checks_pass": true,
+      "initial_and_final_metadata_checks_pass": true,
+      "same_active_channel_identity_within_new_window": true,
+      "pre_release_channel_identity_proof_available": false,
+      "source_archive_and_schema_file_unchanged_within_window": true,
+      "product_and_mastra_schema_unchanged_within_window": true,
+      "same_managed_app_processes_within_window": true,
+      "same_app_id_and_image_id_within_window": true,
+      "same_five_resource_identities_within_window": true
+    },
+    "rootSeparatePrePostChannelIdentityCheck": "Actual private salt comparison of3 channels passed before/after switch; owned fixture then retired. Collector itself has no prerelease token, so its false flag is a standalone-method limitation, not a fabricated pre-release claim.",
+    "freshConnectedBaseline": 2,
+    "oldOneChannelCountWasNotReused": true,
+    "forcedGc": false,
+    "changedMemoryCap": false,
+    "excludedQueues": false,
+    "warmWorkload": "Actual owned A1 adaptation/reserve/3 fresh reader requests completed before window, actor retired; no load was manufactured within it.",
+    "longerSoakOrProviderTokenValidityClaim": false,
+    "evidence": "hot-memory-cae3/report.json"
+  },
+  "styleDecision": "INCONCLUSIVE -> RETAIN_CURRENT; existing defaults/diversity/profiles unchanged",
+  "retention": {
+    "active": "cae3cd8340e0",
+    "verifiedRollback": "4a8e57d96545",
+    "onlyRemovedImageTag": "f26f751445a8",
+    "copiesRemoved": 4,
+    "allCurrentContainerIdsPreserved": true,
+    "log": "retention-candidate-apply.actual.log"
+  },
+  "scopedCleanup": "Exact owned QA/helper credentials retired, business/usage history preserved; no foreign prune or existing backup restore",
+  "graphReviewed": "updated isolated AST27470nodes/54436clusterededges/1617communities,54 noncode zero-node inputs, no external model extraction",
+  "deliveredTasks": [
+    "0qgn.17",
+    "0qgn.21",
+    "0qgn.22",
+    "0qgn.23",
+    "0qgn.10.1",
+    "0qgn.10.2",
+    "0qgn.10",
+    "kcxz.57",
+    "71m.8",
+    "71m"
+  ],
+  "epicStatus": "in_progress; not complete",
+  "remainingBeadsConditions": {
+    "0qgn.5": "BLOCKED shared90-day/no project target30 override, aged-pruning/failure-recovery/provider invoice-sizing/offsite proof missing",
+    "saas.4/saas.7": "owner-deferred legal operator/region/support/Terms/Privacy facts",
+    "or3.9/or3.9.1/fn33.103/fn33.9": "owner-deferred pricing/trial/payment activation",
+    "kcxz.46": "owner-deferred actual ChatGPT login; Claude unavailable/removed",
+    "m0iy.10/m0iy.6/m0iy.7": "historical cohort denominator unknown; deep phase gated",
+    "2q28": "actual client publication/personal feedback not inferred from root QA"
+  },
+  "continuousGoal": null,
+  "realSocialPublication": false,
+  "existingBackupRestoration": false,
+  "nextRecommendedStage": "bounded0qgn.5 operational gates, then legal/commercial/access facts for SaaS launch"
+}

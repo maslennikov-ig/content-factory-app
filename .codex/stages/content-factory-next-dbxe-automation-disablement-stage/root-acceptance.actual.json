@@ -1,0 +1,178 @@
+{
+  "schema": "cf-bounded-task-acceptance/v1",
+  "task": "content-factory-next-dbxe.15",
+  "status": "pass",
+  "baseline": "60f4c6f615c8d5abeb49ef02ff6eaf000872702c",
+  "boundary": "local service/provider and controlled workflow/owned PostgreSQL; not native Temporal replay, live provider, production or release acceptance",
+  "criteria": {
+    "original_anchor": ".codex/goals/content-factory-next-dbxe/scope-criterion-snapshot.json",
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "preserved": 30,
+    "mismatches": [],
+    "preserved_after_close": 30
+  },
+  "commands": {
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/automation-disablement.test.cjs tests/automation-disablement.postgres.test.cjs tests/backend-memory.x-sdk-lazy.test.cjs tests/temporal-contract-signature.guard.test.cjs tests/publication-v106.test.cjs",
+      "exit": 0,
+      "suites": 5,
+      "tests": 212,
+      "skips": 0,
+      "per_suite": {
+        "automation-disablement.postgres.test.cjs": 8,
+        "publication-v106.test.cjs": 25,
+        "automation-disablement.test.cjs": 65,
+        "backend-memory.x-sdk-lazy.test.cjs": 62,
+        "temporal-contract-signature.guard.test.cjs": 52
+      }
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "orchestrator_types": {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit": 0,
+      "files": 185
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit": 0
+    }
+  },
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "tested_inputs_sha256": {
+    "apps/backend/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/backend/tsconfig.json": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782",
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/index.ts": "ac10cb804da4cd22d82ef30ba114860722679a3323f8b258f8427a398eb9521d",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8",
+    "apps/orchestrator/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/orchestrator/tsconfig.json": "12083f4899bddab1e21d054b16167b2f4efc433bdee55938378ebfde6e97e8eb",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "libraries/helpers/src/decorators/plug.decorator.ts": "7b26a0419543e6760ad572df3c1f5881a499727aa930a8cf5ee7203ac251b87e",
+    "libraries/helpers/src/decorators/post.plug.ts": "c7847c89092fb4a3e42c031dbc0b56eaf3f8fec163c53e8eccebdb2164884ebd",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "61d73768d1627e180e540aa3f4b3e946655519d12be33f97d5ab97c6cde5d188",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "4bb96dc2629ae2452f7445835639a5e05c300f781363eb17b3d43d2eac2381a4",
+    "libraries/nestjs-libraries/src/database/prisma/posts/post-fire-guard.ts": "8f646b35dcb17befe89cc08b8a414a5053aea950f5e5c6c098fb6bb290daf325",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "4d60840bb49a0f526d79286670cdceb36137f971ec78a86136b284e88b091a82",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "5af9508756aaf8c31db9bada71caed6693ec422a3aea19b76c8411c6292ed4e0",
+    "libraries/nestjs-libraries/src/database/prisma/posts/publication-store.v106.ts": "d4c791e5a4bb292546cefde0fae9a1265bc7950c14bb01ffb913d9baf2769eff",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "libraries/nestjs-libraries/src/integrations/integration.manager.ts": "f3d282863c50f818bc365bf4a474a816189517ff6fa64ded677c35248959bcba",
+    "libraries/nestjs-libraries/src/integrations/social/x.provider.ts": "b1166c420896fbfb2f3b3bcb30811438cff0b5298c7c786bf183ae6f426c21db",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    "tests/automation-disablement.postgres.test.cjs": "93a18f3e03c9a7584f70f04a4531f44437ca4ab6e3649faafe7a6242c4ddec5a",
+    "tests/automation-disablement.test.cjs": "4cd340d82eb1ae0b74bfdab23a775ab3fc33fd221855926b5fc80814396535cf",
+    "tests/backend-memory.x-sdk-lazy.test.cjs": "967df5b6b8339b42da7a908d4f513938b3fff15df83f97bb728381805bebb5fc",
+    "tests/helpers/automation-disablement.module.cjs": "bb6d9e3aeb321511b8ee70e5f7c88ca8f239fd7ef1db497364a84688a7b70d73",
+    "tests/helpers/integration-service.module.cjs": "05380e55c764dea378fe5e1c99731ede0948e9a8ef66ec7dc13e51a1b487f994",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/helpers/posts-service.module.cjs": "28f2ce3c343a6915de81c50e5614dbe4da5055cb944b108983712de867a41631",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/publication-v106-legacy.baseline.json": "a1a36dadc53b3b1c8c5f3ef9378a22f34d928d84e8e0a4b24c7d5c7be7cb33aa",
+    "tests/publication-v106.test.cjs": "652f0ac833a60e69edef9638bab1a3bd07b3c6784854f2d1bdbe8943d036d27d",
+    "tests/temporal-contract-signature.baseline.json": "cace0504b4a33ca69443c003a424eb9878008902dbadb9205aaa5fe77a9bffea",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tsconfig.base.json": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c"
+  },
+  "legacy": {
+    "workflow_and_activity_files": 29,
+    "changed": [],
+    "versions_exercised": [
+      "V101",
+      "V102",
+      "V103",
+      "V104",
+      "V105",
+      "V106"
+    ],
+    "fixture_uses_unchanged_PostActivity": true,
+    "native_history_replay": false
+  },
+  "postgres": {
+    "tests": 8,
+    "image": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+    "disposable_only": true,
+    "cleanup": {
+      "owned_removed": true,
+      "before_count": 68,
+      "after_count": 68,
+      "preexisting_removed": [],
+      "foreign_added": []
+    }
+  },
+  "behavior": {
+    "inactive_or_removed_plug": "safe skip before parsing/dispatch",
+    "disabled_or_deleted_channel": "safe skip before dispatch",
+    "internal_source_and_destination": "both current scoped rows checked",
+    "capability": "current metadata plus available method",
+    "X_switch": "provider-local before credentials/SDK/API and before delayed write",
+    "global_skip_result": true,
+    "internal_skip_result": "void",
+    "enabled_operations": "retained",
+    "other_cached_plugs": "continue",
+    "diagnostics": "fixed event/kind/reason only",
+    "workflow_cancel_calls": 0
+  },
+  "child": {
+    "name": "automation_contract_map",
+    "delivery": "read-only caller and return-contract map",
+    "accepted": true,
+    "writes": 0,
+    "owned_resources": 0
+  },
+  "docs_reviewed": "updated",
+  "graph_reviewed": "used; stale46ec4108 orientation, current files/callers verified",
+  "evidence_sha256": {
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/jest.local.json": "ab60cb20732f58b2d7670288e062f29193b0cb28c52da5ccfd72426a33b1643f",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/jest.local.log": "1cf938c8adada4f5d82667f2ff16ab019152f30bdd9eca10e32433a86fd5eb5f",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/postgres-acceptance.local.json": "e2bd03e8b9c3744e5650833b79c7a0cb7c2b4791a9ca7cae815b6d1cf1c2a55f",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/backend-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/orchestrator-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/reproducer.local.log": "401842586a78c027b99dfad2a1733edf3a7cb84bbbfe2b229c1733180907e631",
+    ".codex/stages/content-factory-next-dbxe-automation-disablement-stage/x-reproducer.local.log": "cfae348db85fc53ca2a943ae3d7019d3f581c63eb6955f13cc885868897afcc9"
+  },
+  "delivery": "scoped local commit; no source push/deploy/full release suite",
+  "beads_after_close": {
+    "content-factory-next-dbxe": "open",
+    "content-factory-next-dbxe.8": "in_progress",
+    "content-factory-next-dbxe.15": "closed",
+    "content-factory-next-dbxe.16": "open"
+  }
+}

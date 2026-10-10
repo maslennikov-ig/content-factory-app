@@ -234,7 +234,7 @@ describe('public API approval gate', () => {
   test('an OAuth token belonging to an approved account still works', async () => {
     const middleware = middlewareFor(null, {
       organization: organization([true]),
-      user: { id: 'user-1', activated: true },
+      user: { id: 'user-1', activated: true, organizations: [{ organizationId: 'org-1', role: 'ADMIN', disabled: false }] },
     });
     const { req, res, sent } = requestPair();
     req.headers.authorization = 'pos_token';

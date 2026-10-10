@@ -1,0 +1,353 @@
+{
+  "schema": "cf-bounded-task-acceptance/v1",
+  "task": "content-factory-next-dbxe.17",
+  "status": "pass",
+  "baseline": "76ddaa82a57efd611e2a674e0c39e6034d4ef209",
+  "boundary": "local actual-code/fake HTTP plus offline saved synthetic SDK histories; no real receiver, native V108 execution, production history or full release acceptance",
+  "criteria": {
+    "criteria_preserved": 30,
+    "mismatches": [],
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "historical_files_unchanged": 31,
+    "signature_additions": {
+      "activities": {
+        "apps/orchestrator/src/activities/post.activity.v108.ts": {
+          "PostActivityV108.sendWebhooksV108": [
+            "input:{ localPostId: string; organizationId: string; integrationId: string; }"
+          ],
+          "PostActivityV108.searchForMissingThreeHoursPostsV108": []
+        }
+      },
+      "workflows": {
+        "apps/orchestrator/src/workflows/missing.post.workflow.v108.ts": {
+          "missingPostWorkflowV108": []
+        },
+        "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts": {
+          "postWorkflowV108": [
+            "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+          ]
+        }
+      }
+    },
+    "statuses_before_close": {
+      "content-factory-next-dbxe": "open",
+      "content-factory-next-dbxe.8": "in_progress",
+      "content-factory-next-dbxe.17": "in_progress",
+      "content-factory-next-dbxe.18": "open"
+    },
+    "preserved_after_close": 30
+  },
+  "commands": {
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/webhook-identity.test.cjs tests/webhook.delivery.ssrf.test.cjs tests/tenant-isolation.guard.test.cjs tests/publication-v106.test.cjs tests/post-fire-guard.test.cjs tests/automation-deadlines.test.cjs tests/temporal-contract-signature.guard.test.cjs --json --outputFile=.codex/stages/content-factory-next-dbxe-webhook-identity-stage/jest.local.json",
+      "exit": 0,
+      "suites": 7,
+      "tests": 165,
+      "skips": 0,
+      "per_suite": {
+        "webhook-identity.test.cjs": 32,
+        "publication-v106.test.cjs": 25,
+        "automation-deadlines.test.cjs": 18,
+        "post-fire-guard.test.cjs": 18,
+        "webhook.delivery.ssrf.test.cjs": 4,
+        "tenant-isolation.guard.test.cjs": 9,
+        "temporal-contract-signature.guard.test.cjs": 59
+      }
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0,
+      "reuse": "matching PASS retained; later edits only new orchestrator workflow/tests/docs, not backend dependency inputs"
+    },
+    "orchestrator_types": {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "native_replay": {
+      "command": "node .codex/stages/content-factory-next-dbxe-webhook-identity-stage/native-replay.cjs",
+      "exit": 0,
+      "sdk": "1.15.0",
+      "synthetic_replays": 7,
+      "native_v108_executed": false,
+      "provider_calls": 0,
+      "http_receiver_calls": 0
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit": 0,
+      "files": 187
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    "staged_diff": {
+      "command": "git diff --cached --check",
+      "exit": 0
+    }
+  },
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "cwd": "/home/me/code/content-factory-next"
+  },
+  "tested_inputs_sha256": {
+    ".codex/handoff.md": "d8f20694c2e36324ee9b88853b35d8095e2513af7efef57145da5ad65fe504d8",
+    ".codex/project-index.md": "7570ff00f4231b0910c41d31e9855dd707a9f0282bb3a35e799e83f819c7431e",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/native-replay.cjs": "ba6ddffd29da4e06d0eeb0830504f9ea70db20cab5b94fe61c459197a97fb40e",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/outcome.md": "5d8e0ad34eb77d19b0a523ae77e0a3cdfec70052aaab6d424d406141e265bf5b",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/plan.md": "2c1902fb9ad5bb44322dfdc448623a61ce1f9e75b3aa5a7560ab799e052ed05d",
+    "apps/backend/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/activities/post.activity.v107.ts": "29f25bb57273619a98d95ed8a09c9500fbeead7249ddddd7a16553b24f65ea32",
+    "apps/orchestrator/src/activities/post.activity.v108.ts": "aa77887c9496d51e21fc4f740e90d6530ea2c790a662db63997132291836bcab",
+    "apps/orchestrator/src/app.module.ts": "4f060d26e2643aadacaf11cdfbaa3c7c3f46721af2f5646f61787359bbaaff19",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/index.ts": "e0ba3d453ece6b2749ad636ca1834eb903fbbc6c095303a63368fc7cd1d8a8d1",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": "ad930480035ad1b0845581d4e4c72136aa7d8fb1d87c9f4e3fcde45eefc357e6",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v108.ts": "2d71b4f459e353d14c8d0bc4bbbf2cfbe2e3aecbde0086e3775f7006b7c9bc7f",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": "954c87d8780a25b825743baee037c78d36f755f1d4e13855ca50d50a8df811f2",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts": "60a7e830cc98d97f168da4becd58353d637c6923672bc817182a64f130ce8734",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8",
+    "apps/orchestrator/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "docs/README.md": "cefeaebbeef51e917adbfd131a48d9bb9b0b5d67f13850797de1740a65b88c1c",
+    "docs/operations/automation-deadlines.md": "47173d4e78cfa7141c37850da400d1731382a6bd313a55c603814d27225043da",
+    "docs/operations/publication-recovery-v106.md": "4ac9d207e390984a0550de3b59844887792b98044a11326561a6e3ca674bdd67",
+    "docs/operations/publication-webhooks-v108.md": "f40b5377305a14f14e101d4659656cf562cc3d87f9a386d00f201a60d86cf4cf",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "8351f135ac65c2a6b93523800885fa0b6d556532b338306c8276733c389d0945",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "278a009ab17643a2b4938f5b8a93c73ca648a6f9803cbdb560931104d6df669a",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "libraries/nestjs-libraries/src/dtos/webhooks/ssrf.safe.dispatcher.ts": "9bc3db41e6caa65dc2752693c69af8e1ddba643baf4c0586646df58a6457d791",
+    "libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts": "207143a6127845017722f2f05aad2a290b533a65c7503215eddf62395221a11a",
+    "libraries/nestjs-libraries/src/temporal/temporal.search.attribute.ts": "bcfc5f9985742fc5d0c1ea2040f5395b9a40108034fa8751b66140861d071221",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    "tests/automation-deadlines.test.cjs": "2ecd064709b41ca054380a7c5ffc1208d56f09b4dd751d19e48fa0293cd2acff",
+    "tests/helpers/agent-capabilities.agent-probe.cjs": "2a675125f5e5d9f450ad52699621c1cf1f898d2e430ca3da3b1db6d35d04322b",
+    "tests/helpers/agent-capabilities.cjs": "47c0d87d4e795f2a8993e2c7e43c1b42c299f55a8a5e6eda59a4b8fc15a32eea",
+    "tests/helpers/agent-conductor.probe.cjs": "6fe15b565f3f1540e0462bf59cfa01b0844e6b49d31346e665398e03e80e3acf",
+    "tests/helpers/agent-scenarios.cjs": "5aac32adc9580489aa98fad78345b500172843bb8098efd99b1672e829c796ed",
+    "tests/helpers/agent-scenarios.runner.cjs": "8cbca88a4b6202733cc71d4ad3d2fc458a6a7a604f8cd155713a348f1be39ce5",
+    "tests/helpers/agent-transport.runner.cjs": "a5d469dbb938b1670b5cc8a55a2c0226ba93a5a524fdd0d553ba4575da422532",
+    "tests/helpers/ai-search-tasks.cjs": "1a6b6ca1a52342f47dd98c6054d7c7a8ec7515ea4ff05d0b9f52e095a9c64dfd",
+    "tests/helpers/ai-text-chain.cjs": "e9357faa7fcda674fd94c5d35a58d61ba7b0e0ea94dd8630406490f245fda99b",
+    "tests/helpers/automation-deadlines.module.cjs": "0fdd26c54f6cc64004af4f2d48fe384c6c8bd58d6f7829d0defa2663c98579e4",
+    "tests/helpers/automation-disablement.module.cjs": "bb6d9e3aeb321511b8ee70e5f7c88ca8f239fd7ef1db497364a84688a7b70d73",
+    "tests/helpers/backend-doors.cjs": "466552effa2ffd015022a585d7dfafc34eb908d0b91d21929e47aa3b3fed96fa",
+    "tests/helpers/build-context.cjs": "4095315d88fbec342380a6d274ffef8192ea672f0019cdd8e67f25a768a6ab4d",
+    "tests/helpers/commands-module-graph.cjs": "fc41464e00e50741ecd8cb60d68bf8bdc9e572d0e1dddb59843ab7ef2f7bca91",
+    "tests/helpers/encyclopedic-reference.cjs": "ba45cf0ac1016524894ef98cc9cd221233e3c140b143ac74631f414bef1bc182",
+    "tests/helpers/extension-refresh.module.cjs": "9f8a3b919a933d27ac1c6f4dc07f5f8d5698c4bf9a0114abca2f3bb2db06f007",
+    "tests/helpers/fake-redis.cjs": "c2220684c50ec0046fa8972763b7c3558130c238f869d70ee0ba8966528624de",
+    "tests/helpers/form-errors-mock.cjs": "10aab66742483ab782b3ab9908780a2d78a2f2470ae04b8369703c30e0714555",
+    "tests/helpers/integration-service.module.cjs": "05380e55c764dea378fe5e1c99731ede0948e9a8ef66ec7dc13e51a1b487f994",
+    "tests/helpers/interface-english-scan.cjs": "a55d8b89a9681f4293a8265cefeb4488b26aba8f513ac5727a135de347a35ee3",
+    "tests/helpers/lead-discovery-judge.cjs": "511165dd1cb128c6d8304cf212435ecbaf9580f3962b434131d686672708d082",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/helpers/load-tsx.cjs": "3176a9a72825971906b0563683b6b4544305edef4fd9da4c96b07cdde2913cef",
+    "tests/helpers/mcp-e2e.runner.cjs": "01a9e4494f7b41ef5124cd7cbce13d1c6554ada1af149a9972332792227e6f19",
+    "tests/helpers/mcp-oauth-memory.cjs": "5b90c70998f26b6d4f6183cb03a4f9eaf3f2d699ceadf4f2f33759f1798dee47",
+    "tests/helpers/organization-roles.cjs": "e33d541010a592a2a9273a24f44f3ec8217099b6e7f13dc95303a8c6f82961a8",
+    "tests/helpers/posts-service.module.cjs": "28f2ce3c343a6915de81c50e5614dbe4da5055cb944b108983712de867a41631",
+    "tests/helpers/prompt-language.cjs": "1b83f0fc61292d605b73788ab347a7d5de71285e0edf9c679ecb604c00b99fd6",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/helpers/react-hotkeys-hook.stub.cjs": "9dcb7aedcea0e1bebd1ba463ad51a5afc0e67cd203313249e85ebc176a93954d",
+    "tests/helpers/reader-source-review.cjs": "e0e3dcf4d9e6fc8c2dcbba6aaca943555e811bbac4128ed239360cec3a99bec4",
+    "tests/helpers/reader-subject-review.cjs": "37c432b28af880845e3f566ea0728a925e3a8d94bed196b2f9ae40d029e565c7",
+    "tests/helpers/reader-summary.cjs": "7c2faaf6472ee836a554548dde0be8517431a261179f410a5dcc24fbf6679535",
+    "tests/helpers/registration-script-redis.cjs": "2bb5ed45d518edc1f509739e56dab2da16fd4e2c187a931214997c45325c7360",
+    "tests/helpers/release-host-stub.cjs": "1f5bc30da6a993f5117fba6a2406fab104b9222826c1cfb33ab8ee49c14e2b48",
+    "tests/helpers/research-egress.cjs": "58b654c78792049cb9fcf2647a76b7c3354dbe75400d18ad90433d67cff77bb6",
+    "tests/helpers/source-tree-guard.cjs": "cde794cd6e1ff0f703d4b041b23030e77993f97d5190a7543557ec73c410ab68",
+    "tests/helpers/time-travel.setup.cjs": "8fec94e5062e2a21392ccb970ecefec5597da66c38663b76cbdb82d717617c4f",
+    "tests/helpers/tiptap-jsdom.cjs": "5ced006739f779c55cd0a60cd71368969f222a44f4e20f273492f84832c6888d",
+    "tests/helpers/voice-calibration-fixture.cjs": "c0a528922850828427ffb7374820735e50b30754a9be9b511250586d03798215",
+    "tests/helpers/voice-memory-prisma.cjs": "6787f7341d990c4f66de1ce4bda4dec3e575191203ece8feab3ef2ae4520c827",
+    "tests/helpers/webhook-identity.module.cjs": "2a86c8e5087e3748db6fd9df030956c1735fc5b27de7d0a75339ab457104055f",
+    "tests/post-fire-guard.test.cjs": "9f9fb00526b7d5fd13f08c459f6284604b2ee2b729d811f68bc7dfb44ee41063",
+    "tests/publication-v106.test.cjs": "ff1bb3923714278910d04a6d2e85c138a4f1f888a1f481c731dbcc86210bf1ae",
+    "tests/temporal-contract-signature.baseline.json": "4044438026581a91ca08d85393e806ce50eda2b2aa4bad50e430c5cfefbd4743",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tests/tenant-isolation.guard.test.cjs": "ca6403fbb7712fb2a1cacc6b8930bef3ccdfd27bc74cb37b821c83457a729b5e",
+    "tests/webhook-identity.test.cjs": "3673186b0c36be57f22f221efd04e2fa55019e5f077d1f3b1ab79b8d8f6b68c6",
+    "tests/webhook.delivery.ssrf.test.cjs": "f0224c34a8a4c9c4eda99c9b211314e6b0a4714cc62a794993f76dc4cece88ca",
+    "tsconfig.json": "6ab9dbbac0fb5647c93cbf0cbd665330d42da8ffdec12751b48e03d6ad6c2695"
+  },
+  "source_tree_sha256": "cc7521987b407b0b61bc528a3b1f96e4566f6d2e2bbe07c9a395e4bf25babbd5",
+  "legacy": {
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/activities/post.activity.v107.ts": "29f25bb57273619a98d95ed8a09c9500fbeead7249ddddd7a16553b24f65ea32",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": "ad930480035ad1b0845581d4e4c72136aa7d8fb1d87c9f4e3fcde45eefc357e6",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": "954c87d8780a25b825743baee037c78d36f755f1d4e13855ca50d50a8df811f2"
+  },
+  "native": {
+    "schema": "cf-webhook-identity-offline-replay/v1",
+    "status": "pass",
+    "baseline": "76ddaa82a57efd611e2a674e0c39e6034d4ef209",
+    "sdk": "1.15.0",
+    "bundle_sha256": "cf6785e578b46b3beb357cf80ad3717e8d017bf9dc215c7c17595fb65700ccdb",
+    "historical_sources_unchanged": 31,
+    "histories": [
+      {
+        "workflowType": "postWorkflowV101",
+        "events": 80,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v101.local.json",
+        "sha256": "3b9f3d91d0a60f4572308fe266157c3d566ce9c1f00f0ea9b54889105baab9de",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV102",
+        "events": 80,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v102.local.json",
+        "sha256": "48d3c0a13b5b69354dccff4b8ddffb4174817ed4de6a2d7aa833bbd31a7012cf",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV103",
+        "events": 80,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v103.local.json",
+        "sha256": "58a0001954668fb1e2403e48a1103a6c7b86ff1dd064f31ac65ab4039315d4c1",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV104",
+        "events": 80,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v104.local.json",
+        "sha256": "66ada3d68cbfb6a51828c34fc9821116b5555d6f2ae587780b5f5efbca05efd2",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV105",
+        "events": 86,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v105.local.json",
+        "sha256": "1c2a32c4096a4f66f8317aee44695471fa06e7fc01ed3a94db443fa1449e75ac",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV106",
+        "events": 86,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v106.local.json",
+        "sha256": "6180390cd52e0f46bd609fb2d00b8997d6e768f75a77d6dbdbfd7e8e17e2c134",
+        "replay": "pass"
+      },
+      {
+        "workflowType": "postWorkflowV107",
+        "events": 76,
+        "source": ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/history-v107.local.json",
+        "sha256": "b592f79a2c6b081462253b439cdd30026c2833482edf778ea430749dd1397d50",
+        "replay": "pass"
+      }
+    ],
+    "boundary": "saved synthetic V101–V107 histories only; V108 bundled but not natively executed; no production, provider or receiver",
+    "resources": "offline replay workers only; no container, server, database or network calls"
+  },
+  "behavior": {
+    "internal_id": "id",
+    "provider_id": "providerPostId",
+    "wire_version": 2,
+    "tenant_and_channel_scoped": true,
+    "failures_visible": true,
+    "automatic_hook_attempts": 1,
+    "confirmed_publication_resent_on_webhook_failure": false,
+    "auxiliary_failure_continues_automations": true,
+    "cancellation_propagates": true,
+    "old_contract_sources_changed": false
+  },
+  "child": {
+    "agent": "/root/automation_contract_map",
+    "accepted": "read-only caller/consumer/failure map",
+    "writes": [],
+    "cleanup": "none; no runtime resources"
+  },
+  "docs_reviewed": "updated - webhook contract and migration, deadline/publication guides, navigation/handoff",
+  "graph_reviewed": "used - focused stale46ec4108 .sendWebhooks query; current sources verified; no refresh/extraction",
+  "evidence_sha256": {
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/jest.local.json": "79008b2748cce5a13050ae0d379e0f485d77ae6efad8275f5b080df6db8d03c3",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/jest.local.log": "9024e5abb27c052262f1bdad67b5c43079f3d90ba961c76b3adaac0356f1e090",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/native-replay.local.json": "509e306da82d5b960d50db9e3f8801a012d906810d88c83bcbf51526dfd26e6b",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/native-replay.local.log": "bf65cbf395c55f628847c4b5e39bfc49646feee248ae4b26470c76430be8e64d",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/backend-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/orchestrator-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/docs.local.log": "07e5112b9bb3e2b74546172d5dd5053903645963dee81669104ed5bec97516ae",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/reproducer.local.log": "54a102925f993c75e5444e1f6aec3651010f1351d6bdefcb8c37afa3066281bd",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/cancellation-reproducer.local.log": "c1473e006ad642e6f6eb1658ce67e59e800cb8bf5c50cbfb2660e6b7fa89c796",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/jest-pre-fix.local.json": "4b53ce008147c1d9365707458807ccccad6b273fbb0329e41e26b861aa3d9943",
+    ".codex/stages/content-factory-next-dbxe-webhook-identity-stage/staged-diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "delivery": {
+    "mode": "scoped local commit",
+    "branch": "codex/audit-readiness-20261009",
+    "push": false,
+    "deployment": false,
+    "commit_record": "Beads final delivery note and user report; receipt binds input contents without a self-referential commit hash"
+  },
+  "cleanup": "offline workers completed; no server/container/database started; unrelated resources untouched",
+  "remaining": [
+    "real receiver v2 acceptance and production-history/release verification at an owner-selected delivery",
+    "inspect/retire checked old recovery loops; retain V108 through rollback",
+    "original journal schema/full dbxe.8 gate and all original epic/owner defers",
+    "dbxe.18 remains OPEN; no automatic continuation"
+  ],
+  "beads_after_close": {
+    "content-factory-next-dbxe": "open",
+    "content-factory-next-dbxe.8": "in_progress",
+    "content-factory-next-dbxe.17": "closed",
+    "content-factory-next-dbxe.18": "open"
+  },
+  "github_sync": "enqueued .17 after start and close; remote convergence not asserted"
+}

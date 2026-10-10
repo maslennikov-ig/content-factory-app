@@ -31,7 +31,9 @@ export function crxI18n(options: {
   if (!options.localize) return null;
 
   const getJsonFiles = (dir: string): Array<string> => {
-    const files = fs.readdirSync(dir, { recursive: true }) as string[];
+    // Node22 supports recursion; keep the pinned older Node typings compatible.
+    const readOptions = { encoding: 'utf8' as const, recursive: true };
+    const files = fs.readdirSync(dir, readOptions);
     return files.filter((file) => !!file && file.endsWith('.json'));
   };
   const entry = resolve(__dirname, options.src);

@@ -1361,7 +1361,7 @@ export class UsersRepository {
     return this.localSignInExists(this._user.model, userId);
   }
 
-  updatePassword(id: string, password: string) {
+  updatePassword(id: string, password: string, expectedPassword?: string) {
     return this._transaction.model.$transaction(async (tx) => {
       if (!(await this.localSignInExists(tx, id))) {
         throw identityError(
@@ -1369,6 +1369,15 @@ export class UsersRepository {
           'LOCAL identity not found',
           404
         );
+      }
+      if (expectedPassword !== undefined) {
+        // A consumed link must lose even when two resets read the old hash
+        // together. The predicate and write are one database operation.
+        const result = await tx.user.updateMany({
+          where: { id, password: expectedPassword },
+          data: { password: AuthService.hashPassword(password) },
+        });
+        return result.count === 1;
       }
       return tx.user.update({
         where: { id },
@@ -1412,32 +1421,49 @@ export class UsersRepository {
   }
 
   async changePersonal(userId: string, body: UserDetailDto) {
-    await this._user.model.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        // Пустое имя — не имя из пробелов и не «undefined»: колонка
-        // очищается, и подпись берётся из адреса (fn33.96).
-        name: body.fullname?.trim() || null,
-        // Фамилия ведёт себя как имя: пустая строка очищает колонку, а
-        // отсутствующее поле (старый клиент) её не трогает (97dq.51).
-        ...(body.lastName !== undefined
-          ? { lastName: body.lastName.trim() || null }
-          : {}),
-        bio: body.bio,
-        ...(body.timezone !== undefined ? { timezone: body.timezone } : {}),
-        picture: body.picture
-          ? {
-              connect: {
-                id: body.picture.id,
+    try {
+      await this._user.model.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          // Пустое имя — не имя из пробелов и не «undefined»: колонка
+          // очищается, и подпись берётся из адреса (fn33.96).
+          name: body.fullname?.trim() || null,
+          // Фамилия ведёт себя как имя: пустая строка очищает колонку, а
+          // отсутствующее поле (старый клиент) её не трогает (97dq.51).
+          ...(body.lastName !== undefined
+            ? { lastName: body.lastName.trim() || null }
+            : {}),
+          bio: body.bio,
+          ...(body.timezone !== undefined ? { timezone: body.timezone } : {}),
+          picture: body.picture
+            ? {
+                connect: {
+                  id: body.picture.id,
+                  deletedAt: null,
+                  organization: {
+                    users: { some: { userId, disabled: false } },
+                  },
+                },
+              }
+            : {
+                disconnect: true,
               },
-            }
-          : {
-              disconnect: true,
-            },
-      },
-    });
+        },
+      });
+    } catch (error: any) {
+      if (body.picture && error?.code === 'P2025') {
+        throw new HttpException(
+          {
+            message: 'Selected media is unavailable.',
+            code: 'PROFILE_MEDIA_UNAVAILABLE',
+          },
+          404
+        );
+      }
+      throw error;
+    }
   }
 
   /**

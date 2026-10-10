@@ -7,7 +7,6 @@ import { stripDevIcons, crxI18n } from './custom-vite-plugins';
 import manifest from './manifest.json';
 import devManifest from './manifest.dev.json';
 import pkg from './package.json';
-import { providers } from './src/providers/provider.registry';
 
 const isDev = process.env.NODE_ENV === 'development';
 // set this flag to true, if you want localization support
@@ -17,11 +16,6 @@ const merge = isDev ? devManifest : ({} as ManifestV3Export);
 
 export const baseManifest = {
   ...manifest,
-  host_permissions: [
-    import.meta.env?.FRONTEND_URL || process?.env?.FRONTEND_URL + '/*',
-    (import.meta.env?.NEXT_PUBLIC_BACKEND_URL || process?.env?.NEXT_PUBLIC_BACKEND_URL || '') + '/*',
-    ...providers.map(p => p.hostPermission)
-  ],
   permissions: [...(manifest.permissions || [])],
   version: pkg.version,
   ...merge,

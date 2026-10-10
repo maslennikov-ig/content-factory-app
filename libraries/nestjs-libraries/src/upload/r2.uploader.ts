@@ -11,9 +11,17 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Request, Response } from 'express';
-import crypto from 'crypto';
 import path from 'path';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import {
+  R2UploadOwner,
+  R2UploadError,
+  R2Completion,
+  ownedUploadSession,
+  storeUploadSession,
+  requireUploadOwner,
+  partLifetime,
+} from './r2.upload.session';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { fromBuffer } = require('file-type');
 
@@ -60,21 +68,22 @@ function generateRandomString() {
 export default async function handleR2Upload(
   endpoint: string,
   req: Request,
-  res: Response
+  res: Response,
+  owner: R2UploadOwner
 ) {
   switch (endpoint) {
     case 'create-multipart-upload':
-      return createMultipartUpload(req, res);
+      return createMultipartUpload(req, res, owner);
     case 'prepare-upload-parts':
-      return prepareUploadParts(req, res);
+      return prepareUploadParts(req, res, owner);
     case 'complete-multipart-upload':
-      return completeMultipartUpload(req, res);
+      return completeMultipartUpload(req, res, owner);
     case 'list-parts':
-      return listParts(req, res);
+      return listParts(req, res, owner);
     case 'abort-multipart-upload':
-      return abortMultipartUpload(req, res);
+      return abortMultipartUpload(req, res, owner);
     case 'sign-part':
-      return signPart(req, res);
+      return signPart(req, res, owner);
   }
   return res.status(404).end();
 }
@@ -85,7 +94,10 @@ export async function simpleUpload(
   _contentType: string
 ) {
   const detected = await fromBuffer(data);
-  if (!detected || !Object.values(ALLOWED_EXT_TO_MIME).includes(detected.mime)) {
+  if (
+    !detected ||
+    !Object.values(ALLOWED_EXT_TO_MIME).includes(detected.mime)
+  ) {
     throw new Error('Unsupported file type.');
   }
   const fileExtension = `.${detected.ext}`;
@@ -105,8 +117,33 @@ export async function simpleUpload(
   return CLOUDFLARE_BUCKET_URL + '/' + randomFilename;
 }
 
-export async function createMultipartUpload(req: Request, res: Response) {
-  const { file, fileHash } = req.body;
+function uploadError(res: Response, error: unknown) {
+  const known = error instanceof R2UploadError;
+  return res.status(known ? error.status : 500).json({
+    message: known ? error.message : 'Upload request failed. Please retry.',
+  });
+}
+
+function validPartNumber(value: unknown): number {
+  const part =
+    typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  if (
+    typeof part !== 'number' ||
+    !Number.isInteger(part) ||
+    part < 1 ||
+    part > 10000
+  ) {
+    throw new R2UploadError(400, 'Invalid upload part number.');
+  }
+  return part;
+}
+
+export async function createMultipartUpload(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
+  const { file, fileHash } = req.body || {};
   const safeExt = normalizeExtension(file?.name || '');
   if (!safeExt) {
     return res.status(400).json({ message: 'Unsupported file type.' });
@@ -115,6 +152,7 @@ export async function createMultipartUpload(req: Request, res: Response) {
   const randomFilename = generateRandomString() + safeExt;
 
   try {
+    requireUploadOwner(owner);
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
       Key: `${randomFilename}`,
@@ -126,77 +164,118 @@ export async function createMultipartUpload(req: Request, res: Response) {
 
     const command = new CreateMultipartUploadCommand({ ...params });
     const response = await R2.send(command);
+    if (!response.UploadId || response.Key !== randomFilename) {
+      throw new Error('Invalid multipart upload response');
+    }
+    await storeUploadSession({
+      ...owner,
+      bucket: CLOUDFLARE_BUCKETNAME!,
+      key: response.Key,
+      uploadId: response.UploadId,
+      expiresAt: Date.now() + 3600 * 1000,
+    });
     return res.status(200).json({
       uploadId: response.UploadId,
       key: response.Key,
     });
   } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json({ source: { status: 500 } });
+    return uploadError(res, err);
   }
 }
 
-export async function prepareUploadParts(req: Request, res: Response) {
-  const { partData } = req.body;
-
-  const parts = partData.parts;
-
-  const response = {
-    presignedUrls: {},
-  };
-
-  for (const part of parts) {
-    try {
+export async function prepareUploadParts(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
+  try {
+    const { partData } = req.body || {};
+    const session = await ownedUploadSession(
+      CLOUDFLARE_BUCKETNAME!,
+      partData,
+      owner
+    );
+    if (!Array.isArray(partData.parts) || partData.parts.length > 10000) {
+      throw new R2UploadError(400, 'Invalid upload parts.');
+    }
+    const parts = partData.parts.map((part: { number: unknown }) =>
+      validPartNumber(part?.number)
+    );
+    const response = { presignedUrls: {} as Record<number, string> };
+    for (const part of parts) {
       const params = {
         Bucket: CLOUDFLARE_BUCKETNAME,
-        Key: partData.key,
-        PartNumber: part.number,
-        UploadId: partData.uploadId,
+        Key: session.key,
+        PartNumber: part,
+        UploadId: session.uploadId,
       };
       const command = new UploadPartCommand({ ...params });
-      const url = await getSignedUrl(R2, command, { expiresIn: 3600 });
-
-      // @ts-ignore
-      response.presignedUrls[part.number] = url;
-    } catch (err) {
-      console.log('Error', err);
-      return res.status(500).json(err);
+      response.presignedUrls[part] = await getSignedUrl(R2, command, {
+        expiresIn: partLifetime(session),
+      });
     }
+    return res.status(200).json(response);
+  } catch (err) {
+    return uploadError(res, err);
   }
-
-  return res.status(200).json(response);
 }
 
-export async function listParts(req: Request, res: Response) {
-  const { key, uploadId } = req.body;
-
+export async function listParts(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
   try {
+    const session = await ownedUploadSession(
+      CLOUDFLARE_BUCKETNAME!,
+      req.body,
+      owner
+    );
+    partLifetime(session);
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
-      Key: key,
-      UploadId: uploadId,
+      Key: session.key,
+      UploadId: session.uploadId,
     };
     const command = new ListPartsCommand({ ...params });
     const response = await R2.send(command);
 
     return res.status(200).json(response['Parts']);
   } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json(err);
+    return uploadError(res, err);
   }
 }
 
-export async function completeMultipartUpload(req: Request, res: Response) {
-  const { key, uploadId, parts } = req.body;
-
+export async function completeMultipartUpload(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
   try {
+    const session = await ownedUploadSession(
+      CLOUDFLARE_BUCKETNAME!,
+      req.body,
+      owner
+    );
+    if (session.aborted)
+      throw new R2UploadError(403, 'Upload session is unavailable.');
+    if (session.completed) return session.completed;
+    const { key, uploadId } = session;
+    const { parts } = req.body;
     const command = new CompleteMultipartUploadCommand({
       Bucket: CLOUDFLARE_BUCKETNAME,
       Key: key,
       UploadId: uploadId,
       MultipartUpload: { Parts: parts },
     });
-    const response = await R2.send(command);
+    let etag: string | undefined;
+    try {
+      etag = (await R2.send(command)).ETag;
+    } catch (error: any) {
+      // A lost completion response is recovered only from the exact owned
+      // object below. A timeout or other error alone is never a receipt.
+      if (error?.name !== 'NoSuchUpload') throw error;
+    }
 
     const safeExt = normalizeExtension(key || '');
     if (!safeExt) {
@@ -231,52 +310,72 @@ export async function completeMultipartUpload(req: Request, res: Response) {
         .json({ message: 'File contents do not match declared type.' });
     }
 
-    response.Location =
-      process.env.CLOUDFLARE_BUCKET_URL +
-      '/' +
-      response?.Location?.split('/').at(-1);
+    const response: R2Completion = {
+      Key: key,
+      Location: CLOUDFLARE_BUCKET_URL + '/' + key,
+      ETag: etag || head.ETag,
+    };
+    await storeUploadSession({ ...session, completed: response });
     return response;
   } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json(err);
+    return uploadError(res, err);
   }
 }
 
-export async function abortMultipartUpload(req: Request, res: Response) {
-  const { key, uploadId } = req.body;
-
+export async function abortMultipartUpload(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
   try {
+    const session = await ownedUploadSession(
+      CLOUDFLARE_BUCKETNAME!,
+      req.body,
+      owner
+    );
+    if (session.completed)
+      throw new R2UploadError(403, 'Upload is already complete.');
+    if (session.aborted) return res.status(200).json({});
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
-      Key: key,
-      UploadId: uploadId,
+      Key: session.key,
+      UploadId: session.uploadId,
     };
     const command = new AbortMultipartUploadCommand({ ...params });
-    const response = await R2.send(command);
-
-    return res.status(200).json(response);
+    try {
+      await R2.send(command);
+    } catch (error: any) {
+      if (error?.name !== 'NoSuchUpload') throw error;
+    }
+    await storeUploadSession({ ...session, aborted: true });
+    return res.status(200).json({});
   } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json(err);
+    return uploadError(res, err);
   }
 }
 
-export async function signPart(req: Request, res: Response) {
-  const { key, uploadId } = req.body;
-  const partNumber = parseInt(req.body.partNumber);
-
-  const params = {
-    Bucket: CLOUDFLARE_BUCKETNAME,
-    Key: key,
-    PartNumber: partNumber,
-    UploadId: uploadId,
-    Expires: 3600,
-  };
-
-  const command = new UploadPartCommand({ ...params });
-  const url = await getSignedUrl(R2, command, { expiresIn: 3600 });
-
-  return res.status(200).json({
-    url: url,
-  });
+export async function signPart(
+  req: Request,
+  res: Response,
+  owner: R2UploadOwner
+) {
+  try {
+    const session = await ownedUploadSession(
+      CLOUDFLARE_BUCKETNAME!,
+      req.body,
+      owner
+    );
+    const command = new UploadPartCommand({
+      Bucket: CLOUDFLARE_BUCKETNAME,
+      Key: session.key,
+      UploadId: session.uploadId,
+      PartNumber: validPartNumber(req.body.partNumber),
+    });
+    const url = await getSignedUrl(R2, command, {
+      expiresIn: partLifetime(session),
+    });
+    return res.status(200).json({ url });
+  } catch (err) {
+    return uploadError(res, err);
+  }
 }

@@ -5,7 +5,11 @@ import {
   Inject,
   Injectable,
 } from '@nestjs/common';
-import { IntegrationRepository } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.repository';
+import {
+  IntegrationRepository,
+  type ExtensionIntegrationSnapshot,
+  type ExtensionIntegrationUpdate,
+} from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.repository';
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import {
   AnalyticsData,
@@ -62,6 +66,14 @@ const analyticsNeedsReconnect = () =>
     'ANALYTICS_CHANNEL_NEEDS_RECONNECT',
     'The channel’s access to the platform has expired; it was not refreshed from here. Nothing was changed.'
   );
+
+export type TokenRefreshBatchResult = {
+  total: number;
+  refreshed: number;
+  reconnectRequired: number;
+  failed: number;
+  notificationFailures: number;
+};
 
 @Injectable()
 export class IntegrationService {
@@ -441,6 +453,13 @@ export class IntegrationService {
     return this._integrationRepository.updateIntegrationGroup(org, id, group);
   }
 
+  updateExtensionIntegration(
+    snapshot: ExtensionIntegrationSnapshot,
+    data: ExtensionIntegrationUpdate
+  ) {
+    return this._integrationRepository.updateExtensionIntegration(snapshot, data);
+  }
+
   updateOnCustomerName(org: string, id: string, name: string) {
     return this._integrationRepository.updateOnCustomerName(org, id, name);
   }
@@ -575,43 +594,64 @@ export class IntegrationService {
     return this._integrationRepository.setBetweenRefreshSteps(id);
   }
 
-  async refreshTokens() {
+  async refreshTokens(): Promise<TokenRefreshBatchResult> {
     const integrations = await this._integrationRepository.needsToBeRefreshed();
+    const result: TokenRefreshBatchResult = {
+      total: integrations.length,
+      refreshed: 0,
+      reconnectRequired: 0,
+      failed: 0,
+      notificationFailures: 0,
+    };
     for (const integration of integrations) {
-      const provider = this._integrationManager.getSocialIntegration(
-        integration.providerIdentifier
-      );
-
-      const data = await this.refreshToken(provider, integration.refreshToken!);
-
-      if (!data) {
-        await this.informAboutRefreshError(
-          integration.organizationId,
-          integration
+      try {
+        const provider = this._integrationManager.getSocialIntegration(
+          integration.providerIdentifier
         );
-        await this._integrationRepository.refreshNeeded(
+
+        const data = await this.refreshToken(provider, integration.refreshToken!);
+
+        if (!data) {
+          // Persist the reconnect marker before the ancillary notification.
+          // Failed refreshes never write replacement credentials.
+          await this._integrationRepository.refreshNeeded(
+            integration.organizationId,
+            integration.id
+          );
+          result.reconnectRequired++;
+          try {
+            await this.informAboutRefreshError(
+              integration.organizationId,
+              integration
+            );
+          } catch {
+            result.notificationFailures++;
+          }
+          continue;
+        }
+
+        const { refreshToken, accessToken, expiresIn } = data;
+        await this.createOrUpdateIntegration(
+          undefined,
+          !!provider.oneTimeToken,
           integration.organizationId,
-          integration.id
+          integration.name,
+          undefined,
+          'social',
+          integration.internalId,
+          integration.providerIdentifier,
+          accessToken,
+          refreshToken,
+          expiresIn
         );
-        return;
+        result.refreshed++;
+      } catch {
+        // Lookup/marker/save failure belongs to this row, not later channels.
+        // Count it without retaining raw provider or persistence error text.
+        result.failed++;
       }
-
-      const { refreshToken, accessToken, expiresIn } = data;
-
-      await this.createOrUpdateIntegration(
-        undefined,
-        !!provider.oneTimeToken,
-        integration.organizationId,
-        integration.name,
-        undefined,
-        'social',
-        integration.internalId,
-        integration.providerIdentifier,
-        accessToken,
-        refreshToken,
-        expiresIn
-      );
     }
+    return result;
   }
 
   async disableChannel(org: string, id: string) {
@@ -811,6 +851,11 @@ export class IntegrationService {
     );
   }
 
+  private skipAutomation(kind: 'global' | 'internal', reason: string) {
+    console.info(JSON.stringify({ event: 'automation_skipped', kind, reason }));
+    return true;
+  }
+
   async processInternalPlug(
     data: {
       post: string;
@@ -834,24 +879,49 @@ export class IntegrationService {
       data.integration
     );
 
-    if (!getIntegration || !originalIntegration) {
+    if (
+      !originalIntegration ||
+      originalIntegration.disabled ||
+      originalIntegration.deletedAt
+    ) {
+      this.skipAutomation('internal', 'source_channel_unavailable');
       return;
     }
-
-    const getAllInternalPlugs = this._integrationManager
-      .getInternalPlugs(getIntegration.providerIdentifier)
-      .internalPlugs.find((p: any) => p.identifier === data.plugName);
-
-    if (!getAllInternalPlugs) {
+    if (
+      !getIntegration ||
+      getIntegration.disabled ||
+      getIntegration.deletedAt
+    ) {
+      this.skipAutomation('internal', 'destination_channel_unavailable');
       return;
     }
 
     const getSocialIntegration = this._integrationManager.getSocialIntegration(
       getIntegration.providerIdentifier
     );
+    if (!getSocialIntegration) {
+      this.skipAutomation('internal', 'capability_unavailable');
+      return;
+    }
 
-    // @ts-ignore
-    await getSocialIntegration?.[getAllInternalPlugs.methodName]?.(
+    const getAllInternalPlugs = this._integrationManager
+      .getInternalPlugs(getIntegration.providerIdentifier)
+      .internalPlugs.find(
+        (p: any) => p.identifier === data.plugName && !p.disabled
+      );
+
+    const action =
+      getAllInternalPlugs &&
+      (getSocialIntegration as unknown as Record<string, unknown>)[
+        getAllInternalPlugs.methodName
+      ];
+    if (typeof action !== 'function') {
+      this.skipAutomation('internal', 'capability_unavailable');
+      return;
+    }
+
+    await action.call(
+      getSocialIntegration,
       getIntegration,
       originalIntegration,
       data.post,
@@ -870,15 +940,48 @@ export class IntegrationService {
   }) {
     const getPlugById = await this._integrationRepository.getPlug(data.plugId);
     if (!getPlugById) {
-      return true;
+      return this.skipAutomation('global', 'plug_missing');
+    }
+    if (!getPlugById.activated) {
+      return this.skipAutomation('global', 'plug_inactive');
+    }
+    if (
+      !getPlugById.integration ||
+      getPlugById.integration.disabled ||
+      getPlugById.integration.deletedAt
+    ) {
+      return this.skipAutomation('global', 'channel_unavailable');
+    }
+    if (getPlugById.organizationId !== getPlugById.integration.organizationId) {
+      return this.skipAutomation('global', 'organization_mismatch');
+    }
+
+    const capability = this._integrationManager
+      .getAllPlugs()
+      .find(
+        (provider) =>
+          provider.identifier === getPlugById.integration.providerIdentifier
+      )
+      ?.plugs.find(
+        (plug: any) =>
+          plug.methodName === getPlugById.plugFunction && !plug.disabled
+      );
+    if (!capability) {
+      return this.skipAutomation('global', 'capability_unavailable');
     }
 
     const integration = this._integrationManager.getSocialIntegration(
       getPlugById.integration.providerIdentifier
     );
+    const action =
+      integration &&
+      (integration as unknown as Record<string, unknown>)[capability.methodName];
+    if (typeof action !== 'function') {
+      return this.skipAutomation('global', 'capability_unavailable');
+    }
 
-    // @ts-ignore
-    const process = await integration[getPlugById.plugFunction](
+    const process = await action.call(
+      integration,
       getPlugById.integration,
       data.postId,
       JSON.parse(getPlugById.data).reduce((all: any, current: any) => {

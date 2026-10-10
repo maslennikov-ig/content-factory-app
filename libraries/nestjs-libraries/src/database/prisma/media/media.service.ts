@@ -138,6 +138,20 @@ export class MediaService {
     return this._mediaRepository.saveFile(org, fileName, filePath, originalName);
   }
 
+  saveMultipartFile(
+    org: string,
+    fileName: string,
+    filePath: string,
+    originalName?: string
+  ) {
+    return this._mediaRepository.saveMultipartFile(
+      org,
+      fileName,
+      filePath,
+      originalName
+    );
+  }
+
   getMedia(org: string, page: number, search?: string) {
     return this._mediaRepository.getMedia(org, page, search);
   }

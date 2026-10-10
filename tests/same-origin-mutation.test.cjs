@@ -34,7 +34,7 @@ class HttpException extends Error {
 }
 
 const authChecker = {
-  verifyJWT: (token) => {
+  verifySessionJWT: (token) => {
     if (token === 'session-owner') return { id: 'owner' };
     if (token === 'session-other') return { id: 'other' };
     throw new Error('bad token');

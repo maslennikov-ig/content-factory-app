@@ -1,0 +1,345 @@
+{
+  "schema": "cf-bounded-task-acceptance/v1",
+  "task": "content-factory-next-dbxe.16",
+  "status": "pass",
+  "baseline": "f398dcfa7560a8220802b4fa73f73884fca30e95",
+  "boundary": "local clock/runtime synthetic SDK histories; not production history, provider, rollout or full release acceptance",
+  "criteria": {
+    "criteria_preserved": 30,
+    "mismatches": [],
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "historical_files_unchanged": 28,
+    "signature_additions": {
+      "activities": [
+        "apps/orchestrator/src/activities/post.activity.v107.ts"
+      ],
+      "workflows": [
+        "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts",
+        "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts"
+      ]
+    },
+    "statuses_before_close": {
+      "content-factory-next-dbxe": "open",
+      "content-factory-next-dbxe.8": "in_progress",
+      "content-factory-next-dbxe.16": "in_progress",
+      "content-factory-next-dbxe.17": "open"
+    },
+    "preserved_after_close": 30
+  },
+  "commands": {
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/automation-deadlines.test.cjs tests/automation-disablement.test.cjs tests/publication-v106.test.cjs tests/post-fire-guard.test.cjs tests/temporal-contract-signature.guard.test.cjs --json --outputFile=.codex/stages/content-factory-next-dbxe-automation-deadlines-stage/jest.local.json",
+      "exit": 0,
+      "suites": 5,
+      "tests": 181,
+      "skips": 0,
+      "per_suite": {
+        "automation-deadlines.test.cjs": 18,
+        "publication-v106.test.cjs": 25,
+        "automation-disablement.test.cjs": 65,
+        "temporal-contract-signature.guard.test.cjs": 55,
+        "post-fire-guard.test.cjs": 18
+      }
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "orchestrator_types": {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.build.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "native_temporal": {
+      "command": "node .codex/stages/content-factory-next-dbxe-automation-deadlines-stage/native-temporal.cjs",
+      "exit": 0,
+      "sdk": "1.15.0",
+      "synthetic_workflows": 7,
+      "replays": 7,
+      "provider_calls": 0
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit": 0,
+      "files": 186
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    "staged_diff": {
+      "command": "git diff --cached --check",
+      "exit": 0
+    }
+  },
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "tested_inputs_sha256": {
+    ".codex/handoff.md": "54762f3ba5298f52766839881f9cccb915077cb1f28e9061e96640e076758100",
+    ".codex/project-index.md": "0a27b05afe31396e139382c5b37b3593bd1c77cc8bd4f0372234ac21a0cddb9e",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/native-temporal.cjs": "99fe6c62aef792c1ff2bd4b53171cdae76a117793342761faee29d076200d0f0",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/outcome.md": "68ab5c6f62d9002261a5547246210810dbe0c3ec54157a8b69c33051b0c2aa34",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/plan.md": "0a11cfb01520149a2a47defa60d45c388d3a097361a1319e231144ab39790523",
+    "apps/backend/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/backend/tsconfig.json": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782",
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/activities/post.activity.v107.ts": "29f25bb57273619a98d95ed8a09c9500fbeead7249ddddd7a16553b24f65ea32",
+    "apps/orchestrator/src/app.module.ts": "f8a5d100e57647bd1fd9bd3ffd12ab87d7482d26501c2603a856b0f2e1bb3391",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/index.ts": "ae72f38ccc2cddad3f6e9a6dac7f16b694ef011c84282e1ed26a508c8496871d",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": "ad930480035ad1b0845581d4e4c72136aa7d8fb1d87c9f4e3fcde45eefc357e6",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": "954c87d8780a25b825743baee037c78d36f755f1d4e13855ca50d50a8df811f2",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8",
+    "apps/orchestrator/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/orchestrator/tsconfig.json": "12083f4899bddab1e21d054b16167b2f4efc433bdee55938378ebfde6e97e8eb",
+    "docs/README.md": "0378bf23e3ba7c611dc27969747c060cea96344b30513ec800214f7fad9ecbc8",
+    "docs/operations/automation-deadlines.md": "f6e2a955f6ec3fbf078405cd9ac685e24c1430be42418fa331f9d8645211b842",
+    "docs/operations/automation-disablement.md": "bd247fc9dd0056f5f5e1c73891892a9c55b641d488628f19a6b3f99c97533549",
+    "docs/operations/publication-recovery-v106.md": "ec106874739be46342faf34bff8a6b073129f54d7b688d2e485a927d415ba50a",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "4bb96dc2629ae2452f7445835639a5e05c300f781363eb17b3d43d2eac2381a4",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "4d60840bb49a0f526d79286670cdceb36137f971ec78a86136b284e88b091a82",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "c15a4a294f9dcf410f382814b7067bc4f4a4991e06903fdfa3b164e73d7c5c77",
+    "libraries/nestjs-libraries/src/database/prisma/posts/publication-store.v106.ts": "d4c791e5a4bb292546cefde0fae9a1265bc7950c14bb01ffb913d9baf2769eff",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "libraries/nestjs-libraries/src/integrations/social/x.provider.ts": "b1166c420896fbfb2f3b3bcb30811438cff0b5298c7c786bf183ae6f426c21db",
+    "libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts": "99db3f83767187bf39ca4e22cf1e5dcfb3822ad6d6ca3903ea0dee72a61ca293",
+    "libraries/nestjs-libraries/src/temporal/temporal.search.attribute.ts": "bcfc5f9985742fc5d0c1ea2040f5395b9a40108034fa8751b66140861d071221",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    "tests/automation-deadlines.test.cjs": "61776eaf01c346ee867e2a6e2438c303e1ba95a3d8e8ba8a2e815de856ecc194",
+    "tests/helpers/automation-deadlines.module.cjs": "9f1b002193ea0d68812047d82cf92cb6fa59ebefa5a7d5502560281370a11a9e",
+    "tests/helpers/automation-disablement.module.cjs": "bb6d9e3aeb321511b8ee70e5f7c88ca8f239fd7ef1db497364a84688a7b70d73",
+    "tests/helpers/integration-service.module.cjs": "05380e55c764dea378fe5e1c99731ede0948e9a8ef66ec7dc13e51a1b487f994",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/helpers/posts-service.module.cjs": "28f2ce3c343a6915de81c50e5614dbe4da5055cb944b108983712de867a41631",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/post-fire-guard.test.cjs": "74dd8fabb9504d638f466463a4b82da96245a4c3d09396860d70518ef92ed8d9",
+    "tests/publication-v106-legacy.baseline.json": "a1a36dadc53b3b1c8c5f3ef9378a22f34d928d84e8e0a4b24c7d5c7be7cb33aa",
+    "tests/publication-v106.test.cjs": "b27d496f139f063ef53eec873faac63ce85ace722cd6497c9f96b42d2155af9b",
+    "tests/temporal-contract-signature.baseline.json": "408734a07d93902871f65cd14a9c71977037509d5ed703b59b12d20501005127",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tsconfig.base.json": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c"
+  },
+  "source_tree_sha256": {
+    "apps/backend": {
+      "files": 81,
+      "sha256": "86d733154b7e38b405196ccb30c2b88c030076ef30887a61361c6b6f1aee9061"
+    },
+    "apps/orchestrator": {
+      "files": 38,
+      "sha256": "bfc36e6841ce57171ce85d3b56b254da5aaccd13e50b404e4d559758147ab73f"
+    },
+    "libraries": {
+      "files": 637,
+      "sha256": "58f1464ac051b61de31c77b8c455013249155a4fa155d2daf9c7c14bd44b648f"
+    }
+  },
+  "legacy": {
+    "workflow_and_activity_files": 28,
+    "changed": [],
+    "signature_entries_added": 3,
+    "historical_exports_retained": true,
+    "baseline_histories_replayed": [
+      "V101",
+      "V102",
+      "V103",
+      "V104",
+      "V105",
+      "V106"
+    ],
+    "production_histories_replayed": false
+  },
+  "native": {
+    "schema": "cf-automation-deadlines-native/v1",
+    "status": "pass",
+    "baseline": "f398dcfa7560a8220802b4fa73f73884fca30e95",
+    "sdk": "1.15.0",
+    "image": "sha256:cf86707827fac99e4d1c4a47dc11b105382d796199c7bd41fb3213fb0471628e",
+    "owner": "3c615e96-a9ce-4e19-b2e7-ec74b1a6092a",
+    "bundles": {
+      "baseline": "5a8fc55036e41196d178670d730fb90a2de75200333f69fe4ad7abe497a24372",
+      "current": "aadd23fa18aef23bf01dd40e429d9945ebd1eafbe310a27a7a856dce6aa96d0d"
+    },
+    "boundary": "local synthetic histories and activities; no production history, provider or database",
+    "versions": [
+      {
+        "workflowType": "postWorkflowV101",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1370,
+          2742
+        ],
+        "historyEvents": 80,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV102",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1369,
+          2753
+        ],
+        "historyEvents": 80,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV103",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1374,
+          2749
+        ],
+        "historyEvents": 80,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV104",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1369,
+          2737
+        ],
+        "historyEvents": 80,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV105",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1369,
+          2738
+        ],
+        "historyEvents": 86,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV106",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          1367,
+          2732
+        ],
+        "historyEvents": 86,
+        "timers": 3,
+        "replay": "pass",
+        "origin": "baseline bundle"
+      },
+      {
+        "workflowType": "postWorkflowV107",
+        "actions": 3,
+        "elapsedActionOffsets": [
+          0,
+          366,
+          728
+        ],
+        "historyEvents": 76,
+        "timers": 1,
+        "replay": "pass",
+        "origin": "current bundle"
+      }
+    ],
+    "providerCalls": 0,
+    "container": "cc2dbb3a0a193d38b68a719f8adb19d7a96b9fb73c5799f84f407a71a2982e1d",
+    "cleanup": {
+      "ownedRemoved": true,
+      "beforeCount": 68,
+      "afterCount": 68,
+      "preexistingRemoved": [],
+      "foreignAdded": []
+    }
+  },
+  "behavior": {
+    "clock_offsets_before": [
+      1000,
+      3400,
+      6800
+    ],
+    "clock_offsets_after": [
+      1000,
+      2000,
+      3000
+    ],
+    "processing_ms": 400,
+    "overdue_wait": "no timer",
+    "repeat_base": "workflow entry plus declared interval",
+    "automation_base": "after publication/webhooks, before schedule discovery",
+    "activity_deadline_metadata": false,
+    "reuse": "V106 claims and dbxe.15 execution gates",
+    "new_starts": "normal/recovery/repeat V107; versioned hourly missing loop",
+    "existing_recovery_conflict_policy": "USE_EXISTING; no automatic historical upgrade"
+  },
+  "child": {
+    "name": "automation_contract_map",
+    "accepted": true,
+    "delivery": "read-only current caller map",
+    "writes": 0,
+    "resources": 0
+  },
+  "docs_reviewed": "updated",
+  "graph_reviewed": "used; stale46ec4108 focused postWorkflowV105 lookup, current sources/callers verified",
+  "evidence_sha256": {
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/jest.local.json": "f138c5a5f3114dfc172024e20d8d6ea91a89210123cc50759c36590bdd6f6eef",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/jest.local.log": "b3d095b01451128df00a55c9bd6174ccc769282dacc46a509b68c28a2794ea7e",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/native-acceptance.local.json": "5fa4bc9fb2199f0961c500617e0773f041237b7dbd6219a94ea41157890bca11",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/native-temporal.local.log": "ce81700046223ae8d3aed686c30eb68260fc18e9bc2cc336c9f34a728a04e925",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/backend-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/orchestrator-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/docs.local.log": "f25e42505a2e09f65593b3103939cadad547bf8cd8338218f91bdc9843d75af9",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/reproducer.local.log": "f4d7b9728f67cc3d41e1493058d3da317ac29401a5965a90f49ff028ec664fa3",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/zero-timer-reproducer.local.log": "680b9d7b53fb06191ceb2f4653754c23b0256386f209917febe5b88afcc63871",
+    ".codex/stages/content-factory-next-dbxe-automation-deadlines-stage/staged-diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "delivery": "scoped local commit; no source push/deploy/full release suite",
+  "remaining": "future release inspects/retires old missing-post loops, preserves V107 during rollback and satisfies original journal/schema and dbxe.8 full release gates; next .17 not started",
+  "beads_after_close": {
+    "content-factory-next-dbxe": "open",
+    "content-factory-next-dbxe.8": "in_progress",
+    "content-factory-next-dbxe.16": "closed",
+    "content-factory-next-dbxe.17": "open"
+  }
+}

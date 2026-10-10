@@ -37,13 +37,43 @@ type MutationRequest = Pick<Request, 'headers'> & {
 };
 
 /**
+ * Cookie authentication is attached by the browser without the caller knowing
+ * the credential. CORS controls response visibility, so it cannot be this
+ * write boundary. Keep multipart uploads and explicit session-header clients.
+ */
+export function assertCookieMutationOrigin(
+  req: MutationRequest & { method?: string }
+): void {
+  if (['GET', 'HEAD', 'OPTIONS'].includes((req.method || 'GET').toUpperCase()) ||
+    (typeof req.headers.auth === 'string' && req.headers.auth.length > 0) ||
+    !req.cookies?.auth) return;
+
+  const origins = [process.env.FRONTEND_URL, process.env.MAIN_URL]
+    .flatMap(value => {
+      try { return value ? [new URL(value).origin] : []; } catch { return []; }
+    });
+  if (!origins.length) {
+    throw new HttpException({
+      code: 'cookie_mutation_origin_unavailable',
+      message: 'The frontend origin is not configured',
+    }, 500);
+  }
+  if (typeof req.headers.origin !== 'string' || !origins.includes(req.headers.origin)) {
+    throw new HttpException({
+      code: 'cookie_mutation_origin_forbidden',
+      message: 'This request must come from the application',
+    }, 403);
+  }
+}
+
+/**
  * The account the session token names, or `null` when there is no readable
  * token. Never the account a route parameter or a body claims.
  */
 export function requestUserIdFromJwt(req: MutationRequest): string | null {
   try {
     const auth = (req.headers.auth as string) || req.cookies?.auth;
-    const payload = AuthChecker.verifyJWT(auth) as { id?: string } | null;
+    const payload = AuthChecker.verifySessionJWT(auth) as { id?: string } | null;
     return payload?.id || null;
   } catch {
     return null;

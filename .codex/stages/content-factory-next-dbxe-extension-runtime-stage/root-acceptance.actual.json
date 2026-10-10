@@ -1,0 +1,243 @@
+{
+  "schema": "cf-bounded-task-acceptance/v1",
+  "task": "content-factory-next-dbxe.14",
+  "status": "pass",
+  "baseline": "c8385e0439d139053b8656011a2d36d1a86c7737",
+  "boundary": "local-packaged-native-browser; not provider/store/production/release acceptance",
+  "criteria": {
+    "original_anchor": ".codex/goals/content-factory-next-dbxe/scope-criterion-snapshot.json",
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "preserved": 30,
+    "mismatches": [],
+    "preserved_after_close": 30
+  },
+  "commands": {
+    "build": {
+      "command": "pnpm run build:extension",
+      "exit": 0
+    },
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/extension-runtime.test.cjs tests/extension-refresh.security.test.cjs",
+      "exit": 0,
+      "suites": 2,
+      "tests": 56,
+      "skips": 0
+    },
+    "types": {
+      "command": "pnpm exec tsc --project apps/extension/tsconfig.json --noEmit --incremental false",
+      "exit": 0
+    },
+    "browser": {
+      "command": "node tests/extension-runtime.browser.cjs --receipt .codex/stages/content-factory-next-dbxe-extension-runtime-stage/browser.local.json",
+      "exit": 0,
+      "cases": 21
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit": 0,
+      "files": 184
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit": 0
+    }
+  },
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "vite": "6.4.3",
+    "python": "3.14.4"
+  },
+  "tested_inputs_sha256": {
+    "apps/extension/src/background.ts": "3b0b65920787aca445c3f9d64fc64223960af0640f8214c1bc8099c95ee63101",
+    "apps/extension/src/types/messages.ts": "b1db747a84abfcbfb5ed45da4724df7579bd11cafb4ab066d04ad9d72323ab32",
+    "apps/extension/src/providers/provider.registry.ts": "7fbbd6514527c3d646e2f0bf5a1ff87b0b0f8ae528d9f0f70be214d3971cc2d8",
+    "apps/extension/src/providers/list/skool.provider.ts": "d5e9bba8ec9375f1580708597e8c1462dbfedb5b8bf1298c88a584c2d01c3a9f",
+    "apps/extension/src/providers/cookie-provider.interface.ts": "29173fcad78f7d6fa7750c0704426a105f893bc49639cc17497e3ee454db255c",
+    "apps/extension/manifest.json": "aaa0cac04566e6c8f6031eee201d2a268b9a3980646bc92e97f83e7059ceaf16",
+    "apps/extension/manifest.dev.json": "a4406ae1013d6b1f6e74f015fcac81e199a443f284f4564b0d433b1beee6b6c6",
+    "apps/extension/package.json": "b2c9d033e7467f950bfd178197d30093ea630a24fd2c7109145d53775d85d446",
+    "apps/extension/vite.config.ts": "3ef432bd06bba34f94dda00efff203d7b530022464d70351a9f8ef72c21903e1",
+    "apps/extension/vite.config.base.ts": "1a14804977111e5c09d5336e4b555663e32ce3135af6decc468d3e95cf73e8b9",
+    "apps/extension/vite.config.chrome.ts": "6dd5ada56cdb02057905c1bfa80e97e3fac8be19a2951e802e9348f2eb22757a",
+    "apps/extension/custom-vite-plugins.ts": "f76cae91e945d66e053d525ec9d24afeaea1147180763c4b1051840640120c71",
+    "apps/extension/tsconfig.json": "6ecf84ded9231026050e5698f618a2904fa404d06674ed5924cc788e3be53a9e",
+    "tests/extension-runtime.test.cjs": "a59b232f8f6ad2ebe99df0bc095fd32e380fbdb100d828e230eb0e4e44c791cb",
+    "tests/extension-runtime.browser.cjs": "7be2907c3222c27d78bf1ae3d43368744aa950630d14636139d88cfbd2852bb1",
+    "tests/extension-refresh.security.test.cjs": "5398cd2fd3dd190c20d0234e1a5a1fc0992381d708c345ec913a5c4d3a1fbf25",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/extension-refresh.module.cjs": "9f8a3b919a933d27ac1c6f4dc07f5f8d5698c4bf9a0114abca2f3bb2db06f007",
+    "apps/backend/src/api/routes/no.auth.integrations.controller.ts": "bd331548b1c53973b1d25341067eb11fbb77bfc756f745f28b84d87064d5741e",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.service.ts": "64ef2911bbe0f732619018ce6c4ac28e80f79e1852e847d34a4dcd817df52343",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "61d73768d1627e180e540aa3f4b3e946655519d12be33f97d5ab97c6cde5d188",
+    "libraries/helpers/src/auth/auth.service.ts": "56e46229422da985f8819852cb7eabaf8f1d3df5ccf6cbbf52dd0ad4cdb6b40b",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "tsconfig.base.json": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05"
+  },
+  "browser": {
+    "schema": "content-factory-extension-runtime/v1",
+    "status": "passed",
+    "runtime": {
+      "node": "v22.23.2",
+      "playwright": "1.58.2",
+      "executablePath": "/home/me/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+      "extensionId": "mhdiojnfbojgleboinhbhnefjogikobo",
+      "browser": "153.0.8010.12",
+      "grantedOrigins": [
+        "*://*.skool.com/*",
+        "http://localhost/*",
+        "https://factory.aidevteam.ru/*",
+        "https://localhost/*"
+      ]
+    },
+    "package": {
+      "archiveSha256": "31622df8bf74172bb3eca99fb1ca57dc705820e0ea72369889d0d3cd1246e33b",
+      "filesSha256": {
+        "background.js": "fc65f53f9ac763e4a02584374b43cb279ac4d3db7c0abc5b1a1e4b0ae6c387b7",
+        "icon-128.png": "0967fda9170fd17fc63064f43be226d247f39215f3db0de45f828e6a50a989b3",
+        "icon-32.png": "edabe1236e1e8cee50e189bfb5cb5b93918e6d05ae9d610f343de4eb9e5a531d",
+        "manifest.json": "aaa0cac04566e6c8f6031eee201d2a268b9a3980646bc92e97f83e7059ceaf16"
+      },
+      "version": "2.0.1"
+    },
+    "cases": [
+      {
+        "name": "production_zip_crc_and_exact_dist_bytes",
+        "status": "passed"
+      },
+      {
+        "name": "owned_chromium_loads_exact_shipped_mv3",
+        "status": "passed"
+      },
+      {
+        "name": "native_host_permissions_are_granted_and_narrow",
+        "status": "passed"
+      },
+      {
+        "name": "real_external_message_accepts_local_backend_different_port",
+        "status": "passed"
+      },
+      {
+        "name": "external_message_rejects_unsafe_backend_urls",
+        "status": "passed"
+      },
+      {
+        "name": "actual_native_alarm_post_success_without_cors",
+        "status": "passed"
+      },
+      {
+        "name": "http_401_requires_reconnect",
+        "status": "passed"
+      },
+      {
+        "name": "http_403_requires_reconnect",
+        "status": "passed"
+      },
+      {
+        "name": "http_404_requires_reconnect",
+        "status": "passed"
+      },
+      {
+        "name": "account_mismatch_requires_reconnect",
+        "status": "passed"
+      },
+      {
+        "name": "http_409_reports_retry",
+        "status": "passed"
+      },
+      {
+        "name": "http_500_reports_retry",
+        "status": "passed"
+      },
+      {
+        "name": "redirect_is_rejected_without_forwarding_cookies",
+        "status": "passed"
+      },
+      {
+        "name": "invalid_json_reports_retry",
+        "status": "passed"
+      },
+      {
+        "name": "network_disconnect_reports_retry",
+        "status": "passed"
+      },
+      {
+        "name": "failure_recovery_clears_native_badge",
+        "status": "passed"
+      },
+      {
+        "name": "missing_cookies_reports_login_without_http",
+        "status": "passed"
+      },
+      {
+        "name": "legacy_foreign_backend_is_revalidated_before_cookie_send",
+        "status": "passed"
+      },
+      {
+        "name": "stale_failure_does_not_remark_reconnect",
+        "status": "passed"
+      },
+      {
+        "name": "stale_failure_does_not_remark_remove",
+        "status": "passed"
+      },
+      {
+        "name": "package_unchanged_through_native_acceptance",
+        "status": "passed"
+      }
+    ],
+    "network": {
+      "controlledLoopbackOnly": true,
+      "corsHeaders": false,
+      "refreshPosts": 14,
+      "blockedProxyRequests": 1,
+      "followedRedirects": 0
+    },
+    "cleanup": {
+      "alarmsCleared": true,
+      "browserClosed": true,
+      "serversClosed": true,
+      "tempRemoved": true
+    }
+  },
+  "previous_server_evidence": {
+    "receipt": ".codex/stages/content-factory-next-dbxe-extension-auth-stage/root-acceptance.actual.json",
+    "sha256": "0d67e2553171e7c295d717c5af55e08b23e3a4657a87af368395f190fa793506",
+    "matching_inputs": 14,
+    "postgres_rerun": false,
+    "reason": "All exact .13 server inputs unchanged; no backend/database change in .14"
+  },
+  "raw_logs_sha256": {
+    "build.local.log": "d5f2e3304a9b43699a7523e258b882d61d80ea2459e6e8620e4502fe637a9b46",
+    "affected.local.log": "5e344cf070faef7a5cda2a65f929c6798e197f793173f6272db8e23c95b8a272",
+    "types-final.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "browser.local.json": "407219bae4bc84eeafa2f6cf6be4b0b7ca1c95fe82e0991e434f53273636ff19",
+    "browser.local.log": "407219bae4bc84eeafa2f6cf6be4b0b7ca1c95fe82e0991e434f53273636ff19",
+    "reproducer.local.log": "3607be353ce2d3627f7d3907726884137f2a935b0158f69c19703931aa5f4553",
+    "types.local.log": "88447a2a99cfd8c075476c91267f83b18b3272bbcdcdfc57a67256b09770c9da",
+    "docs.local.log": "bed2404fce5f4a7f5a69480f3aa0920c49f589521be0ca59fc8115ad4140e35a"
+  },
+  "child": {
+    "name": "/root/extension_runtime_fixture",
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "scope": "fixture preparation only",
+    "accepted": "plan.md",
+    "cleanup": "owned prerequisite browser/profile removed; no remaining runtime"
+  },
+  "docs_reviewed": "updated",
+  "graph_reviewed": "used - focused local stale46ec4108 refreshAllCookies query; current sources confirmed; no refresh",
+  "production_mutation": false,
+  "real_accounts_or_provider_calls": false,
+  "push": false,
+  "deploy": false,
+  "release_suite": false,
+  "beads_after_close": {
+    "content-factory-next-dbxe": "open",
+    "content-factory-next-dbxe.8": "in_progress",
+    "content-factory-next-dbxe.14": "closed",
+    "content-factory-next-dbxe.15": "open"
+  },
+  "github_sync": "local mutations queued via existing enrolled wrapper; remote convergence not asserted"
+}

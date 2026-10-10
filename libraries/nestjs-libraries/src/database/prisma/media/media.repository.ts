@@ -1,10 +1,53 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/media/save.media.information.dto';
+import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 
 @Injectable()
 export class MediaRepository {
-  constructor(private _media: PrismaRepository<'media'>) {}
+  constructor(private _media: PrismaRepository<'media' | '$transaction'>) {}
+
+  /** A completed owned upload may be retried after the HTTP response is lost. */
+  saveMultipartFile(
+    org: string,
+    fileName: string,
+    filePath: string,
+    originalName?: string
+  ) {
+    const select = {
+      id: true,
+      name: true,
+      originalName: true,
+      path: true,
+      thumbnail: true,
+      alt: true,
+    } as const;
+    return serializableWithRetry(
+      this._media.model,
+      async (tx) => {
+        const existing = await tx.media.findFirst({
+          where: {
+            organizationId: org,
+            name: fileName,
+            path: filePath,
+            deletedAt: null,
+          },
+          select,
+        });
+        if (existing) return existing;
+        return tx.media.create({
+          data: {
+            organizationId: org,
+            name: fileName,
+            path: filePath,
+            originalName: originalName || null,
+          },
+          select,
+        });
+      },
+      'Upload registration is busy. Please retry.'
+    );
+  }
 
   saveFile(org: string, fileName: string, filePath: string, originalName?: string) {
     return this._media.model.media.create({

@@ -1,0 +1,127 @@
+{
+  "schema": "cf-audit-root-acceptance/v1",
+  "at": "2026-10-09T09:45:18.437766+00:00",
+  "audit_source": "5189430f175382d246629a461d62836c8811b241",
+  "scope": "All subsystem audit, implementation backlog and bounded next-chat prompt; no fixes/deploy.",
+  "epic": "content-factory-next-dbxe",
+  "new_children": 29,
+  "old_records_preserved": 1128,
+  "old_contract_changes": [],
+  "checks": {
+    "git_diff_check": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "prompt_check": {
+      "command": [
+        "orch-prompts",
+        "prompt-check",
+        "--runtime",
+        "codex",
+        "--profile",
+        "gpt-6-astra",
+        "--kind",
+        "handoff",
+        "--file",
+        "/home/me/code/content-factory-next/.codex/stages/content-factory-next-audit-20261009/new-chat-prompt.md",
+        "--json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"ok\": true,\n  \"runtime\": \"codex\",\n  \"profile\": \"gpt-6-astra\",\n  \"kind\": \"handoff\",\n  \"char_count\": 1410,\n  \"budget\": 1500,\n  \"errors\": [],\n  \"warnings\": []\n}\n",
+      "stderr": ""
+    },
+    "executable_diff_from_tested_source": {
+      "command": [
+        "git",
+        "diff",
+        "e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d",
+        "--name-only",
+        "--",
+        "apps",
+        "libraries",
+        "scripts",
+        "tests",
+        "deploy",
+        "var",
+        ".github",
+        "dynamicconfig",
+        "package.json",
+        "pnpm-lock.yaml",
+        "Dockerfile",
+        "Dockerfile.dev",
+        "docker-compose.dev.yaml",
+        "pnpm-workspace.yaml",
+        "tsconfig.base.json",
+        ".nvmrc"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "owned_containers_remaining": {
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "label=content-factory.audit",
+        "--format",
+        "{{.ID}}"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "owned_networks_remaining": {
+      "command": [
+        "docker",
+        "network",
+        "ls",
+        "--filter",
+        "label=content-factory.audit",
+        "--format",
+        "{{.ID}}"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  "documentation_check": {
+    "command": "Node22.23.2/pnpm10.6.1 pnpm run docs:check",
+    "exit_code": 0,
+    "result": "Documentation links OK (180 files checked)"
+  },
+  "beads_lint_exit": 0,
+  "dependency_cycles_exit": 0,
+  "child_streams_accepted": 3,
+  "fresh_postgres": {
+    "pass": 20,
+    "fail": 0,
+    "skipped": 0
+  },
+  "native_recovery": "Pending read-only workflow completes after manual worker restart; SIGKILL supervisor restarts process. No provider exactly-once claim.",
+  "confirmed_health_gap": "Image health command exit0 with orchestrator stopped; dbxe.7 open.",
+  "dependencies": "323 advisory range matches for69 names; runtime applicability not fully triaged. pnpm audit OOM recorded.",
+  "production_mutations": 0,
+  "backup_restored": false,
+  "paid_calls": 0,
+  "source_fixes": 0,
+  "continuous_goal_created": false,
+  "evidence_sha256": {
+    "baseline.actual.json": "e4d01a4b724e18a4f0cbf7544b8d2e1d49246132a496e20616734a90fbeafe99",
+    "matching-suite-reuse.actual.json": "a0959529421d8836e76bce006329b925e8deeb0b2c0a15cf966a1f629bd38057",
+    "runtime-read.actual.json": "0efa24c3a536be94dac6e85cfd32a74d64596be50f861fac9ef08927c1f47630",
+    "isolated-recovery-final.actual.json": "caddf490e2ffb97f8e1891f68357160d64a53d090156142ffa43a1e3314f818d",
+    "postgres-focused.actual.json": "3dad378d83f2ddb28c54a32b8e45e6709b421fd4d3e07def5e72496b9f796236",
+    "dependency-bulk-final.actual.json": "b00194a53644c69fe5489f101e0ffa8ff4bbabcab55161c917ad737cf64fa2ad",
+    "beads-readback.actual.json": "eb37f7859d0f5ecc1f7ae7371f02e8bec91bee791811000bab9309a42a20fd77",
+    "child-delivery-acceptance.actual.json": "f850017954d1aa452d3bf4c577dce8df3f4f92b037d2e38fe99a63e8bec43c23"
+  }
+}

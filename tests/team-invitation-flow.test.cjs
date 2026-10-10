@@ -63,6 +63,10 @@ const fakeRedis = {
 };
 
 const authChecker = {
+  verifySessionJWT: (token) => {
+    if (!token.startsWith('session-')) throw new Error('bad session');
+    return authChecker.verifyJWT(token);
+  },
   signJWT: (claims) => {
     currentInvitationClaims = claims;
     return 'signed-invitation';

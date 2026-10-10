@@ -41,11 +41,11 @@ const load = (organizations) => {
   const { AuthMiddleware } = loadTypeScriptModule(
     'apps/backend/src/services/auth/auth.middleware.ts',
     {
-      '@nestjs/common': { Injectable: () => (target) => target, HttpException },
+      '@nestjs/common': { Injectable: () => (target) => target, HttpException, Logger: class { error() {} } },
       express: {},
       '@prisma/client': {},
       '@contentfactory/helpers/auth/auth.service': {
-        AuthService: { verifyJWT: () => ({ id: 'user-1' }) },
+        AuthService: { verifySessionJWT: () => ({ id: 'user-1' }) },
       },
       '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service':
         { OrganizationService: class {} },

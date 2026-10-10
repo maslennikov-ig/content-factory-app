@@ -165,6 +165,9 @@ const authMocks = {
     AuthService: {
       comparePassword: () => true,
       signJWT: () => 'jwt',
+      signSessionJWT: () => 'jwt',
+      signActivationJWT: () => 'jwt',
+      signPasswordResetJWT: () => 'jwt',
       verifyJWT: () => ({}),
       hashPassword: (value) => `hashed:${value}`,
     },
@@ -223,7 +226,7 @@ const { UsersController } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/services/stripe.service': {},
     '@contentfactory/backend/services/auth/auth.service': {},
     '@contentfactory/helpers/auth/auth.service': {
-      AuthService: { verifyJWT: (token) => ({ id: token }) },
+      AuthService: { verifySessionJWT: (token) => ({ id: token }) },
     },
     '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service':
       {},
@@ -1084,6 +1087,7 @@ test('password reset works for a linked LOCAL identity even when another provide
       getUserByEmail: async () => ({
         id: 'telegram-origin-user',
         email: 'telegram-contact@example.com',
+        password: 'synthetic-linked-local-hash',
         providerName: 'TELEGRAM',
       }),
       hasLocalSignIn: async () => true,
@@ -1109,6 +1113,7 @@ test('the reset email is translated to the account language, not sent in English
       getUserByEmail: async () => ({
         id: 'ru-user',
         email: 'ru-owner@example.com',
+        password: 'synthetic-local-hash',
         language: 'ru',
       }),
       hasLocalSignIn: async () => true,
@@ -1137,6 +1142,7 @@ test('a reset email for an account with no stored language falls back to English
       getUserByEmail: async () => ({
         id: 'legacy-user',
         email: 'legacy@example.com',
+        password: 'synthetic-legacy-hash',
       }),
       hasLocalSignIn: async () => true,
     },
@@ -1162,6 +1168,7 @@ test('a reset request never mails a link to the address that was typed in', asyn
   const attackerAccount = {
     id: 'attacker-user',
     email: 'attacker@example.test',
+    password: 'synthetic-linked-local-hash',
     providerName: 'GOOGLE',
   };
   const authService = new AuthService(

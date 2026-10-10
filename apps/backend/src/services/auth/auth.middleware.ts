@@ -8,6 +8,7 @@ import { getCookieUrlFromDomain } from '@contentfactory/helpers/subdomain/subdom
 import { HttpForbiddenException } from '@contentfactory/nestjs-libraries/services/exception.filter';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import { runAsActingUser } from '@contentfactory/nestjs-libraries/user/acting.user';
+import { assertCookieMutationOrigin } from '@contentfactory/nestjs-libraries/auth/same-origin-mutation';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -36,12 +37,13 @@ export class AuthMiddleware implements NestMiddleware {
     if (!auth) {
       throw new HttpForbiddenException();
     }
+    assertCookieMutationOrigin(req);
     let actingUserId: string | undefined;
     try {
-      // Verify the JWT signature only. Never trust authorization-relevant
+      // Verify the signature and session purpose. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
       // re-resolve the user from the database using the id.
-      const payload = AuthService.verifyJWT(auth) as User | null;
+      const payload = AuthService.verifySessionJWT(auth) as User | null;
       const orgHeader = req.cookies.showorg || req.headers.showorg;
 
       if (!payload?.id) {

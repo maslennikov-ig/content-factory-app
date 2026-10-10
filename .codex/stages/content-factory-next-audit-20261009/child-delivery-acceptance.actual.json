@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-09T09:40:54.707042+00:00",
+  "root_owner": "audit integration and final acceptance",
+  "source_mutations": 0,
+  "children": {
+    "audit_backend": {
+      "delivery": "received",
+      "artifact": ".codex/stages/content-factory-next-audit-20261009/backend-review.md",
+      "sha256": "a2c6fe9743f629f24ee46840216c3806840e6698802589ce37e70915ac345201",
+      "acceptance": "BACKEND-01 through09 mapped to dbxe.1–.4/.21–.24; exact source chain and bounded synthetic diagnostics reviewed. Conditional R2/avatar/quota exposures remain conditional; no production exploitation claim.",
+      "cleanup": "Read-only child; no child runtime resources. Report retained; no unrelated work removed.",
+      "completion_event": "report delivered, audit stream finished"
+    },
+    "audit_frontend": {
+      "delivery": "received",
+      "artifact": ".codex/stages/content-factory-next-audit-20261009/frontend-review.md",
+      "sha256": "e02ede4626db9d3876b209aa8d3c7f5af382fcf861ec5c9e738df3753d29a382",
+      "acceptance": "F1/F2/F3/F5 combined in dbxe.11, F4 in dbxe.9, F6 in dbxe.12. Root inspected response semantics, unmount save discard and reachable routes. No browser acceptance or current legacy-row prevalence inferred.",
+      "cleanup": "Read-only child; no child runtime resources. Report retained; no unrelated work removed.",
+      "completion_event": "report delivered, audit stream finished"
+    },
+    "audit_providers": {
+      "delivery": "received",
+      "artifact": ".codex/stages/content-factory-next-audit-20261009/providers-review.md",
+      "sha256": "ec120830dee30a083ec939c4821bde9bdc27e8e49c73e3e2f7517a00dc453ec3",
+      "acceptance": "PRV-01 through11 mapped to dbxe.5/.6/.10/.13–.20; lower-risk SDK/CLI/legacy observations mapped to dbxe.25–.28. Root confirmed call/ID/refresh registration boundaries; missing decorator candidate rejected because PostActivity already owns flat activity name. No actual provider calls or customer publish claim.",
+      "cleanup": "Read-only child; no child runtime resources. Report retained; no unrelated work removed.",
+      "completion_event": "report delivered, audit stream finished"
+    }
+  }
+}

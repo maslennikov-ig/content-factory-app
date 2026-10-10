@@ -1,0 +1,27 @@
+{
+  "schema": "cf-publication-outcome-evidence/v1",
+  "proofKind": "assertions executed against actual activity/workflow/repository and synthetic provider; actual owned PostgreSQL separately",
+  "realProviderIdempotency": "UNKNOWN",
+  "realProviderCalls": 0,
+  "cases": {
+    "confirmedStreakFailure": "one local provider invocation, durable confirmed receipt, auxiliary failure separate",
+    "lostActivityResponse": "durable receipt returned after new Prisma client, zero new provider writes",
+    "uncertainProviderOutcome": "pending + readable uncertainty, no resend",
+    "crashAfterClaim": "no automatic claim expiry or takeover",
+    "authoritativeReceiptReconciliation": "guarded pending-to-confirmed without provider call",
+    "oldHistories": "16 original workflow files and old PostActivity byte-preserved; all old signatures preserved",
+    "originalTask8ReleaseGate": "UNCHANGED",
+    "jsonbReceiptReconciliation": "same authoritative receipt accepted after JSONB property reordering; conflicting values still refused"
+  },
+  "logs": {
+    "focused-acceptance.local.log": "59489d84aad1a74d7efcf9853082a005e71f3c88618b83d5ceac5db98c172269",
+    "pre-final-review-focused.local.log": "851bb619938b04be72f8bbffc99bafedbcb0d0610b1b4c53219ebbc745898d31",
+    "publication-portable-acceptance.local.log": "76c5bc54c625b35b7bd3a76a8ddfea06264a0e4ea563561eff98aeb5bf5f1081"
+  },
+  "tests": [
+    "tests/publication-v106.test.cjs",
+    "tests/publication-v106.postgres.test.cjs"
+  ],
+  "fixtureRemoved": true,
+  "foreignContainersMissing": []
+}

@@ -1,0 +1,205 @@
+{
+  "stage": "content-factory-next-dbxe-access-stage",
+  "boundary": "local-source/http/disposable-postgres; no deployment/provider calls",
+  "baselineHead": "a4e5742a08c4be886f5e960d9f756d88ee098f8d",
+  "checks": [
+    {
+      "name": "disposable-schema",
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "push",
+        "--skip-generate",
+        "--schema",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma"
+      ],
+      "exitCode": 0,
+      "seconds": 1.689
+    },
+    {
+      "name": "focused-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/access-organization-key.test.cjs",
+        "tests/access-token-purpose.test.cjs",
+        "tests/access-legacy-oauth.test.cjs",
+        "tests/access-cookie-origin.test.cjs",
+        "tests/access-provider-credentials.test.cjs",
+        "tests/access-public-policies.test.cjs",
+        "tests/access-boundaries.postgres.test.cjs",
+        "tests/auth-middleware-membership.test.cjs",
+        "tests/public.api.approval.test.cjs",
+        "tests/same-origin-mutation.test.cjs",
+        "tests/user-password-change.test.cjs",
+        "tests/user-identity.auth.test.cjs",
+        "tests/password-hashing.test.cjs",
+        "tests/password.policy.contract.test.cjs",
+        "tests/registration.approval.test.cjs",
+        "tests/registration.invitation.test.cjs",
+        "tests/registration.growth-event.test.cjs",
+        "tests/newsletter.subscription.test.cjs",
+        "tests/telegram.auth.flow.test.cjs",
+        "tests/oauth.state.binding.test.cjs",
+        "tests/auth-invitation-preview.test.cjs",
+        "tests/team-invitation-flow.test.cjs",
+        "tests/pending-account-rejection.test.cjs",
+        "tests/admin-account-delete.test.cjs",
+        "tests/backend.cors.test.cjs",
+        "tests/permissions.service.test.cjs",
+        "tests/roles-matrix.guard.test.cjs",
+        "tests/role-doors.three-roles.test.cjs",
+        "tests/superadmin-role.guard.test.cjs",
+        "tests/organization.create.test.cjs",
+        "tests/organization.selector.test.cjs",
+        "tests/integration.default-posting-times.test.cjs",
+        "tests/channel-delete.other-doors.test.cjs",
+        "tests/workspace-activation.growth-event.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 12.417
+    },
+    {
+      "name": "backend-types-final",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/backend/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 14.989
+    },
+    {
+      "name": "docs-final",
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "logDigest": "a1a7f240c483392985e1019aeab1ed40400464dcfbdd264097b0cdf117511bfc"
+    },
+    {
+      "name": "process-final",
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh",
+        "--stage",
+        "content-factory-next-dbxe-access-stage"
+      ],
+      "exitCode": 0,
+      "logDigest": "458a663e01a409e4619c089cbd1e025605b8390a43e46de3766577ccd419480c"
+    },
+    {
+      "name": "diff-final",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "status": "PASS",
+  "fixture": {
+    "id": "aaa0fdedfee009e9a009fc01544b7111694b3b82bc8653239af60b5f9420df27",
+    "name": "cf-dbxe-access-233e135b96c7",
+    "database": "cf_access_dbxe_test",
+    "disposable": true
+  },
+  "ownedFixtureRemoved": true,
+  "foreignContainersMissing": [],
+  "resolvedDiagnostics": [
+    {
+      "name": "process-final",
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh",
+        "--stage",
+        "content-factory-next-dbxe-access-stage"
+      ],
+      "exitCode": 1,
+      "seconds": 0.028
+    }
+  ],
+  "result": {
+    "suitesPassed": 34,
+    "testsPassed": 554,
+    "testsSkipped": 0,
+    "realPostgresTests": 7,
+    "epicComplete": false,
+    "productionDeployed": false
+  },
+  "inputs": {
+    ".codex/handoff.md": "8db9fe33a36f0d78f48653dfd34bee492d7732206d63370e6228310b289ea904",
+    ".codex/orchestrator.toml": "8b50a28e6319cd885bcebfc7fa2ca8a8331b1487f0adc755d8124ce28df43790",
+    ".codex/project-index.md": "98d4cf7ea1302af9548dfd960e9a63e051b36e5991ab2263f4e4cfba02fd0491",
+    "apps/backend/src/api/routes/users.controller.ts": "a1df7ca9b63e9844778c857003792b01422b25df05300f9e65bf95eed12715d5",
+    "apps/backend/src/public-api/routes/v1/public.integrations.controller.ts": "92f5eb89eb36d0de8124bed905c83ed91fc16e3b2bba3910211262feab6eb7f6",
+    "apps/backend/src/services/auth/auth.middleware.ts": "fac03f88cbb2c88192ff5de69e335c7fdd9c046fd61b9d970059133cbe13a7da",
+    "apps/backend/src/services/auth/auth.service.ts": "b52547e99a1f85f19d1ac6f15cb01f5a40cf9223eef4839a8570367353e352fa",
+    "apps/backend/src/services/auth/public.auth.middleware.ts": "8e9bd44a307585f48b2da21bdc4851d7da270d0558f50c0502c1714dc2a6168f",
+    "docs/operations/access-token-migration.md": "8a004f7c6aae987abe37b1c308f724a6374a25021b6b068dc635cab88fc57656",
+    "docs/product/roles-matrix.md": "66e5e550dc7d04e47d421e841854e9c331d31b94a0ec14fd851f5d3b243ffa94",
+    "libraries/helpers/src/auth/auth.service.ts": "56e46229422da985f8819852cb7eabaf8f1d3df5ccf6cbbf52dd0ad4cdb6b40b",
+    "libraries/nestjs-libraries/src/auth/same-origin-mutation.ts": "ddbc705c66c3e161a536f07e56d072ff4e3514aff1cf1c5b4ad1ea1097ec3cbf",
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "3f867f12b51cb8b02643f918785727dd56319c8b0548699988ddbc274bdc5c4c",
+    "libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts": "aa0b694b8bd64ec0ea395c72ae9d7214bd3b87a009057492b7052592732bf41d",
+    "libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts": "de331bf0c36cad3d7f50a878a41edb8fc492a32cacc15e4491cebcf91cd8cf17",
+    "libraries/nestjs-libraries/src/database/prisma/users/users.service.ts": "c8b0b0f3ae8c5beb574782c6eee847048bcd6aa0a5559950152bb2af8fc293d3",
+    "libraries/nestjs-libraries/src/integrations/social/credential-families.ts": "cbf505861272ae639e4caeab46fbcffad97c03bf7fc653639ad230fd16da9bec",
+    "tests/access-boundaries.postgres.test.cjs": "986caa9e134823674351f044dd644a1883c75655866e95d019b207e7426ca8fc",
+    "tests/access-cookie-origin.test.cjs": "64f934656d9b0196b60944b0431e9dfab4caf08ef8c54d19a45a163d17e878e3",
+    "tests/access-legacy-oauth.test.cjs": "53dec52fd2d2ce653386c4aafecfa09d3cf8a38dd93db911c2b2535d66905fb4",
+    "tests/access-organization-key.test.cjs": "6063dc50eb2c8b7ad049800f5ebea54d9e8908770cefc345156557a19c250830",
+    "tests/access-provider-credentials.test.cjs": "06381a2c4ff5a015432a0cb8596a15141ff0848458058f992e223b923c7a7582",
+    "tests/access-public-policies.test.cjs": "76d8d4eebdeaae6c9e820a78853aedae0e9cb6f5561ce7996b200d043485eb45",
+    "tests/access-token-purpose.test.cjs": "10068cfeb95bfe3627bf70d5ac267b309879858fb3acda004ea527cf8f0ec1d8",
+    "tests/admin-account-delete.test.cjs": "abc6e885f2a78b45cfdbb68f1f57d05b78f0920d367ac9a59d38f408b057678e",
+    "tests/auth-middleware-membership.test.cjs": "92a220414d8d9422cc3031ca1df983f80d80cedaa1d53e5de42166323a42ca4a",
+    "tests/newsletter.subscription.test.cjs": "9dac98cd1ddac73f97689b1886220a19d1d62e998357e7665fc04bafcddd179d",
+    "tests/pending-account-rejection.test.cjs": "ba7c0bb79be8c021bc9233e3356eb7da7eae4175ee14dbaebea4c686cfd3664f",
+    "tests/public.api.approval.test.cjs": "a44eb7da7ab2fca8dd0d03a7837bfeb332633cd85de65083c9599a49cc97bdc1",
+    "tests/registration.approval.test.cjs": "4878a10c1baca6cd89ba568a080d0e65efbdd5fb8130120653cc598aad06f92f",
+    "tests/registration.growth-event.test.cjs": "aff85ed3f4ada529c110afea951488ee67f18b062c2ac0e66d20d9d6232f6657",
+    "tests/registration.invitation.test.cjs": "284e1436e824aa3584424dc5d52df1f79f9a46397180657570f05e7387342a38",
+    "tests/same-origin-mutation.test.cjs": "8349a620b2dcf431ba12672a013228b053a7757be94b0c6a2daa026126313f0f",
+    "tests/superadmin-role.guard.test.cjs": "87282690748c3cbba62865ead86709b679ae1ef0de89fdc01ffef7cd2642a367",
+    "tests/team-invitation-flow.test.cjs": "5223eb1aefb0f84256316e6685baa66a7602cdf2da123a15ba2a76cf596c288e",
+    "tests/telegram.auth.flow.test.cjs": "35953c78f3ba379f91b3a11b8b98a2bdda5cda8e94cb9ec91f153d9e70ba8e7c",
+    "tests/unpoliced-doors-allowlist.json": "37183c9519ce9b56ce6f0c5b4b63d02c019320c5456e0d19a3696ec65827f07b",
+    "tests/user-identity.auth.test.cjs": "6f554fce40c56afbb45bbe79aaca4435b7bb2ab48dd15e9a8349f9a3e0577b0a"
+  },
+  "beadsAcceptance": {
+    "selectedClosed": 5,
+    "unselectedChildrenPreserved": 24,
+    "epicOpen": true,
+    "all30CriteriaPreserved": true
+  },
+  "publicReadback": {
+    "methods": [
+      "GET"
+    ],
+    "endpointStatuses": [
+      200,
+      200,
+      200
+    ],
+    "publishedSourceStill": "cae3cd8340e0",
+    "newFixesDeployed": false
+  }
+}

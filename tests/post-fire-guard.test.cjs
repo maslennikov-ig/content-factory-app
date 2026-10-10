@@ -301,7 +301,7 @@ describe('stopping a post workflow (F2 termination)', () => {
     const temporal = temporalWith({ terminate: (id) => terminated.push(id) });
     await service(temporal).startWorkflow('telegram', 'p1', 'org-a', 'QUEUE');
     expect(terminated).toEqual(['post_p1']);
-    expect(temporal.calls.starts).toEqual([['postWorkflowV105', 'post_p1']]);
+    expect(temporal.calls.starts).toEqual([['postWorkflowV108', 'post_p1']]);
   });
 });
 

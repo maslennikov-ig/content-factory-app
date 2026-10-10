@@ -52,6 +52,9 @@ import {
 import { searchWords } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
 import type { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 
+import { PublicationStoreV106, PublicationKeyV106 } from './publication-store.v106';
+import type { PostResponse } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
+
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
 dayjs.extend(isSameOrAfter);
@@ -704,6 +707,30 @@ export class PostsRepository {
         childrenPost: true,
       },
     });
+  }
+
+  claimPublicationV106(key: PublicationKeyV106) {
+    return new PublicationStoreV106(this._post.model).claim(key);
+  }
+
+  inspectPublicationV106(key: PublicationKeyV106) {
+    return new PublicationStoreV106(this._post.model).inspect(key);
+  }
+
+  confirmPublicationV106(key: PublicationKeyV106, receipts: PostResponse[]) {
+    return new PublicationStoreV106(this._post.model).confirm(key, receipts);
+  }
+
+  markPublicationUncertainV106(key: PublicationKeyV106) {
+    return new PublicationStoreV106(this._post.model).markUncertain(key);
+  }
+
+  markPublicationPreparationFailureV106(key: PublicationKeyV106) {
+    return new PublicationStoreV106(this._post.model).markPreparationFailure(key);
+  }
+
+  recordPublicationStreakFailureV106(key: PublicationKeyV106) {
+    return new PublicationStoreV106(this._post.model).recordStreakFailure(key);
   }
 
   updatePost(id: string, postId: string, releaseURL: string) {
@@ -1754,6 +1781,36 @@ export class PostsRepository {
         id: true,
         content: true,
         publishDate: true,
+        releaseURL: true,
+        state: true,
+        integration: {
+          select: {
+            id: true,
+            name: true,
+            providerIdentifier: true,
+            picture: true,
+            type: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getPostForWebhookV108(postId: string, orgId: string, integrationId: string) {
+    return this._post.model.post.findFirst({
+      where: {
+        id: postId,
+        organizationId: orgId,
+        integrationId,
+        deletedAt: null,
+        parentPostId: null,
+        integration: { organizationId: orgId },
+      },
+      select: {
+        id: true,
+        content: true,
+        publishDate: true,
+        releaseId: true,
         releaseURL: true,
         state: true,
         integration: {

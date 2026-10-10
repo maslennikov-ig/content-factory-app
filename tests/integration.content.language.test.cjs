@@ -60,6 +60,10 @@ const { IntegrationRepository } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/services/make.is': {
       makeId: () => 'generated-id',
     },
+    '@contentfactory/nestjs-libraries/integrations/social/credential-families':
+      loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/integrations/social/credential-families.ts'
+      ),
   }
 );
 

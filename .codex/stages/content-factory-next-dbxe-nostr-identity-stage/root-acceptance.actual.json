@@ -1,0 +1,165 @@
+{
+  "schema": "content-factory-root-acceptance/v1",
+  "date": "2026-10-10",
+  "stage": "content-factory-next-dbxe-nostr-identity-stage",
+  "task": "content-factory-next-dbxe.18",
+  "baseline": "de533317b9cd8ff9a970ca7d5c915a2008b27ca4",
+  "result": "PASS",
+  "acceptance_boundary": "bounded local provider source; root-owned closeout-lite",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "nostr-tools": "2.23.3",
+    "ws": "8.21.0",
+    "PATH_prefix": "/home/me/.nvm/versions/node/v22.23.2/bin"
+  },
+  "commands": {
+    "jest": {
+      "command": "pnpm exec jest --runInBand --runTestsByPath tests/nostr-publication.test.cjs tests/publication-v106.test.cjs tests/temporal-contract-signature.guard.test.cjs --json --outputFile=.codex/stages/content-factory-next-dbxe-nostr-identity-stage/jest.local.json",
+      "exit_code": 0,
+      "suites": 3,
+      "tests": 85,
+      "skips": 0
+    },
+    "native_protocol": {
+      "command": "node --test --test-concurrency=1 tests/helpers/nostr-publication.runner.cjs",
+      "exit_code": 0,
+      "tests": 38,
+      "skips": 0,
+      "included_in_jest_as_one_native_runner_test": true
+    },
+    "backend_types": {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.build.json --noEmit --incremental false",
+      "exit_code": 0
+    },
+    "orchestrator_types": {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.build.json --noEmit --incremental false",
+      "exit_code": 0
+    },
+    "docs": {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exit_code": 0,
+      "files": 188
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "legacy_diagnostic": {
+      "command": "node .codex/stages/content-factory-next-dbxe-nostr-identity-stage/reproducer.cjs",
+      "exit_code": 1,
+      "expected": "old completed receipt contains unrelated ID; empty EOSE/all failure also completed; failed sockets not closed",
+      "not_acceptance_test": true
+    },
+    "staged_diff": {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  },
+  "input_sha256": {
+    "libraries/nestjs-libraries/src/integrations/social/nostr.provider.ts": "262975b8f1712ecfda470196365c758d2069ad5ca71c80ce40ee5c76316514e3",
+    "tests/nostr-publication.test.cjs": "ee39b561208150ccb3b53472e3553f9b9365e3646004fb24585e52d2e8bc62a3",
+    "tests/helpers/nostr-publication.runner.cjs": "9d6e28f119eae7cab3838cb394606f968af5adf26abe4479261c716f9c1f8d98",
+    "docs/operations/nostr-publication.md": "b7cc81d17beecba10fdbc5435e084ce98358b94d1f0658d9b0db2387f6807311",
+    "docs/README.md": "3c0805f20850b1ac75d82578c488c37e426a307f993e4475cb3a01fa695f5e62",
+    ".codex/handoff.md": "f681a7f01cdd8e2c84847850c95093c65f3833e323092b3f75228ac8dc39929d",
+    ".codex/project-index.md": "1d0ef6cc139c3c124aaf58f8dd98201a497beccf2285bb47666f28d6c87a67ec",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/plan.md": "dd8db6df0c005deb73f52a265bf73bd8c487bf1ff431e8c64977ec841fc4440b",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/outcome.md": "4b847c253858d51333b7c9c619979fb12b3c23a5acf71af63405657969cb3229",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/reproducer.cjs": "db462af347029c765b92cfa901ee7aa3a9c9270ab564006b2a31cb822f20b580",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    ".nvmrc": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a",
+    "tsconfig.json": "6ab9dbbac0fb5647c93cbf0cbd665330d42da8ffdec12751b48e03d6ad6c2695",
+    "apps/backend/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "apps/orchestrator/tsconfig.build.json": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b",
+    "tests/helpers/load-ts-with-mocks.cjs": "9288c390cb4dee410322c4e9f586234a43747099300729995fd6af713821924a",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/publication-v106.test.cjs": "ff1bb3923714278910d04a6d2e85c138a4f1f888a1f481c731dbcc86210bf1ae",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tests/temporal-contract-signature.baseline.json": "4044438026581a91ca08d85393e806ce50eda2b2aa4bad50e430c5cfefbd4743"
+  },
+  "temporal_sha256_unchanged": {
+    "apps/orchestrator/src/activities/analytics.activity.v1.ts": "7a5d9343d7247919e52fac828b079a8670e64191d0013a5fb219ad6e43ad2312",
+    "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts": "5d01960e75aea41bfd39ba8b6a7b6a6ca63ef7bff18a7e5e73743f5ad002ed31",
+    "apps/orchestrator/src/activities/autopost.activity.ts": "4627ee06cd3cf7cba30136d8e096f675b52ecf9a75b23e23d1461c465313de45",
+    "apps/orchestrator/src/activities/content-lead-check.activity.ts": "286e9268fc307b30b42a097a23a9ef9127134f3a36846beb4630087a137f22a9",
+    "apps/orchestrator/src/activities/email.activity.ts": "91badac7061a10b81360535cfe0b56a02167798ec227fba94f2a3b2f0dfede88",
+    "apps/orchestrator/src/activities/email.activity.v2.ts": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+    "apps/orchestrator/src/activities/integrations.activity.ts": "67ca418fb2064a41e67fd401641165bb196277a8401568407d1af0960963b08e",
+    "apps/orchestrator/src/activities/newsletter.activity.v1.ts": "14f6d0c894c0b67e13c81d7b9367daf2c79b1381e790992247dcd843a49d8bb1",
+    "apps/orchestrator/src/activities/post.activity.ts": "1283f0113d39b0ee7c020edb35e6e0d73a2451390128360c89a9c3fcb374a172",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "20375bdb9f0f8d101cbf59c869f8964fb0973170cab19abc479c93a365b73604",
+    "apps/orchestrator/src/activities/post.activity.v107.ts": "29f25bb57273619a98d95ed8a09c9500fbeead7249ddddd7a16553b24f65ea32",
+    "apps/orchestrator/src/activities/post.activity.v108.ts": "aa77887c9496d51e21fc4f740e90d6530ea2c790a662db63997132291836bcab",
+    "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts": "7ba8b9a0584a2e8415c95f42c2ba380d78927d77f05164ec7caede7478a1572c",
+    "apps/orchestrator/src/workflows/autopost.workflow.ts": "ed0e31c4e549df79c240ce24ae6ae0ad28c45178fe86acb15359907f16af5d90",
+    "apps/orchestrator/src/workflows/content-lead-check.workflow.ts": "a031b52ccbec02665c7b34d9895a68409ef3d114283349272111abf589669028",
+    "apps/orchestrator/src/workflows/digest.email.workflow.ts": "727e855607887f130ad5a6a230f88433a3554b052571f2fd66fe8a993a9c98f7",
+    "apps/orchestrator/src/workflows/index.ts": "e0ba3d453ece6b2749ad636ca1834eb903fbbc6c095303a63368fc7cd1d8a8d1",
+    "apps/orchestrator/src/workflows/integration.analytics.snapshot.workflow.v1.ts": "ccc33b3cde8a31de51ed106008cfece681c3e82086e61e35c3ffbe17d4121b63",
+    "apps/orchestrator/src/workflows/missing.post.workflow.ts": "6f76adc05b1a9bca703bd19e46e2bde9cb8d8bc64c9052a3fca4a944cb884660",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": "ad930480035ad1b0845581d4e4c72136aa7d8fb1d87c9f4e3fcde45eefc357e6",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v108.ts": "2d71b4f459e353d14c8d0bc4bbbf2cfbe2e3aecbde0086e3775f7006b7c9bc7f",
+    "apps/orchestrator/src/workflows/newsletter.subscription.retry.workflow.v1.ts": "8c23dffe4d41fc3b8035d6db74a3433f5442dba85144c7458b6910be60c667e1",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.1.ts": "eef1fd94382d1f2347b204b018e01ef7b7f97b62808e75a3342258feee801fe6",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.2.ts": "e92cb095ab217c55897aff0aa5ab8ef9f0d9acc68fbcd6edca9853d252531d6e",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.3.ts": "6952b0feda8efd582a6119be5fa775cb98d56b30a37f18c2ba6788099de7d880",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.4.ts": "36df2b27dfe4322accc1a9f0160301a640c68c400a436be5d54b3d9bc6b6e700",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": "ce3f6b645bcb1265885a7102c53a3a13a9292f9408013f1c25cf9d2a017f05cc",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": "954c87d8780a25b825743baee037c78d36f755f1d4e13855ca50d50a8df811f2",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts": "60a7e830cc98d97f168da4becd58353d637c6923672bc817182a64f130ce8734",
+    "apps/orchestrator/src/workflows/refresh.token.workflow.ts": "2205b5cfaf72d07a2cdb2e339830ff6521182fa8e7baffc1abf724231fdf363e",
+    "apps/orchestrator/src/workflows/send.email.workflow.ts": "e1b4de0e70562925edbd8deafdb016ba9f52f064467503d56b56bfb3a99b69ca",
+    "apps/orchestrator/src/workflows/send.email.workflow.v2.ts": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+    "apps/orchestrator/src/workflows/streak.workflow.ts": "6c543dcb8df85b82ed9f0f66e36438bac058fc409626e030d14751608a5a76d8"
+  },
+  "signature_baseline_unchanged": true,
+  "scope": {
+    "criteria_preserved": 30,
+    "anchor_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "selected_task_only": true,
+    "epic": "open",
+    "release_gate_dbxe_8": "in_progress",
+    "canonical_readback": "all30 criteria/title/description and29 unselected statuses unchanged; .18 CLOSED only",
+    "beads_github_sync": "triggered asynchronously; no remote convergence claim",
+    "criterion_snapshot_verbatim_match": true
+  },
+  "proof": {
+    "signing": "actual installed hash/Schnorr signatures, synthetic key",
+    "protocol": "controlled relay frames/deadlines plus actual ws/loopback servers",
+    "claims": "actual V106 activity/service/repository logic, memory persistence",
+    "retry": "same signed event within relay fanout; uncertain claim refuses new invocation; confirmed claim returns receipt"
+  },
+  "limits": [
+    "no public relay availability or deployed publication proof",
+    "no native Temporal server or PostgreSQL persistence in this stage",
+    "historical Temporal retry policies unchanged; no cross-invocation event cache",
+    "no full release suite/build, push/deploy, schema, model call or live data mutation"
+  ],
+  "docs_reviewed": "updated — Nostr operations/retry boundary and navigation",
+  "graph_reviewed": "used — focused NostrProvider against stale46ec4108; three matching source hashes, exact current callers inspected; no refresh/API/hooks",
+  "cleanup": {
+    "owned_loopback_servers": "closed",
+    "owned_sockets": "terminated/closed",
+    "provider_deadlines": "cleared",
+    "delegated_work": "none",
+    "unrelated_work": "preserved"
+  },
+  "owned_files": [
+    "libraries/nestjs-libraries/src/integrations/social/nostr.provider.ts",
+    "tests/nostr-publication.test.cjs",
+    "tests/helpers/nostr-publication.runner.cjs",
+    "docs/operations/nostr-publication.md",
+    "docs/README.md",
+    ".codex/handoff.md",
+    ".codex/project-index.md",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/plan.md",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/outcome.md",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/reproducer.cjs",
+    ".codex/stages/content-factory-next-dbxe-nostr-identity-stage/root-acceptance.actual.json"
+  ]
+}

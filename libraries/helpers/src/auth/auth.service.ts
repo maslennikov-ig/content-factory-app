@@ -66,6 +66,62 @@ export class AuthService {
     return verify(token, process.env.JWT_SECRET!);
   }
 
+  static signSessionJWT(user: object) {
+    return this.signJWT({ ...user, purpose: 'session' });
+  }
+
+  static verifySessionJWT(token: string) {
+    const value = this.verifyJWT(token);
+    if (typeof value !== 'object' || typeof value.id !== 'string') {
+      throw new Error('Invalid session token');
+    }
+    // Legacy sessions contained the full active user. Reset links contained
+    // only id/expires; pending activation carried activated:false. Keep the
+    // former, never promote either of the latter after a database change.
+    const legacySession = value.purpose === undefined &&
+      value.activated === true && typeof value.email === 'string' &&
+      typeof value.providerName === 'string' && value.expires === undefined;
+    if (value.purpose !== 'session' && !legacySession) {
+      throw new Error('Invalid session purpose');
+    }
+    return value;
+  }
+
+  static passwordResetVersion(passwordHash: string) {
+    return crypto.createHmac('sha256', process.env.JWT_SECRET!)
+      .update('password-reset:v1:').update(passwordHash).digest('hex');
+  }
+
+  static signPasswordResetJWT(id: string, passwordHash: string) {
+    return sign({ id, purpose: 'password_reset', passwordVersion: this.passwordResetVersion(passwordHash) },
+      process.env.JWT_SECRET!, { expiresIn: '20m' });
+  }
+
+  static verifyPasswordResetJWT(token: string) {
+    const value = this.verifyJWT(token);
+    if (typeof value !== 'object' || value.purpose !== 'password_reset' ||
+      typeof value.id !== 'string' || typeof value.exp !== 'number' ||
+      typeof value.passwordVersion !== 'string') {
+      throw new Error('Invalid password reset token');
+    }
+    return value;
+  }
+
+  static signActivationJWT(user: object) {
+    return sign({ ...user, purpose: 'activation' }, process.env.JWT_SECRET!, { expiresIn: '1d' });
+  }
+
+  static verifyActivationJWT(token: string) {
+    const value = this.verifyJWT(token);
+    if (typeof value !== 'object' || typeof value.id !== 'string' ||
+      typeof value.email !== 'string' || value.activated !== false ||
+      (value.purpose !== 'activation' && !(value.purpose === undefined &&
+        typeof value.providerName === 'string' && value.expires === undefined))) {
+      throw new Error('Invalid activation token');
+    }
+    return value;
+  }
+
   static fixedEncryption(value: string) {
     return encrypt_legacy_using_IV(value);
   }

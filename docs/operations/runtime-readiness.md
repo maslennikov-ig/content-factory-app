@@ -16,8 +16,11 @@
 | `/api/monitor/ready` | 200, `{"status":"success","message":"Runtime dependencies are ready."}` | 503, `{"status":"error","message":"Runtime dependencies are unavailable."}` |
 | `/api/monitor/queue/:name` | 200, прежние два поля: `{"status":"success","message":"Queue telegram is healthy."}` для telegram | известная недоступная очередь: 503, `{"status":"error","message":"Queue is unavailable."}`; неизвестное имя: 404, `{"status":"error","message":"Unknown queue."}` |
 
-Docker HEALTHCHECK, переключение образа и удержание артефактов продолжают
-использовать существующий liveness `/api/`. Readiness — отдельный сигнал.
+В исходниках после локального этапа `dbxe.7` Docker HEALTHCHECK требует
+liveness `/api/` и приватный `/health/status` orchestrator; контракт и границы
+проверки описаны в [готовности обработчика](worker-readiness.md). Выкладка этой
+правки остаётся отдельным этапом. Переключение образа и удержание артефактов
+сохраняют существующие проверки `/api/`; публичный monitor readiness — отдельный сигнал.
 Получение 503 на новом маршруте не перезапускает контейнер, не запускает
 публикацию и не меняет действующие правила rollback.
 

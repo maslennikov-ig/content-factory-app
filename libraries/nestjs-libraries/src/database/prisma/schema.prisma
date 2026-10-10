@@ -569,6 +569,9 @@ model Post {
   parentPostId               String?
   releaseId                  String?
   releaseURL                 String?
+  /// V106 publication claims and receipts. A pending claim is never expired:
+  /// the provider may have written even when its response was lost.
+  publicationJournal         Json?
   settings                   String?
   researchSources            String                      @default("[]")
   contentContextSnapshotId   String?

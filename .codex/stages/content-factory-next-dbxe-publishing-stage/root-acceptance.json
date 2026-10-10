@@ -1,0 +1,368 @@
+{
+  "schema": "cf-publishing-root-acceptance/v1",
+  "stage": "content-factory-next-dbxe-publishing-stage",
+  "baselineHead": "5a686127ff854341ac2ae93a2b0e2b2fac98e4f5",
+  "checks": [
+    {
+      "name": "baseline-disposable-schema",
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "push",
+        "--skip-generate",
+        "--schema",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/schema-before.local.prisma"
+      ],
+      "exitCode": 0,
+      "seconds": 1.883
+    },
+    {
+      "name": "schema-preservation-seed",
+      "command": [
+        "node",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/schema-preservation.cjs",
+        "seed"
+      ],
+      "exitCode": 0,
+      "seconds": 0.104
+    },
+    {
+      "name": "selected-sql-guard",
+      "command": [
+        "node",
+        "scripts/operations/validate-prisma-migration-sql.cjs",
+        "--diff",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/schema-diff.local.sql",
+        "--selected",
+        "docs/operations/publication-journal-v106-schema-apply.sql",
+        "--mode",
+        "update",
+        "--allow-table",
+        "Post"
+      ],
+      "exitCode": 0,
+      "seconds": 0.025
+    },
+    {
+      "name": "apply-owned-additive-column",
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "execute",
+        "--file",
+        "docs/operations/publication-journal-v106-schema-apply.sql",
+        "--url",
+        "postgresql://cf_publish:synthetic-fixture-password@127.0.0.1:42090/cf_publish_dbxe_test"
+      ],
+      "exitCode": 0,
+      "seconds": 1.029
+    },
+    {
+      "name": "schema-preservation-readback",
+      "command": [
+        "node",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/schema-preservation.cjs",
+        "read"
+      ],
+      "exitCode": 0,
+      "seconds": 0.121
+    },
+    {
+      "name": "focused-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/publication-v106.test.cjs",
+        "tests/publication-v106.postgres.test.cjs",
+        "tests/post-fire-guard.test.cjs",
+        "tests/post-comments-tenant.guard.test.cjs",
+        "tests/posts.change-date-state-race.test.cjs",
+        "tests/publish-escaping.test.cjs",
+        "tests/temporal-contract-signature.guard.test.cjs",
+        "tests/temporal.search.attributes.test.cjs",
+        "tests/posts.save-refusal.test.cjs",
+        "tests/posts.refusal-language.test.cjs",
+        "tests/cf-queue-gate.postiz.test.cjs",
+        "tests/posts.generated-draft-tail.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 6.476
+    },
+    {
+      "name": "orchestrator-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/orchestrator/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 12.171
+    },
+    {
+      "name": "backend-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/backend/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 15.965
+    },
+    {
+      "name": "workflow-bundle",
+      "command": [
+        "node",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/bundle-workflows.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 1.467
+    },
+    {
+      "name": "repository-loader-compatibility",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--runTestsByPath",
+        "tests/production.analytics.test.cjs",
+        "tests/post.research.sources.test.cjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "publication-portable-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--runTestsByPath",
+        "tests/publication-v106.test.cjs"
+      ],
+      "exitCode": 0,
+      "reason": "remove dependency on private Git ancestry; reuse unchanged product/database proof"
+    },
+    {
+      "name": "docs-final",
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "process-final",
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh",
+        "--stage",
+        "content-factory-next-dbxe-publishing-stage"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "diff-final",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "final-publication-focused-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/publication-v106.test.cjs",
+        "tests/publication-v106.postgres.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 3.885
+    },
+    {
+      "name": "final-publication-orchestrator-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/orchestrator/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 11.385
+    },
+    {
+      "name": "final-publication-backend-types",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/backend/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 15.481
+    },
+    {
+      "name": "entire-delivery-diff",
+      "command": [
+        "git",
+        "diff",
+        "5a686127f",
+        "--check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "selected-sql-final",
+      "command": [
+        "node",
+        "scripts/operations/validate-prisma-migration-sql.cjs",
+        "--diff",
+        ".codex/stages/content-factory-next-dbxe-publishing-stage/schema-diff.local.sql",
+        "--selected",
+        "docs/operations/publication-journal-v106-schema-apply.sql",
+        "--mode",
+        "update",
+        "--allow-table",
+        "Post"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "boundary": "local source, simulated providers, actual disposable PostgreSQL and workflow bundle",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "status": "PASS",
+  "realProviderIdempotency": "UNKNOWN",
+  "productionMutation": false,
+  "fixture": {
+    "id": "fd3e5af48e557e891d49e564784403c08bb9e12bcdb197934a2860f151c03a80",
+    "name": "cf-dbxe-publish-0782da7eceab",
+    "disposable": true
+  },
+  "ownedFixtureRemoved": true,
+  "foreignContainersMissing": [],
+  "inputs": {
+    ".codex/handoff.md": "4bf781002a1778cc054a5740692c5f2669489258bc4fdfacde096f5464f49286",
+    ".codex/orchestrator.toml": "766a3e0d63bf8e24f69056834c3e8d45c8c180a4ddf56a085e9a1717f561ba97",
+    ".codex/project-index.md": "e6011721d96f2b11a5cd7b7b19f3b5e0d3cb37b2096f49e08aab6ba9ba860427",
+    "apps/orchestrator/src/activities/post.activity.v106.ts": "13205b10c5383d316e8e6e1cb2bc10c7cdbbb3b132fa0718da0a8d9cb0dc6a7f",
+    "apps/orchestrator/src/app.module.ts": "e3b0f5e1e70a9a7a1f6c14f30b6dc7536dfa4aa483273c1f98e150d165846336",
+    "apps/orchestrator/src/workflows/index.ts": "ac10cb804da4cd22d82ef30ba114860722679a3323f8b258f8427a398eb9521d",
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": "beb477bee2f6accf51fca60e34cc4ca8ef52dd34bb52d24cb735ae6a2d7876f5",
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": "dea90ec33c0b098da0eb93708884745c5e71174b00f26ef8cf62c7a217683668",
+    "docs/operations/publication-journal-v106-schema-apply.sql": "929d92cc15e2c9c7f9e05a31f61ddf9e124da785846e895bb957cdc76d69de8d",
+    "docs/operations/publication-recovery-v106.md": "f8686fc59d3786cd9ddb7d488b260f8236f59f55c5308819b06efc8678ca7028",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts": "ccd2aec65b82ac03c965b2be6e2cecafcade60ba4a5e5274a945c448fb565ae6",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "ac7dd1edf425093ece08163be76c4a8725830c10623df26eb7f6089ba2596b78",
+    "libraries/nestjs-libraries/src/database/prisma/posts/publication-store.v106.ts": "ab10215ad60466f333c59b24253bf0c4b56a32b7f4c45393ff596d946d86c4fc",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts": "1ab90268ab9e43b6b4e0631246b18e4d49684aff6dfd3712a4540bc52d441c09",
+    "tests/helpers/publication-v106.module.cjs": "e8b5d7ed5e46cd8211a3badd29cd3b0cc7a347e6abe1f5eab12caaf0cf70bb62",
+    "tests/post-comments-tenant.guard.test.cjs": "ea4b6b7bea3d9c8153c27c3daae78f20a85ea47564e70ff7334fa94042b9b04d",
+    "tests/post-fire-guard.test.cjs": "71dde1e23452a127d25e5c7583839cfe6423da0fdc8aeadd2b9f72039593961f",
+    "tests/post.research.sources.test.cjs": "9f417625393af3f1dbf5a76d7e4e269159f7738f4ca10a10526b3e6aafefb42f",
+    "tests/production.analytics.test.cjs": "36a22004b2828d98b342b9744019e4aaade446d85fa8cb4a744a95eaf9072825",
+    "tests/publication-v106.postgres.test.cjs": "668bd97eae791402f149413debceaeb30a1a5e8c8e42dc9853e043adf968b1ba",
+    "tests/publication-v106.test.cjs": "95972c8de47940a91f84292373004de6f17486de98e10f46eed8a6066da2b900",
+    "tests/temporal-contract-signature.baseline.json": "cace0504b4a33ca69443c003a424eb9878008902dbadb9205aaa5fe77a9bffea"
+  },
+  "logDigests": {
+    "types-second.local.log": "7d7211fde62b671f866a79b748e02fb5b69c69e8c4325a790b66b4ff3b5f7c94",
+    "backend-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "process-final.local.log": "1bd6c30add8a7a168accf1eff74013a8cb47000a554c8ca31fb675907283e727",
+    "workflow-bundle.local.log": "20be31b33655a11f45c55688c2653d355e2e34780a972a7512786f272e72cb0a",
+    "schema-preservation-readback.local.log": "830e17d4df636c9102c2afb48faacba0d6aa481af3d8e61070d0bbfc889e5068",
+    "diff-final.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "publication-portable-acceptance.local.log": "76c5bc54c625b35b7bd3a76a8ddfea06264a0e4ea563561eff98aeb5bf5f1081",
+    "repository-loader-compatibility.local.log": "374d3de0601eb53bdc15703830e40e1c89331fb6ca06a9aec317e1d41d692419",
+    "pre-final-review-focused.local.log": "851bb619938b04be72f8bbffc99bafedbcb0d0610b1b4c53219ebbc745898d31",
+    "focused-acceptance.local.log": "59489d84aad1a74d7efcf9853082a005e71f3c88618b83d5ceac5db98c172269",
+    "selected-sql-guard.local.log": "51fddc71d612bc86713fb19a2d7b04733aa442addbef4091ded25607ff942950",
+    "regression-diagnostic.local.log": "1db8fcb1e526ae63f9cec77729eb508352a963b71c48ce27ed0a11305b55f454",
+    "orchestrator-types.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs-final.local.log": "f86f5e2f560c3cb7125612938cb395f5741bfdf475c83847b361073d64759e5a",
+    "baseline-disposable-schema.local.log": "874f6b0175d13e4c0ccd3ccb2e21a9ea73790b8558be7dec9c050a1c4db268cf",
+    "apply-owned-additive-column.local.log": "efe7ff4f592b0fb8a2d24b38b5d7adf0bcabd16fefb59a050438633c06fb7a4f",
+    "types-diagnostic.local.log": "18f1a48a756c2dc8ba0ee710b8b844c8e91d066f5b2e613152728e1e05a711f5",
+    "schema-preservation-seed.local.log": "4819c541dd9b1e204cd33685d6ab0f08a52c53a4cafef2c659866131b9eae170",
+    "regression-green-diagnostic.local.log": "060c0e61958faad1ff41e64bfdd6ebcfc3a2f7e5d4ffc3fd21c6ce6947781b32",
+    "selected-sql-final.local.log": "51fddc71d612bc86713fb19a2d7b04733aa442addbef4091ded25607ff942950"
+  },
+  "verification": {
+    "uniqueJestSuites": 14,
+    "uniqueJestTests": 259,
+    "skips": 0,
+    "actualPostgresTests": 7,
+    "publicationRegressionTests": 21,
+    "actualWorkflowBundleBytes": 3198247
+  },
+  "claims": {
+    "confirmedStreakFailure": "one local provider invocation, durable confirmed receipt, auxiliary failure separate",
+    "lostActivityResponse": "durable receipt returned after new Prisma client, zero new provider writes",
+    "uncertainProviderOutcome": "pending + readable uncertainty, no resend",
+    "crashAfterClaim": "no automatic claim expiry or takeover",
+    "authoritativeReceiptReconciliation": "guarded pending-to-confirmed without provider call",
+    "oldHistories": "16 original workflow files and old PostActivity byte-preserved; all old signatures preserved",
+    "originalTask8ReleaseGate": "UNCHANGED",
+    "jsonbReceiptReconciliation": "same authoritative receipt accepted after JSONB property reordering; conflicting values still refused"
+  },
+  "documentationInputs": {
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/outcome.md": "7976110afab0e6958ad24f73623bb9b363e91d431f77f5af7cdded6b96d2e17b",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/plan.md": "32a30351c0ee0fd5b3eb250f55eb9b71bd4e4baf2a812aad98f74b8ec8d7a093",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/summary.md": "84e58153e076b24c82adfe98f0848c0364503c44d01a77e69f9112bac60d1899",
+    ".codex/stages/content-factory-next-dbxe-publishing-stage/stage-manifest.json": "9bd12673a91acc2b807f97782c1b9e565795ceb2a2afcf9711259c6337b94695"
+  },
+  "proofReuse": {
+    "unchangedAdjacentJestSuites": 10,
+    "unchangedAdjacentTests": 218,
+    "matchingRepositoryCompatibilitySuites": 2,
+    "matchingRepositoryCompatibilityTests": 13,
+    "changedPublicationSuites": 2,
+    "changedPublicationTests": 28,
+    "workflowBundle": "unchanged workflows/installed compiler inputs, previous matching PASS",
+    "schema": "exact same guarded SQL statement as the disposable apply; removed an extra EOF blank line only, SQL guard rechecked"
+  },
+  "beads": {
+    "result": "PASS",
+    "originalCriteriaPreserved": 30,
+    "unselectedBeforeStatusesPreserved": 23,
+    "previousAccess1To5Readback": "closed",
+    "selectedTask6": "closed",
+    "task8": "in_progress",
+    "epic": "open",
+    "scope": "local dbxe.6 only"
+  }
+}

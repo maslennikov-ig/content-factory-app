@@ -79,6 +79,6 @@ ENV DO_NOT_TRACK=1
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=5 \
-  CMD curl -fsS http://127.0.0.1:5000/api/ >/dev/null || exit 1
+  CMD sh /app/var/docker/healthcheck.sh
 
 CMD ["/usr/local/bin/content-factory-entrypoint"]

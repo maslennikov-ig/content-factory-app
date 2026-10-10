@@ -1,6 +1,6 @@
 import { Command } from 'nestjs-command';
 import { Injectable } from '@nestjs/common';
-import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
+import { IntegrationService, TokenRefreshBatchResult } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 
 @Injectable()
 export class RefreshTokens {
@@ -10,7 +10,16 @@ export class RefreshTokens {
     describe: 'Refresh all tokens',
   })
   async refresh() {
-    await this._integrationService.refreshTokens();
-    return true;
+    let result: TokenRefreshBatchResult;
+    try {
+      result = await this._integrationService.refreshTokens();
+    } catch {
+      throw new Error('Token refresh batch could not start');
+    }
+    console.log(JSON.stringify({ event: 'token_refresh_batch', ...result }));
+    if (result.reconnectRequired || result.failed || result.notificationFailures) {
+      process.exitCode = 1;
+    }
+    return result;
   }
 }

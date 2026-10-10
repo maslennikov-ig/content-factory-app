@@ -7,7 +7,7 @@ import {
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
 import { SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
-import { getPublicKey, Relay, finalizeEvent, SimplePool } from 'nostr-tools';
+import { getPublicKey, finalizeEvent, SimplePool, VerifiedEvent } from 'nostr-tools';
 
 import WebSocket from 'ws';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
@@ -96,37 +96,63 @@ export class NostrProvider extends SocialAbstract implements SocialProvider {
     return {};
   }
 
-  private async publish(pubkey: string, event: any) {
-    let id = '';
+  private publishToRelay(relay: string, event: VerifiedEvent): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = new WebSocket(relay);
+      let settled = false;
+      const timeout = setTimeout(() => finish(false), 6000);
+      const finish = (accepted: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        socket.removeAllListeners('open');
+        socket.removeAllListeners('message');
+        // This one-shot exchange also owns sockets still connecting at timeout.
+        // Keep error/close listeners for asynchronous termination notifications.
+        socket.terminate();
+        resolve(accepted);
+      };
+      socket.once('open', () => {
+        try {
+          socket.send(JSON.stringify(['EVENT', event]), (error) => {
+            if (error) finish(false);
+          });
+        } catch {
+          finish(false);
+        }
+      });
+      socket.on('message', (data) => {
+        let reply: unknown;
+        try {
+          reply = JSON.parse(data.toString());
+        } catch {
+          return;
+        }
+        if (
+          Array.isArray(reply) && reply[0] === 'OK' && reply[1] === event.id &&
+          typeof reply[2] === 'boolean' && typeof reply[3] === 'string'
+        ) {
+          finish(reply[2]);
+        }
+      });
+      socket.on('error', () => finish(false));
+      socket.once('close', () => finish(false));
+    });
+  }
+
+  private async publish(pubkey: string, event: VerifiedEvent) {
+    if (event.pubkey !== pubkey) throw new Error('Nostr signing identity mismatch');
+    let accepted = false;
     for (const relay of list) {
       try {
-        const relayInstance = await Relay.connect(relay);
-        const value = new Promise<any>((resolve) => {
-          relayInstance.subscribe([{ kinds: [1], authors: [pubkey] }], {
-            eoseTimeout: 6000,
-            onevent: (event) => {
-              resolve(event);
-            },
-            oneose: () => {
-              resolve({});
-            },
-            onclose: () => {
-              resolve({});
-            },
-          });
-        });
-
-        await relayInstance.publish(event);
-        const all = await value;
-        relayInstance.close();
-        // relayInstance.close();
-        id = id || all?.id;
-      } catch (err) {
-        /**empty**/
+        if (await this.publishToRelay(relay, event)) accepted = true;
+      } catch {
+        // Constructor/connect/send failures are not acknowledgement. Continue
+        // the existing relay fanout with this exact signed event.
       }
     }
-
-    return id;
+    if (!accepted) throw new Error('Nostr publication not acknowledged');
+    return event.id;
   }
 
   async authenticate(params: {
@@ -167,12 +193,20 @@ export class NostrProvider extends SocialAbstract implements SocialProvider {
       : post.message;
   }
 
+  private signingKey(accessToken: string): Uint8Array {
+    const { password } = AuthService.verifyJWT(accessToken) as { password?: unknown };
+    if (typeof password !== 'string' || !/^[0-9a-fA-F]{64}$/.test(password)) {
+      throw new Error('Invalid Nostr signing key');
+    }
+    return Uint8Array.from(Buffer.from(password, 'hex'));
+  }
+
   async post(
     id: string,
     accessToken: string,
     postDetails: PostDetails[]
   ): Promise<PostResponse[]> {
-    const { password } = AuthService.verifyJWT(accessToken) as any;
+    const key = this.signingKey(accessToken);
     const [firstPost] = postDetails;
 
     const textEvent = finalizeEvent(
@@ -182,7 +216,7 @@ export class NostrProvider extends SocialAbstract implements SocialProvider {
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
       },
-      password
+      key
     );
 
     const eventId = await this.publish(id, textEvent);
@@ -205,7 +239,7 @@ export class NostrProvider extends SocialAbstract implements SocialProvider {
     postDetails: PostDetails[],
     integration: Integration
   ): Promise<PostResponse[]> {
-    const { password } = AuthService.verifyJWT(accessToken) as any;
+    const key = this.signingKey(accessToken);
     const [commentPost] = postDetails;
     const replyToId = lastCommentId || postId;
 
@@ -219,7 +253,7 @@ export class NostrProvider extends SocialAbstract implements SocialProvider {
         ],
         created_at: Math.floor(Date.now() / 1000),
       },
-      password
+      key
     );
 
     const eventId = await this.publish(id, textEvent);

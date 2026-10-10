@@ -133,7 +133,7 @@ const controllerModule = loadTypeScriptModule(
     },
     '@contentfactory/helpers/auth/auth.service': {
       AuthService: {
-        verifyJWT: (token) =>
+        verifySessionJWT: (token) =>
           token === 'root-session' ? { id: 'root' } : { id: 'other-user' },
       },
     },

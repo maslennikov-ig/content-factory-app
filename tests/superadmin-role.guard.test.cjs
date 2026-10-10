@@ -96,9 +96,10 @@ describe('Role.SUPERADMIN is never granted', () => {
     // workspace is created for. The third is `content-factory-next-fn33.36`,
     // a second workspace made from inside the product.
     expect(organizations.match(/role: Role\.ADMIN,/g)).toHaveLength(3);
-    // The public API key, which stands in for an administrator of the
-    // workspace it belongs to.
-    expect(publicApi.match(/role: 'ADMIN'/g)).toHaveLength(2);
+    // Only the organization key stands in for its administrator. A legacy
+    // user OAuth grant follows the current membership instead (dbxe.3).
+    expect(publicApi.match(/role: 'ADMIN'/g)).toHaveLength(1);
+    expect(publicApi).toContain('role: membership.role');
   });
 
   test('the enum value survives, and so does reading it', () => {

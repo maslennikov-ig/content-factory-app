@@ -417,6 +417,7 @@ CREATE TABLE "Post" (
   "parentPostId" TEXT,
   "releaseId" TEXT,
   "releaseURL" TEXT,
+  "publicationJournal" JSONB,
   "settings" TEXT,
   "researchSources" TEXT NOT NULL DEFAULT '[]',
   "contentContextSnapshotId" TEXT,

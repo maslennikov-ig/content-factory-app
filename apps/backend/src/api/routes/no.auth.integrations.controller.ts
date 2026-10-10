@@ -27,6 +27,9 @@ import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/inte
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.service';
 import { PUBLIC_GROWTH_SERVICE } from '@contentfactory/backend/api/routes/public-growth.token';
+import { randomUUID } from 'crypto';
+
+const EXTENSION_GENERATION_KEY = '__cfExtensionConnection';
 
 interface PublicGrowthRecorder {
   recordTrusted(
@@ -49,6 +52,23 @@ export class NoAuthIntegrationsController {
   ) {}
 
   private readonly _logger = new Logger(NoAuthIntegrationsController.name);
+
+  private encryptedExtensionCookies(code: string, generation: string) {
+    try {
+      const cookies = JSON.parse(Buffer.from(code, 'base64').toString());
+      if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) {
+        throw new Error('Invalid cookie object');
+      }
+      return AuthService.fixedEncryption(
+        JSON.stringify({
+          ...cookies,
+          [EXTENSION_GENERATION_KEY]: generation,
+        })
+      );
+    } catch {
+      throw new HttpException('Invalid cookie data', 400);
+    }
+  }
 
   private async recordChannelAdded(
     state: string,
@@ -257,6 +277,9 @@ export class NoAuthIntegrationsController {
       throw new HttpException('', 412);
     }
 
+    const connectionGeneration = integrationProvider.isChromeExtension
+      ? randomUUID()
+      : undefined;
     const createUpdate =
       await this._integrationService.createOrUpdateIntegration(
         additionalSettings,
@@ -274,13 +297,11 @@ export class NoAuthIntegrationsController {
         refresh ? false : integrationProvider.isBetweenSteps,
         body.refresh,
         +body.timezone,
-        details
+        integrationProvider.isChromeExtension
+          ? this.encryptedExtensionCookies(body.code, connectionGeneration!)
+          : details
           ? AuthService.fixedEncryption(details)
           : integrationProvider.customFields
-          ? AuthService.fixedEncryption(
-              Buffer.from(body.code, 'base64').toString()
-            )
-          : integrationProvider.isChromeExtension
           ? AuthService.fixedEncryption(
               Buffer.from(body.code, 'base64').toString()
             )
@@ -342,10 +363,12 @@ export class NoAuthIntegrationsController {
 
     const extensionToken = integrationProvider.isChromeExtension
       ? AuthService.signJWT({
+          purpose: 'extension_refresh',
           integrationId: createUpdate.id,
           organizationId: org.id,
           internalId: String(id),
           provider: integration,
+          connectionGeneration,
         })
       : undefined;
 
@@ -401,17 +424,53 @@ export class NoAuthIntegrationsController {
       throw new HttpException('Invalid token', 401);
     }
 
-    const { integrationId, organizationId, internalId, provider } = payload;
-    if (!integrationId || !organizationId || !internalId || !provider) {
-      throw new HttpException('Invalid token payload', 400);
+    if (
+      !payload ||
+      typeof payload !== 'object' ||
+      payload.purpose !== 'extension_refresh' ||
+      ![
+        'integrationId',
+        'organizationId',
+        'internalId',
+        'provider',
+        'connectionGeneration',
+      ].every(
+        (key) => typeof payload[key] === 'string' && payload[key].length > 0
+      )
+    ) {
+      throw new HttpException('Invalid token', 401);
     }
+    const {
+      integrationId,
+      organizationId,
+      internalId,
+      provider,
+      connectionGeneration,
+    } = payload;
 
     const integration = await this._integrationService.getIntegrationById(
       organizationId,
       integrationId
     );
-    if (!integration || integration.internalId !== internalId) {
-      throw new HttpException('Integration not found', 404);
+    if (
+      !integration ||
+      integration.deletedAt ||
+      integration.disabled ||
+      integration.internalId !== internalId ||
+      integration.providerIdentifier !== provider
+    ) {
+      throw new HttpException('Invalid token', 401);
+    }
+    let storedGeneration: unknown;
+    try {
+      storedGeneration = JSON.parse(
+        AuthService.fixedDecryption(integration.customInstanceDetails ?? '')
+      )[EXTENSION_GENERATION_KEY];
+    } catch {
+      throw new HttpException('Invalid token', 401);
+    }
+    if (storedGeneration !== connectionGeneration) {
+      throw new HttpException('Invalid token', 401);
     }
 
     const integrationProvider =
@@ -419,6 +478,11 @@ export class NoAuthIntegrationsController {
     if (!integrationProvider?.isChromeExtension) {
       throw new HttpException('Not a Chrome extension integration', 400);
     }
+
+    const encryptedCookies = this.encryptedExtensionCookies(
+      body.cookies,
+      connectionGeneration
+    );
 
     const authResult = await integrationProvider.authenticate({
       code: body.cookies,
@@ -430,33 +494,32 @@ export class NoAuthIntegrationsController {
     }
 
     if (String(authResult.id) !== String(integration.internalId)) {
-      await this._integrationService.refreshNeeded(
-        organizationId,
-        integrationId
-      );
+      if (
+        !(await this._integrationService.updateExtensionIntegration(
+          integration,
+          { refreshNeeded: true }
+        ))
+      )
+        throw new HttpException('Connection changed; retry refresh', 409);
       return { success: false, reason: 'account_mismatch' };
     }
 
-    await this._integrationService.createOrUpdateIntegration(
-      undefined,
-      false,
-      organizationId,
-      integration.name,
-      undefined,
-      'social',
-      integration.internalId,
-      integration.providerIdentifier,
-      authResult.accessToken,
-      '',
-      authResult.expiresIn,
-      undefined,
-      false,
-      undefined,
-      undefined,
-      AuthService.signJWT(
-        JSON.parse(Buffer.from(body.cookies, 'base64').toString())
-      )
-    );
+    if (
+      !(await this._integrationService.updateExtensionIntegration(integration, {
+        token: authResult.accessToken,
+        refreshToken: '',
+        ...(authResult.expiresIn
+          ? {
+              tokenExpiration: new Date(
+                Date.now() + authResult.expiresIn * 1000
+              ),
+            }
+          : {}),
+        customInstanceDetails: encryptedCookies,
+        refreshNeeded: false,
+      }))
+    )
+      throw new HttpException('Connection changed; retry refresh', 409);
 
     return { success: true };
   }

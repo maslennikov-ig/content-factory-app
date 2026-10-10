@@ -1,0 +1,196 @@
+{
+  "schema": "cf-access-review-acceptance/v1",
+  "at": "2026-10-09T11:13:08.403374+00:00",
+  "reviewed_commit": "9d5700d37b8170da3420acc322ecc9fb3a6e68cd",
+  "status": "PASS",
+  "root_owned": true,
+  "correction": "Exact provider in atomic primary upsert; safe409 on collision; existing channel retained.",
+  "selected_closed": [
+    "content-factory-next-dbxe.1",
+    "content-factory-next-dbxe.2",
+    "content-factory-next-dbxe.3",
+    "content-factory-next-dbxe.4",
+    "content-factory-next-dbxe.5"
+  ],
+  "unselected_open": 24,
+  "epic_complete": false,
+  "immutable_criteria_preserved": 30,
+  "affected_suites": 34,
+  "tests_passed": 558,
+  "tests_skipped": 0,
+  "real_postgres_tests": 11,
+  "execution_checks": [
+    {
+      "name": "disposable-schema",
+      "command": [
+        "pnpm",
+        "exec",
+        "prisma",
+        "db",
+        "push",
+        "--skip-generate",
+        "--schema",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma"
+      ],
+      "exitCode": 0,
+      "seconds": 1.632
+    },
+    {
+      "name": "focused-acceptance",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--runTestsByPath",
+        "tests/access-organization-key.test.cjs",
+        "tests/access-token-purpose.test.cjs",
+        "tests/access-legacy-oauth.test.cjs",
+        "tests/access-cookie-origin.test.cjs",
+        "tests/access-provider-credentials.test.cjs",
+        "tests/access-public-policies.test.cjs",
+        "tests/access-boundaries.postgres.test.cjs",
+        "tests/auth-middleware-membership.test.cjs",
+        "tests/public.api.approval.test.cjs",
+        "tests/same-origin-mutation.test.cjs",
+        "tests/user-password-change.test.cjs",
+        "tests/user-identity.auth.test.cjs",
+        "tests/password-hashing.test.cjs",
+        "tests/password.policy.contract.test.cjs",
+        "tests/registration.approval.test.cjs",
+        "tests/registration.invitation.test.cjs",
+        "tests/registration.growth-event.test.cjs",
+        "tests/newsletter.subscription.test.cjs",
+        "tests/telegram.auth.flow.test.cjs",
+        "tests/oauth.state.binding.test.cjs",
+        "tests/auth-invitation-preview.test.cjs",
+        "tests/team-invitation-flow.test.cjs",
+        "tests/pending-account-rejection.test.cjs",
+        "tests/admin-account-delete.test.cjs",
+        "tests/backend.cors.test.cjs",
+        "tests/permissions.service.test.cjs",
+        "tests/roles-matrix.guard.test.cjs",
+        "tests/role-doors.three-roles.test.cjs",
+        "tests/superadmin-role.guard.test.cjs",
+        "tests/organization.create.test.cjs",
+        "tests/organization.selector.test.cjs",
+        "tests/integration.default-posting-times.test.cjs",
+        "tests/channel-delete.other-doors.test.cjs",
+        "tests/workspace-activation.growth-event.test.cjs"
+      ],
+      "exitCode": 0,
+      "seconds": 12.06
+    },
+    {
+      "name": "backend-types-final",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "apps/backend/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "exitCode": 0,
+      "seconds": 14.52
+    },
+    {
+      "name": "docs-final",
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.613
+    },
+    {
+      "name": "process-final",
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh",
+        "--stage",
+        "content-factory-next-dbxe-access-stage"
+      ],
+      "exitCode": 0,
+      "seconds": 0.164
+    },
+    {
+      "name": "diff-final",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "seconds": 0.009
+    }
+  ],
+  "post_documentation_checks": [
+    {
+      "command": "Node22.23.2/pnpm10.6.1 pnpm run docs:check",
+      "exit_code": 0,
+      "result": "181 document files checked"
+    },
+    {
+      "command": "scripts/orchestration/run_process_verification.sh --stage content-factory-next-dbxe-access-stage",
+      "exit_code": 0,
+      "result": "stage ready/process verification OK; index within150 lines"
+    },
+    {
+      "command": "orch-prompts prompt-check --runtime codex --profile gpt-6-astra --kind handoff --file next-stage-prompt.md --json",
+      "exit_code": 0,
+      "result": "1488 chars; no warnings/errors"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "owned_fixture_removed": true,
+  "foreign_containers_missing": [],
+  "source_inputs": {
+    "libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts": "3b98e91798884afa04a8c86931d619d4312d51aa4bcf31af75072c2ac04fac9a",
+    "tests/access-boundaries.postgres.test.cjs": "134395bf03c7f1efc5058473621fbdeaf8554a004c87fdd460b7ae890854c054"
+  },
+  "evidence_sha256": {
+    ".codex/stages/content-factory-next-dbxe-access-stage/root-acceptance.actual.json": "98ba7235881a106fe5b9f4c6b752843f84388ee1ebbc6ba78ef047bb8d2eb166",
+    ".codex/stages/content-factory-next-dbxe-access-stage/review/root-acceptance.actual.json": "e148646b768cfd4ef26e18a221f4e80a83d3d0cf3db417a3cebde412d0bf2374",
+    ".codex/stages/content-factory-next-dbxe-access-stage/review/red-root-acceptance.actual.json": "97c35b67170f31edb9fb37295539808c7010ee713b6af1c799f2d1efd8db2df3",
+    ".codex/stages/content-factory-next-dbxe-access-stage/review/focused-acceptance.log": "3471878fa42774fdc0ea74cd83644cc51dc766b0e4ac88c488fdd8ec62832b93",
+    ".codex/stages/content-factory-next-dbxe-access-stage/review/red-focused-acceptance.log": "cbd04036172ac67426886b533547c8d1440047cfbdeb5c1de9405d803704534f",
+    ".codex/stages/content-factory-next-dbxe-access-stage/review/public-readback.actual.json": "0cbac1f2f805af4cab69f86cc63e0d9c54066be74163ccf41af71b290237e278"
+  },
+  "production_mutations": 0,
+  "paid_calls": 0,
+  "provider_calls": 0,
+  "deployed": false,
+  "public_readback": {
+    "at": "2026-10-09T11:10:02.847615+00:00",
+    "read_only": true,
+    "results": [
+      {
+        "method": "GET",
+        "path": "/api/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/public/source",
+        "status": 200,
+        "published_source_cae3": true
+      }
+    ],
+    "boundary": "Unauthenticated availability/source only; no authenticated fix acceptance."
+  },
+  "next_task": "content-factory-next-dbxe.8",
+  "continuous_goal_created": false
+}

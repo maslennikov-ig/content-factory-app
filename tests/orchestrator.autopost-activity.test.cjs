@@ -44,6 +44,9 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
 describe('orchestrator autopost activity registration', () => {
   test('registers the Temporal activity wrapper that exposes autoPost', () => {
     class PostActivity {}
+    class PostActivityV106 {}
+    class PostActivityV107 {}
+    class PostActivityV108 {}
     class AutopostActivity {}
     class AutopostDraftV2Activity {}
     class AutopostService {}
@@ -55,11 +58,21 @@ describe('orchestrator autopost activity registration', () => {
     class ContentLeadCheckActivity {}
     class DatabaseModule {}
     class HealthController {}
+    class WorkerReadinessService {}
     let registeredActivities;
 
     loadTypeScriptModule('apps/orchestrator/src/app.module.ts', {
       '@nestjs/common': { Module: () => (target) => target },
       '@contentfactory/orchestrator/activities/post.activity': { PostActivity },
+      '@contentfactory/orchestrator/activities/post.activity.v106': {
+        PostActivityV106,
+      },
+      '@contentfactory/orchestrator/activities/post.activity.v107': {
+        PostActivityV107,
+      },
+      '@contentfactory/orchestrator/activities/post.activity.v108': {
+        PostActivityV108,
+      },
       '@contentfactory/orchestrator/activities/autopost.activity': {
         AutopostActivity,
       },
@@ -89,6 +102,7 @@ describe('orchestrator autopost activity registration', () => {
         IntegrationsActivity,
       },
       '@contentfactory/orchestrator/health.controller': { HealthController },
+      './worker-readiness.service': { WorkerReadinessService },
       '@contentfactory/orchestrator/activities/analytics.activity.v1': {
         AnalyticsActivityV1,
       },
@@ -102,6 +116,7 @@ describe('orchestrator autopost activity registration', () => {
 
     expect(registeredActivities).toContain(AutopostActivity);
     expect(registeredActivities).toContain(AutopostDraftV2Activity);
+    expect(registeredActivities).toContain(PostActivityV108);
     expect(registeredActivities).not.toContain(AutopostService);
   });
 

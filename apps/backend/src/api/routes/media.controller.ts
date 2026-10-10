@@ -19,10 +19,12 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
+import { Organization, User } from '@prisma/client';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
 import { ApiTags } from '@nestjs/swagger';
 import handleR2Upload from '@contentfactory/nestjs-libraries/upload/r2.uploader';
+import type { R2Completion } from '@contentfactory/nestjs-libraries/upload/r2.upload.session';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomFileValidationPipe } from '@contentfactory/nestjs-libraries/upload/custom.upload.validation';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
@@ -174,22 +176,29 @@ export class MediaController {
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
     @Res() res: Response,
-    @Param('endpoint') endpoint: string
+    @Param('endpoint') endpoint: string,
+    @GetUserFromRequest() user: User
   ) {
-    const upload = await handleR2Upload(endpoint, req, res);
-    if (endpoint !== 'complete-multipart-upload') {
+    const upload = await handleR2Upload(endpoint, req, res, {
+      organizationId: org.id,
+      userId: user.id,
+    });
+    if (
+      endpoint !== 'complete-multipart-upload' ||
+      res.headersSent ||
+      !('Location' in upload) ||
+      !upload.Location
+    ) {
       return upload;
     }
 
-    // @ts-ignore
-    const name = upload.Location.split('/').pop();
+    const completion = upload as R2Completion;
     const originalName = req.body?.file?.name;
 
-    const saveFile = await this._mediaService.saveFile(
+    const saveFile = await this._mediaService.saveMultipartFile(
       org.id,
-      name,
-      // @ts-ignore
-      upload.Location,
+      completion.Key,
+      completion.Location,
       originalName || undefined
     );
 

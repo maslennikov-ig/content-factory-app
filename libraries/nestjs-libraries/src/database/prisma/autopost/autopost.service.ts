@@ -226,7 +226,7 @@ export class AutopostService {
       try {
         return this._temporalService.client
           .getRawClient()
-          ?.workflow.start('autoPostWorkflow', {
+          ?.workflow.start('autoPostWorkflowV2', {
             workflowId: `autopost-${id}`,
             taskQueue: 'main',
             args: [{ id, immediately: true }],
@@ -254,7 +254,7 @@ export class AutopostService {
       if (!temporal) {
         throw new Error('Temporal client is unavailable');
       }
-      return temporal.workflow.start('autoPostDraftV2Workflow', {
+      return temporal.workflow.start('autoPostDraftV3Workflow', {
         workflowId,
         taskQueue: 'main',
         args: [{ id, organizationId: orgId, immediately: true }],

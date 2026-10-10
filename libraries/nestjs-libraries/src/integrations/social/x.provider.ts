@@ -161,6 +161,20 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     return undefined;
   }
 
+  private skipDisabledAnalyticsAutomation() {
+    if (!process.env.DISABLE_X_ANALYTICS) {
+      return false;
+    }
+    console.info(
+      JSON.stringify({
+        event: 'automation_skipped',
+        kind: 'global',
+        reason: 'provider_disabled',
+      })
+    );
+    return true;
+  }
+
   @Plug({
     identifier: 'x-autoRepostPost',
     title: 'Auto Repost Posts',
@@ -184,6 +198,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     id: string,
     fields: { likesAmount: string }
   ) {
+    if (this.skipDisabledAnalyticsAutomation()) {
+      return true;
+    }
     // @ts-ignore
     // eslint-disable-next-line prefer-rest-params
     const [accessTokenSplit, accessSecretSplit] = integration.token.split(':');
@@ -201,6 +218,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       +fields.likesAmount
     ) {
       await timer(2000);
+      if (this.skipDisabledAnalyticsAutomation()) {
+        return true;
+      }
       await client.v2.retweet(integration.internalId, id);
       return true;
     }
@@ -272,6 +292,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     id: string,
     fields: { likesAmount: string; post: string }
   ) {
+    if (this.skipDisabledAnalyticsAutomation()) {
+      return true;
+    }
     // @ts-ignore
     // eslint-disable-next-line prefer-rest-params
     const [accessTokenSplit, accessSecretSplit] = integration.token.split(':');
@@ -289,6 +312,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       +fields.likesAmount
     ) {
       await timer(2000);
+      if (this.skipDisabledAnalyticsAutomation()) {
+        return true;
+      }
 
       const plugText = stripHtmlValidation('normal', fields.post, true);
       await client.v2.tweet({

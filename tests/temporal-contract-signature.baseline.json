@@ -131,6 +131,38 @@
         "integration:Integration",
         "cause:string"
       ]
+    },
+    "apps/orchestrator/src/activities/post.activity.v106.ts": {
+      "PostActivityV106.getPostsListV106": [
+        "orgId:string",
+        "postId:string",
+        "repeat:boolean"
+      ],
+      "PostActivityV106.postSocialV106": [
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV106.postCommentV106": [
+        "postId:string",
+        "lastPostId:string | undefined",
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV106.startPublicationStreakV106": [
+        "key:PublicationKeyV106"
+      ],
+      "PostActivityV106.searchForMissingThreeHoursPostsV106": []
+    },
+    "apps/orchestrator/src/activities/post.activity.v107.ts": {
+      "PostActivityV107.searchForMissingThreeHoursPostsV107": []
+    },
+    "apps/orchestrator/src/activities/post.activity.v108.ts": {
+      "PostActivityV108.sendWebhooksV108": [
+        "input:{ localPostId: string; organizationId: string; integrationId: string; }"
+      ],
+      "PostActivityV108.searchForMissingThreeHoursPostsV108": []
     }
   },
   "workflows": {
@@ -208,6 +240,48 @@
     "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.5.ts": {
       "postWorkflowV105": [
         "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v106.ts": {
+      "missingPostWorkflowV106": []
+    },
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.6.ts": {
+      "postWorkflowV106": [
+        "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v107.ts": {
+      "missingPostWorkflowV107": []
+    },
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts": {
+      "postWorkflowV107": [
+        "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v108.ts": {
+      "missingPostWorkflowV108": []
+    },
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts": {
+      "postWorkflowV108": [
+        "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/autopost.workflow.v2.ts": {
+      "autoPostWorkflowV2": [
+        "input:{ id: string; immediately: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/autopost-draft-v3.workflow.ts": {
+      "autoPostDraftV3Workflow": [
+        "input:AutoPostDraftV2WorkflowInput"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v109.ts": {
+      "missingPostWorkflowV109": []
+    },
+    "apps/orchestrator/src/workflows/send.email.workflow.v3.ts": {
+      "sendEmailWorkflowV3": [
+        "{ queue = [], }:{ queue: SendEmail[]; }"
       ]
     }
   }

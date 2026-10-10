@@ -1,0 +1,36 @@
+{
+  "command_results": [
+    {
+      "command": "python3 .codex/stages/content-factory-next-dbxe-dependencies-stage/verify-acceptance.py",
+      "duration_seconds": 0.304,
+      "result": "passed"
+    },
+    {
+      "command": "python3 scripts/docs/check_docs.py",
+      "duration_seconds": 0.109,
+      "result": "passed"
+    },
+    {
+      "command": "git --no-pager diff --check",
+      "duration_seconds": 0.02,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "python3 .codex/stages/content-factory-next-dbxe-dependencies-stage/verify-acceptance.py",
+    "python3 scripts/docs/check_docs.py",
+    "git --no-pager diff --check"
+  ],
+  "completed_at": "2026-10-09T11:53:27.998067+00:00",
+  "diff_digest": "71e52362d8635f70609d8b42a3048ea1848fa0009a08297d551c32dd98257d38",
+  "environment_marker": "Linux-x86_64-python-3.14",
+  "git_head": "64b6a34fe0b642a232d3fec128b75ef0fb13304a",
+  "idempotency_key": "10811f5d742f2c585f6c315bd742f737431c7f9c7d35d9a0070e51481f538da0",
+  "orchestration_level": "slice_acceptance",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-dbxe-dependencies-stage",
+  "started_at": "2026-10-09T11:53:27.378603+00:00",
+  "verification_fingerprint": "10811f5d742f2c585f6c315bd742f737431c7f9c7d35d9a0070e51481f538da0"
+}

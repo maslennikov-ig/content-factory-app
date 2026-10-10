@@ -462,10 +462,9 @@ function loadAutopostService({ generated, modelCalls }) {
         makeId: () => 'id',
       },
       'nestjs-temporal-core': { TemporalService: class {} },
-      '@temporalio/common': { TypedSearchAttributes: class {} },
-      '@contentfactory/nestjs-libraries/temporal/temporal.search.attribute': {
-        organizationId: 'organizationId',
-      },
+      '@temporalio/common': require('@temporalio/common'),
+      '@contentfactory/nestjs-libraries/temporal/temporal.search.attribute':
+        loadTypeScriptModule('libraries/nestjs-libraries/src/temporal/temporal.search.attribute.ts'),
       '@contentfactory/nestjs-libraries/openai/ai.clients': {
         getChatModel: async () => {
           modelCalls.count += 1;
@@ -746,7 +745,7 @@ test('AutoPost V2 creation uses the shared serializable profile pin before start
   });
   assert.deepEqual(order[0], ['pin', 'org-a', 'profile-version-1']);
   assert.deepEqual(order[1].slice(0, 3), ['write', transactionClient, 'org-a']);
-  assert.deepEqual(order[2], ['workflow', 'autoPostDraftV2Workflow']);
+  assert.deepEqual(order[2], ['workflow', 'autoPostDraftV3Workflow']);
 });
 
 test('AutoPost V2 workflow-start failure leaves a visible requires-attention row', async () => {
@@ -785,6 +784,32 @@ test('AutoPost V2 workflow-start failure leaves a visible requires-attention row
       error.code === 'AUTOPOST_V2_WORKFLOW_UNAVAILABLE' && error.status === 503
   );
   assert.equal(marked, 1);
+});
+
+test('AutoPost history successors preserve workflow IDs, organization attributes and explicit disable targets', async () => {
+  const AutopostService = loadAutopostService({ generated: {}, modelCalls: { count: 0 } });
+  const starts = [];
+  const terminations = [];
+  const temporal = {
+    client: { getRawClient: () => ({ workflow: { start: async (...args) => { starts.push(args); } } }) },
+    terminateWorkflow: async id => { terminations.push(id); },
+  };
+  const service = new AutopostService({}, temporal);
+  await service.processCron(true, 'org-a', 'legacy-auto');
+  await service.processCronV2(true, 'org-a', 'draft-auto');
+  assert.deepEqual(starts.map(([name, options]) => [name, options.workflowId, options.taskQueue, options.args]), [
+    ['autoPostWorkflowV2', 'autopost-legacy-auto', 'main', [{ id: 'legacy-auto', immediately: true }]],
+    ['autoPostDraftV3Workflow', 'autopost-draft-v2-draft-auto', 'main', [{ id: 'draft-auto', organizationId: 'org-a', immediately: true }]],
+  ]);
+  for (const [, options] of starts) {
+    assert.equal(options.workflowIdConflictPolicy, undefined);
+    assert.deepEqual(options.typedSearchAttributes.getAll().map(entry => entry.value), ['org-a']);
+  }
+  assert.deepEqual(terminations, []);
+  await service.processCron(false, 'org-a', 'legacy-auto');
+  await service.processCronV2(false, 'org-a', 'draft-auto');
+  assert.deepEqual(terminations, ['autopost-legacy-auto', 'autopost-draft-v2-draft-auto']);
+  assert.equal(starts.length, 2);
 });
 
 test('AutoPost V1 stays byte-untouched while V2 names a separate draft-only workflow and pin protocol', () => {

@@ -1,0 +1,55 @@
+{
+  "schema": "cf-stage-followup-review/v1",
+  "reviewedAt": "2026-10-09T12:14:29.869984+00:00",
+  "reviewedDelivery": "48330283b892d93f02c3e0818f90202bfe086c4c",
+  "boundary": "local dependency remediation; no release or deployment",
+  "result": "PASS",
+  "codeCorrectionsRequired": false,
+  "reusedExecutableEvidence": {
+    "jestSuites": 39,
+    "jestTests": 607,
+    "nodeTests": 47,
+    "skips": 0,
+    "productionApplicationBuilds": 4,
+    "extensionViteBuild": "PASS",
+    "nextLoopback": "recorded login200 and remote-image400; no live-service acceptance"
+  },
+  "independentChecks": {
+    "sourceInputs": 6,
+    "checkLogDigests": 6,
+    "canonicalAndLocalReceiptEqual": true,
+    "installedPackageCopies": 2943,
+    "missingInstalledLocations": 0,
+    "extensionArchiveEntries": 4,
+    "archiveDigestCrcAndAllBytes": "PASS",
+    "originalEpicChildCriteria": 30,
+    "criteriaParity": "PASS",
+    "applicationSourceUnchangedFromBaseline": "PASS"
+  },
+  "tools": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "receiptDigests": {
+    "root-acceptance.json": "b42e8e8633e5d1322e9b4760c5eb41a130e74fec250f3a90828499f98536946f",
+    "acceptance.json": "2948649c3ac04f31720488ea1f022dd11588ccd220546f4fe352b778d2e3964a",
+    "applicability.json": "66b23ea6ca8d16d0b6f1f3193d80cc3aeb0ec36f7ed9ae78b6d3d1e241a5dc02"
+  },
+  "reviewChecks": {
+    "documentationLinks": "PASS (182 files)",
+    "processVerification": "PASS",
+    "gitDiffCheck": "PASS",
+    "portablePrompt": "PASS (1345 chars; no warnings)"
+  },
+  "processLogSha256": "5e2723a668b7b7fde91506c362c23ffe51978e2526b2097d9f4dede8e2b0755b",
+  "epicState": {
+    "epic": "OPEN",
+    "closedChildren": 5,
+    "openChildren": 23,
+    "inProgressChildren": 1,
+    "task8": "IN_PROGRESS; original next-release acceptance required"
+  },
+  "unacceptedPackagingCommand": "Original pnpm extension build exited1 at zip; Python archive verification is separate",
+  "nextTask": "content-factory-next-dbxe.6",
+  "nextTaskStarted": false
+}

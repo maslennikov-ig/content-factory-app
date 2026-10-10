@@ -635,10 +635,8 @@ export class AuthService {
       return false;
     }
 
-    const resetValues = AuthChecker.signJWT({
-      id: user.id,
-      expires: dayjs().add(20, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
-    });
+    if (!user.password) return false;
+    const resetValues = AuthChecker.signPasswordResetJWT(user.id, user.password);
 
     const resetLocale = resolveBackendLocale(user.language);
     await this._notificationService.sendEmail(
@@ -655,16 +653,20 @@ export class AuthService {
     );
   }
 
-  forgotReturn(body: ForgotReturnPasswordDto) {
-    const user = AuthChecker.verifyJWT(body.token) as {
-      id: string;
-      expires: string;
-    };
-    if (dayjs(user.expires).isBefore(dayjs())) {
+  async forgotReturn(body: ForgotReturnPasswordDto) {
+    let claims: ReturnType<typeof AuthChecker.verifyPasswordResetJWT>;
+    try {
+      claims = AuthChecker.verifyPasswordResetJWT(body.token);
+    } catch {
+      // Legacy links have no password fence and cannot be made single-use.
+      // The existing forgot form can issue a fresh, bounded link.
       return false;
     }
-
-    return this._userService.updatePassword(user.id, body.password);
+    const user = await this._userService.getUserById(claims.id);
+    if (!user?.password || claims.passwordVersion !== AuthChecker.passwordResetVersion(user.password)) {
+      return false;
+    }
+    return this._userService.updatePassword(user.id, body.password, user.password);
   }
 
   async activate(code: string) {
@@ -673,19 +675,23 @@ export class AuthService {
       return false;
     }
 
-    const user = AuthChecker.verifyJWT(code) as {
+    let user: {
       id: string;
       activated: boolean;
       email: string;
     };
+    try {
+      user = AuthChecker.verifyActivationJWT(code) as typeof user;
+    } catch {
+      return false;
+    }
     if (user.id && !user.activated) {
       const getUserAgain = await this._userService.getUserByEmail(user.email);
-      if (getUserAgain.activated) {
+      if (!getUserAgain || getUserAgain.id !== user.id || getUserAgain.activated || getUserAgain.blockedAt) {
         return false;
       }
       await this._userService.activateUser(user.id);
-      user.activated = true;
-      return this.jwt(user as any);
+      return this.jwt({ ...getUserAgain, activated: true });
     }
 
     return false;
@@ -948,7 +954,9 @@ export class AuthService {
     if (user.password) {
       delete user.password;
     }
-    return AuthChecker.signJWT(user);
+    return user.activated
+      ? AuthChecker.signSessionJWT(user)
+      : AuthChecker.signActivationJWT(user);
   }
 
   private async subscribeNewAccount(

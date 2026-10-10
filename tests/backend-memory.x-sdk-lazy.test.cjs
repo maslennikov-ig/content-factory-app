@@ -256,6 +256,72 @@ afterEach(() => {
   }
 });
 const providerOf = (run) => new (run.load().XProvider)();
+
+test.each(['autoRepostPost', 'autoPlugPost'])(
+  '%s skips before credentials/SDK/API when analytics are switched off after loading',
+  async (method) => {
+    const run = harness({ blockSdk: true });
+    const provider = providerOf(run);
+    process.env.DISABLE_X_ANALYTICS = '1';
+    const log = jest.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      expect(await provider[method]({ token: null }, 'sensitive-post-id', {
+        likesAmount: '3', post: 'sensitive-user-text',
+      })).toBe(true);
+      expect(run.calls.loads).toBe(0);
+      expect(run.calls.constructs).toEqual([]);
+      expect(run.calls.operations).toEqual([]);
+      expect(log.mock.calls).toEqual([[JSON.stringify({
+        event: 'automation_skipped', kind: 'global', reason: 'provider_disabled',
+      })]]);
+    } finally { log.mockRestore(); }
+  }
+);
+
+test.each(['autoRepostPost', 'autoPlugPost'])(
+  '%s also respects a cold truthy switch, including the existing string-zero behavior',
+  async (method) => {
+    for (const flag of ['1', '0']) {
+      process.env.DISABLE_X_ANALYTICS = flag;
+      const run = harness({ blockSdk: true });
+      const provider = providerOf(run);
+      const log = jest.spyOn(console, 'info').mockImplementation(() => {});
+      try {
+        expect(run.calls.plugs.find(p => p.method === method).disabled).toBe(true);
+        expect(await provider[method]({ token: null }, 'synthetic-id', {})).toBe(true);
+        expect(run.calls.loads).toBe(0);
+        expect(run.calls.operations).toEqual([]);
+        expect(log).toHaveBeenCalledTimes(1);
+      } finally { log.mockRestore(); }
+    }
+  }
+);
+
+test.each(['autoRepostPost', 'autoPlugPost'])(
+  '%s suppresses the write if its switch changes after the analytics request',
+  async (method) => {
+    const run = harness({ onOperation: async operation => {
+      if (operation === 'tweetLikedBy') process.env.DISABLE_X_ANALYTICS = '1';
+    } });
+    const provider = providerOf(run);
+    const log = jest.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      expect(await provider[method]({ token: 'synthetic:secret', internalId: 'synthetic-user' },
+        'synthetic-id', { likesAmount: '3', post: 'Synthetic content' })).toBe(true);
+      expect(run.calls.operations.map(call => call.method)).toEqual(['tweetLikedBy']);
+      expect(run.calls.events).toContainEqual(['timer', 2000]);
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally { log.mockRestore(); }
+  }
+);
+
+test('analytics switch leaves ordinary internal repost available', async () => {
+  process.env.DISABLE_X_ANALYTICS = '1';
+  const run = harness();
+  await providerOf(run).repostPostUsers({ token: 'synthetic:secret' }, {}, 'synthetic-id', {});
+  expect(run.calls.operations.map(call => call.method)).toEqual(['me', 'retweet']);
+});
+
 const tokenOptions = {
   appKey: 'synthetic-app-key',
   appSecret: 'synthetic-app-secret',

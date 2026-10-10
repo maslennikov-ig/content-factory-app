@@ -74,6 +74,11 @@ export interface StoredRefreshEntry {
   provider: string;
 }
 
+export interface RefreshStatus {
+  success: boolean;
+  error?: string;
+}
+
 export interface ErrorResponse {
   error: string;
 }

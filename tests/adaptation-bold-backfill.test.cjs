@@ -71,6 +71,7 @@ const stand = (rows, extra = {}) => {
           .map((row) => ({
             id: row.id,
             body: row.body,
+            updatedAt: row.updatedAt,
             post: {
               id: row.post.id,
               content: posts.get(row.post.id).content,
@@ -82,13 +83,24 @@ const stand = (rows, extra = {}) => {
     post: {
       updateMany: async (args) => {
         updates.push(args);
+        await extra.beforeUpdate?.(posts, rows);
         const post = posts.get(args.where.id);
+        const row = rowOf(rows, args.where.id);
         if (
           !post ||
-          args.where.organizationId !== rowOf(rows, args.where.id).organizationId ||
-          args.where.state !== 'DRAFT'
+          args.where.organizationId !== row.organizationId ||
+          post.state !== args.where.state ||
+          (post.deletedAt ?? null) !== args.where.deletedAt ||
+          (Object.hasOwn(args.where, 'content') && post.content !== args.where.content)
         )
           return { count: 0 };
+        const derivation = args.where.contentDerivations?.some;
+        if (derivation && (
+          row.id !== derivation.id ||
+          row.organizationId !== derivation.organizationId ||
+          row.body !== derivation.body ||
+          row.updatedAt.getTime() !== derivation.updatedAt.getTime()
+        )) return { count: 0 };
         post.content = args.data.content;
         return { count: 1 };
       },
@@ -108,6 +120,7 @@ const draft = (overrides = {}) => ({
   id: 'adaptation-1',
   organizationId: 'org-a',
   body: BODY,
+  updatedAt: new Date('2000-01-01T00:00:00Z'),
   post: {
     id: 'post-1',
     provider: 'telegram',
@@ -174,6 +187,51 @@ describe('перерисовка идёт только по машинным ч�
     expect(posts.get('post-1').content).toBe(
       '<p>Свой текст, набранный руками</p>'
     );
+  });
+
+  test.each([
+    ['текст поста', (posts) => {
+      posts.get('post-1').content = '<p>Новая ручная правка</p>';
+    }],
+    ['тело адаптации', (_posts, rows) => {
+      rows[0].body = 'Новая **ручная** адаптация.';
+    }],
+    ['версия адаптации', (_posts, rows) => {
+      rows[0].updatedAt = new Date('2000-01-02T00:00:00Z');
+    }],
+    ['исходные пробелы тела', (_posts, rows) => {
+      rows[0].body = ` ${BODY} `;
+    }],
+    ['переход из черновика', (posts) => {
+      posts.get('post-1').state = 'QUEUE';
+    }],
+    ['удаление поста', (posts) => {
+      posts.get('post-1').deletedAt = new Date('2000-01-02T00:00:00Z');
+    }],
+  ])('%s, изменённый после чтения, сохраняется и считается пропущенным', async (_name, edit) => {
+    const rows = [draft()];
+    let edited;
+    const { task, posts } = stand(rows, { beforeUpdate: (currentPosts, currentRows) => {
+      edit(currentPosts, currentRows);
+      edited = { post: { ...currentPosts.get('post-1') }, row: { ...currentRows[0] } };
+    } });
+
+    expect(await task.rerender(true, false)).toEqual({
+      seen: 1, planned: 1, rewritten: 0, skipped: 1,
+    });
+    expect(posts.get('post-1')).toEqual(edited.post);
+    expect(rows[0]).toEqual(edited.row);
+  });
+
+  test('неизменённое тело с исходными пробелами обновляется один раз', async () => {
+    const rows = [draft({ body: ` ${BODY} ` })];
+    const { task, posts } = stand(rows);
+
+    expect(await task.rerender(true, false)).toEqual({
+      seen: 1, planned: 1, rewritten: 1, skipped: 0,
+    });
+    expect(posts.get('post-1').content).toBe(editorHtml(BODY, 'html'));
+    expect((await task.rerender(true, false)).rewritten).toBe(0);
   });
 
   test('не черновик не читается вовсе', async () => {

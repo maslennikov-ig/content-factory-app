@@ -64,6 +64,7 @@ function makeFakeWorkflowRuntime() {
         }),
       sleep: () => Promise.resolve(),
       proxyActivities: () => activityImplementations,
+      isCancellation: require('@temporalio/workflow').isCancellation,
       continueAsNew: async (args) => args,
     },
     deliverSignal(name, payload) {
@@ -291,6 +292,8 @@ test('a Russian-language email sent through EmailService.sendEmail reaches the f
         sendEmailWorkflow: 'apps/orchestrator/src/workflows/send.email.workflow.ts',
         sendEmailWorkflowV2:
           'apps/orchestrator/src/workflows/send.email.workflow.v2.ts',
+        sendEmailWorkflowV3:
+          'apps/orchestrator/src/workflows/send.email.workflow.v3.ts',
       });
       emailService._temporalService = {
         client: { getRawClient: () => fakeServer.getRawClient() },
@@ -317,7 +320,7 @@ test('a Russian-language email sent through EmailService.sendEmail reaches the f
       // The singleton id matters as much as the workflow type: a signal aimed
       // at the wrong id lands on a different (here: nonexistent) execution.
       expect(fakeServer.startedWorkflowIds()).toEqual([
-        { typeName: 'sendEmailWorkflowV2', workflowId: 'send_email_v2' },
+        { typeName: 'sendEmailWorkflowV3', workflowId: 'send_email_v2' },
       ]);
     }
   );

@@ -203,9 +203,8 @@ export class OAuthRepository {
           select: {
             id: true,
             activated: true,
-            // Selected for the old MCP bridge's role check (`kcxz.1`). A
-            // `pos_` token no longer opens MCP at all (`kcxz.26`, its own
-            // OAuth); the field stays until the public API reads roles.
+            // Legacy public API grants re-read this membership every request.
+            // MCP has its independent OAuth contract and does not use pos_.
             organizations: {
               select: { organizationId: true, role: true, disabled: true },
             },

@@ -35,11 +35,18 @@
 | Очистить legacy-ошибки старше 90 дней                  | [Retention legacy Errors](operations/legacy-errors-retention.md)                               |
 | Включить вход через Telegram вручную                   | [Подготовка входа через Telegram](operations/telegram-login-setup.md)                          |
 | Развернуть или обновить продукт на сервере             | [Развёртывание на сервере](operations/production-deploy.md)                                    |
+| Проверить исправления зависимостей перед выкладкой     | [Аудит и совместимость зависимостей](operations/dependency-security-remediation.md)            |
 | Проверить backup product, Mastra и Temporal            | [Резервное копирование PostgreSQL](operations/postgres-backup.md)                              |
 | Подключить собственную рассылку                        | [Listmonk и согласие на рассылку](operations/newsletter.md)                                    |
 | Узнать, что продукт отправляет наружу                  | [Что уходит наружу](operations/outbound-connections.md)                                        |
 | Создать таблицу продуктовых событий на боевой базе     | [Таблица продуктовых событий](operations/product-events-schema.md)                             |
 | Понять процессы и сбои                                 | [Эксплуатация](operations/runtime.md)                                                          |
+| Отключить уже запланированные автоматизации             | [Проверка перед выполнением](operations/automation-disablement.md)                              |
+| Понять сроки отложенных действий V107/V108              | [Расчёт сроков автоматизаций](operations/automation-deadlines.md)                               |
+| Проверить идентификатор публикации и доставку webhook   | [Webhook V108](operations/publication-webhooks-v108.md)                                         |
+| Проверить подтверждение отправленного события Nostr    | [Nostr: ID и ответ relay](operations/nostr-publication.md)                                     |
+| Проверить частичные ошибки обновления токенов           | [Обновление каналов по отдельности](operations/token-refresh.md)                              |
+| Ограничить историю периодических процессов             | [Новые запуски с сохранением состояния](operations/periodic-workflow-history.md)                |
 | Проверить готовность управляемого SaaS                 | [SaaS readiness](operations/saas-readiness.md)                                                 |
 | Спланировать перенос из прежнего продукта              | [Карта миграции](product/migration-map.md)                                                     |
 | Запустить конвейер для Telegram-канала                 | [Телеграм-конвейер](product/telegram-pipeline-mvp.md)                                          |

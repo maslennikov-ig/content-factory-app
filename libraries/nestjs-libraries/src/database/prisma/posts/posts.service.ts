@@ -1,3 +1,5 @@
+import type { PublicationKeyV106 } from './publication-store.v106';
+import type { PostResponse } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import {
   BadRequestException,
   Inject,
@@ -125,6 +127,30 @@ export class PostsService {
 
   searchForMissingThreeHoursPosts() {
     return this._postRepository.searchForMissingThreeHoursPosts();
+  }
+
+  claimPublicationV106(key: PublicationKeyV106) {
+    return this._postRepository.claimPublicationV106(key);
+  }
+
+  inspectPublicationV106(key: PublicationKeyV106) {
+    return this._postRepository.inspectPublicationV106(key);
+  }
+
+  confirmPublicationV106(key: PublicationKeyV106, receipts: PostResponse[]) {
+    return this._postRepository.confirmPublicationV106(key, receipts);
+  }
+
+  markPublicationUncertainV106(key: PublicationKeyV106) {
+    return this._postRepository.markPublicationUncertainV106(key);
+  }
+
+  markPublicationPreparationFailureV106(key: PublicationKeyV106) {
+    return this._postRepository.markPublicationPreparationFailureV106(key);
+  }
+
+  recordPublicationStreakFailureV106(key: PublicationKeyV106) {
+    return this._postRepository.recordPublicationStreakFailureV106(key);
   }
 
   updatePost(id: string, postId: string, releaseURL: string) {
@@ -663,7 +689,7 @@ export class PostsService {
     return this._postRepository.getOldPosts(orgId, date);
   }
 
-  public async updateTags(orgId: string, post: Post[]): Promise<Post[]> {
+  public async updateTags<T extends Pick<Post, 'id' | 'content'>>(orgId: string, post: T[]): Promise<T[]> {
     const plainText = JSON.stringify(post);
     const extract = Array.from(
       plainText.match(/\(post:[a-zA-Z0-9-_]+\)/g) || []
@@ -684,7 +710,7 @@ export class PostsService {
       );
     }, plainText);
 
-    return this.updateTags(orgId, JSON.parse(newPlainText) as Post[]);
+    return this.updateTags(orgId, JSON.parse(newPlainText) as T[]);
   }
 
   public async checkInternalPlug(
@@ -823,6 +849,10 @@ export class PostsService {
     return this._postRepository.getPostByForWebhookId(id);
   }
 
+  getPostForWebhookV108(id: string, orgId: string, integrationId: string) {
+    return this._postRepository.getPostForWebhookV108(id, orgId, integrationId);
+  }
+
   async startWorkflow(
     taskQueue: string,
     postId: string,
@@ -838,7 +868,7 @@ export class PostsService {
     try {
       await this._temporalService.client
         .getRawClient()
-        ?.workflow.start('postWorkflowV105', {
+        ?.workflow.start('postWorkflowV108', {
           workflowId: `post_${postId}`,
           taskQueue: 'main',
           workflowIdConflictPolicy: 'TERMINATE_EXISTING',

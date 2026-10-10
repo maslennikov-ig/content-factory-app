@@ -1,0 +1,10 @@
+{
+  "result": "PASS",
+  "originalCriteriaPreserved": 30,
+  "unselectedBeforeStatusesPreserved": 23,
+  "previousAccess1To5Readback": "closed",
+  "selectedTask6": "closed",
+  "task8": "in_progress",
+  "epic": "open",
+  "scope": "local dbxe.6 only"
+}

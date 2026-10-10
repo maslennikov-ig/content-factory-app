@@ -53,6 +53,8 @@ const ioRedis = {
 // trip and that nothing unsigned is accepted.
 const helperAuthService = {
   signJWT: (payload) => `signed:${JSON.stringify(payload)}`,
+  signSessionJWT: (payload) => `signed:${JSON.stringify(payload)}`,
+  signActivationJWT: (payload) => `signed:${JSON.stringify(payload)}`,
   verifyJWT: (token) => {
     if (typeof token !== 'string' || !token.startsWith('signed:')) {
       throw new Error('bad signature');

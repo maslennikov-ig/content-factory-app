@@ -1,0 +1,203 @@
+{
+  "schema": "cf-readiness-root-acceptance/v1",
+  "status": "pass",
+  "recorded_at": "2026-10-09T14:54:56.489360+00:00",
+  "task": "content-factory-next-dbxe.7",
+  "baseline": "8e5fcdc870e8bc3f18f097417daa26c5166014c5",
+  "branch": "codex/audit-readiness-20261009",
+  "delegation": {
+    "executor": "/root/dbxe_readiness",
+    "model": "gpt-6.1-sol",
+    "effort": "max",
+    "benefit": "context_isolation",
+    "accepted": true,
+    "delivery": "integrated and locally accepted; exact local commit in Beads/local-delivery.local.json",
+    "cleanup": "owned-only; no unrelated raw evidence removed"
+  },
+  "input_files": {
+    "Dockerfile": "89beb2984b7bb52b8ced240adf2382fee0958caecef9d29358fa4f440b0b234f",
+    "apps/orchestrator/src/app.module.ts": "276cb6bc04f1213fbdcc678d8d6d93b4d430d0e0329249ba5b6353d85a794688",
+    "apps/orchestrator/src/health.controller.ts": "19845f4ea29e8cc8c54a100767535fec54111ec8b0025658730eaa21c4334d1c",
+    "apps/orchestrator/src/worker-readiness.service.ts": "4dbbba071d6c005a4dbaa97391c09fa6007eefc53a4a366c8588791931e35b1c",
+    "var/docker/healthcheck.sh": "68bbef37d9bc89f6f5809061f4ee5f6634b867385e61da804abab3af2b417f75",
+    "var/docker/ecosystem.config.js": "306bba69c243bb33293f7dd61d4a2b6b25db46ff811a99f81da020234d2012f9",
+    "tests/orchestrator.worker-readiness.test.cjs": "6e3a57d93c7b18d74b2fb0bd7983734b3b7ccf55bff44e35f129d09c26596f49",
+    "tests/runtime-monitor.readiness.test.cjs": "687c53e75fd435826e545f642167da0d02f0464b7f6943185599dc54281d8687",
+    "tests/temporal-contract-signature.guard.test.cjs": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71",
+    "tests/temporal-contract-signature.baseline.json": "cace0504b4a33ca69443c003a424eb9878008902dbadb9205aaa5fe77a9bffea",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/source-tree-guard.cjs": "cde794cd6e1ff0f703d4b041b23030e77993f97d5190a7543557ec73c410ab68",
+    "jest.config.cjs": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608",
+    "package.json": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05"
+  },
+  "proof_files": {
+    "affected-acceptance.local.log": "3dea21e03824fe980c6269a7cd70273df2abf80c90571fae0026859a2862ed6c",
+    "root-native-readiness.actual.json": "52f64a7509a2f606abb4d2d89db59712d86556c797d732732b7ad6f7d462914e",
+    "root-native-readiness.local.log": "663f605caefa543abbdebcba730e852013a03aec18f6fe69e01a3835a3cb57ef",
+    "build-manifest.local.json": "b9e2e30d5ac5be3e01a1178035f524fced5492cb5f59535e33f1b4073282ce60",
+    "orchestrator-compile-relative.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "prepare-native-build-relative.local.log": "1149017bcd35b8d3021771984bba1457192023acd3a4807c3b7b60ebf32ae4d3",
+    "worker-delivery.local.json": "73243b622914a62788dab2a6b201dc7d8096590ac93b73469cf0c33fdb27912e",
+    "docs.local.log": "bed2404fce5f4a7f5a69480f3aa0920c49f589521be0ca59fc8115ad4140e35a",
+    "process.local.log": "c17b7089b50997050ccf315a6e36947f7b96c94fce356220cc600db1482771dd",
+    "process-corrected.local.log": "6a6812589c83e4a8abf86f9015e36e698067e96746588f58c7d8b2c4bcab3956",
+    "diff.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "affected_jest": {
+    "status": "pass",
+    "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH NODE_OPTIONS=--max-old-space-size=4096 pnpm exec jest --runInBand --runTestsByPath tests/orchestrator.worker-readiness.test.cjs tests/runtime-monitor.readiness.test.cjs tests/temporal-contract-signature.guard.test.cjs",
+    "cwd": "/home/me/code/content-factory-next",
+    "exit": 0,
+    "suites": 3,
+    "tests": 158,
+    "skips": 0
+  },
+  "compile": {
+    "status": "pass_reused_exact_inputs",
+    "command": [
+      "pnpm",
+      "exec",
+      "nest",
+      "build",
+      "--path",
+      "../../.codex/stages/content-factory-next-dbxe-readiness-stage/native-tsconfig.local.json"
+    ],
+    "cwd": "/home/me/code/content-factory-next/apps/orchestrator",
+    "versions": {
+      "node": "v22.23.2",
+      "pnpm": "10.6.1"
+    },
+    "heap_mib": 4096,
+    "source_files_verified": 410,
+    "compiled_files_verified": 1197,
+    "compiled_tree_sha256": "a19df059abf57a931544d7c0c689c20579b5fa9a8ee6189ab058c7d64e19c67d",
+    "manifest_sha256": "b9e2e30d5ac5be3e01a1178035f524fced5492cb5f59535e33f1b4073282ce60"
+  },
+  "native": {
+    "status": "pass",
+    "command": "python3 .codex/stages/content-factory-next-dbxe-readiness-stage/native-readiness.py --output .codex/stages/content-factory-next-dbxe-readiness-stage/root-native-readiness.actual.json",
+    "cwd": "/home/me/code/content-factory-next",
+    "exit": 0,
+    "runner_sha256": "78f62bba84005af91efd0d05f9fd79f95c0cbd54f0eb305b9cf11daf7c0dc08f",
+    "base_image_id": "sha256:53cefe055fa9c3a2559afbb2f029932836d391715c53805132c1ac246ea669b0",
+    "candidate_image_id": "sha256:20768ee17ac5bd7d3c302d03638a2fb0454746907d32144e94f67f609a37fd00",
+    "source_and_modules_match": true,
+    "dependencies": {
+      "@temporalio/client": "1.15.0",
+      "@temporalio/worker": "1.15.0",
+      "nestjs-temporal-core": "3.2.3"
+    },
+    "configured_queues": 33,
+    "idle_and_restarted_required_task_types": [
+      34,
+      34
+    ],
+    "memory_and_swap_bytes": 1879048192,
+    "api_during_stop": 200,
+    "health_before_stop_after": [
+      0,
+      7,
+      0
+    ],
+    "health_elapsed_ms": [
+      81,
+      83,
+      82
+    ],
+    "pending_workflow": {
+      "status": "RUNNING",
+      "eventCount": 2,
+      "completedEvents": 0,
+      "activityCompletions": 0
+    },
+    "completed_workflow": {
+      "status": "COMPLETED",
+      "eventCount": 11,
+      "completedEvents": 1,
+      "activityCompletions": 1
+    },
+    "safe_workflow_result": {
+      "value": false
+    },
+    "owned_container_count": 5,
+    "network_removed": true,
+    "candidate_image_removed": true,
+    "foreign_inventory_preserved": {
+      "containers": true,
+      "networks": true,
+      "images": true
+    },
+    "owned_containers_remaining": []
+  },
+  "legacy_workflows_activities_and_registration": "byte_unchanged_against_baseline; git diff exit0",
+  "criteria": {
+    "preserved": 30,
+    "snapshot_sha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "original_criteria_unchanged": true,
+    "epic_status": "open",
+    "task8_release_gate_preserved": true,
+    "task_status": "closed",
+    "task8_status": "in_progress",
+    "next_task_status": "open",
+    "child_status_counts": {
+      "closed": 7,
+      "open": 21,
+      "in_progress": 1
+    }
+  },
+  "metadata_checks": {
+    "docs": {
+      "status": "pass",
+      "command": "python3 scripts/docs/check_docs.py",
+      "files_checked": 184,
+      "log": "docs.local.log"
+    },
+    "process": {
+      "status": "pass",
+      "command": "scripts/orchestration/run_process_verification.sh --stage content-factory-next-dbxe-readiness-stage",
+      "log": "process-corrected.local.log",
+      "initial_missing_handoff_fields_corrected": true
+    },
+    "diff": {
+      "status": "pass",
+      "command": "git diff --check",
+      "log": "diff.local.log"
+    }
+  },
+  "graph_review": {
+    "graph": "local46ec4108",
+    "scope": "TemporalRegister orientation; exact current source/SDK confirmed",
+    "stale_and_truncated": true,
+    "refreshed": false
+  },
+  "delivery": {
+    "scope": "local only",
+    "push": false,
+    "image_publication": false,
+    "production_deployment": false,
+    "production_mutations": 0,
+    "provider_model_mail_calls": false,
+    "next_task_started": false
+  },
+  "limits": [
+    "Bounded current-orchestrator derivative; inherited backend API is availability only.",
+    "Not full release/task8 proof, production readiness, provider side effects or client/SaaS acceptance.",
+    "Docker unhealthy state follows existing30s interval/180s startup/five retries; actual command failure was tested.",
+    "Two failed build diagnostics retained separately from accepted scoped compile."
+  ],
+  "documentation_and_stage_files": {
+    ".codex/handoff.md": "4a20469af1e7ac5b2b87a3a7860e9acbe15095d40dc5cda475340d97ac0e1c1a",
+    ".codex/project-index.md": "ec972b21de647f111c65dceccf8484c3974102be3fb056c1f8c5afc147953068",
+    ".codex/orchestrator.toml": "d8988d89cf2c2d180a9f8c2b6f7eae0e6dd3474f7ee6bd79d1a22d966cb21e87",
+    "docs/operations/runtime-readiness.md": "3e6ee1d369ed39e78d87bbc85714ae89eb3c53035cfe323f90a4bc23a456c296",
+    "docs/operations/worker-readiness.md": "f8ac1168621deea0cfca6b80be40078534300990f13efa1477e56581a1c278e0",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/plan.md": "cbd0f81a14b7d82b1e08e384bccbf37cb8596201fc912580d6a6c372f9f930b4",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/coordination.md": "1afde2301d4559b635846d626f7e4615ce479a3b602dcab2a6f161e4c9446034",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/outcome.md": "4a250c09ea629b9385ea07323d0eaf19db43a2793f61f2e9d638da44ef4d369b",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/summary.md": "205f9a37ebbacecbe1d88255109a35371d06c2928f24702615a553aae4b5a190",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/stage-manifest.json": "b4ab014cdcf9bbe6175b19ed1dd13f5a53b2175aab2e314044a6c90a897dc25f",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/native-readiness.py": "78f62bba84005af91efd0d05f9fd79f95c0cbd54f0eb305b9cf11daf7c0dc08f",
+    ".codex/stages/content-factory-next-dbxe-readiness-stage/prepare-native-build.py": "f58d3e6b8402e36070c892a57a64ea1646c873ef281f562bdcb373680876bea3"
+  }
+}

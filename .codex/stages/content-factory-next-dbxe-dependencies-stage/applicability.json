@@ -1,0 +1,5704 @@
+{
+  "schema": "cf-dependency-applicability/v1",
+  "baseline_lock_sha256": "3439570de67cefc98649b7700b02217a94309ac7adb6bbbd3a859273540c0a3f",
+  "accepted_lock_sha256": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+  "baseline_counts": {
+    "low": 23,
+    "high": 131,
+    "moderate": 157,
+    "critical": 12
+  },
+  "fresh_production_counts": {
+    "low": 12,
+    "moderate": 68,
+    "high": 21,
+    "critical": 2
+  },
+  "fresh_all_shipped_counts": {
+    "low": 12,
+    "moderate": 71,
+    "high": 21,
+    "critical": 5
+  },
+  "patched_baseline_critical_high": 120,
+  "retained_current_critical_high": 26,
+  "release_gate": "Original dbxe.8 requires next release acceptance. Local build/affected proof does not replace SHA-bound full suite/image delivery gate.",
+  "records": [
+    {
+      "package": "form-data",
+      "source": "https://github.com/advisories/GHSA-fjxv-7rqg-78g4",
+      "title": "form-data uses unsafe random function in form-data for choosing boundary",
+      "severity": "critical",
+      "vulnerable_range": "<2.5.4",
+      "baseline_versions": [
+        "2.3.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "request (Telegram), axios, transloadit and direct provider imports use different major lines",
+      "verification": "actual parent-resolved randomness and CRLF probes + upload round trip",
+      "locked_now": [
+        "2.5.6",
+        "3.0.5",
+        "4.0.6"
+      ],
+      "exact_locked_paths": {
+        "2.5.6": [
+          "importer:./devDependencies/@types/node-telegram-bot-api",
+          "@types/node-telegram-bot-api@0.64.14",
+          "@types/request@2.48.13",
+          "form-data@2.5.6"
+        ],
+        "3.0.5": [
+          "importer:./dependencies/transloadit",
+          "transloadit@3.0.2",
+          "form-data@3.0.5"
+        ],
+        "4.0.6": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0",
+          "form-data@4.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.3.3"
+      ]
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-2w6w-674q-4c4q",
+      "title": "Handlebars.js has JavaScript Injection via AST Type Confusion",
+      "severity": "critical",
+      "vulnerable_range": ">=4.0.0 <=4.7.8",
+      "baseline_versions": [
+        "4.7.8"
+      ],
+      "baseline_shipped_versions": [
+        "4.7.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      }
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-8r5x-fm3f-whwj",
+      "title": "Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)",
+      "severity": "critical",
+      "vulnerable_range": ">=4.0.0 <=4.7.9",
+      "baseline_versions": [
+        "4.7.9"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.7.8",
+        "4.7.9"
+      ]
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-p8wg-vrv2-v86f",
+      "title": "Handlebars: JavaScript Injection via Own Property Check Bypass",
+      "severity": "critical",
+      "vulnerable_range": ">=4.0.0 <=4.7.9",
+      "baseline_versions": [
+        "4.7.9"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.7.8",
+        "4.7.9"
+      ]
+    },
+    {
+      "package": "happy-dom",
+      "source": "https://github.com/advisories/GHSA-37j7-fg3j-429f",
+      "title": "Happy DOM: VM Context Escape can lead to Remote Code Execution",
+      "severity": "critical",
+      "vulnerable_range": "<20.0.0",
+      "baseline_versions": [
+        "15.11.7"
+      ],
+      "fresh_versions": [
+        "15.11.7"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-build/test",
+      "consumer": "@wyw-in-js/transform0.5.5 optional VM feature and Vitest3.1.4 test environment; no imports in apps/libraries and no Happy DOM handling of user HTML/scripts. Next config has no Pigment/WYW plugin. Current Jest uses jsdom/node.",
+      "reassessment_trigger": "Reassess before enabling happyDOM feature, running untrusted tests/scripts or moving it into product SSR. Upgrading15->20+ would cross a dormant parent contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "15.11.7"
+      ],
+      "exact_locked_paths": {
+        "15.11.7": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4",
+          "happy-dom@15.11.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "15.11.7"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4",
+      "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+      "severity": "critical",
+      "vulnerable_range": ">=16.0.0 <16.3.3",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-p293-qw3h-jr36",
+      "title": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+      "severity": "critical",
+      "vulnerable_range": ">=16.0.0 <16.3.3",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-vcvr-r3jv-pc5j",
+      "title": "Next.js: Remote Code Execution in next/og ImageResponse",
+      "severity": "critical",
+      "vulnerable_range": ">=16.2.0 <16.3.6",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "piscina",
+      "source": "https://github.com/advisories/GHSA-67c8-pqhq-4rmx",
+      "title": "piscina: Prototype-pollution gadget in ThreadPool.options allows RCE via execArgv / loadBalancer / env",
+      "severity": "critical",
+      "vulnerable_range": "<4.9.4",
+      "baseline_versions": [
+        "4.9.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "@swc/cli worker pool uses repository-owned input; no product worker pool",
+      "verification": "all application builds; patched4.9.4 before acceptance",
+      "locked_now": [
+        "4.9.4"
+      ],
+      "exact_locked_paths": {
+        "4.9.4": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "piscina@4.9.4"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.9.2"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-xq3m-2v4x-88gg",
+      "title": "Arbitrary code execution in protobufjs",
+      "severity": "critical",
+      "vulnerable_range": "<7.5.5",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "proxy-addr",
+      "source": "https://github.com/advisories/GHSA-jqcg-44mw-7w3h",
+      "title": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "severity": "critical",
+      "vulnerable_range": ">=1.1.0 <2.0.8",
+      "baseline_versions": [
+        "2.0.7"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Express req.ip via proxy-addr; app does not configure vulnerable mapped trust subnet",
+      "verification": "actual mapped-subnet spoof regression and backend routes",
+      "locked_now": [
+        "2.0.8"
+      ],
+      "exact_locked_paths": {
+        "2.0.8": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "express@5.2.1",
+          "proxy-addr@2.0.8"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.7"
+      ]
+    },
+    {
+      "package": "shell-quote",
+      "source": "https://github.com/advisories/GHSA-w7jw-789q-3m8p",
+      "title": "shell-quote quote() does not escape newlines in object .op values",
+      "severity": "critical",
+      "vulnerable_range": ">=1.1.0 <=1.8.3",
+      "baseline_versions": [
+        "1.8.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Mastra CLI / concurrently quoting; no product shell command assembled from object operators",
+      "verification": "actual object/operator and comment-followed-by-newline rejection; ordinary quote/parse",
+      "locked_now": [
+        "1.11.0"
+      ],
+      "exact_locked_paths": {
+        "1.11.0": [
+          "importer:./dependencies/mastra",
+          "mastra@1.3.19",
+          "shell-quote@1.11.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.8.3"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "title": "node-tar: Decompression/parse DoS via unlimited input",
+      "severity": "critical",
+      "vulnerable_range": "<=7.5.18",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tinypool",
+      "source": "https://github.com/advisories/GHSA-5gmw-xhrv-c9v3",
+      "title": "Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution",
+      "severity": "critical",
+      "vulnerable_range": "<=2.1.0",
+      "baseline_versions": [],
+      "fresh_versions": [
+        "1.1.1"
+      ],
+      "scopes": [
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-unused-test-worker",
+      "consumer": "Only Vitest3.1.4 uses tinypool1.1.1. No product worker or test command invokes this pool; current tests use Jest, node:test and Python. No untrusted code is run in this dormant test pool.",
+      "reassessment_trigger": "Reassess Vitest adoption or any product worker consumer. Minimum2.1.2 crosses declared1.x; no force override of an unused worker contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "1.1.1"
+      ],
+      "exact_locked_paths": {
+        "1.1.1": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4",
+          "tinypool@1.1.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.1"
+      ]
+    },
+    {
+      "package": "tinypool",
+      "source": "https://github.com/advisories/GHSA-85c8-ppgw-ccpr",
+      "title": "Tinypool: Prototype Pollution Gadget to RCE in run() options",
+      "severity": "critical",
+      "vulnerable_range": "<2.1.2",
+      "baseline_versions": [],
+      "fresh_versions": [
+        "1.1.1"
+      ],
+      "scopes": [
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-unused-test-worker",
+      "consumer": "Only Vitest3.1.4 uses tinypool1.1.1. No product worker or test command invokes this pool; current tests use Jest, node:test and Python. No untrusted code is run in this dormant test pool.",
+      "reassessment_trigger": "Reassess Vitest adoption or any product worker consumer. Minimum2.1.2 crosses declared1.x; no force override of an unused worker contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "1.1.1"
+      ],
+      "exact_locked_paths": {
+        "1.1.1": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4",
+          "tinypool@1.1.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.1"
+      ]
+    },
+    {
+      "package": "vitest",
+      "source": "https://github.com/advisories/GHSA-5xrq-8626-4rwp",
+      "title": "When Vitest UI server is listening, arbitrary file can be read and executed",
+      "severity": "critical",
+      "vulnerable_range": "<3.2.6",
+      "baseline_versions": [],
+      "fresh_versions": [
+        "3.1.4"
+      ],
+      "scopes": [
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-unused-test-ui",
+      "consumer": "Dev-only Vitest3.1.4 is copied by Dockerfile but root scripts/test acceptance use Jest, node:test and unittest. Native production processes do not launch Vitest UI/API/browser server. Linux runtime also does not match the Windows UI path precondition.",
+      "reassessment_trigger": "Reassess enabling/exposing Vitest API/UI or Windows browser tests;3.2.6 is vendor-patched for that surface.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "3.1.4"
+      ],
+      "exact_locked_paths": {
+        "3.1.4": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.4"
+      ]
+    },
+    {
+      "package": "@babel/plugin-transform-modules-systemjs",
+      "source": "https://github.com/advisories/GHSA-fv7c-fp4j-7gwp",
+      "title": "@babel/plugin-transform-modules-systemjs generates arbitrary code when compiling malicious input",
+      "severity": "high",
+      "vulnerable_range": ">=7.12.0 <=7.29.3",
+      "baseline_versions": [
+        "7.29.0"
+      ],
+      "baseline_shipped_versions": [
+        "7.29.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Babel repository compiler",
+      "verification": "frontend/extension builds",
+      "locked_now": [
+        "7.29.4"
+      ],
+      "exact_locked_paths": {
+        "7.29.4": [
+          "importer:./devDependencies/@svgr/webpack",
+          "@svgr/webpack@8.1.0",
+          "@babel/preset-env@7.29.0",
+          "@babel/plugin-transform-modules-systemjs@7.29.4"
+        ]
+      }
+    },
+    {
+      "package": "@grpc/grpc-js",
+      "source": "https://github.com/advisories/GHSA-5375-pq7m-f5r2",
+      "title": "@grpc/grpc-js: A malformed request can cause a server crash",
+      "severity": "high",
+      "vulnerable_range": ">=1.14.0 <1.14.4",
+      "baseline_versions": [
+        "1.14.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal client/worker gRPC transport; trusted service schemas",
+      "verification": "tests/dependency-security.compatibility.test.cjs + Temporal contract guards",
+      "locked_now": [
+        "1.14.5"
+      ],
+      "exact_locked_paths": {
+        "1.14.5": [
+          "importer:./dependencies/@nestjs/microservices",
+          "@nestjs/microservices@11.1.21",
+          "@grpc/grpc-js@1.14.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.3"
+      ]
+    },
+    {
+      "package": "@grpc/grpc-js",
+      "source": "https://github.com/advisories/GHSA-99f4-grh7-6pcq",
+      "title": "@grpc/grpc-js: An incoming malformed compressed message can cause a client or server crash",
+      "severity": "high",
+      "vulnerable_range": ">=1.14.0 <1.14.4",
+      "baseline_versions": [
+        "1.14.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal client/worker gRPC transport; trusted service schemas",
+      "verification": "tests/dependency-security.compatibility.test.cjs + Temporal contract guards",
+      "locked_now": [
+        "1.14.5"
+      ],
+      "exact_locked_paths": {
+        "1.14.5": [
+          "importer:./dependencies/@nestjs/microservices",
+          "@nestjs/microservices@11.1.21",
+          "@grpc/grpc-js@1.14.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.3"
+      ]
+    },
+    {
+      "package": "@grpc/grpc-js",
+      "source": "https://github.com/advisories/GHSA-m9gg-hp2v-232j",
+      "title": "@grpc/grpc-js: In certain configurations, getAuthContext can return unauthorized certificates as though they were authorized",
+      "severity": "high",
+      "vulnerable_range": ">=1.14.0 <1.14.5",
+      "baseline_versions": [
+        "1.14.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal client/worker gRPC transport; trusted service schemas",
+      "verification": "tests/dependency-security.compatibility.test.cjs + Temporal contract guards",
+      "locked_now": [
+        "1.14.5"
+      ],
+      "exact_locked_paths": {
+        "1.14.5": [
+          "importer:./dependencies/@nestjs/microservices",
+          "@nestjs/microservices@11.1.21",
+          "@grpc/grpc-js@1.14.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.3"
+      ]
+    },
+    {
+      "package": "@modelcontextprotocol/client",
+      "source": "https://github.com/advisories/GHSA-6qxp-vccf-f47h",
+      "title": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.2.0",
+      "baseline_versions": [
+        "2.0.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@mastra/mcp 1.18.0 MCP client; OAuth target trust depends on configured server",
+      "verification": "MCP SDK against in-process product routes: tests/mcp.e2e.test.cjs",
+      "locked_now": [
+        "2.2.0"
+      ],
+      "exact_locked_paths": {
+        "2.2.0": [
+          "importer:./dependencies/@mastra/mcp",
+          "@mastra/mcp@1.18.0",
+          "@modelcontextprotocol/client@2.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.0"
+      ]
+    },
+    {
+      "package": "@modelcontextprotocol/sdk",
+      "source": "https://github.com/advisories/GHSA-6qxp-vccf-f47h",
+      "title": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+      "severity": "high",
+      "vulnerable_range": ">=1.12.0 <1.31.0",
+      "baseline_versions": [
+        "1.27.1",
+        "1.30.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "libraries/nestjs-libraries/src/chat/start.mcp.ts and @mastra/mcp use actual MCP SDK",
+      "verification": "tests/mcp.e2e.test.cjs + mcp-oauth/server",
+      "locked_now": [
+        "1.31.0"
+      ],
+      "exact_locked_paths": {
+        "1.31.0": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.27.1",
+        "1.30.1"
+      ]
+    },
+    {
+      "package": "@nestjs/microservices",
+      "source": "https://github.com/advisories/GHSA-m8vh-jmq9-5rjg",
+      "title": "Nest: Remote process termination via a deeply nested microservice message pattern",
+      "severity": "high",
+      "vulnerable_range": "<11.2.4",
+      "baseline_versions": [
+        "11.1.21"
+      ],
+      "fresh_versions": [
+        "11.1.21"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "unused-transport",
+      "consumer": "All app entrypoints verified: Nest HTTP backend, Temporal module worker, command app. No createMicroservice/connectMicroservice or Transport.TCP/RMQ listener/caller in apps/libraries. A package import/peer is not a TCP/RabbitMQ listener.",
+      "reassessment_trigger": "Reassess enabling Nest TCP/RabbitMQ transport; coordinated Nest11.2.4+ update then proves that new consumer.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "11.1.21"
+      ],
+      "exact_locked_paths": {
+        "11.1.21": [
+          "importer:./dependencies/@nestjs/microservices",
+          "@nestjs/microservices@11.1.21"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "11.1.21"
+      ]
+    },
+    {
+      "package": "@tiptap/core",
+      "source": "https://github.com/advisories/GHSA-j95f-988m-3j2f",
+      "title": "Tiptap: Quadratic ReDoS in block and inline Markdown attribute parsing",
+      "severity": "high",
+      "vulnerable_range": ">=3.7.0 <3.30.5",
+      "baseline_versions": [
+        "3.20.1"
+      ],
+      "fresh_versions": [
+        "3.20.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "runtime-inapplicable-helper",
+      "consumer": "Current editor uses TipTap HTML/JSON, StarterKit/commands and product inline-mark conversion. No @tiptap/markdown, markdownTokenizer or createAtomBlockMarkdownSpec/createBlockMarkdownSpec/createInlineMarkdownSpec consumer in apps/libraries. Vulnerable Markdown attributes are not used.",
+      "reassessment_trigger": "Reassess enabling these Markdown helpers. Patched3.30.5 requires exact matching @tiptap/pm and would expand sibling editor update; preserve existing3.20.1 contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "3.20.1"
+      ],
+      "exact_locked_paths": {
+        "3.20.1": [
+          "importer:./dependencies/@tiptap/extension-bold",
+          "@tiptap/extension-bold@3.20.1",
+          "@tiptap/core@3.20.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.20.1"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-35jp-ww65-95wh",
+      "title": "axios Vulnerable to Full Man-in-the-Middle via Prototype Pollution Gadget in `config.proxy`",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.16.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-3g43-6gmg-66jw",
+      "title": "axios Vulnerable to Credential Theft and Response Hijacking via Prototype Pollution Gadget in Config Merge",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.15.2",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-3pq3-5fj3-cg6v",
+      "title": "Axios: HTTP/2 adapter bypasses configured DNS lookup and proxy controls",
+      "severity": "high",
+      "vulnerable_range": ">=1.13.0 <1.20.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-542g-h47m-68v8",
+      "title": "Axios: Denial of Service via Unhandled 'error' Event in HTTP/2 ClientHttp2Session Initialization",
+      "severity": "high",
+      "vulnerable_range": ">=1.13.0 <1.20.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-6chq-wfr3-2hj9",
+      "title": "Axios: Header Injection via Prototype Pollution",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.15.1",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-777c-7fjr-54vf",
+      "title": "Allocation of Resources Without Limits or Throttling in Axios",
+      "severity": "high",
+      "vulnerable_range": ">=1.7.0 <1.16.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-hfxv-24rg-xrqf",
+      "title": "Axios: Regular Expression Denial of Service (ReDoS) via Cookie Name Injection",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.16.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-j5f8-grm9-p9fc",
+      "title": "Axios: Proxy-Authorization header leaks to redirect target when proxy is re-evaluated to direct connection",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.16.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-p92q-9vqr-4j8v",
+      "title": "Axios: Proxy-Authorization Credential Leak to Origin Server Across HTTP-to-HTTPS Redirect in Axios Node.js HTTP Adapter",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.16.0",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-pf86-5x62-jrwf",
+      "title": "Axios: Prototype Pollution Gadgets - Response Tampering, Data Exfiltration, and Request Hijacking",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.15.1",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-pmwg-cvhr-8vh7",
+      "title": "Axios: Incomplete Fix for CVE-2025-62718 \u2014 NO_PROXY Protection Bypassed via RFC 1122 Loopback Subnet (127.0.0.0/8) in Axios 1.15.0",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.15.1",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "axios",
+      "source": "https://github.com/advisories/GHSA-q8qp-cvcw-x6jj",
+      "title": "Axios has prototype pollution read-side gadgets in HTTP adapter that allow credential injection and request hijacking",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.15.2",
+      "baseline_versions": [
+        "1.14.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts and social providers; HTTP downloads/multipart uploads",
+      "verification": "actual loopback upload/gzip + webhook delivery tests",
+      "locked_now": [
+        "1.20.0"
+      ],
+      "exact_locked_paths": {
+        "1.20.0": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.14.0"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "source": "https://github.com/advisories/GHSA-6v7q-wjvx-w8wg",
+      "title": "basic-ftp: Incomplete CRLF Injection Protection Allows Arbitrary FTP Command Execution via Credentials and MKD Commands",
+      "severity": "high",
+      "vulnerable_range": "<=5.2.1",
+      "baseline_versions": [
+        "5.2.0"
+      ],
+      "fresh_versions": [
+        "5.2.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "dormant-sdk-tool",
+      "consumer": "Only get-uri6 under pac-proxy-agent/proxy-agent under @neynar/nodejs-sdk -> @openapitools/openapi-generator-cli. Product imports generated Neynar client, does not execute generator or configure FTP/PAC URI input. Source fetch paths accept public HTTPS and explicit safe dispatcher, not FTP.",
+      "reassessment_trigger": "Reassess enabling FTP/PAC transport or runtime generator; minimum6.2.1 is outside get-uri declared5.x range.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.2.0"
+      ],
+      "exact_locked_paths": {
+        "5.2.0": [
+          "importer:./dependencies/@neynar/nodejs-sdk",
+          "@neynar/nodejs-sdk@3.137.0",
+          "@openapitools/openapi-generator-cli@2.30.2",
+          "proxy-agent@6.5.0",
+          "pac-proxy-agent@7.2.0",
+          "get-uri@6.0.5",
+          "basic-ftp@5.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.2.0"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "source": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "title": "basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking)",
+      "severity": "high",
+      "vulnerable_range": "<=6.2.0",
+      "baseline_versions": [
+        "5.2.0"
+      ],
+      "fresh_versions": [
+        "5.2.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "dormant-sdk-tool",
+      "consumer": "Only get-uri6 under pac-proxy-agent/proxy-agent under @neynar/nodejs-sdk -> @openapitools/openapi-generator-cli. Product imports generated Neynar client, does not execute generator or configure FTP/PAC URI input. Source fetch paths accept public HTTPS and explicit safe dispatcher, not FTP.",
+      "reassessment_trigger": "Reassess enabling FTP/PAC transport or runtime generator; minimum6.2.1 is outside get-uri declared5.x range.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.2.0"
+      ],
+      "exact_locked_paths": {
+        "5.2.0": [
+          "importer:./dependencies/@neynar/nodejs-sdk",
+          "@neynar/nodejs-sdk@3.137.0",
+          "@openapitools/openapi-generator-cli@2.30.2",
+          "proxy-agent@6.5.0",
+          "pac-proxy-agent@7.2.0",
+          "get-uri@6.0.5",
+          "basic-ftp@5.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.2.0"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "source": "https://github.com/advisories/GHSA-chqc-8p9q-pq6q",
+      "title": "basic-ftp has FTP Command Injection via CRLF",
+      "severity": "high",
+      "vulnerable_range": "=5.2.0",
+      "baseline_versions": [
+        "5.2.0"
+      ],
+      "fresh_versions": [
+        "5.2.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "dormant-sdk-tool",
+      "consumer": "Only get-uri6 under pac-proxy-agent/proxy-agent under @neynar/nodejs-sdk -> @openapitools/openapi-generator-cli. Product imports generated Neynar client, does not execute generator or configure FTP/PAC URI input. Source fetch paths accept public HTTPS and explicit safe dispatcher, not FTP.",
+      "reassessment_trigger": "Reassess enabling FTP/PAC transport or runtime generator; minimum6.2.1 is outside get-uri declared5.x range.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.2.0"
+      ],
+      "exact_locked_paths": {
+        "5.2.0": [
+          "importer:./dependencies/@neynar/nodejs-sdk",
+          "@neynar/nodejs-sdk@3.137.0",
+          "@openapitools/openapi-generator-cli@2.30.2",
+          "proxy-agent@6.5.0",
+          "pac-proxy-agent@7.2.0",
+          "get-uri@6.0.5",
+          "basic-ftp@5.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.2.0"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "source": "https://github.com/advisories/GHSA-rp42-5vxx-qpwr",
+      "title": "basic-ftp vulnerable to denial of service via unbounded memory consumption in Client.list()",
+      "severity": "high",
+      "vulnerable_range": "<=5.2.2",
+      "baseline_versions": [
+        "5.2.0"
+      ],
+      "fresh_versions": [
+        "5.2.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "dormant-sdk-tool",
+      "consumer": "Only get-uri6 under pac-proxy-agent/proxy-agent under @neynar/nodejs-sdk -> @openapitools/openapi-generator-cli. Product imports generated Neynar client, does not execute generator or configure FTP/PAC URI input. Source fetch paths accept public HTTPS and explicit safe dispatcher, not FTP.",
+      "reassessment_trigger": "Reassess enabling FTP/PAC transport or runtime generator; minimum6.2.1 is outside get-uri declared5.x range.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.2.0"
+      ],
+      "exact_locked_paths": {
+        "5.2.0": [
+          "importer:./dependencies/@neynar/nodejs-sdk",
+          "@neynar/nodejs-sdk@3.137.0",
+          "@openapitools/openapi-generator-cli@2.30.2",
+          "proxy-agent@6.5.0",
+          "pac-proxy-agent@7.2.0",
+          "get-uri@6.0.5",
+          "basic-ftp@5.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.2.0"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "source": "https://github.com/advisories/GHSA-rpmf-866q-6p89",
+      "title": "basic-ftp allows a malicious FTP server to cause client-side denial of service via unbounded multiline control response buffering",
+      "severity": "high",
+      "vulnerable_range": "<=5.3.0",
+      "baseline_versions": [
+        "5.2.0"
+      ],
+      "fresh_versions": [
+        "5.2.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "dormant-sdk-tool",
+      "consumer": "Only get-uri6 under pac-proxy-agent/proxy-agent under @neynar/nodejs-sdk -> @openapitools/openapi-generator-cli. Product imports generated Neynar client, does not execute generator or configure FTP/PAC URI input. Source fetch paths accept public HTTPS and explicit safe dispatcher, not FTP.",
+      "reassessment_trigger": "Reassess enabling FTP/PAC transport or runtime generator; minimum6.2.1 is outside get-uri declared5.x range.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.2.0"
+      ],
+      "exact_locked_paths": {
+        "5.2.0": [
+          "importer:./dependencies/@neynar/nodejs-sdk",
+          "@neynar/nodejs-sdk@3.137.0",
+          "@openapitools/openapi-generator-cli@2.30.2",
+          "proxy-agent@6.5.0",
+          "pac-proxy-agent@7.2.0",
+          "get-uri@6.0.5",
+          "basic-ftp@5.2.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.2.0"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "severity": "high",
+      "vulnerable_range": "<1.1.16",
+      "baseline_versions": [
+        "1.1.12"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.12"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.1.2",
+      "baseline_versions": [
+        "2.0.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.2"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <5.0.7",
+      "baseline_versions": [
+        "5.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.4"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": "<1.1.19",
+      "baseline_versions": [
+        "1.1.12"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.12"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.1.5",
+      "baseline_versions": [
+        "2.0.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.2"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.0.10",
+      "baseline_versions": [
+        "5.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.4"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "severity": "high",
+      "vulnerable_range": "<1.1.17",
+      "baseline_versions": [
+        "1.1.12"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.12"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.1.3",
+      "baseline_versions": [
+        "2.0.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.2"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.0.8",
+      "baseline_versions": [
+        "5.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.4"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": "<1.1.20",
+      "baseline_versions": [
+        "1.1.12"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.12"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.1.6",
+      "baseline_versions": [
+        "2.0.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.2"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.0.11",
+      "baseline_versions": [
+        "5.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.4"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "severity": "high",
+      "vulnerable_range": "<1.1.18",
+      "baseline_versions": [
+        "1.1.12"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.1.12"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "severity": "high",
+      "vulnerable_range": ">=2.0.0 <2.1.4",
+      "baseline_versions": [
+        "2.0.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.0.2"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "source": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.0.9",
+      "baseline_versions": [
+        "5.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "minimatch tool patterns, separate1.x/2.x/5.x lines",
+      "verification": "installed imports and all builds",
+      "locked_now": [
+        "1.1.20",
+        "2.1.6",
+        "5.0.11"
+      ],
+      "exact_locked_paths": {
+        "1.1.20": [
+          "importer:./devDependencies/eslint",
+          "eslint@8.57.0",
+          "minimatch@3.1.5",
+          "brace-expansion@1.1.20"
+        ],
+        "2.1.6": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "minimatch@9.0.9",
+          "brace-expansion@2.1.6"
+        ],
+        "5.0.11": [
+          "importer:./devDependencies/nodemon",
+          "nodemon@3.1.14",
+          "minimatch@10.2.4",
+          "brace-expansion@5.0.11"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.4"
+      ]
+    },
+    {
+      "package": "braces",
+      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+      "severity": "high",
+      "vulnerable_range": "<=3.0.3",
+      "baseline_versions": [
+        "3.0.3"
+      ],
+      "fresh_versions": [
+        "3.0.3"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-build/test",
+      "consumer": "chokidar/micromatch under Tailwind/Jest/fast-glob use repository-owned file patterns. Runtime Mastra workspace matching uses patched picomatch, not braces; no product input to braces/micromatch/fast-glob found. Official advisory has no patched version.",
+      "reassessment_trigger": "Reassess user-supplied glob patterns/build jobs or an upstream branch fix.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "3.0.3"
+      ],
+      "exact_locked_paths": {
+        "3.0.3": [
+          "importer:./dependencies/tailwindcss",
+          "tailwindcss@3.4.17",
+          "chokidar@3.6.0",
+          "braces@3.0.3"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.0.3"
+      ]
+    },
+    {
+      "package": "browserslist",
+      "source": "https://github.com/advisories/GHSA-73wf-gq98-2v4g",
+      "title": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+      "severity": "high",
+      "vulnerable_range": "<=4.28.6",
+      "baseline_versions": [
+        "4.28.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Babel/webpack/autoprefixer repository target configuration",
+      "verification": "Next/extension builds",
+      "locked_now": [
+        "4.28.7"
+      ],
+      "exact_locked_paths": {
+        "4.28.7": [
+          "importer:./devDependencies/autoprefixer",
+          "autoprefixer@10.4.27",
+          "browserslist@4.28.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.28.1"
+      ]
+    },
+    {
+      "package": "browserslist",
+      "source": "https://github.com/advisories/GHSA-c83g-rgw3-j3cx",
+      "title": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+      "severity": "high",
+      "vulnerable_range": "<=4.28.6",
+      "baseline_versions": [
+        "4.28.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Babel/webpack/autoprefixer repository target configuration",
+      "verification": "Next/extension builds",
+      "locked_now": [
+        "4.28.7"
+      ],
+      "exact_locked_paths": {
+        "4.28.7": [
+          "importer:./devDependencies/autoprefixer",
+          "autoprefixer@10.4.27",
+          "browserslist@4.28.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.28.1"
+      ]
+    },
+    {
+      "package": "compression",
+      "source": "https://github.com/advisories/GHSA-vc2v-76pw-4v95",
+      "title": "compression vulnerable to Denial of Service via memory leak on premature response close",
+      "severity": "high",
+      "vulnerable_range": "<1.8.2",
+      "baseline_versions": [
+        "1.8.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "apps/backend/src/main.ts: HTTP compression and NDJSON filter",
+      "verification": "actual gzip round trip + stream tests",
+      "locked_now": [
+        "1.8.2"
+      ],
+      "exact_locked_paths": {
+        "1.8.2": [
+          "importer:./dependencies/compression",
+          "compression@1.8.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.8.1"
+      ]
+    },
+    {
+      "package": "cross-spawn",
+      "source": "https://github.com/advisories/GHSA-3xgq-45jj-v275",
+      "title": "Regular Expression Denial of Service (ReDoS) in cross-spawn",
+      "severity": "high",
+      "vulnerable_range": "<6.0.6",
+      "baseline_versions": [
+        "5.1.0"
+      ],
+      "fresh_versions": [
+        "5.1.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-native-tool",
+      "consumer": "Vulnerable5.1.0 only bin-check4.1.0 -> execa0.7.0 under @swc/cli -> bin-wrapper; fixed SWC binary check command. Runtime MCP uses non-vulnerable7.0.6. Windows-oriented path escaping has no user-supplied command at this caller.",
+      "reassessment_trigger": "Reassess user-controlled commands/native tool selection.6.0.6 is outside old execa5.x contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "5.1.0",
+        "7.0.6"
+      ],
+      "exact_locked_paths": {
+        "5.1.0": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "@mole-inc/bin-wrapper@8.0.1",
+          "bin-check@4.1.0",
+          "execa@0.7.0",
+          "cross-spawn@5.1.0"
+        ],
+        "7.0.6": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "cross-spawn@7.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-4c8g-83qw-93j6",
+      "title": "fast-uri vulnerable to host confusion via failed IDN canonicalization",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.1.3",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7",
+      "title": "fast-uri vulnerable to host confusion via backslash authority introducer",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.1.5",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "title": "fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.1.6",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "title": "fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.1.6",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-q3j6-qgpj-74h6",
+      "title": "fast-uri vulnerable to path traversal via percent-encoded dot segments",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <=3.1.0",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "title": "fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.1.7",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx",
+      "title": "fast-uri vulnerable to host confusion via literal backslash authority delimiter",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <=3.1.3",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "source": "https://github.com/advisories/GHSA-v39h-62p7-jpjc",
+      "title": "fast-uri vulnerable to host confusion via percent-encoded authority delimiters",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <=3.1.1",
+      "baseline_versions": [
+        "3.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "AJV schema validation dependency",
+      "verification": "MCP input/policy tests + builds",
+      "locked_now": [
+        "3.1.7"
+      ],
+      "exact_locked_paths": {
+        "3.1.7": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "ajv@8.18.0",
+          "fast-uri@3.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.1.0"
+      ]
+    },
+    {
+      "package": "fast-xml-builder",
+      "source": "https://github.com/advisories/GHSA-5wm8-gmm8-39j9",
+      "title": "fast-xml-builder allows attribute values with unwanted quotes to bypass malicious or unwanted attributes",
+      "severity": "high",
+      "vulnerable_range": "<=1.1.6",
+      "baseline_versions": [
+        "1.0.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "AWS fast-xml-parser5 dependency",
+      "verification": "XML parser installed-parent probe + application builds",
+      "locked_now": [
+        "1.1.7"
+      ],
+      "exact_locked_paths": {
+        "1.1.7": [
+          "importer:./dependencies/@aws-sdk/client-s3",
+          "@aws-sdk/client-s3@3.1003.0",
+          "@aws-sdk/core@3.973.18",
+          "@aws-sdk/xml-builder@3.972.10",
+          "fast-xml-parser@5.5.6",
+          "fast-xml-builder@1.1.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "package": "fast-xml-parser",
+      "source": "https://github.com/advisories/GHSA-8gc5-j5rx-235r",
+      "title": "fast-xml-parser affected by numeric entity expansion bypassing all entity expansion limits (incomplete fix for CVE-2026-26278)",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0-beta.3 <4.5.5",
+      "baseline_versions": [
+        "4.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "source-parser.ts and community-topic-discovery.service.ts (4.x); AWS XML builder (5.x)",
+      "verification": "actual 4.x/5.x parse + source registry/fetch gateway",
+      "locked_now": [
+        "4.5.5",
+        "5.5.6"
+      ],
+      "exact_locked_paths": {
+        "4.5.5": [
+          "importer:./dependencies/fast-xml-parser",
+          "fast-xml-parser@4.5.5"
+        ],
+        "5.5.6": [
+          "importer:./dependencies/@aws-sdk/client-s3",
+          "@aws-sdk/client-s3@3.1003.0",
+          "@aws-sdk/core@3.973.18",
+          "@aws-sdk/xml-builder@3.972.10",
+          "fast-xml-parser@5.5.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.5.4"
+      ]
+    },
+    {
+      "package": "fast-xml-parser",
+      "source": "https://github.com/advisories/GHSA-8gc5-j5rx-235r",
+      "title": "fast-xml-parser affected by numeric entity expansion bypassing all entity expansion limits (incomplete fix for CVE-2026-26278)",
+      "severity": "high",
+      "vulnerable_range": ">=5.0.0 <5.5.6",
+      "baseline_versions": [
+        "5.4.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "source-parser.ts and community-topic-discovery.service.ts (4.x); AWS XML builder (5.x)",
+      "verification": "actual 4.x/5.x parse + source registry/fetch gateway",
+      "locked_now": [
+        "4.5.5",
+        "5.5.6"
+      ],
+      "exact_locked_paths": {
+        "4.5.5": [
+          "importer:./dependencies/fast-xml-parser",
+          "fast-xml-parser@4.5.5"
+        ],
+        "5.5.6": [
+          "importer:./dependencies/@aws-sdk/client-s3",
+          "@aws-sdk/client-s3@3.1003.0",
+          "@aws-sdk/core@3.973.18",
+          "@aws-sdk/xml-builder@3.972.10",
+          "fast-xml-parser@5.5.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.4.1"
+      ]
+    },
+    {
+      "package": "flatted",
+      "source": "https://github.com/advisories/GHSA-25h7-pfq9-p65f",
+      "title": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+      "severity": "high",
+      "vulnerable_range": "<3.4.0",
+      "baseline_versions": [
+        "3.3.4"
+      ],
+      "baseline_shipped_versions": [
+        "3.3.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "ESLint/file-entry-cache",
+      "verification": "installed imports/builds",
+      "locked_now": [
+        "3.4.2"
+      ],
+      "exact_locked_paths": {
+        "3.4.2": [
+          "importer:./devDependencies/@vitest/ui",
+          "@vitest/ui@1.6.0",
+          "flatted@3.4.2"
+        ]
+      }
+    },
+    {
+      "package": "flatted",
+      "source": "https://github.com/advisories/GHSA-rf6f-7fwh-wjgh",
+      "title": "Prototype Pollution via parse() in NodeJS flatted",
+      "severity": "high",
+      "vulnerable_range": "<=3.4.1",
+      "baseline_versions": [
+        "3.3.4"
+      ],
+      "baseline_shipped_versions": [
+        "3.3.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "ESLint/file-entry-cache",
+      "verification": "installed imports/builds",
+      "locked_now": [
+        "3.4.2"
+      ],
+      "exact_locked_paths": {
+        "3.4.2": [
+          "importer:./devDependencies/@vitest/ui",
+          "@vitest/ui@1.6.0",
+          "flatted@3.4.2"
+        ]
+      }
+    },
+    {
+      "package": "form-data",
+      "source": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+      "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+      "severity": "high",
+      "vulnerable_range": "<2.5.6",
+      "baseline_versions": [
+        "2.3.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "request (Telegram), axios, transloadit and direct provider imports use different major lines",
+      "verification": "actual parent-resolved randomness and CRLF probes + upload round trip",
+      "locked_now": [
+        "2.5.6",
+        "3.0.5",
+        "4.0.6"
+      ],
+      "exact_locked_paths": {
+        "2.5.6": [
+          "importer:./devDependencies/@types/node-telegram-bot-api",
+          "@types/node-telegram-bot-api@0.64.14",
+          "@types/request@2.48.13",
+          "form-data@2.5.6"
+        ],
+        "3.0.5": [
+          "importer:./dependencies/transloadit",
+          "transloadit@3.0.2",
+          "form-data@3.0.5"
+        ],
+        "4.0.6": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0",
+          "form-data@4.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.3.3",
+        "2.5.5"
+      ]
+    },
+    {
+      "package": "form-data",
+      "source": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+      "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.0.5",
+      "baseline_versions": [
+        "3.0.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "request (Telegram), axios, transloadit and direct provider imports use different major lines",
+      "verification": "actual parent-resolved randomness and CRLF probes + upload round trip",
+      "locked_now": [
+        "2.5.6",
+        "3.0.5",
+        "4.0.6"
+      ],
+      "exact_locked_paths": {
+        "2.5.6": [
+          "importer:./devDependencies/@types/node-telegram-bot-api",
+          "@types/node-telegram-bot-api@0.64.14",
+          "@types/request@2.48.13",
+          "form-data@2.5.6"
+        ],
+        "3.0.5": [
+          "importer:./dependencies/transloadit",
+          "transloadit@3.0.2",
+          "form-data@3.0.5"
+        ],
+        "4.0.6": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0",
+          "form-data@4.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.0.4"
+      ]
+    },
+    {
+      "package": "form-data",
+      "source": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+      "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <4.0.6",
+      "baseline_versions": [
+        "4.0.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "request (Telegram), axios, transloadit and direct provider imports use different major lines",
+      "verification": "actual parent-resolved randomness and CRLF probes + upload round trip",
+      "locked_now": [
+        "2.5.6",
+        "3.0.5",
+        "4.0.6"
+      ],
+      "exact_locked_paths": {
+        "2.5.6": [
+          "importer:./devDependencies/@types/node-telegram-bot-api",
+          "@types/node-telegram-bot-api@0.64.14",
+          "@types/request@2.48.13",
+          "form-data@2.5.6"
+        ],
+        "3.0.5": [
+          "importer:./dependencies/transloadit",
+          "transloadit@3.0.2",
+          "form-data@3.0.5"
+        ],
+        "4.0.6": [
+          "importer:./dependencies/axios",
+          "axios@1.20.0",
+          "form-data@4.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.0.5"
+      ]
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-3mfm-83xf-c92r",
+      "title": "Handlebars.js has JavaScript Injection via AST Type Confusion by tampering @partial-block",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <=4.7.8",
+      "baseline_versions": [
+        "4.7.8"
+      ],
+      "baseline_shipped_versions": [
+        "4.7.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      }
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-9cx6-37pm-9jff",
+      "title": "Handlebars.js has Denial of Service via Malformed Decorator Syntax in Template Compilation",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <=4.7.8",
+      "baseline_versions": [
+        "4.7.8"
+      ],
+      "baseline_shipped_versions": [
+        "4.7.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      }
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-xhpv-hc6g-r9c6",
+      "title": "Handlebars.js has JavaScript Injection via AST Type Confusion when passing an object as dynamic partial",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <=4.7.8",
+      "baseline_versions": [
+        "4.7.8"
+      ],
+      "baseline_shipped_versions": [
+        "4.7.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      }
+    },
+    {
+      "package": "handlebars",
+      "source": "https://github.com/advisories/GHSA-xjpj-3mr7-gcpf",
+      "title": "Handlebars.js has JavaScript Injection in CLI Precompiler via Unescaped Names and Options",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <=4.7.8",
+      "baseline_versions": [
+        "4.7.8"
+      ],
+      "baseline_shipped_versions": [
+        "4.7.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@langchain/classic templates and ts-jest; no product-supplied untrusted AST/options found",
+      "verification": "actual malicious AST rejection and ordinary string rendering",
+      "locked_now": [
+        "4.7.10"
+      ],
+      "exact_locked_paths": {
+        "4.7.10": [
+          "importer:./devDependencies/ts-jest",
+          "ts-jest@29.4.6",
+          "handlebars@4.7.10"
+        ]
+      }
+    },
+    {
+      "package": "happy-dom",
+      "source": "https://github.com/advisories/GHSA-6q6h-j7hj-3r64",
+      "title": "Happy DOM ECMAScriptModuleCompiler: unsanitized export names are interpolated as executable code",
+      "severity": "high",
+      "vulnerable_range": ">=15.10.0 <=20.8.7",
+      "baseline_versions": [
+        "15.11.7"
+      ],
+      "fresh_versions": [
+        "15.11.7"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-build/test",
+      "consumer": "@wyw-in-js/transform0.5.5 optional VM feature and Vitest3.1.4 test environment; no imports in apps/libraries and no Happy DOM handling of user HTML/scripts. Next config has no Pigment/WYW plugin. Current Jest uses jsdom/node.",
+      "reassessment_trigger": "Reassess before enabling happyDOM feature, running untrusted tests/scripts or moving it into product SSR. Upgrading15->20+ would cross a dormant parent contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "15.11.7"
+      ],
+      "exact_locked_paths": {
+        "15.11.7": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4",
+          "happy-dom@15.11.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "15.11.7"
+      ]
+    },
+    {
+      "package": "happy-dom",
+      "source": "https://github.com/advisories/GHSA-w4gp-fjgq-3q4g",
+      "title": "Happy DOM's fetch credentials include uses page-origin cookies instead of target-origin cookies",
+      "severity": "high",
+      "vulnerable_range": "<20.8.9",
+      "baseline_versions": [
+        "15.11.7"
+      ],
+      "fresh_versions": [
+        "15.11.7"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "shipped-build/test",
+      "consumer": "@wyw-in-js/transform0.5.5 optional VM feature and Vitest3.1.4 test environment; no imports in apps/libraries and no Happy DOM handling of user HTML/scripts. Next config has no Pigment/WYW plugin. Current Jest uses jsdom/node.",
+      "reassessment_trigger": "Reassess before enabling happyDOM feature, running untrusted tests/scripts or moving it into product SSR. Upgrading15->20+ would cross a dormant parent contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "15.11.7"
+      ],
+      "exact_locked_paths": {
+        "15.11.7": [
+          "importer:./devDependencies/vitest",
+          "vitest@3.1.4",
+          "happy-dom@15.11.7"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "15.11.7"
+      ]
+    },
+    {
+      "package": "hono",
+      "source": "https://github.com/advisories/GHSA-88fw-hqm2-52qc",
+      "title": "hono: CORS Middleware reflects any Origin with credentials when `origin` defaults to the wildcard",
+      "severity": "high",
+      "vulnerable_range": "<4.12.25",
+      "baseline_versions": [
+        "4.12.10",
+        "4.12.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Mastra server/MCP packages; vulnerable CORS defaults depend on middleware configuration",
+      "verification": "MCP product route end-to-end and builds; no claim of previously reachable wildcard credential CORS",
+      "locked_now": [
+        "4.12.25"
+      ],
+      "exact_locked_paths": {
+        "4.12.25": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "hono@4.12.25"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.12.10",
+        "4.12.5"
+      ]
+    },
+    {
+      "package": "http-cache-semantics",
+      "source": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "title": "http-cache-semantics max-stale handling can disclose cross-user cached responses",
+      "severity": "high",
+      "vulnerable_range": "<=4.2.0",
+      "baseline_versions": [
+        "4.2.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "cacheable-request transitively in SDK/toolchain",
+      "verification": "locked parent resolution, affected provider/source tests and builds",
+      "locked_now": [
+        "4.3.0"
+      ],
+      "exact_locked_paths": {
+        "4.3.0": [
+          "importer:./dependencies/transloadit",
+          "transloadit@3.0.2",
+          "got@11.8.6",
+          "cacheable-request@7.0.4",
+          "http-cache-semantics@4.3.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.2.0"
+      ]
+    },
+    {
+      "package": "immutable",
+      "source": "https://github.com/advisories/GHSA-v56q-mh7h-f735",
+      "title": "Immutable.js `List` 32-bit trie overflow \u2192 unrecoverable DoS",
+      "severity": "high",
+      "vulnerable_range": ">=5.0.0-beta.1 <5.1.8",
+      "baseline_versions": [
+        "5.1.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Sass dependency, repository stylesheet inputs",
+      "verification": "Next frontend build",
+      "locked_now": [
+        "5.1.8"
+      ],
+      "exact_locked_paths": {
+        "5.1.8": [
+          "importer:./dependencies/sass",
+          "sass@1.97.3",
+          "immutable@5.1.8"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.1.5"
+      ]
+    },
+    {
+      "package": "immutable",
+      "source": "https://github.com/advisories/GHSA-xvcm-6775-5m9r",
+      "title": "Immutable: Hash-collision algorithmic complexity denial of service in Immutable.Map/Set",
+      "severity": "high",
+      "vulnerable_range": ">=5.0.0-beta.1 <5.1.8",
+      "baseline_versions": [
+        "5.1.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Sass dependency, repository stylesheet inputs",
+      "verification": "Next frontend build",
+      "locked_now": [
+        "5.1.8"
+      ],
+      "exact_locked_paths": {
+        "5.1.8": [
+          "importer:./dependencies/sass",
+          "sass@1.97.3",
+          "immutable@5.1.8"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.1.5"
+      ]
+    },
+    {
+      "package": "ip-address",
+      "source": "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "title": "ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+      "severity": "high",
+      "vulnerable_range": "<=10.3.0",
+      "baseline_versions": [
+        "10.1.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "socks/express-rate-limit dependency",
+      "verification": "installed parent resolution, HTTP/SSRF tests and builds",
+      "locked_now": [
+        "10.3.1"
+      ],
+      "exact_locked_paths": {
+        "10.3.1": [
+          "importer:./dependencies/@modelcontextprotocol/sdk",
+          "@modelcontextprotocol/sdk@1.31.0",
+          "express-rate-limit@8.3.0",
+          "ip-address@10.3.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "10.1.0"
+      ]
+    },
+    {
+      "package": "js-cookie",
+      "source": "https://github.com/advisories/GHSA-qjx8-664m-686j",
+      "title": "JavaScript Cookie: Per-instance prototype hijack in assign() enables cookie-attribute injection",
+      "severity": "high",
+      "vulnerable_range": "<=3.0.5",
+      "baseline_versions": [
+        "3.0.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "js-beautify dependency; not the product session cookie reader",
+      "verification": "editor/formatting checks and frontend build",
+      "locked_now": [
+        "3.0.6"
+      ],
+      "exact_locked_paths": {
+        "3.0.6": [
+          "importer:./dependencies/resend",
+          "resend@3.5.0",
+          "@react-email/render@0.0.16",
+          "js-beautify@1.15.4",
+          "js-cookie@3.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.0.5"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+      "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.15.2",
+      "baseline_versions": [
+        "3.14.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.14.2"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+      "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <4.3.2",
+      "baseline_versions": [
+        "4.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.1.1"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-52cp-r559-cp3m",
+      "title": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.15.0",
+      "baseline_versions": [
+        "3.14.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.14.2"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-52cp-r559-cp3m",
+      "title": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <4.3.0",
+      "baseline_versions": [
+        "4.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.1.1"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "title": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) \u2014 CVE-2026-59870 fix not backported",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.15.1",
+      "baseline_versions": [
+        "3.14.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.14.2"
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "source": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "title": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) \u2014 CVE-2026-59870 fix not backported",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <4.3.1",
+      "baseline_versions": [
+        "4.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Nest Swagger and LangChain plus trusted build configuration, separate3.x/4.x lines",
+      "verification": "application/MCP imports and all builds",
+      "locked_now": [
+        "3.15.2",
+        "4.3.2"
+      ],
+      "exact_locked_paths": {
+        "3.15.2": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "gray-matter@4.0.3",
+          "js-yaml@3.15.2"
+        ],
+        "4.3.2": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "js-yaml@4.3.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.1.1"
+      ]
+    },
+    {
+      "package": "langsmith",
+      "source": "https://github.com/advisories/GHSA-3644-q5cj-c5c7",
+      "title": "LangSmith SDK: Public prompt pull deserializes untrusted manifests without trust boundary warning",
+      "severity": "high",
+      "vulnerable_range": "<0.6.0",
+      "baseline_versions": [
+        "0.5.17"
+      ],
+      "fresh_versions": [
+        "0.5.17"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "runtime-inapplicable-prompt-pull",
+      "consumer": "@langchain core/community/classic dependency; no LangSmith public prompt pull, hub.pull or manifest loader caller in apps/libraries. Tracing is not the public prompt-deserialization API cited by the advisory.",
+      "reassessment_trigger": "Reassess adding remote prompt/hub loader;0.6.0 crosses the0.5 minor contract.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "0.5.17"
+      ],
+      "exact_locked_paths": {
+        "0.5.17": [
+          "importer:./dependencies/@langchain/community",
+          "@langchain/community@1.1.27",
+          "langsmith@0.5.17"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "0.5.17"
+      ]
+    },
+    {
+      "package": "linkify-it",
+      "source": "https://github.com/advisories/GHSA-22p9-wv53-3rq4",
+      "title": "LinkifyIt#match scan loop has quadratic algorithmic complexity",
+      "severity": "high",
+      "vulnerable_range": "<=5.0.0",
+      "baseline_versions": [
+        "5.0.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "markdown-it transitively in formatting/tool packages",
+      "verification": "rich-text/editor checks and frontend build",
+      "locked_now": [
+        "5.0.2"
+      ],
+      "exact_locked_paths": {
+        "5.0.2": [
+          "importer:./dependencies/@tiptap/pm",
+          "@tiptap/pm@3.20.1",
+          "prosemirror-markdown@1.13.4",
+          "markdown-it@14.1.1",
+          "linkify-it@5.0.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.0"
+      ]
+    },
+    {
+      "package": "linkify-it",
+      "source": "https://github.com/advisories/GHSA-v245-v573-v5vm",
+      "title": "linkify-it: Quadratic-complexity DoS via the `mailto:` validator scan-loop on attacker text",
+      "severity": "high",
+      "vulnerable_range": "<=5.0.1",
+      "baseline_versions": [
+        "5.0.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "markdown-it transitively in formatting/tool packages",
+      "verification": "rich-text/editor checks and frontend build",
+      "locked_now": [
+        "5.0.2"
+      ],
+      "exact_locked_paths": {
+        "5.0.2": [
+          "importer:./dependencies/@tiptap/pm",
+          "@tiptap/pm@3.20.1",
+          "prosemirror-markdown@1.13.4",
+          "markdown-it@14.1.1",
+          "linkify-it@5.0.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.0.0"
+      ]
+    },
+    {
+      "package": "lodash",
+      "source": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <=4.17.23",
+      "baseline_versions": [
+        "4.17.23"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "product helpers including images.slides.ts; template imports are not exposed by current source",
+      "verification": "ordinary affected product tests and application builds",
+      "locked_now": [
+        "4.18.0"
+      ],
+      "exact_locked_paths": {
+        "4.18.0": [
+          "importer:./dependencies/lodash",
+          "lodash@4.18.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.17.23"
+      ]
+    },
+    {
+      "package": "multer",
+      "source": "https://github.com/advisories/GHSA-535w-7cp7-47q4",
+      "title": "multer vulnerable to Denial of Service via oversized array index in field names",
+      "severity": "high",
+      "vulnerable_range": "<2.3.0",
+      "baseline_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Nest multipart routes and brand-voice.upload.ts; direct1.x and Nest2.x consolidated into2.3",
+      "verification": "actual nested-field/buffer/size error HTTP test + voice/material/upload tests",
+      "locked_now": [
+        "2.3.0"
+      ],
+      "exact_locked_paths": {
+        "2.3.0": [
+          "importer:./dependencies/multer",
+          "multer@2.3.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ]
+    },
+    {
+      "package": "multer",
+      "source": "https://github.com/advisories/GHSA-72gw-mp4g-v24j",
+      "title": "Multer vulnerable to Denial of Service via deeply nested field names",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <2.2.0",
+      "baseline_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Nest multipart routes and brand-voice.upload.ts; direct1.x and Nest2.x consolidated into2.3",
+      "verification": "actual nested-field/buffer/size error HTTP test + voice/material/upload tests",
+      "locked_now": [
+        "2.3.0"
+      ],
+      "exact_locked_paths": {
+        "2.3.0": [
+          "importer:./dependencies/multer",
+          "multer@2.3.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ]
+    },
+    {
+      "package": "multer",
+      "source": "https://github.com/advisories/GHSA-wc9g-mqfw-jrwm",
+      "title": "multer vulnerable to Denial of Service via crafted multipart field names",
+      "severity": "high",
+      "vulnerable_range": "<2.3.0",
+      "baseline_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Nest multipart routes and brand-voice.upload.ts; direct1.x and Nest2.x consolidated into2.3",
+      "verification": "actual nested-field/buffer/size error HTTP test + voice/material/upload tests",
+      "locked_now": [
+        "2.3.0"
+      ],
+      "exact_locked_paths": {
+        "2.3.0": [
+          "importer:./dependencies/multer",
+          "multer@2.3.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.4.5-lts.2",
+        "2.1.1"
+      ]
+    },
+    {
+      "package": "music-metadata",
+      "source": "https://github.com/advisories/GHSA-v6c2-xwv6-8xf7",
+      "title": "music-metadata has an infinite loop vulnerability in ASF parser",
+      "severity": "high",
+      "vulnerable_range": "<=11.12.1",
+      "baseline_versions": [
+        "7.14.0"
+      ],
+      "fresh_versions": [
+        "7.14.0"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "runtime-inapplicable-parser",
+      "consumer": "Only images.slides.ts:getAudioDuration calls parseBuffer(buffer, \"audio/mpeg\") on ElevenLabs MP3 response. Installed7.14.0 ParserFactory resolves MIME to mpeg before content sniff; vulnerable ASF parser cannot be selected at this caller. No parseFile/other parseBuffer consumer.",
+      "reassessment_trigger": "Reassess MIME removal/change or ASF ingestion; upstream advisory names11.12.3, whereas registry range currently stops11.12.1. Do not infer11.12.2 is accepted from range alone.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "7.14.0"
+      ],
+      "exact_locked_paths": {
+        "7.14.0": [
+          "importer:./dependencies/music-metadata",
+          "music-metadata@7.14.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.14.0"
+      ]
+    },
+    {
+      "package": "nanoid",
+      "source": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "severity": "high",
+      "vulnerable_range": "<3.3.16",
+      "baseline_versions": [
+        "3.3.11"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Uppy frontend identifiers and PostCSS compiler, retained3.x/5.x lines",
+      "verification": "frontend upload/editor tests and build",
+      "locked_now": [
+        "3.3.18",
+        "5.1.16"
+      ],
+      "exact_locked_paths": {
+        "3.3.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18",
+          "nanoid@3.3.18"
+        ],
+        "5.1.16": [
+          "importer:./dependencies/@uppy/core",
+          "@uppy/core@4.5.3",
+          "nanoid@5.1.16"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.3.11"
+      ]
+    },
+    {
+      "package": "nanoid",
+      "source": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.1.16",
+      "baseline_versions": [
+        "5.1.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Uppy frontend identifiers and PostCSS compiler, retained3.x/5.x lines",
+      "verification": "frontend upload/editor tests and build",
+      "locked_now": [
+        "3.3.18",
+        "5.1.16"
+      ],
+      "exact_locked_paths": {
+        "3.3.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18",
+          "nanoid@3.3.18"
+        ],
+        "5.1.16": [
+          "importer:./dependencies/@uppy/core",
+          "@uppy/core@4.5.3",
+          "nanoid@5.1.16"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.1.6"
+      ]
+    },
+    {
+      "package": "nanoid",
+      "source": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "severity": "high",
+      "vulnerable_range": "<3.3.18",
+      "baseline_versions": [
+        "3.3.11"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Uppy frontend identifiers and PostCSS compiler, retained3.x/5.x lines",
+      "verification": "frontend upload/editor tests and build",
+      "locked_now": [
+        "3.3.18",
+        "5.1.16"
+      ],
+      "exact_locked_paths": {
+        "3.3.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18",
+          "nanoid@3.3.18"
+        ],
+        "5.1.16": [
+          "importer:./dependencies/@uppy/core",
+          "@uppy/core@4.5.3",
+          "nanoid@5.1.16"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.3.11"
+      ]
+    },
+    {
+      "package": "nanoid",
+      "source": "https://github.com/advisories/GHSA-xwg4-73v4-xw9w",
+      "title": "nanoid: Integer Overflow or Wraparound",
+      "severity": "high",
+      "vulnerable_range": "<3.3.12",
+      "baseline_versions": [
+        "3.3.11"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Uppy frontend identifiers and PostCSS compiler, retained3.x/5.x lines",
+      "verification": "frontend upload/editor tests and build",
+      "locked_now": [
+        "3.3.18",
+        "5.1.16"
+      ],
+      "exact_locked_paths": {
+        "3.3.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18",
+          "nanoid@3.3.18"
+        ],
+        "5.1.16": [
+          "importer:./dependencies/@uppy/core",
+          "@uppy/core@4.5.3",
+          "nanoid@5.1.16"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "3.3.11"
+      ]
+    },
+    {
+      "package": "nanoid",
+      "source": "https://github.com/advisories/GHSA-xwg4-73v4-xw9w",
+      "title": "nanoid: Integer Overflow or Wraparound",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <5.1.11",
+      "baseline_versions": [
+        "5.1.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Uppy frontend identifiers and PostCSS compiler, retained3.x/5.x lines",
+      "verification": "frontend upload/editor tests and build",
+      "locked_now": [
+        "3.3.18",
+        "5.1.16"
+      ],
+      "exact_locked_paths": {
+        "3.3.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18",
+          "nanoid@3.3.18"
+        ],
+        "5.1.16": [
+          "importer:./dependencies/@uppy/core",
+          "@uppy/core@4.5.3",
+          "nanoid@5.1.16"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "5.1.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-6gpp-xcg3-4w24",
+      "title": "Next.js: Middleware / Proxy bypass in App Router applications using Turbopack and single locale",
+      "severity": "high",
+      "vulnerable_range": ">=16.0.0 <16.2.11",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-89xv-2m56-2m9x",
+      "title": "Next.js: Server-Side Request Forgery in Server Actions on custom servers",
+      "severity": "high",
+      "vulnerable_range": ">=16.0.0 <16.2.11",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-cjq9-62q9-8jv4",
+      "title": "Next.js has Server-Side Request Forgery in Image Optimization",
+      "severity": "high",
+      "vulnerable_range": ">=16.0.0 <16.3.8",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-m99w-x7hq-7vfj",
+      "title": "Next.js: Denial of Service in App Router using Server Actions",
+      "severity": "high",
+      "vulnerable_range": ">=16.0.0 <16.2.11",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "next",
+      "source": "https://github.com/advisories/GHSA-p9j2-gv94-2wf4",
+      "title": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname",
+      "severity": "high",
+      "vulnerable_range": ">=16.0.0 <16.2.11",
+      "baseline_versions": [
+        "16.2.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Linux Node22 Bookworm image; next start App Router, static local rewrites; no custom server, next/og or configured remotePatterns",
+      "verification": "Next frontend build and loopback login/image rejection smoke; patched AVIF/libheif path conservatively",
+      "locked_now": [
+        "16.3.8"
+      ],
+      "exact_locked_paths": {
+        "16.3.8": [
+          "importer:./dependencies/next",
+          "next@16.3.8"
+        ]
+      },
+      "platform_exceptions": "Windows-only RCE dismissed for Bookworm/Linux; no next/og ImageResponse; no custom server; no remotePatterns; rewrite/redirect hostnames are not request-controlled. AVIF/libheif and dormant advisories still eliminated by16.3.8 + Sharp0.35.5.",
+      "baseline_shipped_versions": [
+        "16.2.6"
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "source": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
+      "title": "Nodemailer: Quadratic (O(n\u00b2)) time complexity in addressparser allows remote denial of service via a crafted address list",
+      "severity": "high",
+      "vulnerable_range": "<9.1.0",
+      "baseline_versions": [
+        "7.0.13"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "node.mailer.provider.ts uses createTransport(password SMTP) and text/HTML sendMail, no raw/OAuth options",
+      "verification": "actual no-network streamTransport message/envelope + email configuration tests",
+      "locked_now": [
+        "10.0.6"
+      ],
+      "exact_locked_paths": {
+        "10.0.6": [
+          "importer:./dependencies/nodemailer",
+          "nodemailer@10.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.0.13"
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "source": "https://github.com/advisories/GHSA-p6gq-j5cr-w38f",
+      "title": "Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message",
+      "severity": "high",
+      "vulnerable_range": "<=9.0.0",
+      "baseline_versions": [
+        "7.0.13"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "node.mailer.provider.ts uses createTransport(password SMTP) and text/HTML sendMail, no raw/OAuth options",
+      "verification": "actual no-network streamTransport message/envelope + email configuration tests",
+      "locked_now": [
+        "10.0.6"
+      ],
+      "exact_locked_paths": {
+        "10.0.6": [
+          "importer:./dependencies/nodemailer",
+          "nodemailer@10.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.0.13"
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "source": "https://github.com/advisories/GHSA-r7g4-qg5f-qqm2",
+      "title": "Nodemailer: Improper TLS Certificate Validation in OAuth2 Token Fetch Enables Credential Interception",
+      "severity": "high",
+      "vulnerable_range": "<=8.0.7",
+      "baseline_versions": [
+        "7.0.13"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "node.mailer.provider.ts uses createTransport(password SMTP) and text/HTML sendMail, no raw/OAuth options",
+      "verification": "actual no-network streamTransport message/envelope + email configuration tests",
+      "locked_now": [
+        "10.0.6"
+      ],
+      "exact_locked_paths": {
+        "10.0.6": [
+          "importer:./dependencies/nodemailer",
+          "nodemailer@10.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.0.13"
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "source": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+      "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "severity": "high",
+      "vulnerable_range": "<=10.0.5",
+      "baseline_versions": [
+        "7.0.13"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "node.mailer.provider.ts uses createTransport(password SMTP) and text/HTML sendMail, no raw/OAuth options",
+      "verification": "actual no-network streamTransport message/envelope + email configuration tests",
+      "locked_now": [
+        "10.0.6"
+      ],
+      "exact_locked_paths": {
+        "10.0.6": [
+          "importer:./dependencies/nodemailer",
+          "nodemailer@10.0.6"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.0.13"
+      ]
+    },
+    {
+      "package": "path-to-regexp",
+      "source": "https://github.com/advisories/GHSA-j3q9-mxjg-w52f",
+      "title": "path-to-regexp vulnerable to Denial of Service via sequential optional groups",
+      "severity": "high",
+      "vulnerable_range": ">=8.0.0 <8.4.0",
+      "baseline_versions": [
+        "8.3.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Nest controllers and Express router",
+      "verification": "MCP/access HTTP route tests and backend build",
+      "locked_now": [
+        "3.3.0",
+        "8.4.0"
+      ],
+      "exact_locked_paths": {
+        "3.3.0": [
+          "importer:./dependencies/mastra",
+          "mastra@1.3.19",
+          "serve-handler@6.1.7",
+          "path-to-regexp@3.3.0"
+        ],
+        "8.4.0": [
+          "importer:./dependencies/@nestjs/core",
+          "@nestjs/core@11.1.21",
+          "path-to-regexp@8.4.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "8.3.0"
+      ]
+    },
+    {
+      "package": "picomatch",
+      "source": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+      "title": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+      "severity": "high",
+      "vulnerable_range": "<2.3.2",
+      "baseline_versions": [
+        "2.3.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Mastra workspace skill matching (4.x), file toolchain (2.x); scope both patched lines",
+      "verification": "installed resolution + affected agent/editor checks and builds",
+      "locked_now": [
+        "2.3.2",
+        "4.0.4"
+      ],
+      "exact_locked_paths": {
+        "2.3.2": [
+          "importer:./dependencies/tailwindcss",
+          "tailwindcss@3.4.17",
+          "micromatch@4.0.8",
+          "picomatch@2.3.2"
+        ],
+        "4.0.4": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "picomatch@4.0.4"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "2.3.1"
+      ]
+    },
+    {
+      "package": "picomatch",
+      "source": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+      "title": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+      "severity": "high",
+      "vulnerable_range": ">=4.0.0 <4.0.4",
+      "baseline_versions": [
+        "4.0.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "Mastra workspace skill matching (4.x), file toolchain (2.x); scope both patched lines",
+      "verification": "installed resolution + affected agent/editor checks and builds",
+      "locked_now": [
+        "2.3.2",
+        "4.0.4"
+      ],
+      "exact_locked_paths": {
+        "2.3.2": [
+          "importer:./dependencies/tailwindcss",
+          "tailwindcss@3.4.17",
+          "micromatch@4.0.8",
+          "picomatch@2.3.2"
+        ],
+        "4.0.4": [
+          "importer:./dependencies/@mastra/core",
+          "@mastra/core@1.71.0",
+          "picomatch@4.0.4"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.0.3"
+      ]
+    },
+    {
+      "package": "piscina",
+      "source": "https://github.com/advisories/GHSA-x9g3-xrwr-cwfg",
+      "title": "piscina: Prototype Pollution Gadget \u2192 RCE via inherited options.filename",
+      "severity": "high",
+      "vulnerable_range": "<=4.9.2",
+      "baseline_versions": [
+        "4.9.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "@swc/cli worker pool uses repository-owned input; no product worker pool",
+      "verification": "all application builds; patched4.9.4 before acceptance",
+      "locked_now": [
+        "4.9.4"
+      ],
+      "exact_locked_paths": {
+        "4.9.4": [
+          "importer:./devDependencies/@swc/cli",
+          "@swc/cli@0.3.14",
+          "piscina@4.9.4"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "4.9.2"
+      ]
+    },
+    {
+      "package": "postcss",
+      "source": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "severity": "high",
+      "vulnerable_range": "<=8.5.11",
+      "baseline_versions": [
+        "8.4.31",
+        "8.5.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Next/Tailwind/Sass CSS pipeline, including direct dev8.4.38",
+      "verification": "Next build and affected frontend checks",
+      "locked_now": [
+        "8.5.18"
+      ],
+      "exact_locked_paths": {
+        "8.5.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "8.4.31",
+        "8.4.38",
+        "8.5.8"
+      ]
+    },
+    {
+      "package": "postcss",
+      "source": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "severity": "high",
+      "vulnerable_range": "<=8.5.17",
+      "baseline_versions": [
+        "8.4.31",
+        "8.5.8"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Next/Tailwind/Sass CSS pipeline, including direct dev8.4.38",
+      "verification": "Next build and affected frontend checks",
+      "locked_now": [
+        "8.5.18"
+      ],
+      "exact_locked_paths": {
+        "8.5.18": [
+          "importer:./devDependencies/postcss",
+          "postcss@8.5.18"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "8.4.31",
+        "8.4.38",
+        "8.5.8"
+      ]
+    },
+    {
+      "package": "probe-image-size",
+      "source": "https://github.com/advisories/GHSA-gjj5-9665-rwrc",
+      "title": "probe-image-size: Quadratic-time Denial of Service in the SVG Parser",
+      "severity": "high",
+      "vulnerable_range": "<=7.3.0",
+      "baseline_versions": [
+        "7.2.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "@mastra/memory image metadata dependency",
+      "verification": "installed parent resolution + actual media/Sharp checks and builds",
+      "locked_now": [
+        "7.4.0"
+      ],
+      "exact_locked_paths": {
+        "7.4.0": [
+          "importer:./dependencies/@mastra/memory",
+          "@mastra/memory@1.32.1",
+          "probe-image-size@7.4.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.2.3"
+      ]
+    },
+    {
+      "package": "prosemirror-view",
+      "source": "https://github.com/advisories/GHSA-c8x8-7fp4-3x9w",
+      "title": "ProseMirror has a XSS vulnerability in prosemirror-view's paste handling",
+      "severity": "high",
+      "vulnerable_range": "<1.42.3",
+      "baseline_versions": [
+        "1.41.6"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-browser",
+      "consumer": "TipTap HTML editor; user/core/adaptation editing",
+      "verification": "actual TipTap adaptation-rich-text/inline-marks/emoji tests",
+      "locked_now": [
+        "1.42.3"
+      ],
+      "exact_locked_paths": {
+        "1.42.3": [
+          "importer:./dependencies/@tiptap/pm",
+          "@tiptap/pm@3.20.1",
+          "prosemirror-view@1.42.3"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.41.6"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-66ff-xgx4-vchm",
+      "title": "protobuf.js: Code injection through bytes field defaults in generated toObject code",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.5",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-685m-2w69-288q",
+      "title": "protobuf.js: Denial of service through unbounded protobuf recursion",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.5",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-75px-5xx7-5xc7",
+      "title": "protobuf.js: Code generation gadget after prototype pollution",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.5",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-jvwf-75h9-cwgg",
+      "title": "protobuf.js: Process-wide denial of service through unsafe option paths",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.5",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "protobufjs",
+      "source": "https://github.com/advisories/GHSA-wcpc-wj8m-hjx6",
+      "title": "protobufjs: Denial of service through unbounded Any expansion during JSON conversion",
+      "severity": "high",
+      "vulnerable_range": "<=7.6.0",
+      "baseline_versions": [
+        "7.5.4"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "Temporal/gRPC/OTLP serializers; application-defined schemas, no user descriptors",
+      "verification": "actual Temporal encode/decode + actual gRPC unary round trip",
+      "locked_now": [
+        "7.6.1"
+      ],
+      "exact_locked_paths": {
+        "7.6.1": [
+          "importer:./dependencies/@temporalio/worker",
+          "@temporalio/worker@1.15.0",
+          "protobufjs@7.6.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.4"
+      ]
+    },
+    {
+      "package": "rollup",
+      "source": "https://github.com/advisories/GHSA-mw96-cpmx-2vgc",
+      "title": "Rollup 4 has Arbitrary File Write via Path Traversal",
+      "severity": "high",
+      "vulnerable_range": "<2.80.0",
+      "baseline_versions": [
+        "2.79.2"
+      ],
+      "baseline_shipped_versions": [
+        "2.79.2"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Rollup2 compiler/tooling",
+      "verification": "extension Vite build",
+      "locked_now": [
+        "2.80.0",
+        "4.59.0",
+        "4.62.4"
+      ],
+      "exact_locked_paths": {
+        "2.80.0": [
+          "importer:./devDependencies/@crxjs/vite-plugin",
+          "@crxjs/vite-plugin@2.3.0",
+          "rollup@2.80.0"
+        ],
+        "4.59.0": [
+          "importer:./devDependencies/tsup",
+          "tsup@8.5.1",
+          "rollup@4.59.0"
+        ],
+        "4.62.4": [
+          "importer:./dependencies/@sentry/nextjs",
+          "@sentry/nextjs@10.70.0",
+          "rollup@4.62.4"
+        ]
+      }
+    },
+    {
+      "package": "sharp",
+      "source": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
+      "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+      "severity": "high",
+      "vulnerable_range": "<0.35.0",
+      "baseline_versions": [
+        "0.33.5",
+        "0.34.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts, social.abstract.ts, LinkedIn/Bluesky/X providers; uploaded image metadata/resizing",
+      "verification": "actual native PNG/JPEG conversion + LinkedIn real PDF/media checks",
+      "locked_now": [
+        "0.35.5"
+      ],
+      "exact_locked_paths": {
+        "0.35.5": [
+          "importer:./dependencies/sharp",
+          "sharp@0.35.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "0.33.5",
+        "0.34.5"
+      ]
+    },
+    {
+      "package": "sharp",
+      "source": "https://github.com/advisories/GHSA-rgj7-g3m4-5g8c",
+      "title": "sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+      "severity": "high",
+      "vulnerable_range": "<0.35.4",
+      "baseline_versions": [
+        "0.33.5",
+        "0.34.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts, social.abstract.ts, LinkedIn/Bluesky/X providers; uploaded image metadata/resizing",
+      "verification": "actual native PNG/JPEG conversion + LinkedIn real PDF/media checks",
+      "locked_now": [
+        "0.35.5"
+      ],
+      "exact_locked_paths": {
+        "0.35.5": [
+          "importer:./dependencies/sharp",
+          "sharp@0.35.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "0.33.5",
+        "0.34.5"
+      ]
+    },
+    {
+      "package": "sharp",
+      "source": "https://github.com/advisories/GHSA-wq5f-xc86-pv6w",
+      "title": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+      "severity": "high",
+      "vulnerable_range": "<0.35.5",
+      "baseline_versions": [
+        "0.33.5",
+        "0.34.5"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "posts.service.ts, social.abstract.ts, LinkedIn/Bluesky/X providers; uploaded image metadata/resizing",
+      "verification": "actual native PNG/JPEG conversion + LinkedIn real PDF/media checks",
+      "locked_now": [
+        "0.35.5"
+      ],
+      "exact_locked_paths": {
+        "0.35.5": [
+          "importer:./dependencies/sharp",
+          "sharp@0.35.5"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "0.33.5",
+        "0.34.5"
+      ]
+    },
+    {
+      "package": "shell-quote",
+      "source": "https://github.com/advisories/GHSA-395f-4hp3-45gv",
+      "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+      "severity": "high",
+      "vulnerable_range": "<=1.8.4",
+      "baseline_versions": [
+        "1.8.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Mastra CLI / concurrently quoting; no product shell command assembled from object operators",
+      "verification": "actual object/operator and comment-followed-by-newline rejection; ordinary quote/parse",
+      "locked_now": [
+        "1.11.0"
+      ],
+      "exact_locked_paths": {
+        "1.11.0": [
+          "importer:./dependencies/mastra",
+          "mastra@1.3.19",
+          "shell-quote@1.11.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.8.3"
+      ]
+    },
+    {
+      "package": "source-map-js",
+      "source": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+      "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "severity": "high",
+      "vulnerable_range": ">=1.0.0 <1.2.2",
+      "baseline_versions": [
+        "1.2.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "PostCSS/Sass/compiler maps of repository-owned code",
+      "verification": "frontend/backend/commands/orchestrator builds",
+      "locked_now": [
+        "1.2.2"
+      ],
+      "exact_locked_paths": {
+        "1.2.2": [
+          "importer:./dependencies/sass",
+          "sass@1.97.3",
+          "source-map-js@1.2.2"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "1.2.1"
+      ]
+    },
+    {
+      "package": "svgo",
+      "source": "https://github.com/advisories/GHSA-2p49-hgcm-8545",
+      "title": "SVGO removeScripts plugin leaves some executable scripts intact",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.3.4",
+      "baseline_versions": [
+        "3.3.3"
+      ],
+      "baseline_shipped_versions": [
+        "3.3.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "SVGR/webpack repository SVG",
+      "verification": "frontend build",
+      "locked_now": [
+        "3.3.5"
+      ],
+      "exact_locked_paths": {
+        "3.3.5": [
+          "importer:./devDependencies/@svgr/webpack",
+          "@svgr/webpack@8.1.0",
+          "@svgr/plugin-svgo@8.1.0",
+          "svgo@3.3.5"
+        ]
+      }
+    },
+    {
+      "package": "svgo",
+      "source": "https://github.com/advisories/GHSA-w27v-7q3p-w38r",
+      "title": "SVGO: removeScripts allows executable links through namespace and control-character bypasses",
+      "severity": "high",
+      "vulnerable_range": ">=3.0.0 <3.3.5",
+      "baseline_versions": [
+        "3.3.3"
+      ],
+      "baseline_shipped_versions": [
+        "3.3.3"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "SVGR/webpack repository SVG",
+      "verification": "frontend build",
+      "locked_now": [
+        "3.3.5"
+      ],
+      "exact_locked_paths": {
+        "3.3.5": [
+          "importer:./devDependencies/@svgr/webpack",
+          "@svgr/webpack@8.1.0",
+          "@svgr/plugin-svgo@8.1.0",
+          "svgo@3.3.5"
+        ]
+      }
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+      "severity": "high",
+      "vulnerable_range": "<7.5.7",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+      "severity": "high",
+      "vulnerable_range": "<7.5.8",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.2",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.17",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.10",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.9",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "title": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.20",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "tar",
+      "source": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+      "severity": "high",
+      "vulnerable_range": "<=7.5.3",
+      "baseline_versions": [
+        "6.2.1"
+      ],
+      "fresh_versions": [
+        "6.2.1"
+      ],
+      "scopes": [
+        "baseline-production",
+        "fresh-all-shipped",
+        "baseline-all-shipped"
+      ],
+      "disposition": "not-applicable-to-inspected-current-consumer",
+      "consumer_class": "native-install-only",
+      "consumer": "Only @mapbox/node-pre-gyp1.0.11 (bcrypt/canvas) installs vendor native archives; no product tar import/extract/update route. Installer paths/options originate in locked package metadata. Runtime starts three native apps and nginx, not installer. Windows drive-relative and macOS APFS cases additionally do not match Linux runtime.",
+      "reassessment_trigger": "Reassess any customer-controlled archive extraction or untrusted binary_host/local tar override.7.5.21 is outside declared6.x parent range; do not force major solely to erase a counter.",
+      "verification": "source/config search, exact parent path and installed consumer inspection; range remains visible",
+      "locked_now": [
+        "6.2.1"
+      ],
+      "exact_locked_paths": {
+        "6.2.1": [
+          "importer:./dependencies/bcrypt",
+          "bcrypt@5.1.1",
+          "@mapbox/node-pre-gyp@1.0.11",
+          "tar@6.2.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "6.2.1"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-4cwx-7wf7-3272",
+      "title": "undici vulnerable to cross-user information disclosure and parse-time crash via degenerate private cache directives",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.29.0",
+      "baseline_versions": [
+        "7.22.0",
+        "7.25.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0",
+        "7.25.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-f269-vfmq-vjvj",
+      "title": "Undici: Malicious WebSocket 64-bit length overflows parser and crashes the client",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.24.0",
+      "baseline_versions": [
+        "7.22.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-hm92-r4w5-c3mj",
+      "title": "undici vulnerable to cross-origin request routing via SOCKS5 proxy pool reuse",
+      "severity": "high",
+      "vulnerable_range": ">=7.23.0 <7.28.0",
+      "baseline_versions": [
+        "7.25.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.25.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5",
+      "title": "undici vulnerable to Denial of Service via unrequested WebSocket subprotocol",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.29.1",
+      "baseline_versions": [
+        "7.22.0",
+        "7.25.0",
+        "7.29.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0",
+        "7.25.0",
+        "7.29.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-v9p9-hfj2-hcw8",
+      "title": "Undici has Unhandled Exception in WebSocket Client Due to Invalid server_max_window_bits Validation",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.24.0",
+      "baseline_versions": [
+        "7.22.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-vmh5-mc38-953g",
+      "title": "undici vulnerable to TLS certificate validation bypass via dropped requestTls in SOCKS5 ProxyAgent",
+      "severity": "high",
+      "vulnerable_range": ">=7.23.0 <7.28.0",
+      "baseline_versions": [
+        "7.25.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.25.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-vrm6-8vpv-qv8q",
+      "title": "Undici has Unbounded Memory Consumption in WebSocket permessage-deflate Decompression",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.24.0",
+      "baseline_versions": [
+        "7.22.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-vxpw-j846-p89q",
+      "title": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.28.0",
+      "baseline_versions": [
+        "7.22.0",
+        "7.25.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.22.0",
+        "7.25.0"
+      ]
+    },
+    {
+      "package": "undici",
+      "source": "https://github.com/advisories/GHSA-w293-vg96-wgc3",
+      "title": "undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool",
+      "severity": "high",
+      "vulnerable_range": ">=7.24.1 <7.29.1",
+      "baseline_versions": [
+        "7.25.0",
+        "7.29.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime",
+      "consumer": "explicit SSRF-safe dispatcher; SDK/cheerio/jsdom7.x copies",
+      "verification": "source-fetch gateway loopback/TLS tests, SSRF/webhook tests and MCP E2E",
+      "locked_now": [
+        "7.29.1"
+      ],
+      "exact_locked_paths": {
+        "7.29.1": [
+          "importer:./dependencies/undici",
+          "undici@7.29.1"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.25.0",
+        "7.29.0"
+      ]
+    },
+    {
+      "package": "vite",
+      "source": "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+      "title": "vite: `server.fs.deny` bypass on Windows alternate paths",
+      "severity": "high",
+      "vulnerable_range": "<=6.4.2",
+      "baseline_versions": [
+        "6.4.1"
+      ],
+      "baseline_shipped_versions": [
+        "6.4.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build/dev",
+      "consumer": "Extension Vite build, no production dev server",
+      "verification": "extension Vite6.4.3 build",
+      "locked_now": [
+        "6.4.3"
+      ],
+      "exact_locked_paths": {
+        "6.4.3": [
+          "importer:./devDependencies/vite",
+          "vite@6.4.3"
+        ]
+      }
+    },
+    {
+      "package": "vite",
+      "source": "https://github.com/advisories/GHSA-p9ff-h696-f583",
+      "title": "Vite Vulnerable to Arbitrary File Read via Vite Dev Server WebSocket",
+      "severity": "high",
+      "vulnerable_range": ">=6.0.0 <=6.4.1",
+      "baseline_versions": [
+        "6.4.1"
+      ],
+      "baseline_shipped_versions": [
+        "6.4.1"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build/dev",
+      "consumer": "Extension Vite build, no production dev server",
+      "verification": "extension Vite6.4.3 build",
+      "locked_now": [
+        "6.4.3"
+      ],
+      "exact_locked_paths": {
+        "6.4.3": [
+          "importer:./devDependencies/vite",
+          "vite@6.4.3"
+        ]
+      }
+    },
+    {
+      "package": "ws",
+      "source": "https://github.com/advisories/GHSA-96hv-2xvq-fx4p",
+      "title": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
+      "severity": "high",
+      "vulnerable_range": ">=7.0.0 <7.5.11",
+      "baseline_versions": [
+        "7.5.10"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "SDK/WebSocket transport;8.x and jayson7.x; peer-only isomorphic-ws keeps broad contract",
+      "verification": "MCP SDK product E2E and installed imports/builds",
+      "locked_now": [
+        "7.5.11",
+        "8.21.0"
+      ],
+      "exact_locked_paths": {
+        "7.5.11": [
+          "importer:./dependencies/@neynar/react",
+          "@neynar/react@1.2.22",
+          "@farcaster/miniapp-sdk@0.2.3",
+          "@farcaster/miniapp-core@0.5.1",
+          "@solana/web3.js@1.98.4",
+          "jayson@4.3.0",
+          "ws@7.5.11"
+        ],
+        "8.21.0": [
+          "importer:./dependencies/ws",
+          "ws@8.21.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "7.5.10"
+      ]
+    },
+    {
+      "package": "ws",
+      "source": "https://github.com/advisories/GHSA-96hv-2xvq-fx4p",
+      "title": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
+      "severity": "high",
+      "vulnerable_range": ">=8.0.0 <8.21.0",
+      "baseline_versions": [
+        "8.18.3",
+        "8.19.0"
+      ],
+      "fresh_versions": [],
+      "scopes": [
+        "baseline-production",
+        "baseline-all-shipped"
+      ],
+      "disposition": "patched",
+      "consumer_class": "runtime-conditional",
+      "consumer": "SDK/WebSocket transport;8.x and jayson7.x; peer-only isomorphic-ws keeps broad contract",
+      "verification": "MCP SDK product E2E and installed imports/builds",
+      "locked_now": [
+        "7.5.11",
+        "8.21.0"
+      ],
+      "exact_locked_paths": {
+        "7.5.11": [
+          "importer:./dependencies/@neynar/react",
+          "@neynar/react@1.2.22",
+          "@farcaster/miniapp-sdk@0.2.3",
+          "@farcaster/miniapp-core@0.5.1",
+          "@solana/web3.js@1.98.4",
+          "jayson@4.3.0",
+          "ws@7.5.11"
+        ],
+        "8.21.0": [
+          "importer:./dependencies/ws",
+          "ws@8.21.0"
+        ]
+      },
+      "baseline_shipped_versions": [
+        "8.18.3",
+        "8.19.0"
+      ]
+    },
+    {
+      "package": "shell-quote",
+      "source": "https://github.com/advisories/GHSA-pqg4-j6r4-53mv",
+      "title": "Comment followed by a line terminator can inject a command",
+      "severity": "critical",
+      "vulnerable_range": ">=1.8.4 <1.11.0",
+      "baseline_versions": [],
+      "intermediate_selected_version": "1.9.0",
+      "fresh_versions": [],
+      "scopes": [
+        "intermediate-selection"
+      ],
+      "disposition": "patched",
+      "consumer_class": "shipped-build",
+      "consumer": "Mastra CLI/concurrently, no product shell operator path",
+      "verification": "actual operator/newline and comment/newline rejection; all builds",
+      "locked_now": [
+        "1.11.0"
+      ],
+      "exact_locked_paths": {
+        "1.11.0": [
+          "importer:./dependencies/mastra",
+          "mastra@1.3.19",
+          "shell-quote@1.11.0"
+        ]
+      }
+    }
+  ],
+  "initial_shipped_counts": {
+    "low": 24,
+    "high": 143,
+    "moderate": 165,
+    "critical": 16
+  }
+}

@@ -51,42 +51,18 @@ export class DribbbleProvider extends SocialAbstract implements SocialProvider {
     return 'Invalid image size. Requires 400x300 or 800x600 px images.';
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthTokenDetails> {
-    const { access_token, expires_in } = await (
-      await this.fetch('https://api-sandbox.pinterest.com/v5/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(
-            `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`
-          ).toString('base64')}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-          scope: `${this.scopes.join(',')}`,
-          redirect_uri: `${process.env.FRONTEND_URL}/integrations/social/pinterest`,
-        }),
-      })
-    ).json();
-
-    const { id, profile_image, username } = await (
-      await this.fetch('https://api-sandbox.pinterest.com/v5/user_account', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
-      })
-    ).json();
-
+  async refreshToken(_refreshToken: string): Promise<AuthTokenDetails> {
+    // Dribbble's documented OAuth flow has no refresh grant. Reconnect through
+    // its existing authorization flow; never send this credential elsewhere.
     return {
-      id: id,
-      name: username,
-      accessToken: access_token,
-      refreshToken: refreshToken,
-      expiresIn: expires_in,
-      picture: profile_image || '',
-      username,
+      error: 'DRIBBBLE_RECONNECT_REQUIRED',
+      id: '',
+      name: '',
+      accessToken: '',
+      refreshToken: '',
+      expiresIn: 0,
+      picture: '',
+      username: '',
     };
   }
 

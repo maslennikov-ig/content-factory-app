@@ -112,7 +112,9 @@ export class UsersController {
       publicApi: isOrganizationAdmin(
         // @ts-ignore
         organization?.users[0]?.role
-      )
+      ) &&
+      // @ts-ignore
+      !organization?.users[0]?.disabled
         ? organization?.apiKey
         : '',
     };
@@ -534,9 +536,24 @@ export class UsersController {
 
   @Get('/organizations')
   async getOrgs(@GetUserFromRequest() user: User) {
-    return (await this._orgService.getOrgsByUserId(user.id)).filter(
-      (f) => !f.users[0].disabled
-    );
+    // Internal rows also carry the organization's credential. The switcher
+    // receives only this projection, even for admins; `/self` is the explicit
+    // role-checked credential surface. New scalars cannot leak by default.
+    return (await this._orgService.getOrgsByUserId(user.id))
+      .filter((org) => org.users[0] && !org.users[0].disabled)
+      .map((org) => ({
+        id: org.id,
+        name: org.name,
+        description: org.description,
+        createdAt: org.createdAt,
+        updatedAt: org.updatedAt,
+        streakSince: org.streakSince,
+        allowTrial: org.allowTrial,
+        isTrailing: org.isTrailing,
+        shortlink: org.shortlink,
+        users: org.users.map(({ role, disabled }) => ({ role, disabled })),
+        subscription: org.subscription,
+      }));
   }
 
   /**

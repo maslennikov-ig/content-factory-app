@@ -1,6 +1,7 @@
 # Content Factory Project Index
 ## Current Programme
 - Beads owns current scope/status; `.codex/handoff.md` owns the operational snapshot.
+- Audit epic: `content-factory-next-dbxe`; [audit](stages/content-factory-next-audit-20261009/audit-report.md), [access outcome](stages/content-factory-next-dbxe-access-stage/outcome.md), [access review](stages/content-factory-next-dbxe-access-stage/review/review.md), [dependency decisions](../docs/operations/dependency-security-remediation.md), [dependency stage](stages/content-factory-next-dbxe-dependencies-stage/summary.md), [dependency review](stages/content-factory-next-dbxe-dependencies-stage/review/review.md). [publication recovery](../docs/operations/publication-recovery-v106.md), [publishing stage](stages/content-factory-next-dbxe-publishing-stage/outcome.md), [publishing review](stages/content-factory-next-dbxe-publishing-stage/review/review.md), [worker readiness](../docs/operations/worker-readiness.md), [readiness stage](stages/content-factory-next-dbxe-readiness-stage/outcome.md). [manual-edit correction](stages/content-factory-next-dbxe-manual-edits-stage/outcome.md). [extension access](stages/content-factory-next-dbxe-extension-auth-stage/outcome.md). [extension package/runtime](stages/content-factory-next-dbxe-extension-runtime-stage/outcome.md). Original `0qgn` requirements/defers preserved; runtime delivery and full release acceptance separate; statuses in Beads.
 - Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it. Completion-pass design: `stages/content-factory-next-0qgn-completion-20261008/plan.md`.
 - Reader quality/overengineering evidence: [bounded audit](stages/content-factory-next-0qgn-reader-semantic-control-20261008/overengineering-audit.md); current priorities and follow-ups remain in Beads.
 - Product simplification evidence: [voice/core/editorial audit](stages/content-factory-next-0qgn-product-simplification-20261008/audit.md); source comparison beside it, implementation follow-ups in Beads.
@@ -8,7 +9,7 @@
 - Agent/MCP: `content-factory-next-kcxz`, `docs/product/agent-harness-spec.md`, ADR-0012; evidence and releases under `.codex/stages/content-factory-next-kcxz/`.
 - First-client onboarding/acceptance: `content-factory-next-2q28`, `.codex/stages/content-factory-next-2q28/`; preserve the existing client-page response field names.
 - Content/voice/search contracts: `docs/product/content-section-map.md`, `brand-voice-from-samples-spec.md`, `docs/product/avatar-grounded-style-contract.md`; search scopes `ec48`, `75xn`, `m0iy`. Reader completion: `web.research.service.ts`/`tests/web.research.summary-language.test.cjs`; V2 TONE quotation and TONE/TOPICS599–600 prose policy, including grounded closed quotes: `brand-voice/proposal-quotation-guard.ts`, outside paid retry/history reads.
-- Operations/SaaS navigation: `docs/operations/postgres-backup.md`, `production-deploy.md`, `saas-readiness.md`; current gates remain in Beads, not this index.
+- Operations/SaaS navigation: `docs/operations/postgres-backup.md`, `production-deploy.md`, `saas-readiness.md`; [automation disablement](../docs/operations/automation-disablement.md), [dbxe.15 outcome](stages/content-factory-next-dbxe-automation-disablement-stage/outcome.md); [V107/V108 deadlines/migration](../docs/operations/automation-deadlines.md), [dbxe.16 outcome](stages/content-factory-next-dbxe-automation-deadlines-stage/outcome.md); [webhook V108](../docs/operations/publication-webhooks-v108.md), [dbxe.17 outcome](stages/content-factory-next-dbxe-webhook-identity-stage/outcome.md); [Nostr event acknowledgement](../docs/operations/nostr-publication.md), [dbxe.18 outcome](stages/content-factory-next-dbxe-nostr-identity-stage/outcome.md); [independent token refresh](../docs/operations/token-refresh.md), [dbxe.19 outcome](stages/content-factory-next-dbxe-token-refresh-stage/outcome.md); [media/session ownership](../docs/operations/media-ownership.md), [dbxe.21 outcome](stages/content-factory-next-dbxe-media-ownership-stage/outcome.md); [periodic history rotation](../docs/operations/periodic-workflow-history.md), [dbxe.20 outcome](stages/content-factory-next-dbxe-periodic-history-stage/outcome.md); current gates remain in Beads, not this index.
 - Historical programme `vme` was retired 31.08.2026. `cft` completed the public-tree move the same day; accepted `vme.1/.2/.3`, `9e9`, `0c8` and `or3` retain their stage receipts.
 ## Documentation
 - `docs/README.md` — главный индекс документации и рекомендуемый вход в проект.
@@ -70,7 +71,7 @@
   visitor id.
 - `libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts` и Prisma
   `organizations/organization.repository.ts` — совместимые `workspaceName`/`company`,
-  ADMIN создателя и стартовые метки по умолчанию. Выбор `starterTemplate` снят
+  ADMIN создателя и стартовые метки по умолчанию. Access compatibility: `docs/operations/access-token-migration.md`. Выбор `starterTemplate` снят
   решением `pdbe`; `scripts/evidence/run-public-funnel-database-proof.cjs` проверяет
   LOCAL/OAuth и изоляцию двух организаций на временных PostgreSQL и Redis. Public-event burst pins only caller-tracker time; the existing native wrapper forces a minute transition with real HMAC/storage/global Date.
 - `admin.controller.ts` и Prisma `public-growth/` — super-admin totals/ratios;
@@ -127,7 +128,7 @@
 
 ## Verification
 
-- Editorial delivery proof: `.codex/stages/content-factory-next-0qgn-editorial-delivery-20261008/root-release-acceptance.json`; current host version lives in handoff/runbook, statuses in Beads.
+- Current completion proof: `.codex/stages/content-factory-next-0qgn-completion-20261008/root-acceptance.json`; prior editorial proof remains in its stage. Host/version in handoff/runbook; status truth in Beads.
 - Runtime selection: `nvm use` then `node --version` and `pnpm --version`.
 - Dependency baseline: `pnpm install --frozen-lockfile`.
 - Build: `pnpm run build`; tests: `pnpm test`; repository checks: `git diff --check` and `scripts/orchestration/run_process_verification.sh`.
