@@ -1,0 +1,51 @@
+FAIL tests/orchestrator-compiled-workflow-bundle.test.cjs (21.125 s)
+  ✕ the actual orchestrator build resolves and initializes its compiled workflow interceptors offline (21041 ms)
+
+  ● the actual orchestrator build resolves and initializes its compiled workflow interceptors offline
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  2
+    + Received  + 20
+
+      Object {
+        "error": undefined,
+    -   "status": 0,
+    -   "stderr": "",
+    +   "status": 1,
+    +   "stderr": "Error: Cannot find module './mail-log-privacy.workflow'
+    + Require stack:
+    + - /tmp/cf-orchestrator-compiled-JENL2m/dist/libraries/nestjs-libraries/src/temporal/temporal.module.js
+    +     at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+    +     at Function.resolve (node:internal/modules/helpers:157:19)
+    +     at main (/home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/tests/helpers/orchestrator-compiled-workflow-proof.cjs:60:46)
+    +     at /home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/tests/helpers/orchestrator-compiled-workflow-proof.cjs:103:24
+    +     at Object.<anonymous> (/home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/tests/helpers/orchestrator-compiled-workflow-proof.cjs:109:3)
+    +     at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    +     at Object..js (node:internal/modules/cjs/loader:1913:10)
+    +     at Module.load (node:internal/modules/cjs/loader:1505:32)
+    +     at Function._load (node:internal/modules/cjs/loader:1309:12)
+    +     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19) {
+    +   code: 'MODULE_NOT_FOUND',
+    +   requireStack: [
+    +     '/tmp/cf-orchestrator-compiled-JENL2m/dist/libraries/nestjs-libraries/src/temporal/temporal.module.js'
+    +   ]
+    + }
+    + ",
+      }
+
+      10 |     encoding: 'utf8', timeout: 240000, maxBuffer: 16 * 1024 * 1024,
+      11 |   });
+    > 12 |   expect({ status: proof.status, error: proof.error && proof.error.message, stderr: proof.stderr }).toEqual({ status: 0, error: undefined, stderr: '' });
+         |                                                                                                     ^
+      13 |   const result = JSON.parse(proof.stdout.trim().split('\n').at(-1));
+      14 |   expect(result.initialized).toEqual(['sendEmailWorkflow', 'sendEmailWorkflowV2', 'sendEmailWorkflowV3', 'digestEmailWorkflow']);
+      15 |   expect(result.network).toEqual({ socketConnect: 0, dnsLookup: 0 });
+
+      at Object.<anonymous> (tests/orchestrator-compiled-workflow-bundle.test.cjs:12:101)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        21.153 s
+Ran all test suites matching /tests\/orchestrator-compiled-workflow-bundle.test.cjs/i.

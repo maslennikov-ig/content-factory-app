@@ -24,3 +24,16 @@ added84 entries across14 languages, the synchronous mail test now uses Jest,
 and the SDK retains its separate build/typecheck contract. Root4 suites24 tests
 and toolset3 suites69 tests pass. The full9-command release rerun is pending;
 the failed attempt produced no suite receipt and never reached Node/Python halves.
+
+Corrected e1eb passed all9 gates (659 Jest suites/12163 checks,123 Node,50 Python).
+Private/public38c and image were published and byte-verified; actual startup
+rejected38c because the dynamically resolved workflow interceptor was absent
+from emitted Nest output. Orchestrator40 restarts; readiness correctly refused.
+Root executed rollback2a, confirmed healthy0restarts/schema diff0 and identical
+active mail V3/digest runs. Task37 reopened; bounded compiler repair and actual
+compiled-artifact regression delegated. No image/runtime acceptance claimed.
+
+Compiler repair2b055b79 accepted/integrated c886a3809: preserve45 inputs and add
+only workflow interceptor; actual compiled regression/normal Nest build and SDK
+bundle/VM PASS,0network. Clean child retained until corrected runtime acceptance.
+No workflow/interceptor/logger body changed. Corrected full9 release remains pending.

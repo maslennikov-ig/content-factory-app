@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "node": "v22.23.2",
+  "cases": [
+    {
+      "name": "help",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "strict-invalid",
+      "exitCode": 1,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "strict-valid",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    }
+  ],
+  "providerCalls": 0,
+  "connectionStubs": false,
+  "boundary": "Actual candidate native CLI artifact, delegated-original observer, network none, synthetic configuration only",
+  "image": "content-factory-next:38c04e788cf5",
+  "capturedAt": "2026-10-11T18:36:56.657664+00:00",
+  "observerCorrection": {
+    "firstFalsePositive": "/app/node_modules/nestjs-command/dist/command.module.js",
+    "actualProjectModule": "/app/apps/commands/dist/apps/commands/src/command.module.js",
+    "projectModuleAndDbRedisTemporalImportsChecked": true,
+    "directHelpExit0": true,
+    "connectionStubs": false
+  }
+}

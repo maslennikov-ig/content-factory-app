@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-10-11T18:26:57.404222+00:00",
+  "firstAttemptStoppedBeforeAnyPush": true,
+  "staleExpectedPrivateRemote": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "verifiedPrivateRemote": "5cc169032a452b245f6e0423ceaf38cea719f169",
+  "candidate": "e1eb630f384e0e6a6bfd7866479bd108b4c769f1",
+  "candidateAhead": 10,
+  "candidateBehind": 0,
+  "privateBranchAbsent": true,
+  "publicRemoteUnchanged": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "reason": "Serving image source was mistakenly used as private remote baseline; four already-pushed authorized mail-log/local-command source and evidence commits are included in candidate ancestry."
+}

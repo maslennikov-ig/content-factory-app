@@ -223,6 +223,11 @@
       "task_id": "content-factory-next-dbxe.26",
       "stream_owner": "dbxe_toolset_completion",
       "artifact_path": ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.26.md"
+    },
+    {
+      "artifact_path": ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.37.md",
+      "task_id": "content-factory-next-dbxe.37",
+      "stream_owner": "dbxe_toolset_completion"
     }
   ],
   "selected_product_tasks": [
@@ -238,7 +243,8 @@
     "content-factory-next-dbxe.30",
     "content-factory-next-dbxe.31",
     "content-factory-next-dbxe.32",
-    "content-factory-next-dbxe.36"
+    "content-factory-next-dbxe.36",
+    "content-factory-next-dbxe.37"
   ],
   "scope_note": "Owner selects whole epic completion; preserve exact original30 and seven retained follow-ups. Store publisher facts remain unresolved and are not silently deferred.",
   "branch": "codex/dbxe-completion-20261011",

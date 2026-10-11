@@ -1,0 +1,3 @@
+
+> content-factory-orchestrator@1.0.0 build /home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/apps/orchestrator
+> cross-env NODE_ENV=production nest build

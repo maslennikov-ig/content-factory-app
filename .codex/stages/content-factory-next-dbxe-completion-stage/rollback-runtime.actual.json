@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T18:50:17.183123+00:00",
+  "image": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:2a53727594a1",
+    "imageId": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+    "health": "healthy",
+    "restarts": 0
+  },
+  "publicVersion": {
+    "commit": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+    "shortCommit": "2a53727594a1",
+    "builtAt": "2026-10-11T13:16:13Z"
+  },
+  "rejectedCandidate": "38c04e788cf5",
+  "reason": "Missing emitted workflow-only interceptor",
+  "rollbackExecuted": true,
+  "candidateAccepted": false,
+  "nativeRoles": [
+    {
+      "name": "backend",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "restarts": 0
+    }
+  ],
+  "nativeRolesCapturedAt": "2026-10-11T18:59:00.756482+00:00",
+  "foreignInventoryDelta": {
+    "project": "aidevteam-app",
+    "createdAt": "2026-10-11T18:46:39.843383579Z",
+    "replacementOccurredDuringCandidateValidation": true,
+    "currentImage": "aidevteam-aidevteam-app",
+    "rootContentFactoryActionsTargetedOtherProjects": false,
+    "remaining20ContainersUnchanged": true,
+    "all21PreservedCannotBeClaimedFromStaleBaseline": true,
+    "actorAttribution": "unknown; no Content Factory operation targeted this container",
+    "nextDeploymentBaseline": "Refresh all current container identities before corrected switch"
+  }
+}

@@ -1,0 +1,8 @@
+PASS tests/orchestrator-compiled-workflow-bundle.test.cjs (21.476 s)
+  ✓ the actual orchestrator build resolves and initializes its compiled workflow interceptors offline (21400 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        21.505 s
+Ran all test suites matching /tests\/orchestrator-compiled-workflow-bundle.test.cjs/i.

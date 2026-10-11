@@ -1,0 +1,19 @@
+{
+  "status": "FAIL",
+  "capturedAt": "2026-10-11T18:52:08.273106+00:00",
+  "privateSource": "e1eb630f384e0e6a6bfd7866479bd108b4c769f1",
+  "publicImage": "38c04e788cf5a715a0580ef7aa6aceed139175cd",
+  "registryIndex": "sha256:ddd959ee246c3fefcf813a00175e19219fbdbe1927e252aece59508430467e1d",
+  "phase": "actual orchestrator startup",
+  "orchestratorRestartsObserved": 40,
+  "containerRestarts": 0,
+  "nativeHealthAccepted": false,
+  "errorCode": "MODULE_NOT_FOUND",
+  "missingCompiledModule": "./mail-log-privacy.workflow",
+  "rollbackTarget": "2a53727594a1",
+  "rollbackHealthy": true,
+  "fullLocalNineGatesPassed": true,
+  "sourceNativeProofGap": "Workflow-only dynamic require not part of TypeScript emitted dependency graph",
+  "businessOrWorkflowContractChanged": false,
+  "correctiveTask": "content-factory-next-dbxe.37"
+}

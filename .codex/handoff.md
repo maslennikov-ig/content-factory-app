@@ -4,19 +4,22 @@
 
 Current stage id: content-factory-next-dbxe-completion-stage
 Owner11Oct authorizes whole epic and necessary technical delivery. Three isolated
-streams accepted/integrated with narrow storage-failure fix; root owns release29.
+streams accepted/integrated; root owns release29 and the bounded compiled-mail repair37.
 Plan/manifest and central stream artifacts: stages/content-factory-next-dbxe-completion-stage/.
 Tasks30/31 CLOSED from actual production proof:7 old keys401/new keys200, no external
 consumers; empty V2 migrated to V3 with stable ID,11.21sec admission pause, no mail replay.
-Serving public2a53727594a1/private92f784757329 still34; new app source not deployed.
+Serving public2a53727594a1/private92f784757329 restored healthy after rejecting38c04e788cf5.
+Accepted source e1eb630f passed all9 gates:12163 Jest/123 Node/50 Python (70/4 skips).
+Actual38c startup missed emitted mail-log-privacy.workflow; native orchestrator restarted.
+37 IN_PROGRESS until runtime; compiler inclusion c886a3809+actual compiled regression accepted.
+Rollback retained schema and V3/digest runs; no SQL/mail/provider calls. All3 native roles
+online/0restarts. AidevTeam container changed concurrently; stale21-ID baseline is not proof
+of all21 unchanged. Refresh current baseline before corrected delivery; our commands scoped CF.
 Global34/8 resolved49/51;2 disabled-caller exceptions retained. OS33/35 retain116 records
-and allocator reevaluation triggers. Local25/24/37 and new child changes await29 delivery.
-Prior full92f release:647 Jest suites/11946 tests (6/62 skips),123 Node (4 skips),50 Python;
-no new full-suite or public CI acceptance yet. Rollback755d/current2a verified V3 compatible.
-Original30 criteria+seven follow-ups preserved; dbxe IN_PROGRESS. Store32 publisher facts
-pending, not an implicit defer. Unrelated original0qgn/client/SaaS/research epics stay open.
-Historical accepted stages and all exact local proof remain under stages/; published34
-native health/1792MiB/data/Mastra45/21 foreign containers are rechecked before switch.
+and allocator triggers. Local25/24/37 and accepted streams await corrected29 runtime delivery.
+Original30 criteria+seven follow-ups preserved; dbxe IN_PROGRESS. Store32 BLOCKED on publisher
+facts, no implicit defer. Unrelated original0qgn/client/SaaS/research epics stay open.
+Historical stage/source/runtime receipts remain; failed38c is not accepted deployment.
 Accepted stage id: content-factory-next-dbxe-readiness-stage
 
 ## Previous accepted publishing stage

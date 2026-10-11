@@ -1,0 +1,83 @@
+{
+  "schema": "dbxe-mail-runtime-repair/v1",
+  "baseline": "e1eb630f384e0e6a6bfd7866479bd108b4c769f1",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "inputChange": {
+    "beforeCount": 45,
+    "afterCount": 46,
+    "added": [
+      "libraries/nestjs-libraries/src/temporal/mail-log-privacy.workflow.ts"
+    ],
+    "removed": [],
+    "baselineConfigSha256": "c17079432d8bc37b0004a0c31e9997040622c8754fa4bc5a358851bb2eb4958b"
+  },
+  "runtimeSourcesUnchanged": [
+    "apps/orchestrator/src",
+    "libraries/nestjs-libraries/src/temporal"
+  ],
+  "sourceSha256": {
+    "apps/orchestrator/tsconfig.build.json": "bd16a9d729d961809a5e800f354ad5ed1fb838dd0c8ef2599435340ebfb1f3d1",
+    "tests/orchestrator-compiled-workflow-bundle.test.cjs": "22b981a8929f852fb3885cce4bcd40dc49b8df0a6eb6b48b1475092e0ca569ac",
+    "tests/helpers/orchestrator-compiled-workflow-proof.cjs": "47787f953bd2c3ec1f97ccc84f40c44fa0e5786ec950dd2b6597edbd9cd9d2ec"
+  },
+  "compiledSha256": {
+    "apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/temporal.module.js": "00316d042db319cde5ff06dd952628991694cded71b395df82a615997c41a8b6",
+    "apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/mail-log-privacy.workflow.js": "f14c8a086f6f0ccaa0fd0723a4cd4c03ea1476a524ab211f42eb7783c3806130",
+    "apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/mail-log-scope.js": "c23376cd63585342220c5c820f49a4bc731b17a90331728ee9ed59c9c48f3bdd",
+    "apps/orchestrator/dist/apps/orchestrator/src/workflows/index.js": "8f8a7377d22f79f5331acfb244cf49fc39dbc756fb40aea7afa2a99ab5c6ef13"
+  },
+  "verification": [
+    {
+      "command": "pnpm exec jest tests/orchestrator-compiled-workflow-bundle.test.cjs --runInBand --coverage=false",
+      "baselineResult": "FAIL: MODULE_NOT_FOUND from compiled temporal.module.js after real Nest build",
+      "candidateResult": "PASS 1/1",
+      "redLog": "regression.red.log",
+      "greenLog": "regression.green.log"
+    },
+    {
+      "command": "pnpm --filter ./apps/orchestrator run build",
+      "exitCode": 0,
+      "log": "orchestrator.build.log"
+    },
+    {
+      "command": "node - apps/orchestrator/dist < tests/helpers/orchestrator-compiled-workflow-proof.cjs",
+      "exitCode": 0,
+      "result": {
+        "compiledModule": "/home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/temporal.module.js",
+        "compiledInterceptor": "/home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011/apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/mail-log-privacy.workflow.js",
+        "bundleBytes": 3354252,
+        "initialized": [
+          "sendEmailWorkflow",
+          "sendEmailWorkflowV2",
+          "sendEmailWorkflowV3",
+          "digestEmailWorkflow"
+        ],
+        "network": {
+          "socketConnect": 0,
+          "dnsLookup": 0
+        },
+        "temporaryOutputRemoved": true
+      },
+      "log": "compiled.actual.log"
+    }
+  ],
+  "graphReviewed": {
+    "path": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "baseline": "5cdd90026810c128a5c43320dfc1a47af55cedfc",
+    "evidence": "graph-reviewed.json",
+    "temporalModuleSourceMatchesIndex": true,
+    "refreshed": false
+  },
+  "cleanup": {
+    "temporaryProofOutputsRemoved": true,
+    "dockerChanges": false,
+    "dependencyInstalls": false,
+    "ownBuildOutput": "apps/orchestrator/dist (ignored, retained for root artifact review)",
+    "ownerNodeModulesLink": "node_modules -> /home/me/code/content-factory-next/node_modules (ignored, retained)"
+  },
+  "acceptanceBoundary": "Local compiled artifact and Temporal sandbox proof only. Root owns integration, complete release checks and production acceptance.",
+  "temporalWorkerVersion": "1.15.0",
+  "readyImageProofCommand": "docker run --rm --interactive --network none --entrypoint node --workdir /app \"$cf_runtime_candidate_image\" - /app/apps/orchestrator/dist < tests/helpers/orchestrator-compiled-workflow-proof.cjs",
+  "readyImageProofStatus": "Not executed in this substream; root owns candidate-image acceptance before publication."
+}

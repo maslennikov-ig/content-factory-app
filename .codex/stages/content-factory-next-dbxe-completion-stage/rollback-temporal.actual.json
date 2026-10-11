@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-10-11T18:50:20.777955+00:00",
+  "namespace": "default",
+  "cronEnabled": false,
+  "runningWorkflowCount": 2,
+  "workflows": [
+    {
+      "type": "digestEmailWorkflow",
+      "workflowIdSha256": "b37c0ca7e92503f5204336b37164414ead9d2cdebf32da107f5da325c2901a66",
+      "runIdSha256": "5b365f3e34cad80d447eda8cdf29fc481f6f5bd7b0c0724ca0ba46ab81e85147",
+      "stablePublicId": null
+    },
+    {
+      "type": "sendEmailWorkflowV3",
+      "workflowIdSha256": "0d84455f4b5832f4a4711029fd603b343118572fc6a54978c5ffb9cf59005074",
+      "runIdSha256": "c8ba5c2207ff139a6938df957d3f378c42ae511800e477d17701c217bbb29c2f",
+      "stablePublicId": "send_email_v2"
+    }
+  ],
+  "historiesOrInputsRead": false,
+  "workflowsMutated": false,
+  "previousExecutionsPreserved": true
+}

@@ -1,0 +1,52 @@
+{
+  "capturedAt": "2026-10-11T19:01:58.045427+00:00",
+  "removed": [
+    {
+      "id": "sha256:9624b21d44bbba6b6a2d51245b38e5b676289fa6bd68029a015d14fe3b5dee86",
+      "refs": [
+        "content-factory-next:feac52a8bb78"
+      ],
+      "bytes": 747124462,
+      "containerReferences": 0
+    },
+    {
+      "id": "sha256:015085f261b0d29d82b48d7b7d82b858fa528a30eccf2bb9115dfe83e4bbf3e7",
+      "refs": [
+        "content-factory-next:2542f433e993",
+        "ghcr.io/maslennikov-ig/content-factory-next:2542f433e993"
+      ],
+      "bytes": 747475604,
+      "containerReferences": 0
+    },
+    {
+      "id": "sha256:6eb2c23fc98faa5580254e9c4801d3a7c3ad8717df049ee8bf343237f89ef946",
+      "refs": [
+        "content-factory-next:8cd15fe748c2",
+        "ghcr.io/maslennikov-ig/content-factory-next:8cd15fe748c2"
+      ],
+      "bytes": 747636350,
+      "containerReferences": 0
+    }
+  ],
+  "foreignImagesPreserved": true,
+  "allPreexistingContainersPreserved": true,
+  "keepTags": [
+    "content-factory-next:2a53727594a1",
+    "content-factory-next:755d19fa731d",
+    "content-factory-next:38c04e788cf5"
+  ],
+  "volumesTouched": false,
+  "buildCacheTouched": false,
+  "registryTouched": false,
+  "capacity": {
+    "available_bytes": 16788054016,
+    "available_inodes": 27438036,
+    "builder_driver": "docker",
+    "docker_context": "default",
+    "helper_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+    "required_bytes": 12884901888,
+    "required_inodes": 100000,
+    "result": "PASS",
+    "storage": "daemon-container-root"
+  }
+}

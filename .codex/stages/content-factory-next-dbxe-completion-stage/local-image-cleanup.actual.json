@@ -1,0 +1,38 @@
+{
+  "capturedAt": "2026-10-11T18:13:33.547406+00:00",
+  "removed": [
+    {
+      "imageId": "sha256:56d0e7be89fd1d8d635875d073b0e40c597c81c5332ac22c7d703d3f3b91d681",
+      "refs": [
+        "content-factory-next:bd0956cfa3db"
+      ]
+    },
+    {
+      "imageId": "sha256:1e47c45f4bd0f92ba68442ca1dad89765e56f3241fe0778505ffe7d113563071",
+      "refs": [
+        "content-factory-next:93aa33b85a79",
+        "ghcr.io/maslennikov-ig/content-factory-next:93aa33b85a79"
+      ]
+    }
+  ],
+  "foreignImagesPreserved": true,
+  "allPreexistingContainersPreserved": true,
+  "keepTags": [
+    "2a53727594a1",
+    "755d19fa731d"
+  ],
+  "volumesTouched": false,
+  "buildCacheTouched": false,
+  "registryTouched": false,
+  "capacity": {
+    "available_bytes": 13763198976,
+    "available_inodes": 27311476,
+    "builder_driver": "docker",
+    "docker_context": "default",
+    "helper_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+    "required_bytes": 12884901888,
+    "required_inodes": 100000,
+    "result": "PASS",
+    "storage": "daemon-container-root"
+  }
+}
