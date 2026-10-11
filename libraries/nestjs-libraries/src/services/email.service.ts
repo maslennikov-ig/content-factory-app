@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import {
   EmailInterface,
   EmailSendError,
@@ -52,7 +53,7 @@ export class EmailService {
       // worth being loud about.
       default:
         console.error(
-          `EMAIL_PROVIDER="${provider}" is not a known email provider ` +
+          'EMAIL_PROVIDER is not a known email provider ' +
             '("resend" or "nodemailer"). Falling back to no email provider: ' +
             'email sending is disabled until this is fixed.'
         );
@@ -87,6 +88,8 @@ export class EmailService {
     replyTo?: string,
     language?: string
   ) {
+    // Random per-operation correlation carries no recipient/content/provider data.
+    const correlationId = randomUUID();
     if (to.indexOf('@') === -1) {
       // With no real provider configured, nothing was ever going to be sent
       // — this is "email is off", which is legitimate and quiet.
@@ -98,25 +101,29 @@ export class EmailService {
       // That is "email is broken", and it must not look like nothing
       // happened.
       const err = new EmailSendError(
-        `Refusing to send: "${to}" is not a valid email address.`,
+        'Refusing to send: recipient is not a valid email address.',
         false
       );
-      console.error(err.message);
+      console.error('email.failed', { correlationId, code: 'invalid_recipient' });
       throw err;
     }
 
     if (!process.env.EMAIL_FROM_ADDRESS || !process.env.EMAIL_FROM_NAME) {
       if (!this.hasProvider()) {
-        console.log(
-          'Email sender information not found in environment variables'
-        );
+        console.log('email.skipped', {
+          correlationId,
+          code: 'sender_not_configured',
+        });
         return;
       }
       const err = new EmailSendError(
         'EMAIL_FROM_ADDRESS/EMAIL_FROM_NAME is not set while an email provider is configured.',
         false
       );
-      console.error(err.message);
+      console.error('email.failed', {
+        correlationId,
+        code: 'sender_not_configured',
+      });
       throw err;
     }
 
@@ -142,9 +149,11 @@ export class EmailService {
     });
 
     let lastErr: unknown;
+    let attempts = 0;
     for (let attempt = 0; attempt < 3; attempt++) {
+      attempts = attempt + 1;
       try {
-        const sends = await this.emailService.sendEmail(
+        await this.emailService.sendEmail(
           to,
           subject,
           modifiedHtml,
@@ -152,11 +161,24 @@ export class EmailService {
           process.env.EMAIL_FROM_ADDRESS,
           replyTo
         );
-        console.log(sends);
+        if (this.hasProvider()) {
+          console.log('email.sent', { correlationId, attempt: attempts });
+        } else {
+          console.log('email.skipped', {
+            correlationId,
+            code: 'provider_not_configured',
+          });
+        }
         return;
       } catch (err) {
         lastErr = err;
-        console.log(`Email attempt ${attempt + 1}/3 failed:`, err);
+        const retryable = !(err instanceof EmailSendError && !err.retryable);
+        console.log('email.attempt_failed', {
+          correlationId,
+          attempt: attempts,
+          code: retryable ? 'provider_failure' : 'non_retryable_failure',
+          retryable,
+        });
         // A non-retryable failure (bad recipient, rejected domain, missing
         // key) will fail again unchanged — stop hammering it and surface it
         // now instead of burning the remaining attempts.
@@ -175,7 +197,13 @@ export class EmailService {
     // Throwing (instead of swallowing) is what actually surfaces this: the
     // activity that called `sendEmailSync` fails visibly in Temporal's own
     // execution history, instead of a `console.error` line nobody reads.
-    console.error(`Email to ${to} failed after exhausting retries:`, lastErr);
+    const retryable = !(lastErr instanceof EmailSendError && !lastErr.retryable);
+    console.error('email.failed', {
+      correlationId,
+      attempts,
+      code: retryable ? 'provider_failure' : 'non_retryable_failure',
+      retryable,
+    });
     throw lastErr;
   }
 }

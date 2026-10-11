@@ -1,0 +1,33 @@
+{
+  "scope": ["content-factory-next-dbxe.26", "content-factory-next-dbxe.27", "content-factory-next-dbxe.28", "content-factory-next-dbxe.36"],
+  "baseline": "5cc169032a452b245f6e0423ceaf38cea719f169",
+  "graph_reviewed": {
+    "graph": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "baseline": "d724f3b792f4518eebc04c854448904f565323fd",
+    "mode": "borrowed owner graph, read-only, no refresh or external API",
+    "queries": ["ConfigurationChecker", "MastodonCustomProvider"],
+    "confirmed_current_sources": ["libraries/helpers/src/configuration/configuration.checker.ts", "libraries/nestjs-libraries/src/integrations/social/mastodon.custom.provider.ts", "libraries/nestjs-libraries/src/integrations/social/mastodon.provider.ts"],
+    "limitation": "Graph is older than checkout; truncated indexed edges do not prove absence of callers"
+  },
+  "retained_consumers": {
+    "sdk": ["package.json#publish-sdk", "apps/sdk/package.json", "apps/sdk/README.md"],
+    "extension": ["package.json#dev", "package.json#build:extension", "apps/extension/package.json", "apps/extension/manifest.json", "apps/extension/vite.config.ts"],
+    "commands": ["package.json#build", "package.json#commands:build:development", "apps/commands/src/command.module.ts", "apps/commands/package.json"],
+    "jenkins": ["Jenkins/Build.Jenkinsfile", "Jenkins/BuildPR.Jenkinsfile"],
+    "ci": [".github/workflows/build.yml", "scripts/ci/run-docker-backed-ci.sh"],
+    "local_docker": ["package.json#docker-build", "package.json#docker-create", "var/docker/docker-build.sh", "var/docker/docker-create.sh", "Dockerfile.dev", ".devcontainer/devcontainer.json"],
+    "custom_mastodon": ["libraries/nestjs-libraries/src/integrations/social/mastodon.custom.provider.ts", "libraries/nestjs-libraries/src/integrations/integration.manager.ts#commented-construction", "libraries/react-shared-libraries/src/platform/platform.families.ts", "libraries/react-shared-libraries/src/platform/platform.asset.ts"]
+  },
+  "owner_read_only_persisted_inventory": {
+    "source": "parent coordinator exact owned production Prisma aggregate; private identifiers retained by owner, not accessed by this child",
+    "observed_at": "2026-10-11T17:00:00Z",
+    "organizations": 94,
+    "integration_counts": {"telegram_enabled": 2, "telegram_disabled": 66, "mastodon_all_states": 0, "mastodon_custom_all_states": 0},
+    "running_workflow_types": ["digestEmailWorkflow", "sendEmailWorkflowV2"],
+    "namespace": "default",
+    "run_cron": false,
+    "extension_id_configured": false,
+    "limitations": "Does not establish external Jenkins/SDK consumers, historical workflow absence, provider readiness, or removal authority"
+  },
+  "disposition": "Retain all uncertain compatibility source; registry remains disabled; no provider rows deleted, no historical workflow mutation"
+}

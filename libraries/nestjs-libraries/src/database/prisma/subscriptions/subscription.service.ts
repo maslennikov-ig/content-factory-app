@@ -33,7 +33,23 @@ export class SubscriptionService {
     type = 'ai_images',
     func: () => Promise<T>
   ): Promise<T> {
-    return this._subscriptionRepository.useCredit(organization, type, func);
+    const limited =
+      type === 'ai_videos' ||
+      (type === 'ai_images' && !!process.env.STRIPE_PUBLISHABLE_KEY);
+    const allowance = limited
+      ? this.creditAllowance(organization, type)
+      : undefined;
+    return this._subscriptionRepository.useCredit(
+      organization,
+      type,
+      func,
+      limited
+        ? {
+            from: allowance?.from.toDate() ?? new Date(0),
+            limit: allowance?.limit ?? 0,
+          }
+        : undefined
+    );
   }
 
   getCode(code: string) {
@@ -223,12 +239,13 @@ export class SubscriptionService {
     return this._subscriptionRepository.getSubscription(organizationId);
   }
 
-  async checkCredits(organization: Organization, checkType = 'ai_images') {
+  /** The inherited tier/window, shared by the preview and atomic admission. */
+  private creditAllowance(organization: Organization, checkType: string) {
     // @ts-ignore
     const type = organization?.subscription?.subscriptionTier || 'FREE';
 
     if (type === 'FREE') {
-      return { credits: 0 };
+      return undefined;
     }
 
     // @ts-ignore
@@ -243,14 +260,20 @@ export class SubscriptionService {
         ? pricing[type].image_generation_count
         : pricing[type].generate_videos;
 
+    return { from: checkFromMonth, limit: imageGenerationCount };
+  }
+
+  async checkCredits(organization: Organization, checkType = 'ai_images') {
+    const allowance = this.creditAllowance(organization, checkType);
+    if (!allowance) return { credits: 0 };
     const totalUse = await this._subscriptionRepository.getCreditsFrom(
       organization.id,
-      checkFromMonth,
+      allowance.from,
       checkType
     );
 
     return {
-      credits: imageGenerationCount - totalUse,
+      credits: allowance.limit - totalUse,
     };
   }
 

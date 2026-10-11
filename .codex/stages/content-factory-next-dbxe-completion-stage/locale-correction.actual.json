@@ -1,0 +1,12 @@
+{
+  "status": "CORRECTION_ACCEPTED",
+  "firstCandidate": "5cdd90026810c128a5c43320dfc1a47af55cedfc",
+  "failure": "branding completeness: six added messages absent in14 retained locales",
+  "fixCommit": "8ee6ea1325e30f94865426e7bf397005f5f05e8d",
+  "focusedBrandingPassed": 12,
+  "localeCount": 16,
+  "renderedKeys": 1406,
+  "missingLocaleKeys": 0,
+  "existingTranslationsPreserved": true,
+  "finalWholeSuitePending": true
+}

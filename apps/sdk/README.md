@@ -37,3 +37,38 @@ that channel. Only one version of a piece may wait in a channel's queue.
 Nothing is written. Unschedule the other version (set it back to `draft`) and
 retry. Plain posts that did not come from a Content Factory piece never get
 this answer.
+
+By default JSON methods return the server's JSON on every status, preserving
+existing clients and the `CF_QUEUE_BUSY` payload above. `deletePost()` returns
+the raw `node-fetch` Response. Non-JSON bodies in this default mode still reject
+with the JSON parser's error.
+
+To obtain typed HTTP failures, opt in explicitly:
+
+```typescript
+import ContentFactory, { ContentFactoryHttpError } from '@contentfactory/node';
+
+const client = new ContentFactory('your API key', 'https://content-factory.example', {
+  httpErrors: 'throw',
+});
+try {
+  await client.integrations();
+} catch (error) {
+  if (error instanceof ContentFactoryHttpError) {
+    console.log(error.status, error.code, error.retryAfter);
+  }
+}
+```
+
+In this mode all five methods reject non-2xx responses with
+`ContentFactoryHttpError`: `status`, `statusText`, optional string `code`, parsed
+`body` (or raw text for non-JSON), `rawBody`, and raw `retryAfter` (`null` when
+absent). Success returns stay unchanged, including the Response from deletion.
+`retryable` identifies transient HTTP statuses 429/502/503/504. It is not proof
+that repeating a write is safe: reconcile the operation's outcome first.
+The SDK performs no automatic retries. Transport failures retain their original
+error; successful responses with invalid JSON retain the JSON parser's error.
+
+For local acceptance run `pnpm --filter ./apps/sdk run build` and
+`pnpm --filter ./apps/sdk run typecheck`. Neither publishes the package. SDK
+acceptance is separate from the repository's core application build.

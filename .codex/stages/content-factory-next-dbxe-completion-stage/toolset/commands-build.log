@@ -1,0 +1,3 @@
+
+> content-factory-command@1.0.0 build /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011/apps/commands
+> cross-env NODE_ENV=production nest build

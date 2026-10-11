@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "Disconnettere {{name}}? Perderà l’accesso al tuo account.",
   "approved_app_disconnected": "Disconnesso",
   "approved_app_disconnect_failed": "Impossibile disconnettere",
-  "mcp_consent_workspace_changed": "Lo spazio di lavoro è cambiato in un’altra scheda mentre questa pagina era aperta. Ricomincia la connessione dal tuo assistente per collegare lo spazio che vuoi."
+  "mcp_consent_workspace_changed": "Lo spazio di lavoro è cambiato in un’altra scheda mentre questa pagina era aperta. Ricomincia la connessione dal tuo assistente per collegare lo spazio che vuoi.",
+  "auth_request_failed_retry": "Impossibile completare la richiesta. Riprova.",
+  "calendar_read_failed_retry": "Impossibile caricare i post. Riprova.",
+  "media_read_failed_retry": "Impossibile caricare la libreria multimediale. Riprova.",
+  "post_delete_failed_retry": "Impossibile eliminare il post. Riprova.",
+  "media_delete_failed_retry": "Impossibile eliminare il contenuto multimediale. Riprova.",
+  "channel_delete_failed_retry": "Impossibile eliminare il canale. Riprova."
 }

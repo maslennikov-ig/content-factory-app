@@ -1,0 +1,59 @@
+{
+  "capturedAt": "2026-10-11T13:45:10.327Z",
+  "node": "v22.23.2",
+  "versions": {
+    "npm": null,
+    "pnpm": null,
+    "corepack": null,
+    "pm2": "7.0.3",
+    "jsYaml": "4.3.2"
+  },
+  "processes": [
+    {
+      "name": "backend",
+      "pid": 25,
+      "status": "online",
+      "watch": false,
+      "pmx": false,
+      "vizion": false,
+      "automation": false,
+      "script": "/app/apps/backend/dist/apps/backend/src/main.js",
+      "execMode": "fork_mode"
+    },
+    {
+      "name": "orchestrator",
+      "pid": 26,
+      "status": "online",
+      "watch": false,
+      "pmx": false,
+      "vizion": false,
+      "automation": false,
+      "script": "/app/apps/orchestrator/dist/apps/orchestrator/src/main.js",
+      "execMode": "fork_mode"
+    },
+    {
+      "name": "frontend",
+      "pid": 33,
+      "status": "online",
+      "watch": false,
+      "pmx": false,
+      "vizion": false,
+      "automation": false,
+      "script": "/app/node_modules/next/dist/bin/next",
+      "execMode": "fork_mode"
+    }
+  ],
+  "supervisorEnvironmentPresence": {
+    "PM2_PROXY": false,
+    "PM2_PUBLIC_KEY": false,
+    "PM2_SECRET_KEY": false,
+    "HTTP_PROXY": false,
+    "HTTPS_PROXY": false,
+    "ALL_PROXY": false,
+    "http_proxy": false,
+    "https_proxy": false,
+    "all_proxy": false
+  },
+  "pm2Modules": [],
+  "schemaEngineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+}

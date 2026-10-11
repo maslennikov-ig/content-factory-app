@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "Desconectar {{name}}? Ele perderá o acesso à sua conta.",
   "approved_app_disconnected": "Desconectado",
   "approved_app_disconnect_failed": "Não foi possível desconectar",
-  "mcp_consent_workspace_changed": "O espaço de trabalho mudou em outra aba enquanto esta página estava aberta. Comece a conexão de novo pelo seu assistente para conectar o espaço que você quer."
+  "mcp_consent_workspace_changed": "O espaço de trabalho mudou em outra aba enquanto esta página estava aberta. Comece a conexão de novo pelo seu assistente para conectar o espaço que você quer.",
+  "auth_request_failed_retry": "Não foi possível concluir a solicitação. Tente novamente.",
+  "calendar_read_failed_retry": "Não foi possível carregar as publicações. Tente novamente.",
+  "media_read_failed_retry": "Não foi possível carregar a biblioteca de mídia. Tente novamente.",
+  "post_delete_failed_retry": "Não foi possível excluir a publicação. Tente novamente.",
+  "media_delete_failed_retry": "Não foi possível excluir a mídia. Tente novamente.",
+  "channel_delete_failed_retry": "Não foi possível excluir o canal. Tente novamente."
 }

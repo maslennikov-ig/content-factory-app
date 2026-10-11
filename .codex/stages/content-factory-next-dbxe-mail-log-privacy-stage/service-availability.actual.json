@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-11T16:41:16.467897+00:00",
+  "status": "PASS",
+  "checks": [
+    {
+      "path": "/api/",
+      "httpStatus": 200
+    },
+    {
+      "path": "/auth/login",
+      "httpStatus": 200
+    },
+    {
+      "path": "/api/public/source/version",
+      "httpStatus": 200,
+      "servingPublicSource": "2a53727594a13c15c8740af0686ebffb40d34bfd"
+    }
+  ],
+  "boundary": "Public read-only availability/source only; no current native health, provider/client acceptance, source37 deployment or host/queue mutation."
+}

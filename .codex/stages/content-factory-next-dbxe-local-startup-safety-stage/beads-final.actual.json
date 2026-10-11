@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-11T15:24:34.701406+00:00",
+  "epicStatus": "open",
+  "children": 36,
+  "closedChildren": 22,
+  "selectedStatuses": {
+    "25": "closed",
+    "24": "open",
+    "28": "open",
+    "36": "open"
+  },
+  "originalCriteriaPreserved": 30
+}

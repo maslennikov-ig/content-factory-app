@@ -1,0 +1,110 @@
+FAIL tests/frontend-dirty-text-recovery.test.cjs
+  ● immediate navigation retains refused core text and permits recovery
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "last words"
+    Received: null
+
+      18 |   view.unmount();
+      19 |   await act(async()=>{});
+    > 20 |   expect(draft.readRecoverableDraft(key)).toBe('last words');
+         |                                           ^
+      21 |   const next=renderHook(()=>useAutosave(async()=>true,{recoveryKey:key}));
+      22 |   expect(next.result.current.recovered).toBe('last words');
+      23 |   await act(async()=>{await next.result.current.saveNow('last words')});
+
+      at tests/frontend-dirty-text-recovery.test.cjs:20:43
+
+  ● immediate navigation retains rejected core text and permits recovery
+
+    network
+
+      12 | function deferred() { let resolve; const promise = new Promise(r => { resolve=r; }); return { promise,resolve }; }
+      13 | test.each(['refused','rejected','interrupted'])('immediate navigation retains %s core text and permits recovery', async kind => {
+    > 14 |   const save = kind==='interrupted' ? () => new Promise(()=>{}) : kind==='rejected' ? async()=>{throw Error('network')} : async()=>false;
+         |                                                                                                       ^
+      15 |   const key=`person:workspace:core:${kind}`;
+      16 |   const view=renderHook(()=>useAutosave(save,{recoveryKey:key}));
+      17 |   act(()=>view.result.current.schedule('last words'));
+
+      at Object.save [as current] (tests/frontend-dirty-text-recovery.test.cjs:14:103)
+      at eval (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:95:26)
+      at Object.react_stack_bottom_frame (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:26001:13)
+      at runWithFiberInDEV (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListUnmount (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:13316:17)
+      at commitHookPassiveUnmountEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:13347:11)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:16264:13)
+      at recursivelyTraversePassiveUnmountEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:16085:13)
+      at commitPassiveUnmountOnFiber (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:16127:11)
+      at flushPassiveEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18428:9)
+      at flushPendingEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18358:14)
+      at flushSpawnedWork (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18323:44)
+      at commitRoot (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:17955:9)
+      at performWorkOnRoot (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performSyncWorkOnRoot (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18972:7)
+      at flushSyncWorkAcrossRoots_impl (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18814:21)
+      at flushSyncWork$1 (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:16898:12)
+      at ReactDOMRoot.Object.<anonymous>.process.env.NODE_ENV.ReactDOMHydrationRoot.unmount.ReactDOMRoot.unmount [as unmount] (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:27911:11)
+      at Object.unmount (../../content-factory-next/node_modules/@testing-library/react/dist/pure.js:164:12)
+      at ../../content-factory-next/node_modules/@testing-library/react/dist/pure.js:207:14
+      at ../../content-factory-next/node_modules/@testing-library/react/dist/act-compat.js:48:24
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (../../content-factory-next/node_modules/react/cjs/react.development.js:814:22)
+      at ../../content-factory-next/node_modules/@testing-library/react/dist/act-compat.js:47:25
+      at Object.unmount (../../content-factory-next/node_modules/@testing-library/react/dist/pure.js:206:30)
+      at tests/frontend-dirty-text-recovery.test.cjs:18:8
+
+  ● immediate navigation retains rejected core text and permits recovery
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "last words"
+    Received: null
+
+      18 |   view.unmount();
+      19 |   await act(async()=>{});
+    > 20 |   expect(draft.readRecoverableDraft(key)).toBe('last words');
+         |                                           ^
+      21 |   const next=renderHook(()=>useAutosave(async()=>true,{recoveryKey:key}));
+      22 |   expect(next.result.current.recovered).toBe('last words');
+      23 |   await act(async()=>{await next.result.current.saveNow('last words')});
+
+      at tests/frontend-dirty-text-recovery.test.cjs:20:43
+
+  ● immediate navigation retains interrupted core text and permits recovery
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "last words"
+    Received: null
+
+      18 |   view.unmount();
+      19 |   await act(async()=>{});
+    > 20 |   expect(draft.readRecoverableDraft(key)).toBe('last words');
+         |                                           ^
+      21 |   const next=renderHook(()=>useAutosave(async()=>true,{recoveryKey:key}));
+      22 |   expect(next.result.current.recovered).toBe('last words');
+      23 |   await act(async()=>{await next.result.current.saveNow('last words')});
+
+      at tests/frontend-dirty-text-recovery.test.cjs:20:43
+
+  ● older request success cannot erase the latest dirty value
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "second"
+    Received: null
+
+      33 |   let running; act(()=>{running=view.result.current.saveNow('first')}); act(()=>view.result.current.schedule('second'));
+      34 |   await act(async()=>{first.resolve(true); await running});
+    > 35 |   expect(draft.readRecoverableDraft(key)).toBe('second');
+         |                                           ^
+      36 | });
+      37 |
+
+      at Object.<anonymous> (tests/frontend-dirty-text-recovery.test.cjs:35:43)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 1 passed, 5 total
+Snapshots:   0 total
+Time:        1.048 s

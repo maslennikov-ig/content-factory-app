@@ -1,0 +1,74 @@
+{
+  "node": "v22.23.2",
+  "locales": 16,
+  "renderedKeys": 1406,
+  "missing": [],
+  "interpolated": [],
+  "addedTranslations": 84,
+  "changes": [
+    {
+      "locale": "ar",
+      "added": 6
+    },
+    {
+      "locale": "bn",
+      "added": 6
+    },
+    {
+      "locale": "de",
+      "added": 6
+    },
+    {
+      "locale": "en",
+      "added": 0
+    },
+    {
+      "locale": "es",
+      "added": 6
+    },
+    {
+      "locale": "fr",
+      "added": 6
+    },
+    {
+      "locale": "he",
+      "added": 6
+    },
+    {
+      "locale": "it",
+      "added": 6
+    },
+    {
+      "locale": "ja",
+      "added": 6
+    },
+    {
+      "locale": "ka_ge",
+      "added": 6
+    },
+    {
+      "locale": "ko",
+      "added": 6
+    },
+    {
+      "locale": "pt",
+      "added": 6
+    },
+    {
+      "locale": "ru",
+      "added": 0
+    },
+    {
+      "locale": "tr",
+      "added": 6
+    },
+    {
+      "locale": "vi",
+      "added": 6
+    },
+    {
+      "locale": "zh",
+      "added": 6
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "diffExitCode": 0,
+  "sqlLines": 0,
+  "schemaApplied": false,
+  "prismaVersion": "6.5.0",
+  "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+  "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+}

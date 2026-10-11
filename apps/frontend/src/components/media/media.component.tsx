@@ -299,9 +299,13 @@ export const MediaBox: FC<{
     if (debouncedSearch.trim()) {
       params.set('search', debouncedSearch.trim());
     }
-    return (await fetch(`/media?${params.toString()}`)).json();
+    const response = await fetch(`/media?${params.toString()}`);
+    if (!response.ok) throw new Error('Media read refused');
+    const data = await response.json();
+    if (!Array.isArray(data?.results)) throw new Error('Invalid media response');
+    return data;
   }, [page, debouncedSearch]);
-  const { data, mutate, isLoading } = useSWR(
+  const { data, error, mutate, isLoading } = useSWR(
     mediaLibraryKey(page, debouncedSearch),
     loadMedia
   );
@@ -493,6 +497,7 @@ export const MediaBox: FC<{
   const deleteImage = useCallback(
     (media: Media) => async (e: any) => {
       e.stopPropagation();
+      if (!canWriteMedia) return;
       if (
         !(await deleteDialog(
           t(
@@ -503,12 +508,15 @@ export const MediaBox: FC<{
       ) {
         return;
       }
-      await fetch(`/media/${media.id}`, {
-        method: 'DELETE',
-      });
-      mutate();
+      try {
+        const response = await fetch(`/media/${encodeURIComponent(media.id)}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Media deletion refused');
+        void mutate();
+      } catch {
+        toaster.show(t('media_delete_failed_retry', 'Could not delete the media. Please try again.'), 'warning');
+      }
     },
-    [mutate]
+    [mutate, canWriteMedia, fetch, toaster, t]
   );
 
   const btn = useMemo(() => {
@@ -587,7 +595,7 @@ export const MediaBox: FC<{
           <div
             className={clsx(
               'flex items-center gap-[12px]',
-              !isLoading &&
+              !isLoading && !error &&
                 !data?.results?.length &&
                 !debouncedSearch &&
                 'hidden'
@@ -650,7 +658,7 @@ export const MediaBox: FC<{
           <div
             className={clsx(
               'flex-1 relative',
-              !isLoading &&
+              !isLoading && !error &&
                 !data?.results?.length &&
                 'bg-newTextColor/[0.02] rounded-[12px]'
             )}
@@ -658,12 +666,12 @@ export const MediaBox: FC<{
             <div
               className={clsx(
                 'absolute -left-[3px] -top-[3px] withp3 h-full overflow-x-hidden overflow-y-auto',
-                !isLoading &&
+                !isLoading && !error &&
                   !data?.results?.length &&
                   'flex justify-center items-center gap-[20px] flex-col'
               )}
             >
-              {!isLoading && !data?.results?.length && (
+              {!isLoading && !error && !data?.results?.length && (
                 <>
                   <NoMediaIcon />
                   <div className="text-[20px] font-[600]">
@@ -714,6 +722,10 @@ export const MediaBox: FC<{
                   </div>
                 </>
               )}
+              {error && <div className="flex flex-col gap-[12px] p-[16px]">
+                <p role="alert" className="cf-body-sm text-cf-danger">{t('media_read_failed_retry', 'Could not load the library. Please try again.')}</p>
+                <Button type="button" variant="secondary" onClick={() => void mutate()}>{t('try_again', 'Try again')}</Button>
+              </div>}
               {isLoading && (
                 <>
                   {[...new Array(16)].map((_, i) => (
@@ -838,7 +850,7 @@ export const MediaBox: FC<{
               >
                 {t('cancel', 'Cancel')}
               </Button>
-              {!isLoading && !!data?.results?.length && (
+              {!isLoading && !error && !!data?.results?.length && (
                 <Button
                   onClick={standalone ? () => {} : addMedia}
                   disabled={selected.length === 0}

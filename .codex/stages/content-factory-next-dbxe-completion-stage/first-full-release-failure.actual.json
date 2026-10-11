@@ -1,0 +1,26 @@
+{
+  "status": "FAIL",
+  "source": "5cdd90026810c128a5c43320dfc1a47af55cedfc",
+  "phase": "full Jest half",
+  "counts": [
+    "Test Suites: 5 failed, 7 skipped, 654 passed, 659 of 666 total",
+    "Tests:       4 failed, 70 skipped, 12151 passed, 12225 total",
+    "Time:        1221.794 s",
+    "Ran all test suites."
+  ],
+  "failedSuites": [
+    "FAIL tests/branding.test.cjs",
+    "FAIL tests/locale-key-set.test.cjs",
+    "FAIL tests/mail-queue-state.test.cjs",
+    "FAIL tests/build-coverage.test.cjs",
+    "FAIL tests/test-runner-boundary.test.cjs"
+  ],
+  "suiteReceiptWritten": false,
+  "remainingNodeAndPythonHalvesDidNotRun": true,
+  "capturedAt": "2026-10-11T17:58:18.587626+00:00",
+  "requiredCorrections": [
+    "84 locale translations across14 retained languages",
+    "Root mail state test uses repository Jest lifecycle",
+    "Explicit standalone SDK build coverage boundary"
+  ]
+}

@@ -1,10 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import {
   PrismaRepository,
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import dayjs from 'dayjs';
-import { Organization } from '@prisma/client';
+import { Organization, Prisma } from '@prisma/client';
+
+export type InheritedCreditAllowance = {
+  from: Date;
+  limit: number;
+};
+
+/** A concurrent admission spent the allowance after the door's preview read. */
+class CreditAllowanceExceeded extends HttpException {
+  constructor() {
+    super('Media generation allowance exhausted', 402);
+  }
+}
 
 @Injectable()
 export class SubscriptionRepository {
@@ -13,7 +25,8 @@ export class SubscriptionRepository {
     private readonly _organization: PrismaRepository<'organization'>,
     private readonly _user: PrismaRepository<'user'>,
     private readonly _credits: PrismaRepository<'credits'>,
-    private _usedCodes: PrismaRepository<'usedCodes'>
+    private _usedCodes: PrismaRepository<'usedCodes'>,
+    private readonly _transaction: PrismaTransaction
   ) {}
 
   getUserAccount(userId: string) {
@@ -272,15 +285,10 @@ export class SubscriptionRepository {
   async useCredit<T>(
     org: Organization,
     type = 'ai_images',
-    func: () => Promise<T>
+    func: () => Promise<T>,
+    allowance?: InheritedCreditAllowance
   ) {
-    const data = await this._credits.model.credits.create({
-      data: {
-        organizationId: org.id,
-        credits: 1,
-        type,
-      },
-    });
+    const data = await this.reserveCredit(org.id, type, allowance);
 
     try {
       return await func();
@@ -291,6 +299,54 @@ export class SubscriptionRepository {
         },
       });
       throw err;
+    }
+  }
+
+  /** Only admission is retried; the provider runs after this transaction commits. */
+  private async reserveCredit(
+    organizationId: string,
+    type: string,
+    allowance?: InheritedCreditAllowance
+  ) {
+    const data = { organizationId, credits: 1, type };
+    // Unbilled image generation has always counted without an inherited limit.
+    if (!allowance) return this._credits.model.credits.create({ data });
+    if (allowance.limit <= 0) throw new CreditAllowanceExceeded();
+
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this._transaction.model.$transaction(
+          async (tx) => {
+            const load = await tx.credits.groupBy({
+              by: ['organizationId'],
+              where: {
+                organizationId,
+                type,
+                createdAt: { gte: allowance.from },
+              },
+              _sum: { credits: true },
+            });
+            const used = load?.[0]?._sum?.credits || 0;
+            if (used >= allowance.limit) throw new CreditAllowanceExceeded();
+            return tx.credits.create({ data });
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+            maxWait: 1_000,
+            timeout: 2_000,
+          }
+        );
+      } catch (error) {
+        // PostgreSQL may reject one overlapping count-and-insert. Re-read its
+        // allowance in a new transaction, at most three attempts, never by
+        // replaying external work. A quota refusal or another DB error is final.
+        if ((error as { code?: string })?.code !== 'P2034' || attempt >= 2) {
+          throw error;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.floor(Math.random() * 25 * 2 ** attempt))
+        );
+      }
     }
   }
 

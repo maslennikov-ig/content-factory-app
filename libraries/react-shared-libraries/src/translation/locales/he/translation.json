@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "לנתק את {{name}}? היישום יאבד את הגישה לחשבון שלך.",
   "approved_app_disconnected": "נותק",
   "approved_app_disconnect_failed": "הניתוק נכשל",
-  "mcp_consent_workspace_changed": "סביבת העבודה הוחלפה בכרטיסייה אחרת בזמן שהדף הזה היה פתוח. התחילו את החיבור מחדש מהעוזר כדי לחבר את סביבת העבודה הרצויה."
+  "mcp_consent_workspace_changed": "סביבת העבודה הוחלפה בכרטיסייה אחרת בזמן שהדף הזה היה פתוח. התחילו את החיבור מחדש מהעוזר כדי לחבר את סביבת העבודה הרצויה.",
+  "auth_request_failed_retry": "לא ניתן להשלים את הבקשה. נסו שוב.",
+  "calendar_read_failed_retry": "לא ניתן לטעון את הפוסטים. נסו שוב.",
+  "media_read_failed_retry": "לא ניתן לטעון את ספריית המדיה. נסו שוב.",
+  "post_delete_failed_retry": "לא ניתן למחוק את הפוסט. נסו שוב.",
+  "media_delete_failed_retry": "לא ניתן למחוק את המדיה. נסו שוב.",
+  "channel_delete_failed_retry": "לא ניתן למחוק את הערוץ. נסו שוב."
 }

@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "{{name}} 연결을 해제할까요? 계정에 더 이상 접근할 수 없습니다.",
   "approved_app_disconnected": "연결 해제됨",
   "approved_app_disconnect_failed": "연결을 해제하지 못했습니다",
-  "mcp_consent_workspace_changed": "이 페이지가 열려 있는 동안 다른 탭에서 워크스페이스가 바뀌었습니다. 원하는 워크스페이스에 연결하려면 어시스턴트에서 다시 연결하세요."
+  "mcp_consent_workspace_changed": "이 페이지가 열려 있는 동안 다른 탭에서 워크스페이스가 바뀌었습니다. 원하는 워크스페이스에 연결하려면 어시스턴트에서 다시 연결하세요.",
+  "auth_request_failed_retry": "요청을 완료하지 못했습니다. 다시 시도해 주세요.",
+  "calendar_read_failed_retry": "게시물을 불러오지 못했습니다. 다시 시도해 주세요.",
+  "media_read_failed_retry": "미디어 라이브러리를 불러오지 못했습니다. 다시 시도해 주세요.",
+  "post_delete_failed_retry": "게시물을 삭제하지 못했습니다. 다시 시도해 주세요.",
+  "media_delete_failed_retry": "미디어를 삭제하지 못했습니다. 다시 시도해 주세요.",
+  "channel_delete_failed_retry": "채널을 삭제하지 못했습니다. 다시 시도해 주세요."
 }

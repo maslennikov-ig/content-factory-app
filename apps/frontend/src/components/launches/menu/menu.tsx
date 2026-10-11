@@ -267,6 +267,7 @@ export const Menu: FC<{
     onChange(false);
   }, [t]);
   const deleteChannel = useCallback(async () => {
+    if (!manageChannel) return;
     if (
       !(await deleteDialog(
         t(
@@ -278,42 +279,47 @@ export const Menu: FC<{
     ) {
       return;
     }
-    const deleteIntegration = await fetch('/integrations', {
-      method: 'DELETE',
-      body: JSON.stringify({
-        id,
-      }),
-    });
-    if (deleteIntegration.status === 406) {
-      toast.show(
-        t(
-          'delete_posts_before_channel',
-          'You have to delete all the posts associated with this channel before deleting it'
-        ),
-        'warning'
-      );
-      return;
-    }
-    // Clean up extension refresh token if applicable
-    if (
-      extensionId &&
-      typeof chrome !== 'undefined' &&
-      chrome?.runtime?.sendMessage
-    ) {
-      try {
-        chrome.runtime.sendMessage(
-          extensionId,
-          { type: 'REMOVE_REFRESH_TOKEN', integrationId: id },
-          () => {}
+    try {
+      const deleteIntegration = await fetch('/integrations', {
+        method: 'DELETE',
+        body: JSON.stringify({
+          id,
+        }),
+      });
+      if (deleteIntegration.status === 406) {
+        toast.show(
+          t(
+            'delete_posts_before_channel',
+            'You have to delete all the posts associated with this channel before deleting it'
+          ),
+          'warning'
         );
-      } catch {
-        // Silently ignore
+        return;
       }
+      if (!deleteIntegration.ok) throw new Error('Channel deletion refused');
+      // Clean up extension refresh token if applicable
+      if (
+        extensionId &&
+        typeof chrome !== 'undefined' &&
+        chrome?.runtime?.sendMessage
+      ) {
+        try {
+          chrome.runtime.sendMessage(
+            extensionId,
+            { type: 'REMOVE_REFRESH_TOKEN', integrationId: id },
+            () => {}
+          );
+        } catch {
+          // Silently ignore
+        }
+      }
+      toast.show(t('channel_deleted', 'Channel Deleted'), 'success');
+      setShow(false);
+      onChange(true);
+    } catch {
+      toast.show(t('channel_delete_failed_retry', 'Could not delete the channel. Please try again.'), 'warning');
     }
-    toast.show(t('channel_deleted', 'Channel Deleted'), 'success');
-    setShow(false);
-    onChange(true);
-  }, [t, extensionId, id]);
+  }, [t, extensionId, id, fetch, toast, onChange, manageChannel]);
 
   const enableChannel = useCallback(async () => {
     await fetch('/integrations/enable', {

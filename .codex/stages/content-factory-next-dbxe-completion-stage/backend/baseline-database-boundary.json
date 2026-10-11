@@ -1,0 +1,9 @@
+{
+  "name": "cf-dbxe-completion-backend-proof-20261011",
+  "containerId": "5e0298fef356644f95d7b70e8b55ec7d48b6995772c879fce48026a93ef0d61d",
+  "volume": "cf-dbxe-completion-backend-proof-20261011-data",
+  "address": "127.0.0.1:41182",
+  "database": "cf_dbxe_completion_backend_test",
+  "schemaMutation": "owned disposable only",
+  "provider": "fake only"
+}

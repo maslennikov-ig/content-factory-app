@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-10-11T14:05:20.501423+00:00",
+  "epicStatus": "open",
+  "children": 36,
+  "closedChildren": 21,
+  "selectedStatuses": {
+    "content-factory-next-dbxe.34": "closed",
+    "content-factory-next-dbxe.8": "closed",
+    "content-factory-next-dbxe.25": "open",
+    "content-factory-next-dbxe.33": "closed",
+    "content-factory-next-dbxe.35": "closed",
+    "content-factory-next-dbxe.36": "open"
+  },
+  "originalCriteriaPreserved": 30,
+  "githubMirrorReadback": {
+    "1070": "closed",
+    "1046": "closed",
+    "1073": "open"
+  },
+  "githubMirrorReadbackBoundary": "Direct private gh api readback after Beads close/sync; epic original contract preserved."
+}

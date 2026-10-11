@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-10-11T15:03:11.559886+00:00",
+  "baseCommit": "1db88425ae8acdf856dcfaee766cedca490ae8c7",
+  "tasks": {
+    "content-factory-next-dbxe.25": {
+      "id": "content-factory-next-dbxe.25",
+      "status": "open",
+      "description": "package.json pm2-run calls pm2 delete all and prisma-db-push --accept-data-loss; prisma-reset force-resets inherited target with no local target guard. Production entrypoint is safe and does not use these commands. Docs telegram-login-setup still presents pm2-run for local launch. Evidence: .codex/stages/content-factory-next-audit-20261009/audit-report.md (OPS-02). Audit09Oct source5189430f1; source/pure findings are not a live incident claim.",
+      "acceptance_criteria": "Ordinary startup never mutates schema or deletes all owners processes. Destructive dev commands require an explicit verified disposable/local target and dry-run/intent; production/ambiguous URL rejects before subprocess. Local developers retain safe setup/reset path and docs agree; test with fake commands only, no live DB or shared PM2 changes."
+    },
+    "content-factory-next-dbxe": {
+      "id": "content-factory-next-dbxe",
+      "status": "open",
+      "description": "The 9 October source and current-image audit found reachable auth/tenant boundaries, publishing/retry/data-loss defects, misleading UI failures, monitoring gaps and dependency advisory matches. Implement bounded corrections from .codex/stages/content-factory-next-audit-20261009/audit-report.md. Beads owns status; original 0qgn/SaaS/client/research epics and owner defers remain unchanged. First deliver access/token isolation, then publishing/data preservation and readiness, then secondary/UI/legacy debt. This epic does not reopen accepted editorial/search behavior or imply public SaaS/client acceptance.",
+      "acceptance_criteria": "Each retained finding has observable acceptance and exact evidence; all child fixes are delivered and verified at their actual source/runtime boundary, or an explicitly approved deferral preserves the requirement outside the completion claim. No silent deletion of user content, cross-tenant credentials, duplicate confirmed external writes, false-success UI or false-green worker health. Preserve historical Temporal contracts and active data. Reuse exact matching proof; changed release uses repository acceptance. Keep original epics open while their unrelated criteria remain unmet."
+    }
+  },
+  "originalScopeSha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707"
+}

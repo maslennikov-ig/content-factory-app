@@ -1,0 +1,518 @@
+FAIL tests/frontend-auth-request-recovery.test.cjs (10.449 s)
+  ● login and forgot request failures › login network ends loader and retains a retryable form
+
+    private network detail
+
+      131 | const failure = (kind) =>
+      132 |   kind === 'network'
+    > 133 |     ? Promise.reject(Error('private network detail'))
+          |                      ^
+      134 |     : kind === 'protocol'
+      135 |     ? Promise.resolve({
+      136 |         ok: true,
+
+      at failure (tests/frontend-auth-request-recovery.test.cjs:133:22)
+      at tests/frontend-auth-request-recovery.test.cjs:154:38
+      at onSubmit (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:76:29)
+      at isSubmitted (../../content-factory-next/node_modules/react-hook-form/src/logic/createFormControl.ts:1324:9)
+
+  ● login and forgot request failures › login network ends loader and retains a retryable form
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<form[39m
+            [33mclass[39m=[32m"flex flex-col gap-[24px]"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"cf-heading-lg"[39m
+              [36m>[39m
+                [0mВойти[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"mt-[4px] text-[14px] text-cf-ink-muted"[39m
+              [36m>[39m
+                [0mПродолжите работу в своём пространстве Content Factory.[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-col gap-[12px]"[39m
+            [36m>[39m
+              [36m<label>[39m
+                [0mEmail[0m
+                [36m<input[39m
+                  [33mname[39m=[32m"email"[39m
+                  [33mtype[39m=[32m"email"[39m
+                [36m/>[39m
+              [36m</label>[39m
+              [36m<label>[39m
+                [0mPassword[0m
+                [36m<input[39m
+                  [33mname[39m=[32m"password"[39m
+                  [33mtype[39m=[32m"password"[39m
+                [36m/>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-col gap-[16px]"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-busy[39m=[32m"true"[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mtype[39m=[32m"submit"[39m
+              [36m>[39m
+                [0mВойти[0m
+              [36m</button>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex flex-col gap-[6px] text-[14px] text-cf-ink-muted"[39m
+              [36m>[39m
+                [36m<p>[39m
+                  [0mНет аккаунта?[0m
+                  [0m [0m
+                  [36m<a[39m
+                    [33mhref[39m=[32m"/auth"[39m
+                  [36m>[39m
+                    [0mЗарегистрироваться[0m
+                  [36m</a>[39m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [36m<a[39m
+                    [33mhref[39m=[32m"/auth/forgot"[39m
+                  [36m>[39m
+                    [0mЗабыли пароль[0m
+                  [36m</a>[39m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</form>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      164 |             name === 'login' ? words.sign_in : words.send_password_reset_email,
+      165 |         }).disabled
+    > 166 |       ).toBe(false)
+          |         ^
+      167 |     );
+      168 |     expect(screen.getByRole('alert').textContent).toBeTruthy();
+      169 |     expect(document.body.textContent).not.toContain('private network');
+
+      at tests/frontend-auth-request-recovery.test.cjs:166:9
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● login and forgot request failures › forgot network ends loader and retains a retryable form
+
+    private network detail
+
+      131 | const failure = (kind) =>
+      132 |   kind === 'network'
+    > 133 |     ? Promise.reject(Error('private network detail'))
+          |                      ^
+      134 |     : kind === 'protocol'
+      135 |     ? Promise.resolve({
+      136 |         ok: true,
+
+      at failure (tests/frontend-auth-request-recovery.test.cjs:133:22)
+      at tests/frontend-auth-request-recovery.test.cjs:154:38
+      at onSubmit (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:33:15)
+      at isSubmitted (../../content-factory-next/node_modules/react-hook-form/src/logic/createFormControl.ts:1324:9)
+
+  ● login and forgot request failures › forgot network ends loader and retains a retryable form
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-1 flex-col"[39m
+          [36m>[39m
+            [36m<form>[39m
+              [36m<div>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"text-3xl font-bold text-start mb-4 cursor-pointer"[39m
+                [36m>[39m
+                  [0mЗабыли пароль[0m
+                [36m</h1>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4 text-textColor"[39m
+              [36m>[39m
+                [36m<label>[39m
+                  [0mEmail[0m
+                  [36m<input[39m
+                    [33mname[39m=[32m"email"[39m
+                    [33mtype[39m=[32m"email"[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"text-center mt-6"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"w-full flex"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-busy[39m=[32m"true"[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mtype[39m=[32m"submit"[39m
+                  [36m>[39m
+                    [0mОтправить письмо для сброса пароля[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"mt-4 text-sm"[39m
+                [36m>[39m
+                  [36m<a[39m
+                    [33mhref[39m=[32m"/auth/login"[39m
+                  [36m>[39m
+                    [0mВернуться к входу[0m
+                  [36m</a>[39m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      164 |             name === 'login' ? words.sign_in : words.send_password_reset_email,
+      165 |         }).disabled
+    > 166 |       ).toBe(false)
+          |         ^
+      167 |     );
+      168 |     expect(screen.getByRole('alert').textContent).toBeTruthy();
+      169 |     expect(document.body.textContent).not.toContain('private network');
+
+      at tests/frontend-auth-request-recovery.test.cjs:166:9
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● login and forgot request failures › forgot 403 ends loader and retains a retryable form
+
+    Unable to find role="button" and name "Отправить письмо для сброса пароля"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-1 flex-col"[39m
+        [36m>[39m
+          [36m<form>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"text-3xl font-bold text-start mb-4 cursor-pointer"[39m
+              [36m>[39m
+                [0mЗабыли пароль[0m
+              [36m</h1>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-start mt-6"[39m
+            [36m>[39m
+              [0mМы отправили вам письмо со ссылкой для сброса пароля.[0m
+            [36m</div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"mt-4 text-sm"[39m
+            [36m>[39m
+              [36m<a[39m
+                [33mhref[39m=[32m"/auth/login"[39m
+              [36m>[39m
+                [0mВернуться к входу[0m
+              [36m</a>[39m
+            [36m</p>[39m
+          [36m</form>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      158 |     fireEvent.change(email, { target: { value: 'reader@example.invalid' } });
+      159 |     await submit();
+    > 160 |     await waitFor(() =>
+          |           ^
+      161 |       expect(
+      162 |         screen.getByRole('button', {
+      163 |           name:
+
+      at waitForWrapper (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at tests/frontend-auth-request-recovery.test.cjs:160:11
+
+  ● login and forgot request failures › forgot 500 ends loader and retains a retryable form
+
+    Unable to find role="button" and name "Отправить письмо для сброса пароля"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-1 flex-col"[39m
+        [36m>[39m
+          [36m<form>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"text-3xl font-bold text-start mb-4 cursor-pointer"[39m
+              [36m>[39m
+                [0mЗабыли пароль[0m
+              [36m</h1>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-start mt-6"[39m
+            [36m>[39m
+              [0mМы отправили вам письмо со ссылкой для сброса пароля.[0m
+            [36m</div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"mt-4 text-sm"[39m
+            [36m>[39m
+              [36m<a[39m
+                [33mhref[39m=[32m"/auth/login"[39m
+              [36m>[39m
+                [0mВернуться к входу[0m
+              [36m</a>[39m
+            [36m</p>[39m
+          [36m</form>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      158 |     fireEvent.change(email, { target: { value: 'reader@example.invalid' } });
+      159 |     await submit();
+    > 160 |     await waitFor(() =>
+          |           ^
+      161 |       expect(
+      162 |         screen.getByRole('button', {
+      163 |           name:
+
+      at waitForWrapper (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at tests/frontend-auth-request-recovery.test.cjs:160:11
+
+  ● OAuth registration › network exits spinner and succeeds after explicit retry
+
+    private network detail
+
+      131 | const failure = (kind) =>
+      132 |   kind === 'network'
+    > 133 |     ? Promise.reject(Error('private network detail'))
+          |                      ^
+      134 |     : kind === 'protocol'
+      135 |     ? Promise.resolve({
+      136 |         ok: true,
+
+      at failure (tests/frontend-auth-request-recovery.test.cjs:133:22)
+      at tests/frontend-auth-request-recovery.test.cjs:207:13
+      at eval (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:80:32)
+      at eval (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:76:13)
+      at Object.react_stack_bottom_frame (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookPassiveMountEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:13336:11)
+      at commitPassiveMountOnFiber (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:15484:13)
+      at recursivelyTraversePassiveMountEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:15439:11)
+      at commitPassiveMountOnFiber (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:15519:11)
+      at flushPassiveEffects (../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:18432:9)
+      at ../../content-factory-next/node_modules/react-dom/cjs/react-dom-client.development.js:17923:15
+      at flushActQueue (../../content-factory-next/node_modules/react/cjs/react.development.js:590:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (../../content-factory-next/node_modules/react/cjs/react.development.js:884:10)
+      at ../../content-factory-next/node_modules/@testing-library/react/dist/act-compat.js:47:25
+      at renderRoot (../../content-factory-next/node_modules/@testing-library/react/dist/pure.js:190:26)
+      at render (../../content-factory-next/node_modules/@testing-library/react/dist/pure.js:292:10)
+      at tests/frontend-auth-request-recovery.test.cjs:210:7
+
+  ● OAuth registration › network exits spinner and succeeds after explicit retry
+
+    expect(received).toBeNull()
+
+    Received: <div role="status">Loading OAuth</div>
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mLoading OAuth[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      210 |       render(h(Register));
+      211 |       await waitFor(() =>
+    > 212 |         expect(screen.queryByText('Loading OAuth')).toBeNull()
+          |                                                     ^
+      213 |       );
+      214 |       expect(screen.getByRole('alert').textContent).toContain(
+      215 |         words.auth_request_failed_retry
+
+      at tests/frontend-auth-request-recovery.test.cjs:212:53
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● OAuth registration › protocol exits spinner and succeeds after explicit retry
+
+    bad json
+
+      137 |         headers: new Headers(),
+      138 |         json: async () => {
+    > 139 |           throw Error('bad json');
+          |                 ^
+      140 |         },
+      141 |       })
+      142 |     : Promise.resolve(new Response('{}', { status: kind }));
+
+      at Object.json (tests/frontend-auth-request-recovery.test.cjs:139:17)
+      at eval (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:94:42)
+
+  ● OAuth registration › protocol exits spinner and succeeds after explicit retry
+
+    expect(received).toBeNull()
+
+    Received: <div role="status">Loading OAuth</div>
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mLoading OAuth[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      210 |       render(h(Register));
+      211 |       await waitFor(() =>
+    > 212 |         expect(screen.queryByText('Loading OAuth')).toBeNull()
+          |                                                     ^
+      213 |       );
+      214 |       expect(screen.getByRole('alert').textContent).toContain(
+      215 |         words.auth_request_failed_retry
+
+      at tests/frontend-auth-request-recovery.test.cjs:212:53
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● OAuth registration › 403 exits spinner and succeeds after explicit retry
+
+    expect(received).toBeNull()
+
+    Received: <div role="status">Loading OAuth</div>
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mLoading OAuth[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      210 |       render(h(Register));
+      211 |       await waitFor(() =>
+    > 212 |         expect(screen.queryByText('Loading OAuth')).toBeNull()
+          |                                                     ^
+      213 |       );
+      214 |       expect(screen.getByRole('alert').textContent).toContain(
+      215 |         words.auth_request_failed_retry
+
+      at tests/frontend-auth-request-recovery.test.cjs:212:53
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● OAuth registration › 500 exits spinner and succeeds after explicit retry
+
+    expect(received).toBeNull()
+
+    Received: <div role="status">Loading OAuth</div>
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mLoading OAuth[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      210 |       render(h(Register));
+      211 |       await waitFor(() =>
+    > 212 |         expect(screen.queryByText('Loading OAuth')).toBeNull()
+          |                                                     ^
+      213 |       );
+      214 |       expect(screen.getByRole('alert').textContent).toContain(
+      215 |         words.auth_request_failed_retry
+
+      at tests/frontend-auth-request-recovery.test.cjs:212:53
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+  ● OAuth registration › missing-token exits spinner and succeeds after explicit retry
+
+    expect(received).toBeNull()
+
+    Received: <div role="status">Loading OAuth</div>
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mLoading OAuth[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</body>[39m
+    [36m</html>[39m
+
+      210 |       render(h(Register));
+      211 |       await waitFor(() =>
+    > 212 |         expect(screen.queryByText('Loading OAuth')).toBeNull()
+          |                                                     ^
+      213 |       );
+      214 |       expect(screen.getByRole('alert').textContent).toContain(
+      215 |         words.auth_request_failed_retry
+
+      at tests/frontend-auth-request-recovery.test.cjs:212:53
+      at runWithExpensiveErrorDiagnosticsDisabled (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at Timeout.checkRealTimersCallback (../../content-factory-next/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+
+Test Suites: 1 failed, 1 total
+Tests:       9 failed, 4 passed, 13 total
+Snapshots:   0 total
+Time:        10.48 s

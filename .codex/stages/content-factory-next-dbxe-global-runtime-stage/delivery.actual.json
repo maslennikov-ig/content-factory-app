@@ -1,0 +1,50 @@
+{
+  "schema": "global-runtime-delivery/v1",
+  "status": "ACCEPTED_DEPLOYED",
+  "verifiedAt": "2026-10-11T14:05:19.824946+00:00",
+  "privateReleaseSource": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "publicCopiedSource": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "image": "ghcr.io/maslennikov-ig/content-factory-next:2a53727594a1",
+  "registryIndex": "sha256:c763e3c3ba4ab4d5e3d9fddd55d178074223f3fec9cdc95b6817993d1ab035e2",
+  "platformManifest": "sha256:964fe3fb4ec3fafe1381ac56c43c3edf8120462e3124df07086626aa54679c6b",
+  "productionConfig": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+  "privateAndPublicPublished": true,
+  "copiedFilesByteEqual": 4257,
+  "privateHistoryCopied": false,
+  "configuredExactSourceReleaseChecks": 9,
+  "nativeImageAcceptance": "final-image-native.actual.json",
+  "rootAcceptance": "root-acceptance.actual.json",
+  "sourceArchive": {
+    "path": "/api/public/source/archive",
+    "status": 200,
+    "bytes": 12617181,
+    "sha256": "04eb65c5c8881a3c6df10ea6698490252731108a2638c0b0cf429f2419f94609"
+  },
+  "runtime": {
+    "healthy": true,
+    "restarts": 0,
+    "memoryLimitBytes": 1879048192,
+    "nativeHealthExitCode": 0,
+    "allRecordedEndpoints200": true
+  },
+  "schemaApplied": false,
+  "productCountsPreserved": true,
+  "mastraTableCount": 45,
+  "existingWorkflowExecutionsPreserved": true,
+  "foreignProductionContainersPreserved": 21,
+  "verifiedRollbackTag": "755d19fa731d",
+  "hostRetentionPassed": true,
+  "retainedConfigs": {
+    "2a53727594a1": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+    "755d19fa731d": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f"
+  },
+  "closedTasks": [
+    "content-factory-next-dbxe.34",
+    "content-factory-next-dbxe.8"
+  ],
+  "epicStatus": "open",
+  "originalCriteriaPreserved": 30,
+  "followupTask": "content-factory-next-dbxe.36",
+  "nextCandidate": ".25; owner selection required",
+  "boundary": "Applicable final-image global runtime findings. Original application/OS/native exceptions remain visible. No provider/model/client, CWS, key rotation, history cancellation or backup restoration proof."
+}

@@ -375,6 +375,8 @@ export function PieceCoreTab({
               // Суть правится на месте (`97dq.75`): поле встаёт вместо текста.
               return core?.text && onCoreSave ? (
                 <CoreTextEdit
+                  key={detail.piece.id}
+                  pieceId={detail.piece.id}
                   locale={locale}
                   text={core.text}
                   editedByYou={core.editedBy === 'person'}

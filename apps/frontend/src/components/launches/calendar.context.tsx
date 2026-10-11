@@ -51,6 +51,7 @@ export const calendarDefaults = {
   // query params, not a client-side filter over an already-fetched page.
   editorialStage: null as EditorialStageValue | null,
   loading: true,
+  readError: false,
   sets: [] as { name: string; id: string; content: string[] }[],
   signature: undefined as any,
   comments: [] as Array<{
@@ -265,7 +266,10 @@ export const CalendarWeekProvider: FC<{
         : {}),
     }).toString();
 
-    const data = await (await fetch(`/posts?${modifiedParams}`)).json();
+    const response = await fetch(`/posts?${modifiedParams}`);
+    if (!response.ok) throw new Error('Calendar read refused');
+    const data = await response.json();
+    if (!Array.isArray(data?.posts ?? data?.p)) throw new Error('Invalid calendar response');
     return expandPosts(data);
   }, [filters, params]);
 
@@ -289,11 +293,15 @@ export const CalendarWeekProvider: FC<{
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);
-    return expandPostsList(await response.json());
+    if (!response.ok) throw new Error('Post list read refused');
+    const data = await response.json();
+    if (!Array.isArray(data?.posts ?? data?.p)) throw new Error('Invalid post list response');
+    return expandPostsList(data);
   }, [listParams]);
 
   // SWR for calendar view
   const {
+    error: calendarError,
     data: calendarData,
     isLoading: calendarIsLoading,
     mutate: mutateCalendar,
@@ -306,6 +314,7 @@ export const CalendarWeekProvider: FC<{
 
   // SWR for list view
   const {
+    error: listError,
     data: listData,
     isLoading: listIsLoading,
     mutate: mutateList,
@@ -435,6 +444,7 @@ export const CalendarWeekProvider: FC<{
         ...filters,
         posts: calendarIsLoading ? [] : internalData,
         loading,
+        readError: Boolean(filters.display === 'list' ? listError : calendarError),
         integrations,
         setFilters: setFiltersWrapper,
         changeDate,

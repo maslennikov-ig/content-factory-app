@@ -1,0 +1,5 @@
+
+> content-factory@1.0.0 docs:check /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011
+> python3 scripts/docs/check_docs.py
+
+Documentation links OK (194 files checked)

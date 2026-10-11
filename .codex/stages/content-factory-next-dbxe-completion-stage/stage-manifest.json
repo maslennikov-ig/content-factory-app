@@ -1,0 +1,250 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-dbxe-completion-stage",
+  "goal_id": "content-factory-next-dbxe",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 5,
+  "acceptance_boundary_id": "dbxe-complete-integrated-release",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "frontend-recovery",
+      "media-credit-admission",
+      "auxiliary-consumers",
+      "production-delivery"
+    ],
+    "risk_models": [
+      "tenancy",
+      "concurrency",
+      "privacy",
+      "state-transition",
+      "rollback"
+    ],
+    "test_environments": [
+      "offline-focused-fixtures",
+      "disposable-postgresql",
+      "disposable-temporal",
+      "owned-production-readback"
+    ],
+    "rollback_boundary": "content-factory-application-image",
+    "acceptance_proofs": [
+      "source-bound-child-proof",
+      "original-scope-preservation",
+      "configured-release-gates",
+      "image-source-runtime-map",
+      "native-health-and-data-preservation"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-dbxe",
+    "source_digest": "3f23f7a5a6400f05608c4e61f9deca560621aaebef280c7cf88c32c041466321",
+    "criteria": [
+      {
+        "criterion_id": "AC-content-factory-next-dbxe",
+        "text": "Each retained finding has observable acceptance and exact evidence; all child fixes are delivered and verified at their actual source/runtime boundary, or an explicitly approved deferral preserves the requirement outside the completion claim. No silent deletion of user content, cross-tenant credentials, duplicate confirmed external writes, false-success UI or false-green worker health. Preserve historical Temporal contracts and active data. Reuse exact matching proof; changed release uses repository acceptance. Keep original epics open while their unrelated criteria remain unmet.",
+        "text_digest": "615330adaaf82cca18a62ddc14ed541fe159b6dd7ce48535fc60f37d78e6d781"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.1",
+        "text": "USER/EDITOR and disabled memberships cannot retrieve an organization credential from list/switch DTOs; explicit admin API-key surface remains functional. Use two tenants/current roles and prove denied public mutation with a key that was never disclosed. Existing exposed-key remediation is assessed separately, never rotate live keys blindly.",
+        "text_digest": "d765c7c31701398d8ae01902e21b3c117310d7b05e77a31d58423232e48238b0"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.10",
+        "text": "An edit to Post.content or derivation body/version between read and update is retained and counted skipped. Unchanged machine render updates once. Use atomic compare on exact read inputs; no forced backfill or live customer mutation.",
+        "text_digest": "e1049f6e3ebac515e71fa02f034ddd07a188aa0730d258bcdf13f279d16aa0e6"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.11",
+        "text": "Read errors have localized retry distinct from successful empty data; denied/5xx delete never shows success or clears extension credentials. USER keeps preview but no write controls, EDITOR works. No-group compatibility is coherent with actual server target if that shape is supported. Preserve common fetch response contract; prove affected actions with denied/network/5xx/success cases.",
+        "text_digest": "95766158fa2502c68aa2908fc744adaf39457b5ce1800e12f6a3a6397cbd5f83"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.12",
+        "text": "Network/protocol/HTTP failures end loader, show useful localized retry and never false success. Intended login, reset send contract and OAuth registration still work. No real email/account/provider calls needed for focused proof.",
+        "text_digest": "fbd4457e432c2a5abd88015a509940a97e857006c92e20529ae58ddfca5d7b60"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.13",
+        "text": "Deleted/disabled/reconnected channel rejects stale refresh before provider calls and never resurrects. New refresh writes use the established encrypted format; valid connection refresh and legacy reads continue. Use synthetic token/cookies and two generations, preserve secret history safely; no real accounts or global JWT rotation.",
+        "text_digest": "321c2d8e1129a76447ce926c6835e9e7cc4a744e8725058531b5a83950d7ea08"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.14",
+        "text": "Packaged extension obtains least necessary explicit/optional backend host permission and validates stored URL; actual background renewal reaches controlled mock backend and reports failures. Prove production manifest/build with a browser extension fixture, no real Skool credentials and no broad wildcard/all-host grant.",
+        "text_digest": "aebc171698bc798441cc58e207a30a9a1e2b67d3716ab2e4d2afe5bf9efd7dd9"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.15",
+        "text": "After scheduling then disabling plug/channel/provider switch, wake invokes zero provider operations and records a safe skip. Enabled action still runs. Gate at execution and provider-specific switch; preserve old Temporal commands/contracts and never auto-cancel unrelated histories.",
+        "text_digest": "4147465fd8223a344b3dba53ce8cf627234471761c1a740f350ab92899efe9e1"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.16",
+        "text": "Versioned successor respects absolute deadlines/elapsed processing time for several plugs and repeat, has no negative sleeps and preserves declared repeat base. Virtual-clock proof includes nonzero processing. Historical V101\u2013V105 exports/replay remain unchanged and new starts migrate deliberately.",
+        "text_digest": "637f3d9c65b74cc10070e713a704c276e9610c38d2e4391199995e0cafeb54b6"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.17",
+        "text": "Different local/provider IDs yield intended tenant post URL/state in event; failed delivery is visible. Keep identifiers explicit, version workflow/activity/consumer meaning safely, retain already-running histories. Fake HTTP proof does not claim actual customer delivery.",
+        "text_digest": "9912ecc7ab6180a08b07864b4eaa1e77342234424239e5b3a9281f234e2a6057"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.18",
+        "text": "Only matching acknowledged signed event produces completed with its ID; older events, all failures and empty EOSE cannot report success. Connections close, comments retain linkage, uncertain retry uses same event where protocol permits. No historical auto-republish or real relay calls required for local acceptance.",
+        "text_digest": "49af7818b7b16dc04b496a176c1092ce0a7f36a98b6e559fadcb8a4ee6e2a8c4"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.19",
+        "text": "First/middle failure preserves original secret, marks reconnect and permits later valid channels; command exposes partial result. Dribbble expiry never requests Pinterest: use documented Dribbble refresh or explicit reconnect-only capability. Preserve flat refreshToken activity alias/history; no real token mutations.",
+        "text_digest": "467df5e174862fd2e3510b02cb80d5b185a3a8e6ee60b19d4ebd25d2e31db2ee"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.2",
+        "text": "Reset/activation tokens never authenticate sessions; expiry is enforced and reset cannot be reused after successful reset. Explicitly handle existing token shapes without inventing a secret rotation or silently breaking active legitimate sessions. Prove valid session, wrong purpose, expired and reused reset, and post-password-change behavior with synthetic credentials.",
+        "text_digest": "1ca0a5176e22210230f80005f8a456960e9b7490585119b781be67ff088d2c70"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.20",
+        "text": "Versioned periodic successors rotate after bounded processed attempts while preserving input/queue state, including failure-heavy mail. Virtual clock/counters and compatibility proof retain original exports; inspect actual owned consumers before migration. No blanket replacement/cancellation of live workflows or invented incident/limit.",
+        "text_digest": "5165714a10265fcb26026ad4156ccab6743ad6ae12d4f4f73de2a400593cbba8"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.21",
+        "text": "Two-tenant fake R2 sessions cannot cross sign/list/complete/abort; legitimate retry/completion works with expiry. Avatar accepts active media only from a workspace with current membership (including own alternate workspace), rejects foreign/deleted without user update. No live bucket/upload/account mutation; keep existing media retention.",
+        "text_digest": "7951f5c7cea16a9001a05dc7e5199fb8335c4f52a780f91af1d4ac26adb2a740"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.22",
+        "text": "With enabled existing synthetic allowance1 and overlapping requests, one reservation/provider effect; preserve failure/refund and current unbilled behavior. No new price/trial/payment policy or live paid requests. Use DB concurrency proof and provider fake; do not hold transaction across provider call.",
+        "text_digest": "4b9abd5c6175115acf4dcc7e581a245086c30735d05f7568b9210ee115e848d3"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.23",
+        "text": "Mismatched provider/platform rejects before Post/ContentDerivation writes; matching active channel works. Existing capability mapping is the source, no new generic provider routing. Prove supported alias family and a Telegram/VK mismatch.",
+        "text_digest": "c42a4006d970038b18e6e3b0c6badb08d82ee75da9912b638c5ae213f319cac6"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.24",
+        "text": "Synthetic recipient/prompt/cookie sentinels absent in success/failure stdout; fixed safe outcome/code and opaque correlation preserve useful diagnosis/delivery/retry. No live messages/provider calls/global log settings. Do not claim30-day retention from redacted logs.",
+        "text_digest": "af47a83be8e940648f14634f0c702b03ff5303e7db1115e1a7c856cbeb693ed0"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.25",
+        "text": "Ordinary startup never mutates schema or deletes all owners processes. Destructive dev commands require an explicit verified disposable/local target and dry-run/intent; production/ambiguous URL rejects before subprocess. Local developers retain safe setup/reset path and docs agree; test with fake commands only, no live DB or shared PM2 changes.",
+        "text_digest": "caad97e7dfb0c469234766dcbd4d62443c79f0e953fe0dd893feb58ccb5a64f2"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.26",
+        "text": "Define usable status/code/retry surface while preserving documented409/client compatibility (version/opt-in if needed); prove401/409/503/non-JSON with offline transport and own SDK build/types. No publish-package or public breaking change without a deliberate delivery/compatibility step.",
+        "text_digest": "f9b13e29573eca00214751b17aa9345a9b10617b6a47d88264046a11bb4be953"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.27",
+        "text": "Offer explicit compatible strict/check exit mode: invalid fixture nonzero, valid zero, help/offline validation opens no DB/Temporal/provider socket. Preserve normal command lifecycle; verify actual compiled CLI without a Prisma-connect stub and document boundary.",
+        "text_digest": "f52d66b3c70208ed09415ffec694bedde289b14249c34171765610437a01a695"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.28",
+        "text": "Inventory exact current callers/CI/build and owned persisted provider/version usage read-only; remove or archive only truly unused targets and add concise support boundary for retained code. No donor rebrand/history rewrite or automatic user/provider-row deletion. SDK/extension acceptance remains explicit, not inferred from main build.",
+        "text_digest": "bcbe09c9f641db690784520d789486e1cbc191d02a57296febfcee12b9e03098"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.29",
+        "text": "Each chosen release batch has code/affected proof, repository full release gate only when actually releasing, exact private/public/image/runtime correspondence, health and working rollback; no unverified all-done claim. Final child task acceptance references all delivered fixes and explicitly accepted defers. Never restore backups, change shared global logs or connect/publish real social accounts as a blanket delivery test.",
+        "text_digest": "9a3f94b4c73d584568084c679d1b61391bf2a3c6d69793ff9b0c790d3a0d3d77"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.3",
+        "text": "Removed/disabled membership rejects old token, USER cannot mutate, EDITOR/ADMIN retain only existing policy permissions. Two-tenant and downgrade cases prove current DB state governs each request. Preserve supported legacy clients; never modify MCP authorization as a workaround.",
+        "text_digest": "8dd9d6cdcffbb1542102fc775e30b21b994f434358a5a844d542d8320250e251"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.4",
+        "text": "Untrusted-origin cookie-auth mutations are rejected before model/provider/data/key effects. Intended frontend, server clients, OAuth callbacks and bearer APIs still work under their own contracts. Prove form POST and JSON/preflight cases with synthetic sessions and zero provider effects; SameSite/CORS alone must not substitute for the server boundary.",
+        "text_digest": "85da19778c3b1db677c1baf98324c7ada0da17e04d5a5d1526baaa8ce219180e"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.5",
+        "text": "Two organizations with the same external account retain distinct secrets/state after one refresh. Same-organization unrelated provider collisions remain untouched; intentional LinkedIn account/page sharing continues only in its documented family. Verify actual Prisma predicates and concurrent/refresh/connect cases without real providers.",
+        "text_digest": "de4d24937957d093781628fbf37b22e9e27610e19fb7aac9a2243d1118882213"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.6",
+        "text": "A confirmed provider write followed by streak failure produces exactly one local write call and a durable provider receipt; auxiliary failure is separate. Cover crash/uncertain response with reconciliation rather than blind retry. Add versioned workflow/activity and migrate new starts; preserve old histories. Fake proof is distinguished from actual provider idempotency.",
+        "text_digest": "c93117bedb0cfc846bf877cc6aaaffaab6e7616dd84a7ca29ecf000d0f3c2d35"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.7",
+        "text": "Bounded readiness distinguishes worker/process or stale/missing pollers from an idle healthy queue; stopped worker is visibly unavailable and recovery clears it. Use native isolated image/Temporal and pending safe workflow. No production fault injection/global monitoring changes/backup restore; do not add heavy probes or alter32+1 queue/cap contracts.",
+        "text_digest": "d8011416bb4c9b69eeb8fb681135e738afab1689359904b60bc1cf0be96400a1"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.8",
+        "text": "Triage by actual runtime/platform/caller, prioritize exposed dependencies, select minimum compatible patched versions and prove affected behavior. Explicitly dismiss Windows-only/unused next/og/custom-server cases where justified; account for shipped build-only packages separately. Lockfile/install/build/affected tests and next release acceptance pass. No blind latest/forced audit fix or new framework rewrite.",
+        "text_digest": "d5b23462fb3df0fef03fb17aed2bf8029541e400631dab4f7bf3079792a9a949"
+      },
+      {
+        "criterion_id": "AC-content-factory-next-dbxe.9",
+        "text": "Immediate navigation plus rejected/interrupted save does not discard the only dirty text; actionable retry or recoverable local draft exists. Successful saves/normal navigation remain simple. Check both core/adaptation without adding confirmation on every normal navigation.",
+        "text_digest": "f75e4938b75055e68d49b6ed42843e61fafdf64e762f7a9ed333471afea4e9d5"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-dbxe/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "3f23f7a5a6400f05608c4e61f9deca560621aaebef280c7cf88c32c041466321",
+  "scope_ledger": "none",
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-dbxe.22",
+      "stream_owner": "dbxe_backend_completion",
+      "artifact_path": ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.22.md"
+    },
+    {
+      "task_id": "content-factory-next-dbxe.9",
+      "stream_owner": "dbxe_frontend_completion",
+      "artifact_path": ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.9.md"
+    },
+    {
+      "task_id": "content-factory-next-dbxe.26",
+      "stream_owner": "dbxe_toolset_completion",
+      "artifact_path": ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.26.md"
+    }
+  ],
+  "selected_product_tasks": [
+    "content-factory-next-dbxe.9",
+    "content-factory-next-dbxe.11",
+    "content-factory-next-dbxe.12",
+    "content-factory-next-dbxe.22",
+    "content-factory-next-dbxe.23",
+    "content-factory-next-dbxe.26",
+    "content-factory-next-dbxe.27",
+    "content-factory-next-dbxe.28",
+    "content-factory-next-dbxe.29",
+    "content-factory-next-dbxe.30",
+    "content-factory-next-dbxe.31",
+    "content-factory-next-dbxe.32",
+    "content-factory-next-dbxe.36"
+  ],
+  "scope_note": "Owner selects whole epic completion; preserve exact original30 and seven retained follow-ups. Store publisher facts remain unresolved and are not silently deferred.",
+  "branch": "codex/dbxe-completion-20261011",
+  "selected_agents": [
+    "dbxe_frontend_completion",
+    "dbxe_backend_completion",
+    "dbxe_toolset_completion"
+  ]
+}

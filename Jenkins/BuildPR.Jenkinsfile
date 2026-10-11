@@ -20,22 +20,16 @@ pipeline {
             }
         }
 
-        // Stage 2: Setup Node.js v20, install pnpm, and install required tools (curl, unzip)
+        // Jenkins is an optional retained consumer. Provision the pinned tools
+        // on its agent; do not install a drifting system Node during a build.
         stage('Setup Environment and Tools') {
             steps {
                 sh '''
-                    echo "Ensuring required utilities and Node.js are installed..."
-                    sudo apt-get update
-                    sudo apt-get install -y curl unzip nodejs
-                    
-                    # 1. Install Node.js v20 (closest matching the specified version '20.17.0')
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                    sudo apt-get install -y nodejs
-                    echo "Node.js version: \$(node -v)"
-                    
-                    # 2. Install pnpm globally (version 8)
-                    npm install -g pnpm@8
-                    echo "pnpm version: \$(pnpm -v)"
+                    set -eu
+                    command -v curl
+                    command -v unzip
+                    test "$(node -v)" = "v22.23.2"
+                    test "$(pnpm -v)" = "10.6.1"
                 '''
             }
         }
@@ -43,7 +37,7 @@ pipeline {
         // Stage 3: Install dependencies and build the application
         stage('Install and Build') {
             steps {
-                sh 'pnpm install'
+                sh 'pnpm install --frozen-lockfile'
                 sh 'pnpm run build'
             }
         }

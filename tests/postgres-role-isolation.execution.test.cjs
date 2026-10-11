@@ -11,8 +11,15 @@ const container = `cf-role-safety-proof-${process.pid}`;
 const objectContainer = `cf-role-object-proof-${process.pid}`;
 const membershipContainer = `cf-role-membership-proof-${process.pid}`;
 
-const docker = (...args) =>
-  spawnSync('docker', args, { encoding: 'utf8', timeout: 30_000 });
+const {
+  createRoleFixtureDocker,
+} = require('./helpers/postgres-role-fixture.cjs');
+const fixture = createRoleFixtureDocker([
+  container,
+  objectContainer,
+  membershipContainer,
+]);
+const docker = fixture.docker;
 
 const dockerAvailable =
   docker('info', '--format', '{{.ServerVersion}}').status === 0;
@@ -21,16 +28,7 @@ const describeWithDocker = dockerAvailable ? describe : describe.skip;
 describeWithDocker('PostgreSQL role bootstrap mutation ordering', () => {
   jest.setTimeout(60_000);
 
-  afterEach(() => {
-    for (const disposable of [
-      container,
-      objectContainer,
-      membershipContainer,
-    ]) {
-      docker('stop', disposable);
-      docker('rm', disposable);
-    }
-  });
+  afterEach(() => fixture.cleanup());
 
   test('rejects owned objects and excess grants before rotating a runtime password', () => {
     expect(docker('inspect', objectContainer).status).not.toBe(0);

@@ -1,0 +1,105 @@
+{
+  "source": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "workingDirectory": "/home/me/code/content-factory-next-worktrees/dbxe-global-runtime-20261011",
+  "results": [
+    {
+      "phase": "backend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exit": 0,
+      "started": "2026-10-11T12:47:41.513924+00:00",
+      "completed": "2026-10-11T12:48:02.486155+00:00",
+      "log": "backend-types-release.local.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "phase": "frontend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exit": 0,
+      "started": "2026-10-11T12:48:02.486464+00:00",
+      "completed": "2026-10-11T12:48:20.848807+00:00",
+      "log": "frontend-types-release.local.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "phase": "orchestrator-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "exit": 0,
+      "started": "2026-10-11T12:48:20.849102+00:00",
+      "completed": "2026-10-11T12:48:35.853828+00:00",
+      "log": "orchestrator-types-release.local.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "phase": "build",
+      "command": "pnpm run build",
+      "exit": 0,
+      "started": "2026-10-11T12:48:35.854147+00:00",
+      "completed": "2026-10-11T12:50:26.827356+00:00",
+      "log": "build-release.local.log",
+      "sha256": "d8bd13ee31dc5382331cccd0d92b3cde54e048ff2ef48112e39e64c10148fa73"
+    },
+    {
+      "phase": "suite",
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "exit": 0,
+      "started": "2026-10-11T12:50:26.827714+00:00",
+      "completed": "2026-10-11T13:13:04.582714+00:00",
+      "log": "suite-release.local.log",
+      "sha256": "eb05124a6196bb448f49cc253d524b04f362e1a6e65f7593a05457d79e9678c0"
+    },
+    {
+      "phase": "brand",
+      "command": "node scripts/branding/brand-scan.cjs",
+      "exit": 0,
+      "started": "2026-10-11T13:13:04.583324+00:00",
+      "completed": "2026-10-11T13:13:04.696507+00:00",
+      "log": "brand-release.local.log",
+      "sha256": "92de49af5a8e45856311e297697d24d2d9c2cb4879f446bca6d4bad3eceb31a5"
+    },
+    {
+      "phase": "docs",
+      "command": "pnpm run docs:check",
+      "exit": 0,
+      "started": "2026-10-11T13:13:04.696778+00:00",
+      "completed": "2026-10-11T13:13:05.362211+00:00",
+      "log": "docs-release.local.log",
+      "sha256": "abecf1e4df8fd8aba9f07573dafeaa2b67aeb55e70baeaaa28c17e268d487944"
+    },
+    {
+      "phase": "process",
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "exit": 0,
+      "started": "2026-10-11T13:13:05.362459+00:00",
+      "completed": "2026-10-11T13:13:05.527812+00:00",
+      "log": "process-release.local.log",
+      "sha256": "5076e5d6edb84f9f2a4789db9791dd875a319fe38b0fbe1471629e5cee922313"
+    },
+    {
+      "phase": "diff",
+      "command": "git diff --check",
+      "exit": 0,
+      "started": "2026-10-11T13:13:05.528054+00:00",
+      "completed": "2026-10-11T13:13:05.537090+00:00",
+      "log": "diff-release.local.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "result": "PASS",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "suite": {
+    "commit": "92f784757329f041fbf34de0dba0f0d9406a9680",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-11T13:13:04Z",
+    "jest": {
+      "suites": "Test Suites: 6 skipped, 647 passed, 647 of 653 total",
+      "tests": "Tests:       62 skipped, 11946 passed, 12008 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 123",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  }
+}

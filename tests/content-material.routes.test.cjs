@@ -798,6 +798,70 @@ describe('a draft made from a material keeps the link back to it', () => {
     });
   });
 
+  test.each([
+    ['telegram', 'integration-vk'],
+    ['vk', 'integration-telegram'],
+  ])('%s cannot use the explicitly selected channel %s', async (platform, integrationId) => {
+    const { service: materials, store } = service();
+    const error = await failure(() =>
+      materials.createDraft('org-a', 'piece-a', { platform, integrationId })
+    );
+
+    expect(error).toMatchObject({
+      code: 'MATERIAL_PLATFORM_UNSUPPORTED',
+      subject: platform,
+      status: contract.VOICE_ERROR_CODES.MATERIAL_PLATFORM_UNSUPPORTED.status,
+    });
+    expect(store.calls.some((call) => call.name === 'post.create')).toBe(false);
+    expect(store.calls.some((call) => call.name === 'contentDerivation.create')).toBe(false);
+  });
+
+  test.each([
+    ['site', 'wordpress', true],
+    ['site', 'wordpress', false],
+    ['newsletter', 'listmonk', true],
+    ['newsletter', 'listmonk', false],
+  ])('%s uses its existing %s provider alias (explicit=%s)', async (platform, providerIdentifier, explicit) => {
+    const seed = fixture();
+    const integrationId = `integration-${providerIdentifier}`;
+    seed.integrations.push({
+      id: integrationId,
+      organizationId: 'org-a',
+      providerIdentifier,
+      disabled: false,
+      deletedAt: null,
+      createdAt: at('2026-07-03T09:00:00.000Z'),
+    });
+    const { service: materials, store } = service(seed);
+    const response = await materials.createDraft('org-a', 'piece-a', {
+      platform,
+      ...(explicit ? { integrationId } : {}),
+    });
+
+    expect(response.platform).toBe(platform);
+    expect(store.calls.find((call) => call.name === 'post.create').args.data.integrationId).toBe(integrationId);
+    expect(store.calls.find((call) => call.name === 'contentDerivation.create').args.data).toMatchObject({
+      integrationId,
+      platform,
+      postId: response.postId,
+    });
+  });
+
+  test.each(['disabled', 'deleted'])('an explicitly selected %s matching channel writes nothing', async (state) => {
+    const seed = fixture();
+    const channel = seed.integrations.find((one) => one.id === 'integration-telegram');
+    if (state === 'disabled') channel.disabled = true;
+    else channel.deletedAt = at('2026-08-21T09:00:00.000Z');
+    const { service: materials, store } = service(seed);
+    const error = await failure(() => materials.createDraft('org-a', 'piece-a', {
+      platform: 'telegram', integrationId: channel.id,
+    }));
+
+    expect(error.code).toBe('MATERIAL_PLATFORM_UNSUPPORTED');
+    expect(store.calls.some((call) => call.name === 'post.create')).toBe(false);
+    expect(store.calls.some((call) => call.name === 'contentDerivation.create')).toBe(false);
+  });
+
   test('a workspace with no channel for the platform is told which platform', async () => {
     const { service: materials } = service();
     const error = await failure(() =>

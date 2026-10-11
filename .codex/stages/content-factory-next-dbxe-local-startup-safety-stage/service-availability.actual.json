@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-11T15:16:06.480478+00:00",
+  "status": "PASS",
+  "endpoints": [
+    {
+      "path": "/api/",
+      "status": 200
+    },
+    {
+      "path": "/auth/login",
+      "status": 200
+    },
+    {
+      "path": "/api/public/source/version",
+      "status": 200
+    }
+  ],
+  "servingPublicSource": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "boundary": "Read-only availability/source identity; this local-script fix is not a production deployment or native/provider/client acceptance."
+}

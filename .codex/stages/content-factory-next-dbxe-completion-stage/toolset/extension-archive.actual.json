@@ -1,0 +1,12 @@
+{
+  "archive": "apps/extension/extension.zip",
+  "files": [
+    "background.js",
+    "icon-128.png",
+    "icon-32.png",
+    "manifest.json"
+  ],
+  "crc_ok": true,
+  "manifest_version": 3,
+  "provider_cookie_runtime": "not_checked"
+}

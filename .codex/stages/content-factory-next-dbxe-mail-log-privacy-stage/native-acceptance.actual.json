@@ -1,0 +1,56 @@
+{
+  "schema": "mail-queue-log-privacy-native/v1",
+  "status": "PASS",
+  "baseline": false,
+  "owner": "a3ea0624-6d1a-4095-9383-f107fb4e9458",
+  "image": "sha256:cf86707827fac99e4d1c4a47dc11b105382d796199c7bd41fb3213fb0471628e",
+  "sdk": "1.15.0",
+  "bundleSha256": "66f80d472c13790781493709e4294b1f4698e3052ec86d237fe51ad701be5d88",
+  "boundary": "Synthetic loopback SDK server, real historical bodies/activity adapters, fake delivery only; no live messages/migration/collector/deployment.",
+  "histories": [
+    {
+      "type": "sendEmailWorkflow",
+      "sha256": "719ca0f173d4ba220ed98bf880dbfb117fc186b6a2dc16f104bd6cce14006cba",
+      "events": 38,
+      "replay": "PASS"
+    },
+    {
+      "type": "sendEmailWorkflowV2",
+      "sha256": "f079df8ce526490b3f9e01de216445b71760fb258d087f9cd4f261b64100782b",
+      "events": 49,
+      "replay": "PASS"
+    },
+    {
+      "type": "sendEmailWorkflowV3",
+      "sha256": "16e0410e15444f335d9994b11527a4bc4dcb5184592f28dbc914ec49125ed7ef",
+      "events": 38,
+      "replay": "PASS"
+    }
+  ],
+  "privacy": {
+    "stdoutStderrSentinelsAbsent": true,
+    "unrelatedConsolePreserved": true,
+    "unrelatedSDKPreserved": true,
+    "unrelatedActivityPreserved": true,
+    "safeFailureVisible": true,
+    "legacyConsoleRouted": true
+  },
+  "mail": {
+    "activityAttempts": 13,
+    "permanentFailures": 3,
+    "transientRetries": 3,
+    "successfulLetters": 7,
+    "duplicateSuccessfulLetters": 0,
+    "existingV2Preserved": true,
+    "pendingLetterSurvivedWorkerRestart": true,
+    "historyNonRetryablePreserved": true
+  },
+  "cleanup": {
+    "ownedRemoved": true,
+    "beforeCount": 70,
+    "afterCount": 70,
+    "preexistingRemoved": [],
+    "foreignAdded": [],
+    "volumesRemovedWithOwnedContainer": true
+  }
+}

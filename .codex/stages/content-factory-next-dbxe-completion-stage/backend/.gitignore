@@ -1,0 +1,5 @@
+# Full local inventories and scripted-provider reports are retained in this
+# worktree for audit; compact receipts with content digests are committed.
+*-inventory-before.json
+*-inventory-after.json
+*-media-scenarios.actual.json

@@ -1,10 +1,18 @@
-import { NestFactory } from '@nestjs/core';
-import { CommandModule } from './command.module';
-import { CommandService } from 'nestjs-command';
-import { closeIoRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
-import { closeTemporalCommandClient } from '@contentfactory/nestjs-libraries/temporal/temporal.module';
+import { runOfflineCommand } from './offline';
 
 async function bootstrap() {
+  if (await runOfflineCommand(process.argv.slice(2))) return;
+
+  // Operational services stay lazy: help and config checks never import them.
+  const { NestFactory } = await import('@nestjs/core');
+  const { CommandModule } = await import('./command.module');
+  const { CommandService } = await import('nestjs-command');
+  const { closeIoRedis } = await import(
+    '@contentfactory/nestjs-libraries/redis/redis.service'
+  );
+  const { closeTemporalCommandClient } = await import(
+    '@contentfactory/nestjs-libraries/temporal/temporal.module'
+  );
   const app = await NestFactory.createApplicationContext(CommandModule, {
     logger: ['error'],
   });
@@ -36,4 +44,7 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

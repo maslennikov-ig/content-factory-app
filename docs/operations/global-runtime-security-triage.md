@@ -59,3 +59,25 @@ Local fixture proof and the final release have separate receipts. Closure
 requires configured exact-source release checks and current serving native,
 source/archive, schema/Mastra and rollback proof. An old receipt or HTTP200
 alone does not establish that this runtime change was delivered.
+
+## Accepted delivery — 11 October 2026
+
+Private release source `92f784757329f041fbf34de0dba0f0d9406a9680` passed all nine
+configured exact-source release checks. Full suite:647 Jest suites/11946 tests,
+123 Node tests and50 Python tests; existing skips are recorded separately.
+Public copied source `2a53727594a13c15c8740af0686ebffb40d34bfd` produced the image
+`ghcr.io/maslennikov-ig/content-factory-next:2a53727594a1`; source archive, registry
+weight/capacity, native PM2/Prisma and live process checks passed.
+
+Final scanner and fresh official npm advisory response agree: zero global
+Critical findings, two High findings retained as above. Of51 baseline records,
+47 were removed with unused runtime tools and two were patched with js-yaml4.3.2.
+Live checks confirm all three roles have watch/monitoring disabled, no PM2
+keys/modules or proxy variables, and the matching Prisma schema engine.
+
+After switch and scoped retention, production is healthy with zero restarts and
+the1792MiB cap. Native workers, API, login and source/archive respond correctly.
+Both schema differences are empty; no SQL was applied. Product counts, all45
+Mastra tables, the two existing periodic executions and21 other containers are
+preserved. Verified rollback `755d19fa731d` is retained. Beads34 and8 are CLOSED;
+the parent epic remains OPEN and the original criteria are unchanged.

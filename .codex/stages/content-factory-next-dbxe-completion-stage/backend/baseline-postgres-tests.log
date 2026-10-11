@@ -1,0 +1,87 @@
+  console.log
+    video.generated { correlationId: '62e21b46-ce18-4466-b493-de7c065c1042' }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:161:21)
+          at async Promise.allSettled (index 0)
+
+  console.log
+    video.generated { correlationId: 'f3729e78-1373-490a-9fa1-282926afc2d1' }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:161:21)
+          at async Promise.allSettled (index 1)
+
+  console.error
+    video.failed {
+      correlationId: '99046a18-9d7c-473d-b9d6-45d2a5d6f427',
+      code: 'generation_failed'
+    }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:165:21)
+      at tests/media-credits.postgres.test.cjs:128:5
+
+  console.log
+    video.generated { correlationId: 'ade0e9e5-f019-417f-ba55-712a2dc78e8b' }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:161:21)
+
+  console.error
+    video.failed {
+      correlationId: '2f2f82dd-6a15-4784-b63e-69f35c42c20b',
+      code: 'generation_failed'
+    }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:165:21)
+      at tests/media-credits.postgres.test.cjs:141:5
+
+FAIL tests/media-credits.postgres.test.cjs
+  inherited media credits with owned disposable PostgreSQL
+    ✕ overlapping ai_images allowance1 reads produce one committed reservation and fake provider effect (259 ms)
+    ✕ overlapping ai_videos allowance1 reads produce one committed reservation and fake provider effect (160 ms)
+    ✓ ai_images provider failure refunds only its own reservation and keeps the refusal (251 ms)
+    ✓ ai_videos provider failure refunds only its own reservation and keeps the refusal (260 ms)
+    ✓ ai_images storage failure preserves the existing charge/refund boundary (1 credit) (105 ms)
+    ✓ ai_videos storage failure preserves the existing charge/refund boundary (0 credit) (101 ms)
+    ✓ unbilled FREE images remain a counter: both requests execute without inherited quota transactions (103 ms)
+    ✓ only the current organization/type/window consumes the inherited allowance (136 ms)
+
+  ● inherited media credits with owned disposable PostgreSQL › overlapping ai_images allowance1 reads produce one committed reservation and fake provider effect
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"status": "fulfilled", "value": {"alt": null, "id": "1bb28a7b-4e46-4156-b41f-a63c48e8ec52", "name": "generated-media.png", "originalName": "synthetic image.png", "path": "https://synthetic.invalid/generated-media.png", "thumbnail": null}}, {"status": "fulfilled", "value": {"alt": null, "id": "7774d150-12f4-492a-8ce4-de5c8f515f5c", "name": "generated-media.png", "originalName": "synthetic image.png", "path": "https://synthetic.invalid/generated-media.png", "thumbnail": null}}]
+
+      114 |     const test = fixture({ overlap: true });
+      115 |     const results = await Promise.allSettled([test.run(0, type), test.run(1, type)]);
+    > 116 |     expect(results.filter(result => result.status === 'fulfilled' && result.value !== false)).toHaveLength(1);
+          |                                                                                               ^
+      117 |     expect(test.effects).toHaveLength(1);
+      118 |     expect(test.effects[0]).toMatchObject({ transactionActive: false, committedReservations: 1 });
+      119 |     expect(await db.credits.count({ where: { organizationId: 'quota', type } })).toBe(1);
+
+      at tests/media-credits.postgres.test.cjs:116:95
+
+  ● inherited media credits with owned disposable PostgreSQL › overlapping ai_videos allowance1 reads produce one committed reservation and fake provider effect
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"status": "fulfilled", "value": {"alt": null, "id": "e9a039ef-8803-4bed-9408-0fd00c983004", "name": "generated-media.png", "originalName": null, "path": "https://synthetic.invalid/generated-media.png", "thumbnail": null}}, {"status": "fulfilled", "value": {"alt": null, "id": "d37fedfe-1cb2-4f04-a1bf-23a94d64a384", "name": "generated-media.png", "originalName": null, "path": "https://synthetic.invalid/generated-media.png", "thumbnail": null}}]
+
+      114 |     const test = fixture({ overlap: true });
+      115 |     const results = await Promise.allSettled([test.run(0, type), test.run(1, type)]);
+    > 116 |     expect(results.filter(result => result.status === 'fulfilled' && result.value !== false)).toHaveLength(1);
+          |                                                                                               ^
+      117 |     expect(test.effects).toHaveLength(1);
+      118 |     expect(test.effects[0]).toMatchObject({ transactionActive: false, committedReservations: 1 });
+      119 |     expect(await db.credits.count({ where: { organizationId: 'quota', type } })).toBe(1);
+
+      at tests/media-credits.postgres.test.cjs:116:95
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 6 passed, 8 total
+Snapshots:   0 total
+Time:        1.862 s
+Ran all test suites within paths "tests/media-credits.postgres.test.cjs".

@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "Déconnecter {{name}} ? L’application perdra l’accès à votre compte.",
   "approved_app_disconnected": "Déconnecté",
   "approved_app_disconnect_failed": "Impossible de déconnecter",
-  "mcp_consent_workspace_changed": "L’espace de travail a changé dans un autre onglet pendant que cette page était ouverte. Relancez la connexion depuis votre assistant pour connecter l’espace voulu."
+  "mcp_consent_workspace_changed": "L’espace de travail a changé dans un autre onglet pendant que cette page était ouverte. Relancez la connexion depuis votre assistant pour connecter l’espace voulu.",
+  "auth_request_failed_retry": "Impossible de terminer la demande. Réessayez.",
+  "calendar_read_failed_retry": "Impossible de charger les publications. Réessayez.",
+  "media_read_failed_retry": "Impossible de charger la médiathèque. Réessayez.",
+  "post_delete_failed_retry": "Impossible de supprimer la publication. Réessayez.",
+  "media_delete_failed_retry": "Impossible de supprimer le média. Réessayez.",
+  "channel_delete_failed_retry": "Impossible de supprimer le canal. Réessayez."
 }

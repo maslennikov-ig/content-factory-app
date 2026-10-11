@@ -1,0 +1,35 @@
+{
+  "baseline": "5cc169032a452b245f6e0423ceaf38cea719f169",
+  "candidateSourceCommit": "d708a975ffdbde37a187f861c962de292cae8dca",
+  "node": "v22.23.2",
+  "compiler": "5.5.4",
+  "sourceSha256": "c53c92a66b0c80566bd1f1582c5722b8f73fe143d1d9a240bc3176f57cccf9d0",
+  "declarationSha256": "df5f26b0c2387ec2fcfafc014eaa9511c2f700add36822afe025b0bdcda04516",
+  "baselinePublicMethods": {
+    "post": "(posts: CreatePostDto): Promise<unknown>",
+    "postList": "(filters: GetPostsDto): Promise<unknown>",
+    "upload": "(file: Buffer, extension: string): Promise<unknown>",
+    "integrations": "(): Promise<unknown>",
+    "deletePost": "(id: string): Promise<Response>"
+  },
+  "candidatePublicMethods": {
+    "post": "(posts: CreatePostDto): Promise<unknown>",
+    "postList": "(filters: GetPostsDto): Promise<unknown>",
+    "upload": "(file: Buffer, extension: string): Promise<unknown>",
+    "integrations": "(): Promise<unknown>",
+    "deletePost": "(id: string): Promise<Response>"
+  },
+  "declarationsCompatible": true,
+  "twoArgumentConstructorConsumerCompiled": true,
+  "jsonAndErrorBodyRemainUnknown": true,
+  "optInErrorTyped": true,
+  "runtime": {
+    "transport": "isolated loopback HTTP fixture only",
+    "sdk": "genuine built CommonJS artifact, byte-identical copy",
+    "consumer": "actual strict TypeScript compiler output",
+    "requests": 2,
+    "legacy409Code": "CF_QUEUE_BUSY",
+    "optInStatus": 409
+  },
+  "externalProviderCalls": 0
+}

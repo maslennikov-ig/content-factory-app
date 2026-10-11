@@ -113,7 +113,10 @@ the first nominally patched advisory while another version remains vulnerable.
 Lower-severity12 low /68 moderate production range records are still visible;
 this bounded stage prioritizes critical/high and does not claim all advisories
 are eliminated. The later full-image scan/OS triage is documented separately;
-its unresolved native risk and global tools are retained in Beads33–35.
+its OS/native and global-tool decisions are recorded in Beads33–35. The native
+image paths are excluded by exact source/ABI evidence; the general allocator
+remains vulnerable, with explicit reevaluation triggers. Global runtime fixes
+and disabled-caller exceptions are recorded in the global-tool runbook.
 
 ## Acceptance and release
 
@@ -122,9 +125,15 @@ It covers frozen install, actual library behavior, affected product tests, the
 four production app builds and Vite extension build; it does not connect real
 social accounts, publish posts, send email, run paid models or touch production.
 
-The original next-release gate passed at private d724/public755d. Beads dbxe.8
-remains in progress for the retained OS/global scopes33–35. A changed native
-runtime release must run the configured full
+The original next-release gate passed at private d724/public755d. On11Oct2026,
+the changed global runtime passed all nine configured checks at private
+92f784757329f041fbf34de0dba0f0d9406a9680 and was deployed from public snapshot
+2a53727594a13c15c8740af0686ebffb40d34bfd. Beads dbxe.8 and33–35 are CLOSED:
+49/51 baseline global records were resolved, two PM2 exceptions have verified
+disabled callers, and the final OS/native records retain their scoped evidence.
+This closes the original acceptance criterion, not every advisory or future
+input path. See [global runtime triage](global-runtime-security-triage.md).
+Any future changed runtime release must run the configured full
 release checks and exact-commit suite receipt, build from the public copied tree,
 check the resulting native image and active service, and retain verified rollback.
 Do not deploy automatically or bypass the existing registry/source separation.

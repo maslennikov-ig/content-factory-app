@@ -1,3 +1,8 @@
+import {
+  commandCatalog,
+  stripApplyOption,
+  adaptationDryRunOption,
+} from '../command.catalog';
 import { Command, Option } from 'nestjs-command';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
@@ -78,26 +83,11 @@ export class StripAdaptationCitationLabels {
     return this._prisma.model as unknown as CitationLabelsBackfillClient;
   }
 
-  @Command({
-    command: 'adaptations:strip-citation-labels',
-    describe:
-      'Remove source labels such as [E2] from DRAFT adaptations and their machine-rendered posts (dry run by default)',
-  })
+  @Command(commandCatalog.strip)
   async strip(
-    @Option({
-      name: 'apply',
-      describe: 'Write the cleaned bodies and posts; without it nothing is written',
-      type: 'boolean',
-      default: false,
-    })
+    @Option(stripApplyOption)
     apply: boolean,
-    @Option({
-      name: 'dry-run',
-      describe:
-        'Show what would change and write nothing. This is what happens without --apply; passing both keeps the safe side',
-      type: 'boolean',
-      default: false,
-    })
+    @Option(adaptationDryRunOption)
     dryRun: boolean
   ) {
     const write = apply === true && dryRun !== true;
@@ -191,7 +181,12 @@ export class StripAdaptationCitationLabels {
     if (touched.length) this._logger.log(`Posts: ${touched.join(', ')}`);
     if (skipped.length)
       this._logger.log(`Left untouched: ${skipped.join(', ')}`);
-    return { seen, planned: touched.length, rewritten, skipped: skipped.length };
+    return {
+      seen,
+      planned: touched.length,
+      rewritten,
+      skipped: skipped.length,
+    };
   }
 
   /** Разметку решает провайдер канала, а не колонка: та же таблица, что у поста. */
@@ -201,6 +196,8 @@ export class StripAdaptationCitationLabels {
     if (!providerIdentifier) return null;
     const provider =
       this._integrationManager.getSocialIntegration(providerIdentifier);
-    return (provider?.editor as 'none' | 'normal' | 'markdown' | 'html') ?? null;
+    return (
+      (provider?.editor as 'none' | 'normal' | 'markdown' | 'html') ?? null
+    );
   }
 }

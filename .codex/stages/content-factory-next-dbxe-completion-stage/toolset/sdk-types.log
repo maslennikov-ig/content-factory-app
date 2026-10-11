@@ -1,0 +1,3 @@
+
+> @contentfactory/node@1.0.8 typecheck /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011/apps/sdk
+> tsc --noEmit

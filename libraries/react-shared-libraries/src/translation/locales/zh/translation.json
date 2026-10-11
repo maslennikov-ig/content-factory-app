@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "断开与 {{name}} 的连接？它将无法再访问你的账户。",
   "approved_app_disconnected": "已断开连接",
   "approved_app_disconnect_failed": "无法断开连接",
-  "mcp_consent_workspace_changed": "此页面打开期间，另一个标签页切换了工作区。请从你的助手重新开始连接，以连接你想要的工作区。"
+  "mcp_consent_workspace_changed": "此页面打开期间，另一个标签页切换了工作区。请从你的助手重新开始连接，以连接你想要的工作区。",
+  "auth_request_failed_retry": "无法完成请求。请重试。",
+  "calendar_read_failed_retry": "无法加载帖子。请重试。",
+  "media_read_failed_retry": "无法加载媒体库。请重试。",
+  "post_delete_failed_retry": "无法删除帖子。请重试。",
+  "media_delete_failed_retry": "无法删除媒体。请重试。",
+  "channel_delete_failed_retry": "无法删除频道。请重试。"
 }

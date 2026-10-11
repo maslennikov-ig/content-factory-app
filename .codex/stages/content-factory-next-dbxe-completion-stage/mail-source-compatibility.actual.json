@@ -1,0 +1,31 @@
+{
+  "servingPublicCommit": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "files": [
+    {
+      "file": "apps/orchestrator/src/workflows/send.email.workflow.v2.ts",
+      "currentSha256": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+      "servingSourceSha256": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+      "unchanged": true
+    },
+    {
+      "file": "apps/orchestrator/src/workflows/send.email.workflow.v3.ts",
+      "currentSha256": "9bf6019bc3150207e39ac8d8ec075f198b43de717ff39711baefaba50b507768",
+      "servingSourceSha256": "9bf6019bc3150207e39ac8d8ec075f198b43de717ff39711baefaba50b507768",
+      "unchanged": true
+    },
+    {
+      "file": "apps/orchestrator/src/activities/email.activity.v2.ts",
+      "currentSha256": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+      "servingSourceSha256": "5a18bcccf95624ecee0f2fd3b8c8bf5aa1dc0b94e2404b54489fbc82de76aefe",
+      "unchanged": true
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/services/email.service.ts",
+      "currentSha256": "a92ff5ce2282ad6591ef640b98bbecce4a50fc9f235d769d542b68c58cd0d381",
+      "servingSourceSha256": "63b0877ca471124e6631889856e388f50112f7b80a191cd9bbacbfcde61ce0e4",
+      "unchanged": false
+    }
+  ],
+  "historicalBodiesPreserved": true,
+  "V3NativeProofMatchesServingWorkflow": true
+}

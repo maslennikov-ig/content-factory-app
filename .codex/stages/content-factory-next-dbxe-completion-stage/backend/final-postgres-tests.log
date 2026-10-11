@@ -1,0 +1,55 @@
+  console.log
+    video.generated { correlationId: '5f50fb83-628e-473d-9491-c3fb93bcfd76' }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:161:21)
+          at async Promise.allSettled (index 1)
+
+  console.error
+    video.failed {
+      correlationId: '8e38fa52-5598-4d24-a70c-7cc2214762cd',
+      code: 'generation_failed'
+    }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:165:21)
+          at async Promise.allSettled (index 0)
+      at tests/media-credits.postgres.test.cjs:197:25
+
+  console.error
+    video.failed {
+      correlationId: 'afb31314-4e3b-4c5c-87cd-68f250485bd0',
+      code: 'generation_failed'
+    }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:165:21)
+      at tests/media-credits.postgres.test.cjs:235:9
+
+  console.log
+    video.generated { correlationId: 'dad0acb4-1f6c-4cce-bd81-e13f9c955492' }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:161:21)
+
+  console.error
+    video.failed {
+      correlationId: 'c17c167c-b3cd-4489-af6b-268cff199be4',
+      code: 'generation_failed'
+    }
+
+      at MediaService.generateVideo (eval at loadFile (tests/helpers/load-ts-module.cjs:100:5), <anonymous>:165:21)
+      at tests/media-credits.postgres.test.cjs:262:9
+
+PASS tests/media-credits.postgres.test.cjs
+  inherited media credits with owned disposable PostgreSQL
+    ✓ overlapping ai_images allowance1 reads produce one committed reservation and fake provider effect (320 ms)
+    ✓ overlapping ai_videos allowance1 reads produce one committed reservation and fake provider effect (202 ms)
+    ✓ ai_images provider failure refunds only its own reservation and keeps the refusal (295 ms)
+    ✓ ai_videos provider failure refunds only its own reservation and keeps the refusal (264 ms)
+    ✓ ai_images storage failure preserves the existing charge/refund boundary (1 credit) (126 ms)
+    ✓ ai_videos storage failure preserves the existing charge/refund boundary (0 credit) (122 ms)
+    ✓ unbilled FREE images remain a counter: both requests execute without inherited quota transactions (128 ms)
+    ✓ only the current organization/type/window consumes the inherited allowance (162 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        2.125 s
+Ran all test suites within paths "tests/media-credits.postgres.test.cjs".

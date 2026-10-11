@@ -14,6 +14,8 @@ import { Hint } from '@contentfactory/react/layout/hint';
 import type { PieceCoreRevisionV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { Disclosure } from '../../ui/disclosure';
 import { FieldLabel } from '../../ui/field-label';
+import { useUser } from '../../layout/user.context';
+import { textDraftScope } from '../../ui/recoverable-draft';
 import { useAutosave } from '../../ui/use-autosave';
 import { intakeCopy } from '../intake/intake.copy';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
@@ -37,6 +39,7 @@ import { piecesCopy, type PiecesLocale } from './pieces.copy';
 const CORE_AUTOSAVE_MS = 1_000;
 
 export function CoreTextEdit({
+  pieceId,
   locale,
   text,
   editedByYou,
@@ -45,6 +48,7 @@ export function CoreTextEdit({
   onEditingChange,
   children,
 }: {
+  pieceId?: string;
   locale: PiecesLocale;
   /** The core as the server holds it. */
   text: string;
@@ -90,7 +94,20 @@ export function CoreTextEdit({
     },
     [onSave]
   );
-  const autosave = useAutosave<string>(save, { delay: CORE_AUTOSAVE_MS });
+  const user = useUser();
+  const scope = textDraftScope(user?.id, user?.orgId);
+  const autosave = useAutosave<string>(save, {
+    delay: CORE_AUTOSAVE_MS,
+    recoveryKey: scope && pieceId ? `${scope}:core:${pieceId}` : undefined,
+  });
+  useEffect(() => {
+    if (autosave.recovered !== null && !disabled && autosave.recovered !== text) {
+      setDraft(autosave.recovered);
+      setEditing(true);
+    }
+    // Restore once, without silently submitting recovered text.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finish = async () => {
     const ok = await autosave.flush();

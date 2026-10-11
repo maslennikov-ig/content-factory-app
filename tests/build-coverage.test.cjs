@@ -11,13 +11,15 @@ const path = require('path');
  * instance; this test is what stops the next one, because the failure mode is
  * not a bad application but a forgotten one.
  *
- * An application may be left out — the browser extension legitimately is — but
+ * An application may be left out — the extension and standalone SDK are — but
  * only by name and with a reason, so the omission is a decision somebody can
  * read rather than an oversight nobody can see.
  */
 const repoRoot = path.join(__dirname, '..');
 
 const EXCLUDED = {
+  sdk:
+    'Standalone @contentfactory/node client package: tsup emits its CommonJS/declarations for explicit SDK build/typecheck and publish-sdk; no server application imports or deployment consumes that package output.',
   extension:
     'Browser extension, not part of the server release: its build shells out to `zip` and produces extension.zip, which no deployment consumes.',
 };

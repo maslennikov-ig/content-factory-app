@@ -1,0 +1,12 @@
+PASS tests/postgres-role-isolation.execution.test.cjs (25.076 s)
+  PostgreSQL role bootstrap mutation ordering
+    ✓ rejects owned objects and excess grants before rotating a runtime password (15091 ms)
+    ✓ rejects an owner/privileged runtime role before changing any role or database (3870 ms)
+    ✓ rejects membership edges in either direction before rotating passwords (5770 ms)
+    ✓ preflight checks each table DML privilege independently (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        25.11 s
+Ran all test suites matching /tests\/postgres-role-isolation.execution.test.cjs/i.

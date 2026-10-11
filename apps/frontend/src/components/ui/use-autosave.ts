@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dayjs from 'dayjs';
+import {
+  readRecoverableDraft,
+  retainRecoverableDraft,
+  clearRecoverableDraft,
+} from './recoverable-draft';
 
 /** Pause after the last keystroke before a field saves itself. */
 export const AUTOSAVE_MS = 800;
@@ -24,58 +29,74 @@ export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
  */
 export function useAutosave<Value>(
   save: (value: Value) => Promise<boolean | null>,
-  { delay = AUTOSAVE_MS }: { delay?: number } = {}
+  {
+    delay = AUTOSAVE_MS,
+    recoveryKey,
+  }: { delay?: number; recoveryKey?: string } = {}
 ) {
-  const [state, setState] = useState<AutosaveState>('idle');
+  const [recovered] = useState(() => readRecoverableDraft(recoveryKey));
+  const [state, setState] = useState<AutosaveState>(
+    recovered === null ? 'idle' : 'failed'
+  );
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const saveRef = useRef(save);
   saveRef.current = save;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pending = useRef<{ value: Value } | null>(null);
-  const last = useRef<{ value: Value } | null>(null);
+  const last = useRef<{ value: Value } | null>(
+    recovered === null ? null : { value: recovered as Value }
+  );
   const attempt = useRef(0);
-  const settled = useRef<AutosaveState>('idle');
+  const settled = useRef<AutosaveState>(recovered === null ? 'idle' : 'failed');
 
-  const run = useCallback(async (value: Value): Promise<boolean> => {
-    clearTimeout(timer.current);
-    pending.current = null;
-    last.current = { value };
-    const mine = ++attempt.current;
-    setState('saving');
-    let ok: boolean | null;
-    try {
-      ok = await saveRef.current(value);
-    } catch {
-      ok = false;
-    }
-    if (mine !== attempt.current) return ok === true;
-    if (ok === null) {
+  const run = useCallback(
+    async (value: Value): Promise<boolean> => {
+      clearTimeout(timer.current);
+      pending.current = null;
+      last.current = { value };
+      if (typeof value === 'string') retainRecoverableDraft(recoveryKey, value);
+      const mine = ++attempt.current;
+      setState('saving');
+      let ok: boolean | null;
+      try {
+        ok = await saveRef.current(value);
+      } catch {
+        ok = false;
+      }
+      if (ok && typeof value === 'string')
+        clearRecoverableDraft(recoveryKey, value);
+      if (mine !== attempt.current) return ok === true;
+      if (ok === null) {
+        setState(settled.current);
+        return false;
+      }
+      settled.current = ok ? 'saved' : 'failed';
+      if (ok) setSavedAt(dayjs().format('HH:mm'));
       setState(settled.current);
-      return false;
-    }
-    settled.current = ok ? 'saved' : 'failed';
-    if (ok) setSavedAt(dayjs().format('HH:mm'));
-    setState(settled.current);
-    return ok;
-  }, []);
+      return ok;
+    },
+    [recoveryKey]
+  );
 
   /** A change: saves `delay` ms after the last one. */
   const schedule = useCallback(
     (value: Value) => {
       pending.current = { value };
+      if (typeof value === 'string') retainRecoverableDraft(recoveryKey, value);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => {
         const waiting = pending.current;
         if (waiting) void run(waiting.value);
       }, delay);
     },
-    [delay, run]
+    [delay, run, recoveryKey]
   );
 
   /** What is waiting, now: on blur and before leaving. */
   const flush = useCallback(async (): Promise<boolean> => {
     clearTimeout(timer.current);
-    const waiting = pending.current;
+    const waiting =
+      pending.current ?? (settled.current === 'failed' ? last.current : null);
     if (!waiting) return true;
     return run(waiting.value);
   }, [run]);
@@ -93,10 +114,18 @@ export function useAutosave<Value>(
       clearTimeout(timer.current);
       const waiting = pending.current;
       pending.current = null;
-      if (waiting) void saveRef.current(waiting.value);
+      if (waiting) {
+        void Promise.resolve()
+          .then(() => saveRef.current(waiting.value))
+          .then((ok) => {
+            if (ok && typeof waiting.value === 'string')
+              clearRecoverableDraft(recoveryKey, waiting.value);
+          })
+          .catch(() => undefined);
+      }
     },
-    []
+    [recoveryKey]
   );
 
-  return { state, savedAt, schedule, flush, saveNow: run, retry };
+  return { recovered, state, savedAt, schedule, flush, saveNow: run, retry };
 }

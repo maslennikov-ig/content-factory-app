@@ -1,0 +1,65 @@
+PASS tests/adaptation-citation-labels.test.cjs
+PASS tests/adaptation-bold-backfill.test.cjs
+PASS tests/token-refresh.test.cjs (5.695 s)
+PASS tests/local-command-safety.execution.test.cjs
+PASS tests/commands-app.wiring.test.cjs (5.127 s)
+PASS tests/commands-configuration.offline.test.cjs
+PASS tests/sdk-http-errors.test.cjs
+PASS tests/postgres-role-fixture-cleanup.test.cjs
+FAIL tests/auxiliary-build-compatibility.test.cjs
+  ● retained auxiliary build consumers › optional Jenkins checks actual tool exits for v22.23.2 / 10.6.1
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 127
+
+      77 |           env: { ...process.env, PATH: `${temporary}:${process.env.PATH}` },
+      78 |         });
+    > 79 |         expect(result.status).toBe(expected);
+         |                               ^
+      80 |         expect(source).toContain('pnpm install --frozen-lockfile');
+      81 |         expect(source).not.toContain('setup_20.x');
+      82 |         expect(source).not.toContain('pnpm@8');
+
+      at tests/auxiliary-build-compatibility.test.cjs:79:31
+
+  ● retained auxiliary build consumers › optional Jenkins checks actual tool exits for v20.17.0 / 10.6.1
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 127
+
+      77 |           env: { ...process.env, PATH: `${temporary}:${process.env.PATH}` },
+      78 |         });
+    > 79 |         expect(result.status).toBe(expected);
+         |                               ^
+      80 |         expect(source).toContain('pnpm install --frozen-lockfile');
+      81 |         expect(source).not.toContain('setup_20.x');
+      82 |         expect(source).not.toContain('pnpm@8');
+
+      at tests/auxiliary-build-compatibility.test.cjs:79:31
+
+  ● retained auxiliary build consumers › optional Jenkins checks actual tool exits for v22.23.2 / 8.15.0
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 127
+
+      77 |           env: { ...process.env, PATH: `${temporary}:${process.env.PATH}` },
+      78 |         });
+    > 79 |         expect(result.status).toBe(expected);
+         |                               ^
+      80 |         expect(source).toContain('pnpm install --frozen-lockfile');
+      81 |         expect(source).not.toContain('setup_20.x');
+      82 |         expect(source).not.toContain('pnpm@8');
+
+      at tests/auxiliary-build-compatibility.test.cjs:79:31
+
+Test Suites: 1 failed, 8 passed, 9 total
+Tests:       3 failed, 160 passed, 163 total
+Snapshots:   0 total
+Time:        16.203 s
+Ran all test suites matching /tests\/sdk-http-errors.test.cjs|tests\/commands-configuration.offline.test.cjs|tests\/auxiliary-build-compatibility.test.cjs|tests\/postgres-role-fixture-cleanup.test.cjs|tests\/token-refresh.test.cjs|tests\/adaptation-bold-backfill.test.cjs|tests\/adaptation-citation-labels.test.cjs|tests\/commands-app.wiring.test.cjs|tests\/local-command-safety.execution.test.cjs/i.

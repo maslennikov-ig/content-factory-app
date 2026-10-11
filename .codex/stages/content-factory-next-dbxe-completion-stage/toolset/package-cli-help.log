@@ -1,0 +1,23 @@
+
+> content-factory-command@1.0.0 start /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011/apps/commands
+> node ./dist/apps/commands/src/main.js --help
+
+cli <command>
+
+Commands:
+  cli config:check                       Checks your configuration (.env) file
+                                         for issues.
+  cli refresh                            Refresh all tokens
+  cli product-events:prune [days]        Delete product events older than the
+                                         retention window
+  cli adaptations:rerender-bold          Re-render DRAFT posts of adaptations
+                                         whose stored body has bold markers (dry
+                                         run by default)
+  cli adaptations:strip-citation-labels  Remove source labels such as [E2] from
+                                         DRAFT adaptations and their
+                                         machine-rendered posts (dry run by
+                                         default)
+
+Options:
+  -h, --help     Show help                                             [boolean]
+  -v, --version  Show version number                                   [boolean]

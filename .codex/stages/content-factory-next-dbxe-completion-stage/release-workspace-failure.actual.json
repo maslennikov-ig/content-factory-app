@@ -1,0 +1,9 @@
+{
+  "source": "5cdd90026810c128a5c43320dfc1a47af55cedfc",
+  "failedPhase": "pnpm run build",
+  "cause": "Turbopack refuses dependency symlinks outside isolated project root",
+  "productSourceChanged": false,
+  "resolution": "Copy exact existing dependency installation into owned release worktree; lock unchanged",
+  "priorTypeChecksPassed": 3,
+  "suiteHadNotRun": true
+}

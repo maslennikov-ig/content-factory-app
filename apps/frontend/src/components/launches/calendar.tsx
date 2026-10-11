@@ -254,12 +254,14 @@ export const groupPostsByGroup = (posts: any[]): PostGroup[] => {
 };
 
 // Shared hook for post actions (edit, delete, statistics)
-const usePostActions = (onMutate?: () => void) => {
+export const usePostActions = (onMutate?: () => void) => {
   const t = useT();
   const fetch = useFetch();
   const modal = useModals();
   const toaster = useToaster();
   const openPostEditor = useOpenPostEditor();
+  const user = useUser();
+  const canWrite = isOrganizationEditor(user?.role);
   const { integrations, reloadCalendarView } = useCalendar();
 
   const mutate = useCallback(() => {
@@ -269,6 +271,7 @@ const usePostActions = (onMutate?: () => void) => {
 
   const editPost = useCallback(
     (loadPost: any, isDuplicate?: boolean) => async () => {
+      if (!canWrite || typeof loadPost.group !== 'string' || !loadPost.group) return;
       const post = {
         ...loadPost,
         publishDate: loadPost.actualDate || loadPost.publishDate,
@@ -301,7 +304,7 @@ const usePostActions = (onMutate?: () => void) => {
         reopenModal: editPost(post),
       });
     },
-    [integrations, openPostEditor, mutate]
+    [integrations, openPostEditor, mutate, canWrite]
   );
 
   const copyDebugJson = useCallback(
@@ -322,6 +325,11 @@ const usePostActions = (onMutate?: () => void) => {
 
   const deletePost = useCallback(
     (post: any) => async () => {
+      if (!canWrite) return;
+      if (typeof post.group !== 'string' || !post.group) {
+        toaster.show(t('post_delete_failed_retry', 'Could not delete the post. Please try again.'), 'warning');
+        return;
+      }
       if (
         !(await deleteDialog(
           t(
@@ -333,18 +341,21 @@ const usePostActions = (onMutate?: () => void) => {
         return;
       }
 
-      await fetch(`/posts/${post.group}`, {
-        method: 'DELETE',
-      });
+      try {
+        const response = await fetch(`/posts/${encodeURIComponent(post.group)}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Post deletion refused');
 
-      toaster.show(
-        t('post_deleted_successfully', 'Post deleted successfully'),
-        'success'
-      );
+        toaster.show(
+          t('post_deleted_successfully', 'Post deleted successfully'),
+          'success'
+        );
 
-      mutate();
+        mutate();
+      } catch {
+        toaster.show(t('post_delete_failed_retry', 'Could not delete the post. Please try again.'), 'warning');
+      }
     },
-    [toaster, t, fetch, mutate]
+    [toaster, t, fetch, mutate, canWrite]
   );
 
   const openStatistics = useCallback(
@@ -764,7 +775,12 @@ export const ListView = () => {
 };
 
 export const Calendar = () => {
-  const { display } = useCalendar();
+  const { display, readError, reloadCalendarView } = useCalendar();
+  const t = useT();
+  if (readError) return <div className="flex flex-col gap-[12px] p-[16px]">
+    <p role="alert" className="cf-body-sm text-cf-danger">{t('calendar_read_failed_retry', 'Could not load posts. Please try again.')}</p>
+    <Button type="button" variant="secondary" onClick={reloadCalendarView}>{t('try_again', 'Try again')}</Button>
+  </div>;
   return (
     <>
       {display === 'list' ? (
@@ -1464,6 +1480,8 @@ const CalendarItem: FC<{
   const { disableXAnalytics } = useVariables();
   const interfaceLanguage = useInterfaceLanguage();
   const user = useUser();
+  const canWritePost = isOrganizationEditor(user?.role) && typeof post.group === 'string' && Boolean(post.group);
+  const openCard = canWritePost ? editPost : () => setPreviewId(post.id);
   const showCreationMethodBadge =
     user?.impersonate &&
     post.creationMethod &&
@@ -1488,6 +1506,7 @@ const CalendarItem: FC<{
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
+      canDrag: canWritePost,
       item: {
         id: post.id,
         ids: members.map((member) => member.id),
@@ -1498,7 +1517,7 @@ const CalendarItem: FC<{
         opacity: monitor.isDragging() ? 0 : 1,
       }),
     }),
-    [post.id, members.length]
+    [post.id, members.length, canWritePost]
   );
 
   const locale = resolveEditorialStageLocale(interfaceLanguage);
@@ -1593,7 +1612,7 @@ const CalendarItem: FC<{
       onClick: deletePost,
       danger: true,
     },
-  ];
+  ].filter((action) => canWritePost || !['duplicate', 'delete', 'missing-release'].includes(action.key));
 
   /*
     Merging a group's rows into one card would have taken the other channels'
@@ -1732,7 +1751,7 @@ const CalendarItem: FC<{
             layout="content"
             data-calendar-row-open="true"
             className="flex flex-1 min-w-0 items-center gap-[12px] text-start"
-            onClick={editPost}
+            onClick={openCard}
           >
             <span className="hidden w-[152px] shrink-0 truncate cf-body-sm text-cf-ink sm:block">
               {post.integration?.name}
@@ -1780,7 +1799,7 @@ const CalendarItem: FC<{
             <StagePill tone={bandTone} label={bandLabel} title={bandTitle} />
           )}
           <div
-            onClick={editPost}
+            onClick={openCard}
             className="order-first basis-full sm:order-none sm:basis-0 flex-1 min-w-0 cf-body-md text-cf-ink truncate text-start cursor-pointer"
           >
             {sentence}
@@ -1799,7 +1818,7 @@ const CalendarItem: FC<{
             <StageBand tone={bandTone} label={bandLabel} title={bandTitle} />
           )}
           <div
-            onClick={editPost}
+            onClick={openCard}
             className={clsx(
               'flex flex-col flex-1 gap-[4px] w-full min-w-0 px-[8px] py-[4px] cursor-pointer',
               'rounded-b-[8px]',

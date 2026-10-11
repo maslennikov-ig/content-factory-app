@@ -1,3 +1,6 @@
+import { installMailLogPrivacy } from '@contentfactory/nestjs-libraries/temporal/mail-log-privacy';
+installMailLogPrivacy();
+
 import {
   initializeSentry,
   setupSentryErrorHandler,

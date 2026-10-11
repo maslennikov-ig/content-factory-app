@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "Ngắt kết nối {{name}}? Ứng dụng sẽ mất quyền truy cập vào tài khoản của bạn.",
   "approved_app_disconnected": "Đã ngắt kết nối",
   "approved_app_disconnect_failed": "Không thể ngắt kết nối",
-  "mcp_consent_workspace_changed": "Không gian làm việc đã được đổi ở một tab khác khi trang này đang mở. Hãy bắt đầu kết nối lại từ trợ lý để kết nối đúng không gian bạn muốn."
+  "mcp_consent_workspace_changed": "Không gian làm việc đã được đổi ở một tab khác khi trang này đang mở. Hãy bắt đầu kết nối lại từ trợ lý để kết nối đúng không gian bạn muốn.",
+  "auth_request_failed_retry": "Không thể hoàn tất yêu cầu. Vui lòng thử lại.",
+  "calendar_read_failed_retry": "Không thể tải các bài đăng. Vui lòng thử lại.",
+  "media_read_failed_retry": "Không thể tải thư viện nội dung đa phương tiện. Vui lòng thử lại.",
+  "post_delete_failed_retry": "Không thể xóa bài đăng. Vui lòng thử lại.",
+  "media_delete_failed_retry": "Không thể xóa nội dung đa phương tiện. Vui lòng thử lại.",
+  "channel_delete_failed_retry": "Không thể xóa kênh. Vui lòng thử lại."
 }

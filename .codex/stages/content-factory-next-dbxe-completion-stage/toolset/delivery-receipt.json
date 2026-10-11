@@ -1,0 +1,104 @@
+{
+  "schema": "toolset-local-delivery/v1",
+  "scope": [
+    "dbxe.26",
+    "dbxe.27",
+    "dbxe.28",
+    "dbxe.36"
+  ],
+  "baseline": "5cc169032a452b245f6e0423ceaf38cea719f169",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "source_sha256": {
+    "Jenkins/Build.Jenkinsfile": "6f04f33166c1c52398bb178ac85490a052bbe7eaa2e9f1363eadd327ee0e2829",
+    "Jenkins/BuildPR.Jenkinsfile": "dc3c1a31759766c98f0a11e39e0e9bb67b744a6cfc16c2d1fd7077a2036b2cd7",
+    "apps/commands/README.md": "528467b005ebdee82a4d6274b1022c16ed387d3bcac38a4bf2563deca9a14ac4",
+    "apps/commands/package.json": "b42b344d05360e57d6b1ad91018045cff89b2c5219de83923f59c8777f3735ea",
+    "apps/commands/src/command.catalog.ts": "09e4001387a114b0ee877a62dc52b1a55c2ad95945c7b96c8670c30dcbde2a3f",
+    "apps/commands/src/main.ts": "e9a5ff5021f0d410afb8e90810aafdc44ad8d973058afdeeeb07c5cc7cc9ee49",
+    "apps/commands/src/offline.ts": "7f1e87fed4f3f782c36a8470cb6c350101c30bb2a5a36d7fb8522ee0de016a31",
+    "apps/commands/src/tasks/configuration.ts": "9bd4dda61cada53f7adfc569c9fd62f3bb72e7087bb494342c7e83e632ccdbbe",
+    "apps/commands/src/tasks/prune.product.events.ts": "2f0f57b682931fba7e19e8c2c66efbca19d275b3f71cb303c2361f08f9314414",
+    "apps/commands/src/tasks/refresh.tokens.ts": "cf7b75f14a0db67b861b4335c6792e081826f91587571551ea0a5dee5cffaf31",
+    "apps/commands/src/tasks/rerender.adaptation.bold.ts": "2fc6c146aa2754654942b4d51008f5834f3b80d493242b25197838ba9eaff0dc",
+    "apps/commands/src/tasks/strip.adaptation.citation.labels.ts": "101440eefdc48e3a0ceb23167733d5a42a6203ef55faf950802b8ce20b7a136b",
+    "apps/sdk/README.md": "cac54fcb466b21c9a4a88dbc8c0452d9a6bafdb3a6849decdd7630ff508fcf6e",
+    "apps/sdk/package.json": "cdacce5573e42cc566e9b94eb01141ffa443eb8b6105583c6a6b482f064893c3",
+    "apps/sdk/src/index.ts": "c53c92a66b0c80566bd1f1582c5722b8f73fe143d1d9a240bc3176f57cccf9d0",
+    "docs/development/auxiliary-tool-support.md": "1b14213fdc5825c3a8f70b1eafb4447c69c30dd01930662059c9681bc43b56f1",
+    "tests/auxiliary-build-compatibility.test.cjs": "b536c211ead72d9de0ec7a7794c7970e087dbe36edb01c3432beb4ad6df7914f",
+    "tests/commands-configuration.offline.test.cjs": "cacbdf91b44861c86a4d3e5731dd24ed31f4ecf352957270c2149e134c4cfc0c",
+    "tests/helpers/postgres-role-fixture.cjs": "80ccf0f58c095b0d775e9f849bc73d494cfe64f3471358dbbe8a27018f263b0f",
+    "tests/postgres-role-fixture-cleanup.test.cjs": "0f41c0021f71435dd779d82abcd46e6e35b00da657c43d1ec624c0fda97927ad",
+    "tests/postgres-role-isolation.execution.test.cjs": "ffcd10d326812c7e91a48777d153d7f4c66f98ab90c6f54ffe167c6a3ca3d8e9",
+    "tests/sdk-http-errors.test.cjs": "b454f82df33e876704edf404add597e4306d5de618817a8db444682b9f6c2e21",
+    "var/docker/docker-build.sh": "30442e74ad928d4b114e0e89da999ffa4b82f9dd2ed97a40fac872dcbca0f21f",
+    "tests/build-coverage.test.cjs": "e4b5dbbb0697f1c8584751323bbb34a1f14a7323ffab5e80716122d311cfe014"
+  },
+  "artifact_sha256": {
+    "apps/commands/dist/apps/commands/src/main.js": "881dfdd92e05d75085354d4790a1e2a881fe7f0d8a0a6339eb4741f476d6de80",
+    "apps/commands/dist/apps/commands/src/offline.js": "bf9fae5d73ae18ca469b77dd909121ca2b947aaf371f25f96ccc43daa39cc931",
+    "apps/sdk/dist/index.js": "8c211df2cccbe3dea298309127067e1acceb85c47c3070590b6ce7044d94f527",
+    "apps/sdk/dist/index.d.ts": "df5f26b0c2387ec2fcfafc014eaa9511c2f700add36822afe025b0bdcda04516",
+    "apps/extension/extension.zip": "3890835f707df4938fe68113a970e0e7d814016b9d4f029aa05d0f4954d95fab"
+  },
+  "focused_jest": {
+    "suites": 9,
+    "passed": 163,
+    "failures": 0,
+    "log": "focused-acceptance.log"
+  },
+  "real_postgres_role_suite": {
+    "passed": 4,
+    "failures": 0,
+    "log": "postgres-role-execution.log"
+  },
+  "compiled_cli": {
+    "cases": 9,
+    "socket_or_dns_calls": 0,
+    "prisma_connect_stub": false,
+    "receipt": "compiled-cli.actual.json"
+  },
+  "real_fixture_cleanup": "postgres-cleanup.actual.json",
+  "docs_check": {
+    "files": 194,
+    "failures": 0
+  },
+  "graph_reviewed": true,
+  "release_acceptance": false,
+  "task_closure": "root-owned",
+  "production_write": false,
+  "push": false,
+  "package_publication": false,
+  "sdk_public_type_compatibility": {
+    "receipt": "sdk-compatibility.actual.json",
+    "baseline_methods_match": 5,
+    "two_argument_typescript_consumer": "compiled against actual dist/index.d.ts",
+    "json_and_error_body": "unknown; guards required as at baseline",
+    "runtime_409": "actual built SDK and compiled consumer against isolated loopback transport",
+    "sdk_source_changed": false,
+    "matching_sdk_build_types_receipts_reused": true
+  },
+  "build_coverage_boundary": {
+    "core_selected_apps": [
+      "backend",
+      "commands",
+      "frontend",
+      "orchestrator"
+    ],
+    "explicit_excluded_apps": [
+      "extension",
+      "sdk"
+    ],
+    "sdk_reason": "standalone client package with explicit SDK build/typecheck and publish-sdk; no declared server/deployment output consumer",
+    "guard_changes": "named exclusion only; discovery, exact equality, valid exclusions and duplicate detection unchanged",
+    "focused_check": {
+      "suites": 3,
+      "passed": 69,
+      "failed": 0,
+      "log": "build-coverage-green.log"
+    },
+    "red_reproduction": "build-coverage-red.log",
+    "root_full_suite": "not rerun by child"
+  }
+}

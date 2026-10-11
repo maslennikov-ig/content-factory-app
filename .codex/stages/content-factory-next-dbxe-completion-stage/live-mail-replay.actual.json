@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T17:10:10.873Z",
+  "sdk": "1.15.0",
+  "boundary": "Actual downloaded immutable V2 history replayed offline; no provider calls or production mutations",
+  "events": 260,
+  "historySha256": "c7b6d73481af46c6e7f32b1eb22bd7723b48af366b31b34a8bb0c13617300969",
+  "workflowSourceSha256": "8702addf7f9d76db611b1c42742ca9495fbf869dff595c32b0241681de309a1a",
+  "bundleSha256": "6adc3048a72e7944d4dd82326cf95d47f7f1a7161e5bf5fdd3be7b122dca2e8a",
+  "commandsCompatible": true,
+  "payloadsDisclosed": false
+}

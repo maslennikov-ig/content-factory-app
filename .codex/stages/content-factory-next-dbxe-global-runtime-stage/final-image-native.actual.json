@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T13:25:11.194629+00:00",
+  "image": "content-factory-next:2a53727594a1",
+  "localImageId": "sha256:c763e3c3ba4ab4d5e3d9fddd55d178074223f3fec9cdc95b6817993d1ab035e2",
+  "privateSource": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "publicSource": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "nativeTools": {
+    "boundary": "native global supervisor/CLI and offline Prisma; synthetic processes only",
+    "node": "v22.23.2",
+    "result": "PASS",
+    "tools": {
+      "pm2": "7.0.3",
+      "jsYaml": "4.3.2",
+      "removed": [
+        "npm",
+        "npx",
+        "pnpm",
+        "pnpx",
+        "corepack",
+        "yarn",
+        "yarnpkg"
+      ]
+    },
+    "supervisor": {
+      "roles": [
+        "backend",
+        "orchestrator",
+        "frontend"
+      ],
+      "startup": true,
+      "jlist": true,
+      "automaticRestart": true,
+      "operatorRestart": true,
+      "gracefulShutdown": true
+    },
+    "prisma": {
+      "version": "6.5.0",
+      "directCli": true,
+      "bootstrapExit": 2,
+      "bootstrapSqlSha256": "abc6357f9d12d5a36e7424c3acb010bd20ee3b6433e9b6a7efee364231d0850e",
+      "actualBootstrapGuard": true,
+      "equalSchemaExit": 0,
+      "schemaApplied": false
+    }
+  },
+  "globalManifests": 82,
+  "nativeImageChain": {
+    "node": "22.23.2",
+    "sharp": "0.35.5",
+    "vips": "8.18.7",
+    "nextSharpSameInstance": true,
+    "addonHash": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+    "libvipsHash": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+    "systemLibstdcppHash": "e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4",
+    "schemaEngineHash": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+  },
+  "prior35ProofReused": {
+    "sourceReceipt": ".codex/stages/content-factory-next-dbxe-native-allocation-stage/root-acceptance.actual.json",
+    "exactNativeBinariesMatch": true,
+    "exactConsumerFilesMatch": {
+      "apps/backend/src/api/routes/media.controller.ts": "650f031e6f8fd3f8eefed61cd8fd8b8663490923f043dd2105645280d53cb920",
+      "apps/backend/src/public-api/routes/v1/public.integrations.controller.ts": "92f5eb89eb36d0de8124bed905c83ed91fc16e3b2bba3910211262feab6eb7f6",
+      "libraries/nestjs-libraries/src/upload/custom.upload.validation.ts": "0737b0665dcd53702d7d01cd05a4ce84b0004943019cb357fcf3e8aa14b2fd68",
+      "libraries/nestjs-libraries/src/upload/local.storage.ts": "f1454e4648167301af6bdba4f744ba290be1867a2b6f6b858ded70daf2b67057",
+      "libraries/nestjs-libraries/src/upload/cloudflare.storage.ts": "e1f43efc0d9ef2725c109b185aee20952ad36d77d7b10f3fe06c8651e854266a",
+      "libraries/nestjs-libraries/src/upload/r2.uploader.ts": "92a886c01d5655cd3d73a08ecd930bf305153f1a21f293ef42a82ae0394cf58c",
+      "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "278a009ab17643a2b4938f5b8a93c73ca648a6f9803cbdb560931104d6df669a",
+      "libraries/nestjs-libraries/src/integrations/social.abstract.ts": "c507e32b29fa0d3be2d3657cacfc43d1304a0b4f7ba523be3e98f6dd2dce97b5",
+      "libraries/nestjs-libraries/src/integrations/social/bluesky.provider.ts": "e3d398f2939c2d974734794b3b324a117f7c36407f58a76acc1a715446033613",
+      "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts": "998cbfa2e008b193bd73de40ca2bb3ee9320024baaf0ae20bea54e0db098d9e7",
+      "libraries/nestjs-libraries/src/integrations/social/x.provider.ts": "b1166c420896fbfb2f3b3bcb30811438cff0b5298c7c786bf183ae6f426c21db",
+      "libraries/helpers/src/utils/read.or.fetch.ts": "ac8dbf094c5efe37fdc953c8c885137dc477ea80d172b9af5fa9de1986bac3fb",
+      "apps/frontend/next.config.js": "90011dc9c2d422216a9b47380ef49f0818b76843530da96a2a0560461bdb7bf8"
+    },
+    "boundary": "Only selected35 caller/ABI proof; allocator itself remains unpatched"
+  },
+  "ownedFixturesRemoved": true,
+  "boundary": "Native controlled processes and offline SQL; no provider, live schema apply or production startup claim"
+}

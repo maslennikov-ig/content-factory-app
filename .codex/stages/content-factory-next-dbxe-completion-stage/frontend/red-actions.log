@@ -1,0 +1,1461 @@
+FAIL tests/frontend-read-delete-recovery.test.cjs
+  ● calendar read failure has localized retry distinct from empty
+
+    TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+
+    Here are the accessible roles:
+
+      button:
+
+      Name "+ Запланировать · 12.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 00:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 00:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 01:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 01:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 02:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 02:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 03:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 03:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 04:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 04:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 05:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 05:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 06:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 06:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 07:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 07:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 08:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 08:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 09:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 09:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 10:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 10:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 11:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 11:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 12:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 12:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 13:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 13:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 14:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 14:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 15:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 15:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 16:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 16:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 17:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 17:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 18:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 18:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 19:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 19:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 11.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 11.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 20:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 20:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 11.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 11.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 21:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 21:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 11.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 11.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 22:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 22:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 11.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 11.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 12.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 13.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 13.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 14.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 14.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 15.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 15.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 16.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 16.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      Name "+ Запланировать · 17.10.2026 23:00":
+      [36m<button[39m
+        [33maria-label[39m=[32m"+ Запланировать · 17.10.2026 23:00"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+
+      --------------------------------------------------
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-col text-textColor flex-1"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex-1 relative"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"grid [grid-template-columns:72px_repeat(7,_minmax(116px,_1fr))] md:[grid-template-columns:136px_repeat(7,_minmax(104px,_1fr))] gap-[4px] rounded-[8px] absolute h-full start-0 top-0 w-full overflow-auto"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"z-10 bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"[39m
+              [36m/>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mSunday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px] text-newTableTextFocused"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"w-[6px] h-[6px] bg-newTableTextFocused rounded-full"[39m
+                  [36m/>[39m
+                  [0m10/11/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mMonday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/12/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mTuesday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/13/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mWednesday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/14/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mThursday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/15/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mFriday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/16/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[500] text-newTableText"[39m
+                [36m>[39m
+                  [0mSaturday[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"text-[14px] font-[600] flex items-center justify-center gap-[6px]"[39m
+                [36m>[39m
+                  [0m10/17/2026[0m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText"[39m
+              [36m>[39m
+                [0m0:00[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"relative flex flex-col gap-[4px] w-full min-h-full p-[4px] rounded-[8px] repeated-strip cursor-not-allowed col-calendar"[39m
+                  [33mdata-date-passed[39m=[32m"Дата прошла"[39m
+                [36m/>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"relative flex flex-col gap-[4px] w-full min-h-full p-[4px] rounded-[8px] border border-cf-border"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"+ Запланировать · 12.10.2026 00:00"[39m
+                    [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-focus focus-visible:ring-offset-2 min-h-[40px] disabled:cursor-not-allowed disabled:opacity-50 group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex items-center justify-center w-[32px] h-[32px] rounded-[8px] border border-dashed border-cf-border-...
+
+      343 |   const { Calendar } = loadCalendar();
+      344 |   render(h(Calendar));
+    > 345 |   expect(screen.getByRole('alert').textContent).toBe(
+          |                 ^
+      346 |     words.calendar_read_failed_retry
+      347 |   );
+      348 |   fireEvent.click(screen.getByRole('button', { name: words.try_again }));
+
+      at Object.getElementError (../../content-factory-next/node_modules/@testing-library/dom/dist/config.js:37:19)
+      at ../../content-factory-next/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at ../../content-factory-next/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at ../../content-factory-next/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at Object.<anonymous> (tests/frontend-read-delete-recovery.test.cjs:345:17)
+
+  ● USER calendar card retains preview and gates every write control
+
+    expect(received).toBeNull()
+
+    Received: <button aria-label="Дублировать пост" class="text-[14px] cursor-pointer items-center justify-center flex transition-colors duration-state relative h-[32px] w-[32px] p-0 cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-1.5 before:-inset-x-1.5 [.flex-col>.cf-hit-area+&]:before:top-0 [:not(.flex-col)>.cf-hit-area+&]:before:start-0 disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed rounded-[4px] focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus" title="Дублировать пост" type="button"><div class="flex-1 items-center flex justify-center gap-[8px]"><svg aria-hidden="true" fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="16"><rect height="11" rx="2" width="11" x="9" y="9" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></div></button>
+
+      374 |       expect(
+      375 |         screen.queryByRole('button', { name: words.duplicate_post })
+    > 376 |       ).toBeNull();
+          |         ^
+      377 |       expect(
+      378 |         screen.queryByRole('button', { name: words.delete_post })
+      379 |       ).toBeNull();
+
+      at tests/frontend-read-delete-recovery.test.cjs:376:9
+
+  ● no-group calendar row is previewable without invented server actions
+
+    expect(received).toBeNull()
+
+    Received: <button aria-label="Удалить пост" class="text-[14px] cursor-pointer items-center justify-center flex transition-colors duration-state relative h-[32px] w-[32px] p-0 cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-1.5 before:-inset-x-1.5 [.flex-col>.cf-hit-area+&]:before:top-0 [:not(.flex-col)>.cf-hit-area+&]:before:start-0 disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed rounded-[4px] focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus text-cf-danger hover:text-cf-danger" title="Удалить пост" type="button"><div class="flex-1 items-center flex justify-center gap-[8px]"><svg aria-hidden="true" fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="16"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg></div></button>
+
+      402 |     screen.getByRole('button', { name: words.preview_post })
+      403 |   ).toBeDefined();
+    > 404 |   expect(screen.queryByRole('button', { name: words.delete_post })).toBeNull();
+          |                                                                     ^
+      405 |   expect(
+      406 |     screen.queryByRole('button', { name: words.duplicate_post })
+      407 |   ).toBeNull();
+
+      at Object.<anonymous> (tests/frontend-read-delete-recovery.test.cjs:404:69)
+
+  ● channel delete 403 clears extension credentials only on success
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+      492 |     );
+      493 |     await act(async () => await actions.remove());
+    > 494 |     expect(global.chrome.runtime.sendMessage).toHaveBeenCalledTimes(
+          |                                               ^
+      495 |       kind === 200 ? 1 : 0
+      496 |     );
+      497 |     expect(change).toHaveBeenCalledTimes(kind === 200 ? 1 : 0);
+
+      at tests/frontend-read-delete-recovery.test.cjs:494:47
+
+  ● channel delete 500 clears extension credentials only on success
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+      492 |     );
+      493 |     await act(async () => await actions.remove());
+    > 494 |     expect(global.chrome.runtime.sendMessage).toHaveBeenCalledTimes(
+          |                                               ^
+      495 |       kind === 200 ? 1 : 0
+      496 |     );
+      497 |     expect(change).toHaveBeenCalledTimes(kind === 200 ? 1 : 0);
+
+      at tests/frontend-read-delete-recovery.test.cjs:494:47
+
+  ● channel delete network clears extension credentials only on success
+
+    private network
+
+      296 | const fail = (kind) =>
+      297 |   kind === 'network'
+    > 298 |     ? Promise.reject(Error('private network'))
+          |                      ^
+      299 |     : Promise.resolve(new Response('{}', { status: kind }));
+      300 | test.each([403, 500, 'network'])(
+      301 |   'calendar delete %s has no success or cache mutation',
+
+      at fail (tests/frontend-read-delete-recovery.test.cjs:298:22)
+      at tests/frontend-read-delete-recovery.test.cjs:473:60
+      at Object.eval [as remove] (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:213:41)
+      at tests/frontend-read-delete-recovery.test.cjs:493:27
+
+  ● calendar week read 403 cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar week read 500 cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar week read network cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar week read protocol cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar week read missing-posts cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar list read 403 cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar list read 500 cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar list read network cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar list read protocol cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+  ● calendar list read missing-posts cannot become empty success and recovers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: undefined
+
+      551 |     const state = providerFixture(display);
+      552 |     await waitFor(() => expect(state().loading).toBe(false));
+    > 553 |     expect(state().readError).toBe(true);
+          |                               ^
+      554 |     request.mockImplementation(() =>
+      555 |       Promise.resolve(
+      556 |         new Response(JSON.stringify({ posts: [], total: 0, comments: [] }))
+
+      at tests/frontend-read-delete-recovery.test.cjs:553:31
+
+Test Suites: 1 failed, 1 total
+Tests:       16 failed, 13 skipped, 2 passed, 31 total
+Snapshots:   0 total
+Time:        2.961 s, estimated 4 s

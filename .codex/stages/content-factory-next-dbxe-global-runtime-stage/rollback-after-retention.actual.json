@@ -1,0 +1,8 @@
+{
+  "capturedAt": "2026-10-11T14:04:36.493881+00:00",
+  "status": "PASS",
+  "retainedActiveAndRollbackConfigs": {
+    "2a53727594a1": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+    "755d19fa731d": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f"
+  }
+}

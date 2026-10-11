@@ -1,7 +1,7 @@
 # Локальная разработка
 
 **Статус:** `runbook`
-**Проверено:** 2026-09-01
+**Проверено:** 2026-10-11 (защита локальных команд; БД в проверках не менялась)
 
 ## Требования
 
@@ -21,11 +21,26 @@ corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env
 pnpm run dev:docker
-pnpm run prisma-db-push
+pnpm run prisma-db-push --dry-run
+pnpm run prisma-db-push --apply --confirm-local cf-dev-db
 pnpm run dev
 ```
 
-Перед запуском замените `JWT_SECRET` в локальном `.env`. `.env` не коммитится. Команда `prisma-db-push` содержит `--accept-data-loss` и предназначена только для локальной БД.
+Перед запуском замените `JWT_SECRET` в локальном `.env`. `.env` не коммитится.
+`prisma-db-push` и `prisma-reset` разрешены только для профиля из `.env.example`:
+пользователь `cf-dev`, база `cf-dev-db`, явный порт `5433`, хост `localhost`,
+`127.0.0.1` или `[::1]`. Это известный локальный стенд; не направляйте этот порт
+туннелем на рабочую БД и не используйте профиль для рабочего сервиса.
+Без `--apply --confirm-local cf-dev-db` изменения не выполняются; `--dry-run`
+показывает цель и команду без подключения к БД. Обычный push больше не содержит
+`--accept-data-loss`: если Prisma требует потерю данных, команда остановится.
+Сброс всех локальных данных — отдельное осознанное действие, описанное ниже.
+
+Рабочие и неоднозначные URL, `NODE_ENV=production`, подстановка переменных в URL,
+другие параметры подключения и конфликт между окружением и `.env` отклоняются
+до запуска дочерней команды. Проверяются также `.env` рядом со схемой и
+`prisma/.env`. Если URL задан и в shell, и в файле, значения должны совпадать;
+устраните конфликт, не передавайте обходные `--url` или `--schema`.
 
 `next build` и `next dev` отправляют обезличенную телеметрию в Vercel. В production-образе она выключена переменной `NEXT_TELEMETRY_DISABLED=1`; локально задайте её сами, если это нежелательно. Никакой другой сборочный плагин конфигурацию не оборачивает: тот, что выгружал карты исходников наружу, удалён.
 
@@ -211,10 +226,31 @@ pnpm --filter ./apps/extension exec vite build
 
 ```bash
 pnpm run prisma-generate
-pnpm run prisma-db-push
+pnpm run prisma-db-push --dry-run
+pnpm run prisma-db-push --apply --confirm-local cf-dev-db
 ```
 
 Schema: [libraries/nestjs-libraries/src/database/prisma/schema.prisma](../../libraries/nestjs-libraries/src/database/prisma/schema.prisma). Изменение данных для production требует отдельной миграции и плана отката; `db push` таким планом не является.
+
+Полный сброс **удаляет все данные локальной `cf-dev-db`**. Перед выполнением
+убедитесь, что они вам не нужны. Команда вызывает установленный Prisma один раз;
+она не скачивает другую версию через `dlx` и не запускает повторный push:
+
+```bash
+pnpm run prisma-reset --dry-run
+pnpm run prisma-reset --apply --confirm-local cf-dev-db
+```
+
+Старые `pnpm run pm2`, `pnpm run pm2-run` и `pm2` в backend/frontend/orchestrator
+теперь проверяют тот же локальный профиль и запускают существующие `start`
+в терминале. Предварительно соберите приложения через `pnpm run build`.
+Эти алиасы не обращаются к общему PM2, не удаляют процессы и не применяют схему.
+Для обычной разработки сохраняется `pnpm run dev`; он не является командой сброса.
+В `Dockerfile.dev` также стоит проверяемый стартер: имена внешних контейнеров
+не считаются loopback. Поддерживаемый путь выше запускает приложения на хосте,
+инфраструктуру — через development Compose. Production использует отдельный
+[entrypoint](../../var/docker/entrypoint.sh) и процедуру
+[применения схемы](../operations/production-deploy.md#применение-prisma-схемы).
 
 ## Проверки
 

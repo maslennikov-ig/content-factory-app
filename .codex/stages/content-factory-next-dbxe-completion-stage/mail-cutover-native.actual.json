@@ -1,0 +1,44 @@
+{
+  "schema": "mail-empty-cutover-native/v1",
+  "status": "PASS",
+  "owner": "2e740535-afef-4c70-bb54-f159b95da6ea",
+  "sdk": "1.15.0",
+  "image": "sha256:cf86707827fac99e4d1c4a47dc11b105382d796199c7bd41fb3213fb0471628e",
+  "bundleSha256": "6adc3048a72e7944d4dd82326cf95d47f7f1a7161e5bf5fdd3be7b122dca2e8a",
+  "busyCutoverRefused": true,
+  "mail": {
+    "legacyPendingPreserved": 3,
+    "legacyOrderPreserved": true,
+    "duplicateEffects": 0,
+    "newV3Attempts": 31,
+    "newV3Failures": 4,
+    "firstRunAttemptBound": 30,
+    "pendingAcrossRotation": 1,
+    "replays": 3
+  },
+  "stableWorkflowIdPreserved": true,
+  "emptyState": {
+    "workflowType": "sendEmailWorkflowV2",
+    "eventCount": 45,
+    "initialQueue": 1,
+    "acceptedSignals": 2,
+    "ignoredSignals": 0,
+    "scheduledActivities": 3,
+    "completedActivities": 3,
+    "failedActivities": 0,
+    "pendingQueue": 0,
+    "unsettledActivities": 0,
+    "pendingTimers": 0,
+    "pendingWorkflowTasks": 0,
+    "describePendingActivities": 0,
+    "describePendingWorkflowTask": false,
+    "readyForEmptyCutover": true,
+    "payloadsDisclosed": false
+  },
+  "cleanup": {
+    "ownedRemoved": true,
+    "beforeCount": 70,
+    "afterCount": 70,
+    "preexistingRemoved": []
+  }
+}

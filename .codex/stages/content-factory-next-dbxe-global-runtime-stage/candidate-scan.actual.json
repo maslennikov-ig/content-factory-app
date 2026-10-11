@@ -1,0 +1,2390 @@
+{
+  "capturedAt": "2026-10-11T13:23:43.079946+00:00",
+  "image": "content-factory-next:2a53727594a1",
+  "scanCompleted": true,
+  "scanner": "Grype0.120.1",
+  "scannerSha256": "d6e3248b0e788b4da7450a9e03d1e72811771cf97de3640a18e6517bf6507eb7",
+  "database": {
+    "schemaVersion": "v6.1.10",
+    "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-10T00:34:49Z_1791613801.tar.zst?checksum=sha256%3A9c7673c1d8526a5696e6af4cd26f48c3d4ab34c30e40ffe212a811c44ab5f0c1",
+    "built": "2026-10-10T06:30:01Z",
+    "path": "/home/me/code/content-factory-next/.codex/stages/content-factory-next-dbxe-delivery-20261010/scanner-tools.local/db/6/vulnerability.db",
+    "valid": true
+  },
+  "scope": "squashed final image outside /app; product graph separately accepted",
+  "distro": {
+    "name": "debian",
+    "version": "12.15",
+    "idLike": []
+  },
+  "globalSeverityCounts": {
+    "High": 2
+  },
+  "osSeverityCounts": {
+    "High": 94,
+    "Negligible": 107,
+    "Critical": 22,
+    "Low": 19,
+    "Medium": 102,
+    "Unknown": 18
+  },
+  "globalCriticalHigh": [
+    {
+      "package": "braces",
+      "version": "3.0.3",
+      "type": "npm",
+      "vulnerability": "GHSA-vfj7-8cjw-p6xm",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "locations": [
+        "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "version": "5.3.1",
+      "type": "npm",
+      "vulnerability": "GHSA-c475-qrg2-pj4r",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "6.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.1",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "locations": [
+        "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+      ]
+    }
+  ],
+  "osCriticalHigh": [
+    {
+      "package": "nginx",
+      "version": "1.22.1-9+deb12u10",
+      "type": "deb",
+      "vulnerability": "CVE-2023-44487",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-44487",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/nginx/copyright",
+        "/var/lib/dpkg/info/nginx.md5sums",
+        "/var/lib/dpkg/info/nginx.list",
+        "/var/lib/dpkg/info/nginx.postinst",
+        "/var/lib/dpkg/info/nginx.prerm",
+        "/var/lib/dpkg/info/nginx.triggers"
+      ]
+    },
+    {
+      "package": "nginx-common",
+      "version": "1.22.1-9+deb12u10",
+      "type": "deb",
+      "vulnerability": "CVE-2023-44487",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-44487",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/nginx-common/copyright",
+        "/var/lib/dpkg/info/nginx-common.conffiles",
+        "/var/lib/dpkg/info/nginx-common.md5sums",
+        "/var/lib/dpkg/info/nginx-common.config",
+        "/var/lib/dpkg/info/nginx-common.list",
+        "/var/lib/dpkg/info/nginx-common.postinst",
+        "/var/lib/dpkg/info/nginx-common.postrm",
+        "/var/lib/dpkg/info/nginx-common.preinst",
+        "/var/lib/dpkg/info/nginx-common.prerm",
+        "/var/lib/dpkg/info/nginx-common.templates"
+      ]
+    },
+    {
+      "package": "libldap-2.5-0",
+      "version": "2.5.13+dfsg-5",
+      "type": "deb",
+      "vulnerability": "CVE-2023-2953",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-2953",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libldap-2.5-0/copyright",
+        "/var/lib/dpkg/info/libldap-2.5-0:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-63076",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63076",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libssl3/copyright",
+        "/var/lib/dpkg/info/libssl3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-63076",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63076",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/openssl/copyright",
+        "/var/lib/dpkg/info/openssl.conffiles",
+        "/var/lib/dpkg/info/openssl.md5sums",
+        "/var/lib/dpkg/info/openssl.list",
+        "/var/lib/dpkg/info/openssl.postinst"
+      ]
+    },
+    {
+      "package": "libtasn1-6",
+      "version": "4.19.0-2+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2025-13151",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-13151",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libtasn1-6/copyright",
+        "/var/lib/dpkg/info/libtasn1-6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-19931",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19931",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-19931",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19931",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-63072",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63072",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libssl3/copyright",
+        "/var/lib/dpkg/info/libssl3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-63072",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63072",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/openssl/copyright",
+        "/var/lib/dpkg/info/openssl.conffiles",
+        "/var/lib/dpkg/info/openssl.md5sums",
+        "/var/lib/dpkg/info/openssl.list",
+        "/var/lib/dpkg/info/openssl.postinst"
+      ]
+    },
+    {
+      "package": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5450",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5450",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc-bin/copyright",
+        "/var/lib/dpkg/info/libc-bin.conffiles",
+        "/var/lib/dpkg/info/libc-bin.md5sums",
+        "/var/lib/dpkg/info/libc-bin.list",
+        "/var/lib/dpkg/info/libc-bin.postinst",
+        "/var/lib/dpkg/info/libc-bin.triggers"
+      ]
+    },
+    {
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5450",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5450",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc6/copyright",
+        "/var/lib/dpkg/info/libc6:amd64.conffiles",
+        "/var/lib/dpkg/info/libc6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-11856",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-11856",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-11856",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-11856",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8924",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8924",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8924",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8924",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-10536",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-10536",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-10536",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-10536",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-18924",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-18924",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-18924",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-18924",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-82560",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82560",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-54874",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54874",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libssl3/copyright",
+        "/var/lib/dpkg/info/libssl3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-54874",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54874",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/openssl/copyright",
+        "/var/lib/dpkg/info/openssl.conffiles",
+        "/var/lib/dpkg/info/openssl.md5sums",
+        "/var/lib/dpkg/info/openssl.list",
+        "/var/lib/dpkg/info/openssl.postinst"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-48959",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48959",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8927",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8927",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8927",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8927",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8376",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8376",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "gzip",
+      "version": "1.12-1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-41992",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-41992",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gzip/copyright",
+        "/var/lib/dpkg/info/gzip.md5sums",
+        "/var/lib/dpkg/info/gzip.list"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-13221",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13221",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-42496",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42496",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-48962",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48962",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5928",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5928",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc-bin/copyright",
+        "/var/lib/dpkg/info/libc-bin.conffiles",
+        "/var/lib/dpkg/info/libc-bin.md5sums",
+        "/var/lib/dpkg/info/libc-bin.list",
+        "/var/lib/dpkg/info/libc-bin.postinst",
+        "/var/lib/dpkg/info/libc-bin.triggers"
+      ]
+    },
+    {
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5928",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5928",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc6/copyright",
+        "/var/lib/dpkg/info/libc6:amd64.conffiles",
+        "/var/lib/dpkg/info/libc6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-13608",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13608",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-13608",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13608",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-42497",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42497",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libtinfo6",
+      "version": "6.4-4",
+      "type": "deb",
+      "vulnerability": "CVE-2025-69720",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libtinfo6/copyright",
+        "/var/lib/dpkg/info/libtinfo6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "ncurses-base",
+      "version": "6.4-4",
+      "type": "deb",
+      "vulnerability": "CVE-2025-69720",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/ncurses-base/copyright",
+        "/var/lib/dpkg/info/ncurses-base.conffiles",
+        "/var/lib/dpkg/info/ncurses-base.md5sums",
+        "/var/lib/dpkg/info/ncurses-base.list"
+      ]
+    },
+    {
+      "package": "ncurses-bin",
+      "version": "6.4-4",
+      "type": "deb",
+      "vulnerability": "CVE-2025-69720",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/ncurses-bin/copyright",
+        "/var/lib/dpkg/info/ncurses-bin.md5sums",
+        "/var/lib/dpkg/info/ncurses-bin.list"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-12087",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12087",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-9538",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-9538",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-57433",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57433",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libgssapi-krb5-2",
+      "version": "1.20.1-2+deb12u5",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107778",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libgssapi-krb5-2/copyright",
+        "/var/lib/dpkg/info/libgssapi-krb5-2:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libk5crypto3",
+      "version": "1.20.1-2+deb12u5",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107778",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libk5crypto3/copyright",
+        "/var/lib/dpkg/info/libk5crypto3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libkrb5-3",
+      "version": "1.20.1-2+deb12u5",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107778",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libkrb5-3/copyright",
+        "/var/lib/dpkg/info/libkrb5-3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libkrb5support0",
+      "version": "1.20.1-2+deb12u5",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107778",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libkrb5support0/copyright",
+        "/var/lib/dpkg/info/libkrb5support0:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-84782",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libssl3/copyright",
+        "/var/lib/dpkg/info/libssl3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-84782",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/openssl/copyright",
+        "/var/lib/dpkg/info/openssl.conffiles",
+        "/var/lib/dpkg/info/openssl.md5sums",
+        "/var/lib/dpkg/info/openssl.list",
+        "/var/lib/dpkg/info/openssl.postinst"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-12064",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12064",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-12064",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12064",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8932",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8932",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8932",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8932",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-82209",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82209",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-82209",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82209",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5435",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5435",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc-bin/copyright",
+        "/var/lib/dpkg/info/libc-bin.conffiles",
+        "/var/lib/dpkg/info/libc-bin.md5sums",
+        "/var/lib/dpkg/info/libc-bin.list",
+        "/var/lib/dpkg/info/libc-bin.postinst",
+        "/var/lib/dpkg/info/libc-bin.triggers"
+      ]
+    },
+    {
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-5435",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5435",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc6/copyright",
+        "/var/lib/dpkg/info/libc6:amd64.conffiles",
+        "/var/lib/dpkg/info/libc6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "zlib1g",
+      "version": "1:1.2.13.dfsg-1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-85091",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-85091",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/zlib1g/copyright",
+        "/var/lib/dpkg/info/zlib1g:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-80230",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-80230",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-80230",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-80230",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "gcc-12-base",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95619",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/gcc-12-base:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libgcc-s1",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95619",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/libgcc-s1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libstdc++6",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95619",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/libstdc++6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-6276",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-6276",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-6276",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-6276",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "curl",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8286",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8286",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/curl/copyright",
+        "/var/lib/dpkg/info/curl.md5sums",
+        "/var/lib/dpkg/info/curl.list"
+      ]
+    },
+    {
+      "package": "libcurl4",
+      "version": "7.88.1-10+deb12u15",
+      "type": "deb",
+      "vulnerability": "CVE-2026-8286",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8286",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libcurl4/copyright",
+        "/var/lib/dpkg/info/libcurl4:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-19499",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19499",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc-bin/copyright",
+        "/var/lib/dpkg/info/libc-bin.conffiles",
+        "/var/lib/dpkg/info/libc-bin.md5sums",
+        "/var/lib/dpkg/info/libc-bin.list",
+        "/var/lib/dpkg/info/libc-bin.postinst",
+        "/var/lib/dpkg/info/libc-bin.triggers"
+      ]
+    },
+    {
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "type": "deb",
+      "vulnerability": "CVE-2026-19499",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19499",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libc6/copyright",
+        "/var/lib/dpkg/info/libc6:amd64.conffiles",
+        "/var/lib/dpkg/info/libc6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libgnutls30",
+      "version": "3.7.9-2+deb12u7",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95209",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95209",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libgnutls30/copyright",
+        "/var/lib/dpkg/info/libgnutls30:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-75803",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-75803",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libssl3/copyright",
+        "/var/lib/dpkg/info/libssl3:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "type": "deb",
+      "vulnerability": "CVE-2026-75803",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "3.0.22-1~deb12u1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.0.22-1~deb12u1",
+            "date": "2026-09-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-75803",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/openssl/copyright",
+        "/var/lib/dpkg/info/openssl.conffiles",
+        "/var/lib/dpkg/info/openssl.md5sums",
+        "/var/lib/dpkg/info/openssl.list",
+        "/var/lib/dpkg/info/openssl.postinst"
+      ]
+    },
+    {
+      "package": "libgnutls30",
+      "version": "3.7.9-2+deb12u7",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95210",
+      "severity": "Critical",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95210",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libgnutls30/copyright",
+        "/var/lib/dpkg/info/libgnutls30:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "gcc-12-base",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-102010",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/gcc-12-base:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libgcc-s1",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-102010",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/libgcc-s1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libstdc++6",
+      "version": "12.2.0-14+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-102010",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/gcc-12-base/copyright",
+        "/var/lib/dpkg/info/libstdc++6:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-7017",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-7017",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libsasl2-2",
+      "version": "2.1.28+dfsg-10",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107161",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107161",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsasl2-2/copyright",
+        "/var/lib/dpkg/info/libsasl2-2:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libsasl2-modules-db",
+      "version": "2.1.28+dfsg-10",
+      "type": "deb",
+      "vulnerability": "CVE-2026-107161",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107161",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsasl2-modules-db/copyright",
+        "/var/lib/dpkg/info/libsasl2-modules-db:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/bsdutils/copyright",
+        "/var/lib/dpkg/info/bsdutils.md5sums",
+        "/var/lib/dpkg/info/bsdutils.list"
+      ]
+    },
+    {
+      "package": "libblkid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libblkid1/copyright",
+        "/var/lib/dpkg/info/libblkid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libmount1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libmount1/copyright",
+        "/var/lib/dpkg/info/libmount1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libsmartcols1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsmartcols1/copyright",
+        "/var/lib/dpkg/info/libsmartcols1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libuuid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libuuid1/copyright",
+        "/var/lib/dpkg/info/libuuid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/mount/copyright",
+        "/var/lib/dpkg/info/mount.md5sums",
+        "/var/lib/dpkg/info/mount.list"
+      ]
+    },
+    {
+      "package": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux/copyright",
+        "/var/lib/dpkg/info/util-linux.conffiles",
+        "/var/lib/dpkg/info/util-linux.md5sums",
+        "/var/lib/dpkg/info/util-linux.list",
+        "/var/lib/dpkg/info/util-linux.postinst",
+        "/var/lib/dpkg/info/util-linux.postrm",
+        "/var/lib/dpkg/info/util-linux.prerm"
+      ]
+    },
+    {
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-76642",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux-extra/copyright",
+        "/var/lib/dpkg/info/util-linux-extra.conffiles",
+        "/var/lib/dpkg/info/util-linux-extra.md5sums",
+        "/var/lib/dpkg/info/util-linux-extra.list",
+        "/var/lib/dpkg/info/util-linux-extra.postinst",
+        "/var/lib/dpkg/info/util-linux-extra.postrm",
+        "/var/lib/dpkg/info/util-linux-extra.preinst"
+      ]
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-57432",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "5.36.0-7+deb12u4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.36.0-7+deb12u4",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57432",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/perl-base/copyright",
+        "/var/lib/dpkg/info/perl-base.md5sums",
+        "/var/lib/dpkg/info/perl-base.list",
+        "/var/lib/dpkg/info/perl-base.postinst",
+        "/var/lib/dpkg/info/perl-base.postrm",
+        "/var/lib/dpkg/info/perl-base.preinst",
+        "/var/lib/dpkg/info/perl-base.prerm"
+      ]
+    },
+    {
+      "package": "libgnutls30",
+      "version": "3.7.9-2+deb12u7",
+      "type": "deb",
+      "vulnerability": "CVE-2026-95184",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95184",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libgnutls30/copyright",
+        "/var/lib/dpkg/info/libgnutls30:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libpcre2-8-0",
+      "version": "10.42-1+deb12u1",
+      "type": "deb",
+      "vulnerability": "CVE-2026-103111",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.42-1+deb12u2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.42-1+deb12u2",
+            "date": "2026-10-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-103111",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libpcre2-8-0/copyright",
+        "/var/lib/dpkg/info/libpcre2-8-0:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/bsdutils/copyright",
+        "/var/lib/dpkg/info/bsdutils.md5sums",
+        "/var/lib/dpkg/info/bsdutils.list"
+      ]
+    },
+    {
+      "package": "libblkid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libblkid1/copyright",
+        "/var/lib/dpkg/info/libblkid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libmount1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libmount1/copyright",
+        "/var/lib/dpkg/info/libmount1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libsmartcols1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsmartcols1/copyright",
+        "/var/lib/dpkg/info/libsmartcols1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libuuid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libuuid1/copyright",
+        "/var/lib/dpkg/info/libuuid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/mount/copyright",
+        "/var/lib/dpkg/info/mount.md5sums",
+        "/var/lib/dpkg/info/mount.list"
+      ]
+    },
+    {
+      "package": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux/copyright",
+        "/var/lib/dpkg/info/util-linux.conffiles",
+        "/var/lib/dpkg/info/util-linux.md5sums",
+        "/var/lib/dpkg/info/util-linux.list",
+        "/var/lib/dpkg/info/util-linux.postinst",
+        "/var/lib/dpkg/info/util-linux.postrm",
+        "/var/lib/dpkg/info/util-linux.prerm"
+      ]
+    },
+    {
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78408",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux-extra/copyright",
+        "/var/lib/dpkg/info/util-linux-extra.conffiles",
+        "/var/lib/dpkg/info/util-linux-extra.md5sums",
+        "/var/lib/dpkg/info/util-linux-extra.list",
+        "/var/lib/dpkg/info/util-linux-extra.postinst",
+        "/var/lib/dpkg/info/util-linux-extra.postrm",
+        "/var/lib/dpkg/info/util-linux-extra.preinst"
+      ]
+    },
+    {
+      "package": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/bsdutils/copyright",
+        "/var/lib/dpkg/info/bsdutils.md5sums",
+        "/var/lib/dpkg/info/bsdutils.list"
+      ]
+    },
+    {
+      "package": "libblkid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libblkid1/copyright",
+        "/var/lib/dpkg/info/libblkid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libmount1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libmount1/copyright",
+        "/var/lib/dpkg/info/libmount1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libsmartcols1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsmartcols1/copyright",
+        "/var/lib/dpkg/info/libsmartcols1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libuuid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libuuid1/copyright",
+        "/var/lib/dpkg/info/libuuid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/mount/copyright",
+        "/var/lib/dpkg/info/mount.md5sums",
+        "/var/lib/dpkg/info/mount.list"
+      ]
+    },
+    {
+      "package": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux/copyright",
+        "/var/lib/dpkg/info/util-linux.conffiles",
+        "/var/lib/dpkg/info/util-linux.md5sums",
+        "/var/lib/dpkg/info/util-linux.list",
+        "/var/lib/dpkg/info/util-linux.postinst",
+        "/var/lib/dpkg/info/util-linux.postrm",
+        "/var/lib/dpkg/info/util-linux.prerm"
+      ]
+    },
+    {
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78410",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux-extra/copyright",
+        "/var/lib/dpkg/info/util-linux-extra.conffiles",
+        "/var/lib/dpkg/info/util-linux-extra.md5sums",
+        "/var/lib/dpkg/info/util-linux-extra.list",
+        "/var/lib/dpkg/info/util-linux-extra.postinst",
+        "/var/lib/dpkg/info/util-linux-extra.postrm",
+        "/var/lib/dpkg/info/util-linux-extra.preinst"
+      ]
+    },
+    {
+      "package": "libacl1",
+      "version": "2.3.1-3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-54369",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54369",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libacl1/copyright",
+        "/var/lib/dpkg/info/libacl1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/bsdutils/copyright",
+        "/var/lib/dpkg/info/bsdutils.md5sums",
+        "/var/lib/dpkg/info/bsdutils.list"
+      ]
+    },
+    {
+      "package": "libblkid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libblkid1/copyright",
+        "/var/lib/dpkg/info/libblkid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libmount1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libmount1/copyright",
+        "/var/lib/dpkg/info/libmount1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libsmartcols1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libsmartcols1/copyright",
+        "/var/lib/dpkg/info/libsmartcols1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libuuid1",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libuuid1/copyright",
+        "/var/lib/dpkg/info/libuuid1:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/mount/copyright",
+        "/var/lib/dpkg/info/mount.md5sums",
+        "/var/lib/dpkg/info/mount.list"
+      ]
+    },
+    {
+      "package": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux/copyright",
+        "/var/lib/dpkg/info/util-linux.conffiles",
+        "/var/lib/dpkg/info/util-linux.md5sums",
+        "/var/lib/dpkg/info/util-linux.list",
+        "/var/lib/dpkg/info/util-linux.postinst",
+        "/var/lib/dpkg/info/util-linux.postrm",
+        "/var/lib/dpkg/info/util-linux.prerm"
+      ]
+    },
+    {
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-78409",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/util-linux-extra/copyright",
+        "/var/lib/dpkg/info/util-linux-extra.conffiles",
+        "/var/lib/dpkg/info/util-linux-extra.md5sums",
+        "/var/lib/dpkg/info/util-linux-extra.list",
+        "/var/lib/dpkg/info/util-linux-extra.postinst",
+        "/var/lib/dpkg/info/util-linux-extra.postrm",
+        "/var/lib/dpkg/info/util-linux-extra.preinst"
+      ]
+    },
+    {
+      "package": "libgnutls30",
+      "version": "3.7.9-2+deb12u7",
+      "type": "deb",
+      "vulnerability": "CVE-2026-67693",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-67693",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libgnutls30/copyright",
+        "/var/lib/dpkg/info/libgnutls30:amd64.md5sums"
+      ]
+    },
+    {
+      "package": "libacl1",
+      "version": "2.3.1-3",
+      "type": "deb",
+      "vulnerability": "CVE-2026-54370",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "wont-fix"
+      },
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54370",
+      "locations": [
+        "/var/lib/dpkg/status",
+        "/usr/share/doc/libacl1/copyright",
+        "/var/lib/dpkg/info/libacl1:amd64.md5sums"
+      ]
+    }
+  ],
+  "rawReportSha256": "281659ce27435be1e1ff8c916c86f40bfa2b149839024e8270402ee412984321"
+}

@@ -1,0 +1,49 @@
+{
+  "node": "v22.23.2",
+  "before": {
+    "containers": {
+      "count": 70,
+      "sha256": "729fcc358dccc474a0dcf3831bd5490003bb2ccbc4bde450ce4802fb57d68c14"
+    },
+    "volumes": {
+      "count": 7489,
+      "sha256": "5ce62c8e6b99749dcdfa5535076e6391d7d2f5d35cff4be7ae5e36739231ba55"
+    }
+  },
+  "after": {
+    "containers": {
+      "count": 70,
+      "sha256": "729fcc358dccc474a0dcf3831bd5490003bb2ccbc4bde450ce4802fb57d68c14"
+    },
+    "volumes": {
+      "count": 7489,
+      "sha256": "5ce62c8e6b99749dcdfa5535076e6391d7d2f5d35cff4be7ae5e36739231ba55"
+    }
+  },
+  "foreignInventoryUnchanged": true,
+  "syntheticForeignSentinelPreservedDuringAllCases": true,
+  "persistentDevelopmentVolumePreserved": true,
+  "cases": [
+    {
+      "name": "success",
+      "anonymousVolumeCount": 1,
+      "removed": true
+    },
+    {
+      "name": "failure",
+      "anonymousVolumeCount": 1,
+      "removed": true
+    },
+    {
+      "name": "SIGTERM",
+      "exitCode": 143,
+      "removed": true
+    },
+    {
+      "name": "exact-ID-owner-recovery",
+      "removed": true
+    }
+  ],
+  "realRoleIsolationSuite": "4 tests passed; see postgres-role-execution.log",
+  "broadPrune": false
+}

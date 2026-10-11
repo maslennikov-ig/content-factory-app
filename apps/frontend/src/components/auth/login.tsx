@@ -85,40 +85,45 @@ export function Login() {
     setLoading(true);
     setNotActivated(false);
     setAwaitingApproval(false);
-    const login = await fetchData('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        provider: 'LOCAL',
-      }),
-    });
-    if (!login.ok) {
-      /*
-        `content-factory-next-fn33.43`: a refusal used to be printed exactly as
-        the server wrote it, so a page otherwise entirely in Russian answered
-        «Invalid user name or password». Every reason arrives with status 400
-        and a bare English sentence in the body, so the shared helper turns the
-        answer into one translated line and the raw text goes to the console.
+    try {
+      const login = await fetchData('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          provider: 'LOCAL',
+        }),
+      });
+      if (!login.ok) {
+        /*
+          `content-factory-next-fn33.43`: a refusal used to be printed exactly as
+          the server wrote it, so a page otherwise entirely in Russian answered
+          «Invalid user name or password». Every reason arrives with status 400
+          and a bare English sentence in the body, so the shared helper turns the
+          answer into one translated line and the raw text goes to the console.
 
-        The two account states below are matched on that same English sentence,
-        because there is nothing else to match on: `inactiveReason()` in the
-        auth service distinguishes them by text alone. They are not messages
-        for the screen — each one selects a panel with its own translated copy
-        and its own way onward — so a change on the server costs a fallback
-        sentence here, not an English one.
-      */
-      const failure = await parseRequestFailure(login);
-      console.error('Sign-in refused', failure.status, failure.raw);
-      if (failure.raw.trim() === 'User is awaiting approval') {
-        setAwaitingApproval(true);
-        rememberAwaitingApproval();
-      } else if (failure.raw.trim() === 'User is not activated') {
-        setNotActivated(true);
-      } else {
-        form.setError('email', {
-          message: requestErrorMessage(failure),
-        });
+          The two account states below are matched on that same English sentence,
+          because there is nothing else to match on: `inactiveReason()` in the
+          auth service distinguishes them by text alone. They are not messages
+          for the screen — each one selects a panel with its own translated copy
+          and its own way onward — so a change on the server costs a fallback
+          sentence here, not an English one.
+        */
+        const failure = await parseRequestFailure(login);
+        console.error('Sign-in refused', failure.status, failure.raw);
+        if (failure.raw.trim() === 'User is awaiting approval') {
+          setAwaitingApproval(true);
+          rememberAwaitingApproval();
+        } else if (failure.raw.trim() === 'User is not activated') {
+          setNotActivated(true);
+        } else {
+          form.setError('email', {
+            message: requestErrorMessage(failure),
+          });
+        }
       }
+    } catch {
+      form.setError('email', { message: t('auth_request_failed_retry', 'Could not complete the request. Please try again.') });
+    } finally {
       setLoading(false);
     }
   };

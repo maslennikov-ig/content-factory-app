@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -o xtrace
-
-docker rmi localhost/content-factory || true
-docker build --target dist -t localhost/content-factory -f Dockerfile.dev .
-docker build --target devcontainer -t localhost/content-factory-devcontainer -f Dockerfile.dev .
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+# Dockerfile.dev has a single stage. Both local consumers use that same image.
+docker build -t localhost/content-factory -f Dockerfile.dev .
+docker tag localhost/content-factory localhost/content-factory-devcontainer

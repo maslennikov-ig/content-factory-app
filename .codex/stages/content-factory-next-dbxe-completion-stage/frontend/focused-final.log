@@ -1,0 +1,19 @@
+PASS tests/frontend-auth-request-recovery.test.cjs
+PASS tests/content-pieces.container.test.cjs (11.776 s)
+PASS tests/frontend-read-delete-recovery.test.cjs
+PASS tests/design.guard.test.cjs
+PASS tests/design.coherence.guard.test.cjs
+PASS tests/auth.farcaster-client-lazy.test.cjs
+PASS tests/role-read-only-screens.test.cjs
+PASS tests/profile.autosave.test.cjs
+PASS tests/calendar.channel-groups.test.cjs
+PASS tests/frontend-dirty-text-recovery.test.cjs
+PASS tests/media-box.opening.test.cjs
+PASS tests/design.contrast.test.cjs
+PASS tests/foundation.test.cjs
+PASS tests/editorial-stage.calendar-filter-wiring.test.cjs
+
+Test Suites: 14 passed, 14 total
+Tests:       254 passed, 254 total
+Snapshots:   0 total
+Time:        24.704 s, estimated 35 s

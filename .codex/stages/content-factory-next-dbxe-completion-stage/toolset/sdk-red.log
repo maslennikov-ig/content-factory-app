@@ -1,0 +1,104 @@
+FAIL tests/sdk-http-errors.test.cjs
+  SDK opt-in HTTP errors (offline transport)
+    ✓ keeps documented JSON 409 compatibility by default (44 ms)
+    ✕ exposes status/code/retry/body for 401 {"code":"UNAUTHORIZED"} (10 ms)
+    ✕ exposes status/code/retry/body for 409 {"code":"CF_QUEUE_BUSY"} (8 ms)
+    ✕ exposes status/code/retry/body for 503 {"message":"gateway"} (6 ms)
+    ✕ exposes status/code/retry/body for 503 <html>gateway unavailable</html> (8 ms)
+    ✕ applies opt-in to delete while preserving its raw Response return (7 ms)
+
+  ● SDK opt-in HTTP errors (offline transport) › exposes status/code/retry/body for 401 {"code":"UNAUTHORIZED"}
+
+    expect(received).toBeInstanceOf(expected)
+
+    Matcher error: expected value must be a function
+
+    Expected has value: undefined
+
+      29 |     let error;
+      30 |     try { await client.integrations(); } catch (caught) { error = caught; }
+    > 31 |     expect(error).toBeInstanceOf(sdk.ContentFactoryHttpError);
+         |                   ^
+      32 |     expect(error).toMatchObject({ status, code, retryable, retryAfter: '12', rawBody: raw });
+      33 |     expect(fetch).toHaveBeenCalledTimes(1);
+      34 |   });
+
+      at tests/sdk-http-errors.test.cjs:31:19
+
+  ● SDK opt-in HTTP errors (offline transport) › exposes status/code/retry/body for 409 {"code":"CF_QUEUE_BUSY"}
+
+    expect(received).toBeInstanceOf(expected)
+
+    Matcher error: expected value must be a function
+
+    Expected has value: undefined
+
+      29 |     let error;
+      30 |     try { await client.integrations(); } catch (caught) { error = caught; }
+    > 31 |     expect(error).toBeInstanceOf(sdk.ContentFactoryHttpError);
+         |                   ^
+      32 |     expect(error).toMatchObject({ status, code, retryable, retryAfter: '12', rawBody: raw });
+      33 |     expect(fetch).toHaveBeenCalledTimes(1);
+      34 |   });
+
+      at tests/sdk-http-errors.test.cjs:31:19
+
+  ● SDK opt-in HTTP errors (offline transport) › exposes status/code/retry/body for 503 {"message":"gateway"}
+
+    expect(received).toBeInstanceOf(expected)
+
+    Matcher error: expected value must be a function
+
+    Expected has value: undefined
+
+      29 |     let error;
+      30 |     try { await client.integrations(); } catch (caught) { error = caught; }
+    > 31 |     expect(error).toBeInstanceOf(sdk.ContentFactoryHttpError);
+         |                   ^
+      32 |     expect(error).toMatchObject({ status, code, retryable, retryAfter: '12', rawBody: raw });
+      33 |     expect(fetch).toHaveBeenCalledTimes(1);
+      34 |   });
+
+      at tests/sdk-http-errors.test.cjs:31:19
+
+  ● SDK opt-in HTTP errors (offline transport) › exposes status/code/retry/body for 503 <html>gateway unavailable</html>
+
+    expect(received).toBeInstanceOf(expected)
+
+    Matcher error: expected value must be a function
+
+    Expected has value: undefined
+
+      29 |     let error;
+      30 |     try { await client.integrations(); } catch (caught) { error = caught; }
+    > 31 |     expect(error).toBeInstanceOf(sdk.ContentFactoryHttpError);
+         |                   ^
+      32 |     expect(error).toMatchObject({ status, code, retryable, retryAfter: '12', rawBody: raw });
+      33 |     expect(fetch).toHaveBeenCalledTimes(1);
+      34 |   });
+
+      at tests/sdk-http-errors.test.cjs:31:19
+
+  ● SDK opt-in HTTP errors (offline transport) › applies opt-in to delete while preserving its raw Response return
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"headers": {"get": [Function get]}, "json": [Function json], "ok": false, "status": 401, "statusText": "fixture", "text": [Function text]}
+
+      36 |     const { sdk } = clientFor(401, '{"code":"UNAUTHORIZED"}');
+      37 |     expect((await new sdk.default('fixture', 'https://offline.invalid').deletePost('p')).status).toBe(401);
+    > 38 |     await expect(new sdk.default('fixture', 'https://offline.invalid', { httpErrors: 'throw' }).deletePost('p'))
+         |           ^
+      39 |       .rejects.toMatchObject({ status: 401 });
+      40 |   });
+      41 | });
+
+      at expect (../../content-factory-next/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (tests/sdk-http-errors.test.cjs:38:11)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 1 passed, 6 total
+Snapshots:   0 total
+Time:        0.39 s
+Ran all test suites matching /tests\/sdk-http-errors.test.cjs/i.

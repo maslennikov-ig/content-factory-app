@@ -1,3 +1,8 @@
+import {
+  commandCatalog,
+  rerenderApplyOption,
+  adaptationDryRunOption,
+} from '../command.catalog';
 import { Command, Option } from 'nestjs-command';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
@@ -100,26 +105,11 @@ export class RerenderAdaptationBold {
     return this._prisma.model as unknown as BoldBackfillClient;
   }
 
-  @Command({
-    command: 'adaptations:rerender-bold',
-    describe:
-      'Re-render DRAFT posts of adaptations whose stored body has bold markers (dry run by default)',
-  })
+  @Command(commandCatalog.rerender)
   async rerender(
-    @Option({
-      name: 'apply',
-      describe: 'Write the re-rendered posts; without it nothing is written',
-      type: 'boolean',
-      default: false,
-    })
+    @Option(rerenderApplyOption)
     apply: boolean,
-    @Option({
-      name: 'dry-run',
-      describe:
-        'Show what would change and write nothing. This is what happens without --apply; passing both keeps the safe side',
-      type: 'boolean',
-      default: false,
-    })
+    @Option(adaptationDryRunOption)
     dryRun: boolean
   ) {
     // Писать — только по явной просьбе, и `--dry-run` сильнее `--apply`:
@@ -215,7 +205,12 @@ export class RerenderAdaptationBold {
     if (touched.length) this._logger.log(`Posts: ${touched.join(', ')}`);
     if (skipped.length)
       this._logger.log(`Left untouched: ${skipped.join(', ')}`);
-    return { seen, planned: touched.length, rewritten, skipped: skipped.length };
+    return {
+      seen,
+      planned: touched.length,
+      rewritten,
+      skipped: skipped.length,
+    };
   }
 
   /** Разметку решает провайдер канала, а не колонка: та же таблица, что у поста. */
@@ -225,6 +220,8 @@ export class RerenderAdaptationBold {
     if (!providerIdentifier) return null;
     const provider =
       this._integrationManager.getSocialIntegration(providerIdentifier);
-    return (provider?.editor as 'none' | 'normal' | 'markdown' | 'html') ?? null;
+    return (
+      (provider?.editor as 'none' | 'normal' | 'markdown' | 'html') ?? null
+    );
   }
 }

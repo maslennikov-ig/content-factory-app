@@ -1,0 +1,13 @@
+{
+  "capturedAt": "2026-10-11T13:33:16.775709+00:00",
+  "ownedInterruptedFixtureRemoved": true,
+  "ownedAnonymousVolumeRemoved": true,
+  "fixtureName": "cf-role-object-proof-50856",
+  "fixtureId": "a5fbdad84b985d27fdce076b0348625a84fe40a6dc877f8ffa4b27051f26e5a6",
+  "exactVolume": "9d0e8813f83d397142c3f699e6ab44c6a9147cffacd3c76003a472291dae3ecb",
+  "ownership": "Cancelled first23994 release run; exact committed PostgreSQL role-test producer, PID/time, all synthetic env matches, sole volume consumer, no ports; child process absent",
+  "syntheticCredentialsPrinted": false,
+  "foreignContainersPreserved": 70,
+  "broadPrune": false,
+  "followup": "Normal role-test afterEach uses docker rm without -v and leaks anonymous test volumes; bounded future Beads task, no unknown old volumes removed"
+}

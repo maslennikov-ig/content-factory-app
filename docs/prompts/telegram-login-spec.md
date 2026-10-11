@@ -98,7 +98,10 @@
 `POST /auth/oauth/TELEGRAM/exists`, чтобы обмен нашёл свой верификатор.
 
 Схема: значение `TELEGRAM` в enum `Provider` (`schema.prisma:989`), применение
-через `pnpm run prisma-db-push` — миграций в репозитории нет.
+через `pnpm run prisma-db-push --dry-run`, затем
+`pnpm run prisma-db-push --apply --confirm-local cf-dev-db` для известного
+локального профиля. Для рабочей БД используйте процедуру применения схемы из
+`docs/operations/production-deploy.md`, а не локальный `db push`.
 
 ### Фронтенд
 

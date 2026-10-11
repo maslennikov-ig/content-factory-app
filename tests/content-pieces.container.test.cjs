@@ -286,7 +286,7 @@ const open = async (props = {}) => {
       { value: { provider: () => new Map(), dedupingInterval: 0 } },
       React.createElement(
         userContext.UserContext.Provider,
-        { value: { role: 'ADMIN' } },
+        { value: { role: 'ADMIN', id: 'recovery-person', orgId: 'recovery-workspace' } },
         React.createElement(
           variables.VariableContextComponent,
           { language: 'ru' },
@@ -370,6 +370,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   delete global.fetch;
   opened.length = 0;
   window.history.replaceState(null, '', '/');
@@ -1650,4 +1651,84 @@ describe('one save in flight per adaptation (review 97dq.80, P2-2)', () => {
     await settle(() => document.querySelector('[data-autosave="saved"]') !== null);
     expect(document.querySelector('[data-autosave="saved"]')).not.toBeNull();
   });
+});
+
+
+describe('dbxe.9 adaptation recovery after immediate navigation', () => {
+  test.each(['refused', 'rejected', 'interrupted'])('%s retains only dirty draft until explicit retry succeeds', async (kind) => {
+    const refusal = kind === 'interrupted'
+      ? () => new Promise(() => {})
+      : kind === 'rejected'
+      ? () => Promise.reject(new Error('network'))
+      : () => refused(503, {});
+    serve({ ...table({ detail: detailDoor(ok(WITH_DRAFT)) }), [`PATCH ${ADAPTATION_URL}`]: refusal });
+    const first = await open({ initialTab: 'int-tg-main' });
+    await click(screen.getByRole('button', { name: 'Редактировать' }), () => document.querySelector('[data-editor-field="true"]') !== null);
+    const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+    await act(async () => field.editor.commands.setContent('<p>Последняя правка до ухода.</p>'));
+    first.unmount();
+    await settle();
+    const recovery = loadTypeScriptModule('apps/frontend/src/components/ui/recoverable-draft.ts');
+    const key = `recovery-person:recovery-workspace:adaptation:${PIECE_ID}:${TG_DRAFT_ID}`;
+    expect(recovery.readRecoverableDraft(key)).toBe('Последняя правка до ухода.');
+    serve({ ...table({ detail: detailDoor(ok(WITH_DRAFT)) }), [`PATCH ${ADAPTATION_URL}`]: (call) => ok({ adaptation: { ...WITH_DRAFT.adaptations[0], body: call.body.body } }) });
+    await open({ initialTab: 'int-tg-main' });
+    expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(0);
+    expect(document.body.textContent).toContain('Последняя правка до ухода.');
+    await click(screen.getByRole('button', { name: 'Попробовать снова' }), () => calls.some(call => call.method === 'PATCH'));
+    await settle(() => recovery.readRecoverableDraft(key) === null);
+    expect(recovery.readRecoverableDraft(key)).toBeNull();
+    expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(1);
+  });
+});
+
+afterAll(() => dom.window.close());
+
+
+test('dbxe.9 navigation flush waits for the adaptation save already in flight', async () => {
+  let release;
+  let patchCount = 0;
+  serve({ ...table({ detail: detailDoor(ok(WITH_DRAFT)) }), [`PATCH ${ADAPTATION_URL}`]: (call) => {
+    patchCount += 1;
+    return patchCount === 1 ? new Promise(resolve => { release = () => resolve(ok({ adaptation: { ...WITH_DRAFT.adaptations[0], body: call.body.body } })); }) : ok({ adaptation: { ...WITH_DRAFT.adaptations[0], body: call.body.body } });
+  } });
+  const view = await open({ initialTab: 'int-tg-main' });
+  await click(screen.getByRole('button', { name: 'Редактировать' }), () => document.querySelector('[data-editor-field="true"]') !== null);
+  const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+  await act(async () => field.editor.commands.setContent('<p>Первая правка.</p>'));
+  await wait(900);
+  await settle(() => calls.some(call => call.method === 'PATCH'));
+  await act(async () => field.editor.commands.setContent('<p>Последняя правка.</p>'));
+  view.unmount();
+  await settle();
+  expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(1);
+  const recovery = loadTypeScriptModule('apps/frontend/src/components/ui/recoverable-draft.ts');
+  const key = `recovery-person:recovery-workspace:adaptation:${PIECE_ID}:${TG_DRAFT_ID}`;
+  expect(recovery.readRecoverableDraft(key)).toBe('Последняя правка.');
+  await act(async () => release());
+  await settle(() => calls.filter(call => call.method === 'PATCH').length === 2);
+  expect(calls.filter(call => call.method === 'PATCH').map(call => call.body.body)).toEqual(['Первая правка.', 'Последняя правка.']);
+  await settle(() => recovery.readRecoverableDraft(key) === null);
+  expect(recovery.readRecoverableDraft(key)).toBeNull();
+});
+
+
+test('dbxe.9 successful core navigation flush clears recovery without revalidating the closed screen', async () => {
+  const CORE_URL = `${adapter.PIECES_API.editCore(PIECE_ID)}?language=ru`;
+  let release;
+  serve({ ...table({ detail: detailDoor(ok(WITH_DRAFT)) }), [`PUT ${CORE_URL}`]: () => new Promise(resolve => { release = () => resolve(ok({})); }) });
+  const view = await open({ initialTab: 'core' });
+  await click(screen.getByRole('button', { name: 'Править суть' }));
+  const field = document.querySelector('textarea[name="piece-core-text"]');
+  await act(async () => fireEvent.change(field, { target: { value: 'Суть перед уходом.' } }));
+  view.unmount();
+  await settle(() => !!release);
+  const recovery = loadTypeScriptModule('apps/frontend/src/components/ui/recoverable-draft.ts');
+  const key = `recovery-person:recovery-workspace:core:${PIECE_ID}`;
+  expect(recovery.readRecoverableDraft(key)).toBe('Суть перед уходом.');
+  const readsBefore = calls.filter(call => call.method === 'GET').length;
+  await act(async () => release());
+  await settle(() => recovery.readRecoverableDraft(key) === null);
+  expect(recovery.readRecoverableDraft(key)).toBeNull();
+  expect(calls.filter(call => call.method === 'GET')).toHaveLength(readsBefore);
 });

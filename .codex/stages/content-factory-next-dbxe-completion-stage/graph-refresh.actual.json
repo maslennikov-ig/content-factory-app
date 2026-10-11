@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "engine": "graphify 0.9.45",
+  "source": "5cdd90026810c128a5c43320dfc1a47af55cedfc",
+  "commands": [
+    "graphify update . --no-cluster",
+    "graphify cluster-only . --no-viz --no-label"
+  ],
+  "localOnly": true,
+  "APIOrModelCalls": 0,
+  "queryLoggingEnabled": false,
+  "hooksInstalled": false,
+  "backupPreserved": true,
+  "zeroNodeFiles": 55,
+  "coverage": "Local indexed relationships only; private method initial no-match refined to class. Metadata does not prove full call completeness."
+}

@@ -8,7 +8,7 @@
     "build": "next build",
     "build:env": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start -p 4200",
-    "pm2": "pm2 start pnpm --name frontend -- start"
+    "pm2": "node ../../scripts/development/local-commands.cjs start-frontend"
   },
   "keywords": [],
   "author": "",

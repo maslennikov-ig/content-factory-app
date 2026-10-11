@@ -36,7 +36,9 @@ administrative activation remains separate.
 The organization switcher returns explicit non-credential fields; `apiKey` and
 `paymentId` are omitted for every role. Internal organization rows remain intact.
 Administrators keep the explicit key surface in `/user/self` and key rotation.
-Existing keys retain their value and public API behavior.
+The source projection fix itself retains existing key values and public API
+behavior. The separately authorized 11 October rotation below revokes the old
+values without changing the supported API contract.
 
 Legacy `pos_` grants are supported with their existing token format. Each request
 reads the grant owner's current membership in the exact organization. Removed,
@@ -51,6 +53,18 @@ obtained. Before an authorized production release, inventory affected workspace
 members and legitimate API consumers without disclosing their keys, then decide
 whether coordinated rotation is required. Never rotate live credentials blindly;
 replacement and dependent-client updates need their own explicit owner authority.
+
+On 11 October 2026 the owner confirmed there are no external API-key consumers
+and authorized replacement. Root privately inventoried all seven keyed
+workspaces (two currently had active non-admin members), then replaced all
+seven keys in one serializable, exact-old-value guarded transaction. Real
+read-only API requests confirmed all seven old keys return 401 `Invalid API key`
+and all seven replacement keys retain successful access. New values remain
+available only through the existing authorized administrator surface. No keys,
+live account identifiers, customer/provider writes or global signing-secret
+changes are part of the tracked evidence. Historical exposure/misuse remains
+UNKNOWN; revocation does not reconstruct it. Evidence:
+`.codex/stages/content-factory-next-dbxe-completion-stage/key-rotation-apply.actual.json`.
 
 ## Browser requests and provider refresh
 

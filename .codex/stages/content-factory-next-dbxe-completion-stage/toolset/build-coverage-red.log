@@ -1,0 +1,37 @@
+FAIL tests/build-coverage.test.cjs
+  release build coverage
+    ✕ builds every application that is not excluded by name (3 ms)
+    ✓ excludes nothing that does not exist, and gives a reason for what it does
+    ✓ does not build an application twice (1 ms)
+    ✓ the command whose absence hid the break is gone, not renamed
+
+  ● release build coverage › builds every application that is not excluded by name
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+        "backend",
+        "commands",
+        "frontend",
+        "orchestrator",
+    -   "sdk",
+      ]
+
+      53 |     const expected = buildableApps().filter((name) => !(name in EXCLUDED));
+      54 |
+    > 55 |     expect(built).toEqual(expected);
+         |                   ^
+      56 |   });
+      57 |
+      58 |   test('excludes nothing that does not exist, and gives a reason for what it does', () => {
+
+      at Object.<anonymous> (tests/build-coverage.test.cjs:55:19)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 3 passed, 4 total
+Snapshots:   0 total
+Time:        0.131 s
+Ran all test suites matching /tests\/build-coverage.test.cjs/i.

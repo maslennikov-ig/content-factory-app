@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-10-11T17:02:49.245Z",
+  "mode": "apply",
+  "ownerConfirmedExternalConsumers": 0,
+  "keyWorkspaces": 7,
+  "formerlyExposableCurrentWorkspaces": 2,
+  "beforeStatusCounts": {
+    "200": 7
+  },
+  "keysPrinted": false,
+  "identifiersPrinted": false,
+  "status": "PASS",
+  "rotatedKeys": 7,
+  "oldKeysRefused": 7,
+  "newKeyAccessPreserved": 7,
+  "newAuthorizedKeys": 7,
+  "authorizedConsumersHealthy": true,
+  "customerProviderCalls": 0,
+  "otherDataMutated": false
+}

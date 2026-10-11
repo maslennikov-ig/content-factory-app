@@ -1,0 +1,15 @@
+PASS tests/token-refresh.test.cjs (6.635 s)
+PASS tests/commands-app.wiring.test.cjs
+PASS tests/local-command-safety.execution.test.cjs
+PASS tests/adaptation-citation-labels.test.cjs
+PASS tests/adaptation-bold-backfill.test.cjs
+PASS tests/commands-configuration.offline.test.cjs
+PASS tests/auxiliary-build-compatibility.test.cjs
+PASS tests/sdk-http-errors.test.cjs
+PASS tests/postgres-role-fixture-cleanup.test.cjs
+
+Test Suites: 9 passed, 9 total
+Tests:       163 passed, 163 total
+Snapshots:   0 total
+Time:        14.319 s, estimated 17 s
+Ran all test suites matching /tests\/sdk-http-errors.test.cjs|tests\/commands-configuration.offline.test.cjs|tests\/auxiliary-build-compatibility.test.cjs|tests\/postgres-role-fixture-cleanup.test.cjs|tests\/token-refresh.test.cjs|tests\/adaptation-bold-backfill.test.cjs|tests\/adaptation-citation-labels.test.cjs|tests\/commands-app.wiring.test.cjs|tests\/local-command-safety.execution.test.cjs/i.

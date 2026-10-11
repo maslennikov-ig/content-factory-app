@@ -1,0 +1,110 @@
+FAIL tests/branding.test.cjs
+  ● Content Factory brand boundary › translates every string the interface renders, in every locale
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 86
+
+    - Array []
+    + Array [
+    +   "ar:auth_request_failed_retry",
+    +   "ar:post_delete_failed_retry",
+    +   "ar:calendar_read_failed_retry",
+    +   "ar:channel_delete_failed_retry",
+    +   "ar:media_delete_failed_retry",
+    +   "ar:media_read_failed_retry",
+    +   "bn:auth_request_failed_retry",
+    +   "bn:post_delete_failed_retry",
+    +   "bn:calendar_read_failed_retry",
+    +   "bn:channel_delete_failed_retry",
+    +   "bn:media_delete_failed_retry",
+    +   "bn:media_read_failed_retry",
+    +   "de:auth_request_failed_retry",
+    +   "de:post_delete_failed_retry",
+    +   "de:calendar_read_failed_retry",
+    +   "de:channel_delete_failed_retry",
+    +   "de:media_delete_failed_retry",
+    +   "de:media_read_failed_retry",
+    +   "es:auth_request_failed_retry",
+    +   "es:post_delete_failed_retry",
+    +   "es:calendar_read_failed_retry",
+    +   "es:channel_delete_failed_retry",
+    +   "es:media_delete_failed_retry",
+    +   "es:media_read_failed_retry",
+    +   "fr:auth_request_failed_retry",
+    +   "fr:post_delete_failed_retry",
+    +   "fr:calendar_read_failed_retry",
+    +   "fr:channel_delete_failed_retry",
+    +   "fr:media_delete_failed_retry",
+    +   "fr:media_read_failed_retry",
+    +   "he:auth_request_failed_retry",
+    +   "he:post_delete_failed_retry",
+    +   "he:calendar_read_failed_retry",
+    +   "he:channel_delete_failed_retry",
+    +   "he:media_delete_failed_retry",
+    +   "he:media_read_failed_retry",
+    +   "it:auth_request_failed_retry",
+    +   "it:post_delete_failed_retry",
+    +   "it:calendar_read_failed_retry",
+    +   "it:channel_delete_failed_retry",
+    +   "it:media_delete_failed_retry",
+    +   "it:media_read_failed_retry",
+    +   "ja:auth_request_failed_retry",
+    +   "ja:post_delete_failed_retry",
+    +   "ja:calendar_read_failed_retry",
+    +   "ja:channel_delete_failed_retry",
+    +   "ja:media_delete_failed_retry",
+    +   "ja:media_read_failed_retry",
+    +   "ka_ge:auth_request_failed_retry",
+    +   "ka_ge:post_delete_failed_retry",
+    +   "ka_ge:calendar_read_failed_retry",
+    +   "ka_ge:channel_delete_failed_retry",
+    +   "ka_ge:media_delete_failed_retry",
+    +   "ka_ge:media_read_failed_retry",
+    +   "ko:auth_request_failed_retry",
+    +   "ko:post_delete_failed_retry",
+    +   "ko:calendar_read_failed_retry",
+    +   "ko:channel_delete_failed_retry",
+    +   "ko:media_delete_failed_retry",
+    +   "ko:media_read_failed_retry",
+    +   "pt:auth_request_failed_retry",
+    +   "pt:post_delete_failed_retry",
+    +   "pt:calendar_read_failed_retry",
+    +   "pt:channel_delete_failed_retry",
+    +   "pt:media_delete_failed_retry",
+    +   "pt:media_read_failed_retry",
+    +   "tr:auth_request_failed_retry",
+    +   "tr:post_delete_failed_retry",
+    +   "tr:calendar_read_failed_retry",
+    +   "tr:channel_delete_failed_retry",
+    +   "tr:media_delete_failed_retry",
+    +   "tr:media_read_failed_retry",
+    +   "vi:auth_request_failed_retry",
+    +   "vi:post_delete_failed_retry",
+    +   "vi:calendar_read_failed_retry",
+    +   "vi:channel_delete_failed_retry",
+    +   "vi:media_delete_failed_retry",
+    +   "vi:media_read_failed_retry",
+    +   "zh:auth_request_failed_retry",
+    +   "zh:post_delete_failed_retry",
+    +   "zh:calendar_read_failed_retry",
+    +   "zh:channel_delete_failed_retry",
+    +   "zh:media_delete_failed_retry",
+    +   "zh:media_read_failed_retry",
+    + ]
+
+      204 |     }
+      205 |
+    > 206 |     expect(gaps).toEqual([]);
+          |                  ^
+      207 |   });
+      208 |
+      209 |   test('rejects a generic display name that reintroduces the legacy brand', () => {
+
+      at Object.<anonymous> (tests/branding.test.cjs:206:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 11 passed, 12 total
+Snapshots:   0 total
+Time:        1.136 s

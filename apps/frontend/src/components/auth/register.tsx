@@ -79,6 +79,8 @@ type Inputs = {
   subscribeToNewsletter: boolean;
 };
 export function Register() {
+  const t = useT();
+  const [failed, setFailed] = useState(false);
   const getQuery = useSearchParams();
   const router = useRouter();
   const fetch = useFetch();
@@ -92,33 +94,45 @@ export function Register() {
     }
   }, []);
   const load = useCallback(async () => {
-    const response = await fetch(
-      `/auth/oauth/${provider?.toUpperCase() || 'LOCAL'}/exists`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          code,
-          state,
-        }),
+    setFailed(false);
+    try {
+      const response = await fetch(
+        `/auth/oauth/${provider?.toUpperCase() || 'LOCAL'}/exists`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            code,
+            state,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error('OAuth registration refused');
+
+      // The account came back from the provider but is not switched on yet.
+      // Without this the page would sit on its spinner forever.
+      if (response.headers.get('approval') === 'true') {
+        rememberAwaitingApproval();
+        router.push('/auth/pending');
+        return;
       }
-    );
 
-    // The account came back from the provider but is not switched on yet.
-    // Without this the page would sit on its spinner forever.
-    if (response.headers.get('approval') === 'true') {
-      rememberAwaitingApproval();
-      router.push('/auth/pending');
-      return;
-    }
-
-    const { token } = await response.json();
-    if (token) {
+      const { token } = await response.json();
+      if (typeof token !== 'string' || !token) throw new Error('Missing OAuth token');
       setCode(token);
       setShow(true);
+    } catch {
+      setFailed(true);
     }
   }, [provider, code, state, fetch, router]);
   if (!code && !provider) {
     return <RegisterAfter token="" provider="LOCAL" />;
+  }
+  if (failed) {
+    return <div className="flex flex-col gap-[12px]">
+      <p role="alert" className="cf-body-sm text-cf-danger">{t('auth_request_failed_retry', 'Could not complete the request. Please try again.')}</p>
+      <Button type="button" onClick={() => void load()}>{t('try_again', 'Try again')}</Button>
+    </div>;
   }
   if (!show) {
     return <LoadingComponent />;

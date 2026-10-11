@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "baseCommit": "1db88425ae8acdf856dcfaee766cedca490ae8c7",
+  "unchangedProductionAndSchemaFiles": {
+    "Dockerfile": "a8f0eee90d770654898de3bc18e7d8d413fdc0b40e35358c51b8a131ac674284",
+    "var/docker/entrypoint.sh": "07d127bfc6300e15d895d895987518131ee26ad518fcbc4eca8ff16f40111329",
+    "var/docker/ecosystem.config.js": "306bba69c243bb33293f7dd61d4a2b6b25db46ff811a99f81da020234d2012f9",
+    "pnpm-lock.yaml": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "scripts/operations/validate-prisma-migration-sql.cjs": "5ecf6e648810fa265c34a9a78b10b6744a113848c8110a291f1971b955af946f"
+  },
+  "packageChangesOnlyScripts": true,
+  "dependencyGraphChanged": false,
+  "deploymentRequired": false
+}

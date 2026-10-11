@@ -516,6 +516,12 @@ export class ContentMaterialService {
         'В рабочем пространстве нет подключённого канала для этой площадки'
       );
     }
+    if (!PLATFORM_PROVIDERS[platform].includes(channel.providerIdentifier)) {
+      throw platformUnsupported(
+        platform,
+        'Выбранный канал не соответствует площадке материала'
+      );
+    }
 
     const written = await this.repository.createDraft({
       organizationId,

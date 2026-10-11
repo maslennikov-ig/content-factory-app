@@ -1,0 +1,1 @@
+{"provider":"scripted/fake only","scenarios":["media-generate-admission-refused","media-generate-credits-spent","media-generate-last-operation","media-generate-paid-tier-spent","media-generate-paid-tier","media-generate-prompt-failed","media-generate-rejected","media-generate-to-post"],"passed":8,"reportSha256":"8541213143dce8ebd5a859c4d7d33e1b44e6a6df08d3928c41a8d1a3c9651730"}

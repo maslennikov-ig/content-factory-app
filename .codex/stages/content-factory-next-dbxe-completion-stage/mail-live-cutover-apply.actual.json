@@ -1,0 +1,99 @@
+{
+  "capturedAt": "2026-10-11T17:12:22.634Z",
+  "mode": "apply",
+  "status": "PASS",
+  "payloadsDisclosed": false,
+  "before": {
+    "workflowType": "sendEmailWorkflowV2",
+    "eventCount": 260,
+    "initialQueue": 2,
+    "acceptedSignals": 16,
+    "ignoredSignals": 0,
+    "scheduledActivities": 18,
+    "completedActivities": 18,
+    "failedActivities": 0,
+    "pendingQueue": 0,
+    "unsettledActivities": 0,
+    "pendingTimers": 0,
+    "pendingWorkflowTasks": 0,
+    "describePendingActivities": 0,
+    "describePendingWorkflowTask": false,
+    "readyForEmptyCutover": true,
+    "payloadsDisclosed": false
+  },
+  "oldRunIdSha256": "27168d47ae13f04032591ee5914456782336f003cd5f28b5c07250949c99eba1",
+  "oldType": "sendEmailWorkflowV2",
+  "workflowId": "send_email_v2",
+  "namespace": "default",
+  "taskQueue": "main",
+  "admission": {
+    "backendStopped": true,
+    "orchestratorStopped": true,
+    "frontendPreserved": true,
+    "otherProducersObserved": 0
+  },
+  "quiesced": {
+    "workflowType": "sendEmailWorkflowV2",
+    "eventCount": 260,
+    "initialQueue": 2,
+    "acceptedSignals": 16,
+    "ignoredSignals": 0,
+    "scheduledActivities": 18,
+    "completedActivities": 18,
+    "failedActivities": 0,
+    "pendingQueue": 0,
+    "unsettledActivities": 0,
+    "pendingTimers": 0,
+    "pendingWorkflowTasks": 0,
+    "describePendingActivities": 0,
+    "describePendingWorkflowTask": false,
+    "readyForEmptyCutover": true,
+    "payloadsDisclosed": false
+  },
+  "quiescedHistorySha256": "adbeced793b51dc0b35e21762d707a1fcbd00f0c21a0911e0fdbd0d84b868d9b",
+  "newType": "sendEmailWorkflowV3",
+  "newRunIdSha256": "c8ba5c2207ff139a6938df957d3f378c42ae511800e477d17701c217bbb29c2f",
+  "terminatedEmptyOldRun": true,
+  "startedEmptyV3": true,
+  "after": {
+    "workflowType": "sendEmailWorkflowV3",
+    "eventCount": 4,
+    "initialQueue": 0,
+    "acceptedSignals": 0,
+    "ignoredSignals": 0,
+    "scheduledActivities": 0,
+    "completedActivities": 0,
+    "failedActivities": 0,
+    "pendingQueue": 0,
+    "unsettledActivities": 0,
+    "pendingTimers": 0,
+    "pendingWorkflowTasks": 0,
+    "describePendingActivities": 0,
+    "describePendingWorkflowTask": false,
+    "readyForEmptyCutover": true,
+    "payloadsDisclosed": false
+  },
+  "actualNewWorkerTaskCompleted": true,
+  "healthcheckExitCode": 0,
+  "processesAfter": [
+    {
+      "name": "backend",
+      "status": "online",
+      "pid": 4827
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "pid": 4821
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "pid": 33
+    }
+  ],
+  "syntheticLiveMail": 0,
+  "oldQueuedLettersDropped": 0,
+  "oldCompletedLettersReenqueued": 0,
+  "elapsedMs": 11210
+}

@@ -1,0 +1,38 @@
+FAIL tests/frontend-dirty-text-recovery.test.cjs
+  ● newest memory draft wins over older stored text after quota refusal
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Newest dirty words"
+    Received: "Older persisted words"
+
+      179 |   try {
+      180 |     draft.retainRecoverableDraft(key, 'Newest dirty words');
+    > 181 |     expect(draft.readRecoverableDraft(key)).toBe('Newest dirty words');
+          |                                             ^
+      182 |     draft.clearRecoverableDraft(key, 'Older persisted words');
+      183 |     expect(draft.readRecoverableDraft(key)).toBe('Newest dirty words');
+      184 |     draft.clearRecoverableDraft(key, 'Newest dirty words');
+
+      at Object.<anonymous> (tests/frontend-dirty-text-recovery.test.cjs:181:45)
+
+  ● failed storage removal cannot resurrect an acknowledged draft or prevent the next edit
+
+    expect(received).toBeNull()
+
+    Received: "Acknowledged words"
+
+      195 |   try {
+      196 |     draft.clearRecoverableDraft(key, 'Acknowledged words');
+    > 197 |     expect(draft.readRecoverableDraft(key)).toBeNull();
+          |                                             ^
+      198 |     expect(draft.readRecoverableDraft(key)).toBeNull();
+      199 |     draft.retainRecoverableDraft(key, 'Next dirty words');
+      200 |     expect(draft.readRecoverableDraft(key)).toBe('Next dirty words');
+
+      at Object.<anonymous> (tests/frontend-dirty-text-recovery.test.cjs:197:45)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 10 passed, 12 total
+Snapshots:   0 total
+Time:        0.964 s, estimated 1 s

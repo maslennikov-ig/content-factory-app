@@ -1,0 +1,7 @@
+{
+  "id": "content-factory-next-dbxe.37",
+  "title": "Убирать данные писем из журналов Temporal без изменения старых контрактов",
+  "status": "open",
+  "description": "Discovered during bounded dbxe.24. Current unchanged send.email.workflow.ts logs the raw failure; V2 and V3 dropped-mail paths log recipient, subject and raw error message. Installed @temporalio/worker activity.js also forwards raw activity errors to its logger. EmailActivityV2 failure details contain to/subject. Direct EmailService/video console call sites are fixed separately in24; this does not prove queue/runtime stdout privacy. No production prevalence or customer-log contents inspected. Coordinate with existing31 active-queue migration; never rewrite recorded workflow/activity contracts or blindly terminate/resignal live mail.",
+  "acceptance_criteria": "Synthetic recipient, subject, body, cookie and nested provider-error sentinels absent in stdout/stderr through the installed SDK worker and dropped-mail paths, with safe fixed outcomes and opaque execution correlation. Existing history/replay and retry/non-retryable classification preserved; no lost/duplicated queued mail. Scope logging changes to mail, no global suppression/collector settings or live messages. Existing31 migration and29 exact-source delivery remain explicit."
+}

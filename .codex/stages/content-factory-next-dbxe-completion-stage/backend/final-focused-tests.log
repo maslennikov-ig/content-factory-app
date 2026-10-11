@@ -1,0 +1,12 @@
+PASS tests/agent-media.test.cjs
+PASS tests/media-credits.test.cjs
+PASS tests/content-material.routes.test.cjs
+PASS tests/mail-video-log-privacy.test.cjs
+PASS tests/tenant-isolation.guard.test.cjs
+PASS tests/ai-usage.consumer-guard.test.cjs
+
+Test Suites: 6 passed, 6 total
+Tests:       153 passed, 153 total
+Snapshots:   0 total
+Time:        5.727 s, estimated 6 s
+Ran all test suites within paths "tests/media-credits.test.cjs", "tests/content-material.routes.test.cjs", "tests/agent-media.test.cjs", "tests/mail-video-log-privacy.test.cjs", "tests/tenant-isolation.guard.test.cjs", "tests/ai-usage.consumer-guard.test.cjs".

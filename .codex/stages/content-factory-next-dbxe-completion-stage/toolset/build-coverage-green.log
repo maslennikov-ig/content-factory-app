@@ -1,0 +1,9 @@
+PASS tests/build-coverage.test.cjs
+PASS tests/local-command-safety.execution.test.cjs
+PASS tests/auxiliary-build-compatibility.test.cjs
+
+Test Suites: 3 passed, 3 total
+Tests:       69 passed, 69 total
+Snapshots:   0 total
+Time:        2.317 s, estimated 3 s
+Ran all test suites matching /tests\/build-coverage.test.cjs|tests\/auxiliary-build-compatibility.test.cjs|tests\/local-command-safety.execution.test.cjs/i.

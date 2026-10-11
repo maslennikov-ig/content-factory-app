@@ -1,0 +1,11 @@
+{
+  "ownedContainerAbsent": true,
+  "ownedVolumeAbsent": true,
+  "foreignContainersBefore": 70,
+  "foreignVolumesBefore": 7489,
+  "missingForeignContainers": [],
+  "missingForeignVolumes": [],
+  "foreignContainerRecordsMatch": true,
+  "inventoryBeforeSha256": "6a18f345b30b7e072484a49b3768ec8aa9489f2565c67261545f37f22bebcfba",
+  "inventoryAfterSha256": "6a18f345b30b7e072484a49b3768ec8aa9489f2565c67261545f37f22bebcfba"
+}

@@ -1,5 +1,7 @@
 'use client';
 
+import { clearRecoverableDraft, readRecoverableDraft, retainRecoverableDraft, textDraftScope } from '../../ui/recoverable-draft';
+
 import {
   useCallback,
   useEffect,
@@ -183,6 +185,10 @@ export function PieceContainer({
 
   const user = useUser();
   const canWrite = writeRightFromRole(user?.role).allowed;
+  const recoveryScope = textDraftScope(user?.id, user?.orgId);
+  const adaptationDraftKey = useCallback((id: string) =>
+    recoveryScope ? `${recoveryScope}:adaptation:${pieceId}:${id}` : undefined,
+  [recoveryScope, pieceId]);
 
   const url = PIECES_API.detail(pieceId);
   const detail = useSWR<PieceWorkspaceV1>(
@@ -340,6 +346,7 @@ export function PieceContainer({
     их писали, а ответ устаревшей записи экран не слушает.
   */
   const saveChain = useRef<Record<string, Promise<unknown>>>({});
+  const screenLife = useRef({ pieceId, active: true });
   const saveTicket = useRef<Record<string, number>>({});
   const latestRequest = useRef(request);
   latestRequest.current = request;
@@ -358,7 +365,13 @@ export function PieceContainer({
   */
   useEffect(() => {
     const ownPiece = pieceId;
+    const life = { pieceId, active: true };
+    screenLife.current = life;
     return () => {
+      life.active = false;
+      // An in-flight response may persist text, but cannot update a closed screen.
+      for (const id of Object.keys(saveTicket.current))
+        saveTicket.current[id] += 1;
       for (const timer of Object.values(timers.current)) clearTimeout(timer);
       for (const timer of Object.values(settingsTimers.current))
         clearTimeout(timer);
@@ -373,17 +386,24 @@ export function PieceContainer({
             body: JSON.stringify(buildPostSettingsPayload({ options })),
           })
           .catch(() => undefined);
-      for (const [id, text] of Object.entries(pending.current))
-        void latestRequest
-          .current(PIECES_API.adaptation(ownPiece, id), {
+      const requestAtLeave = latestRequest.current;
+      for (const [id, text] of Object.entries(pending.current)) {
+        // Finish an earlier save first, preserving the editor's write order.
+        const flush = Promise.resolve(saveChain.current[id])
+          .catch(() => undefined)
+          .then(() => requestAtLeave(PIECES_API.adaptation(ownPiece, id), {
             method: 'PATCH',
             body: JSON.stringify(buildAdaptationPatch({ body: text })),
-          })
-          .catch(() => undefined);
+          }))
+          .then((response) => {
+            if (response.ok) clearRecoverableDraft(adaptationDraftKey(id), text);
+          }).catch(() => undefined);
+        saveChain.current[id] = flush;
+      }
       pendingSettings.current = {};
       pending.current = {};
     };
-  }, [pieceId]);
+  }, [pieceId, adaptationDraftKey]);
 
   /*
     Свежая адаптация, которой перечитанная заготовка ещё не знает, стоит в
@@ -401,6 +421,28 @@ export function PieceContainer({
       };
     return detail.data;
   }, [detail.data, draft]);
+
+  const recoveredPiece = useRef<string | null>(null);
+  useEffect(() => {
+    if (!canWrite || !data || recoveredPiece.current === pieceId) return;
+    recoveredPiece.current = pieceId;
+    setSaves((current) => {
+      const restored = { ...current };
+      for (const adaptation of data.adaptations) {
+        if (readRecoverableDraft(adaptationDraftKey(adaptation.id)) !== null && !(adaptation.id in restored))
+          restored[adaptation.id] = { state: 'failed', at: null, retry: true };
+      }
+      return restored;
+    });
+    setEdits((current) => {
+      const restored = { ...current };
+      for (const adaptation of data.adaptations) {
+        const text = readRecoverableDraft(adaptationDraftKey(adaptation.id));
+        if (text !== null && !(adaptation.id in restored)) restored[adaptation.id] = text;
+      }
+      return restored;
+    });
+  }, [data, canWrite, adaptationDraftKey, pieceId]);
 
   const channels = useMemo(
     () => (data ? workspaceChannels(data) : []),
@@ -816,6 +858,7 @@ export function PieceContainer({
   const saveBody = useCallback(
     (id: string, text: string): Promise<boolean> => {
       delete pending.current[id];
+      retainRecoverableDraft(adaptationDraftKey(id), text);
       const ticket = (saveTicket.current[id] ?? 0) + 1;
       saveTicket.current[id] = ticket;
       const current = () => saveTicket.current[id] === ticket;
@@ -840,6 +883,7 @@ export function PieceContainer({
               refusal: true,
               code: refusalCode(body),
             });
+          clearRecoverableDraft(adaptationDraftKey(id), text);
           if (!current()) return STALE;
           const saved = readAdaptationPatch(body);
           patchCached(id, {
@@ -899,7 +943,7 @@ export function PieceContainer({
           : result
       );
     },
-    [detail, patchCached, pieceId, request]
+    [detail, patchCached, pieceId, request, adaptationDraftKey]
   );
 
   /*
@@ -909,6 +953,7 @@ export function PieceContainer({
   */
   const changeBody = useCallback(
     (id: string, text: string, queued = false) => {
+      retainRecoverableDraft(adaptationDraftKey(id), text);
       setEdits((state) => ({ ...state, [id]: text }));
       clearTimeout(timers.current[id]);
       if (queued) {
@@ -920,7 +965,7 @@ export function PieceContainer({
         void saveBody(id, text);
       }, AUTOSAVE_MS);
     },
-    [saveBody]
+    [saveBody, adaptationDraftKey]
   );
 
   /** Несохранённое — сейчас: перед расписанием и повтором после отказа. */
@@ -1510,17 +1555,20 @@ export function PieceContainer({
   /** Правка сути руками: `expected` — текст, который она заменяет. */
   const saveCore = useCallback(
     async (next: string, expected: string): Promise<boolean> => {
+      const life = screenLife.current;
       const response = await request(
         `${PIECES_API.editCore(pieceId)}?language=${locale}`,
         { method: 'PUT', body: JSON.stringify({ text: next, expected }) }
       );
       if (!response.ok) {
         // Суть сменилась в другом окне: страница перечитывается.
-        if (response.status === 409) void detail.mutate();
+        if (response.status === 409 && life.active && life.pieceId === pieceId) void detail.mutate();
         return false;
       }
-      setCoreAnswer(null);
-      void detail.mutate();
+      if (life.active && life.pieceId === pieceId) {
+        setCoreAnswer(null);
+        void detail.mutate();
+      }
       return true;
     },
     [detail, locale, pieceId, request]

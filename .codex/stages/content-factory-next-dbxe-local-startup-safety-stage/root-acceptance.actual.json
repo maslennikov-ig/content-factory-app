@@ -1,0 +1,82 @@
+{
+  "schema": "local-command-root-acceptance/v1",
+  "status": "PASS",
+  "verifiedAt": "2026-10-11T15:21:21.103936+00:00",
+  "baseCommit": "1db88425ae8acdf856dcfaee766cedca490ae8c7",
+  "branch": "codex/dbxe-local-startup-safety-20261011",
+  "commands": [
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "tests/local-command-safety.execution.test.cjs",
+        "tests/production-compose-memory-limits.test.cjs",
+        "--runInBand",
+        "--no-coverage"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-1.local.log",
+      "logSha256": "82e9dfed231dd63033ca5470d92a18af22d2925fbc310822da92f53feea3cec4"
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-2.local.log",
+      "logSha256": "cbb4377dac49afd363fe21b6078978769b80f4431b2910ebb0c0c551234ec0a8"
+    },
+    {
+      "command": [
+        "scripts/orchestration/run_process_verification.sh"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-3.local.log",
+      "logSha256": "0d84d3fec6cf12d857ecf36b53451467afa2cf6c8b24a84aa4f18de3eaa7e209"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-4.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "jestSummary": [
+    "Test Suites: 2 passed, 2 total",
+    "Tests:       62 passed, 62 total"
+  ],
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "verifiedInputSha256": {
+    "package.json": "f9a99b0e290cfe4c93a7643ee1fd8e0be0d36cfcb53e56d8d10a497db84ea103",
+    "apps/backend/package.json": "1e15bf3d52d6971ff59abee3f5ddc930c2bd3ed9809cc959572d6c4b1769e7f7",
+    "apps/frontend/package.json": "6c1b2e3f7f5599e94e3f8c0c5289bf933deaaf3126b2c1be8a5bcd29c9fab45a",
+    "apps/orchestrator/package.json": "71be220ef9d74c42c3b26d6ab0791e21069c247aa1ce9f289c8cd708de48458b",
+    "Dockerfile.dev": "ac332097144c325edbc65c479e3c16387d7a7e393e1939e3309eb8045c348fc2",
+    "scripts/development/local-commands.cjs": "bebbc4ad98e9934172dc3ed4c63d5838d86bdde503d2943c58bbfae652a7d31c",
+    "tests/local-command-safety.execution.test.cjs": "76d5a6960ced21f9f4c212e240dc31f128801054e2347bb744957b455690416e",
+    "tests/production-compose-memory-limits.test.cjs": "64645b099afc5d28a9f647f32513a68388f7ebb325e49920471a31b6fc732052",
+    "docs/development/local-development.md": "f74ec94d62d078731482a293e468fe34ab96ad9cdfab8fc9c9a6e65a0ef7548f",
+    "docs/operations/telegram-login-setup.md": "f71b3726dffd31a139b5b931086ab194fdf31a8cf9b606a85ceb9f5bf4c5d51e",
+    "docs/prompts/telegram-login-spec.md": "b092afd8ff54180cace1fa11cedeee74e4afab270f3a51aed7c1767c4e79255b",
+    ".codex/handoff.md": "1ad0785290011a5f58668ba694fea9cac603910c8ce6db5b5d4d59380a196955",
+    ".codex/project-index.md": "1c25568cc367ed0e035f03c5ea926ff97a5dddd084dd067e05f7c3e9b93da953",
+    ".codex/orchestrator.toml": "d8988d89cf2c2d180a9f8c2b6f7eae0e6dd3474f7ee6bd79d1a22d966cb21e87",
+    "scripts/orchestration/run_process_verification.sh": "f65ffc8c622d3330c184ab994692493537a4ac8f51ffb6eafc8161f6da3ce07f"
+  },
+  "newFakeCommandCases": 60,
+  "liveDatabaseMutations": 0,
+  "realPM2Changes": 0,
+  "dockerMutations": 0,
+  "deployment": false,
+  "originalCriteriaPreserved": 30,
+  "epicStatus": "open",
+  "acceptanceBoundary": "Executed real local-wrapper routing and validation against fake command executables in owned temporary copies. No live DB/native Prisma write, shared PM2, paid/provider/client or changed-runtime acceptance."
+}

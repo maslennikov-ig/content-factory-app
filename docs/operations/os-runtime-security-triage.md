@@ -91,4 +91,12 @@ preload/module overrides, source archive, health and cap. It adds evidence only;
 general image-parser safety and other Node/application paths are not asserted.
 A future native
 fix must pass the configured exact-source release, weight/capacity, schema,
-source and startup/health gates. Global npm/pnpm/PM2 findings remain Beads34.
+source and startup/health gates.
+
+Subsequent global-tool stage34 was delivered on11Oct2026 at private92f784757329 /
+public2a53727594a1. Its configured exact-source release gates passed; the final
+scan retains the same116 OS Critical/High record identities and the exact native
+binaries and13 consumer source files match the accepted35 proof. No new general
+allocator or image-parser safety claim is made. Global34 and dependency8 are
+CLOSED; their two retained PM2 findings and live disabled-caller checks are in
+[global runtime triage](global-runtime-security-triage.md).

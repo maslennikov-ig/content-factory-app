@@ -1,0 +1,8 @@
+{
+  "exitCode": 0,
+  "capturedAt": "2026-10-11T13:49:38.259152+00:00",
+  "activeTag": "2a53727594a1",
+  "verifiedRollbackTag": "755d19fa731d",
+  "dryRunAndActualPassed": true,
+  "scope": "Existing own-tag/config-copy retention helper only"
+}

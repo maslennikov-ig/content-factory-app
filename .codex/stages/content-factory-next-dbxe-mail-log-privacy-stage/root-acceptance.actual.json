@@ -1,0 +1,248 @@
+{
+  "schema": "mail-queue-log-privacy-root-acceptance/v1",
+  "status": "PASS",
+  "verifiedAt": "2026-10-11T16:41:15.218919+00:00",
+  "baseCommit": "1e80c202cf52f0d86e076899a580e3779734695b",
+  "branch": "codex/dbxe-mail-log-privacy-20261011",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "commands": [
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "tests/mail-queue-log-privacy.test.cjs",
+        "tests/mail-video-log-privacy.test.cjs",
+        "tests/email-activity-v2-nonretryable.guard.test.cjs",
+        "tests/email-service-silent-vs-broken.guard.test.cjs",
+        "tests/email-workflow-v2-dropped-email-visible.guard.test.cjs",
+        "tests/email-service-async-locale.guard.test.cjs",
+        "tests/temporal-contract-signature.guard.test.cjs",
+        "tests/periodic-history.test.cjs",
+        "--runInBand",
+        "--no-coverage"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-jest.local.log",
+      "logSha256": "04d37d7f702c5dfb6d5e3bb21a6baac2f391309b4ef286075d8f121b53add005"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "-p",
+        "apps/backend/tsconfig.json"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-backend-types.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "-p",
+        "apps/orchestrator/tsconfig.json"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-orchestrator-types.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "node",
+        ".codex/stages/content-factory-next-dbxe-mail-log-privacy-stage/native-temporal.cjs"
+      ],
+      "exitCode": 0,
+      "log": "native-acceptance.local.log",
+      "logSha256": "9fbd7cae0ec00a93c4a313e50fa9d1e0f64c8e5fa0fd8fbcea5d212d14b634bf"
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-docs.local.log",
+      "logSha256": "cbb4377dac49afd363fe21b6078978769b80f4431b2910ebb0c0c551234ec0a8"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-process.local.log",
+      "logSha256": "53a648d50d0693c14a0a89d6c3dfea60ca57a6aac4d94537fd6219dbbba9484a"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-diff.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "jest": {
+    "suites": 8,
+    "passedTests": 141,
+    "newTests": 27,
+    "skips": 0
+  },
+  "native": {
+    "receipt": "native-acceptance.actual.json",
+    "sha256": "eae3cdfe5d01458b59df3f966ad95844860d32b0e49e5caacecce3d996e03174"
+  },
+  "files": [
+    {
+      "file": ".codex/handoff.md",
+      "sha256": "c2e1eed690f6047cb2d7a8551ec84da140cbaa486417ad790ac33523b23c2561"
+    },
+    {
+      "file": ".codex/orchestrator.toml",
+      "sha256": "d8988d89cf2c2d180a9f8c2b6f7eae0e6dd3474f7ee6bd79d1a22d966cb21e87"
+    },
+    {
+      "file": ".codex/project-index.md",
+      "sha256": "7b3ed4bd2e58c4e7bb30e0179b55c8d682fce099ebf62a48dfd0b9c376a86c51"
+    },
+    {
+      "file": ".codex/stages/content-factory-next-dbxe-mail-log-privacy-stage/native-temporal.cjs",
+      "sha256": "13cc1b951e47e29b793b2804ab97feba3aa35c9903b26f4c5362c2e3b01a2f9b"
+    },
+    {
+      "file": ".nvmrc",
+      "sha256": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a"
+    },
+    {
+      "file": "apps/backend/tsconfig.json",
+      "sha256": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782"
+    },
+    {
+      "file": "apps/orchestrator/src/main.ts",
+      "sha256": "dcf26f6742badf77a4adf5b59684aeae94737fb6ac47f8df8102fac019bb5806"
+    },
+    {
+      "file": "apps/orchestrator/tsconfig.json",
+      "sha256": "12083f4899bddab1e21d054b16167b2f4efc433bdee55938378ebfde6e97e8eb"
+    },
+    {
+      "file": "docs/operations/outbound-connections.md",
+      "sha256": "1fc9f4c4717f6cd89c42087241097ee331f1b67b7ff6f48285e803deed30f6cb"
+    },
+    {
+      "file": "docs/operations/runtime.md",
+      "sha256": "4770760e2be7c7475dff018fbe8ff8387d3fdbf279745727f651f7c5340abf17"
+    },
+    {
+      "file": "jest.config.cjs",
+      "sha256": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/temporal/mail-log-privacy.ts",
+      "sha256": "0e63671965601e12857fb6afd6907085fcf50564d459ebe5472835b26424b656"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/temporal/mail-log-privacy.workflow.ts",
+      "sha256": "854e2c1488e957b505426bf82f78995c3b184c84aee106acef58746d22b18b4b"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/temporal/mail-log-scope.ts",
+      "sha256": "49e3d192a99f5d51c0b83f66c57268a6cff457914ff4038c648f5815ab964685"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/temporal/temporal.module.ts",
+      "sha256": "74652ce5bd5396f4bead4846d9c9c82fabb4c291d8913b8daca2d9b3c1eaf771"
+    },
+    {
+      "file": "node_modules/@temporalio/worker/lib/activity.js",
+      "sha256": "3c7da29cab6929f015489992efe989624e0ab9f3b67b260fea44cf82b524b32f"
+    },
+    {
+      "file": "node_modules/@temporalio/worker/lib/workflow/logger.js",
+      "sha256": "5ddd0d1cec2991c213068c8620c92aff1f629e727335515713700a38012530b1"
+    },
+    {
+      "file": "node_modules/@temporalio/worker/lib/workflow/reusable-vm.js",
+      "sha256": "98132fd2c5f0b47b10f639f7f471bec277baa3266518d95047666e7a36ef8a39"
+    },
+    {
+      "file": "node_modules/@temporalio/worker/lib/workflow/vm-shared.js",
+      "sha256": "15fdab5bac219cce4344113e748ae6bdb2a467be759995dc00abbfbc1ff35e33"
+    },
+    {
+      "file": "node_modules/@temporalio/worker/package.json",
+      "sha256": "ff02a56e148570fe7fb9ef3b116bc68327831569139736d045206e7627b70b91"
+    },
+    {
+      "file": "package.json",
+      "sha256": "f9a99b0e290cfe4c93a7643ee1fd8e0be0d36cfcb53e56d8d10a497db84ea103"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "sha256": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05"
+    },
+    {
+      "file": "scripts/orchestration/run_process_verification.sh",
+      "sha256": "f65ffc8c622d3330c184ab994692493537a4ac8f51ffb6eafc8161f6da3ce07f"
+    },
+    {
+      "file": "tests/email-activity-v2-nonretryable.guard.test.cjs",
+      "sha256": "bc3311b3d9f3c75a905a6490e8aa383916e9dff0da47666faf10daadf2f32ee7"
+    },
+    {
+      "file": "tests/email-service-async-locale.guard.test.cjs",
+      "sha256": "060356763082dd1f5fd177557d8dc8580c89f378a754db898c65b3cc536ce5f9"
+    },
+    {
+      "file": "tests/email-service-silent-vs-broken.guard.test.cjs",
+      "sha256": "ae6f74586dd2d64d40ac24a0ae3d0f44a061709aaf2e09679baa5ed99338d7dd"
+    },
+    {
+      "file": "tests/email-workflow-v2-dropped-email-visible.guard.test.cjs",
+      "sha256": "05450a1a50b47ed09e95f1876c337513f84fdcf6fbbad24de736107d03fbb1ad"
+    },
+    {
+      "file": "tests/helpers/load-ts-module.cjs",
+      "sha256": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca"
+    },
+    {
+      "file": "tests/helpers/periodic-history.module.cjs",
+      "sha256": "79c11d006f0d1c7d637d589898b1c2b646afe6a183eb4f1515a9949606263c26"
+    },
+    {
+      "file": "tests/mail-queue-log-privacy.test.cjs",
+      "sha256": "7f7bdc0611b680eecb83c4780c676f711a3329c76dc8deafa36a5bbc102d0094"
+    },
+    {
+      "file": "tests/mail-video-log-privacy.test.cjs",
+      "sha256": "a4df33b94e4173b329f6a537172f577a0a191ed97b8835829c35bcaded483873"
+    },
+    {
+      "file": "tests/periodic-history.test.cjs",
+      "sha256": "9e0c749b59e92475e96884f2b084b20e941b98726a612a56389104cc6326eb43"
+    },
+    {
+      "file": "tests/temporal-contract-signature.guard.test.cjs",
+      "sha256": "60afc95d8dc257c887c5557f59541cfbdf631c8ee7a85cda585cbbeb9e1d9a71"
+    },
+    {
+      "file": "tsconfig.base.json",
+      "sha256": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c"
+    }
+  ],
+  "boundary": "Mail SDK/sandbox stdout+stderr only, installed1.15 synthetic queues. No deployment/live messages/active production queue migration/history retention/collector claim."
+}

@@ -1,0 +1,41 @@
+{
+  "node": "22.23.2",
+  "sharp": "0.35.5",
+  "vips": "8.18.7",
+  "addonHash": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+  "libvipsHash": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+  "systemLibstdcppHash": "e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4",
+  "nextSharpSameInstance": true,
+  "preloadConfigured": false,
+  "libraryPathConfigured": false,
+  "vipsModulePathConfigured": false,
+  "roleOverrides": [
+    {
+      "role": "backend",
+      "preloadConfigured": false,
+      "libraryPathConfigured": false,
+      "vipsModulePathConfigured": false
+    },
+    {
+      "role": "orchestrator",
+      "preloadConfigured": false,
+      "libraryPathConfigured": false,
+      "vipsModulePathConfigured": false
+    },
+    {
+      "role": "frontend",
+      "preloadConfigured": false,
+      "libraryPathConfigured": false,
+      "vipsModulePathConfigured": false
+    }
+  ],
+  "sourceManifest": {
+    "commit": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+    "shortCommit": "2a53727594a1",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-2a53727594a1.tar.gz",
+    "bytes": 12617181,
+    "sha256": "04eb65c5c8881a3c6df10ea6698490252731108a2638c0b0cf429f2419f94609",
+    "builtAt": "2026-10-11T13:16:13Z"
+  }
+}

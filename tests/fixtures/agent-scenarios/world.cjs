@@ -1185,6 +1185,7 @@ const createWorld = (overrides = {}) => {
           return rows.subscription ? picked({ organizationId: where.organizationId, ...rows.subscription }, select) : null;
         },
       },
+      $transaction: async (run) => run(creditTable.model),
     },
   };
   const mediaService = (usage) => {
@@ -1221,7 +1222,7 @@ const createWorld = (overrides = {}) => {
     };
     // `subscription` and `credits`: the repository's two tables, one set.
     const subscriptions = new SubscriptionService(
-      new SubscriptionRepository(creditTable, null, null, creditTable, null),
+      new SubscriptionRepository(creditTable, null, null, creditTable, null, creditTable),
       null,
       null
     );

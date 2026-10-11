@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "قطع الاتصال بـ {{name}}؟ سيفقد الوصول إلى حسابك.",
   "approved_app_disconnected": "تم قطع الاتصال",
   "approved_app_disconnect_failed": "تعذّر قطع الاتصال",
-  "mcp_consent_workspace_changed": "تم تبديل مساحة العمل في علامة تبويب أخرى أثناء فتح هذه الصفحة. ابدأ الاتصال من جديد من مساعدك لربط مساحة العمل التي تريدها."
+  "mcp_consent_workspace_changed": "تم تبديل مساحة العمل في علامة تبويب أخرى أثناء فتح هذه الصفحة. ابدأ الاتصال من جديد من مساعدك لربط مساحة العمل التي تريدها.",
+  "auth_request_failed_retry": "تعذّر إكمال الطلب. حاول مرة أخرى.",
+  "calendar_read_failed_retry": "تعذّر تحميل المنشورات. حاول مرة أخرى.",
+  "media_read_failed_retry": "تعذّر تحميل مكتبة الوسائط. حاول مرة أخرى.",
+  "post_delete_failed_retry": "تعذّر حذف المنشور. حاول مرة أخرى.",
+  "media_delete_failed_retry": "تعذّر حذف الوسائط. حاول مرة أخرى.",
+  "channel_delete_failed_retry": "تعذّر حذف القناة. حاول مرة أخرى."
 }

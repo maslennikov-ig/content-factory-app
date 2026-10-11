@@ -1,28 +1,24 @@
 # Content Factory current handoff — 11 October 2026
 
-## Latest accepted release and local work
+## Whole-dbxe completion in progress
 
+Current stage id: content-factory-next-dbxe-completion-stage
+Owner11Oct authorizes whole epic and necessary technical delivery. Three isolated
+streams accepted/integrated with narrow storage-failure fix; root owns release29.
+Plan/manifest and central stream artifacts: stages/content-factory-next-dbxe-completion-stage/.
+Tasks30/31 CLOSED from actual production proof:7 old keys401/new keys200, no external
+consumers; empty V2 migrated to V3 with stable ID,11.21sec admission pause, no mail replay.
+Serving public2a53727594a1/private92f784757329 still34; new app source not deployed.
+Global34/8 resolved49/51;2 disabled-caller exceptions retained. OS33/35 retain116 records
+and allocator reevaluation triggers. Local25/24/37 and new child changes await29 delivery.
+Prior full92f release:647 Jest suites/11946 tests (6/62 skips),123 Node (4 skips),50 Python;
+no new full-suite or public CI acceptance yet. Rollback755d/current2a verified V3 compatible.
+Original30 criteria+seven follow-ups preserved; dbxe IN_PROGRESS. Store32 publisher facts
+pending, not an implicit defer. Unrelated original0qgn/client/SaaS/research epics stay open.
+Historical accepted stages and all exact local proof remain under stages/; published34
+native health/1792MiB/data/Mastra45/21 foreign containers are rechecked before switch.
 Accepted stage id: content-factory-next-dbxe-readiness-stage
-Root dbxe.21 owner-bound R2/atomic avatar:49 new fake/HTTP+9 native PG PASS;1h expiry/5s store timeout, receipt retries/one Media;69 kept/39 Temporal unchanged.
-Outcome: stages/content-factory-next-dbxe-media-ownership-stage/; delivery: stages/content-factory-next-dbxe-delivery-20261010/outcome.md.
-Serving755d19fa731d from exact tested private d724f3b792f4; healthy/0 restarts,1792MiB; API/native workers/login/source/archive PASS.
-Full9 release gates:647 Jest suites/11946 tests (6/62 skipped),123 Node (4 skipped),50 Python; branch CI Build/CodeQL PASS; tag Build separate.
-Only nullable Post journal added after verified encrypted backup; empty pre/post-start diff, Mastra45/product counts and21 other containers kept.
-Registry index956cde25cc14/configea54f8c9ee61; verified rollbackcae3cd8340e0/configa70e865a332a; own retention PASS,~30.5GiB free.
-Release/extension2.0.1 ZIP published/readback verified; CWS32 open. Legacy digest/mailV2 run IDs kept; migration31 and keys30 remain open.
-OS33 triaged116/55;35 source/ABI proof excludes both GCC image paths;35/33 CLOSED. General allocator defect retained. Global34 IN_PROGRESS;8 IN_PROGRESS; epic OPEN,35 children/19 closed;30 criteria kept.
-Prior root-owned dbxe.20 CLOSED locally: periodic successors100 hourly/30 settled mail; stable IDs, no forced live migration.
-9 Jest/162+10 Node PASS, zero skip; SDK native30 failed mail,2 boundary signals/34 distinct,7 replays;3 app types.
-Outcome/root: stages/content-factory-next-dbxe-periodic-history-stage/;34 historical bodies/signatures kept; owned fixture removed,68 kept.
-Prior dbxe.19 CLOSED: independent refresh/CLI/Dribbble;3/93,6 Nest CLI,memory/3types,35 immutable; token-refresh-stage/. dbxe.18 CLOSED: Nostr;3/85+38 native,V106/types; nostr-identity-stage/.
-Prior dbxe.17 CLOSED: V108 local/provider IDs;7/165,types,7 SDK replay; webhook-identity-stage/. dbxe.16 CLOSED: V107 deadlines;5/181,native7; automation-deadlines-stage/;68 kept.
-Prior dbxe.15 CLOSED: fresh gates/X switch;5/212,8 PG/types PASS; stages/content-factory-next-dbxe-automation-disablement-stage/; owned PG cleaned.
-Prior dbxe.14 CLOSED:2 suites/56,21 Chromium/ZIP/types PASS; extension-runtime-stage/; fixtures cleaned.
-Prior dbxe.13 CLOSED: purpose/generation JWT/AES/conditional write;8 suites/150 PASS,8 PG/types.
-Old untagged grant needs one reconnect after release; legacy cookie reads retained. Prior dbxe.10 CLOSED:3 suites/51 PASS,8 PG; stages/content-factory-next-dbxe-manual-edits-stage/.
-Prior dbxe.7: /root/dbxe_readiness;3/158 PASS, Nest410/1197; native stopped API200/health7, restart health0/read-only activity;32+main/1792MiB kept.
-Readiness outcome: stages/content-factory-next-dbxe-readiness-stage/; owned fixtures removed.
-No continuous goal/automatic next task. Owner selected34: stages/content-factory-next-dbxe-global-runtime-stage/plan.md; runtime-tool removal/PM2 YAML patch and matched Prisma engine prepared; native fixture/137 tests PASS, release pending.
+
 ## Previous accepted publishing stage
 
 Beads dbxe.6 CLOSED locally. Pre-send failure permits correction/requeue;
@@ -34,11 +30,11 @@ Old workflow/activity bodies stay. New starts/recovery/repeat use successors;
 Release inspection found no old recovery writer; existing mail runs stay intact.
 Nullable Post journal applied in the latest release. Guide: docs/operations/publication-recovery-v106.md.
 Latest proof: stages/content-factory-next-dbxe-publishing-stage/review/; initial retained.
-Task8 release subgate passed;33/35 source-bound audit complete;34 and unselected criteria remain.
+Task8 CLOSED after delivered34;33/35 source-bound audits retained. Other unselected criteria remain.
 ## Previous accepted dependency stage
 
 Accepted stage id: content-factory-next-dbxe-dependencies-stage
-Beads dbxe.8 is IN_PROGRESS; root-owned local dependency remediation selected.
+Historical dependency-stage acceptance follows; current Beads dbxe.8 CLOSED after delivered global34/full-release acceptance.
 Baseline exact lock:12 critical /131 high;120 baseline records eliminated.
 Bounded fresh walk includes optional aliases and all shipped dev/build tools;
 production retains2 critical /21 high and all shipped5 critical /21 high.
@@ -60,12 +56,12 @@ package/application correction: dependency-stage/review/review.md. All30 origina
 criteria, installed2943-copy proof and four-entry ZIP independently checked.
 No product source/API/Temporal/schema edits, production mutation, provider/model
 call, source push or deployment. Existing untracked evidence preserved.
-Original next-release gate passed at d724;8 stays IN_PROGRESS for global34;33/35 resolved. SaaS/client/legal/research and unselected scopes unchanged.
+Original next-release gate d724 accepted; changed92f/2a release/global34 completes8. SaaS/client/legal/research and unselected scopes unchanged.
 ## Previous accepted access stage
 
 Previous stage id: content-factory-next-dbxe-access-stage
 Bounded dbxe.1–.5 accepted locally in codex/audit-readiness-20261009;
-Beads owns current child statuses; dbxe.1–.6 CLOSED, dbxe.8 IN_PROGRESS, epic OPEN.
+Beads owns current child statuses; dbxe.1–.6 and8 CLOSED, epic OPEN.
 Organization list projects safe fields, reset/session/activation purposes are
 separate, reset uses 20min exp/password-hash CAS, legacy OAuth rechecks current
 tenant membership/role, cookie mutations fence Origin, provider fan-out scopes
@@ -150,13 +146,11 @@ in pre-pass-handoff.md and earlier stage receipts. No old C27/native runner repl
 
 ## Next recommended
 
-Next stage id: content-factory-next-dbxe-global-runtime-stage; selected34, original criteria preserved.
-Recommended action:34 removes unused runtime package managers, patches PM2 YAML4.3.2 and preserves direct Prisma CLI. Native35 excludes the two GCC image paths; allocator itself remains vulnerable.
-Current outcome: stages/content-factory-next-dbxe-native-allocation-stage/outcome.md; serving755d/private d724, live native hashes/health/source/login PASS;~29.7GiB free/rollback kept.
-34 selected; tasks33/35 CLOSED;30–32 kept. Exact changed-release gates/deployment pending; no blind rotation, workflow cancellation, broad cleanup or automatic epic work.
-
-Use $orchestrator-stage with affected checks and one root acceptance; each accepted short stage can ship
-without waiting for P3 cleanup. dbxe.29 gates whole-epic closure only.
+Next stage id: content-factory-next-dbxe-completion-stage
+Recommended action:finish narrow same-stream correction, one root-owned configured9
+release acceptance and exact-source public/image/production delivery29; retain V3 run/data.
+Use $orchestrator-stage within this existing shared boundary, then orchestration-closeout.
+Store32 needs actual publisher facts/approved version or explicit owner-approved defer.
 
 Original0qgn remains open. 0qgn.5 stays BLOCKED: shared collector90days vs target30
 without a project override, aged pruning, invoice reconciliation and ledger sizing
@@ -169,7 +163,7 @@ to obtain when that scope is selected.
 
 ## Explicit defers
 
-Beads8 retains untriaged global34; native35/OS33 criteria met; next-release gate passed. Its
+Beads24/25/37 CLOSED locally; 31 actual queue migration CLOSED; application-source release29 IN_PROGRESS. SDK history retains payloads; no retention claim. Docker helper28/test-volume36 OPEN. Historic dependency
 local-stage canonical debt scanner includes pre-existing untracked upstream
 source/log tokens from older stages; those historical artifacts are preserved,
 not new source debt. All changed product/test code is free of debt markers.
@@ -186,14 +180,14 @@ ChatGPT acceptance;2q28 retains actual client acceptance.
 
 ## Starter prompt for next orchestrator
 
-Read native-allocation-stage/outcome.md and original Beads34/8 criteria; original33 audit remains historical.
-After owner selects a bounded task, root owns it and delegates only for concrete
-benefit within existing authority. The accumulated release is complete;
-preserve exact original Beads criteria. Next candidate34 requires owner selection;35/33 CLOSED.
+Read mail-log-privacy-stage/outcome.md and original Beads29/31 criteria; local24+37 source differs from global34 runtime;33/35 evidence retains exact scope.
+Owner selected whole-dbxe completion11Oct: root owns integrated acceptance/release;3 isolated streams run in parallel.
+Serving34 remains accepted;31 is now actual V3 and30 actual keys revoked. Changed24+37/application source awaits29;
+preserve all original criteria and unrelated epic defers. See completion-stage/plan.md for active scope.
 Local media proof: fake R2/Redis and9 actual PG; release/provider evidence remains separate.
 Preserve task8 retained scanner/global records and native reevaluation triggers, exact-release proof, SaaS/client/legal/research defers,
 source/registry separation and the verified working runtime/rollback.
 
-graph-reviewed: used - focused read-only MediaController/UploadFactory queries on d724 graph; exact current callers checked, no product graph input changed;
+graph-reviewed: used - focused getTemporalModule d724 neighbors/current hashes matched; main/options/AppModule and SDK logger/sandbox read; new scoped Node/workflow modules indexed by pointer;
 55 zero-node files remain limited coverage. No API extraction, query logging or git hooks.
 Root-owned cohesive stage; all unrelated tracked/untracked work preserved.

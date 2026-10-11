@@ -15,6 +15,7 @@ type Inputs = {
 export function Forgot() {
   const t = useT();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState(false);
   const resolver = useMemo(() => {
     return classValidatorResolver(ForgotPasswordDto);
@@ -25,15 +26,22 @@ export function Forgot() {
   const fetchData = useFetch();
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
-    await fetchData('/auth/forgot', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        provider: 'LOCAL',
-      }),
-    });
-    setState(true);
-    setLoading(false);
+    setError(null);
+    try {
+      const response = await fetchData('/auth/forgot', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          provider: 'LOCAL',
+        }),
+      });
+      if (!response.ok) throw new Error('Password recovery refused');
+      setState(true);
+    } catch {
+      setError(t('auth_request_failed_retry', 'Could not complete the request. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="flex flex-1 flex-col">
@@ -55,6 +63,7 @@ export function Forgot() {
                   placeholder={t('email_address', 'Email Address')}
                 />
               </div>
+              {error && <p role="alert" className="cf-body-sm text-cf-danger mt-[8px]">{error}</p>}
               <div className="text-center mt-6">
                 <div className="w-full flex">
                   <Button type="submit" className="flex-1 !rounded-[10px]" loading={loading}>

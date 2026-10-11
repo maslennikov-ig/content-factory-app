@@ -1,0 +1,61 @@
+{
+  "node": "v22.23.2",
+  "compiledArtifact": "apps/commands/dist/apps/commands/src/main.js",
+  "observer": "delegates originals; no Prisma or connection stub",
+  "cases": [
+    {
+      "name": "help",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "version",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "parse-error",
+      "exitCode": 1,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "config-help",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "operational-help",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "invalid-legacy",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "invalid-strict",
+      "exitCode": 1,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "valid-strict",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    },
+    {
+      "name": "valid-strict-leading-option",
+      "exitCode": 0,
+      "socketOrDnsCalls": 0,
+      "operationalModulesLoaded": 0
+    }
+  ]
+}

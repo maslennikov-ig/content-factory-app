@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "{{name}} を切断しますか？アカウントへのアクセスができなくなります。",
   "approved_app_disconnected": "切断しました",
   "approved_app_disconnect_failed": "切断できませんでした",
-  "mcp_consent_workspace_changed": "このページを開いている間に別のタブでワークスペースが切り替えられました。目的のワークスペースに接続するには、アシスタントから接続をやり直してください。"
+  "mcp_consent_workspace_changed": "このページを開いている間に別のタブでワークスペースが切り替えられました。目的のワークスペースに接続するには、アシスタントから接続をやり直してください。",
+  "auth_request_failed_retry": "リクエストを完了できませんでした。もう一度お試しください。",
+  "calendar_read_failed_retry": "投稿を読み込めませんでした。もう一度お試しください。",
+  "media_read_failed_retry": "メディアライブラリを読み込めませんでした。もう一度お試しください。",
+  "post_delete_failed_retry": "投稿を削除できませんでした。もう一度お試しください。",
+  "media_delete_failed_retry": "メディアを削除できませんでした。もう一度お試しください。",
+  "channel_delete_failed_retry": "チャンネルを削除できませんでした。もう一度お試しください。"
 }

@@ -1,0 +1,15 @@
+{
+  "commit": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "command": "pnpm test",
+  "node": "v22.23.2",
+  "recordedAt": "2026-10-11T13:13:04Z",
+  "jest": {
+    "suites": "Test Suites: 6 skipped, 647 passed, 647 of 653 total",
+    "tests": "Tests:       62 skipped, 11946 passed, 12008 total"
+  },
+  "nodeTest": {
+    "pass": "# pass 123",
+    "fail": "# fail 0"
+  },
+  "python": "OK"
+}

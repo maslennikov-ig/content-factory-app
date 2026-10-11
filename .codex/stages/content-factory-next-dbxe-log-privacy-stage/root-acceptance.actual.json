@@ -1,0 +1,193 @@
+{
+  "schema": "log-privacy-root-acceptance/v1",
+  "status": "PASS",
+  "verifiedAt": "2026-10-11T15:54:09.617449+00:00",
+  "baseCommit": "2b1485ba3081068c09bd2cc208a794c7fd9a0c0d",
+  "branch": "codex/dbxe-log-privacy-20261011",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "commands": [
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "tests/mail-video-log-privacy.test.cjs",
+        "tests/email-service-silent-vs-broken.guard.test.cjs",
+        "tests/email-resend-provider-swallow.guard.test.cjs",
+        "tests/email-service-footer-locale.test.cjs",
+        "tests/email-service-async-locale.guard.test.cjs",
+        "tests/email-activity-v2-nonretryable.guard.test.cjs",
+        "--runInBand",
+        "--no-coverage"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-jest.local.log",
+      "logSha256": "b6c816d246f3ee2a1bdb2d92d73a0b7acf3dec6fce41f2a1cbac704dc8aeedbb"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "-p",
+        "apps/backend/tsconfig.json"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-backend-types.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "-p",
+        "apps/orchestrator/tsconfig.json"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-orchestrator-types.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-docs.local.log",
+      "logSha256": "cbb4377dac49afd363fe21b6078978769b80f4431b2910ebb0c0c551234ec0a8"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-process.local.log",
+      "logSha256": "2b83c5b5733f5a6c923ddcf54332b5abe6049376ec76008e94729014ea35d60a"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "log": "acceptance-diff.local.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "jest": {
+    "suites": 6,
+    "passedTests": 37,
+    "newSyntheticTests": 23,
+    "skips": 0
+  },
+  "files": [
+    {
+      "file": "libraries/nestjs-libraries/src/services/email.service.ts",
+      "sha256": "a92ff5ce2282ad6591ef640b98bbecce4a50fc9f235d769d542b68c58cd0d381"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/database/prisma/media/media.service.ts",
+      "sha256": "23ad97467a236e2c731e3e75825cb9cb85b07adc9321a7bb6edc2a8077ea3b65"
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/videos/images-slides/images.slides.ts",
+      "sha256": "b2e845ff6c9821d2e10c7c8d445d62735447dcca78d0c55cac12a9f15b346c6f"
+    },
+    {
+      "file": "tests/mail-video-log-privacy.test.cjs",
+      "sha256": "a4df33b94e4173b329f6a537172f577a0a191ed97b8835829c35bcaded483873"
+    },
+    {
+      "file": "tests/email-service-silent-vs-broken.guard.test.cjs",
+      "sha256": "ae6f74586dd2d64d40ac24a0ae3d0f44a061709aaf2e09679baa5ed99338d7dd"
+    },
+    {
+      "file": "tests/email-resend-provider-swallow.guard.test.cjs",
+      "sha256": "1f5574f8564dc325f3a463373832a6c3786e52410dec85e8b8ecd0e5cc87d5fd"
+    },
+    {
+      "file": "tests/email-service-footer-locale.test.cjs",
+      "sha256": "53609b492f25314b4ae8dd42da19c04e471457eafd0283064d35e63d9e9a62ef"
+    },
+    {
+      "file": "tests/email-service-async-locale.guard.test.cjs",
+      "sha256": "060356763082dd1f5fd177557d8dc8580c89f378a754db898c65b3cc536ce5f9"
+    },
+    {
+      "file": "tests/email-activity-v2-nonretryable.guard.test.cjs",
+      "sha256": "bc3311b3d9f3c75a905a6490e8aa383916e9dff0da47666faf10daadf2f32ee7"
+    },
+    {
+      "file": "tests/helpers/load-ts-module.cjs",
+      "sha256": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca"
+    },
+    {
+      "file": "tests/helpers/source-tree-guard.cjs",
+      "sha256": "cde794cd6e1ff0f703d4b041b23030e77993f97d5190a7543557ec73c410ab68"
+    },
+    {
+      "file": "docs/operations/runtime.md",
+      "sha256": "eee70a219514a0a6df2d7105fc28c5515dc8d8e997c8966d7c4b3a00a0bb9a16"
+    },
+    {
+      "file": "docs/operations/outbound-connections.md",
+      "sha256": "aa296984bfc6beded6615d6c7a00d5dc895bc312e0f32b85c27cfdba0eaec8c6"
+    },
+    {
+      "file": ".codex/handoff.md",
+      "sha256": "2c2ec8c7d8ff807751a041e932e7059a0ab5549afef369f0d2baff3e446f7133"
+    },
+    {
+      "file": ".codex/project-index.md",
+      "sha256": "ed5fa122487ee48bb0bc80239c59d8c846ac437b92a2444e5fddfefe448543a5"
+    },
+    {
+      "file": ".codex/orchestrator.toml",
+      "sha256": "d8988d89cf2c2d180a9f8c2b6f7eae0e6dd3474f7ee6bd79d1a22d966cb21e87"
+    },
+    {
+      "file": "scripts/orchestration/run_process_verification.sh",
+      "sha256": "f65ffc8c622d3330c184ab994692493537a4ac8f51ffb6eafc8161f6da3ce07f"
+    },
+    {
+      "file": "package.json",
+      "sha256": "f9a99b0e290cfe4c93a7643ee1fd8e0be0d36cfcb53e56d8d10a497db84ea103"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "sha256": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05"
+    },
+    {
+      "file": "tsconfig.base.json",
+      "sha256": "bb527b2d788649a6ad5089ff352f280aa89058f54d4f9d3cb3cd970044ea949c"
+    },
+    {
+      "file": "apps/backend/tsconfig.json",
+      "sha256": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782"
+    },
+    {
+      "file": "apps/orchestrator/tsconfig.json",
+      "sha256": "12083f4899bddab1e21d054b16167b2f4efc433bdee55938378ebfde6e97e8eb"
+    },
+    {
+      "file": ".nvmrc",
+      "sha256": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a"
+    },
+    {
+      "file": "jest.config.cjs",
+      "sha256": "610b4fcc0439bb100333a0b7c0ac7944cb612eee0cde145bec773e4ac2384608"
+    }
+  ],
+  "boundary": "Generic service/slides logs only. No installed SDK/workflow stdout privacy, live provider/client delivery, production deployment or retention claim; confirmed remaining Temporal mail logs are OPEN37."
+}

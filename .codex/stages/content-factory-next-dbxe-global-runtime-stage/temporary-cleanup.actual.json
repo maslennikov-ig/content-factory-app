@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-10-11T13:59:41.058814+00:00",
+  "status": "PASS",
+  "hostSchemaHelpers": {
+    "directory": "/tmp/cf-dbxe34-schema-31a892b3d73b4af5",
+    "exactThreeFilesHashesVerifiedBeforeRemoval": true,
+    "directoryAbsentConfirmed": true
+  },
+  "ownedFixtureImagesRemoved": {
+    "cf-dbxe34-native-probe:20261011": "sha256:f932ff1848dd4342beaeda71134febf5f2fc1aa2efbe4169ac8fa811758f7e33",
+    "cf-dbxe34-global-probe:20261011": "sha256:1c1d4032f01b30212d5c7ab41584c99849ef41e4cbf65a6eb51e8da5523e789b"
+  },
+  "preflightExactTagsAndIdsVerified": true,
+  "preflightNoContainerReferences": true,
+  "postflightTagsAndImageIdsAbsent": true,
+  "allLocalContainerInventoryPreserved": true,
+  "deletionCommand": "docker image rm --no-prune <two exact owned tags>",
+  "activeAndRollbackLocalImagesPreserved": true,
+  "initialInventoryComparisonFailureRetained": "First cleanup postcheck compared removed image-list IDs to image-inspect IDs and failed after exact cleanup. Target absence and protected image presence were independently reread. Full unrelated image-ID inventory equality is not asserted."
+}

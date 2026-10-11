@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-11T15:51:49.545544+00:00",
+  "boundary": "Public read-only availability/source identity only; no mail/video/provider/client acceptance, worker-health claim, application switch or host mutation.",
+  "checks": [
+    {
+      "path": "/api/",
+      "httpStatus": 200
+    },
+    {
+      "path": "/auth/login",
+      "httpStatus": 200
+    },
+    {
+      "path": "/api/public/source/version",
+      "httpStatus": 200,
+      "version": {
+        "commit": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+        "shortCommit": "2a53727594a1",
+        "builtAt": "2026-10-11T13:16:13Z"
+      }
+    }
+  ]
+}

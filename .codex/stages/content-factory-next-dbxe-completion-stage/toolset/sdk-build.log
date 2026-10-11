@@ -1,0 +1,16 @@
+
+> @contentfactory/node@1.0.8 build /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011/apps/sdk
+> tsup
+
+CLI Building entry: src/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011/apps/sdk/tsup.config.ts
+CLI Target: es2017
+CLI Cleaning output folder
+CJS Build start
+CJS dist/index.js 2.96 KB
+CJS ⚡️ Build success in 24ms
+DTS Build start
+DTS ⚡️ Build success in 1799ms
+DTS dist/index.d.ts 8.57 KB

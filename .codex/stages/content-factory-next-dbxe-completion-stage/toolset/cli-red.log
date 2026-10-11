@@ -1,0 +1,28 @@
+FAIL tests/commands-configuration.offline.test.cjs
+  offline configuration strict mode
+    ✓ invalid legacy report still succeeds (288 ms)
+    ✕ invalid strict report returns failure and exit 1 (15 ms)
+    ✓ valid strict report succeeds (17 ms)
+
+  ● offline configuration strict mode › invalid strict report returns failure and exit 1
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      19 |   function task() { return new (loadTypeScriptModule('apps/commands/src/tasks/configuration.ts').ConfigurationTask)(); }
+      20 |   test('invalid legacy report still succeeds', () => { expect(task().create()).toBe(true); expect(process.exitCode).toBe(exitCode); });
+    > 21 |   test('invalid strict report returns failure and exit 1', () => { expect(task().create(true)).toBe(false); expect(process.exitCode).toBe(1); });
+         |                                                                                                ^
+      22 |   test('valid strict report succeeds', () => { Object.assign(process.env, valid); expect(task().create(true)).toBe(true); expect(process.exitCode).toBe(exitCode); });
+      23 | });
+      24 |
+
+      at Object.<anonymous> (tests/commands-configuration.offline.test.cjs:21:96)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 2 passed, 3 total
+Snapshots:   0 total
+Time:        0.607 s
+Ran all test suites matching /tests\/commands-configuration.offline.test.cjs/i.

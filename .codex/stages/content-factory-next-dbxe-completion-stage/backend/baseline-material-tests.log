@@ -1,0 +1,99 @@
+FAIL tests/content-material.routes.test.cjs
+  the library lists what a workspace already wrote
+    ✓ a row counts the posts that went out and the ones still waiting (9 ms)
+    ✓ an archived piece and another workspace stay out of the list (2 ms)
+    ✓ a workspace with nothing written reports empty rather than an error (1 ms)
+    ✓ the response carries every field the screen declares (2 ms)
+  word search sees the archive only when asked
+    ✓ the old tab keeps archived rows out of its search
+    ✓ the pieces list asks with includeArchived and gets the archive back (1 ms)
+  the archive asks the internal index before the database
+    ✓ the index answers, and the database is never asked for words (2 ms)
+    ✓ an empty index falls back to the word search it replaced (2 ms)
+    ✓ no question means no search at all, by either road (1 ms)
+  «свои тексты по теме» ask for published texts with an address
+    ✓ the question carries the platform, the link rule and a small limit (1 ms)
+    ✓ an empty question asks nothing and answers with nothing (1 ms)
+    ✓ a workspace without the index gets an empty list, not a failure
+    ✓ a text brought into the archive is findable at once
+  a material says which posts came out of it
+    ✓ provenance names the platform and the state of each post (4 ms)
+    ✓ another workspace cannot open a material it does not own (1 ms)
+  the recut preview is the arithmetic the screens were built on
+    ✓ the preview is exactly what previewRecut returns for the piece (1 ms)
+    ✓ the open row keeps its provenance while the panel is open (1 ms)
+    ✓ a platform this product cannot cut for is refused by name
+  a draft made from a material keeps the link back to it
+    ✓ the draft is a post in DRAFT and a derivation pointing at it (2 ms)
+    ✓ a named channel is used when the request names one (1 ms)
+    ✕ telegram cannot use the explicitly selected channel integration-vk (1 ms)
+    ✕ vk cannot use the explicitly selected channel integration-telegram
+    ✓ site uses its existing wordpress provider alias (explicit=true) (1 ms)
+    ✓ site uses its existing wordpress provider alias (explicit=false) (1 ms)
+    ✓ newsletter uses its existing listmonk provider alias (explicit=true) (1 ms)
+    ✓ newsletter uses its existing listmonk provider alias (explicit=false)
+    ✓ an explicitly selected disabled matching channel writes nothing
+    ✓ an explicitly selected deleted matching channel writes nothing
+    ✓ a workspace with no channel for the platform is told which platform
+    ✓ another workspace cannot make a draft from a material it does not own (1 ms)
+    ✓ a channel belonging to another workspace is not borrowed
+  the controller answers exactly the routes the contract declares
+    ✓ every route the registry lists is mounted
+    ✓ nothing beyond the contract is mounted
+    ✓ a refusal reaches the screen as its code and its status
+    ✓ every handler is handed the organisation from the request (1 ms)
+    the related door
+      ✓ hands the words, the platform and a limit to the service
+      ✓ three is the answer when nobody asked for a number
+      ✓ an empty question is a question, not a refusal (2 ms)
+  the material path prepares text and never reaches a platform
+    ✓ errors imports no provider, no integration client and no delivery service
+    ✓ presentation imports no provider, no integration client and no delivery service (1 ms)
+    ✓ archivePresentation imports no provider, no integration client and no delivery service
+    ✓ repository imports no provider, no integration client and no delivery service
+    ✓ service imports no provider, no integration client and no delivery service (1 ms)
+    ✓ dto imports no provider, no integration client and no delivery service
+    ✓ searchTerms imports no provider, no integration client and no delivery service
+    ✓ controller imports no provider, no integration client and no delivery service
+    ✓ archiveController imports no provider, no integration client and no delivery service (1 ms)
+    ✓ the preview is borrowed from recut.ts rather than reimplemented
+    ✓ the validator and the shape table agree on the platform list (146 ms)
+    ✓ поиск отказывает на слишком длинной строке и берёт обычную (61 ms)
+    ✓ слой и площадка остаются свободными строками, а не отказом (30 ms)
+    ✓ storage goes through Prisma models rather than raw SQL (1 ms)
+
+  ● a draft made from a material keeps the link back to it › telegram cannot use the explicitly selected channel integration-vk
+
+    the call was expected to refuse and did not
+
+      388 |     return error;
+      389 |   }
+    > 390 |   throw new Error('the call was expected to refuse and did not');
+          |         ^
+      391 | };
+      392 |
+      393 | /* -------------------------------------------------------------------------
+
+      at failure (tests/content-material.routes.test.cjs:390:9)
+      at tests/content-material.routes.test.cjs:806:19
+
+  ● a draft made from a material keeps the link back to it › vk cannot use the explicitly selected channel integration-telegram
+
+    the call was expected to refuse and did not
+
+      388 |     return error;
+      389 |   }
+    > 390 |   throw new Error('the call was expected to refuse and did not');
+          |         ^
+      391 | };
+      392 |
+      393 | /* -------------------------------------------------------------------------
+
+      at failure (tests/content-material.routes.test.cjs:390:9)
+      at tests/content-material.routes.test.cjs:806:19
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 50 passed, 52 total
+Snapshots:   0 total
+Time:        1.285 s
+Ran all test suites within paths "tests/content-material.routes.test.cjs".

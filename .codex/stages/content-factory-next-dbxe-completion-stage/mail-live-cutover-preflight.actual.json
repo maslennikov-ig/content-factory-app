@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-10-11T17:12:03.303Z",
+  "mode": "preflight",
+  "status": "PASS",
+  "payloadsDisclosed": false,
+  "before": {
+    "workflowType": "sendEmailWorkflowV2",
+    "eventCount": 260,
+    "initialQueue": 2,
+    "acceptedSignals": 16,
+    "ignoredSignals": 0,
+    "scheduledActivities": 18,
+    "completedActivities": 18,
+    "failedActivities": 0,
+    "pendingQueue": 0,
+    "unsettledActivities": 0,
+    "pendingTimers": 0,
+    "pendingWorkflowTasks": 0,
+    "describePendingActivities": 0,
+    "describePendingWorkflowTask": false,
+    "readyForEmptyCutover": true,
+    "payloadsDisclosed": false
+  },
+  "oldRunIdSha256": "27168d47ae13f04032591ee5914456782336f003cd5f28b5c07250949c99eba1",
+  "oldType": "sendEmailWorkflowV2",
+  "workflowId": "send_email_v2",
+  "namespace": "default",
+  "taskQueue": "main",
+  "elapsedMs": 384
+}

@@ -161,6 +161,11 @@ const buildTemporalOptions = (
                           MAX_CONCURRENT_WORKFLOW_TASKS,
                         maxConcurrentWorkflowTaskPolls:
                           MAX_CONCURRENT_WORKFLOW_TASK_POLLS,
+                        interceptors: {
+                          workflowModules: [
+                            require.resolve('./mail-log-privacy.workflow'),
+                          ],
+                        },
                       }
                     : {}),
                 },

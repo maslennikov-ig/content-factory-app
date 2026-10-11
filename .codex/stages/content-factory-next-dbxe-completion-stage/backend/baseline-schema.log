@@ -1,0 +1,4 @@
+Prisma schema loaded from libraries/nestjs-libraries/src/database/prisma/schema.prisma
+Datasource "db": PostgreSQL database "cf_dbxe_completion_backend_test", schema "public" at "127.0.0.1:41182"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 965ms

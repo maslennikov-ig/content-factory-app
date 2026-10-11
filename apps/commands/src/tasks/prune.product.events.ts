@@ -1,3 +1,4 @@
+import { commandCatalog } from '../command.catalog';
 import { Command, Positional } from 'nestjs-command';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -11,10 +12,7 @@ export class PruneProductEvents {
 
   constructor(private _productEventsRepository: ProductEventsRepository) {}
 
-  @Command({
-    command: 'product-events:prune [days]',
-    describe: 'Delete product events older than the retention window',
-  })
+  @Command(commandCatalog.prune)
   async prune(
     @Positional({
       name: 'days',

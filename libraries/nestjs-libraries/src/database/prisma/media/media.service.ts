@@ -1,4 +1,5 @@
 import { HttpException, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { MediaRepository } from '@contentfactory/nestjs-libraries/database/prisma/media/media.repository';
 import { OpenaiService } from '@contentfactory/nestjs-libraries/openai/openai.service';
 import { generationError } from '@contentfactory/nestjs-libraries/openai/generation.error';
@@ -178,6 +179,7 @@ export class MediaService {
   }
 
   async generateVideo(org: Organization, body: VideoDto) {
+    const correlationId = randomUUID();
     try {
       const totalCredits = await this._subscriptionService.checkCredits(
         org,
@@ -203,11 +205,9 @@ export class MediaService {
         );
       }
 
-      console.log(body.customParams);
       await video.instance.processAndValidate(body.customParams);
-      console.log('no err');
 
-      return await this._subscriptionService.useCredit(
+      const saved = await this._subscriptionService.useCredit(
         org,
         'ai_videos',
         async () => {
@@ -221,7 +221,10 @@ export class MediaService {
           return this.saveFile(org.id, file.split('/').pop(), file);
         }
       );
+      console.log('video.generated', { correlationId });
+      return saved;
     } catch (err) {
+      console.error('video.failed', { correlationId, code: 'generation_failed' });
       throw generationError(err);
     }
   }

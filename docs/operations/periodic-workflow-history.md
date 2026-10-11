@@ -44,6 +44,14 @@ workflow остаётся прежним, новый запуск получае
 | Recovery при `RUN_CRON` | `missingPostWorkflowV109` | `missing-post-workflow-v108`, `USE_EXISTING` |
 | Асинхронная почта | `sendEmailWorkflowV3` | `send_email_v2`, прежний `signalWithStart` / `USE_EXISTING` |
 
+On 11 October the owner authorized and root completed the actual mail singleton
+cutover after proving the old V2 run empty and admission quiescent. V3 is now
+served by the deployed worker under the same ID. Historical bodies remain
+unchanged; see [the exact procedure and evidence](mail-queue-cutover.md). The
+live cutover uses no synthetic mail and does not infer bounded behavior from
+four initial events: the thirty-attempt bound is separately proved with the
+matching native workflow and fake provider.
+
 Суффикс прежнего ID сохранён намеренно: новый singleton ID мог бы создать ещё
 один процесс рядом с уже работающим. Уже запущенный V2 почтовый workflow
 получает сигнал даже если вызывающий теперь указывает V3. Его последующие

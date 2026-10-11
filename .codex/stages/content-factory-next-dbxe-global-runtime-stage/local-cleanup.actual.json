@@ -1,0 +1,144 @@
+{
+  "capturedAt": "2026-10-11T12:11:11.005965+00:00",
+  "boundary": "local Docker old own release caches only; no shared-host cleanup",
+  "authority": "User previously authorized all necessary in-scope work/cleanup; reversible local binary cache removal to unblock selected runtime release",
+  "preserved": [
+    "all existing containers",
+    "serving755d",
+    "rollbackcae3",
+    "additional4a8 rollback",
+    "all unrelated images, volumes, build cache and worktrees"
+  ],
+  "targets": [
+    {
+      "imageId": "sha256:e5e31d4e098c4f9b61c180b71452b461a2fa65db9daa4483b65c12b20c509448",
+      "tags": [
+        "content-factory-next:f0b4bfae1f25",
+        "ghcr.io/maslennikov-ig/content-factory-next:f0b4bfae1f25"
+      ],
+      "created": "2026-09-30T11:25:04.079512789Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:f0b4bfae1f25",
+        "ghcr.io/maslennikov-ig/content-factory-next:f0b4bfae1f25"
+      ],
+      "exit": 0
+    },
+    {
+      "imageId": "sha256:fbbbb1febde05d968aaedb9a5bfde67a141e0af7899a15a435ee234d32266bd4",
+      "tags": [
+        "content-factory-next:1e401579b0bb",
+        "ghcr.io/maslennikov-ig/content-factory-next:1e401579b0bb"
+      ],
+      "created": "2026-09-30T06:48:35.818971752Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:1e401579b0bb",
+        "ghcr.io/maslennikov-ig/content-factory-next:1e401579b0bb"
+      ],
+      "exit": 0
+    },
+    {
+      "imageId": "sha256:d3ef45e9c6a8d68b7cf2c0643e07d2587a02adf4eb72eba5e6cac158c5390fab",
+      "tags": [
+        "content-factory-next:d6130a6f4dc0",
+        "ghcr.io/maslennikov-ig/content-factory-next:d6130a6f4dc0"
+      ],
+      "created": "2026-09-29T05:39:05.703248171Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:d6130a6f4dc0",
+        "ghcr.io/maslennikov-ig/content-factory-next:d6130a6f4dc0"
+      ],
+      "exit": 0
+    },
+    {
+      "imageId": "sha256:881cdc0440e40d84e277b0d9e4d16099b96fd3d10fdae54a33ddb23bc1a1ce88",
+      "tags": [
+        "content-factory-next:3132393a8920",
+        "ghcr.io/maslennikov-ig/content-factory-next:3132393a8920"
+      ],
+      "created": "2026-09-30T18:54:50.917226113Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:3132393a8920",
+        "ghcr.io/maslennikov-ig/content-factory-next:3132393a8920"
+      ],
+      "exit": 0
+    },
+    {
+      "imageId": "sha256:509ade72559ef620ad8ac619b367a3cdcbeef4153b8b13efa53236416532709f",
+      "tags": [
+        "content-factory-next:66619d212950",
+        "ghcr.io/maslennikov-ig/content-factory-next:66619d212950"
+      ],
+      "created": "2026-10-01T11:58:06.927829245Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:66619d212950",
+        "ghcr.io/maslennikov-ig/content-factory-next:66619d212950"
+      ],
+      "exit": 0
+    },
+    {
+      "imageId": "sha256:6ff9fa27075a47bac565bb6db2a3cf9a9eb8a891873991b1ca0a576658508f1c",
+      "tags": [
+        "content-factory-next:36c0927ad35b"
+      ],
+      "created": "2026-10-03T20:13:00.391037587Z",
+      "classification": "safe-local",
+      "reason": "older own release, no container or focused test/script consumer; current plus rollback images retained",
+      "command": [
+        "docker",
+        "image",
+        "rm",
+        "--no-prune",
+        "content-factory-next:36c0927ad35b"
+      ],
+      "exit": 0
+    }
+  ],
+  "result": "REMOVED_EXACT_LOCAL_IMAGE_TAGS",
+  "completedAt": "2026-10-11T12:13:23.215958+00:00",
+  "containerCommandsExecuted": false,
+  "buildCachePruned": false,
+  "capacityAfter": {
+    "available_bytes": 27798343680,
+    "available_inodes": 27799285,
+    "builder_driver": "docker",
+    "docker_context": "default",
+    "helper_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+    "required_bytes": 16106127360,
+    "required_inodes": 100000,
+    "result": "PASS",
+    "storage": "daemon-container-root"
+  },
+  "capacityBeforeBytes": 6714802176,
+  "observedAdditionalFreeBytes": 21083541504,
+  "protectedLocalImagesStillPresent": true
+}

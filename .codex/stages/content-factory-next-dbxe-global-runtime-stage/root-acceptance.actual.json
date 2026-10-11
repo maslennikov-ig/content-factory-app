@@ -1,0 +1,88 @@
+{
+  "schema": "global-runtime-root-acceptance/v1",
+  "status": "PASS",
+  "acceptedAt": "2026-10-11T14:04:35.289655+00:00",
+  "beads": [
+    "content-factory-next-dbxe.34",
+    "content-factory-next-dbxe.8"
+  ],
+  "privateReleaseSource": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "publicImageSource": "2a53727594a13c15c8740af0686ebffb40d34bfd",
+  "registryIndex": "sha256:c763e3c3ba4ab4d5e3d9fddd55d178074223f3fec9cdc95b6817993d1ab035e2",
+  "productionConfig": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+  "configuredExactSourceChecks": 9,
+  "suite": {
+    "commit": "92f784757329f041fbf34de0dba0f0d9406a9680",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-11T13:13:04Z",
+    "jest": {
+      "suites": "Test Suites: 6 skipped, 647 passed, 647 of 653 total",
+      "tests": "Tests:       62 skipped, 11946 passed, 12008 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 123",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "globalDispositionCounts": {
+    "REMOVED_UNUSED_RUNTIME_TOOL": 47,
+    "RETAINED_DISABLED_CALLER": 2,
+    "PATCHED_SAME_MAJOR_4.3.2": 2
+  },
+  "remainingGlobalHigh": [
+    {
+      "package": "braces",
+      "version": "3.0.3",
+      "type": "npm",
+      "vulnerability": "GHSA-vfj7-8cjw-p6xm",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "locations": [
+        "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+      ]
+    },
+    {
+      "package": "basic-ftp",
+      "version": "5.3.1",
+      "type": "npm",
+      "vulnerability": "GHSA-c475-qrg2-pj4r",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "6.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.1",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "locations": [
+        "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+      ]
+    }
+  ],
+  "liveDisabledCallerGatesVerified": true,
+  "nativeImageChain35ReusedExactly": true,
+  "osScannerCriticalHighRetained": 116,
+  "schemaApplied": false,
+  "mastraTables": 45,
+  "currentProductCountsPreserved": true,
+  "existingWorkflowExecutionsPreserved": true,
+  "foreignProductionContainersPreserved": 21,
+  "rollbackTag": "755d19fa731d",
+  "originalCriteriaPreserved": 30,
+  "epicStatus": "open",
+  "nextCandidate": ".25; owner selection required",
+  "boundary": "Applicable global runtime findings; retained OS/application exceptions remain scoped. No provider/model/client, CWS, key rotation or host-loss recovery acceptance."
+}

@@ -1,0 +1,18 @@
+{
+  "name": "cf-dbxe-completion-backend-proof-20261011",
+  "containerId": "f23f52372bd2f9a94d3939ff27ffa9db15e94e9762fce1d0345f1687a90a1237",
+  "volume": "cf-dbxe-completion-backend-proof-20261011-data",
+  "address": "127.0.0.1:41022",
+  "database": "cf_dbxe_completion_backend_test",
+  "schemaMutation": "owned disposable only",
+  "provider": "fake only",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "prisma": "6.5.0",
+  "sourceSha256": {
+    "libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.service.ts": "609c89ec27ff0d6254e1d1eccb1d734bc8d3e583ddded9a85afc7ebb50bed6a6",
+    "libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts": "705084f3c83b53488cb7374252a0ef9a16c1b4550385e81c4c506fa3e2846ebf",
+    "tests/media-credits.postgres.test.cjs": "4a7a07f358eaa55c3c01df557a7c860bcf5105cb974fbf82f432738b488de321",
+    "tests/helpers/media-credits.module.cjs": "4dbe2916f6e50a4be76c6f59ef653c15cbffdb6f449aa3e46032ef7ea8939fcc"
+  }
+}

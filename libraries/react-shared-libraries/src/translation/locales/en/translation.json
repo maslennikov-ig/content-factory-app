@@ -2023,5 +2023,11 @@
   "approved_app_disconnect_confirm": "Disconnect {{name}}? It will lose access to your account.",
   "approved_app_disconnected": "Disconnected",
   "approved_app_disconnect_failed": "Could not disconnect",
-  "mcp_consent_workspace_changed": "The workspace was switched in another tab while this page was open. Start connecting again from your assistant to connect it to the workspace you want."
+  "mcp_consent_workspace_changed": "The workspace was switched in another tab while this page was open. Start connecting again from your assistant to connect it to the workspace you want.",
+  "auth_request_failed_retry": "Could not complete the request. Please try again.",
+  "calendar_read_failed_retry": "Could not load posts. Please try again.",
+  "media_read_failed_retry": "Could not load the library. Please try again.",
+  "post_delete_failed_retry": "Could not delete the post. Please try again.",
+  "media_delete_failed_retry": "Could not delete the media. Please try again.",
+  "channel_delete_failed_retry": "Could not delete the channel. Please try again."
 }

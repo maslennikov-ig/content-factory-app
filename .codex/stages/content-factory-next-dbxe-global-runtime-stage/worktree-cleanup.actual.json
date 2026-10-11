@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-10-11T14:08:33.229436+00:00",
+  "status": "PASS",
+  "ownedDetachedReleaseWorktree": "/home/me/code/content-factory-next-worktrees/dbxe-global-runtime-20261011",
+  "acceptedSource": "92f784757329f041fbf34de0dba0f0d9406a9680",
+  "pristineBeforeRemoval": true,
+  "removedWithoutForce": true,
+  "allOtherWorktreeRecordsPreserved": true
+}

@@ -1409,7 +1409,10 @@
     "REMOVED_UNUSED_RUNTIME_TOOL": 47,
     "RETAINED_DISABLED_CALLER": 2
   },
-  "localProbeOnly": true,
-  "finalImageScanPending": true,
-  "beforeManifestSha256": "943810d1c58a3e5d6c2b9f5636697e96c6902e6c525a28a1c56b6e87087cb998"
+  "localProbeOnly": false,
+  "finalImageScanPending": false,
+  "beforeManifestSha256": "943810d1c58a3e5d6c2b9f5636697e96c6902e6c525a28a1c56b6e87087cb998",
+  "finalImageScan": "candidate-scan.actual.json",
+  "freshRegistryAdvisoryCheck": "npm-global-advisories.actual.json",
+  "liveDisabledCallerProof": "live-globals-after.actual.json"
 }

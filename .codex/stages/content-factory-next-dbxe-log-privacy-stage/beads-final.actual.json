@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-11T15:55:14.740364+00:00",
+  "epicStatus": "open",
+  "children": 37,
+  "closedChildren": 23,
+  "selectedStatuses": {
+    "24": "closed",
+    "25": "closed",
+    "29": "open",
+    "31": "open",
+    "37": "open"
+  },
+  "originalCriteriaPreserved": 30,
+  "githubSync": "Triggered after24 close and37/31/29 mutations; remote readback separate."
+}
