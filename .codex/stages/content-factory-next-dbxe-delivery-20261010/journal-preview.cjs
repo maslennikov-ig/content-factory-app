@@ -29,7 +29,8 @@ try {
     env: { ...process.env, DATABASE_URL: parsed.DATABASE_URL, PRISMA_SCHEMA_ENGINE_BINARY: engine, CHECKPOINT_DISABLE: '1' },
   });
   if (diff.error || diff.signal || ![0, 2].includes(diff.status)) fail('diff_execution_failed');
-  const statements = diff.stdout.split(/\r?\n/).filter(line => line.trim() && !line.trim().startsWith('--')).join(' ').replace(/\s+/g, ' ').trim();
+  const printed = diff.stdout.split(/\r?\n/).filter(line => line.trim() && !line.trim().startsWith('--')).join('\n').trim();
+  const statements = printed.replace(/\s+/g, ' ').trim();
   if (diff.status === 0 && statements === '') {
     console.log(JSON.stringify({ ok: true, diffExitCode: 0, sqlLines: 0, schemaApplied: false, engineSha256 }));
     process.exit(0);
@@ -37,11 +38,11 @@ try {
   if (diff.status !== 2 || statements !== expected) fail('unexpected_schema_diff');
   const full = path.join(out, 'journal-full.sql'), selected = path.join(out, 'journal-selected.sql');
   fs.writeFileSync(full, diff.stdout, { mode: 0o600 });
-  fs.writeFileSync(selected, expected + '\n', { mode: 0o600 });
+  fs.writeFileSync(selected, printed + '\n', { mode: 0o600 });
   const guard = spawnSync(process.execPath, ['scripts/operations/validate-prisma-migration-sql.cjs',
     '--mode', 'update', '--diff', full, '--selected', selected, '--allow-table', 'Post'],
     { cwd: root, encoding: 'utf8', timeout: 10000 });
   if (guard.status !== 0) fail('sql_guard_refused');
   console.log(JSON.stringify({ ok: true, diffExitCode: 2, sqlLines: 1, schemaApplied: false,
-    onlyNullablePostJournal: true, sqlGuardExitCode: 0, selectedSha256: hash(expected + '\n'), engineSha256 }));
+    onlyNullablePostJournal: true, sqlGuardExitCode: 0, selectedSha256: hash(printed + '\n'), engineSha256 }));
 } catch { fail('preview_failed'); }

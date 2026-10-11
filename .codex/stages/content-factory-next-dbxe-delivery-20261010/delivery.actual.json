@@ -1,0 +1,415 @@
+{
+  "schemaVersion": "content-factory-delivery/v1",
+  "result": "PASS",
+  "boundary": "Authorized accumulated release after local dbxe.21; not whole-epic or all security acceptance",
+  "rootOwned": true,
+  "capturedAt": "2026-10-10T20:37:34.677446+00:00",
+  "source": {
+    "privateCommit": "d724f3b792f4518eebc04c854448904f565323fd",
+    "publicCommit": "755d19fa731d524b151afe18c4394d8027030d58",
+    "imageTag": "755d19fa731d",
+    "registry": "ghcr.io/maslennikov-ig/content-factory-next",
+    "privateAndPublicPublished": true,
+    "copiedTrackedFilesByteEqual": 4202,
+    "privateHistoryPublishedPublicly": false,
+    "closingCommitsExcludedFromImageProvenance": true
+  },
+  "exactSourceReleaseAcceptance": {
+    "result": "PASS",
+    "configuredCommands": [
+      {
+        "phase": "backend-types",
+        "command": [
+          "pnpm",
+          "exec",
+          "tsc",
+          "--noEmit",
+          "--incremental",
+          "false",
+          "-p",
+          "apps/backend/tsconfig.json"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "frontend-types",
+        "command": [
+          "pnpm",
+          "exec",
+          "tsc",
+          "--noEmit",
+          "--incremental",
+          "false",
+          "-p",
+          "apps/frontend/tsconfig.json"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "orchestrator-types",
+        "command": [
+          "pnpm",
+          "exec",
+          "tsc",
+          "--noEmit",
+          "--incremental",
+          "false",
+          "-p",
+          "apps/orchestrator/tsconfig.json"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "build",
+        "command": [
+          "pnpm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "suite",
+        "command": [
+          "bash",
+          "scripts/release/record-suite-receipt.sh"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "brand",
+        "command": [
+          "node",
+          "scripts/branding/brand-scan.cjs"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "docs",
+        "command": [
+          "pnpm",
+          "run",
+          "docs:check"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "process",
+        "command": [
+          "bash",
+          "scripts/orchestration/run_process_verification.sh"
+        ],
+        "exitCode": 0
+      },
+      {
+        "phase": "diff",
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exitCode": 0
+      }
+    ],
+    "suite": {
+      "commit": "d724f3b792f4518eebc04c854448904f565323fd",
+      "command": "pnpm test",
+      "node": "v22.23.2",
+      "recordedAt": "2026-10-10T19:47:31Z",
+      "jest": {
+        "suites": "Test Suites: 6 skipped, 647 passed, 647 of 653 total",
+        "tests": "Tests:       62 skipped, 11946 passed, 12008 total"
+      },
+      "nodeTest": {
+        "pass": "# pass 123",
+        "fail": "# fail 0"
+      },
+      "python": "OK"
+    },
+    "counts": {
+      "jestSuitesPassed": 647,
+      "jestSuitesSkipped": 6,
+      "jestTestsPassed": 11946,
+      "jestTestsSkipped": 62,
+      "nodeTestsPassed": 123,
+      "nodeTestsSkipped": 4,
+      "nodeTestsFailed": 0,
+      "pythonTestsPassed": 50
+    }
+  },
+  "matchingMediaOwnershipProof": {
+    "behavioralInputs": 12,
+    "inputsMatch": true,
+    "jestSuites": 6,
+    "jestTests": 90,
+    "newFakeHttpTests": 49,
+    "actualPostgresTests": 9,
+    "historicalTemporalBodiesPreserved": 39,
+    "liveR2ProviderAcceptance": false
+  },
+  "image": {
+    "registryIndexDigest": "sha256:956cde25cc140024353d6ca1d0fb7d6e9cbda694c9fd09f34480b1f00ea2f491",
+    "platformManifestDigest": "sha256:f96b8edd632d0a59e0bd063e95a659e6573125273c480cd10b2d64e1108b0ce3",
+    "platformConfigDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+    "compressedBytes": 695982491,
+    "weightGateMaximumGrowthPercent": 25,
+    "weightGatePassed": true,
+    "approximateGrowthPercent": -4,
+    "sourceArchive": {
+      "commit": "755d19fa731d524b151afe18c4394d8027030d58",
+      "shortCommit": "755d19fa731d",
+      "archive": "content-factory-source.tar.gz",
+      "downloadName": "content-factory-755d19fa731d.tar.gz",
+      "bytes": 12611013,
+      "sha256": "a4454a506b0a9bf533c3132b5ce29c5d104737f155c17376d0432fd57ef8cb26",
+      "builtAt": "2026-10-10T19:49:35Z"
+    },
+    "nativeCliHelp": "PASS against owned disposable PostgreSQL; no provider call"
+  },
+  "production": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:755d19fa731d",
+    "imageId": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+    "health": "healthy",
+    "restarts": 0,
+    "memoryLimitBytes": 1879048192,
+    "memorySnapshot": "938.6MiB / 1.75GiB",
+    "healthcheckExitCode": 0,
+    "readinessBoundary": "API plus native worker readiness",
+    "publicEndpointStatuses": {
+      "/api/": 200,
+      "/auth/login": 200,
+      "/source": 200,
+      "/api/public/source": 200,
+      "/api/public/source/archive": 200
+    },
+    "sourceArchiveMatchesImage": true,
+    "otherContainerIdentitiesAndStatesPreserved": 21,
+    "sameTwoLegacyExecutionsPreserved": true,
+    "legacyExecutionTypes": [
+      "digestEmailWorkflow",
+      "sendEmailWorkflowV2"
+    ],
+    "workflowsMutated": false,
+    "productAggregateInventoryPreserved": true,
+    "mastraTables": 45,
+    "mastraSchemaAndRowsPreserved": true,
+    "freeHostBytesAfterRetention": 32769740800,
+    "verifiedRollbackTag": "cae3cd8340e0",
+    "verifiedRollbackImageId": "sha256:a70e865a332aeae3701bfabc5fbb97f9c9b1d04596ab64536fa3c8eef0e8a053"
+  },
+  "schema": {
+    "onlyNullablePostJournalAdded": true,
+    "statements": 1,
+    "singleTransaction": true,
+    "selectedSqlSha256": "2c9f7e9f096653ce9bbd736c8a058dc65118dec7c96fdd1d8bac430cc5b0f72d",
+    "printedSqlHelperSha256": "8b58a7c729a24e4c0efc54b35f9b8a12ab9903345c87ad5c8b77070cdca14bb9",
+    "existingSqlGuardUnchanged": true,
+    "encryptedBackup": {
+      "encryptedBackup": "/srv/full-backup/2026-10-10_pre-dbxe-755d19fa731d-201719Z/postgres_cf-next-postgres.sql.gpg",
+      "bytes": 2644320,
+      "mode": "600",
+      "sha256": "bc78e9335d7de3138defe86875fb3e1981eede893fc1ebc0af95cd3608f25d30",
+      "decryptionAndSignatureVerified": true,
+      "restorePerformed": false
+    },
+    "emptyDiffAfterApplyAndAfterAppStart": true,
+    "dbPushOrRestorePerformed": false
+  },
+  "github": {
+    "release": {
+      "result": "PASS",
+      "capturedAt": "2026-10-10T20:30:06.775817+00:00",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/releases/tag/755d19fa731d",
+      "publicCommit": "755d19fa731d524b151afe18c4394d8027030d58",
+      "tag": "755d19fa731d",
+      "extension": {
+        "name": "content-factory-extension-2.0.1.zip",
+        "bytes": 7865,
+        "sha256": "90f10d220c9305f9ad87856fa0cf1697c1bf7ea0013a6160e909f06687643d48",
+        "url": "https://github.com/maslennikov-ig/content-factory-app/releases/download/755d19fa731d/content-factory-extension-2.0.1.zip",
+        "downloadReadbackMatches": true
+      },
+      "chromeWebStore": "deferred in content-factory-next-dbxe.32"
+    },
+    "exactSourceBranchAcceptance": {
+      "result": "PASS",
+      "boundary": "Two completed exact-source branch checks; separately retain tag-triggered duplicates",
+      "capturedAt": "2026-10-10T20:35:31.793990+00:00",
+      "publicCommit": "755d19fa731d524b151afe18c4394d8027030d58",
+      "acceptedRuns": [
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-10T19:48:57Z",
+          "databaseId": 38081289699,
+          "event": "push",
+          "headSha": "755d19fa731d524b151afe18c4394d8027030d58",
+          "status": "completed",
+          "workflowName": "Code Quality Analysis"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-10T19:48:57Z",
+          "databaseId": 38081289748,
+          "event": "push",
+          "headSha": "755d19fa731d524b151afe18c4394d8027030d58",
+          "status": "completed",
+          "workflowName": "Build"
+        }
+      ],
+      "additionalRuns": [
+        {
+          "conclusion": "",
+          "createdAt": "2026-10-10T20:29:17Z",
+          "databaseId": 38083934369,
+          "event": "push",
+          "headSha": "755d19fa731d524b151afe18c4394d8027030d58",
+          "status": "in_progress",
+          "workflowName": "Build"
+        }
+      ]
+    }
+  },
+  "imageSecurity": {
+    "status": "UNTRIAGED_OS_GLOBAL_FINDINGS; not security-all-clear",
+    "scanner": "Grype0.120.1",
+    "databaseBuilt": "2026-10-10T06:30:01Z",
+    "distro": {
+      "name": "debian",
+      "version": "12.15",
+      "idLike": []
+    },
+    "totalOsAdvisoryRangeRecords": 362,
+    "osSeverityCounts": {
+      "High": 94,
+      "Negligible": 107,
+      "Critical": 22,
+      "Low": 19,
+      "Medium": 102,
+      "Unknown": 18
+    },
+    "globalOrBinaryCriticalHighRecords": 51,
+    "criticalRecordsWithFixedVersions": 9,
+    "unchangedInheritedImageLayerPrefix": 9,
+    "applicationRangeExceptions": "Retained in dependency applicability evidence",
+    "followups": [
+      "content-factory-next-dbxe.33",
+      "content-factory-next-dbxe.34"
+    ],
+    "dependencyTaskStatus": "in_progress"
+  },
+  "scope": {
+    "originalCriterionCountPreserved": 30,
+    "originalSnapshotSha256": "012a8bde65ccad07c30de7a60fd1f885b6bfc21ab3dee4b0d4d1eb449f6e7707",
+    "epicStatus": "open",
+    "children": 34,
+    "closed": 17,
+    "notClosed": 17,
+    "dependencySecurityStatus": "in_progress",
+    "newFollowups": {
+      "30": {
+        "status": "open",
+        "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1067"
+      },
+      "31": {
+        "status": "open",
+        "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1068"
+      },
+      "32": {
+        "status": "open",
+        "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1069"
+      },
+      "33": {
+        "status": "open",
+        "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1071"
+      },
+      "34": {
+        "status": "open",
+        "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1070"
+      }
+    }
+  },
+  "safeCleanup": {
+    "ownRetentionHelper": "PASS; current and verified rollback retained",
+    "ownedHostHelperFilesRemoved": 12,
+    "encryptedBackupPreserved": true,
+    "foreignContainersOrVolumesRemoved": false,
+    "unrelatedAntigravityRulePreserved": true,
+    "deliveryWorktreeCleanup": "PASS; clean owned worktree and merged local branch removed without force"
+  },
+  "graphReview": {
+    "status": "updated",
+    "mode": "local AST; cluster-only --no-viz --no-label",
+    "sourceBaseline": "d724f3b792f4518eebc04c854448904f565323fd",
+    "nodes": 28023,
+    "edges": 55444,
+    "coverageLimit": "55 zero-node files warned by extractor; no complete-graph claim",
+    "externalModelCalls": false
+  },
+  "nextAction": "Await owner selection; recommend bounded dbxe.33, then34. No automatic next task or continuous epic goal.",
+  "proofSha256": {
+    "source-acceptance.local.json": "1f84143951b17a1f7eeae9454bd9390e858d855a0886e5d798f0c024a7beac86",
+    "configured-checks.local.json": "f2939fb32e1ee1c70f201e7bd5a3d1868d7ab75fd0a6e7be5dfb1ff0129baf6a",
+    "suite-receipt.actual.json": "54e8ed10e3c220f44695b88c22a6ac2d4b1c00265df18356170ed27b2ddb4f18",
+    "media-matching-inputs.local.json": "6eb54d43b3f43441a820fd5fc36a8faf2354b8eb0898594451f912d9695a6369",
+    "registry-manifest.local.json": "f1a74a13c25940174d931f372b19f4cca7acb33c012cb152e855ab935ba15ebb",
+    "public-tree-equality.local.json": "fbf83333d117ce921b90cbae59e7a6959a7383892ca1ce2222d8fe13fa51910e",
+    "image-source.local.json": "1de97f23c85cc7c1a31f42f70d87d757971b049347a227a33526519bf2220a98",
+    "cli-help.local.json": "206b9a3cd02d9359b175e09232e57c39ecb6c8329114035c1468b47392aa95ec",
+    "schema-apply.local.json": "3d43748db7029931688bfab4f18d1a93d45cd26ead5668d43ac0d8b165aef0ad",
+    "schema-after-switch.local.json": "738734de9d2cade4c1b1efec573f95c289f5b3a5392d7b5d95b2103be3a6372f",
+    "data-after-switch.local.json": "7b64dcc9509e7d3564f7e0183cd88df7b202b0042d2c64432f29f5e569f4f2c5",
+    "temporal-after.local.json": "f3829b59efd425c92541716287142951c50a255b723820590aa24d60237fe229",
+    "runtime-retained.local.json": "1e5bc70e25999fd6ca37463613a50bfb997f9d1152939dc626a576e0e4b4f605",
+    "github-release.local.json": "90f479a1dc24fdc75ca1cafe63970a2afeaadeec2f04bc7cc0b2b8d9dcba159b",
+    "public-ci-final.local.json": "8634f5ce2e95d4879a1883d30227cd2db3b33241f6cc2a6588c7c428a2f72625",
+    "scope-after.local.json": "729182b722c8c2a22904e9a34b9b3da87ed70a3e62e46b2a86ca3f939ed3301c",
+    "image-os-scan.local.json": "693905d37f554852c92ca523fca374ed7b9da8bbd6efc264f6cf938cfd2119b7",
+    "image-base-comparison.local.json": "29858c7c8566b9d8d8f6a1837f27f8226c41b0d4d16b5ab619f8badc0010b9d5",
+    "host-final-inventory.local.json": "34219e38dfcf81f5d7de6b75612581726e70fc7ecf2eb95d2e8b883bc88a9892",
+    "host-retention.local.json": "4ceeb128b2e4d459f56c3d74bbe145c676b629e273971fce8449007df897542d",
+    "host-helper-cleanup.local.json": "91ff3cfc0720cf4bd7d5dab31774d733d8d3831e1802c7aab80d22bcef58bafa",
+    "graph-after.local.json": "9840724dbebfb1e623caec48eea86b32b0eeebcbfe0d6a25bf35475b9937a760",
+    "worktree-cleanup.local.json": "472494269cac6237acd0d67806dadc3d4559ba726f2925a78dee0704747a7be3",
+    "documentation-closeout.local.json": "48e2e45a37029ff0328ef95d61e223e3628edd85df20c6c978a8030142097302"
+  },
+  "documentationCloseout": {
+    "status": "PASS",
+    "checks": [
+      {
+        "phase": "docs",
+        "command": [
+          "pnpm",
+          "run",
+          "docs:check"
+        ],
+        "exitCode": 0,
+        "log": "docs-closeout.local.log",
+        "logSha256": "ad05d6f96b0af9b5d6496534068d5ab3b73ade2792c14f8c056d2313badd4a5d"
+      },
+      {
+        "phase": "process",
+        "command": [
+          "bash",
+          "scripts/orchestration/run_process_verification.sh"
+        ],
+        "exitCode": 0,
+        "log": "process-closeout.local.log",
+        "logSha256": "b15db6db0cd39bb005c78c19d80ae75fe18b2224cdba10b198a99a92e5c4b8f7"
+      },
+      {
+        "phase": "diff",
+        "command": [
+          "git",
+          "diff",
+          "--cached",
+          "--check"
+        ],
+        "exitCode": 0,
+        "log": "diff-closeout.local.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "handoffContractCorrection": "Required Next stage id and Use $orchestrator-stage fields retained; actual failure preserved"
+  },
+  "finalizedAt": "2026-10-10T20:40:04.738052+00:00"
+}

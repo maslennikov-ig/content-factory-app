@@ -1,0 +1,24 @@
+{
+  "stream": "global_tool_advisories",
+  "model": "gpt-6.1-sol",
+  "effort": "max",
+  "benefits": [
+    "specialist_capability",
+    "context_isolation",
+    "parallel_latency"
+  ],
+  "ownership": "research/ only; no product, Beads, Git or runtime writes",
+  "deliveryEvent": "DELIVERED_FOR_ROOT_ACCEPTANCE",
+  "acceptance": "ACCEPTED_PRIMARY_ADVISORY_STREAM",
+  "cleanup": "No child process/container or remote resource; only public primary downloads retained in ignored research-owned local paths. No broad cleanup.",
+  "delivery": [
+    "research/global-advisories.actual.json",
+    "research/global-advisories.md"
+  ],
+  "acceptedAt": "2026-10-11T12:03:36.216674+00:00",
+  "rootReview": [
+    "51 input tuples/40 current primary advisories/378 installed manifests and registry artifact hashes checked",
+    "minimum options match actual tool/caller evidence; no forced transitive major",
+    "live PID1 PM2_PROXY/keys/proxy absence and all3 native watch/agent flags verified; final release remains root-owned"
+  ]
+}

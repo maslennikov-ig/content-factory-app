@@ -33,8 +33,11 @@ PostgreSQL proof was repeated after this refinement, with the same nine passes.
 
 ## Delivery boundary
 
-This stage does not prove live R2/provider effects or production deployment.
-Root continues the separately authorized accumulated release under dbxe.8.
-Epic/unselected original criteria stay open; subsequent work stays in Beads.
-Local graph reviewed with focused existing orientation; exact affected files
-verified. No graph rebuild, extra framework, model call or live media mutation.
+The accumulated release now deploys this implementation at public755d19fa731d
+from exact tested private source d724f3b792f4. Full release/runtime/schema/source
+proof is in [delivery outcome](../content-factory-next-dbxe-delivery-20261010/outcome.md).
+Matching local/native proof is retained; production uses local storage, so no
+live R2/provider effect is claimed. Epic/unselected original criteria stay open;
+dbxe.8 remains IN_PROGRESS for newly recorded OS/global findings in33/34.
+The local graph was refreshed at the accepted release boundary without models,
+hooks or query logging. No live media/account/profile mutation was performed.

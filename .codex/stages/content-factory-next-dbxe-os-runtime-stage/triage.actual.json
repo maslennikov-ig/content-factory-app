@@ -1,0 +1,3938 @@
+{
+  "schema": "cf-os-runtime-triage/v1",
+  "capturedAt": "2026-10-11T07:03:11.753889+00:00",
+  "servingImage": "755d19fa731d",
+  "configDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "baselineRecords": 116,
+  "uniqueCves": 55,
+  "metadataSha256": "ac4ed84f50ef1ab7894887fa7fd669a959cfcdcce665e239ea777eb7c52c6c72",
+  "retainedScannerCounters": {
+    "Critical": 22,
+    "High": 94
+  },
+  "decisionCounts": {
+    "configured_caller_exception": 38,
+    "unresolved_native_risk_no_compatible_debian_fix": 2,
+    "version_conflict_retained_with_configured_caller_exception": 6,
+    "affected_perl_module_absent": 8,
+    "platform_exception_64bit": 1
+  },
+  "runtimeChanges": [],
+  "patchPolicy": "No configured-reachable fixable path identified; do not patch dormant capabilities merely to erase counts. Confirmed/unverified GCC12 native risk remains in35 and prevents complete33/8 acceptance.",
+  "wholeTaskStatus": "content-factory-next-dbxe.33 remains IN_PROGRESS, depends on35; triage complete is not full remediation",
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2023-2953",
+      "debianSourcePackage": "openldap",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-2953",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.5.13+dfsg-5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        3
+      ],
+      "baselineRecords": [
+        {
+          "package": "libldap-2.5-0",
+          "installedVersion": "2.5.13+dfsg-5",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2023-2953",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-2953"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libldap-2.5-0",
+          "installedVersion": "2.5.13+dfsg-5",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "An LDAP BER allocation path processes a malformed value.",
+      "configuredCaller": "curl loads libldap, but the only configured product curl calls are separate loopback HTTP health requests; product HTTPS uses Node APIs.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable LDAP/libcurl transfers or add another libldap caller."
+    },
+    {
+      "cve": "CVE-2023-44487",
+      "debianSourcePackage": "nginx",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-44487",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "1.22.1-9+deb12u9",
+          "bookworm-security": "1.22.1-9+deb12u10"
+        },
+        "urgency": "unimportant",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        1,
+        2
+      ],
+      "baselineRecords": [
+        {
+          "package": "nginx",
+          "installedVersion": "1.22.1-9+deb12u10",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2023-44487",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-44487"
+        },
+        {
+          "package": "nginx-common",
+          "installedVersion": "1.22.1-9+deb12u10",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2023-44487",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2023-44487"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "nginx",
+          "installedVersion": "1.22.1-9+deb12u10",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "nginx-common",
+          "installedVersion": "1.22.1-9+deb12u10",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "An enabled HTTP/2 listener accepts rapid stream-reset requests.",
+      "configuredCaller": "Native nginx1.22.1 listens on plain HTTP5000, with no http2 listener; every upstream uses HTTP1.1 and Caddy terminates edge TLS outside this image.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable HTTP2 here, change the ingress/backend protocol, or evaluate the separate edge image."
+    },
+    {
+      "cve": "CVE-2025-13151",
+      "debianSourcePackage": "libtasn1-6",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-13151",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "4.19.0-2+deb12u1",
+          "bookworm-security": "4.19.0-2+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        6
+      ],
+      "baselineRecords": [
+        {
+          "package": "libtasn1-6",
+          "installedVersion": "4.19.0-2+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2025-13151",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-13151"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libtasn1-6",
+          "installedVersion": "4.19.0-2+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A caller expands untrusted ASN.1 OCTET STRING data.",
+      "configuredCaller": "libtasn1 is loaded transitively by curl/GnuTLS; fixed loopback HTTP health checks do not parse external ASN.1/certificates.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add a system ASN.1 consumer or a curl/GnuTLS encrypted transport."
+    },
+    {
+      "cve": "CVE-2025-69720",
+      "debianSourcePackage": "ncurses",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "6.4-4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        37,
+        38,
+        39
+      ],
+      "baselineRecords": [
+        {
+          "package": "libtinfo6",
+          "installedVersion": "6.4-4",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2025-69720",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720"
+        },
+        {
+          "package": "ncurses-base",
+          "installedVersion": "6.4-4",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2025-69720",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720"
+        },
+        {
+          "package": "ncurses-bin",
+          "installedVersion": "6.4-4",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2025-69720",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2025-69720"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libtinfo6",
+          "installedVersion": "6.4-4",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "ncurses-base",
+          "installedVersion": "6.4-4",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "ncurses-bin",
+          "installedVersion": "6.4-4",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "infocmp analyzes attacker-provided terminal-description strings.",
+      "configuredCaller": "infocmp exists, but the supervisor starts only nginx and three native Node apps; no product terminal-description analyzer or subprocess accepts customer terminal data.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Invoke infocmp with untrusted terminfo or expose a terminal tool."
+    },
+    {
+      "cve": "CVE-2026-102010",
+      "debianSourcePackage": "gcc-12",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "12.2.0-14+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue, not fixed in upstream 12 branch",
+        "nodsa_reason": "ignored"
+      },
+      "baselineOrdinals": [
+        73,
+        74,
+        75
+      ],
+      "baselineRecords": [
+        {
+          "package": "gcc-12-base",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-102010",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010"
+        },
+        {
+          "package": "libgcc-s1",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-102010",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010"
+        },
+        {
+          "package": "libstdc++6",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-102010",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-102010"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "gcc-12-base",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libgcc-s1",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libstdc++6",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "GNU PBDS binary-heap erase_if reallocates entries with stale internal pointers.",
+      "configuredCaller": "Node and native Sharp/libvips load libstdc++12. Actual libvips imports aligned array new; the exact system allocator is affected. GNU PBDS caller was not identified; imported-symbol absence cannot prove absence of header-inlined code.",
+      "decision": "unresolved_native_risk_no_compatible_debian_fix",
+      "fixApplied": false,
+      "followupBeads": [
+        "content-factory-next-dbxe.35"
+      ],
+      "reevaluateWhen": "Resolve Beads35 before closing33; inspect an official compatible GCC12 backport, native-image/Sharp changes or changed image-input bounds.",
+      "inlinedPbdsReachability": "UNKNOWN; no identified consumer; compiled header-only absence not proved"
+    },
+    {
+      "cve": "CVE-2026-103111",
+      "debianSourcePackage": "pcre2",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-103111",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "10.42-1+deb12u2",
+        "repositories": {
+          "bookworm": "10.42-1",
+          "bookworm-security": "10.42-1+deb12u2"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        89
+      ],
+      "baselineRecords": [
+        {
+          "package": "libpcre2-8-0",
+          "installedVersion": "10.42-1+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-103111",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10.42-1+deb12u2"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10.42-1+deb12u2",
+                "date": "2026-10-04",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-103111"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libpcre2-8-0",
+          "installedVersion": "10.42-1+deb12u1",
+          "debianFixedVersion": "10.42-1+deb12u2",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "A caller compiles attacker-supplied PCRE2 patterns through the affected JIT API.",
+      "configuredCaller": "nginx loads system PCRE2 and has JIT support, but all patterns are fixed trusted nginx.conf expressions. Requests supply match subjects, never regex programs; no loaded native addon links system PCRE2.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Permit dynamic/untrusted nginx regex patterns or add a system PCRE2 JIT consumer."
+    },
+    {
+      "cve": "CVE-2026-10536",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-10536",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; needs rare CURLOPT_STREAM_DEPENDS + reset/cleanup",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        17,
+        18
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-10536",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-10536"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-10536",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-10536"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A libcurl client combines HTTP/2 stream dependencies with handle reset and cleanup.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-107161",
+      "debianSourcePackage": "cyrus-sasl2",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107161",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.1.28+dfsg-10"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        77,
+        78
+      ],
+      "baselineRecords": [
+        {
+          "package": "libsasl2-2",
+          "installedVersion": "2.1.28+dfsg-10",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107161",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107161"
+        },
+        {
+          "package": "libsasl2-modules-db",
+          "installedVersion": "2.1.28+dfsg-10",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107161",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107161"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libsasl2-2",
+          "installedVersion": "2.1.28+dfsg-10",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libsasl2-modules-db",
+          "installedVersion": "2.1.28+dfsg-10",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "The Cyrus SASL DIGEST-MD5 plugin parses a crafted server challenge.",
+      "configuredCaller": "curl loads libldap/libsasl, but product health HTTP is unauthenticated. Only libsasl2-modules-db is installed, not the DIGEST-MD5 plugin; no SASL handshake/LDAP consumer is configured.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install/enable DIGEST-MD5, LDAP SASL or another authenticated system-library transport."
+    },
+    {
+      "cve": "CVE-2026-107778",
+      "debianSourcePackage": "krb5",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "1.20.1-2+deb12u5",
+          "bookworm-security": "1.20.1-2+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        43,
+        44,
+        45,
+        46
+      ],
+      "baselineRecords": [
+        {
+          "package": "libgssapi-krb5-2",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107778",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778"
+        },
+        {
+          "package": "libk5crypto3",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107778",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778"
+        },
+        {
+          "package": "libkrb5-3",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107778",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778"
+        },
+        {
+          "package": "libkrb5support0",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-107778",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-107778"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libgssapi-krb5-2",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libk5crypto3",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libkrb5-3",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libkrb5support0",
+          "installedVersion": "1.20.1-2+deb12u5",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A GSS-API acceptor handles inconsistent forwarded Kerberos credential arrays.",
+      "configuredCaller": "curl links GSSAPI client support, but no product GSSAPI acceptor or Kerberos forwarded-credential listener is configured.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable a Kerberos/GSSAPI server/acceptor or change the authentication transport."
+    },
+    {
+      "cve": "CVE-2026-11856",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-11856",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; needs Digest auth + libcurl handle reuse across origins",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        13,
+        14
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-11856",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-11856"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-11856",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-11856"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "One libcurl handle reuses Digest credentials across different origins.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-12064",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12064",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; needs schemeless URL with --proto-default sftp/scp",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        49,
+        50
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-12064",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12064"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-12064",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12064"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "curl uses a schemeless URL with an SFTP/SCP default protocol.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-12087",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12087",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        40
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-12087",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-12087"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl Socket packs an IPv4 multicast source shorter than four bytes.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-13221",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13221",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        29
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-13221",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13221"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl compiles a regex trie with more than65535 fixed alternatives.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-13608",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13608",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        34,
+        35
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-13608",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13608"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-13608",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-13608"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "libcurl negotiates LDAP SASL authentication through a hostile intermediary.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-18924",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-18924",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        19,
+        20
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-18924",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-18924"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-18924",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-18924"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "HTTP/2 server-push cleanup occurs while libcurl handles share connections.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-19499",
+      "debianSourcePackage": "glibc",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19499",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.36-9+deb12u14",
+          "bookworm-security": "2.36-9+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        67,
+        68
+      ],
+      "baselineRecords": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-19499",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19499"
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-19499",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19499"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "strfmon/strfmon_l writes right-padded monetary output to an undersized buffer.",
+      "configuredCaller": "Node/nginx/curl/Prisma and native addons load glibc2.36. Selected binaries do not import strfmon, deprecated DNS-print functions or ungetwc directly. libstdc++ imports ungetwc; current runtime has no non-Unicode overlapping locale or exposed wide-file pushback input. No caller accepts an external scanf format. These are caller exceptions, not universal libc safety.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add affected native formatting/parsing APIs, unusual process locales, attacker-controlled C formats or new native dependencies; reevaluate Debian backports."
+    },
+    {
+      "cve": "CVE-2026-19931",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19931",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        7,
+        8
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-19931",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19931"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-19931",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-19931"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Negotiate-authenticated libcurl connections are reused with empty credentials.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-41992",
+      "debianSourcePackage": "gzip",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-41992",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "1.12-1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        28
+      ],
+      "baselineRecords": [
+        {
+          "package": "gzip",
+          "installedVersion": "1.12-1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-41992",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-41992"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "gzip",
+          "installedVersion": "1.12-1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "One GNU gzip invocation decodes crafted LZW followed by LZH input.",
+      "configuredCaller": "GNU gzip1.12 is present for trusted operational archives, not a product command that decompresses attacker LZW/LZH sequences. nginx uses libz deflate; Node uses its own bundled zlib.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add customer-controlled command-line gzip decompression or untrusted multi-format archives."
+    },
+    {
+      "cve": "CVE-2026-42496",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42496",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        30
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-42496",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42496"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl Archive::Tar extracts an attacker-chosen symlink target.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-42497",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42497",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        36
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-42497",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-42497"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl Archive::Tar extracts an attacker-chosen hardlink target.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-48959",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48959",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        24
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-48959",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48959"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl IO::Uncompress::Unzip seeks a named entry in a hostile ZIP.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-48962",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48962",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        31
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-48962",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-48962"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl File::GlobMapper evaluates an attacker-chosen output glob.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-5435",
+      "debianSourcePackage": "glibc",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5435",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.36-9+deb12u14",
+          "bookworm-security": "2.36-9+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        55,
+        56
+      ],
+      "baselineRecords": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5435",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5435"
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5435",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5435"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Deprecated libc DNS-printing functions format hostile TSIG records.",
+      "configuredCaller": "Node/nginx/curl/Prisma and native addons load glibc2.36. Selected binaries do not import strfmon, deprecated DNS-print functions or ungetwc directly. libstdc++ imports ungetwc; current runtime has no non-Unicode overlapping locale or exposed wide-file pushback input. No caller accepts an external scanf format. These are caller exceptions, not universal libc safety.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add affected native formatting/parsing APIs, unusual process locales, attacker-controlled C formats or new native dependencies; reevaluate Debian backports."
+    },
+    {
+      "cve": "CVE-2026-54369",
+      "debianSourcePackage": "acl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54369",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.3.1-3"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; libacl acl_*_file() follow symlinks; fix adds new acl_*_at() ABI, not individually backportable",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        106
+      ],
+      "baselineRecords": [
+        {
+          "package": "libacl1",
+          "installedVersion": "2.3.1-3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-54369",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54369"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libacl1",
+          "installedVersion": "2.3.1-3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A privileged libacl pathname operation follows attacker-swapped symlinks.",
+      "configuredCaller": "libacl2.3.1 is inherited, but no privileged product ACL command or pathname-based ACL mutation on customer paths is configured.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add ACL-changing commands/helpers over customer-controlled paths or privileges."
+    },
+    {
+      "cve": "CVE-2026-54370",
+      "debianSourcePackage": "acl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54370",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.3.1-3"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; local TOCTOU in recursive setfacl/chacl; fix needs 2.4.0 acl_*_at() ABI + walk_tree rewrite, not individually backportable",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        116
+      ],
+      "baselineRecords": [
+        {
+          "package": "libacl1",
+          "installedVersion": "2.3.1-3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-54370",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54370"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libacl1",
+          "installedVersion": "2.3.1-3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A privileged ACL command races attacker-controlled pathname components.",
+      "configuredCaller": "libacl2.3.1 is inherited, but no privileged product ACL command or pathname-based ACL mutation on customer paths is configured.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add ACL-changing commands/helpers over customer-controlled paths or privileges."
+    },
+    {
+      "cve": "CVE-2026-5450",
+      "debianSourcePackage": "glibc",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5450",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.36-9+deb12u14",
+          "bookworm-security": "2.36-9+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        11,
+        12
+      ],
+      "baselineRecords": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5450",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5450"
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5450",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5450"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "scanf parses a malloc-character conversion with a width over1024.",
+      "configuredCaller": "Node/nginx/curl/Prisma and native addons load glibc2.36. Selected binaries do not import strfmon, deprecated DNS-print functions or ungetwc directly. libstdc++ imports ungetwc; current runtime has no non-Unicode overlapping locale or exposed wide-file pushback input. No caller accepts an external scanf format. These are caller exceptions, not universal libc safety.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add affected native formatting/parsing APIs, unusual process locales, attacker-controlled C formats or new native dependencies; reevaluate Debian backports."
+    },
+    {
+      "cve": "CVE-2026-54874",
+      "debianSourcePackage": "openssl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54874",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "3.0.22-1~deb12u1",
+        "repositories": {
+          "bookworm": "3.0.20-1~deb12u2",
+          "bookworm-security": "3.0.22-1~deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        22,
+        23
+      ],
+      "baselineRecords": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-54874",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54874"
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-54874",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-54874"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "An OpenSSL DTLS handshake buffers forged future-epoch records.",
+      "configuredCaller": "System OpenSSL3.0.20 is loaded by nginx/curl/Prisma. Current ingress is HTTP, curl health is HTTP, and Prisma uses ordinary PostgreSQL transport; no DTLS/CMS/CMP API or direct EVP_Cipher import in examined native consumers. Node22.23.2 statically bundles OpenSSL3.5.7, so apt patching libssl3 would not patch Node crypto.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable DTLS, CMS, CMP, affected one-shot AEAD APIs or new native system-OpenSSL consumers. Node/bundled-library findings remain outside33."
+    },
+    {
+      "cve": "CVE-2026-57432",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57432",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        87
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-57432",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57432"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl pack/unpack uses an untrusted template with overflowing repeat sizes.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-57433",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57433",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        42
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-57433",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-57433"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl Storable deserializes a crafted overflowing SX_HOOK item count.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-5928",
+      "debianSourcePackage": "glibc",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5928",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.36-9+deb12u14",
+          "bookworm-security": "2.36-9+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        32,
+        33
+      ],
+      "baselineRecords": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5928",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5928"
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-5928",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-5928"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libc-bin",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libc6",
+          "installedVersion": "2.36-9+deb12u14",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "ungetwc uses overlapping single/multibyte encodings outside standard Unicode.",
+      "configuredCaller": "Node/nginx/curl/Prisma and native addons load glibc2.36. Selected binaries do not import strfmon, deprecated DNS-print functions or ungetwc directly. libstdc++ imports ungetwc; current runtime has no non-Unicode overlapping locale or exposed wide-file pushback input. No caller accepts an external scanf format. These are caller exceptions, not universal libc safety.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Add affected native formatting/parsing APIs, unusual process locales, attacker-controlled C formats or new native dependencies; reevaluate Debian backports."
+    },
+    {
+      "cve": "CVE-2026-6276",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-6276",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": ""
+      },
+      "baselineOrdinals": [
+        63,
+        64
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-6276",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-6276"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-6276",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-6276"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A reused libcurl handle drops a custom Host header but retains its cookie scope.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-63072",
+      "debianSourcePackage": "openssl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63072",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "3.0.22-1~deb12u1",
+        "repositories": {
+          "bookworm": "3.0.20-1~deb12u2",
+          "bookworm-security": "3.0.22-1~deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        9,
+        10
+      ],
+      "baselineRecords": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-63072",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63072"
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-63072",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63072"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "OpenSSL CMS_decrypt unwraps a hostile AES-WRAP-PAD CMS message.",
+      "configuredCaller": "System OpenSSL3.0.20 is loaded by nginx/curl/Prisma. Current ingress is HTTP, curl health is HTTP, and Prisma uses ordinary PostgreSQL transport; no DTLS/CMS/CMP API or direct EVP_Cipher import in examined native consumers. Node22.23.2 statically bundles OpenSSL3.5.7, so apt patching libssl3 would not patch Node crypto.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable DTLS, CMS, CMP, affected one-shot AEAD APIs or new native system-OpenSSL consumers. Node/bundled-library findings remain outside33."
+    },
+    {
+      "cve": "CVE-2026-63076",
+      "debianSourcePackage": "openssl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63076",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "3.0.22-1~deb12u1",
+        "repositories": {
+          "bookworm": "3.0.20-1~deb12u2",
+          "bookworm-security": "3.0.22-1~deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        4,
+        5
+      ],
+      "baselineRecords": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-63076",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63076"
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-63076",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-63076"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "OpenSSL verifies malformed password-protected CMP messages.",
+      "configuredCaller": "System OpenSSL3.0.20 is loaded by nginx/curl/Prisma. Current ingress is HTTP, curl health is HTTP, and Prisma uses ordinary PostgreSQL transport; no DTLS/CMS/CMP API or direct EVP_Cipher import in examined native consumers. Node22.23.2 statically bundles OpenSSL3.5.7, so apt patching libssl3 would not patch Node crypto.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable DTLS, CMS, CMP, affected one-shot AEAD APIs or new native system-OpenSSL consumers. Node/bundled-library findings remain outside33."
+    },
+    {
+      "cve": "CVE-2026-67693",
+      "debianSourcePackage": "gnutls28",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-67693",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "3.7.9-2+deb12u7",
+          "bookworm-security": "3.7.9-2+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        115
+      ],
+      "baselineRecords": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-67693",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-67693"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "GnuTLS accepts contradictory certificate KU/EKU restrictions.",
+      "configuredCaller": "curl loads GnuTLS transitively through librtmp. Fixed loopback HTTP health does not negotiate RTMPS/TLS or validate external X509 certificates; product HTTPS uses Node, not system GnuTLS. The descriptive3.8.13 range and Bookworm3.7.9 status differ; no version-only exoneration is used.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable system GnuTLS TLS/certificate operations or new libcurl transports; reconcile Debian affected ranges/backports."
+    },
+    {
+      "cve": "CVE-2026-7017",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-7017",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        76
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-7017",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-7017"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "Perl HTTP::Tiny forwards explicit credential headers across origins.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-75803",
+      "debianSourcePackage": "openssl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-75803",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "3.0.22-1~deb12u1",
+        "repositories": {
+          "bookworm": "3.0.20-1~deb12u2",
+          "bookworm-security": "3.0.22-1~deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        70,
+        71
+      ],
+      "baselineRecords": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-75803",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-75803"
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-75803",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "3.0.22-1~deb12u1"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "3.0.22-1~deb12u1",
+                "date": "2026-09-26",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-75803"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": "3.0.22-1~deb12u1",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "EVP_Cipher finalizes empty ChaCha20-Poly1305/AES-OCB ciphertext without checking its tag.",
+      "configuredCaller": "System OpenSSL3.0.20 is loaded by nginx/curl/Prisma. Current ingress is HTTP, curl health is HTTP, and Prisma uses ordinary PostgreSQL transport; no DTLS/CMS/CMP API or direct EVP_Cipher import in examined native consumers. Node22.23.2 statically bundles OpenSSL3.5.7, so apt patching libssl3 would not patch Node crypto.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable DTLS, CMS, CMP, affected one-shot AEAD APIs or new native system-OpenSSL consumers. Node/bundled-library findings remain outside33."
+    },
+    {
+      "cve": "CVE-2026-76642",
+      "debianSourcePackage": "util-linux",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.38.1-5+deb12u3",
+          "bookworm-security": "2.38.1-5+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86
+      ],
+      "baselineRecords": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-76642",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-76642"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Privileged mount hooks run after an unsuccessful mount helper.",
+      "configuredCaller": "Application has no CAP_SYS_ADMIN and no non-comment fstab entries; no product mount/nsenter hook accepts customer paths or cgroups. It runs nginx plus native Node roles, not filesystem mount helpers.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Grant mount/cgroup capability, populate fstab/X-mount entries, or run a privileged helper on untrusted targets."
+    },
+    {
+      "cve": "CVE-2026-78408",
+      "debianSourcePackage": "util-linux",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.38.1-5+deb12u3",
+          "bookworm-security": "2.38.1-5+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97
+      ],
+      "baselineRecords": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78408",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78408"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Privileged nsenter joins an attacker-controlled cgroup and leaks its descriptor.",
+      "configuredCaller": "Application has no CAP_SYS_ADMIN and no non-comment fstab entries; no product mount/nsenter hook accepts customer paths or cgroups. It runs nginx plus native Node roles, not filesystem mount helpers.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Grant mount/cgroup capability, populate fstab/X-mount entries, or run a privileged helper on untrusted targets."
+    },
+    {
+      "cve": "CVE-2026-78409",
+      "debianSourcePackage": "util-linux",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.38.1-5+deb12u3",
+          "bookworm-security": "2.38.1-5+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114
+      ],
+      "baselineRecords": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78409",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78409"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "An authorized X-mount.subdir entry follows an intermediate symlink.",
+      "configuredCaller": "Application has no CAP_SYS_ADMIN and no non-comment fstab entries; no product mount/nsenter hook accepts customer paths or cgroups. It runs nginx plus native Node roles, not filesystem mount helpers.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Grant mount/cgroup capability, populate fstab/X-mount entries, or run a privileged helper on untrusted targets."
+    },
+    {
+      "cve": "CVE-2026-78410",
+      "debianSourcePackage": "util-linux",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "2.38.1-5+deb12u3",
+          "bookworm-security": "2.38.1-5+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "baselineRecords": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-78410",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "bsdutils",
+          "installedVersion": "1:2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libblkid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libmount1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libsmartcols1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libuuid1",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "mount",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "util-linux-extra",
+          "installedVersion": "2.38.1-5+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Privileged restricted bind mounts follow an attacker-swapped fstab source.",
+      "configuredCaller": "Application has no CAP_SYS_ADMIN and no non-comment fstab entries; no product mount/nsenter hook accepts customer paths or cgroups. It runs nginx plus native Node roles, not filesystem mount helpers.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Grant mount/cgroup capability, populate fstab/X-mount entries, or run a privileged helper on untrusted targets."
+    },
+    {
+      "cve": "CVE-2026-80230",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-80230",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        58,
+        59
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-80230",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-80230"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-80230",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-80230"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "libcurl disables certificate verification while relying on public-key pinning.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-82209",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82209",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        53,
+        54
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-82209",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82209"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-82209",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82209"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "An enabled libcurl cookie engine scopes a public-suffix cookie too broadly.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-82560",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82560",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        21
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-82560",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-82560"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Perl Pod::Text formats malicious nesting that consumes the entire output width.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-8286",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8286",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; STARTTLS connection reuse config mismatch",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        65,
+        66
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8286",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8286"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8286",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8286"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "libcurl reuses a STARTTLS connection with incompatible TLS settings.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-8376",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8376",
+      "bookworm": {
+        "status": "resolved",
+        "fixed_version": "5.36.0-7+deb12u4",
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        27
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8376",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "5.36.0-7+deb12u4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "5.36.0-7+deb12u4",
+                "date": "2026-10-06",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8376"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": "5.36.0-7+deb12u4",
+          "installedBeforeDebianFix": true
+        }
+      ],
+      "affectedCondition": "A32-bit Perl compiler expands a hostile repeated-string regex past its size range.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "platform_exception_64bit",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-84782",
+      "debianSourcePackage": "openssl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-84782",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "3.0.20-1~deb12u2",
+          "bookworm-security": "3.0.22-1~deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        47,
+        48
+      ],
+      "baselineRecords": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-84782",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-84782"
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-84782",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-84782"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libssl3",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "openssl",
+          "installedVersion": "3.0.20-1~deb12u2",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "An OpenSSL DTLS retransmission overlaps a suspended handshake write.",
+      "configuredCaller": "System OpenSSL3.0.20 is loaded by nginx/curl/Prisma. Current ingress is HTTP, curl health is HTTP, and Prisma uses ordinary PostgreSQL transport; no DTLS/CMS/CMP API or direct EVP_Cipher import in examined native consumers. Node22.23.2 statically bundles OpenSSL3.5.7, so apt patching libssl3 would not patch Node crypto.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable DTLS, CMS, CMP, affected one-shot AEAD APIs or new native system-OpenSSL consumers. Node/bundled-library findings remain outside33."
+    },
+    {
+      "cve": "CVE-2026-85091",
+      "debianSourcePackage": "zlib",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-85091",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "1:1.2.13.dfsg-1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        57
+      ],
+      "baselineRecords": [
+        {
+          "package": "zlib1g",
+          "installedVersion": "1:1.2.13.dfsg-1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-85091",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-85091"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "zlib1g",
+          "installedVersion": "1:1.2.13.dfsg-1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Newer zlib nonblocking gz-file writers reuse stale buffers after a stalled write.",
+      "configuredCaller": "nginx loads libz1.2.13 for HTTP deflate, not nonblocking gz-file writes; no selected native consumer imports gzprintf/gzvprintf. Vendor introduction in1.3.1.2 conflicts with the tracker Bookworm row; keep the conflict visible instead of assuming a patched package.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Introduce nonblocking gz-file writing or change the zlib/native-image version; reconcile upstream and Debian affected-version classification."
+    },
+    {
+      "cve": "CVE-2026-8924",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8924",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; trailing-dot super cookie; PSL-enabled build mitigates",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        15,
+        16
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8924",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8924"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8924",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8924"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "The libcurl cookie engine accepts a malicious super-cookie.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-8927",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8927",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; libcurl env-proxy Digest auth handle reuse",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        25,
+        26
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8927",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8927"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8927",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8927"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "A reused libcurl handle carries proxy Digest credentials to another proxy.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-8932",
+      "debianSourcePackage": "curl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8932",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "7.88.1-10+deb12u15",
+          "bookworm-security": "7.88.1-10+deb12u5"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; libcurl mTLS handle-reuse config mismatch",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        51,
+        52
+      ],
+      "baselineRecords": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8932",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8932"
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-8932",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-8932"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "curl",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libcurl4",
+          "installedVersion": "7.88.1-10+deb12u15",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "libcurl reuses an mTLS connection after changing private-key settings.",
+      "configuredCaller": "curl7.88.1-10+deb12u15 is invoked separately for two explicit loopback HTTP URLs with -fsS/max-time; no -L, cookies, Digest/Negotiate, STARTTLS, SFTP, custom Host, client certificate or shared libcurl handle. No native product addon links libcurl.",
+      "decision": "configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Change healthcheck URLs/options, enable proxy/auth/cookies or add another libcurl/CLI caller."
+    },
+    {
+      "cve": "CVE-2026-95184",
+      "debianSourcePackage": "gnutls28",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95184",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "3.7.9-2+deb12u7",
+          "bookworm-security": "3.7.9-2+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        88
+      ],
+      "baselineRecords": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95184",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95184"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "GnuTLS rejects otherwise valid end-entity certificates.",
+      "configuredCaller": "curl loads GnuTLS transitively through librtmp. Fixed loopback HTTP health does not negotiate RTMPS/TLS or validate external X509 certificates; product HTTPS uses Node, not system GnuTLS. The descriptive3.8.13 range and Bookworm3.7.9 status differ; no version-only exoneration is used.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable system GnuTLS TLS/certificate operations or new libcurl transports; reconcile Debian affected ranges/backports."
+    },
+    {
+      "cve": "CVE-2026-95209",
+      "debianSourcePackage": "gnutls28",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95209",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "3.7.9-2+deb12u7",
+          "bookworm-security": "3.7.9-2+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        69
+      ],
+      "baselineRecords": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95209",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95209"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "GnuTLS rejects otherwise valid CA certificates.",
+      "configuredCaller": "curl loads GnuTLS transitively through librtmp. Fixed loopback HTTP health does not negotiate RTMPS/TLS or validate external X509 certificates; product HTTPS uses Node, not system GnuTLS. The descriptive3.8.13 range and Bookworm3.7.9 status differ; no version-only exoneration is used.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable system GnuTLS TLS/certificate operations or new libcurl transports; reconcile Debian affected ranges/backports."
+    },
+    {
+      "cve": "CVE-2026-95210",
+      "debianSourcePackage": "gnutls28",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95210",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "3.7.9-2+deb12u7",
+          "bookworm-security": "3.7.9-2+deb12u7"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": null,
+        "nodsa_reason": null
+      },
+      "baselineOrdinals": [
+        72
+      ],
+      "baselineRecords": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95210",
+          "severity": "Critical",
+          "fix": {
+            "versions": [],
+            "state": "not-fixed"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95210"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "libgnutls30",
+          "installedVersion": "3.7.9-2+deb12u7",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "GnuTLS accepts certificates with invalid extensions.",
+      "configuredCaller": "curl loads GnuTLS transitively through librtmp. Fixed loopback HTTP health does not negotiate RTMPS/TLS or validate external X509 certificates; product HTTPS uses Node, not system GnuTLS. The descriptive3.8.13 range and Bookworm3.7.9 status differ; no version-only exoneration is used.",
+      "decision": "version_conflict_retained_with_configured_caller_exception",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Enable system GnuTLS TLS/certificate operations or new libcurl transports; reconcile Debian affected ranges/backports."
+    },
+    {
+      "cve": "CVE-2026-9538",
+      "debianSourcePackage": "perl",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-9538",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "5.36.0-7+deb12u3",
+          "bookworm-security": "5.36.0-7+deb12u4"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue; wait for regressions upstream sorted out",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        41
+      ],
+      "baselineRecords": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-9538",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-9538"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "perl-base",
+          "installedVersion": "5.36.0-7+deb12u3",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "Perl Archive::Tar allocates an attacker-declared oversized entry.",
+      "configuredCaller": "Only perl-base5.36.0-7+deb12u3/64-bit is installed. Socket2.033 exists; no product Perl process, external pattern/template or multicast packing API is configured. Archive::Tar, IO::Uncompress::Unzip, IO::Compress::Base, File::GlobMapper, Storable, HTTP::Tiny and Pod::Text fail native module load.",
+      "decision": "affected_perl_module_absent",
+      "fixApplied": false,
+      "followupBeads": [],
+      "reevaluateWhen": "Install a missing module or expose Perl Socket/regex/pack/unpack to untrusted inputs; reevaluate Perl security patches then."
+    },
+    {
+      "cve": "CVE-2026-95619",
+      "debianSourcePackage": "gcc-12",
+      "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619",
+      "bookworm": {
+        "status": "open",
+        "fixed_version": null,
+        "repositories": {
+          "bookworm": "12.2.0-14+deb12u1"
+        },
+        "urgency": "not yet assigned",
+        "nodsa": "Minor issue",
+        "nodsa_reason": "postponed"
+      },
+      "baselineOrdinals": [
+        60,
+        61,
+        62
+      ],
+      "baselineRecords": [
+        {
+          "package": "gcc-12-base",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95619",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619"
+        },
+        {
+          "package": "libgcc-s1",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95619",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619"
+        },
+        {
+          "package": "libstdc++6",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "sourcePackage": null,
+          "vulnerability": "CVE-2026-95619",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "wont-fix"
+          },
+          "officialSource": "https://security-tracker.debian.org/tracker/CVE-2026-95619"
+        }
+      ],
+      "versionComparison": [
+        {
+          "package": "gcc-12-base",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libgcc-s1",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        },
+        {
+          "package": "libstdc++6",
+          "installedVersion": "12.2.0-14+deb12u1",
+          "debianFixedVersion": null,
+          "installedBeforeDebianFix": null
+        }
+      ],
+      "affectedCondition": "C++ aligned new rounds huge size/alignment values without detecting integer wrap.",
+      "configuredCaller": "Node and native Sharp/libvips load libstdc++12. Actual libvips imports aligned array new; the exact system allocator is affected. GNU PBDS caller was not identified; imported-symbol absence cannot prove absence of header-inlined code.",
+      "decision": "unresolved_native_risk_no_compatible_debian_fix",
+      "fixApplied": false,
+      "followupBeads": [
+        "content-factory-next-dbxe.35"
+      ],
+      "reevaluateWhen": "Resolve Beads35 before closing33; inspect an official compatible GCC12 backport, native-image/Sharp changes or changed image-input bounds.",
+      "nativePrimitiveConfirmed": true,
+      "hostileImageRequestReachability": "UNKNOWN; native primitive reproduction is not a malicious image exploit"
+    }
+  ]
+}

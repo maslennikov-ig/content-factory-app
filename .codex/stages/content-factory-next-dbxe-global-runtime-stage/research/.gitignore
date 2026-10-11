@@ -1,0 +1,4 @@
+# Bounded downloaded primary evidence and source mirrors are local research only.
+/primary/
+/packages/
+/*.local.py

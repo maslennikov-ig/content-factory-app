@@ -1,0 +1,489 @@
+{
+  "boundary": "controlled derivative of serving755d with selected globals; not a release image",
+  "globalManifests": 82,
+  "packages": [
+    {
+      "name": "simple-http-server",
+      "version": "1.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/lib/templates/sample-apps/http-server/package.json"
+    },
+    {
+      "name": "pm2-plus-custom-metrics",
+      "version": "1.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/lib/templates/sample-apps/pm2-plus-metrics-actions/package.json"
+    },
+    {
+      "name": "python-app",
+      "version": "1.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/lib/templates/sample-apps/python-app/package.json"
+    },
+    {
+      "name": "configurable",
+      "version": "0.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/modules/pm2-axon/lib/configurable/package.json"
+    },
+    {
+      "name": "ansi-viewer",
+      "version": "0.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/blessed/example/ansi-viewer/package.json"
+    },
+    {
+      "name": "@pm2/blessed",
+      "version": "0.1.81",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/blessed/package.json"
+    },
+    {
+      "name": "async",
+      "version": "2.6.4",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/js-api/node_modules/async/package.json"
+    },
+    {
+      "name": "debug",
+      "version": "4.3.7",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/js-api/node_modules/debug/package.json"
+    },
+    {
+      "name": "@pm2/js-api",
+      "version": "0.8.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/js-api/package.json"
+    },
+    {
+      "name": "@pm2/pm2-version-check",
+      "version": "1.0.4",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@pm2/pm2-version-check/package.json"
+    },
+    {
+      "name": "@tootallnate/quickjs-emscripten",
+      "version": "0.23.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/@tootallnate/quickjs-emscripten/package.json"
+    },
+    {
+      "name": "agent-base",
+      "version": "7.1.4",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/agent-base/package.json"
+    },
+    {
+      "name": "amp",
+      "version": "0.3.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/amp/package.json"
+    },
+    {
+      "name": "amp-message",
+      "version": "0.1.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/amp-message/package.json"
+    },
+    {
+      "name": "ansi-styles",
+      "version": "4.3.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ansi-styles/package.json"
+    },
+    {
+      "name": "ansis",
+      "version": "4.0.0-node10",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ansis/package.json"
+    },
+    {
+      "name": "anymatch",
+      "version": "3.1.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/anymatch/package.json"
+    },
+    {
+      "name": "argparse",
+      "version": "2.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/argparse/package.json"
+    },
+    {
+      "name": "ast-types",
+      "version": "0.13.4",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ast-types/package.json"
+    },
+    {
+      "name": "async",
+      "version": "3.2.6",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/async/package.json"
+    },
+    {
+      "name": "basic-ftp",
+      "version": "5.3.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+    },
+    {
+      "name": "binary-extensions",
+      "version": "2.3.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/binary-extensions/package.json"
+    },
+    {
+      "name": "braces",
+      "version": "3.0.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+    },
+    {
+      "name": "chalk",
+      "version": "3.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/chalk/package.json"
+    },
+    {
+      "name": "chokidar",
+      "version": "3.6.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/chokidar/package.json"
+    },
+    {
+      "name": "cli-tableau",
+      "version": "2.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/cli-tableau/package.json"
+    },
+    {
+      "name": "color-convert",
+      "version": "2.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/color-convert/package.json"
+    },
+    {
+      "name": "color-name",
+      "version": "1.1.4",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/color-name/package.json"
+    },
+    {
+      "name": "commander",
+      "version": "2.15.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/commander/package.json"
+    },
+    {
+      "name": "croner",
+      "version": "4.1.97",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/croner/package.json"
+    },
+    {
+      "name": "data-uri-to-buffer",
+      "version": "6.0.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/data-uri-to-buffer/package.json"
+    },
+    {
+      "name": "dayjs",
+      "version": "1.11.15",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/dayjs/package.json"
+    },
+    {
+      "name": "debug",
+      "version": "4.4.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/debug/package.json"
+    },
+    {
+      "name": "degenerator",
+      "version": "5.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/degenerator/package.json"
+    },
+    {
+      "name": "escodegen",
+      "version": "2.1.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/escodegen/package.json"
+    },
+    {
+      "name": "esprima",
+      "version": "4.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/esprima/package.json"
+    },
+    {
+      "name": "estraverse",
+      "version": "5.3.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/estraverse/package.json"
+    },
+    {
+      "name": "esutils",
+      "version": "2.0.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/esutils/package.json"
+    },
+    {
+      "name": "eventemitter2",
+      "version": "6.4.9",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/eventemitter2/package.json"
+    },
+    {
+      "name": "extrareqp2",
+      "version": "1.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/extrareqp2/package.json"
+    },
+    {
+      "name": "fast-json-patch",
+      "version": "3.1.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/fast-json-patch/package.json"
+    },
+    {
+      "name": "fill-range",
+      "version": "7.1.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/fill-range/package.json"
+    },
+    {
+      "name": "follow-redirects",
+      "version": "1.16.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/follow-redirects/package.json"
+    },
+    {
+      "name": "get-uri",
+      "version": "6.0.5",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/get-uri/package.json"
+    },
+    {
+      "name": "glob-parent",
+      "version": "5.1.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/glob-parent/package.json"
+    },
+    {
+      "name": "has-flag",
+      "version": "4.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/has-flag/package.json"
+    },
+    {
+      "name": "http-proxy-agent",
+      "version": "7.0.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/http-proxy-agent/package.json"
+    },
+    {
+      "name": "https-proxy-agent",
+      "version": "7.0.6",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/https-proxy-agent/package.json"
+    },
+    {
+      "name": "ip-address",
+      "version": "10.7.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ip-address/package.json"
+    },
+    {
+      "name": "is-binary-path",
+      "version": "2.1.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/is-binary-path/package.json"
+    },
+    {
+      "name": "is-extglob",
+      "version": "2.1.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/is-extglob/package.json"
+    },
+    {
+      "name": "is-glob",
+      "version": "4.0.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/is-glob/package.json"
+    },
+    {
+      "name": "is-number",
+      "version": "7.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/is-number/package.json"
+    },
+    {
+      "name": "js-yaml",
+      "version": "4.3.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/js-yaml/package.json"
+    },
+    {
+      "name": "json-stringify-safe",
+      "version": "5.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/json-stringify-safe/package.json"
+    },
+    {
+      "name": "lodash",
+      "version": "4.18.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/lodash/package.json"
+    },
+    {
+      "name": "lru-cache",
+      "version": "7.18.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/lru-cache/package.json"
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ms/package.json"
+    },
+    {
+      "name": "netmask",
+      "version": "2.1.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/netmask/package.json"
+    },
+    {
+      "name": "normalize-path",
+      "version": "3.0.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/normalize-path/package.json"
+    },
+    {
+      "name": "pac-proxy-agent",
+      "version": "7.2.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/pac-proxy-agent/package.json"
+    },
+    {
+      "name": "pac-resolver",
+      "version": "7.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/pac-resolver/package.json"
+    },
+    {
+      "name": "picomatch",
+      "version": "2.3.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/picomatch/package.json"
+    },
+    {
+      "name": "pidusage",
+      "version": "4.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/pidusage/package.json"
+    },
+    {
+      "name": "pm2-deploy",
+      "version": "1.0.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/pm2-deploy/package.json"
+    },
+    {
+      "name": "proxy-agent",
+      "version": "6.5.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/proxy-agent/package.json"
+    },
+    {
+      "name": "proxy-from-env",
+      "version": "1.1.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/proxy-from-env/package.json"
+    },
+    {
+      "name": "readdirp",
+      "version": "3.6.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/readdirp/package.json"
+    },
+    {
+      "name": "run-series",
+      "version": "1.1.9",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/run-series/package.json"
+    },
+    {
+      "name": "safe-buffer",
+      "version": "5.2.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/safe-buffer/package.json"
+    },
+    {
+      "name": "semver",
+      "version": "7.7.2",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/semver/package.json"
+    },
+    {
+      "name": "smart-buffer",
+      "version": "4.2.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/smart-buffer/package.json"
+    },
+    {
+      "name": "socks",
+      "version": "2.8.10",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/socks/package.json"
+    },
+    {
+      "name": "socks-proxy-agent",
+      "version": "8.0.5",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/socks-proxy-agent/package.json"
+    },
+    {
+      "name": "source-map",
+      "version": "0.6.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/source-map/package.json"
+    },
+    {
+      "name": "supports-color",
+      "version": "7.2.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/supports-color/package.json"
+    },
+    {
+      "name": "to-regex-range",
+      "version": "5.0.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/to-regex-range/package.json"
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/tslib/package.json"
+    },
+    {
+      "name": "tv4",
+      "version": "1.3.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/tv4/package.json"
+    },
+    {
+      "name": "tx2",
+      "version": "1.0.5",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/tx2/package.json"
+    },
+    {
+      "name": "ws",
+      "version": "8.21.0",
+      "path": "/usr/local/lib/node_modules/pm2/node_modules/ws/package.json"
+    },
+    {
+      "name": "pm2",
+      "version": "7.0.3",
+      "path": "/usr/local/lib/node_modules/pm2/package.json"
+    }
+  ],
+  "nativeProbe": {
+    "boundary": "native global supervisor/CLI and offline Prisma; synthetic processes only",
+    "node": "v22.23.2",
+    "result": "PASS",
+    "tools": {
+      "pm2": "7.0.3",
+      "jsYaml": "4.3.2",
+      "removed": [
+        "npm",
+        "npx",
+        "pnpm",
+        "pnpx",
+        "corepack",
+        "yarn",
+        "yarnpkg"
+      ]
+    },
+    "supervisor": {
+      "roles": [
+        "backend",
+        "orchestrator",
+        "frontend"
+      ],
+      "startup": true,
+      "jlist": true,
+      "automaticRestart": true,
+      "operatorRestart": true,
+      "gracefulShutdown": true
+    },
+    "prisma": {
+      "version": "6.5.0",
+      "directCli": true,
+      "bootstrapExit": 2,
+      "bootstrapSqlSha256": "abc6357f9d12d5a36e7424c3acb010bd20ee3b6433e9b6a7efee364231d0850e",
+      "actualBootstrapGuard": true,
+      "equalSchemaExit": 0,
+      "schemaApplied": false
+    }
+  },
+  "beforeFailure": {
+    "boundary": "native global supervisor/CLI and offline Prisma; synthetic processes only",
+    "node": "v22.23.2",
+    "result": "FAIL",
+    "tools": {
+      "pm2": "7.0.3",
+      "jsYaml": "4.3.2",
+      "removed": [
+        "npm",
+        "npx",
+        "pnpm",
+        "pnpx",
+        "corepack",
+        "yarn",
+        "yarnpkg"
+      ]
+    },
+    "supervisor": {
+      "roles": [
+        "backend",
+        "orchestrator",
+        "frontend"
+      ],
+      "startup": true,
+      "jlist": true,
+      "automaticRestart": true,
+      "operatorRestart": true,
+      "gracefulShutdown": true
+    },
+    "failure": "real nonempty bootstrap diff\n\n1 !== 2\n"
+  },
+  "affectedSuites": 3,
+  "affectedTests": 137,
+  "affectedLogSha256": "7c15ad9a70c2d14a05cb1c9a3a80820a1bb2619e6243bfddf2240c7c3e882fec"
+}

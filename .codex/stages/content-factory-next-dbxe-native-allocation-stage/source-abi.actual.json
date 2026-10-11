@@ -1,0 +1,223 @@
+{
+  "schema": "native-image-source-abi/v1",
+  "capturedAt": "2026-10-11T11:20:42.007571+00:00",
+  "verdict": {
+    "CVE-2026-95619": "EXCLUDED_BY_SOURCE_ABI_BOUND",
+    "CVE-2026-102010": "NO_GNU_PBDS_SOURCE_CONSUMER_IN_BOUND_CHAIN"
+  },
+  "osAllocatorPatched": false,
+  "alignedNewCall": {
+    "pc": "0x403ab3",
+    "symbol": "_ZnamSt11align_val_t@CXXABI_1.3.11",
+    "alignment": 4,
+    "requestFormula": "icc_size - 14",
+    "minimumIccSize": 146,
+    "typeUpperBound": "SIZE_MAX - 14",
+    "roundingAdditionUpperBound": 3,
+    "maximumFromMarker": 65519,
+    "maxRoundedFromMarker": 65520
+  },
+  "artifactProvenance": [
+    {
+      "name": "@img/sharp-libvips-linux-x64",
+      "version": "1.3.4",
+      "officialRegistryUrl": "https://registry.npmjs.org/@img/sharp-libvips-linux-x64/1.3.4",
+      "officialTarballUrl": "https://registry.npmjs.org/@img/sharp-libvips-linux-x64/-/sharp-libvips-linux-x64-1.3.4.tgz",
+      "registryIntegrity": "sha512-GJ//SSXbnwSDes02umB3nDJLFcQzw8a18V8fyhqr6tV515tOEMdImjjxj1AoafMRz56F3PHgftnj1QEKSU1zkw==",
+      "tarballIntegrity": "sha512-GJ//SSXbnwSDes02umB3nDJLFcQzw8a18V8fyhqr6tV515tOEMdImjjxj1AoafMRz56F3PHgftnj1QEKSU1zkw==",
+      "tarballSha256": "e371cb713fc8822c96a0d3fb60a3d092799d0aefab6d7f1fb3b72d8d75f1d109",
+      "binarySha256": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+      "installedEqualsRegistryBinary": true
+    },
+    {
+      "name": "@img/sharp-linux-x64",
+      "version": "0.35.5",
+      "officialRegistryUrl": "https://registry.npmjs.org/@img/sharp-linux-x64/0.35.5",
+      "officialTarballUrl": "https://registry.npmjs.org/@img/sharp-linux-x64/-/sharp-linux-x64-0.35.5.tgz",
+      "registryIntegrity": "sha512-SxFtLTeJInhAA9Q836kux2vZNeOBQEx658qvbboZScr0wIARym3IcGmW7KpVD5sbVg0Ojy+udFQdayYIZyoNog==",
+      "tarballIntegrity": "sha512-SxFtLTeJInhAA9Q836kux2vZNeOBQEx658qvbboZScr0wIARym3IcGmW7KpVD5sbVg0Ojy+udFQdayYIZyoNog==",
+      "tarballSha256": "556787285d3244c07686a355de5b5a4c4d0019a12785bf24764e756a96ea3334",
+      "binarySha256": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+      "installedEqualsRegistryBinary": true
+    }
+  ],
+  "focusedSources": [
+    {
+      "path": "libultrahdr-2.0.2/lib/src/icc.cpp",
+      "sha256": "c9d009952d79ba9d61e2afd5b0205221f3b1cd843ab5da69d142d8f87895e8c5",
+      "focusStartLine": 640,
+      "focusEndLine": 657
+    },
+    {
+      "path": "libultrahdr-2.0.2/lib/include/ultrahdr/icc.h",
+      "sha256": "4e7dc076efcf794c3fdba4401a809fadd682d91d609ff18a57ede3cacac015dd",
+      "focusStartLine": 80,
+      "focusEndLine": 88
+    },
+    {
+      "path": "libultrahdr-2.0.2/lib/src/jpegdecoderhelper.cpp",
+      "sha256": "2fc1cee17e20fae4aed58d07b27312d3feceb9c5b39420e4082aa2a054a8683c",
+      "focusStartLine": 119,
+      "focusEndLine": 135
+    },
+    {
+      "path": "libultrahdr-2.0.2/lib/include/ultrahdr/jpegdecoderhelper.h",
+      "sha256": "a864a49a2689cc48599ed2fdaccc78145ae9ff78212f6d9edc8ec3c88938ba36",
+      "focusStartLine": 117,
+      "focusEndLine": 120
+    },
+    {
+      "path": "libultrahdr-2.0.2/lib/src/jpegr.cpp",
+      "sha256": "c9e0048dbeb313f1d916b4a454e1f1b6d8af108d09743f2533a9cd96fd60e850",
+      "focusStartLine": 1478,
+      "focusEndLine": 1521
+    },
+    {
+      "path": "libvips-8.18.7/libvips/foreign/uhdrload.c",
+      "sha256": "515c25f33f91bf36258298649eef73154cff0e3d943dc4486b0245911a8996dc",
+      "focusStartLine": 488,
+      "focusEndLine": 550
+    },
+    {
+      "path": "sharp-libvips-1.3.4/build/posix.sh",
+      "sha256": "333031b3b49bf1a16d0b9d6812d98f67c404218932ef8c0b389388524a524b36",
+      "focusStartLine": 360,
+      "focusEndLine": 397
+    },
+    {
+      "path": "sharp-libvips-1.3.4/platforms/linux-x64/Dockerfile",
+      "sha256": "1e8bc3981c8f1718cd99ea4fcd6d2e511afb9969f2fe3e0d2dc1ebf5a338a6e3",
+      "focusStartLine": 11,
+      "focusEndLine": 28
+    },
+    {
+      "path": "libheif-1.23.5/libheif/image-items/tiled.cc",
+      "sha256": "b44c01a567c9f2bfd73cc2bf728336aba12e9b629cf6e572274a4e949fb0ccb8",
+      "focusStartLine": 661,
+      "focusEndLine": 699
+    },
+    {
+      "path": "gcc12-new_opva.local.cc",
+      "sha256": "d9b84e0524cc37430b09e939a5a5df3726940565e936d10edd683d595519cadc",
+      "focusStartLine": 30,
+      "focusEndLine": 33
+    },
+    {
+      "path": "gcc12-new_opa.local.cc",
+      "sha256": "c6eb658baa269e331d8e9ddec226ad1a8c04f36a70b565f0788d93db27872a95",
+      "focusStartLine": 120,
+      "focusEndLine": 153
+    },
+    {
+      "path": "gcc12-pbds-erase.local.hpp",
+      "sha256": "46ed3a567d3e96cabd6f099eaf979a8bcc5d7ffa3e2895ce4012c78aa6c4e262",
+      "focusStartLine": 90,
+      "focusEndLine": 136
+    }
+  ],
+  "pbdsSourceCoverage": {
+    "patterns": "pb_ds|__gnu_pbds|binary_heap_tag|binary_heap_|PB_DS",
+    "boundary": "Source consumer scan, not an assertion inferred from dynamic symbols; libaom and mozjpeg include tests which are not shipped, harfbuzz src subtree plus root build files only",
+    "sources": [
+      {
+        "sourceRoot": "libvips-8.18.7",
+        "exists": true,
+        "filesInspected": 842,
+        "cxxFiles": 38,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "highway-1.4.0",
+        "exists": true,
+        "filesInspected": 278,
+        "cxxFiles": 141,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "libheif-1.23.5",
+        "exists": true,
+        "filesInspected": 785,
+        "cxxFiles": 270,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "libultrahdr-2.0.2",
+        "exists": true,
+        "filesInspected": 230,
+        "cxxFiles": 69,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": [
+          "lib/src/icc.cpp"
+        ]
+      },
+      {
+        "sourceRoot": "harfbuzz-14.5.0",
+        "exists": true,
+        "filesInspected": 578,
+        "cxxFiles": 434,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "libaom-3.15.1",
+        "exists": true,
+        "filesInspected": 1520,
+        "cxxFiles": 318,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "mozjpeg-0826579",
+        "exists": true,
+        "filesInspected": 550,
+        "cxxFiles": 10,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "installed sharp0.35.5 C++ addon",
+        "exists": true,
+        "filesInspected": 14,
+        "cxxFiles": 7,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      },
+      {
+        "sourceRoot": "libtiff4.7.2",
+        "exists": true,
+        "filesInspected": 657,
+        "cxxFiles": 6,
+        "gnuPbdsMatches": [],
+        "alignedSourceMatches": []
+      }
+    ]
+  },
+  "childReportSha256": "1a27252210561d8683f435b7e2a6dd7a0f983c767da15775462cc713c54ae065",
+  "fullDisassemblySha256": "7c076c903f456892f692565fb5d821a9ba8b7346e8b79c806ff200014020276d",
+  "machineCallsiteSha256": "6113f4206121c3bae4c0c628cd12c8eb2c3631d513b3d11b827cf5fe55befeb5",
+  "languageReceiptDigests": {
+    "final-languages-provenance.local.json": "3da62901cc62e4199d3d09cfc83a744c6a1d7a0dac5d301d91e3470613215c0e",
+    "c-rust-language-provenance.local.json": "1e8a1b2030ef28d2e51ad90987971f81e756983c071e9e84fb3f6e11d9bf2962",
+    "remaining-languages-provenance.local.json": "d29627c130fdbd211c65396f6e058fd49674cd10228b3892c64dc2ef77660bcd"
+  },
+  "knownBoundary": "General Node/application paths, unreviewed native additions or external preload/module changes, and all other image-parser flaws are not assessed",
+  "productionNativeIdentity": "live-native.actual.json",
+  "runtimeChanges": [],
+  "languageFallbacks": [
+    {
+      "supersedesFailedFile": "imagequant-makefile.local.txt",
+      "reason": "The official release uses Meson; nonexistent Makefile HTTP404 is not accepted evidence",
+      "file": "imagequant-meson.local.txt",
+      "sha256": "f2874f9fe1bca5f28c2d8f89273e5fc24e29042bd5f3685e60d383300750c043",
+      "version": "2.4.1",
+      "language": "C",
+      "officialGitTree": "https://api.github.com/repos/lovell/libimagequant/git/trees/ce5fdeb1ccd9db288950faa21fd09c42c0a59bbb",
+      "gitBlobSha1": "f66ad9df6ea6438630e5b474e4c1db628a1cc77b",
+      "treeFile": "imagequant-tree.local.json",
+      "treeFileSha256": "88897b6b4d25dd29eb863921e30b11c6601dbce762dddec4ae56a1c76b49369c"
+    }
+  ]
+}

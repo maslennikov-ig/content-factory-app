@@ -1,0 +1,19 @@
+{
+  "schema": "cf-stage-child-acceptance/v1",
+  "capturedAt": "2026-10-11T06:49:33.480437+00:00",
+  "agent": "/root/debian_advisory_metadata",
+  "benefit": "Parallel official metadata lookup while root inspected native/APT consumers",
+  "delivery": [
+    "research/metadata.actual.json",
+    "research/source-notes.md"
+  ],
+  "acceptedBoundary": "Complete official Debian CVE/source/bookworm metadata; root retains version comparison, runtime applicability and final acceptance",
+  "records": 116,
+  "uniqueCves": 55,
+  "safeCleanup": "No product, tracker, host or container writes by child; raw official downloads retained locally",
+  "status": "accepted_metadata_only",
+  "metadataSourceLocalFile": "research/metadata-source.local.json",
+  "metadataSourceSha256": "09048a1c689bffaaf2b1210e58b873d69a62ded7a4319d75efbef7d78d36796d",
+  "metadataSha256": "ac4ed84f50ef1ab7894887fa7fd669a959cfcdcce665e239ea777eb7c52c6c72",
+  "rootTransformation": "Verbatim descriptions retained locally; committed metadata carries short root paraphrases and original-description digests. All116 baseline records preserved exactly."
+}

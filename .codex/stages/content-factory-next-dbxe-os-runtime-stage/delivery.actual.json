@@ -1,0 +1,20 @@
+{
+  "runtimeSourceUnchanged": true,
+  "productionSwitched": false,
+  "publicHistoryUntouched": true,
+  "freshRegistryConfig": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "privateCommit": "e3fa885832d637c9f2f51e42c08ef5ba20ab6b88",
+  "privateBranch": "codex/dbxe-os-runtime-20261011",
+  "privateMainVerified": "e3fa885832d637c9f2f51e42c08ef5ba20ab6b88",
+  "nativeFinding": "CVE-2026-95619 allocation primitive confirmed; hostile-image reachability UNKNOWN",
+  "remainingBeads": [
+    "content-factory-next-dbxe.33",
+    "content-factory-next-dbxe.35",
+    "content-factory-next-dbxe.34",
+    "content-factory-next-dbxe.8"
+  ],
+  "wholeEpicClosed": false,
+  "rootAcceptanceSha256": "8a4d28a5fb920b40df1cb250e87295c0eb605b9704006147a7b4d35cd3d28096",
+  "noContinuousGoalStarted": true,
+  "nextStageCandidate": "content-factory-next-dbxe-native-allocation-stage (35; owner selection required)"
+}

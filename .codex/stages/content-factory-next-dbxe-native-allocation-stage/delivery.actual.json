@@ -1,0 +1,31 @@
+{
+  "schema": "native-image-stage-private-delivery/v1",
+  "capturedAt": "2026-10-11T11:31:23.138624+00:00",
+  "status": "PRIVATE_SOURCE_PAYLOAD_VERIFIED",
+  "sourcePayloadCommit": "b76572a4953554f48a4740c327b1e354a8d0bf0f",
+  "sourceBase": "d8aa13f170bb520356d6859c4c85ca1219b2c6bf",
+  "privateRepository": "maslennikov-ig/content-factory-next",
+  "remoteReadback": {
+    "refs/heads/codex/dbxe-native-allocation-20261011": "b76572a4953554f48a4740c327b1e354a8d0bf0f",
+    "refs/heads/main": "b76572a4953554f48a4740c327b1e354a8d0bf0f"
+  },
+  "sourceBranch": "codex/dbxe-native-allocation-20261011",
+  "push": "atomic fast-forward private main and owned codex branch after fresh fetch/ownership proof",
+  "sourceAcceptanceSha256": "5943a5cc7bd5fe8582dab98c93c283209652c718e7c43fcccc68284138869454",
+  "documentationReceipt": "This file records the verified source payload; its own follow-up commit is delivery metadata only",
+  "productionMutations": 0,
+  "runtimeRelease": false,
+  "publicSnapshotUpdated": false,
+  "servingPublicSource": "755d19fa731d524b151afe18c4394d8027030d58",
+  "servingConfigDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "sourceHistoryPubliclyPushed": false,
+  "beads": {
+    "35": "closed",
+    "33": "closed",
+    "8": "in_progress",
+    "34": "open",
+    "epic": "open"
+  },
+  "nextStage": "34 candidate only, not started",
+  "boundary": "Documentation/evidence delivery only; exact serving native path accepted without product or runtime change"
+}

@@ -1,0 +1,1415 @@
+{
+  "baselineRecords": 51,
+  "mappedRecords": 51,
+  "decisions": [
+    {
+      "package": "glob",
+      "version": "10.4.5",
+      "type": "npm",
+      "vulnerability": "GHSA-5j98-mcp5-4vw2",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.5.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.5.0",
+            "date": "2025-11-19",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/glob/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-379q-355j-w6rj",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.26.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.26.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-379q-355j-w6rj",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-2phv-j68v-wwqx",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.27.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.27.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-2phv-j68v-wwqx",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "braces",
+      "version": "3.0.3",
+      "type": "npm",
+      "vulnerability": "GHSA-vfj7-8cjw-p6xm",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+      ],
+      "globalRoots": [
+        "pm2"
+      ],
+      "disposition": "RETAINED_DISABLED_CALLER"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-23hp-3jrh-7fpw",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.5.11",
+      "type": "npm",
+      "vulnerability": "GHSA-23hp-3jrh-7fpw",
+      "severity": "Critical",
+      "fix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "ip-address",
+      "version": "10.1.0",
+      "type": "npm",
+      "vulnerability": "GHSA-mwp4-54f8-5fhr",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.3.1",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "vulnerability": "GHSA-mwp4-54f8-5fhr",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.3.1",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/ip-address/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-8x88-c5mf-7j5w",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.5.11",
+      "type": "npm",
+      "vulnerability": "GHSA-8x88-c5mf-7j5w",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-rgw5-rvv9-x895",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-rgw5-rvv9-x895",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-34x7-hfp2-rc4v",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.7",
+            "date": "2026-01-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-mh99-v99m-4gvg",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-mh99-v99m-4gvg",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-vq4v-j7r6-jq4m",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-vq4v-j7r6-jq4m",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-c59q-g84q-2gj5",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-c59q-g84q-2gj5",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "vulnerability": "GHSA-7r86-cg39-jmmj",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "vulnerability": "GHSA-3ppc-4f35-3m26",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "9.0.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.6",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-hwx4-2j3j-g496",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.0",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-hwx4-2j3j-g496",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "http-cache-semantics",
+      "version": "4.1.1",
+      "type": "npm",
+      "vulnerability": "GHSA-ch52-4w7c-c8xp",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/http-cache-semantics/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "http-cache-semantics",
+      "version": "4.2.0",
+      "type": "npm",
+      "vulnerability": "GHSA-ch52-4w7c-c8xp",
+      "severity": "High",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "officialSource": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/http-cache-semantics/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "js-yaml",
+      "version": "4.3.0",
+      "type": "npm",
+      "vulnerability": "GHSA-2883-xcg3-v3hh",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "4.3.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.3.2",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/js-yaml/package.json"
+      ],
+      "globalRoots": [
+        "pm2"
+      ],
+      "disposition": "PATCHED_SAME_MAJOR_4.3.2"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-r292-9mhp-454m",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.5.11",
+      "type": "npm",
+      "vulnerability": "GHSA-r292-9mhp-454m",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "vulnerability": "GHSA-23c5-xmqv-rm74",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "picomatch",
+      "version": "4.0.3",
+      "type": "npm",
+      "vulnerability": "GHSA-c2c7-rcm5-vvqj",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "4.0.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.0.4",
+            "date": "2026-03-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/picomatch/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-7vhp-vf5g-r2fw",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.26.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.26.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-7vhp-vf5g-r2fw",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-rxhj-4m44-96r4",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.0",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-rxhj-4m44-96r4",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-qffp-2rhf-9h96",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.10"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.10",
+            "date": "2026-03-05",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-8qq5-rm4j-mr97",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.3",
+            "date": "2026-01-17",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "basic-ftp",
+      "version": "5.3.1",
+      "type": "npm",
+      "vulnerability": "GHSA-c475-qrg2-pj4r",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "6.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.1",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+      ],
+      "globalRoots": [
+        "pm2"
+      ],
+      "disposition": "RETAINED_DISABLED_CALLER"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-6j4f-fj2g-mc7p",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-qhr7-859c-m2p7",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-6j4f-fj2g-mc7p",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-qhr7-859c-m2p7",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pacote",
+      "version": "19.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-w4pp-8pjf-rmxw",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "21.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "21.5.1",
+            "date": "2026-08-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-w4pp-8pjf-rmxw",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/pacote/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pacote",
+      "version": "20.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-w4pp-8pjf-rmxw",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "21.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "21.5.1",
+            "date": "2026-08-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-w4pp-8pjf-rmxw",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/@npmcli/metavuln-calculator/node_modules/pacote/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "vulnerability": "GHSA-3jxr-9vmj-r5cp",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.2",
+      "type": "npm",
+      "vulnerability": "GHSA-3jxr-9vmj-r5cp",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-w466-c33r-3gjp",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-w466-c33r-3gjp",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-r6q2-hw4h-h46w",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.4",
+            "date": "2026-01-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-83g3-92jg-28cx",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.8",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "tar",
+      "version": "7.4.3",
+      "type": "npm",
+      "vulnerability": "GHSA-9ppj-qmqm-q256",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "7.5.11"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.11",
+            "date": "2026-03-11",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-gj8w-mvpf-x27x",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-08-13",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-gj8w-mvpf-x27x",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "sigstore",
+      "version": "3.1.0",
+      "type": "npm",
+      "vulnerability": "GHSA-52v5-jr5w-gjxr",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "4.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.1.1",
+            "date": "2026-07-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-52v5-jr5w-gjxr",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/sigstore/package.json"
+      ],
+      "globalRoots": [
+        "npm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-5wx6-mg75-v57r",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-5wx6-mg75-v57r",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "js-yaml",
+      "version": "4.3.0",
+      "type": "npm",
+      "vulnerability": "GHSA-5p4m-2wfm-xmqj",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "4.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.3.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/js-yaml/package.json"
+      ],
+      "globalRoots": [
+        "pm2"
+      ],
+      "disposition": "PATCHED_SAME_MAJOR_4.3.2"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-72r4-9c5j-mj57",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-72r4-9c5j-mj57",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-fr4h-3cph-29xv",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-fr4h-3cph-29xv",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    },
+    {
+      "package": "pnpm",
+      "version": "10.6.1",
+      "type": "npm",
+      "vulnerability": "GHSA-qrv3-253h-g69c",
+      "severity": "High",
+      "fix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "officialSource": "https://github.com/advisories/GHSA-qrv3-253h-g69c",
+      "installedPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalRoots": [
+        "pnpm"
+      ],
+      "disposition": "REMOVED_UNUSED_RUNTIME_TOOL"
+    }
+  ],
+  "counts": {
+    "PATCHED_SAME_MAJOR_4.3.2": 2,
+    "REMOVED_UNUSED_RUNTIME_TOOL": 47,
+    "RETAINED_DISABLED_CALLER": 2
+  },
+  "localProbeOnly": true,
+  "finalImageScanPending": true,
+  "beforeManifestSha256": "943810d1c58a3e5d6c2b9f5636697e96c6902e6c525a28a1c56b6e87087cb998"
+}

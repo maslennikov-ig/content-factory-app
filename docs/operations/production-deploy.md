@@ -3569,6 +3569,10 @@ exit 0 и действительно пустой diff. Ошибка не явл
 применение изменений требует отдельного нижеследующего порядка и полномочия.
 
 
+В историческом примере ниже сохранена команда `npx`. В текущем рабочем образе
+используйте `node /app/node_modules/prisma/build/index.js` вместо `npx prisma`:
+менеджеры пакетов удалены на этапе34, установленная Prisma6.5 сохранена.
+
 > **02.09.2026: схему приложили ДО переключения образа, и это оказалось
 > правильнее.** Порядок ниже написан из верного наблюдения — `migrate diff`
 > внутри старого контейнера читает старую `schema.prisma`. Но diff можно
@@ -3853,7 +3857,7 @@ echo "mastra_* до применения: $mastra_table_count"
 
 # 3. Напечатать read-only SQL начальной схемы внутри нового образа. Статус 2
 #    означает непустой diff; 0 означает, что применять нечего.
-docker compose exec -T cf-app sh -c 'pnpm exec prisma migrate diff \
+docker compose exec -T cf-app sh -c 'node /app/node_modules/prisma/build/index.js migrate diff \
   --from-empty \
   --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
   --script --exit-code > /tmp/cf-prisma-bootstrap-diff.sql' \
@@ -4003,7 +4007,7 @@ umask 077
 printf 'DATABASE_URL=%s\n' "$DATABASE_URL" > /tmp/cf-schema/db.env
 docker run --rm --network content-factory-next_internal \
   --env-file /tmp/cf-schema/db.env -v /tmp/cf-schema:/out \
-  --entrypoint sh <новый образ> -c 'cd /app && npx prisma migrate diff \
+  --entrypoint sh <новый образ> -c 'cd /app && node /app/node_modules/prisma/build/index.js migrate diff \
     --from-url "$DATABASE_URL" \
     --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
     --script --exit-code > /out/cf-prisma-diff.sql' \

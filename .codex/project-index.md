@@ -1,6 +1,6 @@
 # Content Factory Project Index
 ## Current Programme
-- Beads owns current scope/status; `.codex/handoff.md` owns the operational snapshot.
+- Beads owns current scope/status; `.codex/handoff.md` owns the operational snapshot. Latest [accepted release](stages/content-factory-next-dbxe-delivery-20261010/outcome.md): public755d/private d724; [OS audit](stages/content-factory-next-dbxe-os-runtime-stage/outcome.md) and [native source/ABI proof](stages/content-factory-next-dbxe-native-allocation-stage/outcome.md):35/33 CLOSED, allocator itself unpatched; [global tools34](stages/content-factory-next-dbxe-global-runtime-stage/plan.md) IN_PROGRESS,8 IN_PROGRESS/epic OPEN.
 - Audit epic: `content-factory-next-dbxe`; [audit](stages/content-factory-next-audit-20261009/audit-report.md), [access outcome](stages/content-factory-next-dbxe-access-stage/outcome.md), [access review](stages/content-factory-next-dbxe-access-stage/review/review.md), [dependency decisions](../docs/operations/dependency-security-remediation.md), [dependency stage](stages/content-factory-next-dbxe-dependencies-stage/summary.md), [dependency review](stages/content-factory-next-dbxe-dependencies-stage/review/review.md). [publication recovery](../docs/operations/publication-recovery-v106.md), [publishing stage](stages/content-factory-next-dbxe-publishing-stage/outcome.md), [publishing review](stages/content-factory-next-dbxe-publishing-stage/review/review.md), [worker readiness](../docs/operations/worker-readiness.md), [readiness stage](stages/content-factory-next-dbxe-readiness-stage/outcome.md). [manual-edit correction](stages/content-factory-next-dbxe-manual-edits-stage/outcome.md). [extension access](stages/content-factory-next-dbxe-extension-auth-stage/outcome.md). [extension package/runtime](stages/content-factory-next-dbxe-extension-runtime-stage/outcome.md). Original `0qgn` requirements/defers preserved; runtime delivery and full release acceptance separate; statuses in Beads.
 - Remaining-work epic: `content-factory-next-0qgn`; [spec](../docs/product/remaining-work-2026-10-01-spec.md), [plan](../docs/superpowers/plans/2026-10-01-content-factory-remaining-work.md); existing scopes below are preserved under it. Completion-pass design: `stages/content-factory-next-0qgn-completion-20261008/plan.md`.
 - Reader quality/overengineering evidence: [bounded audit](stages/content-factory-next-0qgn-reader-semantic-control-20261008/overengineering-audit.md); current priorities and follow-ups remain in Beads.
@@ -128,7 +128,7 @@
 
 ## Verification
 
-- Current completion proof: `.codex/stages/content-factory-next-0qgn-completion-20261008/root-acceptance.json`; prior editorial proof remains in its stage. Host/version in handoff/runbook; status truth in Beads.
+- Current release proof: `.codex/stages/content-factory-next-dbxe-delivery-20261010/delivery.actual.json`; prior completion/editorial proof remains in0qgn-completion-20261008. Host/version in handoff; status truth in Beads.
 - Runtime selection: `nvm use` then `node --version` and `pnpm --version`.
 - Dependency baseline: `pnpm install --frozen-lockfile`.
 - Build: `pnpm run build`; tests: `pnpm test`; repository checks: `git diff --check` and `scripts/orchestration/run_process_verification.sh`.

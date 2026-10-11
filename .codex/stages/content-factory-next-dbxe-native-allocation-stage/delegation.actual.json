@@ -1,0 +1,21 @@
+{
+  "stream": "native_image_source",
+  "model": "gpt-6.1-sol",
+  "effort": "max",
+  "benefits": [
+    "specialist_capability",
+    "context_isolation",
+    "parallel_latency"
+  ],
+  "ownership": "research/child-native-* only; no product/status/Git/runtime writes",
+  "delivery": "research/child-native-report.md",
+  "deliveryEvent": "DELIVERED_FOR_ROOT_ACCEPTANCE",
+  "acceptance": "ACCEPTED_NATIVE_SOURCE_ABI_STREAM; whole-stage fixture/consumer/runtime acceptance remains root-owned",
+  "acceptedAt": "2026-10-11T11:12:11.735921+00:00",
+  "rootReview": [
+    "ICC length guard/subtraction/constant alignment checked against exact source and machine path",
+    "official binary hashes match serving evidence",
+    "PBDS source coverage distinguishes template code from runtime imports"
+  ],
+  "cleanup": "No child-owned process/container or remote resource; downloaded public sources retained local, no broad cleanup"
+}

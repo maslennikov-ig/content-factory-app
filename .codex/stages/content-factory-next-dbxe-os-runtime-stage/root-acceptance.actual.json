@@ -1,0 +1,135 @@
+{
+  "schema": "cf-os-runtime-audit-acceptance/v1",
+  "capturedAt": "2026-10-11T07:11:07.855150+00:00",
+  "rootOwned": true,
+  "auditVerification": "PASS",
+  "remediation": "OPEN; confirmed GCC12 primitive and unverified image/PBDS reachability remain in35;33 not closed",
+  "records": 116,
+  "uniqueCves": 55,
+  "binaryPackages": 36,
+  "decisionCounts": {
+    "configured_caller_exception": 38,
+    "unresolved_native_risk_no_compatible_debian_fix": 2,
+    "version_conflict_retained_with_configured_caller_exception": 6,
+    "affected_perl_module_absent": 8,
+    "platform_exception_64bit": 1
+  },
+  "servingImage": "ghcr.io/maslennikov-ig/content-factory-next:755d19fa731d",
+  "configDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "runtimeFreshProof": {
+    "capturedAt": "2026-10-11T07:02:00.180820+00:00",
+    "nativeHealthExitCode": 0,
+    "endpoints": [
+      {
+        "path": "/api/",
+        "status": 200,
+        "bytes": 15,
+        "sha256": null
+      },
+      {
+        "path": "/auth/login",
+        "status": 200,
+        "bytes": 30327,
+        "sha256": null
+      },
+      {
+        "path": "/api/public/source/version",
+        "status": 200,
+        "bytes": 115,
+        "sha256": null
+      },
+      {
+        "path": "/api/public/source/archive",
+        "status": 200,
+        "bytes": 12611013,
+        "sha256": "a4454a506b0a9bf533c3132b5ce29c5d104737f155c17376d0432fd57ef8cb26"
+      }
+    ],
+    "hostFreeBytes": 36056092672,
+    "rollbackConfigDigest": "sha256:a70e865a332aeae3701bfabc5fbb97f9c9b1d04596ab64536fa3c8eef0e8a053"
+  },
+  "packageAndConfigCopiesMatchProduction": true,
+  "sourceArchiveMatchesExactServingRelease": true,
+  "nativeBaseline": {
+    "node": "v22.23.2",
+    "nodeBundledOpenSsl": "3.5.7",
+    "systemOpenSsl": "3.0.20-1~deb12u2",
+    "perlBits": 64,
+    "nativeElfFiles": 31,
+    "ordinaryPngJpeg": "PASS",
+    "alignedAllocationPrimitive": "defect reproduced; oversized request returns non-null; zero out-of-bounds writes",
+    "hostileImageReachability": "UNKNOWN"
+  },
+  "runtimeChanges": [],
+  "productionMutations": 0,
+  "matchingPriorRelease": {
+    "privateSource": "d724f3b792f4518eebc04c854448904f565323fd",
+    "publicSource": "755d19fa731d524b151afe18c4394d8027030d58",
+    "compressedBytes": 695982491,
+    "nineConfiguredGates": "Previously accepted exact serving source; not restamped as a new release",
+    "receiptSha256": "1f84143951b17a1f7eeae9454bd9390e858d855a0886e5d798f0c024a7beac86"
+  },
+  "scope": {
+    "originalCriteriaPreserved": 30,
+    "statuses": {
+      "content-factory-next-dbxe": "open",
+      "content-factory-next-dbxe.8": "in_progress",
+      "content-factory-next-dbxe.33": "in_progress",
+      "content-factory-next-dbxe.34": "open",
+      "content-factory-next-dbxe.35": "open"
+    },
+    "children": 35,
+    "closedChildren": 17
+  },
+  "safeCleanup": "Exact own Docker fixtures and temporary ELF copies removed; no host cleanup/data mutation",
+  "limitations": [
+    "No image-request exploit constructed; ordinary image conversion does not establish hostile-input safety",
+    "All original scanner findings retained; neither severity counters nor inheritance prove reachability",
+    "Global PM2/pnpm/npm/bundled Node findings remain unselected34",
+    "No full new suite/build/image/deploy; runtime unchanged"
+  ],
+  "closeoutChecks": {
+    "result": "PASS",
+    "commands": [
+      {
+        "command": "pnpm run docs:check",
+        "exitCode": 0
+      },
+      {
+        "command": "bash scripts/orchestration/run_process_verification.sh",
+        "exitCode": 0
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0
+      }
+    ],
+    "coreCommand": "python3 .codex/stages/content-factory-next-dbxe-os-runtime-stage/verify-triage.py",
+    "coreCommandResult": "PASS",
+    "level": "bounded audit/documentation; not release or completed33 remediation"
+  },
+  "proofSha256": {
+    "baseline.actual.json": "a6b83a6974222ef59e878bd219497e55ed9e396db4e1ebf4f2872a380cea002e",
+    "baseline-os-records.actual.json": "470fe472626d4d10b98af1884c08f3a5ac728a2404171d5bf937c3d3e6b567ef",
+    "research/metadata.actual.json": "ac4ed84f50ef1ab7894887fa7fd669a959cfcdcce665e239ea777eb7c52c6c72",
+    "research/metadata-source.local.json": "09048a1c689bffaaf2b1210e58b873d69a62ded7a4319d75efbef7d78d36796d",
+    "research/source-notes.md": "e839c391ce41f8c92229fd8da9d19cc970b36162627bedfca802b9d472d4d754",
+    "delegation.actual.json": "8caa033714dd7a375ce2d8483f13babee8dc43ab9014c3e09c2cfeb4dadd1ac5",
+    "native-baseline.local.json": "f3685dcd8729c470f028d54d140f0b7ecc139d6f83f70c323a48486769c44332",
+    "production-consumers.local.json": "28687ce109075bd585ce5f381eb9ededc1f1ab5831177a3d879e95167235e084",
+    "elf-consumers.local.json": "d245a43d0d5760c231afbe4b6dda3b5f8bb6ee42a3abe65bc98e6df8d263641a",
+    "aligned-new-disassembly.local.txt": "20f4d274bc5b308034bf83f944106a65f950f8b2495355d18d7577e105b20dbd",
+    "aligned-new-probe.cpp": "8fc5b279397c695599f54fce0cbd878f7abff5b2e53f34500fb43fb74fd9431e",
+    "aligned-new-probe.actual.json": "40d24238c37108150da9cbb1484c1b7f17f90773deb2eeec456cf1e03d79ec09",
+    "sharp-native.actual.json": "13fecc9f8d47799ad314deb13cfb42d6ee748e731f20cc2173bef0d94be4ff7e",
+    "runtime-readonly.local.json": "27a9cd0b17cefb5faec8a5e402dc21eb8970f76bbbf42a9d7b5e919976d82faf",
+    "apt-preview.local.json": "33c4db1ffbad1fb7bad29a23424107f4fc832365b8aed923896f1a794f09ef94",
+    "triage.actual.json": "df928b52d19a4cbcc7171b66836982ad15e8afdc829bc84083053bc9235d61c6",
+    "scope-final.local.json": "2d641787ebe1c16786fca3f977032c9851a7dda81d92b38dcf31b2ca09cc5612",
+    "verify-triage.py": "d97ce7619e9df08df4e3d0e144c32ed7b51c17da83aad3f02321bf2e35a334f4",
+    "closeout-0.local.log": "da1682b1936918a398838c3728b7e56aa77071f78276b85e55cf0202a3ee9e7f",
+    "closeout-1.local.log": "3fc4aee2f9cd360dea4ea30f4caf91a7b635ac52ff36f98f2d16c4ba8a6e2adb",
+    "closeout-2.local.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "finalizedAt": "2026-10-11T07:13:04.241708+00:00"
+}

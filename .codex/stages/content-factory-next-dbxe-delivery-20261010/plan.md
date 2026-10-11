@@ -67,3 +67,20 @@ and compiled frontend assets did not grow. Disable only the release build cache,
 preserve the rejected candidate's evidence, free only proven owned failed-build
 artifacts, then repeat exact-SHA acceptance and rebuild. Existing criteria and
 delivery guard thresholds remain unchanged.
+
+Final source d724f3b792f4518eebc04c854448904f565323fd passed the same nine
+configured release checks. Public755d19fa731d passed native image/source/CLI
+and unchanged weight gates, and was published and deployed. The build cache was
+the only product correction after the rejected candidate. The stage-only SQL
+preview must preserve Prisma's printed whitespace for the existing guard; the
+corrected helper was checked byte-for-byte and used for the actual one-column
+apply. No SQL guard or migration procedure was changed.
+
+The full-image scan expanded the known shipped-package inventory beyond the
+application lock: OS and global package findings were present in nine immutable
+base layers shared with the prior serving image. This proves inherited inputs,
+not inapplicability. New bounded Beads33/34 retain their actual-caller triage;
+dbxe.8 stays IN_PROGRESS despite its next-release subgate now passing. Original
+criteria and epic are unchanged. Delivery is complete, not whole-epic acceptance.
+Current truth and exact proof: outcome.md and delivery.actual.json. Stop for the
+owner's next bounded-stage choice; recommend33 rather than automatically start it.

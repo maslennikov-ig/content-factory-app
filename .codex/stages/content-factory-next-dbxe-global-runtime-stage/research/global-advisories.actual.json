@@ -1,0 +1,4292 @@
+{
+  "schema": "content-factory-global-advisory-research/v1",
+  "capturedAt": "2026-10-11T12:01:03.196919+00:00",
+  "task": "content-factory-next-dbxe.34",
+  "scope": "Exact 51 otherCriticalHigh input records; primary advisory metadata and compatible published tool graphs. This is not a full security audit or current deployment acceptance.",
+  "inputs": [
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-delivery-20261010/image-os-scan.local.json",
+      "sha256": "693905d37f554852c92ca523fca374ed7b9da8bbd6efc264f6cf938cfd2119b7"
+    },
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-global-runtime-stage/global-packages-before.local.json",
+      "sha256": "943810d1c58a3e5d6c2b9f5636697e96c6902e6c525a28a1c56b6e87087cb998"
+    },
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-global-runtime-stage/consumer-map.actual.json",
+      "sha256": "fbabe094e0948dae31660019abfa38bbcf45a4487cf00feca70dcf9fba7a265c"
+    },
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-global-runtime-stage/native-tool-probe-engine.local.json",
+      "sha256": "3d6e6453d89f438a0883c56d0678a08fd426eec58b505257862316bcd7f6294c"
+    },
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-global-runtime-stage/probe-scan.actual.json",
+      "sha256": "315b26f622bbd34da2d252fcb611da674b5506bace027045458fbbf43b675b8c"
+    },
+    {
+      "path": ".codex/stages/content-factory-next-dbxe-global-runtime-stage/global-packages-native-probe.local.json",
+      "sha256": "a77829c1069eba185ef46442667941af3a00049c66aba5670597c45d699a57ba"
+    }
+  ],
+  "counts": {
+    "scanRecords": 51,
+    "uniqueAdvisories": 40,
+    "globalManifestRecords": 378,
+    "scanRecordsByGlobalTool": {
+      "pnpm": 33,
+      "pm2": 4,
+      "npm": 14
+    },
+    "npmPnpmRecordsRemovalWouldEliminate": 47,
+    "pm2JsYamlRecords4_3_2WouldFix": 2,
+    "pm2RecordsRequiringRootExceptionOrNewCompatibleUpstream": 2
+  },
+  "advisories": {
+    "GHSA-5j98-mcp5-4vw2": {
+      "id": "GHSA-5j98-mcp5-4vw2",
+      "cveId": "CVE-2025-64756",
+      "officialSource": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-5j98-mcp5-4vw2",
+      "officialApiSnapshotSha256": "b1f92c841a93f3ac442ec71ca1cd23f2ecf07df1b8579ffa83720f8b72e47c94",
+      "summary": "glob CLI: Command injection via -c/--cmd executes matches with shell:true",
+      "severity": "high",
+      "publishedAt": "2025-11-17T17:38:56Z",
+      "updatedAt": "2025-11-19T02:30:53Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "glob"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.1.0",
+          "first_patched_version": "11.1.0",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "glob"
+          },
+          "vulnerable_version_range": ">= 10.2.0, < 10.5.0",
+          "first_patched_version": "10.5.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Running glob CLI -c/--cmd on attacker-controlled filenames containing shell metacharacters; ordinary glob library calls are outside this advisory.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-glob/security/advisories/GHSA-5j98-mcp5-4vw2",
+        "https://github.com/isaacs/node-glob/commit/47473c046b91c67269df7a66eab782a6c2716146",
+        "https://github.com/isaacs/node-glob/commit/1e4e297342a09f2aa0ced87fcd4a70ddc325d75f",
+        "https://github.com/advisories/GHSA-5j98-mcp5-4vw2"
+      ]
+    },
+    "GHSA-379q-355j-w6rj": {
+      "id": "GHSA-379q-355j-w6rj",
+      "cveId": "CVE-2025-69264",
+      "officialSource": "https://github.com/advisories/GHSA-379q-355j-w6rj",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-379q-355j-w6rj",
+      "officialApiSnapshotSha256": "b1f5cfeb663a11cfcbf2d9f97a302673d48e2a975e97e34d66a31f23d2832cb1",
+      "summary": "pnpm v10+ Bypass \"Dependency lifecycle scripts execution disabled by default\"",
+      "severity": "high",
+      "publishedAt": "2026-01-07T19:07:43Z",
+      "updatedAt": "2026-01-08T20:05:40Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 10.0.0, < 10.26.0",
+          "first_patched_version": "10.26.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Installing a git-hosted dependency with prepare/prepublish/prepack scripts; fetch preparation bypasses the dependency build allowlist.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-379q-355j-w6rj",
+        "https://github.com/pnpm/pnpm/commit/73cc63504d9bc360c43e4b2feb9080677f03c5b5",
+        "https://github.com/advisories/GHSA-379q-355j-w6rj"
+      ]
+    },
+    "GHSA-2phv-j68v-wwqx": {
+      "id": "GHSA-2phv-j68v-wwqx",
+      "cveId": "CVE-2025-69262",
+      "officialSource": "https://github.com/advisories/GHSA-2phv-j68v-wwqx",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-2phv-j68v-wwqx",
+      "officialApiSnapshotSha256": "f1870ac60f88aa93601fd0b689c3d7e0c581e4d5685081a61e43b41667c84eda",
+      "summary": "pnpm vulnerable to Command Injection via environment variable substitution",
+      "severity": "high",
+      "publishedAt": "2026-01-07T18:51:07Z",
+      "updatedAt": "2026-01-08T20:07:35Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 6.25.0, < 10.27.0",
+          "first_patched_version": "10.27.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm loads a tokenHelper setting after npmrc environment substitution; attacker controls substituted values and shell interpretation.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-2phv-j68v-wwqx",
+        "https://github.com/pnpm/pnpm/releases/tag/v10.27.0",
+        "https://github.com/advisories/GHSA-2phv-j68v-wwqx"
+      ]
+    },
+    "GHSA-vfj7-8cjw-p6xm": {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "cveId": "CVE-2026-93687",
+      "officialSource": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "officialApiSnapshotSha256": "908c7d93d82cef88b229aa667d170c5424014b66f2c7bbeb5e68ed327357b1d4",
+      "summary": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+      "severity": "high",
+      "publishedAt": "2026-09-18T18:31:41Z",
+      "updatedAt": "2026-10-02T22:36:34Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "braces"
+          },
+          "vulnerable_version_range": "<= 3.0.3",
+          "first_patched_version": null,
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Compiling/expanding deeply nested attacker-controlled brace patterns; recursive AST walkers lack depth guards and exhaust the process stack.",
+      "primaryReferences": [
+        "https://github.com/micromatch/braces/issues/70",
+        "https://github.com/micromatch/braces/blob/3.0.3/lib/compile.js#L49-L53",
+        "https://github.com/micromatch/braces/blob/3.0.3/lib/expand.js#L102-L105",
+        "https://github.com/micromatch/braces/blob/3.0.3/lib/parse.js#L38-L40",
+        "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+      ]
+    },
+    "GHSA-23hp-3jrh-7fpw": {
+      "id": "GHSA-23hp-3jrh-7fpw",
+      "cveId": "CVE-2026-59873",
+      "officialSource": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "officialApiSnapshotSha256": "419eb5f16441daed5ef49eef70c2c15e8b1cbfed3663e5f4b8ad5498630c89a0",
+      "summary": "node-tar: Decompression/parse DoS via unlimited input",
+      "severity": "critical",
+      "publishedAt": "2026-07-20T21:52:03Z",
+      "updatedAt": "2026-07-20T21:52:04Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.18",
+          "first_patched_version": "7.5.19",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted compressed TAR whose expansion or entry count consumes disk/CPU beyond intended bounds.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-23hp-3jrh-7fpw",
+        "https://github.com/isaacs/node-tar/commit/2812e9338665659b183aa7226518c307044957d3",
+        "https://github.com/isaacs/node-tar/releases/tag/v7.5.19",
+        "https://github.com/advisories/GHSA-23hp-3jrh-7fpw"
+      ]
+    },
+    "GHSA-mwp4-54f8-5fhr": {
+      "id": "GHSA-mwp4-54f8-5fhr",
+      "cveId": "CVE-2026-69192",
+      "officialSource": "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "officialApiSnapshotSha256": "21ac5b8029ae905015b8641502f62ad94d0f63a1517512f95757f4d4e5ff4029",
+      "summary": "ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+      "severity": "high",
+      "publishedAt": "2026-08-03T19:59:44Z",
+      "updatedAt": "2026-08-03T19:59:46Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "ip-address"
+          },
+          "vulnerable_version_range": "<= 10.3.0",
+          "first_patched_version": "10.3.1",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "A caller uses Address4 checks as a network trust/SSRF boundary then resolves a leading-zero octet address with a stack that interprets it as octal.",
+      "primaryReferences": [
+        "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-mwp4-54f8-5fhr",
+        "https://github.com/beaugunderson/ip-address/commit/56368cb3d66c73ba0ee9b6b834fd31b22c2fd71e",
+        "https://github.com/beaugunderson/ip-address/releases/tag/v10.3.1",
+        "https://github.com/advisories/GHSA-mwp4-54f8-5fhr"
+      ]
+    },
+    "GHSA-8x88-c5mf-7j5w": {
+      "id": "GHSA-8x88-c5mf-7j5w",
+      "cveId": "CVE-2026-59874",
+      "officialSource": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "officialApiSnapshotSha256": "8cf13c4c2088ac0e179798a75f44c21c9f6a70707d1b7489d9f05b1197720e3b",
+      "summary": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+      "severity": "high",
+      "publishedAt": "2026-07-20T21:51:39Z",
+      "updatedAt": "2026-07-20T21:51:39Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.17",
+          "first_patched_version": "7.5.18",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Calling tar.replace on an existing attacker-controlled archive containing a checksum-valid negative base-256 entry size; this is the archive replacement scan.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-8x88-c5mf-7j5w",
+        "https://github.com/isaacs/node-tar/commit/9e78bf058b2c22dd4d52e00d8922d5c06fc2f7b5",
+        "https://github.com/isaacs/node-tar/releases/tag/v7.5.18",
+        "https://github.com/advisories/GHSA-8x88-c5mf-7j5w"
+      ]
+    },
+    "GHSA-rgw5-rvv9-x895": {
+      "id": "GHSA-rgw5-rvv9-x895",
+      "cveId": "CVE-2026-69152",
+      "officialSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "officialApiSnapshotSha256": "aa886a7eb710ad78b7a8f543db679cb48e3f9aa41a0039a6cb0e3f7f6b9b4018",
+      "summary": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "severity": "high",
+      "publishedAt": "2026-08-03T16:35:32Z",
+      "updatedAt": "2026-08-03T20:17:20Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": "< 1.1.18",
+          "first_patched_version": "1.1.18",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.4",
+          "first_patched_version": "2.1.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.0.6",
+          "first_patched_version": "3.0.6",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 5.0.9",
+          "first_patched_version": "5.0.9",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Expanding untrusted comma alternatives or wide padded sequences; intermediate expansion arrays exceed the intended output-length bound.",
+      "primaryReferences": [
+        "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+        "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d",
+        "https://github.com/juliangruber/brace-expansion/commit/1e30c930238d7162802d88a94189182def178dac",
+        "https://github.com/juliangruber/brace-expansion/commit/688a99eeaab02627c2b89ba8ba4821fecfa659cf",
+        "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031",
+        "https://github.com/advisories/GHSA-rgw5-rvv9-x895"
+      ]
+    },
+    "GHSA-34x7-hfp2-rc4v": {
+      "id": "GHSA-34x7-hfp2-rc4v",
+      "cveId": "CVE-2026-24842",
+      "officialSource": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "officialApiSnapshotSha256": "3e86c57dd14a9ffc6ea72b1ed4d9e22d88f988a511f2debb6d03a6af52dc2430",
+      "summary": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+      "severity": "high",
+      "publishedAt": "2026-01-28T16:35:31Z",
+      "updatedAt": "2026-01-28T16:35:31Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "< 7.5.7",
+          "first_patched_version": "7.5.7",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted TAR hardlink with a traversal linkpath; path check and hardlink creation use different base directories.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-34x7-hfp2-rc4v",
+        "https://github.com/isaacs/node-tar/commit/f4a7aa9bc3d717c987fdf1480ff7a64e87ffdb46",
+        "https://github.com/advisories/GHSA-34x7-hfp2-rc4v"
+      ]
+    },
+    "GHSA-mh99-v99m-4gvg": {
+      "id": "GHSA-mh99-v99m-4gvg",
+      "cveId": "CVE-2026-14257",
+      "officialSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "officialApiSnapshotSha256": "87d9d184e37e0ac332fb6d0b26db68dffd8baee2b650fea5b377e35ba7fe7f8b",
+      "summary": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "severity": "high",
+      "publishedAt": "2026-07-24T21:53:14Z",
+      "updatedAt": "2026-07-31T19:37:57Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 5.0.8",
+          "first_patched_version": "5.0.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.0.3",
+          "first_patched_version": "3.0.3",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.3",
+          "first_patched_version": "2.1.3",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": "< 1.1.17",
+          "first_patched_version": "1.1.17",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Expanding an untrusted chain of brace groups with limited result count but unbounded output length; process memory is exhausted.",
+      "primaryReferences": [
+        "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-mh99-v99m-4gvg",
+        "https://github.com/juliangruber/brace-expansion/commit/a1bd33999ea75262c4749fff3bbb0d1372bd07b5",
+        "https://github.com/juliangruber/brace-expansion",
+        "https://github.com/juliangruber/brace-expansion/pull/129",
+        "https://github.com/juliangruber/brace-expansion/pull/130",
+        "https://github.com/juliangruber/brace-expansion/pull/136",
+        "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d",
+        "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031",
+        "https://github.com/juliangruber/brace-expansion/commit/d13ff455a58b0d56704f0111e3c2a0b16ceb06eb",
+        "https://github.com/advisories/GHSA-mh99-v99m-4gvg"
+      ]
+    },
+    "GHSA-vq4v-j7r6-jq4m": {
+      "id": "GHSA-vq4v-j7r6-jq4m",
+      "cveId": "CVE-2026-82393",
+      "officialSource": "https://github.com/advisories/GHSA-vq4v-j7r6-jq4m",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-vq4v-j7r6-jq4m",
+      "officialApiSnapshotSha256": "1c32dfeb5e24661e8e75a2831a3274c0ff56e38f53262d168679ef8dccc63987",
+      "summary": "pnpm: A tarball dependency's manifest `name` escapes node_modules \u2192 arbitrary file write/overwrite on install",
+      "severity": "high",
+      "publishedAt": "2026-09-02T14:36:59Z",
+      "updatedAt": "2026-09-02T14:37:00Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.5",
+          "first_patched_version": "10.34.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.11.0",
+          "first_patched_version": "11.11.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm install imports a tarball package with a traversal-shaped scoped manifest name outside node_modules, including with ignore-scripts.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-vq4v-j7r6-jq4m",
+        "https://github.com/pnpm/pnpm/pull/12872",
+        "https://github.com/pnpm/pnpm/pull/12890",
+        "https://github.com/pnpm/pnpm/commit/51300fd41c5e4c8f47635108e373cc3d1f324fa7",
+        "https://github.com/pnpm/pnpm/commit/78e29fe5583a1e5d69ea05e414eff310f78d5ed9",
+        "https://github.com/pnpm/pnpm/releases/tag/v10.34.5",
+        "https://github.com/pnpm/pnpm/releases/tag/v11.11.0",
+        "https://github.com/advisories/GHSA-vq4v-j7r6-jq4m"
+      ]
+    },
+    "GHSA-c59q-g84q-2gj5": {
+      "id": "GHSA-c59q-g84q-2gj5",
+      "cveId": "CVE-2026-82392",
+      "officialSource": "https://github.com/advisories/GHSA-c59q-g84q-2gj5",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-c59q-g84q-2gj5",
+      "officialApiSnapshotSha256": "13ffd132d1b69fa7b5fd3474cbe707762c6ab30e834aca5c99e609e665808271",
+      "summary": "pnpm: Virtual store linker path traversal via unvalidated depPath name in lockfileToDepGraph",
+      "severity": "high",
+      "publishedAt": "2026-09-02T14:37:13Z",
+      "updatedAt": "2026-09-02T14:37:14Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.5",
+          "first_patched_version": "10.34.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.11.0",
+          "first_patched_version": "11.11.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm install reads attacker-controlled depPath/package names from a lockfile and joins them into virtual-store import paths without containment.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-c59q-g84q-2gj5",
+        "https://github.com/pnpm/pnpm/pull/12872",
+        "https://github.com/pnpm/pnpm/pull/12890",
+        "https://github.com/pnpm/pnpm/commit/51300fd41c5e4c8f47635108e373cc3d1f324fa7",
+        "https://github.com/pnpm/pnpm/commit/78e29fe5583a1e5d69ea05e414eff310f78d5ed9",
+        "https://github.com/pnpm/pnpm/releases/tag/v10.34.5",
+        "https://github.com/pnpm/pnpm/releases/tag/v11.11.0",
+        "https://github.com/advisories/GHSA-c59q-g84q-2gj5"
+      ]
+    },
+    "GHSA-7r86-cg39-jmmj": {
+      "id": "GHSA-7r86-cg39-jmmj",
+      "cveId": "CVE-2026-27903",
+      "officialSource": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "officialApiSnapshotSha256": "08c92da4a2c7e4fa2e0bc3d1f061c9a035221ee0c774a9087ad5c10cf0a0167b",
+      "summary": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+      "severity": "high",
+      "publishedAt": "2026-02-26T22:10:18Z",
+      "updatedAt": "2026-02-26T22:10:20Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 10.0.0, < 10.2.3",
+          "first_patched_version": "10.2.3",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 9.0.0, < 9.0.7",
+          "first_patched_version": "9.0.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 8.0.0, < 8.0.6",
+          "first_patched_version": "8.0.6",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 7.0.0, < 7.4.8",
+          "first_patched_version": "7.4.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 6.0.0, < 6.2.2",
+          "first_patched_version": "6.2.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 5.0.0, < 5.1.8",
+          "first_patched_version": "5.1.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.2.5",
+          "first_patched_version": "4.2.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": "< 3.1.3",
+          "first_patched_version": "3.1.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Matching an untrusted pattern with several nonadjacent GLOBSTAR segments against a path; recursive matchOne backtracks combinatorially.",
+      "primaryReferences": [
+        "https://github.com/isaacs/minimatch/security/advisories/GHSA-7r86-cg39-jmmj",
+        "https://github.com/isaacs/minimatch/commit/0bf499aa45f5059b56809cc3b75ff3eafeb8d748",
+        "https://github.com/advisories/GHSA-7r86-cg39-jmmj"
+      ]
+    },
+    "GHSA-3ppc-4f35-3m26": {
+      "id": "GHSA-3ppc-4f35-3m26",
+      "cveId": "CVE-2026-26996",
+      "officialSource": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "officialApiSnapshotSha256": "0381f5c59d1f00fd05f34b278ec56902ed2573fa431750447052fe875c627c68",
+      "summary": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+      "severity": "high",
+      "publishedAt": "2026-02-18T22:38:11Z",
+      "updatedAt": "2026-02-24T20:59:58Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 10.0.0, < 10.2.1",
+          "first_patched_version": "10.2.1",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 9.0.0, < 9.0.6",
+          "first_patched_version": "9.0.6",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 8.0.0, < 8.0.5",
+          "first_patched_version": "8.0.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 7.0.0, < 7.4.7",
+          "first_patched_version": "7.4.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 6.0.0, < 6.2.1",
+          "first_patched_version": "6.2.1",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 5.0.0, < 5.1.7",
+          "first_patched_version": "5.1.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.2.4",
+          "first_patched_version": "4.2.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": "< 3.1.3",
+          "first_patched_version": "3.1.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Matching an untrusted glob with repeated wildcards and an absent trailing literal; generated regex backtracks exponentially.",
+      "primaryReferences": [
+        "https://github.com/isaacs/minimatch/security/advisories/GHSA-3ppc-4f35-3m26",
+        "https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5",
+        "https://github.com/advisories/GHSA-3ppc-4f35-3m26"
+      ]
+    },
+    "GHSA-hwx4-2j3j-g496": {
+      "id": "GHSA-hwx4-2j3j-g496",
+      "cveId": "CVE-2026-50016",
+      "officialSource": "https://github.com/advisories/GHSA-hwx4-2j3j-g496",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-hwx4-2j3j-g496",
+      "officialApiSnapshotSha256": "0b5cbb749adf2aa50aee863a7ba0a76ec837f00cfa98b15a4b6fb13e7d2e839c",
+      "summary": "pnpm: Transitive dependency alias path traversal allows project path override via symlink replacement",
+      "severity": "high",
+      "publishedAt": "2026-06-26T22:55:51Z",
+      "updatedAt": "2026-06-26T22:55:52Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.0",
+          "first_patched_version": "10.34.0",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.4.0",
+          "first_patched_version": "11.4.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Installing registry package metadata with a traversal-shaped transitive alias; dependency linking replaces project paths with attacker package symlinks even with ignore-scripts.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-hwx4-2j3j-g496",
+        "https://github.com/advisories/GHSA-hwx4-2j3j-g496"
+      ]
+    },
+    "GHSA-ch52-4w7c-c8xp": {
+      "id": "GHSA-ch52-4w7c-c8xp",
+      "cveId": "CVE-2026-93748",
+      "officialSource": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "officialApiSnapshotSha256": "ef590317e706452c9bc93d6519155fa7cba06a26ef7656a662b290be3ba693e9",
+      "summary": "http-cache-semantics max-stale handling can disclose cross-user cached responses",
+      "severity": "high",
+      "publishedAt": "2026-09-18T18:31:44Z",
+      "updatedAt": "2026-10-02T22:36:44Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "http-cache-semantics"
+          },
+          "vulnerable_version_range": "<= 4.2.0",
+          "first_patched_version": null,
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Reported trigger: a retained shared-cache response with Set-Cookie/proxy-revalidate is reused after a requester sends max-stale. Maintainer disputes this security interpretation; private cache directives are material.",
+      "primaryReferences": [
+        "https://github.com/kornelski/http-cache-semantics/issues/56",
+        "https://github.com/kornelski/http-cache-semantics/blob/f01112e954b83cfa8765b633ba880e5e980aa54c/index.js#L425-L441",
+        "https://github.com/kornelski/http-cache-semantics/blob/f01112e954b83cfa8765b633ba880e5e980aa54c/index.js#L603-L623",
+        "https://github.com/advisories/GHSA-ch52-4w7c-c8xp"
+      ]
+    },
+    "GHSA-2883-xcg3-v3hh": {
+      "id": "GHSA-2883-xcg3-v3hh",
+      "cveId": "CVE-2026-84375",
+      "officialSource": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-2883-xcg3-v3hh",
+      "officialApiSnapshotSha256": "e54c47b333941edeaf62d6fd4532f72ab2f48b0afbbadd11cc66faa15f71657e",
+      "summary": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+      "severity": "high",
+      "publishedAt": "2026-09-08T21:24:51Z",
+      "updatedAt": "2026-09-08T21:24:52Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "js-yaml"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.3.2",
+          "first_patched_version": "4.3.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "js-yaml"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.15.2",
+          "first_patched_version": "3.15.2",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Parsing untrusted YAML with repeated merge sequences of empty mappings; empty sources evade the merge-key CPU budget.",
+      "primaryReferences": [
+        "https://github.com/nodeca/js-yaml/security/advisories/GHSA-2883-xcg3-v3hh",
+        "https://github.com/nodeca/js-yaml/pull/797",
+        "https://github.com/nodeca/js-yaml/commit/3485bc06ff8a0251505f44a00414d90df2466639",
+        "https://github.com/nodeca/js-yaml/commit/6a8e05f9a485188ed730ac81e81ae221352ef480",
+        "https://github.com/nodeca/js-yaml/commit/d90b6612a5a84385bdcb556c44578eac76dc0f6b",
+        "https://github.com/nodeca/js-yaml/releases/tag/3.15.2",
+        "https://github.com/nodeca/js-yaml/releases/tag/4.3.2",
+        "https://github.com/advisories/GHSA-2883-xcg3-v3hh"
+      ]
+    },
+    "GHSA-r292-9mhp-454m": {
+      "id": "GHSA-r292-9mhp-454m",
+      "cveId": "CVE-2026-73566",
+      "officialSource": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-r292-9mhp-454m",
+      "officialApiSnapshotSha256": "ef982bc233cc9bec78599722c654aa119f4dfd85793e3895548661ba9400e94d",
+      "summary": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
+      "severity": "high",
+      "publishedAt": "2026-07-24T16:26:16Z",
+      "updatedAt": "2026-08-21T19:08:23Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.20",
+          "first_patched_version": "7.5.21",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Listing/extracting selected TAR members from untrusted input with very deep GNU/PAX long paths; mapHas recurses before extraction depth guards.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-r292-9mhp-454m",
+        "https://github.com/isaacs/node-tar/commit/631ae59121bf8fc8a22bbae35f074cb9b789cd4a",
+        "https://github.com/isaacs/node-tar/releases/tag/v7.5.21",
+        "https://github.com/advisories/GHSA-r292-9mhp-454m"
+      ]
+    },
+    "GHSA-23c5-xmqv-rm74": {
+      "id": "GHSA-23c5-xmqv-rm74",
+      "cveId": "CVE-2026-27904",
+      "officialSource": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "officialApiSnapshotSha256": "0c25aa3072c0ee77526a5dea354ba3c0c66050a15020cbb9b56a3868c4f4388a",
+      "summary": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+      "severity": "high",
+      "publishedAt": "2026-02-26T22:07:15Z",
+      "updatedAt": "2026-02-26T22:07:15Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 10.0.0, < 10.2.3",
+          "first_patched_version": "10.2.3",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 9.0.0, < 9.0.7",
+          "first_patched_version": "9.0.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 8.0.0, < 8.0.6",
+          "first_patched_version": "8.0.6",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 7.0.0, < 7.4.8",
+          "first_patched_version": "7.4.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 6.0.0, < 6.2.2",
+          "first_patched_version": "6.2.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 5.0.0, < 5.1.8",
+          "first_patched_version": "5.1.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.2.5",
+          "first_patched_version": "4.2.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "minimatch"
+          },
+          "vulnerable_version_range": "< 3.1.4",
+          "first_patched_version": "3.1.4",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Matching attacker-controlled nested star/plus extglob patterns against a nonmatching input; default minimatch API, without special options.",
+      "primaryReferences": [
+        "https://github.com/isaacs/minimatch/security/advisories/GHSA-23c5-xmqv-rm74",
+        "https://github.com/isaacs/minimatch/commit/11d0df6165d15a955462316b26d52e5efae06fce",
+        "https://github.com/advisories/GHSA-23c5-xmqv-rm74"
+      ]
+    },
+    "GHSA-c2c7-rcm5-vvqj": {
+      "id": "GHSA-c2c7-rcm5-vvqj",
+      "cveId": "CVE-2026-33671",
+      "officialSource": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+      "officialApiSnapshotSha256": "c04fc429d60f37962b1c6fd60d09bff7bb96e352f9699d217f14831dc718925c",
+      "summary": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+      "severity": "high",
+      "publishedAt": "2026-03-25T21:12:07Z",
+      "updatedAt": "2026-03-27T21:36:14Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "picomatch"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.0.4",
+          "first_patched_version": "4.0.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "picomatch"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.0.2",
+          "first_patched_version": "3.0.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "picomatch"
+          },
+          "vulnerable_version_range": "< 2.3.2",
+          "first_patched_version": "2.3.2",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Matching untrusted glob patterns with nested or repeated extglob quantifiers; regex execution can consume excessive CPU.",
+      "primaryReferences": [
+        "https://github.com/micromatch/picomatch/security/advisories/GHSA-c2c7-rcm5-vvqj",
+        "https://github.com/micromatch/picomatch/commit/5eceecd27543b8e056b9307d69e105ea03618a7d",
+        "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj"
+      ]
+    },
+    "GHSA-7vhp-vf5g-r2fw": {
+      "id": "GHSA-7vhp-vf5g-r2fw",
+      "cveId": "CVE-2025-69263",
+      "officialSource": "https://github.com/advisories/GHSA-7vhp-vf5g-r2fw",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-7vhp-vf5g-r2fw",
+      "officialApiSnapshotSha256": "5a5beb8dbc5fb3ff0d1334607fe1d3ccbad5637774c6e01b6ea3ba8a45074f70",
+      "summary": "pnpm Has Lockfile Integrity Bypass that Allows Remote Dynamic Dependencies",
+      "severity": "high",
+      "publishedAt": "2026-01-07T19:06:59Z",
+      "updatedAt": "2026-01-08T20:05:35Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.26.0",
+          "first_patched_version": "10.26.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Installing an HTTP/git tarball dependency whose lockfile omits integrity; the remote server changes content after the lock is committed.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-7vhp-vf5g-r2fw",
+        "https://github.com/pnpm/pnpm/commit/0958027f88a99ccefe7e9676cdebba393dfbdc85",
+        "https://github.com/advisories/GHSA-7vhp-vf5g-r2fw"
+      ]
+    },
+    "GHSA-rxhj-4m44-96r4": {
+      "id": "GHSA-rxhj-4m44-96r4",
+      "cveId": "CVE-2026-50015",
+      "officialSource": "https://github.com/advisories/GHSA-rxhj-4m44-96r4",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-rxhj-4m44-96r4",
+      "officialApiSnapshotSha256": "297eacfd9ca15d0041a5101599032e612d0f1832fe6bbd6a0c5f7be97ec65994",
+      "summary": "pnpm Vulnerable to Arbitrary File Write/Delete via Malicious Patch File (Path Traversal)",
+      "severity": "high",
+      "publishedAt": "2026-06-26T22:59:48Z",
+      "updatedAt": "2026-06-26T22:59:49Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.0",
+          "first_patched_version": "10.34.0",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.4.0",
+          "first_patched_version": "11.4.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm install applies a repository-controlled patch containing traversal file paths; writes/deletes occur outside the package directory.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-rxhj-4m44-96r4",
+        "https://github.com/advisories/GHSA-rxhj-4m44-96r4"
+      ]
+    },
+    "GHSA-qffp-2rhf-9h96": {
+      "id": "GHSA-qffp-2rhf-9h96",
+      "cveId": "CVE-2026-29786",
+      "officialSource": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "officialApiSnapshotSha256": "8e46d9abab2cf9e7f64e5e325ab37d3e3004eba6cbedd3c73283efbd65137023",
+      "summary": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+      "severity": "high",
+      "publishedAt": "2026-03-05T00:52:32Z",
+      "updatedAt": "2026-03-09T15:49:59Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.9",
+          "first_patched_version": "7.5.10",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted TAR hardlink entry with a drive-relative target; the link can escape cwd.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-qffp-2rhf-9h96",
+        "https://github.com/isaacs/node-tar/commit/7bc755dd85e623c0279e08eb3784909e6d7e4b9f",
+        "https://github.com/advisories/GHSA-qffp-2rhf-9h96"
+      ]
+    },
+    "GHSA-8qq5-rm4j-mr97": {
+      "id": "GHSA-8qq5-rm4j-mr97",
+      "cveId": "CVE-2026-23745",
+      "officialSource": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "officialApiSnapshotSha256": "c8d355b066543badcd9350a45f2dd9a7cf26de16b3189009a26f7193444afb37",
+      "summary": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+      "severity": "high",
+      "publishedAt": "2026-01-16T21:16:20Z",
+      "updatedAt": "2026-02-18T23:43:47Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.2",
+          "first_patched_version": "7.5.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted TAR with hardlink or symbolic-link linkpath escaping cwd despite default preservePaths=false.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-8qq5-rm4j-mr97",
+        "https://github.com/isaacs/node-tar/commit/340eb285b6d986e91969a1170d7fe9b0face405e",
+        "https://github.com/advisories/GHSA-8qq5-rm4j-mr97"
+      ]
+    },
+    "GHSA-c475-qrg2-pj4r": {
+      "id": "GHSA-c475-qrg2-pj4r",
+      "cveId": "CVE-2026-102990",
+      "officialSource": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-c475-qrg2-pj4r",
+      "officialApiSnapshotSha256": "8246142cf2b3d2984b4229782deecd38eccf441a816d12471305c31e039aa502",
+      "summary": "basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking)",
+      "severity": "high",
+      "publishedAt": "2026-10-01T14:42:42Z",
+      "updatedAt": "2026-10-01T14:42:45Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "basic-ftp"
+          },
+          "vulnerable_version_range": "<= 6.2.0",
+          "first_patched_version": "6.2.1",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Calling basic-ftp Client.list on an attacker-controlled FTP server returning a crafted Unix listing line; the listing parser blocks the event loop.",
+      "primaryReferences": [
+        "https://github.com/patrickjuchli/basic-ftp/security/advisories/GHSA-c475-qrg2-pj4r",
+        "https://github.com/patrickjuchli/basic-ftp/commit/d0d9e07c56e519587bb50532ac6eadbb0cb0cfe9",
+        "https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.2.1",
+        "https://github.com/advisories/GHSA-c475-qrg2-pj4r"
+      ]
+    },
+    "GHSA-6j4f-fj2g-mc7p": {
+      "id": "GHSA-6j4f-fj2g-mc7p",
+      "cveId": "CVE-2026-102276",
+      "officialSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "officialApiSnapshotSha256": "a3e8fe984623d518b24d9c1e8ef960206eaf348a7ad50b9e8a5dc8e29881ec5b",
+      "summary": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "publishedAt": "2026-09-29T23:44:58Z",
+      "updatedAt": "2026-09-29T23:44:59Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 5.0.10",
+          "first_patched_version": "5.0.10",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.0.7",
+          "first_patched_version": "3.0.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.5",
+          "first_patched_version": "2.1.5",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": "< 1.1.19",
+          "first_patched_version": "1.1.19",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Expanding untrusted brace patterns that drive deep parseCommaParts recursion and exhaust the process stack.",
+      "primaryReferences": [
+        "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-6j4f-fj2g-mc7p",
+        "https://github.com/juliangruber/brace-expansion/commit/0bcbfc0a5928c3073d48f42999d1ce4fc1c42fbc",
+        "https://github.com/juliangruber/brace-expansion/commit/316359e6019c39b3254c8ba8e25dc586a480652c",
+        "https://github.com/juliangruber/brace-expansion/commit/5171e681c0922b7ae8bfaf9a331e309107be6edc",
+        "https://github.com/juliangruber/brace-expansion/commit/6735c94873ca570bcdd6a0690033bdd3126379d3",
+        "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+      ]
+    },
+    "GHSA-qhr7-859c-m2p7": {
+      "id": "GHSA-qhr7-859c-m2p7",
+      "cveId": "CVE-2026-102278",
+      "officialSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "officialApiSnapshotSha256": "6c9d5874da235e1e9c38c9d3601ce402a4392adbce9251a5148da6c8cd0a06be",
+      "summary": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "publishedAt": "2026-09-29T23:45:17Z",
+      "updatedAt": "2026-09-29T23:45:19Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 5.0.11",
+          "first_patched_version": "5.0.11",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.0.8",
+          "first_patched_version": "3.0.8",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.6",
+          "first_patched_version": "2.1.6",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": "< 1.1.20",
+          "first_patched_version": "1.1.20",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Expanding deeply nested untrusted brace sets; remaining nested-group recursion exhausts the stack despite output limits.",
+      "primaryReferences": [
+        "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-qhr7-859c-m2p7",
+        "https://github.com/juliangruber/brace-expansion/commit/1efee7c397c191da6287a78ec19512476a966a7b",
+        "https://github.com/juliangruber/brace-expansion/commit/935d78f32f335b2ff76578e5c5e877d31ae9888c",
+        "https://github.com/juliangruber/brace-expansion/commit/de84f144e9816f30e25fc8179e2e1249ab6df0db",
+        "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+      ]
+    },
+    "GHSA-w4pp-8pjf-rmxw": {
+      "id": "GHSA-w4pp-8pjf-rmxw",
+      "cveId": "CVE-2026-9496",
+      "officialSource": "https://github.com/advisories/GHSA-w4pp-8pjf-rmxw",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-w4pp-8pjf-rmxw",
+      "officialApiSnapshotSha256": "49f2f74b3af3050d6cde1b3b7e0240095920388c19df47b5c78318d99184e50d",
+      "summary": "pacote is vulnerable to Denial of Service (DoS) via the addGitSha function",
+      "severity": "high",
+      "publishedAt": "2026-05-26T13:30:54Z",
+      "updatedAt": "2026-08-27T16:39:42Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pacote"
+          },
+          "vulnerable_version_range": ">= 11.2.7, < 21.5.1",
+          "first_patched_version": "21.5.1",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Processing an attacker-controlled git rawSpec with pacote addGitSha; regex/string replacement consumes excessive CPU.",
+      "primaryReferences": [
+        "https://github.com/npm/pacote/blob/9d7459440826ab4cf962ef98d8f3fd0c4d464b5c/lib/util/add-git-sha.js%23L2C1-L13C2",
+        "https://github.com/npm/pacote/commit/627a7dc1a214d857472a13b48e42559c75288c9e",
+        "https://github.com/npm/pacote/commit/ce804fb1647fe1699b2f87efd01ea9f4efed8508",
+        "https://github.com/npm/pacote/releases/tag/v21.5.1",
+        "https://github.com/npm/pacote/releases/tag/v22.0.0",
+        "https://github.com/advisories/GHSA-w4pp-8pjf-rmxw"
+      ]
+    },
+    "GHSA-3jxr-9vmj-r5cp": {
+      "id": "GHSA-3jxr-9vmj-r5cp",
+      "cveId": "CVE-2026-13149",
+      "officialSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "officialApiSnapshotSha256": "5f01a58ba886936f68125ac1a231d56ad939226fe2c7178db3aa2ebb86d4aa5d",
+      "summary": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "severity": "high",
+      "publishedAt": "2026-07-20T20:51:09Z",
+      "updatedAt": "2026-07-20T20:51:11Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 5.0.7",
+          "first_patched_version": "5.0.7",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": "< 1.1.16",
+          "first_patched_version": "1.1.16",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.2",
+          "first_patched_version": "2.1.2",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Expanding an untrusted pattern containing consecutive nonexpanding brace groups; redundant recursion causes exponential CPU use.",
+      "primaryReferences": [
+        "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-3jxr-9vmj-r5cp",
+        "https://github.com/juliangruber/brace-expansion/pull/122",
+        "https://github.com/juliangruber/brace-expansion/pull/123",
+        "https://github.com/juliangruber/brace-expansion/commit/835d6be91201122d9adffb0c0c8c094189ace265",
+        "https://github.com/juliangruber/brace-expansion/commit/c7e33ec13ac1a684c116720843ce24e208611754",
+        "https://github.com/juliangruber/brace-expansion/commit/d74e63030c012e3b7ae81657b8d665619cd51b95",
+        "https://github.com/juliangruber/brace-expansion/releases/tag/v1.1.16",
+        "https://github.com/juliangruber/brace-expansion/releases/tag/v2.1.2",
+        "https://github.com/juliangruber/brace-expansion/releases/tag/v5.0.7",
+        "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+      ]
+    },
+    "GHSA-w466-c33r-3gjp": {
+      "id": "GHSA-w466-c33r-3gjp",
+      "cveId": "CVE-2026-55698",
+      "officialSource": "https://github.com/advisories/GHSA-w466-c33r-3gjp",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-w466-c33r-3gjp",
+      "officialApiSnapshotSha256": "f03cfab3a917bd529bed11ecdb1f7b49a4d2d2e3ee69c0dd1ee9ed9fdddea265",
+      "summary": "pnpm: Project env lockfile can short-circuit package-manager resolution and execute lockfile-selected pnpm bytes",
+      "severity": "high",
+      "publishedAt": "2026-06-26T23:34:06Z",
+      "updatedAt": "2026-06-26T23:34:07Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.2",
+          "first_patched_version": "10.34.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.5.3",
+          "first_patched_version": "11.5.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Automatic pnpm version switching trusts repository-committed packageManagerDependencies in the env lockfile and executes its selected package-manager bytes.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-w466-c33r-3gjp",
+        "https://github.com/advisories/GHSA-w466-c33r-3gjp"
+      ]
+    },
+    "GHSA-r6q2-hw4h-h46w": {
+      "id": "GHSA-r6q2-hw4h-h46w",
+      "cveId": "CVE-2026-23950",
+      "officialSource": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "officialApiSnapshotSha256": "4b383ba694c111945135b8177c4415bcaf12d1ddeb2b7eac17159dbe74f852ec",
+      "summary": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+      "severity": "high",
+      "publishedAt": "2026-01-21T01:05:49Z",
+      "updatedAt": "2026-03-16T14:23:27Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.3",
+          "first_patched_version": "7.5.4",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Parallel extraction of colliding Unicode paths on a case/normalization-insensitive filesystem, demonstrated on macOS APFS; path reservations do not serialize the collision.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-r6q2-hw4h-h46w",
+        "https://github.com/isaacs/node-tar/commit/3b1abfae650056edfabcbe0a0df5954d390521e6",
+        "https://github.com/advisories/GHSA-r6q2-hw4h-h46w"
+      ]
+    },
+    "GHSA-83g3-92jg-28cx": {
+      "id": "GHSA-83g3-92jg-28cx",
+      "cveId": "CVE-2026-26960",
+      "officialSource": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-83g3-92jg-28cx",
+      "officialApiSnapshotSha256": "1311930a15dffde51b13702c6dfb121e4e2b175d5056b26304af4e56f9a96d3a",
+      "summary": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+      "severity": "high",
+      "publishedAt": "2026-02-18T00:57:13Z",
+      "updatedAt": "2026-02-20T16:47:50Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "< 7.5.8",
+          "first_patched_version": "7.5.8",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted TAR hardlink through a symlink chain that escapes the extraction root.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-83g3-92jg-28cx",
+        "https://github.com/isaacs/node-tar/commit/2cb1120bcefe28d7ecc719b41441ade59c52e384",
+        "https://github.com/isaacs/node-tar/commit/d18e4e1f846f4ddddc153b0f536a19c050e7499f",
+        "https://github.com/advisories/GHSA-83g3-92jg-28cx"
+      ]
+    },
+    "GHSA-9ppj-qmqm-q256": {
+      "id": "GHSA-9ppj-qmqm-q256",
+      "cveId": "CVE-2026-31802",
+      "officialSource": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "officialApiSnapshotSha256": "24f60ca8e3cec2729c8d1f335c039ce8a54d6a013b2d8655bbad6ded8b1baf13",
+      "summary": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+      "severity": "high",
+      "publishedAt": "2026-03-10T23:44:58Z",
+      "updatedAt": "2026-03-10T23:44:59Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "tar"
+          },
+          "vulnerable_version_range": "<= 7.5.10",
+          "first_patched_version": "7.5.11",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Extracting an untrusted TAR symbolic-link entry with a drive-relative target; the link can escape cwd.",
+      "primaryReferences": [
+        "https://github.com/isaacs/node-tar/security/advisories/GHSA-9ppj-qmqm-q256",
+        "https://github.com/isaacs/node-tar/commit/f48b5fa3b7985ddab96dc0f2125a4ffc9911b6ad",
+        "https://github.com/advisories/GHSA-9ppj-qmqm-q256"
+      ]
+    },
+    "GHSA-gj8w-mvpf-x27x": {
+      "id": "GHSA-gj8w-mvpf-x27x",
+      "cveId": "CVE-2026-55697",
+      "officialSource": "https://github.com/advisories/GHSA-gj8w-mvpf-x27x",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-gj8w-mvpf-x27x",
+      "officialApiSnapshotSha256": "a5fbad73976fe0f9e5b24397338ac791b4e014a533c7b6489e02cc74022322d9",
+      "summary": "pnpm: Repository-controlled configDependencies can select a pacquet native install engine",
+      "severity": "high",
+      "publishedAt": "2026-06-26T23:20:47Z",
+      "updatedAt": "2026-08-13T16:06:33Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.2",
+          "first_patched_version": "10.34.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.5.3",
+          "first_patched_version": "11.5.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Repository-controlled configDependencies select pacquet/@pnpm/pacquet as an install engine before command dispatch; native code can run even before ordinary dependency install.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-gj8w-mvpf-x27x",
+        "https://github.com/advisories/GHSA-gj8w-mvpf-x27x"
+      ]
+    },
+    "GHSA-52v5-jr5w-gjxr": {
+      "id": "GHSA-52v5-jr5w-gjxr",
+      "cveId": "CVE-2026-48815",
+      "officialSource": "https://github.com/advisories/GHSA-52v5-jr5w-gjxr",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-52v5-jr5w-gjxr",
+      "officialApiSnapshotSha256": "e676e10078991cb0779508de298a22ce447cfb611ccc55a9066d0d3e4ef13087",
+      "summary": "sigstore's `certificateOIDs` verification constraints are silently dropped and never enforced",
+      "severity": "high",
+      "publishedAt": "2026-07-01T19:58:28Z",
+      "updatedAt": "2026-07-01T19:58:29Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "sigstore"
+          },
+          "vulnerable_version_range": "<= 4.1.0",
+          "first_patched_version": "4.1.1",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Calling sigstore.verify/createVerifier with certificateOIDs as a required certificate policy; supplied OID constraints are discarded.",
+      "primaryReferences": [
+        "https://github.com/sigstore/sigstore-js/security/advisories/GHSA-52v5-jr5w-gjxr",
+        "https://github.com/advisories/GHSA-52v5-jr5w-gjxr"
+      ]
+    },
+    "GHSA-5wx6-mg75-v57r": {
+      "id": "GHSA-5wx6-mg75-v57r",
+      "cveId": "CVE-2026-55487",
+      "officialSource": "https://github.com/advisories/GHSA-5wx6-mg75-v57r",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-5wx6-mg75-v57r",
+      "officialApiSnapshotSha256": "d932aff9d62ba867b1df38ae71c758e1925723a8bcb03e5af81f81e38e47bba2",
+      "summary": "pnpm: Manifest identity spoof satisfies allowBuilds and runs attacker lifecycle",
+      "severity": "high",
+      "publishedAt": "2026-06-26T23:18:13Z",
+      "updatedAt": "2026-06-26T23:18:14Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.2",
+          "first_patched_version": "10.34.2",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.5.3",
+          "first_patched_version": "11.5.3",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Install/build approval uses dependency identity normalization; distinct opaque git/URL/tarball/file locators can collide with an approved allowBuilds key.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-5wx6-mg75-v57r",
+        "https://github.com/pnpm/pnpm/commit/bf1b731ee6c0ea98709e671ff0f46bf654480ab8",
+        "https://github.com/pnpm/pnpm/releases/tag/v10.34.2",
+        "https://github.com/pnpm/pnpm/releases/tag/v11.5.3",
+        "https://github.com/advisories/GHSA-5wx6-mg75-v57r"
+      ]
+    },
+    "GHSA-5p4m-2wfm-xmqj": {
+      "id": "GHSA-5p4m-2wfm-xmqj",
+      "cveId": null,
+      "officialSource": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "officialApiSnapshotSha256": "82d6a005032e4fb7e0f4b98cb2246f85783064c1405f65d36fab7d7e7cb36d2c",
+      "summary": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) \u2014 CVE-2026-59870 fix not backported",
+      "severity": "high",
+      "publishedAt": "2026-08-06T20:27:32Z",
+      "updatedAt": "2026-08-06T20:27:32Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "js-yaml"
+          },
+          "vulnerable_version_range": ">= 4.0.0, < 4.3.1",
+          "first_patched_version": "4.3.1",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "js-yaml"
+          },
+          "vulnerable_version_range": ">= 3.0.0, < 3.15.1",
+          "first_patched_version": "3.15.1",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Parsing untrusted YAML containing a large !!omap; default schema uniqueness checks formerly scanned a growing array.",
+      "primaryReferences": [
+        "https://github.com/nodeca/js-yaml/security/advisories/GHSA-5p4m-2wfm-xmqj",
+        "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj"
+      ]
+    },
+    "GHSA-72r4-9c5j-mj57": {
+      "id": "GHSA-72r4-9c5j-mj57",
+      "cveId": null,
+      "officialSource": "https://github.com/advisories/GHSA-72r4-9c5j-mj57",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-72r4-9c5j-mj57",
+      "officialApiSnapshotSha256": "1d6f91da66a4116cfde078c9a979a54a3840c53db6b66c8d39f9c16233c00ee8",
+      "summary": "pnpm: `patch-remove` could delete project-selected files outside the patches directory",
+      "severity": "high",
+      "publishedAt": "2026-06-27T00:12:39Z",
+      "updatedAt": "2026-06-27T00:12:40Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.4",
+          "first_patched_version": "10.34.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.7.0",
+          "first_patched_version": "11.7.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "Executing pnpm patch-remove on a repository-controlled patchedDependencies path outside the intended patches directory.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-72r4-9c5j-mj57",
+        "https://github.com/pnpm/pnpm/commit/612a2e6a7333f2b061f452a21b6e62c1c161747f",
+        "https://github.com/advisories/GHSA-72r4-9c5j-mj57"
+      ]
+    },
+    "GHSA-fr4h-3cph-29xv": {
+      "id": "GHSA-fr4h-3cph-29xv",
+      "cveId": null,
+      "officialSource": "https://github.com/advisories/GHSA-fr4h-3cph-29xv",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-fr4h-3cph-29xv",
+      "officialApiSnapshotSha256": "39a6a48683caf16359a87f18c3cfa21824ea91c3dc3db1175dc9565fc5f3adeb",
+      "summary": "pnpm: Hoisted install imports lockfile alias outside node_modules",
+      "severity": "high",
+      "publishedAt": "2026-06-27T00:02:51Z",
+      "updatedAt": "2026-06-27T00:03:05Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.4",
+          "first_patched_version": "10.34.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.7.0",
+          "first_patched_version": "11.7.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm hoisted install reads an attacker-controlled lockfile alias containing traversal or reserved names and imports files outside node_modules.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-fr4h-3cph-29xv",
+        "https://github.com/advisories/GHSA-fr4h-3cph-29xv"
+      ]
+    },
+    "GHSA-qrv3-253h-g69c": {
+      "id": "GHSA-qrv3-253h-g69c",
+      "cveId": null,
+      "officialSource": "https://github.com/advisories/GHSA-qrv3-253h-g69c",
+      "officialApiSource": "https://api.github.com/advisories/GHSA-qrv3-253h-g69c",
+      "officialApiSnapshotSha256": "601676977de885e9b4108a17ef682b457ff879ced96af218316f78330cec1fc9",
+      "summary": "pnpm: Path traversal in configDependencies env lockfile allows symlink creation outside node_modules/.pnpm-config",
+      "severity": "high",
+      "publishedAt": "2026-06-27T00:13:18Z",
+      "updatedAt": "2026-06-27T00:13:21Z",
+      "withdrawnAt": null,
+      "affectedAndFirstPatchedRanges": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": "< 10.34.4",
+          "first_patched_version": "10.34.4",
+          "vulnerable_functions": []
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "pnpm"
+          },
+          "vulnerable_version_range": ">= 11.0.0, < 11.8.0",
+          "first_patched_version": "11.8.0",
+          "vulnerable_functions": []
+        }
+      ],
+      "triggerInput": "pnpm install reads a traversal-shaped config dependency name in the env lockfile and creates a symlink outside node_modules/.pnpm-config.",
+      "primaryReferences": [
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-qrv3-253h-g69c",
+        "https://github.com/advisories/GHSA-qrv3-253h-g69c"
+      ]
+    }
+  },
+  "evidenceMatrix": [
+    {
+      "scanRecordIndex": 1,
+      "package": "glob",
+      "lockedVersion": "10.4.5",
+      "advisoryId": "GHSA-5j98-mcp5-4vw2",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.5.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.5.0",
+            "date": "2025-11-19",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/glob/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.5.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.5.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 2,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-379q-355j-w6rj",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.26.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.26.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.26.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.26.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 3,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-2phv-j68v-wwqx",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.27.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.27.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.27.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.27.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 4,
+      "package": "braces",
+      "lockedVersion": "3.0.3",
+      "advisoryId": "GHSA-vfj7-8cjw-p6xm",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+      ],
+      "globalToolOwners": [
+        "pm2"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": null,
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "retained_braces_watch_exception",
+      "nativeProbeDisposition": "RETAINED_HIGH_WITH_BOUNDED_CALLER_EXCEPTION",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 5,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-23hp-3jrh-7fpw",
+      "scanSeverity": "Critical",
+      "scanFix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.19",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.19",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 6,
+      "package": "tar",
+      "lockedVersion": "7.5.11",
+      "advisoryId": "GHSA-23hp-3jrh-7fpw",
+      "scanSeverity": "Critical",
+      "scanFix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.19",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.19",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 7,
+      "package": "ip-address",
+      "lockedVersion": "10.1.0",
+      "advisoryId": "GHSA-mwp4-54f8-5fhr",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.3.1",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.3.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.3.1",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 8,
+      "package": "ip-address",
+      "lockedVersion": "9.0.5",
+      "advisoryId": "GHSA-mwp4-54f8-5fhr",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.3.1",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/ip-address/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.3.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 9,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-8x88-c5mf-7j5w",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.18",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.18",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 10,
+      "package": "tar",
+      "lockedVersion": "7.5.11",
+      "advisoryId": "GHSA-8x88-c5mf-7j5w",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.18",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.18",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 11,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.1",
+      "advisoryId": "GHSA-rgw5-rvv9-x895",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 12,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.2",
+      "advisoryId": "GHSA-rgw5-rvv9-x895",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 13,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-34x7-hfp2-rc4v",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.7",
+            "date": "2026-01-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.7",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.7",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 14,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.1",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.3",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.3",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 15,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.2",
+      "advisoryId": "GHSA-mh99-v99m-4gvg",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.3",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.3",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 16,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-vq4v-j7r6-jq4m",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.5",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.5",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 17,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-c59q-g84q-2gj5",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.5",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.5",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 18,
+      "package": "minimatch",
+      "lockedVersion": "9.0.5",
+      "advisoryId": "GHSA-7r86-cg39-jmmj",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "9.0.7",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "9.0.7",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 19,
+      "package": "minimatch",
+      "lockedVersion": "9.0.5",
+      "advisoryId": "GHSA-3ppc-4f35-3m26",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "9.0.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.6",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "9.0.6",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "9.0.6",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 20,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-hwx4-2j3j-g496",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.0",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 21,
+      "package": "http-cache-semantics",
+      "lockedVersion": "4.1.1",
+      "advisoryId": "GHSA-ch52-4w7c-c8xp",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/http-cache-semantics/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": null,
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 22,
+      "package": "http-cache-semantics",
+      "lockedVersion": "4.2.0",
+      "advisoryId": "GHSA-ch52-4w7c-c8xp",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/http-cache-semantics/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": null,
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 23,
+      "package": "js-yaml",
+      "lockedVersion": "4.3.0",
+      "advisoryId": "GHSA-2883-xcg3-v3hh",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "4.3.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.3.2",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/js-yaml/package.json"
+      ],
+      "globalToolOwners": [
+        "pm2"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "4.3.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "4.3.2",
+      "decisionId": "patched_pm2_js_yaml",
+      "nativeProbeDisposition": "PATCHED_IN_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 24,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-r292-9mhp-454m",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.21",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.21",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 25,
+      "package": "tar",
+      "lockedVersion": "7.5.11",
+      "advisoryId": "GHSA-r292-9mhp-454m",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.21",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.21",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 26,
+      "package": "minimatch",
+      "lockedVersion": "9.0.5",
+      "advisoryId": "GHSA-23c5-xmqv-rm74",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/minimatch/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "9.0.7",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "9.0.7",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 27,
+      "package": "picomatch",
+      "lockedVersion": "4.0.3",
+      "advisoryId": "GHSA-c2c7-rcm5-vvqj",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "4.0.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.0.4",
+            "date": "2026-03-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/picomatch/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "4.0.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "4.0.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 28,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-7vhp-vf5g-r2fw",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.26.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.26.0",
+            "date": "2026-01-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.26.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.26.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 29,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-rxhj-4m44-96r4",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.0",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.0",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.0",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 30,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-qffp-2rhf-9h96",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.10"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.10",
+            "date": "2026-03-05",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.10",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.10",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 31,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-8qq5-rm4j-mr97",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.3",
+            "date": "2026-01-17",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.3",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.3",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 32,
+      "package": "basic-ftp",
+      "lockedVersion": "5.3.1",
+      "advisoryId": "GHSA-c475-qrg2-pj4r",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "6.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.1",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+      ],
+      "globalToolOwners": [
+        "pm2"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "6.2.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "retained_basic_ftp_agent_exception",
+      "nativeProbeDisposition": "RETAINED_HIGH_WITH_BOUNDED_CALLER_EXCEPTION",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 33,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.1",
+      "advisoryId": "GHSA-6j4f-fj2g-mc7p",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.5",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.5",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 34,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.1",
+      "advisoryId": "GHSA-qhr7-859c-m2p7",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.6",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.6",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 35,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.2",
+      "advisoryId": "GHSA-6j4f-fj2g-mc7p",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.5",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.5",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 36,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.2",
+      "advisoryId": "GHSA-qhr7-859c-m2p7",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.6",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.6",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 37,
+      "package": "pacote",
+      "lockedVersion": "19.0.2",
+      "advisoryId": "GHSA-w4pp-8pjf-rmxw",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "21.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "21.5.1",
+            "date": "2026-08-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/pacote/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "21.5.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 38,
+      "package": "pacote",
+      "lockedVersion": "20.0.1",
+      "advisoryId": "GHSA-w4pp-8pjf-rmxw",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "21.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "21.5.1",
+            "date": "2026-08-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/@npmcli/metavuln-calculator/node_modules/pacote/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "21.5.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 39,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.1",
+      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.2",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 40,
+      "package": "brace-expansion",
+      "lockedVersion": "2.0.2",
+      "advisoryId": "GHSA-3jxr-9vmj-r5cp",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "2.1.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "2.1.2",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 41,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-w466-c33r-3gjp",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.2",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 42,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-r6q2-hw4h-h46w",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.4",
+            "date": "2026-01-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 43,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-83g3-92jg-28cx",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.8",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.8",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.8",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 44,
+      "package": "tar",
+      "lockedVersion": "7.4.3",
+      "advisoryId": "GHSA-9ppj-qmqm-q256",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "7.5.11"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.11",
+            "date": "2026-03-11",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/dist/node_modules/tar/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "7.5.11",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "7.5.11",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 45,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-gj8w-mvpf-x27x",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-08-13",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.2",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 46,
+      "package": "sigstore",
+      "lockedVersion": "3.1.0",
+      "advisoryId": "GHSA-52v5-jr5w-gjxr",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "4.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.1.1",
+            "date": "2026-07-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/npm/node_modules/sigstore/package.json"
+      ],
+      "globalToolOwners": [
+        "npm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "4.1.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": null,
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 47,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-5wx6-mg75-v57r",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.2",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.2",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.2",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 48,
+      "package": "js-yaml",
+      "lockedVersion": "4.3.0",
+      "advisoryId": "GHSA-5p4m-2wfm-xmqj",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "4.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.3.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pm2/node_modules/js-yaml/package.json"
+      ],
+      "globalToolOwners": [
+        "pm2"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "4.3.1",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "4.3.1",
+      "decisionId": "patched_pm2_js_yaml",
+      "nativeProbeDisposition": "PATCHED_IN_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 49,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-72r4-9c5j-mj57",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 50,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-fr4h-3cph-29xv",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    },
+    {
+      "scanRecordIndex": 51,
+      "package": "pnpm",
+      "lockedVersion": "10.6.1",
+      "advisoryId": "GHSA-qrv3-253h-g69c",
+      "scanSeverity": "High",
+      "scanFix": {
+        "versions": [
+          "10.34.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.34.4",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "lockedManifestPaths": [
+        "/usr/local/lib/node_modules/pnpm/package.json"
+      ],
+      "globalToolOwners": [
+        "pnpm"
+      ],
+      "officialAffectedRangeMatchesLockedVersion": true,
+      "officialFirstPatchedVersionForLockedRange": "10.34.4",
+      "minimumSameMajorPatchedVersionForThisAdvisory": "10.34.4",
+      "decisionId": "removed_unused_runtime_package_manager",
+      "nativeProbeDisposition": "REMOVED_FROM_NATIVE_PROBE",
+      "finalServingImageDisposition": "CONDITIONAL_ON_ROOT_FINAL_GRAPH_SCAN_AND_RUNTIME_ACCEPTANCE"
+    }
+  ],
+  "publishedCandidateGraphs": [
+    {
+      "name": "npm",
+      "version": "10.9.9",
+      "metadataSource": "https://registry.npmjs.org/npm/10.9.9",
+      "engines": {
+        "node": "^18.17.0 || >=20.5.0"
+      },
+      "declaredRelevantDependencies": {
+        "tar": "^7.5.22",
+        "glob": "^10.5.0",
+        "pacote": "^19.0.1",
+        "minimatch": "^9.0.9"
+      },
+      "tarballSource": "https://registry.npmjs.org/npm/-/npm-10.9.9.tgz",
+      "tarballSha256": "c80bd097147cce32e31010b791bab8c71a26a5e10668210ec9d2e7f4c7cea2a1",
+      "publishedIntegrity": "sha512-1g+6jLQvaIuB4zwvHL7yrXuXcWZwDsCtBX8bbWDqbvJSSr9nPiDDWTHNgwXR27iIcTTW7v3A57hDW9RYv2W4Yg==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 196,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "pacote",
+          "version": "20.0.1",
+          "path": "package/node_modules/@npmcli/metavuln-calculator/node_modules/pacote/package.json"
+        },
+        {
+          "name": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "10.5.0",
+          "path": "package/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.1.0",
+          "path": "package/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "9.0.9",
+          "path": "package/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "pacote",
+          "version": "19.0.2",
+          "path": "package/node_modules/pacote/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.3",
+          "path": "package/node_modules/picomatch/package.json"
+        },
+        {
+          "name": "sigstore",
+          "version": "3.1.0",
+          "path": "package/node_modules/sigstore/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.22",
+          "path": "package/node_modules/tar/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "pacote",
+          "version": "20.0.1",
+          "path": "package/node_modules/@npmcli/metavuln-calculator/node_modules/pacote/package.json",
+          "advisoryId": "GHSA-w4pp-8pjf-rmxw"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-rgw5-rvv9-x895"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-mh99-v99m-4gvg"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.0.2",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-3jxr-9vmj-r5cp"
+        },
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        },
+        {
+          "package": "ip-address",
+          "version": "10.1.0",
+          "path": "package/node_modules/ip-address/package.json",
+          "advisoryId": "GHSA-mwp4-54f8-5fhr"
+        },
+        {
+          "package": "pacote",
+          "version": "19.0.2",
+          "path": "package/node_modules/pacote/package.json",
+          "advisoryId": "GHSA-w4pp-8pjf-rmxw"
+        },
+        {
+          "package": "picomatch",
+          "version": "4.0.3",
+          "path": "package/node_modules/picomatch/package.json",
+          "advisoryId": "GHSA-c2c7-rcm5-vvqj"
+        },
+        {
+          "package": "sigstore",
+          "version": "3.1.0",
+          "path": "package/node_modules/sigstore/package.json",
+          "advisoryId": "GHSA-52v5-jr5w-gjxr"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "npm",
+      "version": "11.17.0",
+      "metadataSource": "https://registry.npmjs.org/npm/11.17.0",
+      "engines": {
+        "node": "^20.17.0 || >=22.9.0"
+      },
+      "declaredRelevantDependencies": {
+        "tar": "^7.5.16",
+        "glob": "^13.0.6",
+        "pacote": "^21.5.1",
+        "minimatch": "^10.2.5"
+      },
+      "tarballSource": "https://registry.npmjs.org/npm/-/npm-11.17.0.tgz",
+      "tarballSha256": "b290bbb35b9e72c3ef84edbe041f28c4479c4d9ee79f555817b8caafe7ce4bba",
+      "publishedIntegrity": "sha512-PurxiZexEHDTE4SSaLI3ZrnbAGiZfeyUcQcxcP5D+hfytNAze/D1IzDuInTn9XVLIbAQUnQuSPXJx02LHjLvQw==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 144,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "13.0.6",
+          "path": "package/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.2.0",
+          "path": "package/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "10.2.5",
+          "path": "package/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "pacote",
+          "version": "21.5.1",
+          "path": "package/node_modules/pacote/package.json"
+        },
+        {
+          "name": "sigstore",
+          "version": "4.1.1",
+          "path": "package/node_modules/sigstore/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.16",
+          "path": "package/node_modules/tar/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.4",
+          "path": "package/node_modules/tinyglobby/node_modules/picomatch/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-rgw5-rvv9-x895"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-mh99-v99m-4gvg"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.6",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-3jxr-9vmj-r5cp"
+        },
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        },
+        {
+          "package": "ip-address",
+          "version": "10.2.0",
+          "path": "package/node_modules/ip-address/package.json",
+          "advisoryId": "GHSA-mwp4-54f8-5fhr"
+        },
+        {
+          "package": "tar",
+          "version": "7.5.16",
+          "path": "package/node_modules/tar/package.json",
+          "advisoryId": "GHSA-23hp-3jrh-7fpw"
+        },
+        {
+          "package": "tar",
+          "version": "7.5.16",
+          "path": "package/node_modules/tar/package.json",
+          "advisoryId": "GHSA-8x88-c5mf-7j5w"
+        },
+        {
+          "package": "tar",
+          "version": "7.5.16",
+          "path": "package/node_modules/tar/package.json",
+          "advisoryId": "GHSA-r292-9mhp-454m"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "npm",
+      "version": "11.19.1",
+      "metadataSource": "https://registry.npmjs.org/npm/11.19.1",
+      "engines": {
+        "node": "^20.17.0 || >=22.9.0"
+      },
+      "declaredRelevantDependencies": {
+        "tar": "^7.5.22",
+        "glob": "^13.0.6",
+        "pacote": "^21.5.1",
+        "minimatch": "^10.2.5"
+      },
+      "tarballSource": "https://registry.npmjs.org/npm/-/npm-11.19.1.tgz",
+      "tarballSha256": "9f58bff01604cb1b14008fef14dceb14d836a49225e45c6c2e37de3be3e707f0",
+      "publishedIntegrity": "sha512-ztsxKxt/kkIaAs+2i0GU6I+DRmUdrNasxTZKJe9TCdSjKxlhah/4r/hl5ygMD6XAg1qZ9c2TNomR4qgOydp10g==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 144,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "13.0.6",
+          "path": "package/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.5.0",
+          "path": "package/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "10.2.5",
+          "path": "package/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "pacote",
+          "version": "21.5.1",
+          "path": "package/node_modules/pacote/package.json"
+        },
+        {
+          "name": "sigstore",
+          "version": "4.1.1",
+          "path": "package/node_modules/sigstore/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.22",
+          "path": "package/node_modules/tar/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.4",
+          "path": "package/node_modules/tinyglobby/node_modules/picomatch/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "npm",
+      "version": "11.20.0",
+      "metadataSource": "https://registry.npmjs.org/npm/11.20.0",
+      "engines": {
+        "node": "^20.17.0 || >=22.9.0"
+      },
+      "declaredRelevantDependencies": {
+        "tar": "^7.5.22",
+        "glob": "^13.0.6",
+        "pacote": "^21.5.1",
+        "minimatch": "^10.2.5"
+      },
+      "tarballSource": "https://registry.npmjs.org/npm/-/npm-11.20.0.tgz",
+      "tarballSha256": "d1a92f40e6c407b84c3a00c3cf978a10b24fd42f153c527e2016cef7bb34a483",
+      "publishedIntegrity": "sha512-dF3EDFwbYN+N5RUip+ZYDe0NeURK5BgqKOcvT1iNtUYhTMTl0FwWhBuXrS7KtXyduqyTMS5aaQaregnHDAxNgw==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 144,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "13.0.6",
+          "path": "package/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.5.0",
+          "path": "package/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "10.2.5",
+          "path": "package/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "pacote",
+          "version": "21.5.1",
+          "path": "package/node_modules/pacote/package.json"
+        },
+        {
+          "name": "sigstore",
+          "version": "4.1.1",
+          "path": "package/node_modules/sigstore/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.22",
+          "path": "package/node_modules/tar/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.4",
+          "path": "package/node_modules/tinyglobby/node_modules/picomatch/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "5.0.9",
+          "path": "package/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "pnpm",
+      "version": "10.34.5",
+      "metadataSource": "https://registry.npmjs.org/pnpm/10.34.5",
+      "engines": {
+        "node": ">=18.12"
+      },
+      "declaredRelevantDependencies": {},
+      "tarballSource": "https://registry.npmjs.org/pnpm/-/pnpm-10.34.5.tgz",
+      "tarballSha256": "ccb5c479cab1b00621325bfe7d4c9a8a8031e7a525d7249e275ecbec81b08db2",
+      "publishedIntegrity": "sha512-pO4F8vc2WCVb1qiYWcBlpFwopX2u+uLIk6Fo7itzFow3uR6D5X6mdlStA/AwMXRkMOi84442LgQmBfuKvIAZLg==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 99,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "brace-expansion",
+          "version": "2.1.2",
+          "path": "package/dist/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "10.5.0",
+          "path": "package/dist/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/dist/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.2.0",
+          "path": "package/dist/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "9.0.9",
+          "path": "package/dist/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.5",
+          "path": "package/dist/node_modules/picomatch/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.19",
+          "path": "package/dist/node_modules/tar/package.json"
+        },
+        {
+          "name": "pnpm",
+          "version": "10.34.5",
+          "path": "package/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "brace-expansion",
+          "version": "2.1.2",
+          "path": "package/dist/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-rgw5-rvv9-x895"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.1.2",
+          "path": "package/dist/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-mh99-v99m-4gvg"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.1.2",
+          "path": "package/dist/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "package": "brace-expansion",
+          "version": "2.1.2",
+          "path": "package/dist/node_modules/brace-expansion/package.json",
+          "advisoryId": "GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/dist/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        },
+        {
+          "package": "ip-address",
+          "version": "10.2.0",
+          "path": "package/dist/node_modules/ip-address/package.json",
+          "advisoryId": "GHSA-mwp4-54f8-5fhr"
+        },
+        {
+          "package": "tar",
+          "version": "7.5.19",
+          "path": "package/dist/node_modules/tar/package.json",
+          "advisoryId": "GHSA-r292-9mhp-454m"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "pnpm",
+      "version": "10.34.6",
+      "metadataSource": "https://registry.npmjs.org/pnpm/10.34.6",
+      "engines": {
+        "node": ">=18.12"
+      },
+      "declaredRelevantDependencies": {},
+      "tarballSource": "https://registry.npmjs.org/pnpm/-/pnpm-10.34.6.tgz",
+      "tarballSha256": "44d7db90fcbb2315b581f85989a913466765421fc656c28e80fac1b7ab5be456",
+      "publishedIntegrity": "sha512-fhrmaoOpFDwRjMGUTzfMTyuKzd7aSwAc+niQj25G5F4VKSc5ymydAmQmzHV+kxjMmMVVHWoWwWUJewAouoe05g==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 98,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "brace-expansion",
+          "version": "2.1.7",
+          "path": "package/dist/node_modules/brace-expansion/package.json"
+        },
+        {
+          "name": "glob",
+          "version": "10.5.0",
+          "path": "package/dist/node_modules/glob/package.json"
+        },
+        {
+          "name": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/dist/node_modules/http-cache-semantics/package.json"
+        },
+        {
+          "name": "ip-address",
+          "version": "10.7.2",
+          "path": "package/dist/node_modules/ip-address/package.json"
+        },
+        {
+          "name": "minimatch",
+          "version": "9.0.9",
+          "path": "package/dist/node_modules/minimatch/package.json"
+        },
+        {
+          "name": "picomatch",
+          "version": "4.0.7",
+          "path": "package/dist/node_modules/picomatch/package.json"
+        },
+        {
+          "name": "tar",
+          "version": "7.5.22",
+          "path": "package/dist/node_modules/tar/package.json"
+        },
+        {
+          "name": "pnpm",
+          "version": "10.34.6",
+          "path": "package/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [
+        {
+          "package": "http-cache-semantics",
+          "version": "4.2.0",
+          "path": "package/dist/node_modules/http-cache-semantics/package.json",
+          "advisoryId": "GHSA-ch52-4w7c-c8xp"
+        }
+      ],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "pm2",
+      "version": "7.0.3",
+      "metadataSource": "https://registry.npmjs.org/pm2/7.0.3",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "declaredRelevantDependencies": {
+        "js-yaml": "4.3.0",
+        "chokidar": "3.6.0",
+        "proxy-agent": "6.5.0"
+      },
+      "tarballSource": "https://registry.npmjs.org/pm2/-/pm2-7.0.3.tgz",
+      "tarballSha256": "daf790481179dbc51d495a3faf3724b6ea3c4375ba7652b16e9275a8e143eefa",
+      "publishedIntegrity": "sha512-zRJOdburpb9OEPB0uqoNT8C1Gp7hPJPVy4Kr67XJNuT9UlMQcOt1WXrYQUmwqKPHk8FyauvP1CPhqoCrCaPw0Q==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 5,
+      "baselinePackageVersionsInPublishedTarball": [],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [],
+      "note": "Published PM2 tarball does not bundle its installed dependencies: an empty tarball dependency match list does not imply a safe installed graph. Declared js-yaml/chokidar/proxy-agent pins must be resolved separately."
+    },
+    {
+      "name": "pm2",
+      "version": "7.0.4",
+      "metadataSource": "https://registry.npmjs.org/pm2/7.0.4",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "declaredRelevantDependencies": {
+        "js-yaml": "4.3.1",
+        "chokidar": "3.6.0",
+        "proxy-agent": "6.5.0"
+      },
+      "tarballSource": "https://registry.npmjs.org/pm2/-/pm2-7.0.4.tgz",
+      "tarballSha256": "5efd8e2c586d7fc1e878d4d0742e2c0aae76c68814308c4b9c08cab25ef24894",
+      "publishedIntegrity": "sha512-rMzoZmZlmJw7hoTbO9cOqcwj407TzUVc84JRaIjmnK8+808zldQT2Sd4rVcqVvXUcI2LoXEf1irMevWfOx5SEQ==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 5,
+      "baselinePackageVersionsInPublishedTarball": [],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [],
+      "note": "Published PM2 tarball does not bundle its installed dependencies: an empty tarball dependency match list does not imply a safe installed graph. Declared js-yaml/chokidar/proxy-agent pins must be resolved separately."
+    },
+    {
+      "name": "js-yaml",
+      "version": "4.3.2",
+      "metadataSource": "https://registry.npmjs.org/js-yaml/4.3.2",
+      "engines": null,
+      "declaredRelevantDependencies": {},
+      "tarballSource": "https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.2.tgz",
+      "tarballSha256": "c7b241d2224cf9253ff53854aa4cee87da91bd889c4d0fa3a3ffd1041ecee5b1",
+      "publishedIntegrity": "sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 1,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "js-yaml",
+          "version": "4.3.2",
+          "path": "package/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    },
+    {
+      "name": "http-cache-semantics",
+      "version": "4.3.0",
+      "metadataSource": "https://registry.npmjs.org/http-cache-semantics/4.3.0",
+      "engines": null,
+      "declaredRelevantDependencies": {},
+      "tarballSource": "https://registry.npmjs.org/http-cache-semantics/-/http-cache-semantics-4.3.0.tgz",
+      "tarballSha256": "d75e1e6a11587954da5e2f0e2b5c4b397a16d28cc2f7bdf64e9027fc2fe593ee",
+      "publishedIntegrity": "sha512-M5t5LlJpS1UHMjvwRQVdFHvPISGeLAxNcrWuJkeGh0KxsqCHZ1O3NXZU/8x7cD0BDcGW8kapxMKTvwlqrNkHkA==",
+      "tarballSha1MatchesPublished": true,
+      "manifestCount": 1,
+      "baselinePackageVersionsInPublishedTarball": [
+        {
+          "name": "http-cache-semantics",
+          "version": "4.3.0",
+          "path": "package/package.json"
+        }
+      ],
+      "remainingBaselineAdvisoryMatchesInPublishedTarball": [],
+      "note": "Bounded published tarball manifest inspection only; alternative candidate CLI execution and full code bundles were not independently tested."
+    }
+  ],
+  "publishedSourceFindings": [
+    {
+      "localResearchPath": "packages/pm2-7.0.3/lib/Common.js",
+      "source": "https://github.com/Unitech/pm2/blob/7.0.3/lib/Common.js",
+      "sha256": "3d9e1f7c5c3f2caebe68e7774ad05d9d140abf9ceb25f99d1abc8b9d434ae7c8",
+      "finding": "parseConfig requires js-yaml, but only YAML config branch invokes yaml.load; JS ecosystem branch uses require."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/lib/God.js",
+      "source": "https://github.com/Unitech/pm2/blob/7.0.3/lib/God.js",
+      "sha256": "f598e5113890418827e31dd52fc3538e8f19287fad212cafd9388b0216fe500d",
+      "finding": "God watch.enable only executes when env_copy.watch is truthy."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/lib/Watcher.js",
+      "source": "https://github.com/Unitech/pm2/blob/7.0.3/lib/Watcher.js",
+      "sha256": "34e18f88bc42389cf28f286c4abb67c4838de4a2b97d27f3b584ad424528096e",
+      "finding": "watch.enable passes watch/ignore_watch/watch_options to chokidar.watch."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/modules/pm2-io-agent/constants.js",
+      "source": "https://registry.npmjs.org/pm2/-/pm2-7.0.3.tgz",
+      "sha256": "29ab55092f6c18448ce6f980ec1374e565abab16adaaf1c9d53c27b654c59c15",
+      "finding": "PROXY is process.env.PM2_PROXY."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/modules/pm2-io-agent/src/Utility.js",
+      "source": "https://registry.npmjs.org/pm2/-/pm2-7.0.3.tgz",
+      "sha256": "e4721f07e05550b7543c416dcc2e9ef5a365aa456710fbe3f3c1a716efbca4a4",
+      "finding": "PM2 IO monitoring HTTP request uses ProxyAgent only when cst.PROXY is set."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/modules/pm2-io-agent/src/transporters/WebsocketTransport.js",
+      "source": "https://registry.npmjs.org/pm2/-/pm2-7.0.3.tgz",
+      "sha256": "167777bd9a35a2176d177f1e8e53f702f29b77e9dc60106452a6d5b69f82d7c1",
+      "finding": "PM2 IO monitoring WebSocket request uses ProxyAgent only when cst.PROXY is set."
+    },
+    {
+      "localResearchPath": "packages/proxy-agent-6.5.0/dist/index.js",
+      "source": "https://registry.npmjs.org/proxy-agent/-/proxy-agent-6.5.0.tgz",
+      "sha256": "7b322967ff011352cbba8a248db08a92f2fa5a9074329cde81e47d9644dcadad",
+      "finding": "proxy-agent selects PAC agent for pac+ftp; default getProxyForUrl consults proxy environment."
+    },
+    {
+      "localResearchPath": "packages/pac-proxy-agent-7.2.0/dist/index.js",
+      "source": "https://registry.npmjs.org/pac-proxy-agent/-/pac-proxy-agent-7.2.0.tgz",
+      "sha256": "c9403a791f12bdabc3dc4657b6c5aec37874ac0c5c85c6571657f58dc8ff69bf",
+      "finding": "PAC agent fetches its PAC URI with getUri and supports ftp/pac+ftp."
+    },
+    {
+      "localResearchPath": "packages/get-uri-6.0.5/dist/ftp.js",
+      "source": "https://registry.npmjs.org/get-uri/-/get-uri-6.0.5.tgz",
+      "sha256": "29bc902a8aea6e5d803d27d25351e7236cd20c4ca595ea003ab35dcb016463a1",
+      "finding": "FTP fetch falls back from lastMod to Client.list(dirname(filepath)), exposing the listing parser if a hostile FTP URI is selected."
+    },
+    {
+      "localResearchPath": "packages/pm2-7.0.3/lib/API/Serve.js",
+      "source": "https://registry.npmjs.org/pm2/-/pm2-7.0.3.tgz",
+      "sha256": "8e93f2bb48b66c6d86bab69f17428eafd3c30216dd393be96671035939ddcfd2",
+      "finding": "PM2 serve --ftp is an HTTP directory-listing option, not this basic-ftp network path."
+    },
+    {
+      "localResearchPath": "packages/@pm2__pm2-version-check-1.0.4/index.js",
+      "source": "https://registry.npmjs.org/@pm2/pm2-version-check/-/pm2-version-check-1.0.4.tgz",
+      "sha256": "a3883f950db41aad810eb35bfd61d8067565bd0d6387a74d347b84fdf1c90785",
+      "finding": "Version check uses native https.get rather than the PAC FTP chain; ordinary version checking is not sufficient evidence of FTP listing exposure."
+    }
+  ],
+  "localNativeProbeEvidence": {
+    "boundary": "native global supervisor/CLI and offline Prisma; synthetic processes only",
+    "result": "PASS",
+    "tools": {
+      "pm2": "7.0.3",
+      "jsYaml": "4.3.2",
+      "removed": [
+        "npm",
+        "npx",
+        "pnpm",
+        "pnpx",
+        "corepack",
+        "yarn",
+        "yarnpkg"
+      ]
+    },
+    "supervisor": {
+      "roles": [
+        "backend",
+        "orchestrator",
+        "frontend"
+      ],
+      "startup": true,
+      "jlist": true,
+      "automaticRestart": true,
+      "operatorRestart": true,
+      "gracefulShutdown": true
+    },
+    "prisma": {
+      "version": "6.5.0",
+      "directCli": true,
+      "bootstrapExit": 2,
+      "bootstrapSqlSha256": "abc6357f9d12d5a36e7424c3acb010bd20ee3b6433e9b6a7efee364231d0850e",
+      "actualBootstrapGuard": true,
+      "equalSchemaExit": 0,
+      "schemaApplied": false
+    },
+    "globalManifestCount": 82,
+    "scanImage": "cf-dbxe34-native-probe:20261011",
+    "scanCompleted": true,
+    "remainingGlobalCriticalHigh": [
+      {
+        "package": "braces",
+        "version": "3.0.3",
+        "type": "npm",
+        "vulnerability": "GHSA-vfj7-8cjw-p6xm",
+        "severity": "High",
+        "fix": {
+          "versions": [],
+          "state": "not-fixed"
+        },
+        "officialSource": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+        "locations": [
+          "/usr/local/lib/node_modules/pm2/node_modules/braces/package.json"
+        ]
+      },
+      {
+        "package": "basic-ftp",
+        "version": "5.3.1",
+        "type": "npm",
+        "vulnerability": "GHSA-c475-qrg2-pj4r",
+        "severity": "High",
+        "fix": {
+          "versions": [
+            "6.2.1"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "6.2.1",
+              "date": "2026-10-01",
+              "kind": "first-observed"
+            }
+          ]
+        },
+        "officialSource": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+        "locations": [
+          "/usr/local/lib/node_modules/pm2/node_modules/basic-ftp/package.json"
+        ]
+      }
+    ],
+    "deployedReleaseAcceptance": false
+  },
+  "decisions": {
+    "removed_unused_runtime_package_manager": {
+      "recordCount": 47,
+      "status": "Native probe removal verified; final image removal remains a root delivery condition",
+      "tools": [
+        "npm",
+        "npx",
+        "pnpm",
+        "pnpx",
+        "corepack",
+        "yarn",
+        "yarnpkg"
+      ],
+      "consumerEvidence": [
+        {
+          "tool": "PM2 7.0.3",
+          "consumer": "entrypoint exec pm2-runtime --raw ecosystem.config.js; plain Node fork backend/orchestrator/frontend",
+          "required": true,
+          "trust": "repository JS config; no product data passed to supervisor parser"
+        },
+        {
+          "tool": "npm10.9.8/pnpm10.6.1/Corepack/Yarn",
+          "consumer": "no application or entrypoint/health consumer; runtime install, watch and remote PM2 deployment not configured",
+          "required": false,
+          "action": "omit/remove from final image; builder unchanged"
+        },
+        {
+          "tool": "Prisma6.5 CLI",
+          "consumer": "production-deploy bootstrap and schema-preflight.cjs",
+          "required": true,
+          "action": "direct installed Node CLI; unchanged guarded SQL procedure; matching verified schema engine shipped"
+        }
+      ],
+      "preservedConsumer": "Existing installed Node Prisma 6.5.0 CLI with matching verified schema engine and unchanged SQL guard"
+    },
+    "patched_pm2_js_yaml": {
+      "recordCount": 2,
+      "effectiveVersion": "4.3.2",
+      "retainedPm2Version": "7.0.3",
+      "status": "Native probe graph and supervisor/CLI checks verified; final release proof remains root-owned",
+      "reason": "Two official js-yaml High ranges require 4.3.2 together; PM2 7.0.4 pins only 4.3.1"
+    },
+    "retained_braces_watch_exception": {
+      "recordCount": 1,
+      "package": "braces",
+      "version": "3.0.3",
+      "advisoryId": "GHSA-vfj7-8cjw-p6xm",
+      "firstPatchedVersion": null,
+      "upstreamLatestPublished": "3.0.3",
+      "dependencyPath": "pm27.0.3 -> chokidar3.6.0 -> braces3.0.3",
+      "rootCallerGate": {
+        "package": "braces",
+        "version": "3.0.3",
+        "advisory": "GHSA-vfj7-8cjw-p6xm",
+        "path": "PM2->chokidar3.6.0->braces",
+        "input": "configured filesystem watch glob",
+        "gate": "all three watch false; no user-supplied PM2 configuration",
+        "trigger": "enable watch or introduce untrusted supervisor patterns"
+      },
+      "status": "Still present and scanner High; current configured callers do not feed attacker patterns",
+      "reevaluateBefore": "Enable watch, change ignore_watch/watch_options, accept untrusted supervisor config, or upgrade this graph"
+    },
+    "retained_basic_ftp_agent_exception": {
+      "recordCount": 1,
+      "package": "basic-ftp",
+      "version": "5.3.1",
+      "advisoryId": "GHSA-c475-qrg2-pj4r",
+      "firstPatchedVersion": "6.2.1",
+      "currentCallerDependencyRange": "get-uri6.0.5 -> basic-ftp ^5.0.2",
+      "dependencyPath": "PM2 IO agent -> proxy-agent6.5.0 -> pac-proxy-agent7.2.0 -> get-uri6.0.5 -> basic-ftp5.3.1",
+      "rootCallerGate": {
+        "package": "basic-ftp",
+        "version": "5.3.1",
+        "advisory": "GHSA-c475-qrg2-pj4r",
+        "path": "PM2 monitoring agent->proxy-agent->pac-proxy-agent->get-uri FTP PAC reader",
+        "input": "FTP directory listings from configured PAC URI",
+        "gate": "agent/module integration disabled; no PM2 keys, proxy env or modules",
+        "trigger": "enable agent/PAC/FTP retrieval; review compatible upstream or graph changes before doing so"
+      },
+      "status": "Still present and scanner High; active monitoring/proxy/PAC FTP input path is absent in root caller evidence",
+      "reevaluateBefore": "Enable IO agent/keys/modules, PM2_PROXY or proxy-from-env/PAC FTP; assess compatible upstream before accepting hostile FTP listings"
+    }
+  },
+  "httpCacheAdvisoryConflict": {
+    "officialSource": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+    "currentOfficialAffectedRange": "<= 4.2.0",
+    "currentOfficialFirstPatchedVersion": null,
+    "maintainerSource": "https://github.com/kornelski/http-cache-semantics/issues/56",
+    "maintainerPosition": "Owner disputes the claimed vulnerability and closed issue as not planned on 2026-10-04; Cache-Control private, rather than freshness or Set-Cookie alone, controls cross-user sharing.",
+    "publishedOutsideRangeVersion": "4.3.0",
+    "interpretation": "4.3.0 being outside the database range is a version-range fact, not evidence of an acknowledged vulnerability fix. Retain dispute until advisory disposition is updated."
+  },
+  "recommendedMinimumOption": {
+    "npmAndPnpm": "Remove final-runtime global npm/pnpm after preserving the sole root-identified pnpm exec prisma migrate diff bootstrap with existing direct Node Prisma CLI and unchanged SQL guard; keep required builder tooling convention.",
+    "pm2": "Keep pm2 7.0.3 supervisor/CLI; explicitly pin/resolve js-yaml 4.3.2 in its own graph. pm2 7.0.4 pins 4.3.1 and does not fix both advisory records.",
+    "braces": "No published fix. Root must bind exception to no untrusted watch/brace inputs, exact disabled watch state, source gates and reevaluation trigger.",
+    "basicFtp": "No same-major fix: get-uri 6.0.5 expects basic-ftp ^5.0.2, whereas official fix is 6.2.1. Root may justify exact retained exception only with inactive IO monitoring/proxy/PAC FTP paths and input-trust evidence.",
+    "reevaluate": [
+      "Any runtime npm/pnpm use or package-manager bootstrap reintroduced",
+      "PM2 watch/ignore_watch or YAML config accepts untrusted input",
+      "PM2 IO agent, PM2_PROXY, proxy-from-env or PAC FTP enabled",
+      "Compatible upstream fix or advisory withdrawal/change",
+      "Global graph/image changes"
+    ]
+  },
+  "unchangedBuilderAndDeveloperBoundary": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "evidence": "consumer-map.actual.json retains package.json/pnpm-lock.yaml hashes and separately identifies final runtime scope",
+    "trust": "Builder/developer tooling still processes reviewed repository configuration, frozen product lockfile and trusted dependency sources. This runtime-removal stage does not patch its pnpm 10.6.1 advisory matches.",
+    "trigger": "An untrusted repository/config/lock/patch/dependency source or expanded package-manager operation requires separate applicability and remediation before execution.",
+    "wholeSystemZeroVulnerabilityClaim": false
+  },
+  "unverifiedAndRootOwned": [
+    "Alternative candidate CLI execution and effective auto-selected pnpm version",
+    "Final released runtime caller/input/watch/agent/proxy environment proofs",
+    "Chosen final image graph and exact-source acceptance",
+    "Full final release gates, image rescan and deployed runtime evidence"
+  ],
+  "verification": {
+    "allInputAdvisoriesFetched": true,
+    "allInputRecordsMatchedManifestPaths": true,
+    "allLockedVersionsMatchCurrentOfficialRanges": true,
+    "allInspectedTarballsMatchPublishedShasum": true,
+    "allAdvisoriesBrowsedInWebTool": true,
+    "paidCallsGlobalInstallsOrProductionActions": false
+  },
+  "rootConsumerCorrection": {
+    "capturedAt": "2026-10-11T12:15:24.852904+00:00",
+    "previousSoleBootstrapStatementSuperseded": true,
+    "actualWrappers": [
+      "bootstrap pnpm exec",
+      "update npx",
+      "four old operator migration npx recipes"
+    ],
+    "historicalQuotedNpxExample": "preserved with explicit current direct-CLI note",
+    "supersededReleaseRun": "configured-release-superseded.local.json; cancelled before receipt/publication"
+  }
+}

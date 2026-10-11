@@ -32,6 +32,10 @@ WORKDIR /app
 COPY . /app
 
 RUN pnpm install --frozen-lockfile
+# pnpm intentionally skips dependency install scripts. The operator's offline
+# migrate diff needs Prisma's matching native schema engine in the final image.
+RUN node node_modules/@prisma/engines/scripts/postinstall.js \
+ && echo '431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2  node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x' | sha256sum --check
 RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm run build
 
 
@@ -48,7 +52,17 @@ RUN addgroup --system www \
  && mkdir -p /www /uploads \
  && chown -R www:www /www /var/lib/nginx
 
-RUN npm --no-update-notifier --no-fund --global install pnpm@10.6.1 pm2@7.0.3
+# Runtime starts native Node processes through PM2. Prisma's operator CLI is
+# already installed in /app/node_modules; package managers are build tools.
+# PM2 7.0.3 pins vulnerable js-yaml 4.3.0, so replace that one direct dependency
+# with its compatible security patch. Keep PM2's process/CLI contract unchanged.
+RUN npm --no-update-notifier --no-fund --global install pm2@7.0.3 \
+ && npm --prefix /usr/local/lib/node_modules/pm2 --no-update-notifier --no-fund \
+    install --omit=dev --ignore-scripts --no-package-lock --save-exact js-yaml@4.3.2 \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /opt/yarn-v1.22.22 /root/.npm \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 WORKDIR /app
 COPY --from=build /app /app

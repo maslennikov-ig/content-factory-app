@@ -1,7 +1,11 @@
 # Dependency security remediation — 9 October 2026
 
-Scope: Beads `content-factory-next-dbxe.8`, local changes only. The original
-acceptance criteria and all other epic tasks remain unchanged.
+Original local scope: Beads `content-factory-next-dbxe.8`. The original
+acceptance criteria and all other epic tasks remain unchanged. The accepted
+application graph shipped as755d19fa731d/private d724 on10 October; its exact
+release proof is in the delivery stage. [OS runtime triage](os-runtime-security-triage.md)
+is complete;35 excludes the two GCC findings at the exact image path. The GCC12
+allocator itself remains unpatched. Task8 stays open for global tools34.
 
 Baseline official production-lock lookup:12 critical /131 high records.
 Exact locked remediation eliminates120 of143 baseline records; the remaining
@@ -108,7 +112,8 @@ advisory;1.11.0 is the minimum corrected version. This prevents stopping at
 the first nominally patched advisory while another version remains vulnerable.
 Lower-severity12 low /68 moderate production range records are still visible;
 this bounded stage prioritizes critical/high and does not claim all advisories
-are eliminated. Linux system libraries/image packages require the release scan.
+are eliminated. The later full-image scan/OS triage is documented separately;
+its unresolved native risk and global tools are retained in Beads33–35.
 
 ## Acceptance and release
 
@@ -117,8 +122,9 @@ It covers frozen install, actual library behavior, affected product tests, the
 four production app builds and Vite extension build; it does not connect real
 social accounts, publish posts, send email, run paid models or touch production.
 
-Beads dbxe.8 remains in progress until its original next-release acceptance
-criterion passes. The next authorized release must run the configured full
+The original next-release gate passed at private d724/public755d. Beads dbxe.8
+remains in progress for the retained OS/global scopes33–35. A changed native
+runtime release must run the configured full
 release checks and exact-commit suite receipt, build from the public copied tree,
 check the resulting native image and active service, and retain verified rollback.
 Do not deploy automatically or bypass the existing registry/source separation.

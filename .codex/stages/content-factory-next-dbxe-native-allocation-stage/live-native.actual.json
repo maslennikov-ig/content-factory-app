@@ -1,0 +1,80 @@
+{
+  "capturedAt": "2026-10-11T11:28:03.129573+00:00",
+  "status": "PASS",
+  "productionMutations": 0,
+  "application": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:755d19fa731d",
+    "configDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+    "health": "healthy",
+    "restarts": 0,
+    "memoryLimit": 1879048192
+  },
+  "native": {
+    "node": "22.23.2",
+    "sharp": "0.35.5",
+    "vips": "8.18.7",
+    "addonHash": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+    "libvipsHash": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+    "systemLibstdcppHash": "e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4",
+    "nextSharpSameInstance": true,
+    "preloadConfigured": false,
+    "libraryPathConfigured": false,
+    "vipsModulePathConfigured": false,
+    "roleOverrides": [
+      {
+        "role": "backend",
+        "preloadConfigured": false,
+        "libraryPathConfigured": false,
+        "vipsModulePathConfigured": false
+      },
+      {
+        "role": "orchestrator",
+        "preloadConfigured": false,
+        "libraryPathConfigured": false,
+        "vipsModulePathConfigured": false
+      },
+      {
+        "role": "frontend",
+        "preloadConfigured": false,
+        "libraryPathConfigured": false,
+        "vipsModulePathConfigured": false
+      }
+    ],
+    "sourceManifest": {
+      "commit": "755d19fa731d524b151afe18c4394d8027030d58",
+      "shortCommit": "755d19fa731d",
+      "archive": "content-factory-source.tar.gz",
+      "downloadName": "content-factory-755d19fa731d.tar.gz",
+      "bytes": 12611013,
+      "sha256": "a4454a506b0a9bf533c3132b5ce29c5d104737f155c17376d0432fd57ef8cb26",
+      "builtAt": "2026-10-10T19:49:35Z"
+    }
+  },
+  "endpoints": [
+    {
+      "path": "/api/",
+      "status": 200,
+      "bytes": 15
+    },
+    {
+      "path": "/auth/login",
+      "status": 200,
+      "bytes": 30327
+    },
+    {
+      "path": "/api/public/source/version",
+      "status": 200,
+      "bytes": 115
+    },
+    {
+      "path": "/api/public/source/archive",
+      "status": 200,
+      "bytes": 12611013
+    }
+  ],
+  "nativeHealthExitCode": 0,
+  "hostFreeBytes": 31842508800,
+  "rollbackVerified": true,
+  "sourceArchiveMatchesManifest": true,
+  "boundary": "Current native/image/source/worker availability only; no provider/model/client acceptance"
+}

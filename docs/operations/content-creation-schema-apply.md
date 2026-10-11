@@ -21,7 +21,7 @@
 
 ```bash
 git show ca762437~1:libraries/nestjs-libraries/src/database/prisma/schema.prisma > /tmp/base.prisma
-npx prisma migrate diff \
+node node_modules/prisma/build/index.js migrate diff \
   --from-schema-datamodel /tmp/base.prisma \
   --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
   --script

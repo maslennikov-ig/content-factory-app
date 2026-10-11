@@ -1,0 +1,44 @@
+{
+  "schema": "native-image-consumers/v1",
+  "sourceBase": "d8aa13f170bb520356d6859c4c85ca1219b2c6bf",
+  "files": {
+    "apps/backend/src/api/routes/media.controller.ts": "650f031e6f8fd3f8eefed61cd8fd8b8663490923f043dd2105645280d53cb920",
+    "apps/backend/src/public-api/routes/v1/public.integrations.controller.ts": "92f5eb89eb36d0de8124bed905c83ed91fc16e3b2bba3910211262feab6eb7f6",
+    "libraries/nestjs-libraries/src/upload/custom.upload.validation.ts": "0737b0665dcd53702d7d01cd05a4ce84b0004943019cb357fcf3e8aa14b2fd68",
+    "libraries/nestjs-libraries/src/upload/local.storage.ts": "f1454e4648167301af6bdba4f744ba290be1867a2b6f6b858ded70daf2b67057",
+    "libraries/nestjs-libraries/src/upload/cloudflare.storage.ts": "e1f43efc0d9ef2725c109b185aee20952ad36d77d7b10f3fe06c8651e854266a",
+    "libraries/nestjs-libraries/src/upload/r2.uploader.ts": "92a886c01d5655cd3d73a08ecd930bf305153f1a21f293ef42a82ae0394cf58c",
+    "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts": "278a009ab17643a2b4938f5b8a93c73ca648a6f9803cbdb560931104d6df669a",
+    "libraries/nestjs-libraries/src/integrations/social.abstract.ts": "c507e32b29fa0d3be2d3657cacfc43d1304a0b4f7ba523be3e98f6dd2dce97b5",
+    "libraries/nestjs-libraries/src/integrations/social/bluesky.provider.ts": "e3d398f2939c2d974734794b3b324a117f7c36407f58a76acc1a715446033613",
+    "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts": "998cbfa2e008b193bd73de40ca2bb3ee9320024baaf0ae20bea54e0db098d9e7",
+    "libraries/nestjs-libraries/src/integrations/social/x.provider.ts": "b1166c420896fbfb2f3b3bcb30811438cff0b5298c7c786bf183ae6f426c21db",
+    "libraries/helpers/src/utils/read.or.fetch.ts": "ac8dbf094c5efe37fdc953c8c885137dc477ea80d172b9af5fa9de1986bac3fb",
+    "apps/frontend/next.config.js": "90011dc9c2d422216a9b47380ef49f0818b76843530da96a2a0560461bdb7bf8"
+  },
+  "directSharpCallCount": 7,
+  "uploadedBytesAreDecodedAt": "Later dimension validation/provider preparation, rather than initial storage; live provider calls not exercised",
+  "entrypoints": [
+    "MediaController upload-server/upload-simple and owned R2 completion",
+    "PublicIntegrationsController /public/v1/upload",
+    "LocalStorage/CloudflareStorage uploadSimple and uploadFile",
+    "Existing media/remote buffers supplied to social/image conversion",
+    "Next local image optimization: same Sharp instance, restricted loaders"
+  ],
+  "sharpCalls": {
+    "posts/posts.service.ts:496": "PNG to JPEG",
+    "integrations/social.abstract.ts:132": "dimensions",
+    "integrations/social/bluesky.provider.ts:41,51": "metadata and iterative resize",
+    "integrations/social/linkedin.provider.ts:527,645": "PDF JPEG and resize",
+    "integrations/social/x.provider.ts:488": "resize animated GIF"
+  },
+  "inputPolicy": "Buffer inputs, default Sharp pixel/channel limits and unlimited=false; no raw/image options supplied by clients in these calls",
+  "preallocationProof": "Exact source/ABI ICC bound, not post-open pixel limit or claimed upload MIME/size",
+  "nextOptimizerSharpIdentity": "Same native Sharp instance, confirmed local and live",
+  "libraryVersions": {
+    "sharp": "0.35.5",
+    "vips": "8.18.7"
+  },
+  "nativeSourceEvidence": "source-abi.actual.json",
+  "runtimeChanges": []
+}

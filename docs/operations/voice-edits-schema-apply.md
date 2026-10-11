@@ -33,7 +33,7 @@ psql "$DATABASE_URL" -tAc \
   "select count(*) from information_schema.tables where table_name like 'mastra_%'"
 
 # 2. Предпросмотр — читать, не применять
-npx prisma migrate diff \
+node node_modules/prisma/build/index.js migrate diff \
   --from-url "$DATABASE_URL" \
   --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
   --script > /tmp/diff.sql

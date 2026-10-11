@@ -1,0 +1,151 @@
+{
+  "capturedAt": "2026-10-11T11:58:36.228332+00:00",
+  "files": [
+    {
+      "path": "Dockerfile",
+      "baselineSha256": "89beb2984b7bb52b8ced240adf2382fee0958caecef9d29358fa4f440b0b234f",
+      "currentSha256": "a8f0eee90d770654898de3bc18e7d8d413fdc0b40e35358c51b8a131ac674284",
+      "changed": true
+    },
+    {
+      "path": "var/docker/entrypoint.sh",
+      "baselineSha256": "07d127bfc6300e15d895d895987518131ee26ad518fcbc4eca8ff16f40111329",
+      "currentSha256": "07d127bfc6300e15d895d895987518131ee26ad518fcbc4eca8ff16f40111329",
+      "changed": false
+    },
+    {
+      "path": "var/docker/ecosystem.config.js",
+      "baselineSha256": "306bba69c243bb33293f7dd61d4a2b6b25db46ff811a99f81da020234d2012f9",
+      "currentSha256": "306bba69c243bb33293f7dd61d4a2b6b25db46ff811a99f81da020234d2012f9",
+      "changed": false
+    },
+    {
+      "path": "scripts/release/schema-preflight.sh",
+      "baselineSha256": "75cdab4dac725af347630cd84bc2a28d6c46fe7e61addb6221974cff3cf06e51",
+      "currentSha256": "75cdab4dac725af347630cd84bc2a28d6c46fe7e61addb6221974cff3cf06e51",
+      "changed": false
+    },
+    {
+      "path": "scripts/release/schema-preflight.cjs",
+      "baselineSha256": "3280178a36bebd602e255cf14392db660bb071fd4e6f475ff804f6a30d049718",
+      "currentSha256": "3280178a36bebd602e255cf14392db660bb071fd4e6f475ff804f6a30d049718",
+      "changed": false
+    },
+    {
+      "path": "scripts/operations/validate-prisma-migration-sql.cjs",
+      "baselineSha256": "5ecf6e648810fa265c34a9a78b10b6744a113848c8110a291f1971b955af946f",
+      "currentSha256": "5ecf6e648810fa265c34a9a78b10b6744a113848c8110a291f1971b955af946f",
+      "changed": false
+    },
+    {
+      "path": "package.json",
+      "baselineSha256": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+      "currentSha256": "e5b0e42a1f8c9bda19e416efe12f9c9df32e7e1ad467a28219e4d4aea45c46a3",
+      "changed": false
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "baselineSha256": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+      "currentSha256": "88e3431e6fa17b1cfc968bbfe0634c146219bbeb5f99312a8abe881b61e19f05",
+      "changed": false
+    },
+    {
+      "path": "docs/operations/production-deploy.md",
+      "baselineSha256": "3053dc795d2a0f9c0a1a808229c010403862ba9650997936004a2f3c3a6f5b72",
+      "currentSha256": "37521c373e1aa3fe8598bff3b4cbfe65887424f127f1cad41b33545b86fd7550",
+      "changed": true
+    },
+    {
+      "path": "docs/operations/avatars-schema-apply.md",
+      "baselineSha256": "44236940aa5fa63a0e5d00c99208670b5604c766568227f7b7e7d743683003c4",
+      "currentSha256": "610475c6f471753dde7d0b4c095939a2f911014a35fbeacd89cd3e4427fec8df",
+      "changed": true
+    },
+    {
+      "path": "docs/operations/voice-edits-schema-apply.md",
+      "baselineSha256": "93b2450ac9a7332b3fdac1204841dcfb2a26b1310e906808bb1e8a5b7e685f5a",
+      "currentSha256": "c7eada9d6a9b0ad13e06cc228485ee910d0bc4994253fa09d7f927e83ce07b9d",
+      "changed": true
+    },
+    {
+      "path": "docs/operations/content-creation-schema-apply.md",
+      "baselineSha256": "3c86f94c25a6fade0cd698ca9c63ca7c02cb023a678f7ff3bd6d0bfd709de189",
+      "currentSha256": "aada097a4357e5fd437f553d7fcb21e912a579dc7b1f1992c09c9f10c2419f12",
+      "changed": true
+    },
+    {
+      "path": "docs/operations/editorial-stage-schema-apply.md",
+      "baselineSha256": "a3ac12c684455d6fba90728398424472ceb767d35d59b4cab8ca0e3b11938a7d",
+      "currentSha256": "4c54bb9d68cf3badbe26c252b1d289b6f62004c5727148e338107aad68de6729",
+      "changed": true
+    }
+  ],
+  "runtime": [
+    {
+      "tool": "PM2 7.0.3",
+      "consumer": "entrypoint exec pm2-runtime --raw ecosystem.config.js; plain Node fork backend/orchestrator/frontend",
+      "required": true,
+      "trust": "repository JS config; no product data passed to supervisor parser"
+    },
+    {
+      "tool": "npm10.9.8/pnpm10.6.1/Corepack/Yarn",
+      "consumer": "No startup/application consumer; documented bootstrap pnpm exec and update npx migrate diff wrappers replaced with native installed CLI. Corepack/Yarn unused.",
+      "required": false,
+      "action": "omit/remove from final image; builder unchanged"
+    },
+    {
+      "tool": "Prisma6.5 CLI",
+      "consumer": "Production bootstrap/update plus4 older migration runbooks and existing schema-preflight.cjs",
+      "required": true,
+      "action": "direct installed Node CLI; unchanged guarded SQL procedure; matching verified schema engine shipped"
+    }
+  ],
+  "retainedExceptions": [
+    {
+      "package": "braces",
+      "version": "3.0.3",
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "path": "PM2->chokidar3.6.0->braces",
+      "input": "configured filesystem watch glob",
+      "gate": "all three watch false; no user-supplied PM2 configuration",
+      "trigger": "enable watch or introduce untrusted supervisor patterns"
+    },
+    {
+      "package": "basic-ftp",
+      "version": "5.3.1",
+      "advisory": "GHSA-c475-qrg2-pj4r",
+      "path": "PM2 monitoring agent->proxy-agent->pac-proxy-agent->get-uri FTP PAC reader",
+      "input": "FTP directory listings from configured PAC URI",
+      "gate": "agent/module integration disabled; no PM2 keys, proxy env or modules",
+      "trigger": "enable agent/PAC/FTP retrieval; review compatible upstream or graph changes before doing so"
+    }
+  ],
+  "researchBoundary": "global final runtime graph; build/developer toolchain follows unchanged pinned repository convention and frozen product inputs",
+  "guardChanged": false,
+  "productLockChanged": false,
+  "schemaChanged": false,
+  "workflowContractsChanged": false,
+  "rootConsumerCorrection": {
+    "capturedAt": "2026-10-11T12:15:24.852904+00:00",
+    "previousSoleBootstrapStatementSuperseded": true,
+    "actualWrappers": [
+      "bootstrap pnpm exec",
+      "update npx",
+      "four old operator migration npx recipes"
+    ],
+    "historicalQuotedNpxExample": "preserved with explicit current direct-CLI note",
+    "supersededReleaseRun": "configured-release-superseded.local.json; cancelled before receipt/publication"
+  },
+  "handoffContractCorrection": {
+    "capturedAt": "2026-10-11T12:45:47.204300+00:00",
+    "failure": "Required Next stage id:, Recommended action: and Use $orchestrator-stage tokens were lost in handoff update",
+    "fixedAtSource": ".codex/handoff.md",
+    "verificationGuardChanged": false,
+    "failedReleaseSource": "030aef5a01c7438491e1b8c5efbd79907e7d3171",
+    "failedReleaseLog": "configured-release-handoff-failure.local.json",
+    "jestAndNodePassed": true,
+    "pythonFailed": 1,
+    "suiteReceiptWritten": false,
+    "publicationOrDeploymentStarted": false
+  }
+}

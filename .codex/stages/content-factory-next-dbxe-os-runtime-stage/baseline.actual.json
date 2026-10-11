@@ -1,0 +1,16 @@
+{
+  "capturedAt": "2026-10-11T06:39:58.407282+00:00",
+  "branch": "codex/dbxe-os-runtime-20261011",
+  "sourceCommit": "44fc5a2f16521edda7e8993bda7bdd558cf1ea0f",
+  "selectedTask": {
+    "id": "content-factory-next-dbxe.33",
+    "acceptanceCriteria": "Triage each retained Critical/High against official Debian advisory, exact runtime caller/protocol and configured platform. Apply minimum compatible available fixes only for applicable paths; retain explicit version/caller exceptions and reevaluation triggers. Preserve Node22.23.2, image package address, product data, rollback and other projects. Verify affected native image behavior, weight/source/capacity and repository release gates. Do not force a new distro/framework solely to erase counters."
+  },
+  "servingBaselineTag": "755d19fa731d",
+  "imageConfigDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "originalCriticalHighOsRecords": 116,
+  "uniqueCves": 55,
+  "osSnapshotSha256": "470fe472626d4d10b98af1884c08f3a5ac728a2404171d5bf937c3d3e6b567ef",
+  "authority": "User selected33 after prior release; prior in-scope publication/deploy permission preserved; no continuous epic goal",
+  "unrelatedUntrackedRulePreserved": true
+}

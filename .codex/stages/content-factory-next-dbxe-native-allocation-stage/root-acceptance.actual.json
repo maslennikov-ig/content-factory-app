@@ -1,0 +1,114 @@
+{
+  "schema": "native-image-stage-root-acceptance/v1",
+  "status": "PASS",
+  "acceptedAt": "2026-10-11T11:24:21.185838+00:00",
+  "bead": "content-factory-next-dbxe.35",
+  "sourceBase": "d8aa13f170bb520356d6859c4c85ca1219b2c6bf",
+  "servingPublicSource": "755d19fa731d524b151afe18c4394d8027030d58",
+  "servingConfigDigest": "sha256:ea54f8c9ee610976cccaffb16a8cd860a85c67a9213a1d6a1ecd8d42113eec7f",
+  "imagePathVerdict": "SELECTED_ALIGNED_OVERFLOW_EXCLUDED_BY_SOURCE_ABI_INPUT_BOUND; NO_GNU_PBDS_TEMPLATE_CONSUMER_IN_BOUND_IMAGE_CHAIN",
+  "normalAndEdgeVerification": {
+    "controlledInputs": 12,
+    "nativeMetadataAndConversionChecks": 24,
+    "normalControls": [
+      "PNG",
+      "TIFF",
+      "BigTIFF",
+      "vendor UltraHDR JPEG"
+    ],
+    "ownedFixtureRemoved": true,
+    "foreignContainersPreserved": true,
+    "writesBeyondAllocation": 0
+  },
+  "productChanges": 0,
+  "productionMutations": 0,
+  "osAllocatorPatched": false,
+  "scannerRecordsRetained": 116,
+  "originalCriteriaPreserved": 30,
+  "commands": [
+    {
+      "command": "python3 .codex/stages/content-factory-next-dbxe-native-allocation-stage/verify-native.py",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm run docs:check",
+      "exitCode": 0
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 .codex/stages/content-factory-next-dbxe-native-allocation-stage/check-live-native.py",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --cached --check",
+      "exitCode": 0
+    }
+  ],
+  "liveEvidence": "live-native.actual.json",
+  "releaseEvidenceReused": {
+    "testedPrivateSource": "d724f3b792f4518eebc04c854448904f565323fd",
+    "publicImageSource": "755d19fa731d524b151afe18c4394d8027030d58",
+    "receipt": ".codex/stages/content-factory-next-dbxe-delivery-20261010/suite-receipt.actual.json",
+    "reason": "Only docs/stage evidence differ; exact serving/config/native/source hashes unchanged; no new suite/build/release claim"
+  },
+  "scope": "Selected35 and dependent33 status resolution;8/34/epic and unselected criteria remain",
+  "boundaries": [
+    "OS allocator primitive remains vulnerable outside proved image call",
+    "Controlled samples complement the source/ABI bound; no universal parser safety",
+    "Other Node/application/library paths require their own caller assessment",
+    "No real provider/model/client or restoration acceptance"
+  ],
+  "proofSha256": {
+    "plan.md": "09bfabf53da1a8756802607d80d75e3b22a76b0e4e0e0d233fc0a1886b31be39",
+    "outcome.md": "0e3b238876c8117a875558dfb99bdbdca106482427bf171debe39c970e61530d",
+    "summary.md": "e5a80030c32061d866dcbd28288f6620bf3bcacb7a85ef25102af36c5c79c53c",
+    "delegation.actual.json": "91c18b4d83b8133b4dc1187fdce2dab3ff6113ff43d31ddf9ec9b1ff0cf50481",
+    "consumer-map.actual.json": "220199ec9cf606b471c5e007266b561c5f222c983e7ba74b0d681cea6e4a7552",
+    "source-abi.actual.json": "3b60d46c5d9830700afec7174f2102fdd37cb5710b2f092d7672674e54442c69",
+    "baseline-task-contracts.actual.json": "b68e716106472252b657da6e4a00d5134932bd1878edccbc4ba264ebaef65540",
+    "native-image-probe.cjs": "beda4b4d915fb9391d5220a465a2d2e868fccfc7f0df0360d035c4f874faeb92",
+    "native-image-probe.actual.json": "068fa94baf67506ca76b0294aaee8bdf987fecd7efcc5b9f19f7aa0402c0ec82",
+    "live-native.cjs": "0ab65a475f2b5e31fb3c97cd4fd5a63ff4b330a6d6d258a6ccb33a3f799692ee",
+    "check-live-native.py": "c7baf7bfbccb4b5a9411328be0eec54ed243012fb724bd8f57433322c1ab2c57",
+    "live-native.actual.json": "91c0a6333eb982a33fc0dafd89448111f5fd1ca00d1dde14bb44f25280a19730",
+    "verify-native.py": "73755b4796d89734336f987db17167f5a94afba74bd272bd97848301719e3327",
+    "research/child-native-report.md": "1a27252210561d8683f435b7e2a6dd7a0f983c767da15775462cc713c54ae065",
+    "native-check.local.log": "01150ab1963cc1cdc17b262506f68fb1b2463f1350869632311f073938cba0ca",
+    "docs-check.local.log": "da1682b1936918a398838c3728b7e56aa77071f78276b85e55cf0202a3ee9e7f",
+    "process-check.local.log": "c23986fcc7972ac11d860e77499bda03536a4bf638876761745bb7c579cd6725",
+    "scope-final.local.json": "6e0a35fea67f4f8c3568255cc7c08df82f9d022c45b193c6d569ba242fba4634"
+  },
+  "closeout": "closeout-lite; one root-owned native security/evidence acceptance, not a runtime release",
+  "finalTaskState": {
+    "originalCriteriaPreserved": 30,
+    "statuses": {
+      "content-factory-next-dbxe": "open",
+      "content-factory-next-dbxe.8": "in_progress",
+      "content-factory-next-dbxe.33": "closed",
+      "content-factory-next-dbxe.34": "open",
+      "content-factory-next-dbxe.35": "closed"
+    },
+    "children": 35,
+    "closedChildren": 19
+  },
+  "mirrorReadback": {
+    "checkedAt": "2026-10-11T11:26:09.411340+00:00",
+    "issue1072": "closed",
+    "issue1071": "closed",
+    "privateRepository": true,
+    "syncTriggerExitCodes": [
+      0,
+      0,
+      0
+    ]
+  },
+  "finalTaskStateAt": "2026-10-11T11:26:09.411360+00:00",
+  "finalizedAt": "2026-10-11T11:29:44.859231+00:00"
+}

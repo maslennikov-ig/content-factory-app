@@ -1,0 +1,358 @@
+{
+  "sharp": "0.35.5",
+  "vips": "8.18.7",
+  "versions": {
+    "aom": "3.15.1",
+    "archive": "3.8.9",
+    "cairo": "1.18.6",
+    "cgif": "0.5.4",
+    "exif": "0.6.26",
+    "expat": "2.8.5",
+    "ffi": "3.8.0",
+    "fontconfig": "2.18.3",
+    "freetype": "2.14.3",
+    "fribidi": "1.0.17",
+    "glib": "2.90.0",
+    "harfbuzz": "14.5.0",
+    "heif": "1.23.5",
+    "highway": "1.4.0",
+    "imagequant": "2.4.1",
+    "lcms": "2.19.1",
+    "mozjpeg": "0826579",
+    "pango": "1.58.2",
+    "pixman": "0.46.4",
+    "png": "1.6.58",
+    "proxy-libintl": "0.5",
+    "rsvg": "2.63.2",
+    "tiff": "4.7.2",
+    "uhdr": "2.0.2",
+    "vips": "8.18.7",
+    "webp": "1.6.0",
+    "xml2": "2.15.4",
+    "zlib-ng": "2.3.3",
+    "sharp": "0.35.5"
+  },
+  "formats": {
+    "jpeg": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "png": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "webp": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "tiff": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "magick": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "openslide": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "dz": {
+      "inputBuffer": false,
+      "outputBuffer": true
+    },
+    "ppm": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "fits": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "gif": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "svg": {
+      "inputBuffer": true,
+      "outputBuffer": false
+    },
+    "heif": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    },
+    "pdf": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "vips": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "jp2": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "jxl": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "rad": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "dcraw": {
+      "inputBuffer": false,
+      "outputBuffer": false
+    },
+    "raw": {
+      "inputBuffer": true,
+      "outputBuffer": true
+    }
+  },
+  "cases": [
+    {
+      "name": "png-signed31-dimensions",
+      "bytes": 123,
+      "detected": "image/png",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer has corrupt header:"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer has corrupt header:"
+        }
+      ]
+    },
+    {
+      "name": "png-unsigned32-dimensions",
+      "bytes": 123,
+      "detected": "image/png",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer has corrupt header:"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer has corrupt header:"
+        }
+      ]
+    },
+    {
+      "name": "png-default-pixel-boundary",
+      "bytes": 123,
+      "detected": "image/png",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input image exceeds pixel limit"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input image exceeds pixel limit"
+        }
+      ]
+    },
+    {
+      "name": "jpeg-unsigned16-dimensions",
+      "bytes": 272,
+      "detected": "image/jpeg",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer has corrupt header: VipsJpeg: Maximum supported image dimension is 65500 pixels\nVipsJpeg: Maximum supported image dimension is 65500 pixels\nVipsJpeg: Maximum supported image dimension is 65500 pixels"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer has corrupt header: VipsJpeg: Maximum supported image dimension is 65500 pixels\nVipsJpeg: Maximum supported image dimension is 65500 pixels\nVipsJpeg: Maximum supported image dimension is 65500 pixels"
+        }
+      ]
+    },
+    {
+      "name": "gif-unsigned16-canvas",
+      "bytes": 67,
+      "detected": "image/gif",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": false,
+          "output": {
+            "width": 32,
+            "height": 24
+          }
+        },
+        {
+          "mode": "conversion",
+          "rejected": false,
+          "output": {
+            "bytes": 267
+          }
+        }
+      ]
+    },
+    {
+      "name": "gif-unsigned16-frame",
+      "bytes": 67,
+      "detected": "image/gif",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input image exceeds pixel limit"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input image exceeds pixel limit"
+        }
+      ]
+    },
+    {
+      "name": "tiff-unsigned32-dimensions",
+      "bytes": 924,
+      "detected": "image/tiff",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer contains unsupported image format"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer contains unsupported image format"
+        }
+      ]
+    },
+    {
+      "name": "bigtiff-unsigned64-dimensions",
+      "bytes": 213,
+      "detected": null,
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer contains unsupported image format"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer contains unsupported image format"
+        }
+      ]
+    },
+    {
+      "name": "avif-unsigned32-dimensions",
+      "bytes": 280,
+      "detected": "image/avif",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": true,
+          "error": "Input buffer has corrupt header: source: bad seek to 1024\nsource: bad seek to 512\nsource: bad seek to 384\nsource: bad seek to 320\nsource: bad seek to 288\nsource: bad seek to 284\nsource: bad seek to 282\nsource: bad seek to 281\nsource: bad seek to 312\nsource: bad seek to 281\nheifload: bad dimensions"
+        },
+        {
+          "mode": "conversion",
+          "rejected": true,
+          "error": "Input buffer has corrupt header: source: bad seek to 1024\nsource: bad seek to 512\nsource: bad seek to 384\nsource: bad seek to 320\nsource: bad seek to 288\nsource: bad seek to 284\nsource: bad seek to 282\nsource: bad seek to 281\nsource: bad seek to 312\nsource: bad seek to 281\nheifload: bad dimensions"
+        }
+      ]
+    },
+    {
+      "name": "ultrahdr-vendor-control",
+      "bytes": 50824,
+      "detected": "image/jpeg",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": false,
+          "output": {
+            "width": 384,
+            "height": 512
+          }
+        },
+        {
+          "mode": "conversion",
+          "rejected": false,
+          "output": {
+            "bytes": 449
+          }
+        }
+      ]
+    },
+    {
+      "name": "ultrahdr-icc-short-profile",
+      "bytes": 50419,
+      "detected": "image/jpeg",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": false,
+          "output": {
+            "width": 384,
+            "height": 512
+          }
+        },
+        {
+          "mode": "conversion",
+          "rejected": false,
+          "output": {
+            "bytes": 446
+          }
+        }
+      ]
+    },
+    {
+      "name": "ultrahdr-icc-maximum-marker-claimed-size-tags-u32",
+      "bytes": 115807,
+      "detected": "image/jpeg",
+      "checks": [
+        {
+          "mode": "metadata",
+          "rejected": false,
+          "output": {
+            "width": 384,
+            "height": 512
+          }
+        },
+        {
+          "mode": "conversion",
+          "rejected": false,
+          "output": {
+            "bytes": 446
+          }
+        }
+      ]
+    }
+  ],
+  "writesBeyondAllocation": 0,
+  "vendorControl": {
+    "source": "google/libultrahdr2.0.2/tests/data/apple_gainmap_new.jpg",
+    "bytes": 50824,
+    "sha256": "492a94bd0636bcf15b3f560c68142a7783936c1597e78b0d0461d8be7fddc078"
+  },
+  "boundary": "Selected hostile-header samples on exact serving native libraries; source proof, not samples alone, determines general reachability",
+  "normalConversion": "PASS",
+  "nextSharpSameInstance": true,
+  "tiffControl": "PASS",
+  "bigtiffControl": "PASS",
+  "capturedAt": "2026-10-11T11:13:51.413795+00:00",
+  "image": "content-factory-next:755d19fa731d",
+  "runnerSha256": "beda4b4d915fb9391d5220a465a2d2e868fccfc7f0df0360d035c4f874faeb92",
+  "memoryCapBytes": 268435456,
+  "network": "none",
+  "readOnly": true,
+  "foreignContainersPreserved": true,
+  "ownedFixtureRemoved": true
+}

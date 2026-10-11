@@ -1,0 +1,9 @@
+{
+  "normalAllocation": true,
+  "oversizedRejected": false,
+  "writesBeyondAllocation": 0,
+  "image": "content-factory-next:755d19fa731d",
+  "boundary": "Native GCC12 allocation primitive only; no attacker-controlled image-request exploit or heap corruption attempted",
+  "observedFinding": true,
+  "ownedFixtureAutoRemoved": true
+}
