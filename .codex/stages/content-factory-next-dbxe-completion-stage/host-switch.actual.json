@@ -1,0 +1,13 @@
+{
+  "startedAt": "2026-10-11T19:42:05.574719+00:00",
+  "finishedAt": "2026-10-11T19:42:28.526981+00:00",
+  "privateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "registryIndex": "sha256:3f503348cd5637ae167e00622b9293c23a450affcb3a465215fe1475dba1d315",
+  "switchExitCode": 0,
+  "postAcceptancePending": false,
+  "rollbackTarget": "2a53727594a1",
+  "rollbackExecuted": false,
+  "status": "PASS",
+  "postAcceptanceReceipt": "runtime-delivery.actual.json"
+}

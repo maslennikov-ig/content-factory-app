@@ -3,7 +3,7 @@
   "stage_id": "content-factory-next-dbxe-completion-stage",
   "goal_id": "content-factory-next-dbxe",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "accepted",
   "sequence": 5,
   "acceptance_boundary_id": "dbxe-complete-integrated-release",
   "acceptance_owner": "root",
@@ -95,7 +95,7 @@
       },
       {
         "criterion_id": "AC-content-factory-next-dbxe.16",
-        "text": "Versioned successor respects absolute deadlines/elapsed processing time for several plugs and repeat, has no negative sleeps and preserves declared repeat base. Virtual-clock proof includes nonzero processing. Historical V101\u2013V105 exports/replay remain unchanged and new starts migrate deliberately.",
+        "text": "Versioned successor respects absolute deadlines/elapsed processing time for several plugs and repeat, has no negative sleeps and preserves declared repeat base. Virtual-clock proof includes nonzero processing. Historical V101–V105 exports/replay remain unchanged and new starts migrate deliberately.",
         "text_digest": "637f3d9c65b74cc10070e713a704c276e9610c38d2e4391199995e0cafeb54b6"
       },
       {
@@ -246,11 +246,30 @@
     "content-factory-next-dbxe.36",
     "content-factory-next-dbxe.37"
   ],
-  "scope_note": "Owner selects whole epic completion; preserve exact original30 and seven retained follow-ups. Store publisher facts remain unresolved and are not silently deferred.",
+  "scope_note": "Whole audit epic completed under its unchanged acceptance: 36 technical tasks delivered and verified; owner12Oct2026 explicitly defers Skool publication to independent task32 with full original requirements retained outside completion.",
   "branch": "codex/dbxe-completion-20261011",
   "selected_agents": [
     "dbxe_frontend_completion",
     "dbxe_backend_completion",
     "dbxe_toolset_completion"
-  ]
+  ],
+  "technical_delivery": {
+    "status": "accepted",
+    "private_source": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+    "public_source": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+    "proof": "runtime-delivery.actual.json"
+  },
+  "owner_approved_deferral": {
+    "task_id": "content-factory-next-dbxe.32",
+    "approved_defer": true,
+    "status": "deferred",
+    "parent": null,
+    "proof": "owner-approved-store-defer.actual.json"
+  },
+  "epic_closeout": {
+    "status": "closed",
+    "technical_tasks_closed": 36,
+    "original_contracts_unchanged": 38,
+    "proof": "final-beads-state.actual.json"
+  }
 }

@@ -1,0 +1,15 @@
+{
+  "extensionIdConfigured": false,
+  "capturedAt": "2026-10-11T20:04:31.386711+00:00",
+  "taskId": "content-factory-next-dbxe.32",
+  "publisherIdentity": "UNKNOWN",
+  "publisherAccess": "UNVERIFIED",
+  "extensionPackageVersion": "2.0.1",
+  "storeSubmission": "NOT_ATTEMPTED",
+  "approvedPublishedStoreVersion": "UNKNOWN",
+  "existingOwnerQuestionAnswered": false,
+  "ownerApprovedDefer": false,
+  "browserPreflight": "No accessible authenticated CWS session found via currently exposed browser driver; not evidence that no publisher account exists",
+  "noAccountOrCredentialsCreatedOrCopied": true,
+  "status": "BLOCKED_OWNER_FACTS"
+}

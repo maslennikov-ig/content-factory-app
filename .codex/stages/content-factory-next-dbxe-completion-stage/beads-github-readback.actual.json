@@ -1,0 +1,287 @@
+{
+  "capturedAt": "2026-10-11T20:05:28.234478+00:00",
+  "repository": "maslennikov-ig/content-factory-next",
+  "issuesRead": 38,
+  "records": [
+    {
+      "id": "content-factory-next-dbxe.35",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.34",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.33",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.30",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.15",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.13",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.10",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.8",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.7",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.6",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.5",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.4",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.3",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.2",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.1",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe",
+      "localStatus": "blocked",
+      "remoteState": "OPEN",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.37",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.32",
+      "localStatus": "blocked",
+      "remoteState": "OPEN",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.31",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.29",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.25",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.24",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.23",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.22",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.21",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.20",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.19",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.18",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.17",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.16",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.14",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.12",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.11",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.9",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.36",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.28",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.27",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    },
+    {
+      "id": "content-factory-next-dbxe.26",
+      "localStatus": "closed",
+      "remoteState": "CLOSED",
+      "remoteLabels": [],
+      "projectedStateMatches": true
+    }
+  ],
+  "allProjectedStatusesMatch": true,
+  "mirrorContract": {
+    "source": "/home/me/.agents/orchestration-console/scripts/github_sync.py",
+    "sha256": "45fb3a204a00f23a46d04336f1fd8b530c4db8a18e27d4d1772855e3cfea2781",
+    "statusProjection": "closed -> GitHub CLOSED; all other Beads statuses -> GitHub OPEN (line1669)",
+    "bodyProjection": "Original description plus identity marker (line2529); notes/acceptance/close reasons and blocked labels are not mirrored",
+    "canonicalNotesStatusAuthority": "Beads"
+  },
+  "initialExpectationCorrection": {
+    "allStatusesMatch": false,
+    "allSelectedDeliveryNotesVisible": false,
+    "expectation": "Incorrectly expected blocked labels and delivery notes in a state-only GitHub projection"
+  },
+  "status": "PASS"
+}

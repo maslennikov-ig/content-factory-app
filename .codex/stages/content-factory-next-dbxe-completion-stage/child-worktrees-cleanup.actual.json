@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T19:47:35.848330+00:00",
+  "removed": [
+    {
+      "path": "/home/me/code/content-factory-next-worktrees/dbxe-completion-backend-20261011",
+      "head": "66cae490c93dd8dbbb4e9e0f485e70c86b1a40c9",
+      "removedWithoutForce": true,
+      "committedProofsPreservedInRoot": true,
+      "branchRetained": true
+    },
+    {
+      "path": "/home/me/code/content-factory-next-worktrees/dbxe-completion-frontend-20261011",
+      "head": "952ccdad07dfc7c63045f53ac98e4dcb8769aef5",
+      "removedWithoutForce": true,
+      "committedProofsPreservedInRoot": true,
+      "branchRetained": true
+    },
+    {
+      "path": "/home/me/code/content-factory-next-worktrees/dbxe-completion-toolset-20261011",
+      "head": "e5ad435ce3623e9b96cb6c1d08db466f7c4a6fc0",
+      "removedWithoutForce": true,
+      "committedProofsPreservedInRoot": true,
+      "branchRetained": true
+    },
+    {
+      "path": "/home/me/code/content-factory-next-worktrees/dbxe-mail-runtime-repair-20261011",
+      "head": "2b055b79d9e529268ef90a29009cdb119689c927",
+      "removedWithoutForce": true,
+      "committedProofsPreservedInRoot": true,
+      "branchRetained": true
+    }
+  ],
+  "activeOwnedProcessesBeforeCleanup": 0,
+  "unrelatedWorktreesTouched": false,
+  "rootOwnerDependenciesTouched": false,
+  "releaseWorktreeRetained": true
+}

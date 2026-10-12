@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T19:32:43.730246+00:00",
+  "image": "content-factory-next:ec58af8b31b1",
+  "localImageId": "sha256:3f503348cd5637ae167e00622b9293c23a450affcb3a465215fe1475dba1d315",
+  "privateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "helperSha256": "47787f953bd2c3ec1f97ccc84f40c44fa0e5786ec950dd2b6597edbd9cd9d2ec",
+  "buildOrCompilerInvoked": false,
+  "actualImageModulesAndSdk": true,
+  "compiledProof": {
+    "compiledModule": "/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/temporal.module.js",
+    "compiledInterceptor": "/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/temporal/mail-log-privacy.workflow.js",
+    "bundleBytes": 3334116,
+    "initialized": [
+      "sendEmailWorkflow",
+      "sendEmailWorkflowV2",
+      "sendEmailWorkflowV3",
+      "digestEmailWorkflow"
+    ],
+    "network": {
+      "socketConnect": 0,
+      "dnsLookup": 0
+    },
+    "temporaryOutputRemoved": true
+  },
+  "boundary": "Offline emitted-artifact loading and SDK VM; no worker/client/provider/activity or production startup claim"
+}

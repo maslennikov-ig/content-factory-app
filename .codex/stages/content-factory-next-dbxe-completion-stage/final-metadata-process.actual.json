@@ -1,0 +1,12 @@
+{
+  "scope": "metadata-only final closeout; original epic requirements retained and store gate remains blocked",
+  "command": [
+    "bash",
+    "scripts/orchestration/run_process_verification.sh",
+    "--stage",
+    "content-factory-next-dbxe-completion-stage"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.243,
+  "status": "PASS"
+}

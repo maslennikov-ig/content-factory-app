@@ -1,0 +1,10 @@
+{
+  "command": [
+    "pnpm",
+    "run",
+    "docs:check"
+  ],
+  "exitCode": 0,
+  "status": "PASS",
+  "scope": "Final owner-approved defer/epic closeout metadata only"
+}

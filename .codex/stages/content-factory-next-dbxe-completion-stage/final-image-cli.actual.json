@@ -24,13 +24,10 @@
   "providerCalls": 0,
   "connectionStubs": false,
   "boundary": "Actual candidate native CLI artifact, delegated-original observer, network none, synthetic configuration only",
-  "image": "content-factory-next:38c04e788cf5",
-  "capturedAt": "2026-10-11T18:36:56.657664+00:00",
-  "observerCorrection": {
-    "firstFalsePositive": "/app/node_modules/nestjs-command/dist/command.module.js",
-    "actualProjectModule": "/app/apps/commands/dist/apps/commands/src/command.module.js",
-    "projectModuleAndDbRedisTemporalImportsChecked": true,
-    "directHelpExit0": true,
-    "connectionStubs": false
-  }
+  "image": "content-factory-next:ec58af8b31b1",
+  "privateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "capturedAt": "2026-10-11T19:34:32.607524+00:00",
+  "observerSha256": "8297b442e4a7a52b25b9f5c0ac2188672068de871eb7289e0bfce37274ef21fc",
+  "allowedFrameworkModule": "/app/node_modules/nestjs-command/dist/command.module.js; only exact project modules and operational dependencies are forbidden"
 }

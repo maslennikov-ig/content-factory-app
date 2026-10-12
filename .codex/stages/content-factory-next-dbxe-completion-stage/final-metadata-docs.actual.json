@@ -1,0 +1,11 @@
+{
+  "scope": "metadata-only final closeout; accepted image source remains 2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "command": [
+    "pnpm",
+    "run",
+    "docs:check"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.715,
+  "status": "PASS"
+}

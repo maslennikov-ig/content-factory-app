@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-10-12T08:04:54.143024+00:00",
+  "status": "PASS",
+  "mode": "closeout-lite on existing accepted release boundary",
+  "epic": "content-factory-next-dbxe",
+  "epicStatus": "closed",
+  "tasksImplementedAndDelivered": 36,
+  "independentOwnerDeferredTask": "content-factory-next-dbxe.32",
+  "originalContractsPreserved": 38,
+  "checks": [
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "result": "PASS"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh",
+        "--stage",
+        "content-factory-next-dbxe-completion-stage"
+      ],
+      "result": "PASS"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "reusedSourceReleaseProof": "source-release-gates.actual.json",
+  "unchangedAcceptedProductSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "runtimeProof": "owner-defer-runtime.actual.json",
+  "taskStateProof": "final-beads-state.actual.json",
+  "ownerDecisionProof": "owner-approved-store-defer.actual.json",
+  "githubReadbackProof": "owner-defer-github-readback.actual.json",
+  "docs-reviewed": "updated",
+  "project-index-reviewed": "updated",
+  "graph-reviewed": "no-change-needed: owner decision/status/handoff metadata only; original accepted code graph retained",
+  "publicationOrNewDeploy": false
+}

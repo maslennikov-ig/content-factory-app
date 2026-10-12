@@ -1,0 +1,13 @@
+{
+  "status": "PASS_NEGATIVE_CONTROL",
+  "capturedAt": "2026-10-11T19:06:54.849245+00:00",
+  "image": "content-factory-next:38c04e788cf5",
+  "localImageId": "sha256:ddd959ee246c3fefcf813a00175e19219fbdbe1927e252aece59508430467e1d",
+  "helperSha256": "47787f953bd2c3ec1f97ccc84f40c44fa0e5786ec950dd2b6597edbd9cd9d2ec",
+  "imageExitCode": 1,
+  "caughtErrorCode": "MODULE_NOT_FOUND",
+  "caughtMissingCompiledModule": "./mail-log-privacy.workflow",
+  "buildOrCompilerInvoked": false,
+  "actualRejectedImageReproducesDefect": true,
+  "ownedFixtureRemoved": true
+}

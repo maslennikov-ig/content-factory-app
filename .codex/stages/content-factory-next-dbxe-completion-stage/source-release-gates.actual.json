@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T19:27:24.578855+00:00",
+  "privateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "gates": [
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run build",
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "result": "passed"
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "suite": {
+    "commit": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-11T19:24:33Z",
+    "jest": {
+      "suites": "Test Suites: 7 skipped, 660 passed, 660 of 667 total",
+      "tests": "Tests:       70 skipped, 12164 passed, 12234 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 123",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "nodeTestSkipped": 4,
+  "sourceAndRuntimeBoundary": "Source full-release acceptance only; actual candidate image/runtime acceptance pending",
+  "rejected38cRemainsRejected": true
+}

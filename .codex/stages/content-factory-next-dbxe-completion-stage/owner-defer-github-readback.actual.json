@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-10-12T08:01:47.402283+00:00",
+  "status": "PASS",
+  "scope": "Only changed epic and independent deferred task; original36 closed projections retained in historical receipt",
+  "projection": "Beads closed -> GitHub CLOSED; deferred -> GitHub OPEN; notes are not mirrored",
+  "issues": [
+    {
+      "taskId": "content-factory-next-dbxe",
+      "expectedProjectedState": "CLOSED",
+      "observed": {
+        "number": 1040,
+        "state": "CLOSED",
+        "url": "https://github.com/maslennikov-ig/content-factory-next/issues/1040"
+      }
+    },
+    {
+      "taskId": "content-factory-next-dbxe.32",
+      "expectedProjectedState": "OPEN",
+      "observed": {
+        "number": 1069,
+        "state": "OPEN",
+        "url": "https://github.com/maslennikov-ig/content-factory-next/issues/1069"
+      }
+    }
+  ],
+  "allChangedProjectedStatesMatch": true
+}

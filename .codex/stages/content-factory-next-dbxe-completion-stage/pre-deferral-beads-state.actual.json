@@ -1,0 +1,275 @@
+{
+  "capturedAt": "2026-10-11T20:01:30.265951+00:00",
+  "statusAuthority": "Beads canonical readback",
+  "epic": {
+    "id": "content-factory-next-dbxe",
+    "status": "blocked"
+  },
+  "originalContractsCompared": 38,
+  "changedOriginalFields": [],
+  "children": [
+    {
+      "id": "content-factory-next-dbxe.35",
+      "title": "Проверить и устранить остаточный риск GCC12 в обработке изображений",
+      "status": "closed",
+      "close_reason": "Root accepted11Oct2026 exact source/ABI/input-bound proof: sole UltraHDR ICC aligned new requests size-14, align4 after min146 guard, real APP2 bound65533/request65519/rounded65520; no possible alignment-rounding overflow. GNU PBDS template excluded from exact bundled C++/native sources; remaining C/Rust build receipts bound.12 controlled inputs/24 actual native checks, ordinary controls PASS; serving native hashes match official artifacts, Next same Sharp; health/login/source/archive/cap/capacity/rollback PASS. No product/package/image/deploy/data/schema/provider/model/restore mutation; OS allocator itself remains vulnerable and scanner records/reevaluation triggers retained. Outcome .codex/stages/content-factory-next-dbxe-native-allocation-stage/outcome.md; root-acceptance.actual.json. All original criteria unchanged; stop before34/whole epic.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1072"
+    },
+    {
+      "id": "content-factory-next-dbxe.34",
+      "title": "Проверить уязвимости глобальных инструментов внутри runtime-образа",
+      "status": "closed",
+      "close_reason": "11Oct2026 accepted and deployed. Exact private release source92f784757329f041fbf34de0dba0f0d9406a9680 -> public source/image2a53727594a13c15c8740af0686ebffb40d34bfd -> indexsha256:c763e3c3ba4ab4d5e3d9fddd55d178074223f3fec9cdc95b6817993d1ab035e2 -> active platform configsha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6. All51 original global Critical/High records mapped:47 removed with unused runtime npm/npx/pnpm/Corepack/Yarn,2 patched by PM2 direct js-yaml4.3.2,2 retained visibly (braces disabled watch; basic-ftp disabled agent/PAC). PM2 remains7.0.3; builder Node22.23.2/pnpm10.6.1 and product lock unchanged. Matching Prisma6.5 engine is included/hashed; direct installed CLI replaces all current operator package-manager callers. Real offline guarded SQL/equal-schema/native PM2 startup/auto/operator restart/shutdown/CLI PASS. Final image and fresh official npm endpoint show0 Critical/2 High global findings; current live three-role flags, no keys/proxy/modules prove disabled callers. All9 configured exact-source gates PASS:647 Jest suites/11946 tests (6/62 existing skips),123 Node tests (4 existing skips),50 Python tests; all app builds/types/docs/process/diff. Production healthy,0restarts,1792MiB; native readiness/API/login/source/archive PASS; pre/post schema empty/no SQL apply, product counts/Mastra45 and2 existing workflow executions preserved,21 other containers unchanged. Registry weight/capacity gates and verified rollback755d19fa731d/standing retention PASS. Original acceptance preserved; parent epic remains OPEN, no automatic next task. Evidence .codex/stages/content-factory-next-dbxe-global-runtime-stage/.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1070"
+    },
+    {
+      "id": "content-factory-next-dbxe.33",
+      "title": "Устранить применимые уязвимости системных пакетов runtime-образа",
+      "status": "closed",
+      "close_reason": "Dependent35 source/ABI proof accepted11Oct: both formerly UNKNOWN GCC findings excluded at exact serving image consumers; original audit53 other configured caller/platform/version exceptions unchanged, all116 C/H records/55 CVEs retained. Minimum compatible fix policy requires no runtime change for excluded configured paths. Native/current health/source/capacity PASS, exact unchanged d724/755d release gate reused, no new build/deploy or universal OS safety claim. Original33 acceptance unchanged; old audit artifacts preserved; follow-up native-allocation-stage/root-acceptance.actual.json explicitly supersedes only selected native reachability. Global34/8/parent epic remain open.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1071"
+    },
+    {
+      "id": "content-factory-next-dbxe.30",
+      "title": "Сверить потребителей и сменить ранее выдававшиеся API-ключи",
+      "status": "closed",
+      "close_reason": "Actual owner-authorized rotation and live API acceptance complete:7 old401/7 new200, no external consumers; sanitized evidence in completion-stage/key-rotation-apply.actual.json; original criterion preserved.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1067"
+    },
+    {
+      "id": "content-factory-next-dbxe.15",
+      "title": "Проверять отключение автоматизаций перед выполнением",
+      "status": "closed",
+      "close_reason": "Accepted locally: fresh global activation/channel/capability checks and scoped internal source+destination gates; X current switch before SDK/API and delayed write. Root proof: .codex/stages/content-factory-next-dbxe-automation-disablement-stage/root-acceptance.actual.json. 5 suites/212 PASS, zero skips,8 real PG tests, backend/orchestrator types,29 unchanged workflow/activity sources and legacy signature/byte guards, docs/diff PASS. Owned PG removed; all68 preexisting containers kept. No deploy/push/live provider/full release; epic and dbxe.8 remain open.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1051"
+    },
+    {
+      "id": "content-factory-next-dbxe.13",
+      "title": "Отзывать расширению право обновлять удалённый канал",
+      "status": "closed",
+      "close_reason": "Local server/persistence acceptance PASS:150 tests including8 actual PostgreSQL; types/docs/diff PASS. Migration and browser/release defers documented.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1044"
+    },
+    {
+      "id": "content-factory-next-dbxe.10",
+      "title": "Не перезаписывать ручные правки при повторном форматировании",
+      "status": "closed",
+      "close_reason": "Focused root acceptance PASS, 51 tests including 8 actual PostgreSQL cases; locally delivered, no production mutation.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1045"
+    },
+    {
+      "id": "content-factory-next-dbxe.8",
+      "title": "Устранить применимые уязвимости поставляемых зависимостей",
+      "status": "closed",
+      "close_reason": "11Oct2026 final dependency acceptance completes the original criterion. Previously accepted minimum compatible application graph/160 advisory decisions and current-caller/platform exceptions remain; OS33/native35 closed by exact source/ABI/input-bound evidence (general GCC allocator still vulnerable, reevaluation triggers preserved). Global34 now delivered at exact private92f784757329f041fbf34de0dba0f0d9406a9680/public2a53727594a13c15c8740af0686ebffb40d34bfd:49/51 baseline global records resolved,2 disabled-caller PM2 exceptions retained explicitly. Fresh exact final-image/official npm checks and live flags agree. All9 configured next-release checks and exact-commit suite receipt PASS:647 Jest suites/11946 tests,123 Node,50 Python with recorded existing skips, four app builds/types/docs/process. Active service/source/archive/native chain/empty schema diff/Mastra45/product counts/2 existing workflows/21 other containers/verified rollback checked after delivery and retention. No blanket security-all-clear: application/build/OS/global records and triggers stay visible. Original acceptance and30 epic criteria unchanged; parent remains OPEN. Stage .codex/stages/content-factory-next-dbxe-global-runtime-stage/outcome.md.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1046"
+    },
+    {
+      "id": "content-factory-next-dbxe.7",
+      "title": "Показывать отказ готовности при остановленном обработчике",
+      "status": "closed",
+      "close_reason": "Locally implemented and root-accepted worker/poller readiness, source-bound native stop/restart and safe pending workflow proof; 158 affected tests. Release remains in task8.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1047"
+    },
+    {
+      "id": "content-factory-next-dbxe.6",
+      "title": "Не повторять подтверждённую публикацию после вспомогательного сбоя",
+      "status": "closed",
+      "close_reason": "Local follow-up acceptance: known preparation failure retry and receipt recovery during billing outage fixed;14 suites/265 tests, zero skip,9 real PostgreSQL checks, both types and docs/process/diff pass. V106 uncertain pending claims, original contracts/criteria and task8 release gate preserved.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1041"
+    },
+    {
+      "id": "content-factory-next-dbxe.5",
+      "title": "Изолировать обновление OAuth-учётных данных между организациями",
+      "status": "closed",
+      "close_reason": "Root review correction accepted: exact-provider atomic upsert prevents same-organization cross-provider ID overwrite, including concurrent new connections. Same-provider reconnect/concurrent creation and LinkedIn family sharing retained. Fresh34 suites/558 tests, zero skips, incl11 real PostgreSQL; backend types/docs/process/diff PASS. Details access-stage/review/review.md, review/review-acceptance.json. No schema, live credentials, provider calls, push or deploy.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1042"
+    },
+    {
+      "id": "content-factory-next-dbxe.4",
+      "title": "Закрыть подделанные cookie-запросы с чужого сайта",
+      "status": "closed",
+      "close_reason": "Accepted09Oct2026 locally; root 34 suites/554 tests, zero skips, incl7 real PostgreSQL tests; backend types/docs/process/diff PASS. Evidence .codex/stages/content-factory-next-dbxe-access-stage/root-acceptance.actual.json; outcome.md; docs/operations/access-token-migration.md. NOT DEPLOYED; explicit authorized release and dbxe.8 dependency applicability remain delivery gates.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1043"
+    },
+    {
+      "id": "content-factory-next-dbxe.3",
+      "title": "Учитывать текущую роль и участие для старых OAuth-токенов",
+      "status": "closed",
+      "close_reason": "Accepted09Oct2026 locally; root 34 suites/554 tests, zero skips, incl7 real PostgreSQL tests; backend types/docs/process/diff PASS. Evidence .codex/stages/content-factory-next-dbxe-access-stage/root-acceptance.actual.json; outcome.md; docs/operations/access-token-migration.md. NOT DEPLOYED; explicit authorized release and dbxe.8 dependency applicability remain delivery gates.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1037"
+    },
+    {
+      "id": "content-factory-next-dbxe.2",
+      "title": "Разделить токены восстановления пароля и сессии",
+      "status": "closed",
+      "close_reason": "Accepted09Oct2026 locally; root 34 suites/554 tests, zero skips, incl7 real PostgreSQL tests; backend types/docs/process/diff PASS. Evidence .codex/stages/content-factory-next-dbxe-access-stage/root-acceptance.actual.json; outcome.md; docs/operations/access-token-migration.md. NOT DEPLOYED; explicit authorized release and dbxe.8 dependency applicability remain delivery gates.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1038"
+    },
+    {
+      "id": "content-factory-next-dbxe.1",
+      "title": "Защитить API-ключ организации от выдачи обычным участникам",
+      "status": "closed",
+      "close_reason": "Accepted09Oct2026 locally; root 34 suites/554 tests, zero skips, incl7 real PostgreSQL tests; backend types/docs/process/diff PASS. Evidence .codex/stages/content-factory-next-dbxe-access-stage/root-acceptance.actual.json; outcome.md; docs/operations/access-token-migration.md. NOT DEPLOYED; explicit authorized release and dbxe.8 dependency applicability remain delivery gates.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1039"
+    },
+    {
+      "id": "content-factory-next-dbxe.37",
+      "title": "Убирать данные писем из журналов Temporal без изменения старых контрактов",
+      "status": "closed",
+      "close_reason": "Original source-only proof missed a dynamically resolved interceptor in emitted Nest output; rejected38c startup and actual rollback2a retained. Minimal tsconfig includes exactly1 source,45 prior inputs unchanged; actual compiled regression and ready-image SDK bundle/VM initialize mailV1/V2/V3/digest with0 sockets/DNS. Full9 source2e plus actual ec58 runtime:3 roles online/0restarts, V3/digest runs/data/21 foreign containers preserved. Historical workflows/logger/interceptor bodies unchanged by compiler repair.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1074"
+    },
+    {
+      "id": "content-factory-next-dbxe.32",
+      "title": "Опубликовать пакет расширения в Chrome Web Store",
+      "status": "blocked",
+      "close_reason": null,
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1069"
+    },
+    {
+      "id": "content-factory-next-dbxe.31",
+      "title": "Перевести действующую почтовую очередь на V3 без потери писем",
+      "status": "closed",
+      "close_reason": "Actual admitted/settled queue conservation, exact empty-run transition, deployed V3 task and health verified; native bounded history/queued-state/rollback compatibility retained; no live test mail. Original criterion preserved.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1068"
+    },
+    {
+      "id": "content-factory-next-dbxe.29",
+      "title": "Завершить итоговую приёмку эпика после поэтапных исправлений",
+      "status": "closed",
+      "close_reason": "Accepted chosen technical release batch at private2e357374d91a/public/image ec58af8b31b1: all9 repository gates PASS (660 Jest suites/12164 tests,123 Node,50 Python;70/4 skips explicit), actual compiled image/CLI/native/source/registry/host correspondence PASS. Backend/frontend/orchestrator online/0restarts; schema diff0/noSQL, selected data/keys/Mastra45/two active runs/21 foreign containers preserved; actual rollback2a verified. All delivered child corrections and retained applicability/support boundaries are referenced in completion-stage/outcome.md and runtime-delivery.actual.json. Store32 remains BLOCKED, no owner-approved defer and no whole-epic/store/provider/client acceptance inferred. No real social/mail/model or restoration used as delivery QA.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1062"
+    },
+    {
+      "id": "content-factory-next-dbxe.25",
+      "title": "Оградить старые локальные команды запуска и сброса базы",
+      "status": "closed",
+      "close_reason": "11Oct2026 bounded25 source acceptance PASS. One local CLI guards root/app PM2 aliases, Dockerfile.dev and Prisma push/reset before child. Explicit existing cf-dev/cf-dev-db loopback:5433 profile; production NODE_ENV, remote/ambiguous URLs, dotenv conflicts/substitutions, separate production Mastra URL and schema/connection argument overrides reject without subprocess. Startup uses existing foreground app scripts, no PM2 deletion or schema call. Push/reset default to no execution; dry-run has no child; --apply --confirm-local cf-dev-db required. Ordinary push no implicit data-loss flag; reset one installed-Prisma command. 2 Jest suites/62 tests PASS (60 new fake-command cases plus2 existing production guards), zero skips; docs/process/diff PASS, Node22.23.2/pnpm10.6.1. Fakes in owned temporary trees only; no live DB or real/shared PM2 or Docker mutation. Application source/dependencies, production Dockerfile/entrypoint/ecosystem, schema/SQL guard remain byte-identical to1db baseline. Current accepted .34 public2a53727594a1 API/login/source identity checked read-only; no runtime deploy/full-suite replay needed for local tooling. Original criterion and30 epic criteria kept; parent OPEN. Existing28 retains discovered legacy docker-build.sh missing dist/devcontainer targets. Next candidate24 unselected. Evidence .codex/stages/content-factory-next-dbxe-local-startup-safety-stage/root-acceptance.actual.json and outcome.md. Source private push follows the explicit delivery step; no public image claim.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1063"
+    },
+    {
+      "id": "content-factory-next-dbxe.24",
+      "title": "Убирать личные данные и тексты из обычных логов",
+      "status": "closed",
+      "close_reason": "Local generic EmailService/MediaService/slides log privacy accepted:6 suites/37 tests (23 synthetic), backend/orchestrator types/docs/process/diff PASS. Fixed safe outcomes/random correlation preserve arguments, retries and error propagation. Original criteria unchanged. Runtime not switched; exact-source application delivery remains OPEN29. Separate confirmed Temporal mail workflow/SDK logging remains OPEN37 with31; no all-stdout privacy/retention claim. Evidence: .codex/stages/content-factory-next-dbxe-log-privacy-stage/outcome.md.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1052"
+    },
+    {
+      "id": "content-factory-next-dbxe.23",
+      "title": "Сверять платформу материала с выбранным каналом",
+      "status": "closed",
+      "close_reason": "Explicit material/channel platform mismatch fails before writes; supported provider aliases remain. Real existing registry/current DTO and8 scripted chat cases plus backend153 focused accepted; exact-source full9 and healthy ec58 runtime delivered. No hidden raw SQL or provider calls.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1053"
+    },
+    {
+      "id": "content-factory-next-dbxe.22",
+      "title": "Резервировать лимит изображений и видео атомарно",
+      "status": "closed",
+      "close_reason": "Serializable bounded credit reservation prevents concurrent overspend; provider starts only after commit, failed generation refunds correctly and unbilled rules remain. Backend153 focused,8 real synchronized PostgreSQL races and8 scripted chat cases; exact-source full9 and actual ec58 deployment PASS. Schema unchanged; no paid model/provider QA.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1054"
+    },
+    {
+      "id": "content-factory-next-dbxe.21",
+      "title": "Проверять принадлежность медиа и R2-сессий пользователю",
+      "status": "closed",
+      "close_reason": "Root accepted local ownership fix: 6 suites/88 fake-R2/Redis/HTTP checks plus 9 native PostgreSQL, no skip; backend/frontend types/docs/process/diff pass; 39 Temporal bodies/signatures unchanged, 69 foreign containers kept. Outcome .codex/stages/content-factory-next-dbxe-media-ownership-stage/outcome.md. No live R2/account mutation. Original criterion retained; authorized accumulated release follows separately through .8; epic remains open.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1055"
+    },
+    {
+      "id": "content-factory-next-dbxe.20",
+      "title": "Ограничить рост истории периодических процессов",
+      "status": "closed",
+      "close_reason": "10Oct2026 locally accepted at baseline31e7170f: additive AutoPost V2/draft V3/recovery V109/mail V3 rotate after100 hourly turns or30 settled mail attempts, including failures; pending queue/input/cadence kept, cancellation propagates. Actual owned source consumers checked; prior IDs preserved, recovery/mail USE_EXISTING, no forced running-type migration. Root PASS9 Jest/162+10 Node zero skip, actual SDK1.15 native30 failed sends with2 boundary signals/34 distinct across runs,7 synthetic legacy/new histories replay,3 app types/docs190/diff. All34 historical bodies/prior signatures and30 original criteria retained. Exact owned fixture removed,68 preexisting containers kept. Outcome/root .codex/stages/content-factory-next-dbxe-periodic-history-stage/. No real provider/live inventory/mutation, full release, push or deploy. Existing running types/queue inspection and consumer-aware transition remain at original .8 release boundary; per-run bounds are not archival retention. Epic/.8/unselected statuses unchanged; stop for owner-selected .21.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1056"
+    },
+    {
+      "id": "content-factory-next-dbxe.19",
+      "title": "Продолжать обновление остальных токенов после частичного отказа",
+      "status": "closed",
+      "close_reason": "10Oct2026 bounded local token-refresh acceptance PASS. Individual thrown/empty refresh preserves secret and saves tenant-scoped reconnect marker before notification; later channels continue. Lookup/marker/save failures and notification failures counted; fatal initial query remains fatal. Command exposes count-only JSON and exit0/1 after complete batch, fixed fatal error/no raw secrets. Dribbble explicit DRIBBBLE_RECONNECT_REQUIRED result performs no renewal network request, removes Pinterest copy; auth/publishing unchanged. 3 Jest suites/93 tests incl30 new and6 actual Nest/yargs command subprocesses; backend/orchestrator/commands types/docs/diff green. Actual installed Temporal aggregate discovery retains PostActivity flat refreshToken alias/error wrapper;35 Temporal sources/signature baseline and30 original criteria preserved. Root-owned/no extra reviewer, contexts/processes closed. Outcome .codex/stages/content-factory-next-dbxe-token-refresh-stage/outcome.md, root-acceptance.actual.json. Memory Prisma/provider/notification proof only; no PG/live tokens/provider calls/native Temporal/schema/push/deploy/full suite. Existing cohort/rotation persistence uncertainty documented, no rollback promise or automatic retry. Epic OPEN; .8 original full release gate IN_PROGRESS; .20 OPEN. Stop for owner next-stage choice.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1057"
+    },
+    {
+      "id": "content-factory-next-dbxe.18",
+      "title": "Подтверждать Nostr по идентификатору отправленного события",
+      "status": "closed",
+      "close_reason": "10Oct2026 bounded local Nostr identity acceptance PASS: matching positive OK for the signed event ID only; actual HEX-to-bytes signer, channel identity check, unchanged comment linkage and media; sign once/reuse event across five relays; bounded connect/ack deadlines and all-path termination; fixed failure instead of completed. 3 Jest suites/85 tests incl native runner; 38 native crypto/protocol/actual-ws loopback cases, zero skips; actual V106 confirmed/uncertain claim proofs with memory persistence; backend/orchestrator types/docs/diff green. All35 Temporal sources/signature baseline and30 original criteria preserved. Root-owned, no extra reviewer; fixtures closed. Outcome .codex/stages/content-factory-next-dbxe-nostr-identity-stage/outcome.md; receipt root-acceptance.actual.json. No public relay, native Temporal/PG, schema, push/deploy, live mutation or historical auto-republish. Historical retry policies unchanged; no cross-invocation cache. Epic OPEN, .8 original full release gate IN_PROGRESS, .19 OPEN. Stop for owner next-stage choice.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1058"
+    },
+    {
+      "id": "content-factory-next-dbxe.17",
+      "title": "Передавать внутренний идентификатор публикации в webhook",
+      "status": "closed",
+      "close_reason": "10Oct2026: dbxe.17 accepted locally. New V108 webhook activity receives the internal localPostId with organization/channel scope through actual service/Prisma lookup. v2 keeps the array/public fields, local id and separate providerPostId; URL/state come from the same row. Deleted/child/foreign/wrong-channel rows never send empty/foreign events. HTTP/transport failures are fixed/logged non-retryable activities with counts, one proxy attempt; confirmed publication is not resent and automations continue. SDK cancellation propagates. 7 selected Jest suites/165 tests/zero skip; backend/orchestrator types; actual SDK1.15.0 current bundle and offline replay of seven saved synthetic V101–V107 histories PASS. All31 historical workflow/activity source hashes and old signatures unchanged; four additions only. All30 original criteria preserved. Root outcome/receipt: .codex/stages/content-factory-next-dbxe-webhook-identity-stage/. One read-only child map accepted; no resources or unrelated work changed. No real receiver, native V108 execution, provider/model call, production/schema mutation, full release suite, push or deployment. Future selected release must inspect/retire checked old recovery loops, retain V108 exports and verify v2 recipients under the original dbxe.8 gate. Epic OPEN, .8 IN_PROGRESS; .18 remains OPEN for owner selection. No automatic continuation.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1059"
+    },
+    {
+      "id": "content-factory-next-dbxe.16",
+      "title": "Соблюдать заданные сроки отложенных действий",
+      "status": "closed",
+      "close_reason": "dbxe.16 accepted locally against root-acceptance.actual.json: V107 absolute deadlines subtract discovery/action/retry time; overdue actions create no timer; repeat keeps workflow-entry base. 5 suites/181 tests/zero skips, backend/orchestrator types, actual SDK baseline V101-V106 and current V107 execution/replay PASS; 28 historical source hashes unchanged; only 3 signature entries added; all 30 original criteria preserved. One owned loopback Temporal container removed, all 68 pre-existing final-run containers kept. Normal/recovery/repeat new starts select V107; old contracts remain. Future release must inspect/retire old missing-post-workflow/missing-post-workflow-v106 loops and retain V107 during rollback, apply original journal schema gate and satisfy dbxe.8 full release acceptance. Guide docs/operations/automation-deadlines.md. No push/deploy/full release suite/production/provider calls. Epic OPEN, dbxe.8 IN_PROGRESS; dbxe.17 candidate remains unstarted. Stage .codex/stages/content-factory-next-dbxe-automation-deadlines-stage/.\n",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1060"
+    },
+    {
+      "id": "content-factory-next-dbxe.14",
+      "title": "Собрать расширение с разрешением на свой backend",
+      "status": "closed",
+      "close_reason": "Accepted locally: production extension2.0.1 exact Factory/local host permissions, validated backend URL, native action failure/reconnect/retry guidance and guarded stale status. Canonical build/ZIP+types PASS;2 suites/56 tests/0 skips;21 actual packaged Chromium cases using synthetic native cookies, external message and alarm/loopback noCORS, zero redirects followed. All30 original criteria preserved,14 unchanged dbxe.13 server inputs verified. Proof/outcome: .codex/stages/content-factory-next-dbxe-extension-runtime-stage/. Owned fixture cleaned. No source push/deploy/store/provider; epic open and task8 release gate retained. Next candidate15 requires owner selection.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1061"
+    },
+    {
+      "id": "content-factory-next-dbxe.12",
+      "title": "Завершать индикаторы входа после сетевой ошибки",
+      "status": "closed",
+      "close_reason": "Login/reset/OAuth error paths always finish loading, show localized retry and never render false sent-success; intended contracts retained. Affected frontend checks and complete locales accepted; source2e/public ec58 full9 and actual native/frontend/API/source runtime PASS. No real mail/account/provider QA.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1048"
+    },
+    {
+      "id": "content-factory-next-dbxe.11",
+      "title": "Исправить ошибки чтения, удаления и права действий в интерфейсе",
+      "status": "closed",
+      "close_reason": "HTTP/network/JSON/shape errors show localized retry instead of false empty/success; denied delete keeps cached records and extension grants; USER is preview-only and EDITOR writes remain scoped. Frontend affected254 checks plus14-locale native translations/16-locale1406-key completeness; exact-source full9 and healthy ec58 actual delivery PASS. No real account deletion or provider calls used as QA.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1049"
+    },
+    {
+      "id": "content-factory-next-dbxe.9",
+      "title": "Сохранять последние правки при уходе со страницы",
+      "status": "closed",
+      "close_reason": "Core/adaptation dirty text is retained synchronously for recovery after navigation and rejected save; real quota/readable-storage and failed-remove regressions accepted, no normal-navigation confirmation. Focused frontend14 suites254 plus storage3 suites71; integrated source2e357374d91a/public ec58af8b31b1 full9 gate and actual healthy runtime PASS. Source/fixture behavior proof plus deployed exact source; no crash-durability claim when browser storage is entirely unavailable.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1050"
+    },
+    {
+      "id": "content-factory-next-dbxe.36",
+      "title": "Убирать анонимные тома одноразовых PostgreSQL-проверок",
+      "status": "closed",
+      "close_reason": "PostgreSQL fixture teardown verifies exact UUID/name/labels/image/mount ownership and removes only owned anonymous volume on success/failure/SIGTERM/manual cleanup.4 actual native PostgreSQL cases and fake/static boundaries accepted; foreign containers/7491 volumes preserved in child proof. Full9 ec58 release and root fixture cleanup passed; no broad prune/shared volume deletion.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1073"
+    },
+    {
+      "id": "content-factory-next-dbxe.28",
+      "title": "Разобрать остаточные вспомогательные исходники без потери совместимости",
+      "status": "closed",
+      "close_reason": "Owned current callers/CI/persisted provider inventory retained; Jenkins uses preprovisioned exact Node22.23.2/pnpm10.6.1, legacy Docker helper uses valid one-stage local image without destructive removal. Custom Mastodon preserved disabled with no owned persisted usage. Support boundary and explicit SDK/extension acceptance kept; toolset163 checks/SDK build and actual ec58 delivery PASS. External Jenkins/store/provider acceptance remains separate.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1064"
+    },
+    {
+      "id": "content-factory-next-dbxe.27",
+      "title": "Сделать CLI-проверку конфигурации пригодной для автоматизации",
+      "status": "closed",
+      "close_reason": "Native compiled CLI handles offline help/config validation before operational imports, strict invalid exits1/valid0 and legacy behavior stays.9 actual child cases and3 actual final-image cases,0 sockets/DNS and0 operational imports, no connection stubs; full9 release and exact ec58 runtime delivered. No production CLI mutation used as QA.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1065"
+    },
+    {
+      "id": "content-factory-next-dbxe.26",
+      "title": "Уточнить совместимый контракт HTTP-ошибок SDK",
+      "status": "closed",
+      "close_reason": "SDK HTTP-error contract is explicit opt-in, typed status/body/retry metadata with compatible legacy JSON/raw Response;5 public signatures and built consumer preserved. Genuine compiled SDK+local HTTP409 proof, toolset163 checks and separate SDK build/typecheck; exact-source ec58 public/image delivered. No npm publication or external consumer/provider acceptance inferred.",
+      "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1066"
+    }
+  ],
+  "closed": 36,
+  "blocked": 1,
+  "remainingTask": "content-factory-next-dbxe.32",
+  "approvedDeferral": false
+}

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bash",
+    "scripts/orchestration/run_process_verification.sh",
+    "--stage",
+    "content-factory-next-dbxe-completion-stage"
+  ],
+  "exitCode": 1,
+  "status": "FAIL",
+  "scope": "Accepted existing stage with explicit independent Skool defer; no new micro-stage"
+}

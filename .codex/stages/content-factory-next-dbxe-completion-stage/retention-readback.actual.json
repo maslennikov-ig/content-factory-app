@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T20:04:31.387022+00:00",
+  "runningImage": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+  "verifiedRollback": "2a53727594a1",
+  "nativeRoles": [
+    {
+      "name": "backend",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "restarts": 0
+    }
+  ],
+  "foreignContainersPreserved": 21,
+  "releaseRetentionScriptSucceeded": true,
+  "retentionScope": "Only own release tags and own excess configuration copies; no volumes/live configuration/foreign projects",
+  "publicArchiveSha256": "715f33b7b8feae726c47da9a244f07e1c9353ad164ab352f0ed6aae050e193e4"
+}

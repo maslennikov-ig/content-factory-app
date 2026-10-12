@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-10-11T19:59:48.306730+00:00",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "buildRunId": 38167940546,
+  "codeQualityRunId": 38167940539,
+  "jobs": [
+    {
+      "name": "Full test suite (required)",
+      "conclusion": "success",
+      "jobId": 114554302539
+    },
+    {
+      "name": "The suite, one year on",
+      "conclusion": "success",
+      "jobId": 114554302678
+    },
+    {
+      "name": "build (22.23.2)",
+      "conclusion": "success",
+      "jobId": 114554302713
+    },
+    {
+      "name": "Docker-capable execution proofs (required)",
+      "conclusion": "success",
+      "jobId": 114554302775
+    },
+    {
+      "name": "Code Quality Analysis",
+      "conclusion": "success"
+    }
+  ],
+  "allThreeFullSuiteHalvesIndependentlyRead": true,
+  "suiteHalvesSummary": [
+    "jest: Test Suites: 7 skipped, 660 passed, 660 of 667 total / Tests:       72 skipped, 12162 passed, 12234 total",
+    "node --test: # pass 123 / # fail 0",
+    "python unittest: Ran 50 tests in 0.945s / OK",
+    "All 3 suite halves reported."
+  ],
+  "calendarPlus400": "PASS",
+  "boundary": "Current exact public source CI only; runtime proof is separately recorded"
+}

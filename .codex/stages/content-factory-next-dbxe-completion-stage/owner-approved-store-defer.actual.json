@@ -1,0 +1,17 @@
+{
+  "capturedAt": "2026-10-12T07:55:56.203780+00:00",
+  "ownerDecisionDate": "2026-10-12",
+  "ownerDecisionQuote": "Давай отложим публикацию расширения для Skool, сохрани её отдельной задачей и закрой эпик.",
+  "approvedDeferral": true,
+  "taskId": "content-factory-next-dbxe.32",
+  "taskStatus": "deferred",
+  "parent": null,
+  "originalEpic": "content-factory-next-dbxe",
+  "originalRequirementsUnchanged": true,
+  "deadlineInvented": false,
+  "storePublicationClaimed": false,
+  "publisherPaymentOrRegistrationClaimed": false,
+  "syncTriggerExitCode": 0,
+  "externalRef": "https://github.com/maslennikov-ig/content-factory-next/issues/1069",
+  "boundary": "The retained Chrome Web Store requirement remains outside epic completion by explicit owner decision."
+}

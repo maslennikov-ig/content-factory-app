@@ -1,25 +1,29 @@
-# Content Factory current handoff — 11 October 2026
+# Content Factory current handoff — 12 October 2026
 
-## Whole-dbxe completion in progress
+## dbxe audit epic completed; Skool publication independently deferred
 
 Current stage id: content-factory-next-dbxe-completion-stage
-Owner11Oct authorizes whole epic and necessary technical delivery. Three isolated
-streams accepted/integrated; root owns release29 and the bounded compiled-mail repair37.
-Plan/manifest and central stream artifacts: stages/content-factory-next-dbxe-completion-stage/.
-Tasks30/31 CLOSED from actual production proof:7 old keys401/new keys200, no external
-consumers; empty V2 migrated to V3 with stable ID,11.21sec admission pause, no mail replay.
-Serving public2a53727594a1/private92f784757329 restored healthy after rejecting38c04e788cf5.
-Accepted source e1eb630f passed all9 gates:12163 Jest/123 Node/50 Python (70/4 skips).
-Actual38c startup missed emitted mail-log-privacy.workflow; native orchestrator restarted.
-37 IN_PROGRESS until runtime; compiler inclusion c886a3809+actual compiled regression accepted.
-Rollback retained schema and V3/digest runs; no SQL/mail/provider calls. All3 native roles
-online/0restarts. AidevTeam container changed concurrently; stale21-ID baseline is not proof
-of all21 unchanged. Refresh current baseline before corrected delivery; our commands scoped CF.
-Global34/8 resolved49/51;2 disabled-caller exceptions retained. OS33/35 retain116 records
-and allocator triggers. Local25/24/37 and accepted streams await corrected29 runtime delivery.
-Original30 criteria+seven follow-ups preserved; dbxe IN_PROGRESS. Store32 BLOCKED on publisher
-facts, no implicit defer. Unrelated original0qgn/client/SaaS/research epics stay open.
-Historical stage/source/runtime receipts remain; failed38c is not accepted deployment.
+Owner12Oct explicitly approves independent Skool publication defer and epic closure.
+Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed.
+Original38 task contracts unchanged; approved defer recorded in Beads, the authority.
+Serving public/image ec58af8b31b1; accepted private source2e357374d91a. Full9 PASS:
+660 Jest suites/12164 checks (70 skips),123 Node (4 skips),50 Python. Current public
+CI all5 PASS; its3 halves independently read (12162 Jest/72 skips,123 Node,50 Python);
+calendar+400 PASS. These are distinct environments, not identical skip counts.
+Fresh12Oct native3 roles online/0restarts; release1792MiB/schema diff0/94 orgs/7 keys,
+Mastra45/selected row counts and same V3/digest runs retained. All21 current foreign
+containers preserved at corrected switch. Source60 files/archive/index/config exact.
+Rejected38c missing emitted mail interceptor kept as failure proof; actual rollback2a
+worked. Minimal c886 compiler inclusion preserves45 prior inputs; emitted image/VM
+proof passed. Retention keeps current ec58 +verified rollback2a; no foreign/volume cleanup.
+30 old-key401/new-key200 and31 empty V2->V3 cutover remain actual accepted operations.
+Global34/8 retain2 disabled-caller exceptions;33/35 retain native/allocator triggers,
+not a universal patched claim. Four clean owned child worktrees removed; proofs and
+branches kept, release worktree retained. All unrelated work preserved.
+Store2.0.1 package/native fixture is distinct from CWS approval; EXTENSION_ID unset.
+Outcome/runtime/CI/status proof: stages/content-factory-next-dbxe-completion-stage/.
+Unrelated0qgn/client/SaaS/research epics and their defers stay open. No paid/provider/
+real-mail/social/restore used as delivery QA. No full acceptance rerun for final metadata.
 Accepted stage id: content-factory-next-dbxe-readiness-stage
 
 ## Previous accepted publishing stage
@@ -149,11 +153,12 @@ in pre-pass-handoff.md and earlier stage receipts. No old C27/native runner repl
 
 ## Next recommended
 
-Next stage id: content-factory-next-dbxe-completion-stage
-Recommended action:finish narrow same-stream correction, one root-owned configured9
-release acceptance and exact-source public/image/production delivery29; retain V3 run/data.
-Use $orchestrator-stage within this existing shared boundary, then orchestration-closeout.
-Store32 needs actual publisher facts/approved version or explicit owner-approved defer.
+Next stage id: none selected
+Recommended action: wait for owner selection; audit epic dbxe CLOSED, no automatic work.
+Task32 retained independently as DEFERRED; no automatic publication or deadline.
+Choose further work explicitly from Beads; unrelated product epics remain open.
+Use $orchestrator-stage only when new selected work needs orchestration.
+Reuse exact2e/ec58 acceptance; do not rebuild/retest/redeploy unchanged application.
 
 Original0qgn remains open. 0qgn.5 stays BLOCKED: shared collector90days vs target30
 without a project override, aged pruning, invoice reconciliation and ledger sizing
@@ -166,11 +171,10 @@ to obtain when that scope is selected.
 
 ## Explicit defers
 
-Beads24/25/37 CLOSED locally; 31 actual queue migration CLOSED; application-source release29 IN_PROGRESS. SDK history retains payloads; no retention claim. Docker helper28/test-volume36 OPEN. Historic dependency
-local-stage canonical debt scanner includes pre-existing untracked upstream
-source/log tokens from older stages; those historical artifacts are preserved,
-not new source debt. All changed product/test code is free of debt markers.
-dbxe.14 canonical Python ZIP build/package/browser PASS; prior failed build retained.
+Beads24/25/37/28/36/29 CLOSED and delivered;30/31 actual operations retained.
+Store32 independently DEFERRED by owner12Oct. SDK history retains payloads; no global
+retention/privacy/host-loss recovery claim. Historical logs/markers remain unchanged.
+dbxe.14 canonical Python ZIP/native controlled browser PASS, not store acceptance.
 
 Owner-deferred: legal operator/region/support/Terms/Privacy, pricing/trial/payment,
 actual ChatGPT login(kcxz.46), external copy/key custody. Claude unavailable;
@@ -183,14 +187,14 @@ ChatGPT acceptance;2q28 retains actual client acceptance.
 
 ## Starter prompt for next orchestrator
 
-Read mail-log-privacy-stage/outcome.md and original Beads29/31 criteria; local24+37 source differs from global34 runtime;33/35 evidence retains exact scope.
-Owner selected whole-dbxe completion11Oct: root owns integrated acceptance/release;3 isolated streams run in parallel.
-Serving34 remains accepted;31 is now actual V3 and30 actual keys revoked. Changed24+37/application source awaits29;
-preserve all original criteria and unrelated epic defers. See completion-stage/plan.md for active scope.
-Local media proof: fake R2/Redis and9 actual PG; release/provider evidence remains separate.
-Preserve task8 retained scanner/global records and native reevaluation triggers, exact-release proof, SaaS/client/legal/research defers,
-source/registry separation and the verified working runtime/rollback.
-
-graph-reviewed: used - focused getTemporalModule d724 neighbors/current hashes matched; main/options/AppModule and SDK logger/sandbox read; new scoped Node/workflow modules indexed by pointer;
-55 zero-node files remain limited coverage. No API extraction, query logging or git hooks.
-Root-owned cohesive stage; all unrelated tracked/untracked work preserved.
+Read completion-stage/outcome.md, owner-approved-store-defer.actual.json and Beads.
+Audit epic dbxe is CLOSED at2e/ec58; all4 streams accepted/cleaned, no live child
+jobs. Task32 is independently DEFERRED; resume only upon a new owner selection.
+Preserve source/registry separation, current healthy ec58/verified rollback2a, V3/digest
+runs and all original38 contracts/unrelated defers. Reuse exact full9+publicCI/runtime proof.
+Do not run old C27, new search refactors, paid/provider/live-mail/restore or another
+application release without a concrete changed source/configuration requirement.
+graph-reviewed: used - owner graph5cdd/current core hashes and focused neighborhoods
+retained; compiler/test-only repair changes no core symbols. Known55 zero-node files
+remain coverage limit. No external extraction, query logging or Graphify git hooks.
+Root-owned closeout; metadata-only final commit is separate from accepted image source.

@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-10-12T07:54:28.485240+00:00",
+  "status": "PASS",
+  "scope": "Owner-approved Skool defer and epic closeout; read-only serving image and native readiness",
+  "application": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "imageId": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "health": "healthy",
+    "restarts": 0
+  },
+  "native": {
+    "roles": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restarts": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restarts": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restarts": 0
+      }
+    ],
+    "sourceCommit": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+    "sourceManifestKeys": [
+      "commit",
+      "shortCommit",
+      "archive",
+      "downloadName",
+      "bytes",
+      "sha256",
+      "builtAt"
+    ],
+    "nativeReadinessExitCode": 0
+  },
+  "redeploy": false,
+  "schemaOrDataMutation": false,
+  "providerOrPaidCalls": false
+}

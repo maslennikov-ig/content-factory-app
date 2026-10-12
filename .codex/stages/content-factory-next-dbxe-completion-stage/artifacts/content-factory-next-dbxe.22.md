@@ -20,8 +20,8 @@ model_reasoning_rationale: Isolated independent write stream; higher quota effor
 status: accepted
 delivery_method: cherry-pick
 accepted_by_orchestrator: yes
-cleanup_status: blocked
-cleanup_notes: No owned runtime remains. Clean worktree retained until integrated release acceptance; accepted-content, not-git-merged; remove ordinarily after safe proof preservation.
+cleanup_status: cleaned
+cleanup_notes: Accepted content and committed proof preserved; actual ec58 runtime passed; clean owned worktree removed ordinarily, branch retained, unrelated work preserved.
 risk_level: high
 risk_tags:
   - concurrency

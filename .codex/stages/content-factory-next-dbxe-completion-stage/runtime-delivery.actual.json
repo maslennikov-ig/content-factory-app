@@ -1,0 +1,231 @@
+{
+  "status": "PASS",
+  "acceptedAt": "2026-10-11T19:45:22.432533+00:00",
+  "privateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "publicSource": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "imageTag": "ec58af8b31b1",
+  "registryIndex": "sha256:3f503348cd5637ae167e00622b9293c23a450affcb3a465215fe1475dba1d315",
+  "platform": {
+    "platform": {
+      "architecture": "amd64",
+      "os": "linux"
+    },
+    "manifestDigest": "sha256:8f680e1bd718d66b91da6cabf5bf9a549052afd4a7c4f8f12443838fdfd5e590",
+    "configDigest": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "compressedBytes": 696513809
+  },
+  "application": {
+    "id": "ecedcc43242d76ed86f5aaabc53d3734629199de9dce9ed5c34afb45d568ccbf",
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "imageId": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "health": "healthy",
+    "restarts": 0,
+    "memoryLimit": 1879048192
+  },
+  "nativeRoles": [
+    {
+      "name": "backend",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "restarts": 0
+    }
+  ],
+  "sourceManifest": {
+    "commit": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+    "shortCommit": "ec58af8b31b1",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-ec58af8b31b1.tar.gz",
+    "bytes": 12672906,
+    "sha256": "715f33b7b8feae726c47da9a244f07e1c9353ad164ab352f0ed6aae050e193e4",
+    "builtAt": "2026-10-11T19:26:39Z"
+  },
+  "criticalSourceFilesByteEqual": 60,
+  "actualCompiledMailImageProof": "compiled-mail-final-image.actual.json",
+  "endpoints": [
+    {
+      "path": "/api/",
+      "status": 200,
+      "bytes": 15,
+      "sha256": null
+    },
+    {
+      "path": "/auth/login",
+      "status": 200,
+      "bytes": 30340,
+      "sha256": null
+    },
+    {
+      "path": "/source",
+      "status": 200,
+      "bytes": 31644,
+      "sha256": null
+    },
+    {
+      "path": "/api/public/source",
+      "status": 200,
+      "bytes": 2120,
+      "sha256": null
+    },
+    {
+      "path": "/api/public/source/archive",
+      "status": 200,
+      "bytes": 12672906,
+      "sha256": "715f33b7b8feae726c47da9a244f07e1c9353ad164ab352f0ed6aae050e193e4"
+    }
+  ],
+  "dataPreservation": {
+    "fieldsCompared": [
+      "namespace",
+      "cronEnabled",
+      "storageProvider",
+      "mastraSeparateDatabase",
+      "mastraSkipInit",
+      "organizations",
+      "keyWorkspaces",
+      "organizationKeysSha256",
+      "activeRoleCounts",
+      "workspacesWithExposableKey",
+      "oauthAuthorizationCount",
+      "channels",
+      "postStateCounts",
+      "mastra"
+    ],
+    "allSelectedInventoryValuesEqual": true,
+    "organizations": 94,
+    "keyWorkspaces": 7,
+    "organizationKeysSha256": "c4214a05f9f5fadcf56a460edb72ddc59e23634add21b121332a5795588ea7ff",
+    "postStateCounts": [
+      {
+        "state": "PUBLISHED",
+        "count": 5
+      },
+      {
+        "state": "DRAFT",
+        "count": 60
+      },
+      {
+        "state": "ERROR",
+        "count": 1
+      }
+    ],
+    "mastra": {
+      "tableCount": 45,
+      "schemaSha256": "843874cd1d3d244ea8209d05feb5e2668f4d5fce06db56812e10b61c9347a459",
+      "rowCounts": {
+        "mastra_agent_versions": 0,
+        "mastra_agents": 0,
+        "mastra_ai_spans": 0,
+        "mastra_background_tasks": 0,
+        "mastra_channel_config": 0,
+        "mastra_channel_installations": 0,
+        "mastra_dataset_items": 0,
+        "mastra_dataset_versions": 0,
+        "mastra_datasets": 0,
+        "mastra_evals": 0,
+        "mastra_experiment_results": 0,
+        "mastra_experiments": 0,
+        "mastra_favorites": 0,
+        "mastra_knowledge_activity": 0,
+        "mastra_knowledge_cursors": 0,
+        "mastra_knowledge_mentions": 0,
+        "mastra_knowledge_nodes": 0,
+        "mastra_knowledge_records": 0,
+        "mastra_knowledge_semantic_outbox": 0,
+        "mastra_mcp_client_versions": 0,
+        "mastra_mcp_clients": 0,
+        "mastra_mcp_server_versions": 0,
+        "mastra_mcp_servers": 0,
+        "mastra_messages": 221,
+        "mastra_notifications": 0,
+        "mastra_observational_memory": 0,
+        "mastra_prompt_block_versions": 0,
+        "mastra_prompt_blocks": 0,
+        "mastra_resources": 7,
+        "mastra_schedule_triggers": 0,
+        "mastra_schedules": 0,
+        "mastra_scorer_definition_versions": 0,
+        "mastra_scorer_definitions": 0,
+        "mastra_scorers": 0,
+        "mastra_skill_blobs": 0,
+        "mastra_skill_versions": 0,
+        "mastra_skills": 0,
+        "mastra_thread_state": 0,
+        "mastra_threads": 16,
+        "mastra_tool_provider_connections": 0,
+        "mastra_traces": 0,
+        "mastra_workflow_definitions": 0,
+        "mastra_workflow_snapshot": 2,
+        "mastra_workspace_versions": 0,
+        "mastra_workspaces": 0
+      }
+    },
+    "workspacesWithExposableKeyInterpretation": "Potential historical exposure cohort based on memberships, not actual disclosure by the corrected DTO"
+  },
+  "schema": {
+    "ok": true,
+    "diffExitCode": 0,
+    "sqlLines": 0,
+    "schemaApplied": false,
+    "prismaVersion": "6.5.0",
+    "schemaSha256": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2",
+    "capturedAt": "2026-10-11T19:43:15.205214+00:00"
+  },
+  "activeWorkflows": [
+    {
+      "type": "digestEmailWorkflow",
+      "workflowIdSha256": "b37c0ca7e92503f5204336b37164414ead9d2cdebf32da107f5da325c2901a66",
+      "runIdSha256": "5b365f3e34cad80d447eda8cdf29fc481f6f5bd7b0c0724ca0ba46ab81e85147",
+      "stablePublicId": null
+    },
+    {
+      "type": "sendEmailWorkflowV3",
+      "workflowIdSha256": "0d84455f4b5832f4a4711029fd603b343118572fc6a54978c5ffb9cf59005074",
+      "runIdSha256": "c8ba5c2207ff139a6938df957d3f378c42ae511800e477d17701c217bbb29c2f",
+      "stablePublicId": "send_email_v2"
+    }
+  ],
+  "existingWorkflowExecutionsPreserved": true,
+  "foreignContainers": {
+    "count": 21,
+    "idsPreserved": true,
+    "inventoryUnchanged": true,
+    "beforeCapturedAt": "2026-10-11T19:41:02.995874+00:00",
+    "afterCapturedAt": "2026-10-11T19:43:32.699487+00:00",
+    "inventorySha256": "95f7d3487ff54da7d23c0b909b3167c345766c2fe976b5f7b975149557ed712e"
+  },
+  "rollback": {
+    "tag": "2a53727594a1",
+    "imageId": "sha256:1241ea1b5c5c1c6d9935f7f09baff5f1afae7ecbbef1bda7544e02ec86f5a6f6",
+    "actualStartupPreviouslyVerified": true,
+    "healthyImmediatelyBeforeSwitch": true,
+    "preservedMailV3Compatible": true,
+    "nativeRoles": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restarts": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restarts": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restarts": 0
+      }
+    ]
+  },
+  "boundary": "Accepted technical release batch; store32 and whole-epic completion remain unaccepted; no model/provider/live-mail or recovery test"
+}

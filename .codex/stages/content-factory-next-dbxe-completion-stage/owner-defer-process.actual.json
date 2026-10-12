@@ -1,0 +1,13 @@
+{
+  "command": [
+    "bash",
+    "scripts/orchestration/run_process_verification.sh",
+    "--stage",
+    "content-factory-next-dbxe-completion-stage"
+  ],
+  "exitCode": 0,
+  "status": "PASS",
+  "scope": "Accepted existing stage with explicit independent Skool defer; no new micro-stage",
+  "initialFailure": "Required literal next-stage handoff labels restored without selecting automatic new work",
+  "initialProof": "owner-defer-process-initial.actual.json"
+}

@@ -20,8 +20,8 @@ model_reasoning_rationale: Bounded compiler repair runs independently while root
 status: accepted
 delivery_method: cherry-pick
 accepted_by_orchestrator: yes
-cleanup_status: blocked
-cleanup_notes: Accepted child2b055b79 integrated c886a3809; retain clean owned worktree through corrected image/runtime acceptance.
+cleanup_status: cleaned
+cleanup_notes: Accepted content and committed proof preserved; actual ec58 runtime passed; clean owned worktree removed ordinarily, branch retained, unrelated work preserved.
 risk_level: medium
 risk_tags:
   - privacy
