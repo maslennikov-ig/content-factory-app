@@ -1,0 +1,184 @@
+{
+  "investigation_date": "2026-10-12",
+  "component": "GlitchTip backend",
+  "scope": "Error events and files for Content Factory on a shared collector; unrelated projects and application database data are out of scope.",
+  "version": {
+    "installed": "6.0.5",
+    "installed_version_evidence": "Root-provided read-only runtime readback reports settings.GLITCHTIP_VERSION=6.0.5; source digests match the existing v6.0.5 reference. OCI image labels are absent.",
+    "upstream_tag": "v6.0.5",
+    "upstream_tag_commit_prefix": "aa820e2a",
+    "current_upstream_tag_checked": "v6.2.6",
+    "versioned_source_urls": [
+      "https://gitlab.com/glitchtip/glitchtip-backend/-/tags",
+      "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/projects/models.py",
+      "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/settings.py"
+    ]
+  },
+  "documentation_resolution": {
+    "orch_prompts_docs_resolve": {
+      "package": "npm/glitchtip",
+      "explicit_version": "6.0.5",
+      "result": "fallback-needed",
+      "reason": "No version was found in local lockfiles; the explicit L1 package download returned 404."
+    },
+    "context7": {
+      "resolved_library_id": "/websites/glitchtip",
+      "snippets": 171,
+      "reputation": "High",
+      "queried_source": "https://glitchtip.com/documentation/install/",
+      "version_warning": "Current unversioned install documentation reflects newer 6.2+ settings and is not evidence for installed 6.0.5 behavior."
+    }
+  },
+  "findings": [
+    {
+      "id": "no-project-retention-field",
+      "status": "confirmed-absent-in-v6.0.5",
+      "finding": "The v6.0.5 Project model has no event/file retention override. Event and file lifespan values are instance settings.",
+      "references": [
+        {
+          "path": "apps/projects/models.py",
+          "lines": "17-42",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/projects/models.py#L17"
+        },
+        {
+          "path": "glitchtip/settings.py",
+          "lines": "95-117",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/settings.py#L95"
+        }
+      ]
+    },
+    {
+      "id": "event-retention-global-and-receive-time",
+      "status": "confirmed",
+      "finding": "The no-argument maintain_partitions command uses the global GLITCHTIP_MAX_EVENT_LIFE_DAYS for IssueEvent partitions. Event rows are range-partitioned by UUIDv7 id and hash-subpartitioned by organization_id. Ingest builds id from processing_event.received, while IssueEvent.timestamp is the client payload timestamp. The native age basis is GlitchTip acceptance time. Partition drops remove the full date parent and all its tenant subpartitions.",
+      "references": [
+        {
+          "path": "glitchtip/management/commands/maintain_partitions.py",
+          "lines": "14-54",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/management/commands/maintain_partitions.py#L14"
+        },
+        {
+          "path": "apps/issue_events/models.py",
+          "lines": "190-234",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/issue_events/models.py#L190"
+        },
+        {
+          "path": "apps/event_ingest/process_event.py",
+          "lines": "868-899",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/event_ingest/process_event.py#L868"
+        },
+        {
+          "path": "glitchtip/partition_manager.py",
+          "lines": "308-318,348-386",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/partition_manager.py#L308"
+        }
+      ]
+    },
+    {
+      "id": "project-scoped-event-join-but-no-native-cleaner",
+      "status": "confirmed-model-path-only",
+      "finding": "A custom ORM cleanup can scope event and issue-derived rows through IssueEvent.issue -> Issue.project_id. IssueAggregate and IssueTag each reference one Issue; Issue-hourly project statistics have a direct Project FK. The built-in maintenance path does not use project filters. Existing cleanup_old_issues only removes an Issue when its partitioned events, aggregates and tags are all gone and last_seen is older than the global event retention; it then removes hashes, comments and user reports too.",
+      "references": [
+        {
+          "path": "apps/issue_events/models.py",
+          "lines": "40-108,190-234",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/issue_events/models.py#L40"
+        },
+        {
+          "path": "apps/projects/models.py",
+          "lines": "181-215",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/projects/models.py#L181"
+        },
+        {
+          "path": "apps/issue_events/maintenance.py",
+          "lines": "12-54",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/issue_events/maintenance.py#L12"
+        }
+      ]
+    },
+    {
+      "id": "files-global-and-deduplicated",
+      "status": "confirmed",
+      "finding": "cleanup_old_files uses a global FileBlob.created cutoff, physically deletes storage content, then deletes FileBlob database rows. FileBlob is checksum-deduplicated and may be referenced by multiple File rows; neither FileBlob nor File has a project FK. DIF has a project FK to File, while debug-symbol/release references may be organization/release scoped. A project-only cleanup must preserve any blob with any foreign-project or release reference.",
+      "references": [
+        {
+          "path": "apps/files/tasks.py",
+          "lines": "20-49",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/files/tasks.py#L20"
+        },
+        {
+          "path": "apps/files/models.py",
+          "lines": "25-39,80-97,171-179",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/files/models.py#L25"
+        },
+        {
+          "path": "apps/difs/models.py",
+          "lines": "5-17",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/difs/models.py#L5"
+        },
+        {
+          "path": "apps/sourcecode/models.py",
+          "lines": "6-27",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/apps/sourcecode/models.py#L6"
+        }
+      ]
+    },
+    {
+      "id": "no-dry-run-and-file-env-name-defect",
+      "status": "confirmed",
+      "finding": "Built-in cleanup functions and maintain_partitions have no project filter or dry-run interface. In v6.0.5 settings, GLITCHTIP_MAX_FILE_LIFE_DAYS mistakenly reads GLITCHTIP_MAX_EVENT_LIFE_DAYS as its environment variable; changing only the file-specific variable does not configure the file cutoff.",
+      "references": [
+        {
+          "path": "glitchtip/settings.py",
+          "lines": "104-106",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/settings.py#L104"
+        },
+        {
+          "path": "glitchtip/tasks.py",
+          "lines": "11-21",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.0.5/glitchtip/tasks.py#L11"
+        }
+      ]
+    },
+    {
+      "id": "current-docs-are-newer-and-still-global",
+      "status": "confirmed",
+      "finding": "Current unversioned docs describe global retention variables and cold-storage tiers; GLITCHTIP_EVENT_HOT_DAYS=30 is PostgreSQL-to-cold archival age, not total event deletion age. The current v6.2.6 settings source remains global, and its Project model still has no retention field.",
+      "references": [
+        {
+          "path": "GlitchTip install documentation",
+          "lines": "163-200",
+          "url": "https://glitchtip.com/documentation/install/"
+        },
+        {
+          "path": "v6.2.6 settings.py",
+          "lines": "178-218",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.2.6/glitchtip/settings.py#L178"
+        },
+        {
+          "path": "v6.2.6 apps/projects/models.py",
+          "lines": "24-56",
+          "url": "https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v6.2.6/apps/projects/models.py#L24"
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "summary": "Keep shared collector settings at 90 days. For a true CF-only 30-day policy without affecting other projects, prefer a dedicated collector and storage with instance-level 30-day settings.",
+    "conditional_shared_collector_option": "Only as a separate implementation stage: a project-aware worker with read-only candidate inventory, UUIDv7 receive-time cutoff, consistent per-project IssueAggregate/IssueTag/project-stat cleanup, and reference-wide FileBlob preservation. Do not reuse the destructive global maintenance functions.",
+    "do_not_use_as_retention": "Project deletion/force_delete removes all project events and related issue data; it is not an age-based cleanup."
+  },
+  "unresolved": [
+    "Product policy must decide whether 30 days is measured from server receipt (native behavior) or event timestamp. Root reports that the current 39 of 100 aged events classify the same under either timestamp.",
+    "Product policy must define whether 30-day retention includes derived aggregate/tag/project-stat rows and issue summaries, or only raw IssueEvent payload rows.",
+    "Current cross-project FileBlob references cannot be established from source alone. Metadata-only reference inventory for CF and foreign projects remains necessary before any blob deletion."
+  ],
+  "verification_scope": {
+    "read_only": true,
+    "production_access": false,
+    "event_payloads_read": false,
+    "tests_run": false,
+    "source_archive_path": ".codex/stages/content-factory-next-collector-retention-20261012/research/glitchtip-backend-v6.0.5.local.tar.gz",
+    "source_archive_sha256": "5b29bce348fa6c3716f35165ece5479dd1fd458f3571df4e69696ca5e42f4b10"
+  }
+}

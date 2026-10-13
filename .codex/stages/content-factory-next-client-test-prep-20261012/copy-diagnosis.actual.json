@@ -1,0 +1,10 @@
+{
+  "status": "REPRODUCED_BEFORE_FIX",
+  "surface": "published sandboxed portal iframe",
+  "action": "clicked shared-instruction copy button",
+  "clipboardApiPresent": true,
+  "rootCause": "Permissions policy violation: Clipboard API blocked for current document",
+  "observedStatus": "Не удалось скопировать. Выделите текст выше и скопируйте вручную.",
+  "fix": "Bounded native-selection copy fallback; iframe sandbox stays unchanged; temporary field removed in finally",
+  "ownerAnswersWritten": 0
+}

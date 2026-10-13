@@ -1,0 +1,142 @@
+{
+  "checkedAt": "2026-10-12T11:25:03.227742+00:00",
+  "application": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "configDigest": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "id": "ecedcc43242d76ed86f5aaabc53d3734629199de9dce9ed5c34afb45d568ccbf",
+    "health": "healthy",
+    "restarts": 0
+  },
+  "sourceManifest": {
+    "commit": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+    "shortCommit": "ec58af8b31b1",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-ec58af8b31b1.tar.gz",
+    "bytes": 12672906,
+    "sha256": "715f33b7b8feae726c47da9a244f07e1c9353ad164ab352f0ed6aae050e193e4",
+    "builtAt": "2026-10-11T19:26:39Z"
+  },
+  "roles": [
+    {
+      "name": "backend",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "restarts": 0
+    }
+  ],
+  "diskAvailableBytes": 7400046592,
+  "productionMutations": 0,
+  "status": "PASS_ALL_CURRENT_PRODUCT_INPUTS_ALREADY_DEPLOYED",
+  "acceptedPrivateSource": "2e357374d91ac0cc36604443b8f3bee9b18b0460",
+  "checkedPrivateHead": "8968ec8d8e39fe0c51d6eb49adad8004f8da99e4",
+  "currentProductFileCount": 2070,
+  "allProductBytesEqual": true,
+  "productHashesSha256": "c4864069c8a8ec876c61d9effa52198df7d41f1c2fa350ecaf97d9f427e3104b",
+  "buildContextExcludedFiles": 11,
+  "productInputsGitDiff": "EMPTY",
+  "endpoints": [
+    {
+      "path": "/api/",
+      "status": 200,
+      "bytes": 15
+    },
+    {
+      "path": "/auth/login",
+      "status": 200,
+      "bytes": 30327
+    },
+    {
+      "path": "/api/monitor/ready",
+      "status": 200,
+      "bytes": 64
+    },
+    {
+      "path": "/api/monitor/queue/main",
+      "status": 200,
+      "bytes": 55
+    },
+    {
+      "path": "/api/public/source/archive",
+      "status": 200,
+      "bytes": 12672906,
+      "sha256": "715f33b7b8feae726c47da9a244f07e1c9353ad164ab352f0ed6aae050e193e4"
+    }
+  ],
+  "differencesSinceAcceptedRelease": [
+    ".codex/handoff.md",
+    ".codex/project-index.md",
+    ".codex/stages/content-factory-next-collector-retention-20261012/acceptance.actual.json",
+    ".codex/stages/content-factory-next-collector-retention-20261012/official-source-match.actual.json",
+    ".codex/stages/content-factory-next-collector-retention-20261012/outcome.md",
+    ".codex/stages/content-factory-next-collector-retention-20261012/owner-decision.actual.json",
+    ".codex/stages/content-factory-next-collector-retention-20261012/plan.md",
+    ".codex/stages/content-factory-next-collector-retention-20261012/research/official-support.actual.json",
+    ".codex/stages/content-factory-next-collector-retention-20261012/research/source-notes.md",
+    ".codex/stages/content-factory-next-collector-retention-20261012/runtime-readback.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.22.md",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.26.md",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.37.md",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/artifacts/content-factory-next-dbxe.9.md",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/beads-github-readback.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/child-worktrees-cleanup.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/compiled-mail-final-image.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/compiled-rejected-image.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/final-beads-state.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/final-image-cli.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/final-image-native.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/final-metadata-docs.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/final-metadata-process.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/global-inventory-after.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/host-switch.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/outcome.md",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-approved-store-defer.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-closeout.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-docs.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-github-readback.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-process-initial.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-process.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/owner-defer-runtime.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/pre-deferral-beads-state.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/public-ci.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/retention-readback.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/runtime-delivery.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/schema-preflight-after.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/schema-preflight-before.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/source-release-gates.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/stage-manifest.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/store-owner-block.actual.json",
+    ".codex/stages/content-factory-next-dbxe-completion-stage/summary.md",
+    ".codex/stages/content-factory-next-ops-completion-20261012/acceptance.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/ai-accounting-source.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/ai-accounting-tests.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/beads-final.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/hash-diagnosis.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/live-runtime-ledger.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/native-recovery.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/outcome.md",
+    ".codex/stages/content-factory-next-ops-completion-20261012/owner-financial-defer.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/plan.md",
+    ".codex/stages/content-factory-next-ops-completion-20261012/registration-abuse.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/research/ledger-map.md",
+    ".codex/stages/content-factory-next-ops-completion-20261012/telemetry-request.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/telemetry-source.actual.json",
+    ".codex/stages/content-factory-next-ops-completion-20261012/telemetry-storage.actual.json",
+    "docs/operations/error-collection.md",
+    "docs/operations/runtime-readiness.md",
+    "docs/operations/saas-readiness.md",
+    "docs/operations/worker-readiness.md"
+  ],
+  "newImageBuildOrSwitchRequired": false,
+  "fullSuiteReleaseEvidenceReused": "dbxe-completion-stage/source-release-gates.actual.json",
+  "paidCalls": 0,
+  "customerPayloadRowsRead": false
+}

@@ -1,0 +1,33 @@
+{
+  "status": "PASS_SAFE_OWN_RUNTIME_CLEANUP",
+  "browser": [
+    {
+      "action": "close",
+      "session": "cf-owner-test-20261012",
+      "exitCode": 0
+    },
+    {
+      "action": "delete-data",
+      "session": "cf-owner-test-20261012",
+      "exitCode": 0
+    }
+  ],
+  "removedPreview": {
+    "path": "/home/me/code/aidevteam/.tmp/artifact-preview/content-factory-owner-testing-2026-10.html",
+    "bytes": 94086,
+    "sha256": "b26d883cf1bbde928351b46834f0dba93880efca370f63faaf19c8e63931a2dc",
+    "preTaskExisted": false,
+    "absentAfter": true
+  },
+  "preserved": [
+    "publication.local.json (mode600)",
+    "guide/source/prompt/evidence",
+    "historical worktrees and branches",
+    "foreign browsers/processes/containers/projects",
+    "active ec58 and verified rollback2a",
+    "shared dependency/browser caches"
+  ],
+  "newContainers": 0,
+  "newWorktrees": 0,
+  "foreignResourcesRemoved": 0
+}

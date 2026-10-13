@@ -1,0 +1,12 @@
+{
+  "archiveSha256": "5b29bce348fa6c3716f35165ece5479dd1fd458f3571df4e69696ca5e42f4b10",
+  "installedFilesMatchOfficial605": {
+    "apps/issue_events/models.py": "5a64954fbd9225f4ea31027f5e8b900d0ee9719c90a4a81a2a64bce9bcc9a145",
+    "apps/projects/models.py": "c83f495f7996275d5dcd1b3196f56b8d137b1cfe279f604421fb9b353a18f79f",
+    "glitchtip/management/commands/maintain_partitions.py": "a502399206a6a03e7fa642302ef2eb6bdf9fcba3afc3a9727e8d96ddc0c23cac",
+    "glitchtip/partition_manager.py": "d6ac1d9b6ee34fe1a035afe9ef1307c30847cb6be26589c41a8384de911ff86f",
+    "glitchtip/settings.py": "01d5f14fdeffb8d5885ede7519c4a7db7c40d2a7c20ff9eba427045930a5f1e0"
+  },
+  "status": "PASS",
+  "extractToFilesystem": false
+}

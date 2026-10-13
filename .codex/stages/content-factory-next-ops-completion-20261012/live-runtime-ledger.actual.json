@@ -1,0 +1,91 @@
+{
+  "application": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "imageId": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "healthy": true,
+    "restarts": 0,
+    "memoryLimit": 1879048192
+  },
+  "roles": [
+    {
+      "name": "backend",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "orchestrator",
+      "status": "online",
+      "restarts": 0
+    },
+    {
+      "name": "frontend",
+      "status": "online",
+      "restarts": 0
+    }
+  ],
+  "endpoints": {
+    "runtimeReady": {
+      "status": 200,
+      "body": {
+        "status": "success",
+        "message": "Runtime dependencies are ready."
+      }
+    },
+    "mainQueue": {
+      "status": 200,
+      "body": {
+        "status": "success",
+        "message": "Queue main is healthy."
+      }
+    },
+    "workerReady": {
+      "status": 200,
+      "body": {
+        "status": "ok"
+      }
+    }
+  },
+  "ledger": {
+    "transactionReadOnly": "on",
+    "counts": {
+      "rows": 1054,
+      "cost_unknown": 578,
+      "cost_known": 476,
+      "all_usage_unknown": 578,
+      "pending": 0,
+      "possibly_billed": 7,
+      "older90": 0
+    },
+    "size": {
+      "table_bytes": "262144",
+      "index_bytes": "606208",
+      "total_bytes": "909312"
+    },
+    "indexes": {
+      "index_count": 5
+    },
+    "payloadRowsRead": false,
+    "ledgerWrites": false
+  },
+  "retentionUnits": {
+    "content-factory-next-saas-retention.timer": {
+      "NextElapseUSecRealtime": "Tue 2026-10-13 05:30:00 MSK",
+      "LastTriggerUSec": "Mon 2026-10-12 05:30:02 MSK",
+      "Result": "success",
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "SubState": "waiting"
+    },
+    "content-factory-next-saas-retention.service": {
+      "Result": "success",
+      "ExecMainStatus": "0",
+      "LoadState": "loaded",
+      "ActiveState": "inactive",
+      "SubState": "dead"
+    }
+  },
+  "runtimeMutations": 0,
+  "hostHelpersInstalled": 0,
+  "secretsOrPayloadsPrinted": false,
+  "capturedAt": "2026-10-12T10:48:42.301360+00:00"
+}

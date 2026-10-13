@@ -1,0 +1,22 @@
+{
+  "status": "PASS_PUBLISHED_EMPTY_EDITABLE_FORM",
+  "project": "content-factory",
+  "slug": "content-factory-owner-testing-2026-10",
+  "artifactId": "35545ad2-de26-4f59-bf0d-e58e3ecb0473",
+  "version": 2,
+  "tokensCount": 1,
+  "submitted": false,
+  "latestResponse": null,
+  "contentSha256": "abdecaa6a1dc5452923cabf8da85e00912e3c33b09ddd2839238307cfac1037f",
+  "priorPage": {
+    "slug": "first-client-yulia-2026-09",
+    "version": 6,
+    "tokensCount": 2,
+    "statesSha256Before": "8f1a6e68e988e160266a3e6bb12f67bc862f7c4fa9506de6038e0438434098ca",
+    "statesSha256After": "8f1a6e68e988e160266a3e6bb12f67bc862f7c4fa9506de6038e0438434098ca",
+    "unchanged": true
+  },
+  "bearerUrlStoredOnlyLocally": true,
+  "copyFallbackPublished": true,
+  "existingOwnerTokenPreserved": true
+}

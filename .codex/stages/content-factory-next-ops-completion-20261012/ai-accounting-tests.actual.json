@@ -1,0 +1,477 @@
+{
+  "command": "pnpm exec jest --runInBand --runTestsByPath tests/ai-text-chain.test.cjs tests/ai-usage.execution.test.cjs tests/web-research.usage-record.test.cjs",
+  "exitCode": 0,
+  "passed": 116,
+  "failed": 0,
+  "pending": 0,
+  "suitesPassed": 3,
+  "suitesFailed": 0,
+  "success": true,
+  "providerCalls": "fixtures only; no live call",
+  "tests": [
+    {
+      "name": "AI operation usage seam billing periods keep the original month-day anchor after a short month",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam included admission is serializable, retries bounded conflicts and stores no content",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam \u00ab\u0431\u0435\u0437 \u043f\u0440\u0435\u0434\u0435\u043b\u0430\u00bb admits without counting against a ceiling (97dq.27)",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam an admission orphaned by process loss returns included allowance after 24 hours",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a swallowed final-status write failure returns included allowance after 24 hours",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam an unread and uncancelled model stream returns included allowance after 24 hours",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam the admission transaction bounds its own queue wait and run time",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam an exhausted retry budget is a typed retryable admission failure",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a transaction timeout ends on the same retryable admission path",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a failure that is not contention is neither retried nor relabelled",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam each retry is awaited before the next attempt opens a transaction",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam retry waits are full-jitter and exponential",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a real retry wait suspends for its drawn delay",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam the included allowance without a subscription row an operator limit admits the call when billing says nothing",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam the included allowance without a subscription row an unset limit keeps the old refusal, so a silent instance is unchanged",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam the included allowance without a subscription row a nonsense limit reads as none rather than as unlimited",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam zero included quota fails closed before the provider callback",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam model construction does not finish admission before generate execution",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam stream admission stays open until the provider stream fails",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam wrapped model stream successful EOF finalizes succeeded exactly once",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam cancelling after the provider stream ended records the success that happened",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam wrapped model stream cancellation cancels its source and finalizes failed exactly once",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a missing selected credential is a safe endpoint-facing 503",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam workspace-key ledger never enters the managed quota transaction",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a final ledger update failure does not turn provider success into a retryable failure",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a final ledger update failure preserves the original provider error",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam nested consumers share one admitted product operation",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a copilot model executed after the agent context closes keeps the single agent admission",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam an active operation cannot switch tenant context",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam a streaming failure closes the privacy-safe ledger as failed",
+      "status": "passed"
+    },
+    {
+      "name": "AI operation usage seam breaking generic stream consumption closes its source and finalizes failed once",
+      "status": "passed"
+    },
+    {
+      "name": "who the operation is recorded against an operation asked for by a member carries that member",
+      "status": "passed"
+    },
+    {
+      "name": "who the operation is recorded against a stream is recorded against the member who opened it",
+      "status": "passed"
+    },
+    {
+      "name": "who the operation is recorded against work with nobody behind it is recorded against nobody",
+      "status": "passed"
+    },
+    {
+      "name": "who the operation is recorded against an included-quota admission carries the member too",
+      "status": "passed"
+    },
+    {
+      "name": "search usage in the ledger a search-only operation names the engine, its reported dollars and its requests",
+      "status": "passed"
+    },
+    {
+      "name": "search usage in the ledger Tavily credits are counted, never converted into dollars",
+      "status": "passed"
+    },
+    {
+      "name": "search usage in the ledger model calls keep their columns and the search is added beside them",
+      "status": "passed"
+    },
+    {
+      "name": "search usage in the ledger a search abandoned at its deadline marks the row as possibly billed",
+      "status": "passed"
+    },
+    {
+      "name": "search usage in the ledger a ledger without searches reads exactly as before",
+      "status": "passed"
+    },
+    {
+      "name": "search adapters report what the engine reported Exa costDollars.total becomes usage.costUsd",
+      "status": "passed"
+    },
+    {
+      "name": "search adapters report what the engine reported Exa without costDollars reports no usage rather than zero",
+      "status": "passed"
+    },
+    {
+      "name": "search adapters report what the engine reported Tavily usage.credits becomes usage.credits",
+      "status": "passed"
+    },
+    {
+      "name": "search adapters report what the engine reported the Tavily client asks the engine to report its credits",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row the classifier tokens and the Tavily credits land on the web_research row",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row a fallback counts the failed request and adds the dollars Exa reported",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row with caller queries and no model call the row names the engine that answered",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row own search key and own model key: the tokens join the workspace_key row",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row own search key with the included model key: the tokens stay on the caller row",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row system search key with the workspace model key: the included row gets no model spend",
+      "status": "passed"
+    },
+    {
+      "name": "web research writes its spend to its own row an engine that reports nothing still leaves its request count",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan included OpenRouter walks one 60 s flex attempt, standard, then GLM (97dq.94)",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan interactive (the copilot chat): one flex attempt of 25 s to first token, then standard, then GLM",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan flex off leaves standard then fallback",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan a model without a flex endpoint and the fallback itself are not doubled",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan workspace_key and the openai provider get a single attempt",
+      "status": "passed"
+    },
+    {
+      "name": "text chain plan stored settings: NULL and empty read as the defaults",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport bodies: flex tier, usage accounting and medium effort on Luna only",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport a validation error is final: no second attempt, the 400 reaches the SDK",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport network failure and an error in a 200 body both move on",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport the last attempt fails the way the SDK always saw it",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport flex off: standard Luna, then GLM",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport workspace_key leaves the request byte-for-byte and never retries",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport image requests and non-chat endpoints pass through",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport the caller's abort ends the chain",
+      "status": "passed"
+    },
+    {
+      "name": "text chain transport a flex attempt that outlives its deadline moves to the next one",
+      "status": "passed"
+    },
+    {
+      "name": "streaming through the chain an error before the first token falls to the next attempt; the stream is still a stream",
+      "status": "passed"
+    },
+    {
+      "name": "streaming through the chain a flex stream with no first token in 60 s moves to standard; after the first token no deadline applies (97dq.94)",
+      "status": "passed"
+    },
+    {
+      "name": "streaming through the chain a failure after the first token is surfaced, never restarted",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture the winning attempt, served model, tier, tokens and cost",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture workspace_key calls are recorded too, as attempt 1",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture an operation of several calls sums tokens and keeps the furthest attempt",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture direct SDK calls get the chain budget only from a chained client",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture the usage service writes what the transport heard into the row it admitted",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture a failed usage-columns write does not lose the status (review F16)",
+      "status": "passed"
+    },
+    {
+      "name": "usage capture the usage service writes it into the admitted row after a transport failure",
+      "status": "passed"
+    },
+    {
+      "name": "direct client budget (review F14) covers the longest chain any role can walk: flex, standard, fallback",
+      "status": "passed"
+    },
+    {
+      "name": "direct client budget (review F14) the direct OpenAI client takes that budget, not the default role model",
+      "status": "passed"
+    },
+    {
+      "name": "skipped attempts are logged (stand finding) one line per skipped attempt: number, model, tier, status or error class, elapsed; no prompt, no key",
+      "status": "passed"
+    },
+    {
+      "name": "skipped attempts are logged (stand finding) a flex deadline reads as AttemptTimeout with the attempt budget",
+      "status": "passed"
+    },
+    {
+      "name": "reasoning headroom (production 23.09: intake parse cut on \u00ablength\u00bb) adds headroom to a caller cap when the attempt reasons",
+      "status": "passed"
+    },
+    {
+      "name": "reasoning headroom (production 23.09: intake parse cut on \u00ablength\u00bb) gives the fallback the headroom too: it reasons by its own default (97dq.91); an uncapped call stays uncapped",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) truncated then whole: one retry, the caller gets the whole answer, both calls are in the ledger",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) a JSON answer that does not parse and names no reason to stop counts as cut",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) tool-call arguments cut on \u00ablength\u00bb are retried too",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) once only: a second cut reaches the caller as it is",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) workspace_key and the openai provider: no retry at all, only the ceiling is raised (fifteenth F1, 97dq.95)",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) 97dq.95: on the own key the draft ceiling leaves room for reasoning (25.09.2026: 2 085 of 2 247)",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) 97dq.95: a raised ceiling the model refuses is sent once more as the SDK built it",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) the retry cap is twice the caller cap, never more; a known model limit clamps it (fifteenth F12)",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) a retry the model refuses hands back the first answer, not a new 400 (fifteenth F12)",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) a fenced JSON answer is whole, not cut (fifteenth F11)",
+      "status": "passed"
+    },
+    {
+      "name": "an answer cut at the ceiling is asked for once more, with a larger one (97dq.91) an uncapped call and a stream are never retried",
+      "status": "passed"
+    },
+    {
+      "name": "failed attempts are in the ledger (review F15) a served call keeps the served attempt; the failed ones add no tokens and no cost",
+      "status": "passed"
+    },
+    {
+      "name": "failed attempts are in the ledger (review F15) an operation that never got an answer still says how far it went",
+      "status": "passed"
+    },
+    {
+      "name": "failed attempts are in the ledger (review F15) a timed-out last attempt is recorded as possibly billed",
+      "status": "passed"
+    },
+    {
+      "name": "possiblyBilled is stored (tcxv) columns: true when an attempt may have been billed, false for refusals only, absent without a failure",
+      "status": "passed"
+    },
+    {
+      "name": "possiblyBilled is stored (tcxv) the schema column is additive and nullable, with no default",
+      "status": "passed"
+    },
+    {
+      "name": "web-plugin text calls are metered and not treated as images (review F17) one pass as built, usage read, no flex, no fallback",
+      "status": "passed"
+    },
+    {
+      "name": "web-plugin text calls are metered and not treated as images (review F17) an image is still decided by the model or the modalities, and is not read",
+      "status": "passed"
+    },
+    {
+      "name": "web-plugin text calls are metered and not treated as images (review F17) the web search client meters through the shared transport",
+      "status": "passed"
+    },
+    {
+      "name": "a flex tier refusal falls to standard (review F18) 400 naming service_tier falls to standard and serves there",
+      "status": "passed"
+    },
+    {
+      "name": "a flex tier refusal falls to standard (review F18) flex capacity is not a refusal; a plain validation 400 stays final",
+      "status": "passed"
+    },
+    {
+      "name": "copilot chat through the chain (@ai-sdk/openai chat model) stream: flex refused for capacity, standard serves; tokens and cost reach the ledger",
+      "status": "passed"
+    },
+    {
+      "name": "copilot chat through the chain (@ai-sdk/openai chat model) generate: the served answer and its usage; workspace_key goes out once as built",
+      "status": "passed"
+    },
+    {
+      "name": "the retry after a cut answer has its own budget (fifteenth F1) flex out of time, standard cut after 55 s, a 150 s retry: the SDK does not abort it",
+      "status": "passed"
+    },
+    {
+      "name": "the retry after a cut answer has its own budget (fifteenth F1) the retry starts only while its pass fits in the SDK deadline; otherwise the first answer",
+      "status": "passed"
+    },
+    {
+      "name": "the retry after a cut answer has its own budget (fifteenth F1) a retry that runs out of time hands back the first answer",
+      "status": "passed"
+    },
+    {
+      "name": "the retry after a cut answer has its own budget (fifteenth F1) the chat model and the direct client hand the SDK deadline to the transport; SDK retries stay off in the chain",
+      "status": "passed"
+    },
+    {
+      "name": "a non-streaming body is not cut at the start-of-answer deadline (fifteenth F2) the window scales with the cap it sends, up to three minutes",
+      "status": "passed"
+    },
+    {
+      "name": "a non-streaming body is not cut at the start-of-answer deadline (fifteenth F2) flex: headers at once and a 90 s body is served, not aborted at 60 s",
+      "status": "passed"
+    },
+    {
+      "name": "a non-streaming body is not cut at the start-of-answer deadline (fifteenth F2) standard does not inherit a 60 s total either",
+      "status": "passed"
+    },
+    {
+      "name": "a non-streaming body is not cut at the start-of-answer deadline (fifteenth F2) a body past its window moves on, and the skip line says it was the body",
+      "status": "passed"
+    },
+    {
+      "name": "an attempt the caller aborts in flight may be billed (fifteenth F4) non-streaming: the SDK deadline aborts the chain mid-attempt",
+      "status": "passed"
+    },
+    {
+      "name": "an attempt the caller aborts in flight may be billed (fifteenth F4) streaming: a stream that stops after hand-off is possibly billed, not served",
+      "status": "passed"
+    },
+    {
+      "name": "an attempt the caller aborts in flight may be billed (fifteenth F4) pass-through (workspace_key): an aborted request is recorded as possibly billed",
+      "status": "passed"
+    }
+  ]
+}

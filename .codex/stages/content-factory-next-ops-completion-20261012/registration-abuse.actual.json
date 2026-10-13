@@ -1,0 +1,160 @@
+{
+  "status": "PASS",
+  "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+  "providerOrLiveDatabaseOrSecret": false,
+  "ownedLoopbackRedis": true,
+  "pnpmMountedReadOnly": true,
+  "startedAt": "2026-10-12T10:44:14.686057+00:00",
+  "exitCode": 0,
+  "passed": 33,
+  "failed": 0,
+  "pending": 0,
+  "pnpm": "10.6.1",
+  "testCases": [
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases two limiter instances share a held reservation and a new instance cannot reset it",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases same deployment secret survives a fresh module, with separate attempt and effect domains",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases missing secret undefined fails closed before any Redis call",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases missing secret \"\" fails closed before any Redis call",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases missing secret \"   \" fails closed before any Redis call",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases a MockRedis stand-in and a disconnected real client both fail closed",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases each operation disconnects its no-replay duplicate without changing shared Redis options",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases slow connect is cancelled and cannot send a late EVAL",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases slow EVAL times out without exposing request metadata or retrying",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases the process connection cap covers multiple instances and is returned after cancellation",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases unknown Redis reply [1] fails closed and does not manufacture an admission",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases unknown Redis reply [1, 60001] fails closed and does not manufacture an admission",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases unknown Redis reply [0, -2] fails closed and does not manufacture an admission",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases unknown Redis reply [-1, 0] fails closed and does not manufacture an admission",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases unknown Redis reply null fails closed and does not manufacture an admission",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases release failure keeps the slot and cannot turn a refused write into a refund",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases registration guard fails closed for mock without invoking account work",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases registration guard fails closed for disconnected without invoking account work",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases registration guard fails closed for missing-secret without invoking account work",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases registration guard fails closed for store-error without invoking account work",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases a timed-out guard can count a late attempt but can never invoke the controller or retry",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases a controller cannot reach account work when effect Redis fails",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases guard saturation stays bounded after timeouts until late success settles the actual operations",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: deterministic failure and ownership cases guard saturation stays bounded after timeouts until late rejection settles the actual operations",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis two replicas and a fresh module share one atomic concurrent effect slot",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis actual Redis owns expiry and a stale owner cannot release its replacement",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis current/previous HMAC rotation keeps the actual unmodified 60-second expiry",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis safe releases permit correction across replicas while no request metadata enters Redis",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis all short effect connections close while both shared clients remain usable",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis ten independent abuse attempts remain charged across replicas and a restarted guard",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis old then new arrival across a minute boundary cannot acquire two reservations",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis new then delayed old arrival across a minute boundary cannot acquire two reservations",
+      "status": "passed"
+    },
+    {
+      "name": "registration distributed budget: actual disposable Redis actual Redis counts DTO and all typed form refusals independently while corrected retries release effects across replicas",
+      "status": "passed"
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "cf6f8836166c06a38c82d809cd3724f2c6c5c7e9e8c10164887184acb73f63d7",
+      "removed": true
+    },
+    {
+      "id": "f340b59bea59182f1cc9bd34b91c94d6b4ac68a6023d8e9eb99bbbf6c69282f5",
+      "removed": true
+    }
+  ],
+  "networkRemoved": true,
+  "ownedContainersRemaining": [],
+  "finishedAt": "2026-10-12T10:45:20.073397+00:00"
+}

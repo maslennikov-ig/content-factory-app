@@ -1,0 +1,1 @@
+{"status":"FAILED_HARNESS_ARGUMENT_LIMIT_BEFORE_SOURCE_READ","cause":"docker node -e file list exceeded exec argument limit","productionMutations":0,"correction":"stream the read-only node checker over stdin"}

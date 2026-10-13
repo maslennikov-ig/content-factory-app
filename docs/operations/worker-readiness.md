@@ -72,3 +72,28 @@ wiring. It does not replace a full current release image, task8's exact-SHA
 release suite, production deployment or provider/client acceptance. No workflow
 or activity contract, database schema, process placement or concurrency option
 changes in this stage.
+
+## Current exact-release proof — 12 October 2026
+
+The deployed `ec58af8b31b1` image includes the readiness implementation above.
+Read-only production checks returned 200 for backend dependencies, main queue
+and the private worker endpoint; all three PM2 roles were online with zero
+restarts. Production processes and dependencies were not stopped for testing.
+
+The [operational completion stage](../../.codex/stages/content-factory-next-ops-completion-20261012/outcome.md)
+used the unmodified current image with fresh isolated PostgreSQL, Redis and
+Temporal on an internal Docker network. All 1,236 compiled files matched the
+reference; both scanners exclude only the same compiler cache. With its own
+Redis paused, backend dependency readiness returned 503 and recovered to 200.
+With its own orchestrator stopped, the API stayed available but the native
+health command refused in 85 ms. After restarting that worker, one queued
+missing-integration workflow completed once with one read-only activity, and
+native health succeeded in 76 ms. This is safe workflow recovery evidence,
+not proof of exactly-once external provider effects or host-loss recovery.
+
+The combined harness later failed to start registration tests because the
+runtime image intentionally lacks pnpm. The raw failure remains recorded;
+runtime assertions were accepted separately and only registration was rerun
+with a read-only mount of the existing pnpm tool. All owned disposable
+containers and networks were removed; the release image and foreign inventory
+were preserved. No application source, workflow or activity contract changed.

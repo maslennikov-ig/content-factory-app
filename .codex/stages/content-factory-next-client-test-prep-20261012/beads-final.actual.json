@@ -1,0 +1,55 @@
+{
+  "status": "PASS_CANONICAL_TASK_READBACK",
+  "tasks": [
+    {
+      "id": "content-factory-next-2q28.42",
+      "status": "closed",
+      "title": "Подготовить опубликованный план пользовательского тестирования и передачу в новую сессию",
+      "parent": "content-factory-next-2q28"
+    },
+    {
+      "id": "content-factory-next-2q28",
+      "status": "open",
+      "title": "Первый клиент: онбординг, помощь и вход (Юлия, 25.09.2026)",
+      "parent": "content-factory-next-0qgn"
+    },
+    {
+      "id": "content-factory-next-dbxe",
+      "status": "closed",
+      "title": "Надёжность и завершённость Content Factory по аудиту 09.10.2026",
+      "parent": null
+    },
+    {
+      "id": "content-factory-next-dbxe.32",
+      "status": "deferred",
+      "title": "Опубликовать пакет расширения в Chrome Web Store",
+      "parent": null
+    },
+    {
+      "id": "content-factory-next-0qgn.5",
+      "status": "blocked",
+      "title": "Подтвердить эксплуатационные ворота SaaS в runtime",
+      "parent": "content-factory-next-0qgn"
+    },
+    {
+      "id": "content-factory-next-0qgn.5.2",
+      "status": "closed",
+      "title": "Завершить техническую проверку эксплуатации Content Factory",
+      "parent": "content-factory-next-0qgn.5"
+    },
+    {
+      "id": "content-factory-next-71m.8",
+      "status": "closed",
+      "title": "Завершить приёмку памяти: менее 60% лимита при подключённых каналах",
+      "parent": "content-factory-next-71m"
+    },
+    {
+      "id": "content-factory-next-0qgn.1",
+      "status": "closed",
+      "title": "Проверить первый суточный бэкап Content Factory после ремонта 01.10",
+      "parent": "content-factory-next-0qgn"
+    }
+  ],
+  "preparationComplete": true,
+  "humanAcceptanceStillPending": true
+}

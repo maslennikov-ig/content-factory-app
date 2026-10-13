@@ -1,0 +1,62 @@
+# Operational AI ledger map
+
+Read-only source mapping for `content-factory-next-0qgn.5.2`. No tests, runtime, provider, host, or Beads checks were run here.
+
+## Primary owning path
+
+1. A user-facing or background AI consumer enters `AiUsageService.executeAiOperation()`, a stream variant, or `beginAiOperationWithConfig()` in `libraries/nestjs-libraries/src/openai/ai.usage.service.ts:643-711,724-827`. Nested consumers under an active tenant config intentionally share the outer admission (`739-775`). The consumer guard is `tests/ai-usage.consumer-guard.test.cjs:25-99`.
+2. Tenant context and provider-key availability are checked before work. `createAdmission()` writes one `AiUsageRecord` with `status=admitted`, tenant, optional acting user, usage mode, operation, role, provider, and routed model (`ai.usage.service.ts:382-435`). Included mode uses a serializable count-then-insert with a bounded retry budget; workspace-key mode inserts directly (`437-498`). Quota exhaustion is refused before the provider callback. A marked configuration refusal deletes the admission because no provider request was made (`509-520,768-774`).
+3. `runWithUsageLedger()` scopes a per-operation `TextUsageLedger` through `AsyncLocalStorage`. `ai.text-chain.ts` captures provider usage at the shared fetch boundary; the text chain applies only to `usageMode='included' && provider='openrouter'` (`ai.text-chain.ts:149-159`). Other branches can still record usage when the provider returns it, but the chain does not force OpenRouter `usage.include` or its fallback sequence.
+4. Text extraction accepts finite numeric `usage.prompt_tokens`, `completion_tokens`, reasoning/cached details, and `usage.cost`; search adapters add Exa-reported dollars or Tavily credits (`ai.text-chain.ts:570-594,401-423`; `ai.clients.ts:336-349,490-505,611-618`). Calls and retries are aggregated into the same operation row, not stored as individual requests (`ai.text-chain.ts:464-559`).
+5. `finishAdmission()` writes terminal status first, then writes usage columns best-effort (`ai.usage.service.ts:531-574`). Failures in the second write only emit a generic `console.error`; there is no durable retry/reconciliation queue and no record ID in that error. For streams, finalization waits for EOF/cancel/error (`ai.usage.service.ts:952-1005`).
+6. The admin settings route is `SettingsController.getAiProvider()` (`apps/backend/src/api/routes/settings.controller.ts:130-135`). `AiProviderService.getSettings()` returns quota plus operation counts grouped by member and role (`ai.provider.service.ts:69-125,163-206`); it does not expose token or dollar totals, raw ledger rows, invoice data, or provider request IDs.
+
+## Current model, nullable values, and safe aggregate fields
+
+The owning Prisma model is `AiUsageRecord` in `libraries/nestjs-libraries/src/database/prisma/schema.prisma:2113-2192`; there is no `@@map`, so the default physical identifier is expected to be `"AiUsageRecord"`. No SQL migration declaration was found in the workspace search; runtime table identity was not inspected. The Prisma delegate used by the service is `aiUsageRecord`.
+
+Stored metadata: `organizationId`, nullable `userId`, `usageMode` (`included|workspace_key`), `operation`, nullable `role`, `provider`, nullable `model`, `status` (`admitted|succeeded|failed`), nullable `promptTokens`, `completionTokens`, `reasoningTokens`, `cachedTokens`, `serviceTier`, `attempt`, `costUsd Decimal(14,8)`, nullable `possiblyBilled`, and timestamps. The model explicitly excludes prompts, outputs, provider payloads, and errors. TypeScript generation providers are `openai|openrouter`; search engines are `tavily|openrouter|exa` (`ai.provider.config.ts:42-48`, `ai.search-tasks.ts:27-36`). The schema stores provider as `String`, not an enum.
+
+Missing provider fields are not turned into zero. `readUsage()` omits absent/non-finite values, and `sum()` returns `null` if no call reported that field (`ai.text-chain.ts:394-399,570-594`). If an operation has no captured call, no usage update is written; if captured calls all lack a field, its column is `NULL`. `possiblyBilled` is populated only when an attempt failed: `true` means an unanswered request may have been billed, `false` means recorded failures were refusals, and absent stays `NULL` (`ai.text-chain.ts:365-391,533-557`; schema `2170-2179`).
+
+### Findings
+
+1. **HIGH / conditional must-fix — mixed known/unknown values can look complete.** `sum()` drops missing values and returns a partial sum; one call at `$0.10` plus one successful call with no cost gives `$0.10`, without a completeness marker. The same applies to token columns. `possiblyBilled` does not mark a successful response that omitted usage. Behavior confidence: high. Classification: must-fix if the preserved gate defines unknown operation totals as NULL; otherwise high-value improvement to make subtotal semantics visible. Tests explicitly codify partial subtotals: `tests/ai-text-chain.test.cjs:387-399` expects `$0.10 + unknown + $0.20 = $0.30`; `tests/web-research.usage-record.test.cjs:449-457` expects known model cost `$0.0002` when Tavily reports no usage. Suggested minimal correction for the NULL gate: leave a field NULL if any billed component lacks it. Expected value: prevent partial cost/tokens being mistaken for exact totals. Tradeoff: discard the known subtotal and revise the two expectations. Current comments/tests define what code does, but not whether `costUsd` is an invoice-complete total.
+
+2. **MEDIUM / high-value improvement — usage-column persistence can be lost.** `finishAdmission()` intentionally writes status first and swallows token/cost update failure after a generic log (`ai.usage.service.ts:531-574`). This avoids turning an already-paid success into a user-visible retry, but provides no durable retry or reconciliation record. Behavior confidence: high; defect classification depends on whether operations require durable provider accounting. Suggested next check: compare aggregate NULL rates by provider/mode and row status; that can detect the surface but cannot distinguish provider-omitted usage from a failed DB update. Expected value of a durable correction path: recover lost accounting. Tradeoff: extra persisted state/operational path; outside this mapping's write scope.
+
+3. **HIGH / reconciliation blocker — no durable provider join key or invoice facts.** No request ID is stored in the model or ledger interfaces. Raw response metadata may pass transiently to the client, but there is no source evidence that a given field is emitted consistently or joins an invoice. Suggested next check: owner supplies the relevant provider account/export and identifies the invoice correlation field; only then assess whether minimal ID capture is needed. Expected value: prove reconciliation. Tradeoff: provider-specific work and a durable identifier field may be required. Confidence: high that local persistence lacks IDs; low/unknown that a provider invoice can reconcile from any candidate response ID.
+
+For a local aggregate probe, safe dimensions are `usageMode`, `operation`, `role`, `provider`, `model`, `status`, and a day bucket from `createdAt`; aggregate counts/sums/null-counts for token/cost fields, `attempt`, and `possiblyBilled` values. Do not select or print row `id`, `organizationId`, `userId`/email, prompts, output, keys, or provider payloads. `serviceTier` is a free-form string that also carries a search-engine/request-count summary; use null/non-null counts or allow-listed values only.
+
+## Provider IDs and reconciliation boundary
+
+There is no `providerRequestId` (or equivalent) in `AiUsageRecord`, `TextCallUsage`, or `SearchCallUsage`. The text observer keeps only model, service tier, and usage for streamed chunks (`ai.text-chain.ts:751-798`); `readUsage()` does not read a response ID. For successful responses, the raw non-streaming body is returned unchanged and streamed bytes are forwarded unchanged; response headers are copied except `content-encoding` and `content-length` (`ai.text-chain.ts:687-693,1189-1231,1335-1362`). This makes response metadata potentially visible transiently at the client boundary, but source does not establish which provider ID/header is consistently emitted or whether invoice exports can join on it. Search adapters extract costs/credits, not request IDs. Do not claim actual reconciliation from the local fixture or ledger.
+
+Fastest next check for actual reconciliation is the owner-provided invoice/export and billing-account mapping for the provider that paid each usage mode, then compare its documented correlation field with a deliberately authorized provider response. Those account facts and provider-specific invoice semantics are absent from this source-only map; no provider documentation/call was used.
+
+## Growth controls and verification targets
+
+- One row represents one admitted product operation; multiple model calls, retries, or search requests aggregate into it. There is no per-tenant row cap or byte-size cap. Included operations have an optional quota, but workspace-key and configured unlimited modes do not bound ledger row volume.
+- Raw AI rows are included in fixed 90-day retention: `scripts/operations/cleanup-saas-retention.cjs:3,69-119` deletes old `AiUsageRecord` rows, and the model has a leading `createdAt` index (`schema.prisma:2189-2192`). The local systemd files declare a persistent daily 05:30 timer and target-checked apply service (`deploy/production/retention/content-factory-next-saas-retention.timer:13-18`, `.service:10-36`). This is source/config evidence only; activation and successful runtime pruning remain unverified here. This AI-row policy is distinct from the separate shared error-collector 90/30-day gate.
+- Most meaningful existing checks (not run by this mapper): `tests/ai-usage.execution.test.cjs` — “included admission is serializable, retries bounded conflicts and stores no content”, “zero included quota fails closed before the provider callback”, “an admission orphaned by process loss returns included allowance after 24 hours”, and “a final ledger update failure does not turn provider success into a retryable failure”; `tests/ai-text-chain.test.cjs` — “the winning attempt, served model, tier, tokens and cost”, “an operation of several calls sums tokens and keeps the furthest attempt”, “an operation that never got an answer still says how far it went”, and “possiblyBilled is stored”; `tests/web-research.usage-record.test.cjs` — “Tavily credits are counted, never converted into dollars”, “Exa without costDollars reports no usage rather than zero”, and “an engine that reports nothing still leaves its request count”; `tests/saas-retention.test.cjs` — “the operator CLI keeps the 90-day policy fixed”, “apply deletes both raw models in one transaction and retains the cutoff boundary”, and “the retention predicate on AiUsageRecord is served by a leading createdAt index”.
+
+Graphify was queried for `AiUsageService`; it returned no call neighbors. Its report baseline is `5cdd9002`, older than current source `12d1b35e`; the queried declaration exists in current source and matched the graph manifest. Treat graph absence as non-evidence about callers; the consumer guard and current `rg` results provide the path confirmation.
+
+## Root disposition — 12 October 2026
+
+The source map was accepted with this bounded correction to its classifications.
+Known subtotals across mixed known/unknown calls are deliberate behavior encoded
+in current tests and schema comments, not a newly established must-fix regression.
+Do not discard available provider-reported cost or revise those semantics without
+a separate product requirement. Completely unreported fields remain NULL.
+The owner explicitly deferred account/invoice reconciliation; provider request-ID
+capture, completeness markers and a durable accounting retry queue are not added.
+Best-effort persistence and partial totals remain limits of financial acceptance,
+tracked in parent0qgn.5 rather than silently treated as full reconciliation.
+
+Root separately verified source hashes against the deployed ec58 image and ran
+116 focused accounting checks. Current live aggregate metadata and timer status
+are in live-runtime-ledger.actual.json, not proof of future load or actual aged
+pruning. No provider call or customer payload read was used. Official response
+contract: https://openrouter.ai/docs/cookbook/administration/usage-accounting.

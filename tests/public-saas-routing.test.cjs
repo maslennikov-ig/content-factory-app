@@ -113,6 +113,28 @@ const inviteToken =
   'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6ImludjEyIiwib3JnSWQiOiJvcmcifQ.c2lnbmF0dXJlLXZhbHVl';
 
 describe('public SaaS route boundary', () => {
+  test.each([
+    'sa', 'bd', 'de', 'gb', 'es', 'fr', 'il', 'it',
+    'jp', 'ge', 'kr', 'pt', 'ru', 'tr', 'vn', 'cn',
+  ])('serves the %s language flag without a session', async (country) => {
+    const { proxy, internalFetchCalls } = loadProxy();
+    await expect(proxy(requestFor(`/svg/language-flags/${country}.svg`)))
+      .resolves.toMatchObject({ type: 'next' });
+    expect(internalFetchCalls).toHaveLength(0);
+  });
+
+  test.each([
+    '/svg/private/settings.svg',
+    '/svg/language-flags-private/ru.svg',
+    '/svg/language-flags/../../settings',
+  ])('keeps neighboring private route %s gated', async (pathname) => {
+    const { proxy } = loadProxy();
+    await expect(proxy(requestFor(pathname))).resolves.toMatchObject({
+      type: 'redirect',
+      url: expect.stringContaining('/auth'),
+    });
+  });
+
   test('publishes only the explicit public allowlist without a session', async () => {
     const { proxy, PUBLIC_PATHS } = loadProxy();
     expect(PUBLIC_PATHS).toEqual([

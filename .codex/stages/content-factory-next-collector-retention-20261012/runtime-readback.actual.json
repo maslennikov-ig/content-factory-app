@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-10-12T09:55:19.223533+00:00",
+  "collectorVersion": "6.0.5",
+  "collectorImageDigest": "sha256:a06e76515601dd8b246ed740f4345bba197b9a4efa4816fb0994d7f15b40edbb",
+  "effectiveEventDays": 90,
+  "effectiveFileDays": 90,
+  "targetDays": 30,
+  "projectRetentionFields": [],
+  "ownedProjectConfirmed": true,
+  "ownedIssueCount": 15,
+  "ownedEventCount": 100,
+  "ownedOlderThan30DaysByReceived": 39,
+  "ownedOlderThan30DaysByPayloadTimestamp": 39,
+  "ownedDIFCount": 0,
+  "application": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "healthy": true,
+    "restarts": 0
+  },
+  "sourceHashes": {
+    "/code/glitchtip/settings.py": "01d5f14fdeffb8d5885ede7519c4a7db7c40d2a7c20ff9eba427045930a5f1e0",
+    "/code/glitchtip/partition_manager.py": "d6ac1d9b6ee34fe1a035afe9ef1307c30847cb6be26589c41a8384de911ff86f",
+    "/code/glitchtip/management/commands/maintain_partitions.py": "a502399206a6a03e7fa642302ef2eb6bdf9fcba3afc3a9727e8d96ddc0c23cac",
+    "/code/apps/issue_events/models.py": "5a64954fbd9225f4ea31027f5e8b900d0ee9719c90a4a81a2a64bce9bcc9a145"
+  },
+  "transactionReadOnly": "on",
+  "eventPayloadsRead": false,
+  "writesPerformed": false,
+  "sharedConfigurationChanged": false,
+  "agedDataPruned": false,
+  "status": "INVESTIGATION_PASS_RETENTION30_NOT_IMPLEMENTED"
+}

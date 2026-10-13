@@ -1,0 +1,60 @@
+{
+  "schema": "content-factory-ops-root-acceptance/v1",
+  "status": "PASS_EXECUTABLE_TECHNICAL_BOUNDARY",
+  "checkedAt": "2026-10-12T11:11:09.231219+00:00",
+  "bead": "content-factory-next-0qgn.5.2",
+  "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+  "liveConfigDigest": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+  "applicationSourceChanged": false,
+  "deployedAgain": false,
+  "fullSuiteRerun": false,
+  "rootChecks": [
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "output": "> content-factory@1.0.0 docs:check /home/me/code/content-factory-next\n> python3 scripts/docs/check_docs.py\n\nDocumentation links OK (195 files checked)"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "output": ""
+    }
+  ],
+  "receiptAndCurrentInputAssertions": "PASS",
+  "receipts": {
+    "native-recovery.actual.json": "97ce72287a947f6665b7c16cc7d50f89ea95b1ed2a14e6373e2ff81dba3b3694",
+    "registration-abuse.actual.json": "d307c48e6f9a79f85ef57ff8cc3420fd16b398d84b346fc5c281936f2f7dd6f0",
+    "ai-accounting-tests.actual.json": "8cc7ee45040de08012cf8129261d9c4f6e37cb1f3dc3bb0f13a6d659ab0b1763",
+    "ai-accounting-source.actual.json": "bb0f217875f8830a9624d49491943adb20b4409ae1c77176bfeb2a9671fb45ba",
+    "telemetry-source.actual.json": "9974f04e5e844eef7818bb291474fd3e26f5bf03fa651a178069e0f1f4822a1a",
+    "telemetry-request.actual.json": "c40e6018eb761f4f843e762e096dc8dd05d4fb0d3db3b10c86d867ba58c4ea2d",
+    "telemetry-storage.actual.json": "19e7c37079e3695bfb2d0cfc5a325ec3f340046a448b6b81ef1ef4d8adaeb329",
+    "live-runtime-ledger.actual.json": "79850522fcc336d2eb92f5cd20397c7b2c8669e11622745dc382e89460763034",
+    "owner-financial-defer.actual.json": "96f244b1835b0d8f89192222ebaf1fdfd48ea5ec4595cfa47c383133001f5012"
+  },
+  "financialReconciliation": "OWNER_DEFERRED",
+  "errorRetention30AndMatchingAgedPruning": "OWNER_DEFERRED_KEEP90",
+  "offsiteStorageAndExternalKeyCustody": "MISSING_FACTS_RESTORE_EXCLUDED",
+  "futureLedgerAndMemoryCapacity": "NOT_INFERRED_FROM_CURRENT_ALLOCATION",
+  "productionProcessOrConfigurationMutations": 0,
+  "intentionalOwnCollectorDiagnosticEvents": 1,
+  "paidProviderCalls": 0,
+  "customerPayloadRowsRead": false,
+  "ownedDisposableResourcesRemaining": 0,
+  "parentContractPreservation": "PASS original id/description/acceptance_criteria/parent unchanged",
+  "canonicalBeads": {
+    "content-factory-next-0qgn.5.2": "closed",
+    "content-factory-next-0qgn.5": "blocked",
+    "content-factory-next-dbxe": "closed",
+    "content-factory-next-dbxe.32": "deferred"
+  },
+  "githubSync": "each create/update/close state-only trigger exited0; not full remote completion proof"
+}

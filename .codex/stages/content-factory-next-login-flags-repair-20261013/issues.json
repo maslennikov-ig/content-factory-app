@@ -1,0 +1,14 @@
+[
+  {
+    "id": "content-factory-next-2q28.43",
+    "title": "Restore database availability after shared host disk exhaustion"
+  },
+  {
+    "id": "content-factory-next-2q28.44",
+    "title": "Allow anonymous access to local language flag SVG assets"
+  },
+  {
+    "id": "content-factory-next-2q28.45",
+    "title": "Fix Telegram return navigation and restart spent sign-in attempts"
+  }
+]

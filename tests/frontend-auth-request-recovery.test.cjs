@@ -195,6 +195,30 @@ describe('login and forgot request failures', () => {
   });
 });
 describe('OAuth registration', () => {
+  test('an existing Telegram session is not mistaken for a missing registration token', async () => {
+    query = new URLSearchParams('provider=TELEGRAM&code=authorization&state=fixture-state');
+    request.mockResolvedValue(new Response(JSON.stringify({ login: true }), {
+      headers: { reload: 'true' },
+    }));
+    const { Register } = load('register');
+    render(h(Register));
+    await act(async () => {});
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('form')).toBeNull();
+  });
+
+  test('a failed Telegram exchange starts fresh sign-in rather than reusing its code', async () => {
+    query = new URLSearchParams('provider=TELEGRAM&code=authorization&state=fixture-state');
+    request.mockResolvedValue(new Response('{}', { status: 500 }));
+    const { Register } = load('register');
+    render(h(Register));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    await act(async () => fireEvent.click(screen.getByRole('button')));
+    expect(push).toHaveBeenCalledWith('/auth/login');
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
   test.each(['network', 'protocol', 403, 500, 'missing-token'])(
     '%s exits spinner and succeeds after explicit retry',
     async (kind) => {

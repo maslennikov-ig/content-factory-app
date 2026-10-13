@@ -1,0 +1,20 @@
+{
+  "decisionDate": "2026-10-12",
+  "decisionTimezone": "Europe/Moscow",
+  "source": "Explicit asynchronous owner reply in this chat",
+  "questionItemId": "[\"request_user_input_async\",\"call_48b9f9c92f084334af81b7429c9de467\",0]",
+  "exactOwnerReply": "Оставить 90 дней с пометкой (рекомендую)",
+  "choice": "KEEP90_EXPLICITLY_DEFER30",
+  "currentRetentionDays": 90,
+  "originalRequiredDays": 30,
+  "originalRequirementPreserved": true,
+  "retention30Implemented": false,
+  "agedPruningAccepted": false,
+  "runtimeMutationRequired": false,
+  "runtimeMutationPerformed": false,
+  "deferUntil": null,
+  "automaticResumption": false,
+  "beadsParent": "content-factory-next-0qgn.5",
+  "feasibilityTask": "content-factory-next-0qgn.5.1",
+  "remainingParentGates": "Unchanged; parent stays blocked"
+}

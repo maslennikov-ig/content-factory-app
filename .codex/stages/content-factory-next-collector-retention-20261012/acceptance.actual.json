@@ -1,0 +1,78 @@
+{
+  "scope": "read-only retention feasibility; not actual30-day cleanup",
+  "task": "content-factory-next-0qgn.5.1",
+  "status": "PASS",
+  "versions": {
+    "node": "v22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "checks": [
+    {
+      "command": "pnpm run docs:check",
+      "exitCode": 0,
+      "output": "Documentation links OK (195 files checked)",
+      "node": "v22.23.2",
+      "pnpm": "10.6.1"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": "git diff --cached --check",
+      "exitCode": 0,
+      "output": ""
+    }
+  ],
+  "correctedCheckFailure": "New blank line at EOF in source-notes.md removed; staged diff check rerun passed. Docs check reused from the same link/content tree.",
+  "parentOperationalGateCompleted": false,
+  "ownerPolicyChoice": "KEEP90_EXPLICITLY_DEFER30",
+  "runtimeMutated": false,
+  "sourceByteMatch": "PASS",
+  "sourceArchiveSha256": "5b29bce348fa6c3716f35165ece5479dd1fd458f3571df4e69696ca5e42f4b10",
+  "docsReviewed": "updated",
+  "graphReviewed": "no-change-needed",
+  "cleanup": "No task runtime/worktree resources were created; unrelated tails preserved",
+  "canonicalBeads": {
+    "content-factory-next-0qgn.5.1": "closed",
+    "content-factory-next-0qgn.5": "blocked",
+    "content-factory-next-dbxe": "closed",
+    "content-factory-next-dbxe.32": "deferred"
+  },
+  "originalBeadsContracts": "UNCHANGED; description, acceptance and parent checked against before snapshot",
+  "githubSync": "State-only trigger enqueued for child and parent after each mutation",
+  "ownerDecisionEvidence": "owner-decision.actual.json",
+  "ownerDecisionFollowupChecks": {
+    "status": "PASS",
+    "versions": {
+      "node": "v22.23.2",
+      "pnpm": "10.6.1"
+    },
+    "checks": [
+      {
+        "command": "pnpm run docs:check",
+        "exitCode": 0,
+        "output": "> content-factory@1.0.0 docs:check /home/me/code/content-factory-next\n> python3 scripts/docs/check_docs.py\n\nDocumentation links OK (195 files checked)"
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0,
+        "output": ""
+      },
+      {
+        "command": "git diff --cached --check",
+        "exitCode": 0,
+        "output": ""
+      }
+    ],
+    "runtimeChecks": "Reused accepted read-only snapshot; no host operation in owner-decision followup"
+  },
+  "ownerDecisionBeadsReadback": {
+    "status": "PASS",
+    "contracts": "Original status/description/acceptance/parent unchanged",
+    "parentDeferLabel": "owner-deferred-retention30",
+    "exactReplyInChildAndParentNotes": true,
+    "githubSync": "Trigger enqueued after both updates"
+  }
+}

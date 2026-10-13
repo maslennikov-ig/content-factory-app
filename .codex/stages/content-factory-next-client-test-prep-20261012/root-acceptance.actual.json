@@ -1,0 +1,40 @@
+{
+  "status": "PASS_PREPARATION_ONLY",
+  "task": "content-factory-next-2q28.42",
+  "owner": "root",
+  "proofs": {
+    "deployed-product.actual.json": "4eb584b3cb319feca5af3bc8c3427a5e2b5c8b2aa2892ccc6ae9104989502419",
+    "portal-publication.actual.json": "394e1427838b578b0441e515d68fa37b3c3556e21169aaa326b596184975d13c",
+    "portal-browser.actual.json": "19c7bbafb737810cc873a3ff0c2d066b6a2b73037ca04b7f382650beb9f3da4e",
+    "portal-final-readback.actual.json": "f10b41583eea92471146a705f755bfc6d441539e2acabb8b980bd3fbef326003",
+    "root-checks.actual.json": "b5524073cf61ce8839481ebce55cf7f840213b6619478384d2c4e2db5e9d4be4",
+    "cleanup.actual.json": "0d4d352c4da0179482a5bdf4b35faf306347d01856c39b6e2454ca3c55aed84a"
+  },
+  "portalShots": {
+    "schemes": [
+      "dark",
+      "light"
+    ],
+    "widths": [
+      400,
+      800,
+      1440
+    ],
+    "allSixPassed": true,
+    "minVisibleFontPx": 12,
+    "h1MinPx": 34
+  },
+  "guideSourceSha256": "abdecaa6a1dc5452923cabf8da85e00912e3c33b09ddd2839238307cfac1037f",
+  "promptSha256": "c460ae460166e53be4c3945f8f91aa7edf7f7b6c4b89b798a9bab7f0727beec1",
+  "newApplicationRollout": false,
+  "actualApplicationInputsMatched": 2070,
+  "originalClientParentRemainsOpen": true,
+  "realOwnerResults": "PENDING",
+  "originalDefersPreserved": true,
+  "nativeGoalCreated": false,
+  "activeDelegatedWriters": 0,
+  "docsReviewed": "updated",
+  "graphReviewed": "no-change-needed",
+  "canonicalBeadsReadback": "beads-final.actual.json",
+  "canonicalBeadsSha256": "e80e2bf3940c9da87f357cec1eaaaeed80a471b566537266ad8f79a97422ee39"
+}

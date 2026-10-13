@@ -1,0 +1,61 @@
+{
+  "status": "PASS_ACTUAL_PUBLISHED_GUIDE",
+  "baseline": {
+    "portalReady": true,
+    "readOnly": false,
+    "copyButtons": 7,
+    "requiredGroups": 6,
+    "optionalNotes": 1,
+    "submitControls": 1,
+    "checkedAnswers": 0,
+    "notesEmpty": true,
+    "disabledControls": 0
+  },
+  "copied": [
+    {
+      "target": "starter-instruction",
+      "clipboardMatches": true
+    },
+    {
+      "target": "sample-book",
+      "clipboardMatches": true
+    },
+    {
+      "target": "correction-book",
+      "clipboardMatches": true
+    },
+    {
+      "target": "sample-workshop",
+      "clipboardMatches": true
+    },
+    {
+      "target": "correction-workshop",
+      "clipboardMatches": true
+    },
+    {
+      "target": "sample-pickup",
+      "clipboardMatches": true
+    },
+    {
+      "target": "correction-pickup",
+      "clipboardMatches": true
+    }
+  ],
+  "views": [
+    {
+      "scheme": "dark",
+      "width": 400,
+      "overflow": false,
+      "temporaryCopyFields": 0
+    },
+    {
+      "scheme": "light",
+      "width": 1440,
+      "overflow": false,
+      "temporaryCopyFields": 0
+    }
+  ],
+  "ownerAnswersWritten": 0,
+  "submitClicked": false,
+  "clipboardFixture": false
+}

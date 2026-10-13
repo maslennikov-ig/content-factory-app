@@ -1,0 +1,141 @@
+{
+  "started_at": "2026-10-12T10:39:25.709407+00:00",
+  "finished_at": "2026-10-12T10:40:06.500446+00:00",
+  "base_image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+  "base_image_id": "sha256:3f503348cd5637ae167e00622b9293c23a450affcb3a465215fe1475dba1d315",
+  "source_head": "ec58af8b31b17012bc7c49e60426b4b938105d4c",
+  "compiled_tree_sha256": "dc0947855d2f46d2be9b0b2026a84dea97edd46ebbc88299866bab329712ccf2",
+  "temporal_dependencies": {
+    "@temporalio/client": "1.15.0",
+    "@temporalio/worker": "1.15.0",
+    "nestjs-temporal-core": "3.2.3"
+  },
+  "network_internal": true,
+  "fresh_database": true,
+  "backup_restored": false,
+  "production_mutations": 0,
+  "external_calls_permitted": false,
+  "candidate_current_modules_match": true,
+  "candidate_health_script_sha256": "68bbef37d9bc89f6f5809061f4ee5f6634b867385e61da804abab3af2b417f75",
+  "monitor_before": {
+    "status": 200,
+    "body": "{\"status\":\"success\",\"message\":\"Runtime dependencies are ready.\"}",
+    "curl_exit": 0
+  },
+  "monitor_paused_redis": {
+    "status": 503,
+    "body": "{\"status\":\"error\",\"message\":\"Runtime dependencies are unavailable.\"}",
+    "curl_exit": 0
+  },
+  "monitor_after_redis": {
+    "status": 200,
+    "body": "{\"status\":\"success\",\"message\":\"Runtime dependencies are ready.\"}",
+    "curl_exit": 0
+  },
+  "api_while_worker_stopped": {
+    "status": 200,
+    "body": "App is running!",
+    "curl_exit": 0
+  },
+  "readiness_while_worker_stopped": {
+    "status": 0,
+    "body": "",
+    "curl_exit": 7
+  },
+  "health_while_worker_stopped": {
+    "command": [
+      "CMD-SHELL",
+      "sh /app/var/docker/healthcheck.sh"
+    ],
+    "exit": 7,
+    "elapsed_ms": 85
+  },
+  "pending_history": {
+    "status": "RUNNING",
+    "eventCount": 2,
+    "completedEvents": 0,
+    "activityCompletions": 0
+  },
+  "resumed_workflow_result": {
+    "value": false
+  },
+  "completed_history": {
+    "status": "COMPLETED",
+    "eventCount": 11,
+    "completedEvents": 1,
+    "activityCompletions": 1
+  },
+  "readiness_after": {
+    "status": 200,
+    "body": "{\"status\":\"ok\"}",
+    "curl_exit": 0
+  },
+  "health_after": {
+    "command": [
+      "CMD-SHELL",
+      "sh /app/var/docker/healthcheck.sh"
+    ],
+    "exit": 0,
+    "elapsed_ms": 76
+  },
+  "cleanup": [
+    {
+      "id": "6218436b6158c715fac419551d7f8a63eee9201d216954694d8c08486a991f56",
+      "removed": true
+    },
+    {
+      "id": "6ad2db6e7d34bd55debf610a85e30339fb2c05ce7245d4e46b89b82678487700",
+      "removed": true
+    },
+    {
+      "id": "2a8d0dcd35e026affafb23be6a02ea36e068a34b95f98e23c1d417823ad4357f",
+      "removed": true
+    },
+    {
+      "id": "d9001089352fe4a1e66261983898ab6eb02129d79512b5f1b5ebb0caf9211dc7",
+      "removed": true
+    },
+    {
+      "id": "2a6129dd464694477836505cef25d13744f644daad8da0d185fcd2f9070c80ab",
+      "removed": true
+    },
+    {
+      "id": "73a91fddb6cd60d64e08f9c01c797867face3e0e603deff37d8bda82773f6051",
+      "removed": true
+    }
+  ],
+  "network_removed": true,
+  "accepted_image_preserved": true,
+  "foreign_inventory_preserved": {
+    "containers": true,
+    "networks": true,
+    "images": true
+  },
+  "owned_containers_remaining": [],
+  "status": "PASS_NATIVE_RUNTIME_ASSERTIONS_AND_CLEANUP",
+  "originalCombinedRunnerStatus": "failed",
+  "originalCombinedRunnerFailure": "command_failed:docker:Error response from daemon: Could not find the file /tmp/registration.json in container 6218436b6158c715fac419551d7f8a63eee9201d216954694d8c08486a991f56\n",
+  "nativeRuntimeAssertionsCompletedBeforeRegistrationToolFailure": true,
+  "separateRegistrationAcceptance": "registration-abuse.actual.json",
+  "rawCombinedReceiptSha256": "9d12af9390cb045ac9579ec40aadcadfb5b89cd0cda7b9cc47b6263d77f50536",
+  "referenceCompiledFileCount": 1236,
+  "referenceManifestSha256": "4b1dd35c0a7cc139df17b3d62ee1ec285aaf54e349bee8874ee59a0cf8d04d4a",
+  "sourceFiles": {
+    "Dockerfile": "a8f0eee90d770654898de3bc18e7d8d413fdc0b40e35358c51b8a131ac674284",
+    "var/docker/healthcheck.sh": "68bbef37d9bc89f6f5809061f4ee5f6634b867385e61da804abab3af2b417f75",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "apps/orchestrator/src/worker-readiness.service.ts": "4dbbba071d6c005a4dbaa97391c09fa6007eefc53a4a366c8588791931e35b1c",
+    "apps/orchestrator/src/health.controller.ts": "19845f4ea29e8cc8c54a100767535fec54111ec8b0025658730eaa21c4334d1c",
+    "libraries/nestjs-libraries/src/temporal/temporal.module.ts": "74652ce5bd5396f4bead4846d9c9c82fabb4c291d8913b8daca2d9b3c1eaf771",
+    "apps/backend/src/services/monitor/runtime-monitor.service.ts": "890f9bb68dde11a98614668f76eddf2bf28beaa8200458555418caeab8abeb87",
+    "libraries/nestjs-libraries/src/throttler/registration-limiter.ts": "fd776cfb2896333571ca8165263c26ebc05edbc3877f8b8ac5ab8bf005780068",
+    "libraries/nestjs-libraries/src/throttler/transient-client-tracker.ts": "a6dc6d3a9583a98cf9f3bfeda09f0462801883f035cee26c7415e84a340be073",
+    "libraries/nestjs-libraries/src/throttler/throttler.provider.ts": "d9ab93b3bb23e6ca22701b16852acb78131c0b4c9c331c9d88e29c9f0d241479",
+    "apps/backend/src/api/routes/auth.controller.ts": "6d5a2662faf01bfe244d7c63d88f2867fd4665e331822ea6d68f6adcb3b80ae8",
+    "tests/registration.distributed-budget.test.cjs": "8be5ae77a3e7bfaa6b5fd47804ec03728daa546b3c39dca715720106512777c5",
+    "tests/helpers/load-ts-module.cjs": "a80262e35d0581c4d8397bd1d2306cf6dc8f227ba7f957dd96389f0e150371ca",
+    "tests/helpers/registration-script-redis.cjs": "2bb5ed45d518edc1f509739e56dab2da16fd4e2c187a931214997c45325c7360"
+  },
+  "noProviderExactlyOnceClaim": true,
+  "productionWorkerStopped": false
+}

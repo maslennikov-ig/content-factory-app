@@ -169,6 +169,12 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
 
       if (response?.headers?.get('reload')) {
+        // OAuth codes are single-use. Reloading their callback would run the
+        // exchange again after the session cookie has already been written.
+        if (/^\/auth\/oauth\/[^/]+\/exists$/.test(url)) {
+          window.location.replace('/');
+          return true;
+        }
         window.location.reload();
         return true;
       }

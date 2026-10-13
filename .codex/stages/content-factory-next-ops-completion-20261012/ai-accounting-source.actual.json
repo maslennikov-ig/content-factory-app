@@ -1,0 +1,15 @@
+{
+  "status": "PASS_CURRENT_ACCOUNTING_SOURCE_BINDING",
+  "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+  "hashes": {
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "48bc009b2512f117b683d9965eff59e844c0198487e77a58dd3b6b5381e43a5a",
+    "libraries/nestjs-libraries/src/openai/ai.usage.service.ts": "445c5d404eb60384b99d3a582a0ecd1cb04d77815845f395330e94f662168620",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "b12955bc5be032bfeeb5e704140b93104dc904a7af59489d183b683391d7820c",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3",
+    "tests/ai-text-chain.test.cjs": "c823f75380307fe66381c476245e5ddc33e3cf4c821c6ebfdbe48a8d570485ef",
+    "tests/ai-usage.execution.test.cjs": "1813a0f0ef04f6cd7a0c14b5116d03fcb41ed5ee5cebac65f525a61527a84051",
+    "tests/web-research.usage-record.test.cjs": "522f042e70b764837fae8ac54a3d4183ed0d38ebd71e13e82476054bbaf3271c"
+  },
+  "customerPayloadsRead": false,
+  "providerCalls": 0
+}

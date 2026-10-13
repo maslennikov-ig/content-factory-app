@@ -117,6 +117,10 @@ export function Register() {
         return;
       }
 
+      // The shared response handler is already navigating a signed-in user.
+      // Only a new account receives a provider token for registration.
+      if (response.headers.get('reload')) return;
+
       const { token } = await response.json();
       if (typeof token !== 'string' || !token) throw new Error('Missing OAuth token');
       setCode(token);
@@ -131,7 +135,11 @@ export function Register() {
   if (failed) {
     return <div className="flex flex-col gap-[12px]">
       <p role="alert" className="cf-body-sm text-cf-danger">{t('auth_request_failed_retry', 'Could not complete the request. Please try again.')}</p>
-      <Button type="button" onClick={() => void load()}>{t('try_again', 'Try again')}</Button>
+      <Button type="button" onClick={() => provider === 'TELEGRAM' ? router.push('/auth/login') : void load()}>
+        {provider === 'TELEGRAM'
+          ? t('telegram_link_return_restart_sign_in', 'Start sign-in again')
+          : t('try_again', 'Try again')}
+      </Button>
     </div>;
   }
   if (!show) {

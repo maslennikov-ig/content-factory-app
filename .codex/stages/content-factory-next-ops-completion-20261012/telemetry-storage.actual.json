@@ -1,0 +1,50 @@
+{
+  "transactionReadOnly": "on",
+  "ownEventId": "fc8ce7c7fcc144ef9d7bea6d7da86c82",
+  "storedCount": 1,
+  "customerEventsRead": false,
+  "dataKeys": [
+    "environment",
+    "exception",
+    "metadata",
+    "sdk"
+  ],
+  "tagKeys": [
+    "environment",
+    "release",
+    "service"
+  ],
+  "service": "backend",
+  "release": "ec58af8b31b1",
+  "frameCount": 5,
+  "frameKeys": [
+    "abs_path",
+    "colno",
+    "filename",
+    "function",
+    "in_app",
+    "lineno"
+  ],
+  "sensitiveTopFieldsAbsent": true,
+  "exceptionValuesAbsent": true,
+  "framePrivateFieldsAbsent": true,
+  "syntheticCanariesAbsent": true,
+  "absoluteFramePathsAbsent": true,
+  "dataSha256": "5330ecc4cfdcdb3f30d9c69aae2e21cd60f0f415ac6f75bbfafdde32db231020",
+  "applicationAfter": {
+    "image": "ghcr.io/maslennikov-ig/content-factory-next:ec58af8b31b1",
+    "configDigest": "sha256:96bb85c3e706809eb27d76b1cfea3a7558062d38231f1cb996ca054f08423198",
+    "id": "ecedcc43242d76ed86f5aaabc53d3734629199de9dce9ed5c34afb45d568ccbf",
+    "health": "healthy",
+    "restarts": 0
+  },
+  "status": "PASS_CURRENT_APP_LIGHT_SDK_STORAGE_REDACTION",
+  "applicationRequests": 1,
+  "sourceQualificationSha256": "9974f04e5e844eef7818bb291474fd3e26f5bf03fa651a178069e0f1f4822a1a",
+  "collectorDiagnosticEventWrites": 1,
+  "productionProcessOrConfigurationMutations": 0,
+  "realProviderCalls": 0,
+  "automaticReplay": false,
+  "allFramePathsAreRelative": true,
+  "ownEventOnly": true
+}

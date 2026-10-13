@@ -1,0 +1,11 @@
+{
+  "httpStatus": 500,
+  "responseEventId": "fc8ce7c7fcc144ef9d7bea6d7da86c82",
+  "responseBytes": 52,
+  "responseSha256": "fcbda2e2660dbbff82ba8df76212f3d4ab9ced3b9b9a8b8700621f45fb5ce006",
+  "at": "2026-10-12T11:01:06.182024+00:00",
+  "applicationRequests": 1,
+  "automaticReplay": false,
+  "realProviderCalls": 0,
+  "actorsCreated": 0
+}

@@ -2,7 +2,7 @@
 
 ## dbxe audit epic completed; Skool publication independently deferred
 
-Current stage id: content-factory-next-dbxe-completion-stage
+Current stage id: content-factory-next-client-test-prep-20261012
 Owner12Oct explicitly approves independent Skool publication defer and epic closure.
 Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed.
 Original38 task contracts unchanged; approved defer recorded in Beads, the authority.
@@ -24,7 +24,7 @@ Store2.0.1 package/native fixture is distinct from CWS approval; EXTENSION_ID un
 Outcome/runtime/CI/status proof: stages/content-factory-next-dbxe-completion-stage/.
 Unrelated0qgn/client/SaaS/research epics and their defers stay open. No paid/provider/
 real-mail/social/restore used as delivery QA. No full acceptance rerun for final metadata.
-Accepted stage id: content-factory-next-dbxe-readiness-stage
+Accepted stage id: content-factory-next-dbxe-completion-stage
 
 ## Previous accepted publishing stage
 
@@ -152,22 +152,23 @@ local/untracked; no active credentials remain. Original pre-pass/history remains
 in pre-pass-handoff.md and earlier stage receipts. No old C27/native runner replay.
 
 ## Next recommended
-
-Next stage id: none selected
-Recommended action: wait for owner selection; audit epic dbxe CLOSED, no automatic work.
-Task32 retained independently as DEFERRED; no automatic publication or deadline.
-Choose further work explicitly from Beads; unrelated product epics remain open.
-Use $orchestrator-stage only when new selected work needs orchestration.
-Reuse exact2e/ec58 acceptance; do not rebuild/retest/redeploy unchanged application.
-
-Original0qgn remains open. 0qgn.5 stays BLOCKED: shared collector90days vs target30
-without a project override, aged pruning, invoice reconciliation and ledger sizing
-are not inferred. Today accepts only native process restart/pending read-only job
-recovery, not provider effects or full recovery after host loss. Linked dbxe.7/.24
-capture worker-health and stdout privacy gaps. Keep all original criteria; do not
-change global retention or prune foreign project records. Owner excludes separate
-backup restoration; external storage/key custody and owner invoices remain facts
-to obtain when that scope is selected.
+Next stage id: awaiting-owner-testing-results
+Recommended action: owner follows new portal guide; next session pulls final results and fixes concrete defects in one short stage.
+Preparation: Beads2q28.42 CLOSED; outcome/prompt in stages/content-factory-next-client-test-prep-20261012/.
+Portal project content-factory, slug content-factory-owner-testing-2026-10;
+URL only in that stage's publication.local.json (private, excluded from Git).
+Three short cases +loader/AI instructions/manual-save checks;15–20min.
+Old Julia pagev6/two tokens and existing answers preserved; no owner answers fabricated.
+Fresh12Oct2070 product inputs match actual ec58; API/login/worker/main/source200,
+3 native roles online/0restarts. All application changes already deployed;
+only docs/artifact changed, no new app build/switch/full suite needed.
+Previous ops5.2 accepted: exact native recovery/auth/accounting/telemetry;
+metadata1054rows/476known/578unknown/0pending, active90daytimer lastsuccess.
+Not invoice completeness or future sizing. Owner explicitly defers finance and
+30-day error retention; original0qgn.5 BLOCKED on defers/offsite destination/key.
+Original71m.8 connected memory and0qgn.1 scheduled backup CLOSED, not reopened.
+Task32 independent DEFERRED;2q28/client acceptance remains OPEN. Wait for actual
+owner results; no continuous epic goal, portal polling, new paid/provider calls.
 
 ## Explicit defers
 
@@ -187,14 +188,13 @@ ChatGPT acceptance;2q28 retains actual client acceptance.
 
 ## Starter prompt for next orchestrator
 
-Read completion-stage/outcome.md, owner-approved-store-defer.actual.json and Beads.
-Audit epic dbxe is CLOSED at2e/ec58; all4 streams accepted/cleaned, no live child
-jobs. Task32 is independently DEFERRED; resume only upon a new owner selection.
-Preserve source/registry separation, current healthy ec58/verified rollback2a, V3/digest
-runs and all original38 contracts/unrelated defers. Reuse exact full9+publicCI/runtime proof.
-Do not run old C27, new search refactors, paid/provider/live-mail/restore or another
-application release without a concrete changed source/configuration requirement.
-graph-reviewed: used - owner graph5cdd/current core hashes and focused neighborhoods
-retained; compiler/test-only repair changes no core symbols. Known55 zero-node files
-remain coverage limit. No external extraction, query logging or Graphify git hooks.
-Root-owned closeout; metadata-only final commit is separate from accepted image source.
+Read stages/content-factory-next-client-test-prep-20261012/new-session-prompt.md and outcome.md. Use $orchestrator-stage when coordination materially helps.
+Preparation2q28.42 is separate from owner results; inspect fresh Beads before action.
+Audit dbxe CLOSED; independent32/finance/30-day/legal/pricing/ChatGPT/offsite/research defers retained.
+Use portal-artifact to pull only new owner form; never put bearer URL/client answers in Git.
+If final answers are absent and owner gave none in chat, report ready and wait.
+Preserve healthy ec58/verified rollback2a, V3/digest runs, foreign work and original contracts.
+Reuse matching full9/publicCI/runtime evidence; release only for concrete changed application inputs.
+graph-reviewed: no-change-needed - this stage changes only guide/prompt/operational docs;
+no architecture or product symbols changed, prior accepted graph evidence retained.
+Root-owned closeout; metadata-only source delivery is separate from accepted image.

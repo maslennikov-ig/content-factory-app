@@ -1,0 +1,54 @@
+{
+  "canonicalReadAt": "2026-10-12T11:11:51.969316+00:00",
+  "issues": {
+    "content-factory-next-0qgn.5.2": {
+      "id": "content-factory-next-0qgn.5.2",
+      "title": "Завершить техническую проверку эксплуатации Content Factory",
+      "status": "closed",
+      "close_reason": "Root accepted current ec58 technical operations: exact-image isolated readiness/recovery and cleanup, 33 registration +116 accounting checks, current AppModule Light SDK delivery/storage/redaction and aggregate live metadata. Owner financial/retention defers and external facts stay in original blocked parent. Documentation/diff/input acceptance PASS.",
+      "labels": [
+        "next-bounded-stage-required",
+        "orchestration",
+        "owner-deferred-retention30",
+        "scope-preserved"
+      ]
+    },
+    "content-factory-next-0qgn.5": {
+      "id": "content-factory-next-0qgn.5",
+      "title": "Подтвердить эксплуатационные ворота SaaS в runtime",
+      "status": "blocked",
+      "close_reason": null,
+      "labels": [
+        "orchestration",
+        "owner-deferred-financial-reconciliation",
+        "owner-deferred-retention30",
+        "scope-preserved"
+      ]
+    },
+    "content-factory-next-dbxe": {
+      "id": "content-factory-next-dbxe",
+      "title": "Надёжность и завершённость Content Factory по аудиту 09.10.2026",
+      "status": "closed",
+      "close_reason": "Completed and delivered 36 technical audit fixes with exact full-release and native runtime evidence. Owner on12Oct2026 explicitly defers Skool Chrome Web Store publication to independent task content-factory-next-dbxe.32, preserving its original requirement outside this completion claim. All38 original contracts unchanged; no unrelated epic, store/provider/client or universal vulnerability completion is claimed.",
+      "labels": [
+        "audit-20261009",
+        "scope-preserved",
+        "short-stages"
+      ]
+    },
+    "content-factory-next-dbxe.32": {
+      "id": "content-factory-next-dbxe.32",
+      "title": "Опубликовать пакет расширения в Chrome Web Store",
+      "status": "deferred",
+      "close_reason": null,
+      "labels": [
+        "audit-20261009",
+        "owner-approved-defer",
+        "scope-preserved",
+        "short-stages"
+      ]
+    }
+  },
+  "parentOriginalContractPreserved": true,
+  "githubSyncTriggersSucceeded": true
+}
