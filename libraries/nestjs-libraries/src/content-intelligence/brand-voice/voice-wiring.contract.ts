@@ -2660,6 +2660,7 @@ export type IntakeResearchSummaryV1 = {
   researchIntent?: import('../intake/research-intent').ResearchIntentV1;
   periodStatus?: 'matched' | 'empty' | 'needs_clarification';
   gaps?: string[];
+  periodDiagnostics?: import('../intake/research-digest').ResearchPeriodDiagnosticsV1;
 };
 
 export type IntakeEventV1 =

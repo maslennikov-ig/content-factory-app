@@ -18,3 +18,16 @@ Product source: `3aee2b05ac30f19e7a4bc8b414db20ee17ede799`. This records evidenc
 `integration-full.final.log`: all four builds passed; `pnpm test` passed Jest and Node, then failed the Python handoff exact-stage declaration guard. Application code was unchanged. `integration-metadata.final.log`: corrected handoff, all50 Python tests, documentation and process checks passed. This is aggregate local engineering proof, not a successful release-suite receipt or a claim that the original `pnpm test` command exited zero. Native PostgreSQL gates were not configured.
 
 Source browser uses real Host/Screen/Conversation/Composer/Shell/pickers and shared CoreTextEdit with synthetic API reads; no paid model call, product write or production mutation occurred. Owned localhost fixture server was stopped after verification.
+
+## Authorized delivery and paid controls, 16 October
+
+Final tested private source `126b76819253d02942f58e5131ccdc6fc0515710`, public/runtime `add562bfc20aa2edf26e9d343c7d3aae6439a884`. Exact root release receipt `mirrored-contract-release` passes all9 configured commands, Jest672 suites/12,290 tests, Node123, Python50;70 Jest/4 environment Node skips retained. All5 public CI jobs pass. Image digest4d3a24ed, config5f48f278, source archive3aae4ead/12,779,606 bytes verified through production. Empty schema diff, healthy/0restarts, Mastra45 fingerprint and21 foreign containers unchanged; verified0e8 rollback retained.
+
+| Gate | Actual result | Limit |
+| --- | --- | --- |
+| A1/A4 creation/manual persistence | Real paid UI creation saved676chars on initial74fb; shared/manual text exact. Same record read back exact on finaladd562 | Fresh avatar/channel/answers/adaptation/reserve and avatar/channel parity remain untested |
+| A7 original9–16Oct update | FAILED: broad and narrowed real searches found fresh pages but0 eligible new events; old-fact selection displayed; original hash/revisions retained after explicit0-fact continuation | Bug `content-factory-next-jvrq.9` blocks .8; no new overview was saved. Exact raw4 temporal rejection reason UNKNOWN |
+| A8 conservative empty outcome | No accidental rewrite, adaptation or publication;6 UI POST streams terminal,0 page errors;12 usage rows terminal | Empty-period UX misleadingly offers prior facts; actual save/rewrite parity not proven by this failed control |
+| A10 delivery | Source published, exact tested image deployed and checked, rollback and host retention verified | Deployment is not owner acceptance or successful research quality; epic stays open |
+
+Proof: `evidence/release-acceptance.final.actual.json`, `evidence/public-ci.final.actual.json`, `evidence/image.final.actual.json`, `evidence/production-paid-controls.actual.json`. Private SSE/source excerpts/account identifiers/session tokens are excluded from Git. No original acceptance criteria or unrelated task gates were waived.

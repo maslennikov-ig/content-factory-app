@@ -32,6 +32,194 @@ const build = (id, services, options = {}) =>
     ...options,
   });
 
+describe('piece.research period-aware facts card', () => {
+  const period = {
+    start: '2026-10-08T21:00:00.000Z',
+    end: '2026-10-16T09:00:00.000Z',
+  };
+  const datedFinding = (overrides = {}) => ({
+    factKey: 'new-event',
+    statement: 'Компания выпустила обновление.',
+    kind: 'found',
+    status: 'confirmed',
+    selected: true,
+    sourceUrl: 'https://events.example/new',
+    dateProvenance: {
+      eventDate: '2026-10-12',
+      eventDateQuote: 'Компания выпустила обновление 12 октября 2026 года.',
+      precision: 'day',
+      sourcePublishedAt: '2026-10-16',
+    },
+    ...overrides,
+  });
+  const serviceFor = (preview) => {
+    const calls = { researchCore: jest.fn(async () => preview), acceptCoreResearch: jest.fn() };
+    return { calls, services: { PieceService: calls } };
+  };
+
+  test('temporal research offers only selected, confirmed new findings with event-date provenance', async () => {
+    const preview = {
+      level: 'quick',
+      snapshotKey: 'snapshot-period',
+      facts: [
+        datedFinding(),
+        {
+          factKey: 'old-context', statement: 'Старый контекст.', kind: 'external',
+          status: 'unverified', selected: true, sourceUrl: 'https://old.example/',
+        },
+        datedFinding({ factKey: 'not-selected', selected: false }),
+        datedFinding({ factKey: 'unverified-new', status: 'unverified' }),
+        datedFinding({ factKey: 'no-date-quote', dateProvenance: { eventDate: '2026-10-12', precision: 'day' } }),
+      ],
+      summary: {
+        periodStatus: 'matched',
+        gaps: [],
+        researchIntent: { eventInterval: period, timezone: 'Europe/Moscow' },
+      },
+    };
+    const { calls, services } = serviceFor(preview);
+    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+      requestContext: requestContextFor(registry),
+    });
+
+    expect(output).toBeUndefined();
+    expect(suspended).toHaveLength(1);
+    expect(suspended[0].options).toEqual([
+      expect.objectContaining({
+        id: 'new-event',
+        label: expect.stringContaining('2026-10-12'),
+        selected: true,
+        status: 'confirmed',
+        source: 'events.example',
+      }),
+    ]);
+    expect(calls.researchCore).toHaveBeenCalledTimes(1);
+    expect(calls.acceptCoreResearch).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['empty', { eventInterval: period, timezone: 'Europe/Moscow' }, [
+      '2026-10-08T21:00:00.000Z — 2026-10-16T09:00:00.000Z (Europe/Moscow): подтверждённых событий не найдено.',
+      'Нужны даты самих событий; дата публикации или обхода их не заменяет.',
+    ]],
+    ['needs_clarification', { eventInterval: null, timezone: 'Europe/Moscow' }, [
+      'Какой последний день охвачен предыдущим обзором?',
+    ]],
+  ])('%s temporal outcomes return bounded status and gaps without opening a facts card', async (periodStatus, researchIntent, gaps) => {
+    const preview = {
+      level: 'standard',
+      snapshotKey: 'snapshot-period',
+      facts: [{ factKey: 'private-old', statement: 'PRIVATE-ACCOUNT-FACT', kind: 'external', status: 'unverified', selected: true }],
+      summary: {
+        periodStatus,
+        gaps,
+        researchIntent: {
+          ...researchIntent,
+          task: 'PRIVATE-RESEARCH-TASK',
+          priorExample: 'PRIVATE-ACCOUNT-EXAMPLE',
+        },
+      },
+    };
+    const { calls, services } = serviceFor(preview);
+    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+      requestContext: requestContextFor(registry),
+    });
+
+    expect(suspended).toEqual([]);
+    expect(output).toMatchObject({
+      ok: true,
+      capability: 'piece.research',
+      summary: {
+        pieceId: 'p1',
+        level: 'standard',
+        offered: 0,
+        kept: 0,
+        applied: false,
+        periodStatus,
+        gaps,
+      },
+    });
+    expect(JSON.stringify(output)).not.toContain('PRIVATE-');
+    expect(calls.researchCore).toHaveBeenCalledTimes(1);
+    expect(calls.acceptCoreResearch).not.toHaveBeenCalled();
+  });
+
+  test('an empty answer to a valid temporal card keeps the existing zero-chosen behavior', async () => {
+    const preview = {
+      level: 'quick',
+      snapshotKey: 'snapshot-period',
+      facts: [datedFinding()],
+      summary: { periodStatus: 'matched', gaps: [], researchIntent: { eventInterval: period, timezone: 'Europe/Moscow' } },
+    };
+    const { calls, services } = serviceFor(preview);
+    const tool = build('piece.research', services);
+    const requestContext = requestContextFor(registry);
+    const asked = await executeTool(tool, { pieceId: 'p1' }, { requestContext });
+    const answered = await executeTool(tool, { pieceId: 'p1' }, {
+      requestContext,
+      resumeData: { factKeys: [] },
+      suspendPayload: asked.suspended[0],
+    });
+
+    expect(answered.output).toMatchObject({
+      ok: true,
+      summary: { offered: 1, kept: 0, applied: false },
+    });
+    expect(answered.suspended).toEqual([]);
+    expect(calls.researchCore).toHaveBeenCalledTimes(1);
+    expect(calls.acceptCoreResearch).not.toHaveBeenCalled();
+  });
+
+  test('resuming a temporal card accepts only the selected offered key from its stored snapshot', async () => {
+    const preview = {
+      level: 'quick',
+      snapshotKey: 'snapshot-period',
+      facts: [datedFinding()],
+      summary: { periodStatus: 'matched', gaps: [], researchIntent: { eventInterval: period, timezone: 'Europe/Moscow' } },
+    };
+    const { calls, services } = serviceFor(preview);
+    const tool = build('piece.research', services);
+    const requestContext = requestContextFor(registry);
+    const asked = await executeTool(tool, { pieceId: 'p1' }, { requestContext });
+    const answered = await executeTool(tool, { pieceId: 'p1' }, {
+      requestContext,
+      resumeData: { factKeys: ['new-event'] },
+      suspendPayload: asked.suspended[0],
+    });
+
+    expect(answered.output).toMatchObject({
+      ok: true,
+      summary: { offered: 1, kept: 1, applied: true },
+    });
+    expect(calls.researchCore).toHaveBeenCalledTimes(1);
+    expect(calls.acceptCoreResearch).toHaveBeenCalledWith('org-1', 'p1', 'user-1', {
+      snapshotKey: 'snapshot-period',
+      selectedKeys: ['new-event'],
+    });
+  });
+
+  test('ordinary non-temporal research keeps the existing keyed option selection', async () => {
+    const preview = {
+      level: 'quick',
+      snapshotKey: 'snapshot-ordinary',
+      facts: [
+        { factKey: 'old-context', statement: 'Старый контекст.', kind: 'external', status: 'unverified', selected: true },
+        datedFinding(),
+      ],
+      summary: null,
+    };
+    const { services } = serviceFor(preview);
+    const { suspended } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+      requestContext: requestContextFor(registry),
+    });
+
+    expect(suspended[0].options.map(({ id, label }) => ({ id, label }))).toEqual([
+      { id: 'old-context', label: 'Старый контекст.' },
+      { id: 'new-event', label: 'Компания выпустила обновление.' },
+    ]);
+  });
+});
+
 describe('native Mastra tools', () => {
   const tools = registry.buildMastraCapabilityTools(catalogue, {
     services: servicesFrom({}),

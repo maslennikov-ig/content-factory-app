@@ -196,6 +196,31 @@
       "issues": [
         "content-factory-next-jvrq.8"
       ]
+    },
+    {
+      "stream": "dated-material-repair-1094",
+      "owner": "research_material_budget",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/openai/web.research.service.ts",
+        "libraries/nestjs-libraries/src/openai/research-event-material.ts",
+        "tests/web.research*.test.cjs",
+        "jest.config.cjs single alias",
+        "tests/helpers/research-event-material.cjs"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.9"
+      ]
+    },
+    {
+      "stream": "dated-empty-outcome-1094",
+      "owner": "research_empty_outcome",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/chat/capabilities/catalogue/core.capabilities.ts",
+        "tests/agent-capabilities.adapters.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.9"
+      ]
     }
   ],
   "stream_artifacts": [],
@@ -214,5 +239,9 @@
       "browser.actual.json"
     ],
     "note": "Jest/Node passed original full run; Python/docs/process passed after handoff-only stage declaration repair. Original pnpm test was nonzero. No release receipt, owner/provider acceptance, canonical-sync or production claim."
+  },
+  "delivery_authority": {
+    "date": "2026-10-16",
+    "scope": "Owner explicitly authorizes1094 repair, source/image publication, production deployment and paid original9–16October replay through a saved working overview; no social publication/account connection."
   }
 }

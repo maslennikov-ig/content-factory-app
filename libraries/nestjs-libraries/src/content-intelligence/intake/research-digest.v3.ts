@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import {
-  digestSourcesFor, normalizeForMatch, researchDigestPromptV2,
+  bareKey, digestSourcesFor, normalizeForMatch, researchDigestPromptV2,
   researchDigestSchema, settleResearchDigest,
-  type ResearchDigestInputV2, type ResearchDigestSource,
+  type ResearchDigestInputV2, type ResearchDigestSource, type ResearchPeriodDiagnosticsV1,
 } from './research-digest';
 import { admitResearchEvent, type ResearchIntentV1 } from './research-intent';
+import { stripCitationLabels } from '../text-quality/citation-labels';
 
 export const RESEARCH_DIGEST_PROMPT_VERSION_V3 = 'research-digest/v3' as const;
 export type ResearchDigestInputV3 = ResearchDigestInputV2 & { researchIntent: ResearchIntentV1 };
@@ -35,18 +36,41 @@ export const settleResearchDigestV3 = (answer: z.infer<typeof researchDigestSche
   const settled = settleResearchDigest(answer, input);
   const sources = new Map(digestSourcesFor(input.sources, input.level).map(source => [source.evidenceId, source]));
   const periodRejected = { unknown_date: 0, outside_period: 0, clarification: 0, prior_coverage: 0 };
+  const periodRejectionReasons: ResearchPeriodDiagnosticsV1['reasons'] = {
+    unmatched_provenance: 0, missing_event_date: 0, missing_event_context: 0,
+    invalid_event_context: 0, outside_period: 0, clarification: 0, prior_coverage: 0,
+  };
   const prior = normalizeForMatch(input.researchIntent.priorExample || '');
   settled.findings = settled.findings.filter(finding => {
-    const raw = answer?.findings?.find(candidate =>
-      [finding.evidenceId, finding.sourceUrl, `[E:${finding.evidenceId}]`].includes(candidate.evidenceId) &&
-      normalizeForMatch(candidate.statement) === normalizeForMatch(finding.statement));
-    const admission = admitResearchEvent(input.researchIntent, {
-      quote: finding.quote, eventDate: raw?.eventDate, eventDateQuote: raw?.eventDateQuote,
-      material: sources.get(finding.evidenceId)?.material || '',
+    // Rejoin exactly the source/statement/quote the base validator accepted.
+    // It accepts citation-label aliases and normalizes punctuation; losing that
+    // identity here used to turn a valid finding into an unexplained missing date.
+    const raw = answer?.findings?.find(candidate => {
+      if (typeof candidate.statement !== 'string' || typeof candidate.quote !== 'string') return false;
+      const sourceKey = bareKey(candidate.evidenceId);
+      return (sourceKey === finding.evidenceId ||
+        normalizeForMatch(sourceKey) === normalizeForMatch(finding.sourceUrl)) &&
+        normalizeForMatch(stripCitationLabels(candidate.statement)) === normalizeForMatch(finding.statement) &&
+        normalizeForMatch(candidate.quote) === normalizeForMatch(finding.quote);
     });
-    if (admission !== 'admitted') { periodRejected[admission] += 1; return false; }
+    const rawDateQuote = raw?.eventDateQuote?.trim();
+    const dateQuote = rawDateQuote && rawDateQuote.length <= 600
+      ? normalizeForMatch(rawDateQuote) : rawDateQuote;
+    const admission = admitResearchEvent(input.researchIntent, {
+      quote: normalizeForMatch(finding.quote), eventDate: raw?.eventDate, eventDateQuote: dateQuote,
+      material: normalizeForMatch(sources.get(finding.evidenceId)?.material || ''),
+    });
+    if (admission !== 'admitted') {
+      periodRejected[admission] += 1;
+      const reason = admission !== 'unknown_date' ? admission
+        : !raw ? 'unmatched_provenance' : !raw.eventDate ? 'missing_event_date'
+        : !rawDateQuote ? 'missing_event_context' : 'invalid_event_context';
+      periodRejectionReasons[reason] += 1;
+      return false;
+    }
     if (prior && (prior.includes(normalizeForMatch(finding.quote)) || prior.includes(normalizeForMatch(finding.statement)))) {
       periodRejected.prior_coverage += 1;
+      periodRejectionReasons.prior_coverage += 1;
       return false;
     }
     if (raw?.eventDate && raw.eventDateQuote) finding.dateProvenance = {
@@ -55,5 +79,11 @@ export const settleResearchDigestV3 = (answer: z.infer<typeof researchDigestSche
     };
     return true;
   });
-  return { ...settled, periodRejected };
+  const periodDiagnostics: ResearchPeriodDiagnosticsV1 = {
+    version: 'research-period-diagnostics/v1', inputSources: sources.size,
+    rawFindings: answer?.findings?.length ?? 0, acceptedFindings: settled.findings.length,
+    quoteRejected: settled.rejected.findings,
+    rejected: periodRejected, reasons: periodRejectionReasons,
+  };
+  return { ...settled, periodRejected, periodRejectionReasons, periodDiagnostics };
 };

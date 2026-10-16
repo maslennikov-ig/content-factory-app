@@ -1,3 +1,4 @@
+import { researchEventMaterial } from '@contentfactory/nestjs-libraries/openai/research-event-material';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
@@ -1939,7 +1940,7 @@ Untrusted research data: {evidence}`
       task !== 'discovery';
     const key = `${organizationId}|${searchRouteFingerprint(
       config.search
-    )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${JSON.stringify(options.researchIntent ?? null)}|${
+    )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${JSON.stringify(options.researchIntent ?? null)}${options.researchIntent?.eventInterval ? '|event-material-v2' : ''}|${
       options.language ?? ''
     }|${
       options.readerResponse === true
@@ -2287,15 +2288,17 @@ Untrusted research data: {evidence}`
     let queries = supplied.length
       ? supplied
       : baseQueries.slice(0, preset.maxSearchQueries);
+    let eventCompanionIndex = -1;
     if (options.researchIntent?.eventInterval) {
       const interval = options.researchIntent.eventInterval;
       const eventBounds = `events ${interval.start} through ${interval.end}`;
-      queries = queries.map(query => `${query} ${eventBounds}`);
-      // A bounded companion may find a dated entry on an older rolling page.
-      // Reuse existing language slots; never exceed the level's search budget.
-      if (queries.length === 1 && preset.maxSearchQueries > 1) {
-        queries.push(`${classifiedQuery} dated release notes retrospective ${eventBounds}`);
-      }
+      // Reserve one slot even when both locales (or all caller slots) exist.
+      // The companion finds event entries on older rolling pages and later
+      // retrospectives; publication time must not constrain that search.
+      queries = queries.slice(0, preset.maxSearchQueries - 1)
+        .map(query => `${query} ${eventBounds}`);
+      eventCompanionIndex = queries.length;
+      queries.push(`${classifiedQuery} dated release notes retrospective ${eventBounds}`);
     }
 
     const country = classification.scope === 'local'
@@ -2491,14 +2494,21 @@ Untrusted research data: {evidence}`
       queryOptions: typeof searchOptions,
       indexOffset: number
     ): Promise<ProviderSearchResult[]> => {
+      const companionOptions: typeof searchOptions = {
+        ...queryOptions,
+        publicationPeriod: undefined,
+        windowDays: undefined,
+        freshnessRequired: false,
+        topic: 'general' as const,
+      };
       const settled = await Promise.allSettled(
         queries.map((query, index) =>
           this.searchOne(
             organizationId,
             query,
             config,
-            options.researchIntent?.eventInterval && index > 0
-              ? { ...queryOptions, publicationPeriod: { end: options.researchIntent.eventInterval.end } }
+            index === eventCompanionIndex
+              ? companionOptions
               : queryOptions,
             task,
             attempt,
@@ -2611,11 +2621,104 @@ Untrusted research data: {evidence}`
     );
     const providerCap = Math.max(1, preset.maxSources - reservedForLane);
 
+    // Event retrieval must select useful sections and share the existing
+    // material budget before FIFO admission can consume it. Round-robin rows
+    // keep one locale/query from occupying the source cap by itself.
+    let materialResponses = responses;
+    const eventIntent = options.researchIntent?.eventInterval
+      ? options.researchIntent
+      : undefined;
+    if (eventIntent) {
+      const candidates: Array<{
+        provider: SearchProvider;
+        keySource: SearchCredentialSource;
+        item: NonNullable<SearchResult['results']>[number];
+        excerpt: string | undefined;
+        dated: boolean;
+      }> = [];
+      const seen = new Map<string, number>();
+      const rowCount = Math.max(0, ...responses.map(({ response }) => response.results?.length ?? 0));
+      for (let rank = 0; rank < rowCount; rank += 1) {
+        for (const { provider, keySource, response } of responses) {
+          const item = response.results?.[rank];
+          if (!item) continue;
+          const url = usableHttpsUrl(item.url);
+          if (!url) continue;
+          const snippet = providerSnippetExcerpt(item.content);
+          const raw = item.rawContent
+            ? cleanExcerpt(item.rawContent.slice(0, PAGE_TEXT_SCAN_LIMIT)).text
+            : undefined;
+          const dated = researchEventMaterial(raw, eventIntent, PAGE_TEXT_SCAN_LIMIT)
+            ?? researchEventMaterial(snippet, eventIntent, PAGE_TEXT_SCAN_LIMIT);
+          const excerpt = dated ?? snippet ?? wholePageExcerpt(item.rawContent);
+          const candidate = { provider, keySource, item, excerpt, dated: !!dated };
+          const previous = seen.get(url);
+          if (previous === undefined) {
+            seen.set(url, candidates.length);
+            candidates.push(candidate);
+          } else if ((!candidates[previous].dated && candidate.dated) ||
+            (!candidates[previous].excerpt && candidate.excerpt)) {
+            candidates[previous] = candidate;
+          }
+        }
+      }
+      const textKeys = new Set<string>();
+      const distinct: typeof candidates = [];
+      const duplicates: typeof candidates = [];
+      // Explicit dated material wins source slots; publication metadata alone
+      // never promotes a page. Identical excerpts from mirror URLs share one
+      // evidence slot, rather than consuming the budget repeatedly.
+      for (const candidate of [...candidates.filter(row => row.dated), ...candidates.filter(row => !row.dated)]) {
+        const key = candidate.excerpt?.replace(/\s+/g, ' ').trim();
+        if (key && textKeys.has(key)) {
+          duplicates.push({ ...candidate, excerpt: undefined });
+        } else {
+          if (key) textKeys.add(key);
+          distinct.push(candidate);
+        }
+      }
+      const selected = [...distinct, ...duplicates].slice(0, providerCap);
+      // Water filling returns unused shares from short snippets to longer
+      // pages without granting any source more than the established 8k cap.
+      const allocations = selected.map(() => 0);
+      let available = WEB_SEARCH_MAX_RESULT_CHARS;
+      let pending = selected.map((row, index) => ({ index, length: Math.min(row.excerpt?.length ?? 0, WEB_SEARCH_MAX_SOURCE_CHARS) }))
+        .filter(row => row.length > 0);
+      while (pending.length && available > 0) {
+        const share = Math.floor(available / pending.length);
+        if (!share) break;
+        const short = pending.filter(row => row.length <= share);
+        if (!short.length) {
+          for (const row of pending) allocations[row.index] = share;
+          break;
+        }
+        for (const row of short) {
+          allocations[row.index] = row.length;
+          available -= row.length;
+        }
+        pending = pending.filter(row => row.length > share);
+      }
+      materialResponses = selected.map((row, index) => {
+        const material = row.excerpt ?? '';
+        const cap = allocations[index];
+        const paragraph = truncateAtParagraph(material, cap);
+        // A date heading followed by one long paragraph must retain the
+        // event itself, not spend its fair share on the heading alone.
+        const excerpt = paragraph.length < Math.min(material.length, cap) / 2
+          ? material.slice(0, cap).trimEnd()
+          : paragraph;
+        return {
+          provider: row.provider, keySource: row.keySource,
+          response: { results: [{ ...row.item, content: excerpt, rawContent: excerpt }] },
+        };
+      });
+    }
+
     const facts = new Map<string, WebResearchFact>();
     const sources = new Map<string, WebResearchSource>();
     let remainingContent = WEB_SEARCH_MAX_RESULT_CHARS;
     let sourceCount = 0;
-    for (const { provider, response } of responses) {
+    for (const { provider, response } of materialResponses) {
       for (const item of response.results || []) {
         countProvider('rowsVisited');
         const url = usableHttpsUrl(item.url);

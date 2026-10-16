@@ -106,6 +106,10 @@ const {
   loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/web.research.service.ts',
     {
+      '@contentfactory/nestjs-libraries/openai/research-event-material':
+        require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/openai/research-event-material.ts'
+        ),
       '@nestjs/common': {
         Injectable: () => (target) => target,
         Optional: () => () => {},
@@ -245,10 +249,97 @@ describe('shared web research service', () => {
     await new WebResearchService(aiUsage).research('org-period-replay', 'OpenAI new events', { level: 'quick', researchIntent });
     expect(clientFactoryCalls).toHaveLength(2);
     expect(clientFactoryCalls[0].options.publicationPeriod).toEqual(researchIntent.eventInterval);
-    expect(clientFactoryCalls[1].options.publicationPeriod).toEqual({ end: researchIntent.eventInterval.end });
+    expect(clientFactoryCalls[1].options.publicationPeriod).toBeUndefined();
+    expect(clientFactoryCalls[1].options.windowDays).toBeUndefined();
     expect(clientFactoryCalls.every(call => call.options.freshnessRequired === false && call.options.topic === 'general')).toBe(true);
     expect(invocations.every(call => call.input.query.includes(researchIntent.eventInterval.start))).toBe(true);
     expect(invocations).toHaveLength(2);
+  });
+
+  const frozenEventIntent = {
+    version: 'research-intent/v1', task: 'product changes', priorExample: null,
+    asOf: '2026-10-16T09:00:00.000Z', timezone: 'UTC', mode: 'recent',
+    eventInterval: { start: '2026-10-09T00:00:00.000Z', end: '2026-10-16T09:00:00.000Z' },
+    priorCoverageEnd: null, exclusions: [], clarification: null,
+  };
+
+  test('multiple locale queries retain a distinct unfiltered rolling-page companion inside the level budget', async () => {
+    await new WebResearchService(aiUsage).research('org-locale-period', 'product changes', {
+      level: 'quick', windowDays: 7, researchIntent: frozenEventIntent,
+      queries: ['изменения продукта', 'product changes', 'other query', 'fourth query'],
+    });
+    expect(invocations).toHaveLength(4);
+    const companions = clientFactoryCalls.filter((call) => call.options.publicationPeriod === undefined);
+    expect(companions).toHaveLength(1);
+    expect(companions[0].options.windowDays).toBeUndefined();
+    expect(companions[0].options.freshnessRequired).toBe(false);
+    expect(invocations[3].input.query).toContain('release notes retrospective');
+    expect(invocations[0].input.query).toContain('изменения продукта');
+    expect(invocations[1].input.query).toContain('product changes');
+  });
+
+  test('event material shares 32k fairly and retrieves dated sections beyond a rolling page prefix', async () => {
+    const historicalPrefix = 'An older product history paragraph with background information. '.repeat(180);
+    const eventParagraph = 'A new capability became available with documented behavior and constraints. '.repeat(90);
+    const rolling = `${historicalPrefix}\n\n## October 14, 2026\n\n${eventParagraph}\n\n## October 2, 2026\nOld excluded release.`;
+    implementations.tavily = async ({ query }) => ({ results: query.includes('release notes retrospective') ? [{
+      url: 'https://official.example/release-notes', title: 'Rolling release notes', published_date: '2024-01-01',
+      content: 'The continuously maintained archive of product release notes.', rawContent: rolling,
+    }] : Array.from({ length: 25 }, (_, index) => ({
+      url: `https://news.example/${index}`, title: `Event ${index}`, published_date: '2026-10-14',
+      content: `October 14, 2026. Event ${index}. ${eventParagraph}`,
+    })) });
+    const result = await new WebResearchService(aiUsage).research('org-fair-event-material', 'product changes', {
+      level: 'deep', queries: ['изменения продукта', 'product changes'], researchIntent: frozenEventIntent,
+    });
+    expect(invocations).toHaveLength(3);
+    expect(result.facts.length).toBe(26);
+    expect(result.facts.every((fact) => fact.text.length > 100 && fact.text.length <= 8_000)).toBe(true);
+    expect(result.facts.reduce((total, fact) => total + fact.text.length, 0)).toBeLessThanOrEqual(32_000);
+    const fact = result.facts.find((row) => row.sourceUrl === 'https://official.example/release-notes');
+    expect(fact.text).toContain('October 14, 2026');
+    expect(fact.text).toContain('A new capability became available');
+    expect(fact.text).not.toContain('older product history');
+    expect(rolling).toContain(fact.text);
+    const source = result.sources.find((row) => row.url === fact.sourceUrl);
+    expect(source.publishedAt).toBe('2024-01-01');
+    expect(source.text).toBe(fact.text);
+  });
+
+  test.each([true, false])('event material ignores a raw publication dateline and preserves actual dated evidence (section=%s)', async (hasSection) => {
+    const snippet = 'Orbit launched on October 14, 2026 with a team workspace.';
+    const event = 'October 14, 2026\nOrbit launched with a team workspace and documented constraints.';
+    const raw = `Published October 15, 2026.\n\n${'Background without an event date. '.repeat(300)}${hasSection ? `\n\n${event}` : ''}`;
+    implementations.tavily = async () => ({ results: [{
+      url: 'https://official.example/workspace', title: 'Orbit workspace',
+      published_date: '2026-10-15', content: snippet, rawContent: raw,
+    }] });
+    const result = await new WebResearchService(aiUsage).research(`org-metadata-dateline-${hasSection}`, 'workspace changes', {
+      level: 'quick', queries: ['workspace changes'], researchIntent: frozenEventIntent,
+    });
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0].text).toBe(hasSection ? event : snippet);
+    expect(result.facts[0].text).not.toContain('Published October 15');
+    expect(result.sources[0].publishedAt).toBe('2026-10-15');
+  });
+
+  test('event source slots interleave locale queries and collapse exact mirror material', async () => {
+    const repeated = 'October 14, 2026. A documented capability became available with detailed limitations. '.repeat(100);
+    implementations.tavily = async ({ query }) => ({ results: Array.from({ length: 12 }, (_, index) => ({
+      url: `https://${query.includes('release notes retrospective') ? 'official' : query.startsWith('local') ? 'local' : 'global'}.example/${index}`,
+      title: `Document ${index}`,
+      content: index < 6 ? repeated : `October 14, 2026. ${query.includes('release notes retrospective') ? 'release archive' : query.slice(0, 10)} distinct event ${index}. ${'Documented behavior. '.repeat(200)}`,
+    })) });
+    const result = await new WebResearchService(aiUsage).research('org-mirror-material', 'product changes', {
+      level: 'quick', queries: ['local product changes', 'global product changes'], researchIntent: frozenEventIntent,
+    });
+    expect(result.sources).toHaveLength(8);
+    expect(result.facts).toHaveLength(8);
+    expect(new Set(result.facts.map((row) => row.text)).size).toBe(8);
+    expect(result.sources.some((row) => row.url.startsWith('https://official.example/'))).toBe(true);
+    expect(result.sources.some((row) => row.url.startsWith('https://global.example/'))).toBe(true);
+    expect(result.facts.reduce((sum, row) => sum + row.text.length, 0)).toBeLessThanOrEqual(32_000);
+    expect(invocations).toHaveLength(3);
   });
 
   test('an exhausted empty period search is empty; provider failures still fail', async () => {

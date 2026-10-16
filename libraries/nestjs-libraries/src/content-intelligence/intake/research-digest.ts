@@ -485,6 +485,19 @@ export type SettledFinding = {
   dateProvenance?: import('./research-intent').ResearchEventDateV1;
 };
 
+/** Finite counters only: never source passages, author text, URLs or account data. */
+export type ResearchPeriodDiagnosticsV1 = {
+  version: 'research-period-diagnostics/v1';
+  inputSources: number;
+  rawFindings: number;
+  acceptedFindings: number;
+  quoteRejected: number;
+  rejected: { unknown_date: number; outside_period: number; clarification: number; prior_coverage: number };
+  reasons: Record<
+    'unmatched_provenance' | 'missing_event_date' | 'missing_event_context' |
+    'invalid_event_context' | 'outside_period' | 'clarification' | 'prior_coverage', number>;
+};
+
 export type SettledResearchDigest = {
   verdicts: SettledVerdict[];
   findings: SettledFinding[];
@@ -494,6 +507,7 @@ export type SettledResearchDigest = {
    * в промпте.
    */
   rejected: { verdicts: number; findings: number; unknownClaims: number; unknownSources: number };
+  periodDiagnostics?: ResearchPeriodDiagnosticsV1;
 };
 
 const textOf = (source: ResearchDigestSource) =>

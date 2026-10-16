@@ -95,3 +95,15 @@ Beads owns the actual task IDs, status, dependencies and completion evidence. Th
 Start T1; then T2, T3 and T6 can run independently where ownership allows. T4 adopts the shell/context; T5 and T7 consume that accepted facade; T8 integrates the complete flow. Each package includes its own meaningful focused regression, state coverage, documentation and component-inventory changes. Do not split those into ceremony-only tasks or rerun broad suites at every local step.
 
 Preserve all earlier kcxz/0qgn/2q28/m0iy criteria, owner decisions and external defers. Related historical epics are references, not blockers for this scoped product improvement and not automatically closed by it. Do not copy the owner's screenshot, account details or private generation history into Git. The prototype uses synthetic copy and does not prove AI capability.
+
+## Authorized #1094 repair and successful original-overview acceptance
+
+Owner explicitly requests the fix, production delivery and paid original9–16October replay, carried through to a working saved overview. This continues T6/T8 and task `content-factory-next-jvrq.9`; no acceptance waiver or parallel tracker.
+
+1. Reproduce retained-source admission with one bounded native paid reader diagnostic, using existing role routing/admission/account and no content writes. Capture precise rejection reasons locally; preserve private material outside Git. This is diagnostic evidence, not the required UI acceptance.
+2. Correct temporal search: bounded rolling/release-note companion independent of locale pair and page-publication restrictions; fair relevant contiguous event material within the existing quotas. Preserve ordinary research, source/SSRF guards and strict event provenance.
+3. Correct common dated digest/admission only from demonstrated failures. Keep bounded stage/rejection counts without raw source/account data. Empty/clarification chat outcomes must state period/gaps without offering old facts as new findings.
+4. Freeze the integrated source, run one root-owned configured release acceptance and exact suite receipt; publish the prepared public tree/image and deploy through digest/capacity/schema/health/source/Mastra/rollback safeguards.
+5. Actual original-context chat search for9–16October: inspect official supported dated new facts, explicitly select, finish rewrite, verify saved body and prior body in revisions plus exact manual editor equality. No social publication/adaptations/images. Reconcile terminal usage before any retry; retain original on uncertainty. A completed search alone cannot close this task.
+
+Root owns intake/digest/provenance/integration/release/paid browser and final acceptance. Isolated `research_material_budget` owns web research material/query helpers and tests; `research_empty_outcome` owns the existing capability/selection outcome and focused tests. Child changes are accepted centrally before source freeze; no child model/provider/host delivery or broad-suite duplication.

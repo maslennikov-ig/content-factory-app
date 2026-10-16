@@ -104,7 +104,11 @@ An explicit new interval such as «за 9–16 октября; не повтор
 
 Pass supported publication/date constraints to the provider, then check event-effective dates and prior coverage in the common source-selection/admission layer. Rolling release notes and later retrospective pages can support events in the interval; a recent crawl alone cannot. Older sources may be context but not new events. Preserve date provenance and honest unknowns; do not invent precise event dates. An explicit historical request must not be rewritten to today.
 
+Temporal retrieval reserves one bounded rolling/release-note companion independently of the locale pair. That companion has no page-publication window: the downstream event interval remains authoritative. Select existing contiguous dated sections before sharing the established source/text budgets; one locale or early long page cannot consume all reading material. Quote/source aliases and punctuation use the same established normalization when attaching event provenance. Keep finite reader/admission rejection counters for diagnosis without author text or source passages.
+
 No matching verified events produces a useful empty result that names the searched period and gaps, with the old draft retained. It must not recycle old news as a successful new digest. The composer/panel shows the resolved period so the person can correct it. Replay tests pin the clock; production uses the caller's timezone and real current instant.
+
+In chat, empty or clarification outcomes return the period and gaps without an old-fact selection card. A matched-period card offers only new confirmed selected findings with event provenance and displays their event date; source restrictions and the existing explicit selection/rewrite boundary still apply.
 
 ## 8. Progress, errors and recovery
 

@@ -33,6 +33,13 @@ test('existing assistant/core and manual intake share anchored intent, source ad
   const state = await intake.researchExistingCore('org', 'Existing draft must survive.', brief, 'ru', 'standard', undefined, context);
   expect(state.summary.researchIntent.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
   expect(state.summary.periodStatus).toBe('matched');
+  expect(state.summary.periodDiagnostics).toMatchObject({
+    version: 'research-period-diagnostics/v1', inputSources: 3,
+    rawFindings: 3, acceptedFindings: 1, quoteRejected: 0,
+    rejected: { outside_period: 1, unknown_date: 1 },
+    reasons: { outside_period: 1, missing_event_date: 1 },
+  });
+  expect(JSON.stringify(state.summary.periodDiagnostics)).not.toContain('feature');
   expect(state.filled.brief.facts.filter(row => row.kind === 'found').map(row => row.evidenceId)).toEqual(['new']);
   expect(state.filled.brief.facts.find(row => row.evidenceId === 'new').dateProvenance).toEqual({
     eventDate: '2026-10-12', eventDateQuote: fixtures[1].quote, precision: 'day', sourcePublishedAt: '2026-10-16',

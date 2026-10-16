@@ -179,7 +179,42 @@ type Researched = {
   offered: number;
   kept: number;
   applied: boolean;
+  periodStatus?: 'matched' | 'empty' | 'needs_clarification';
+  period?: { start: string; end: string; timezone: string } | null;
+  gaps?: string[];
 };
+
+const boundedResearchOutcome = (
+  summary: NonNullable<Awaited<ReturnType<PieceService['researchCore']>>['summary']>
+): Pick<Researched, 'periodStatus' | 'period' | 'gaps'> => {
+  const interval = summary.researchIntent?.eventInterval;
+  return {
+    ...(summary.periodStatus ? { periodStatus: summary.periodStatus } : {}),
+    period:
+      interval && summary.researchIntent
+        ? {
+            start: interval.start.slice(0, 40),
+            end: interval.end.slice(0, 40),
+            timezone: summary.researchIntent.timezone.slice(0, 64),
+          }
+        : null,
+    gaps: (Array.isArray(summary.gaps) ? summary.gaps : [])
+      .filter((gap): gap is string => typeof gap === 'string')
+      .slice(0, 3)
+      .map((gap) => gap.replace(/\s+/g, ' ').trim().slice(0, 300))
+      .filter(Boolean),
+  };
+};
+
+const isDatedFinding = (fact: any): boolean =>
+  fact?.kind === 'found' &&
+  fact?.status === 'confirmed' &&
+  fact?.selected === true &&
+  typeof fact?.dateProvenance?.eventDate === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(fact.dateProvenance.eventDate) &&
+  fact.dateProvenance.precision === 'day' &&
+  typeof fact.dateProvenance.eventDateQuote === 'string' &&
+  !!fact.dateProvenance.eventDateQuote.trim();
 
 export const pieceResearch = defineCapability({
   id: 'piece.research',
@@ -232,10 +267,47 @@ export const pieceResearch = defineCapability({
       { confirmWebSpend: true, level: input.level ?? 'standard', ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(direction ? { direction } : {}) },
       ctx.language
     );
+    const summary = preview.summary;
+    if (summary?.periodStatus === 'empty' || summary?.periodStatus === 'needs_clarification') {
+      return {
+        pieceId: input.pieceId,
+        level: preview.level,
+        offered: 0,
+        kept: 0,
+        applied: false,
+        ...boundedResearchOutcome(summary),
+      };
+    }
     // Only keyed rows can be accepted (the accept door refuses the rest).
-    const options = factOptions(preview.facts, { keyed: true });
+    const temporal = !!summary?.researchIntent || summary?.periodStatus === 'matched';
+    const offeredFacts = temporal ? preview.facts.filter(isDatedFinding) : preview.facts;
+    let options = factOptions(offeredFacts, { keyed: true });
+    if (temporal) {
+      const eventDates = new Map(
+        offeredFacts.map((fact: any) => [fact.factKey, fact.dateProvenance.eventDate])
+      );
+      options = options.map((option) => {
+        const eventDate = eventDates.get(option.id);
+        if (typeof eventDate !== 'string') return option;
+        const dateLabel =
+          ctx.language === 'ru'
+            ? ` · дата события ${eventDate}`
+            : ` · event date ${eventDate}`;
+        return {
+          ...option,
+          label: `${option.label.slice(0, 400 - dateLabel.length)}${dateLabel}`,
+        };
+      });
+    }
     if (!options.length) {
-      return { pieceId: input.pieceId, level: preview.level, offered: 0, kept: 0, applied: false };
+      return {
+        pieceId: input.pieceId,
+        level: preview.level,
+        offered: 0,
+        kept: 0,
+        applied: false,
+        ...(temporal && summary ? boundedResearchOutcome(summary) : {}),
+      };
     }
     await ctx.suspend({
       kind: 'selection',

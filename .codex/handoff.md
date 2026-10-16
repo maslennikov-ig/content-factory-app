@@ -5,9 +5,9 @@ Check bridge status for `preparing` versus `active`. Older Beads-authority wordi
 
 ## AI assistant implementation
 
-Owner16Oct authorized implementation of epic `content-factory-next-jvrq` and named the primary chat «ИИ-помощник» across all16 locales. Private persistent chat, contextual manual sections, shared artifact editors/browser and event-period research are implemented locally; engineering accepted, actual owner/provider acceptance and delivery remain in jvrq.8.
+Owner16Oct authorized implementation of epic `content-factory-next-jvrq` and named the primary chat «ИИ-помощник» across all16 locales. Private persistent chat, contextual manual sections, shared artifact editors/browser and event-period research shipped; delivery evidence is below. Actual news quality and broader owner acceptance remain in jvrq.8/.9.
 Target: `docs/product/chat-first-workspace-spec.md`; plan: `docs/superpowers/plans/2026-10-16-chat-first-workspace.md`; accepted design: `docs/design/chat-first-workspace/prototype.html`. Current source/evidence and accepted child review: `.codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md`; Task state follows current AGENTS.md; accepted synchronization remains separate.
-Owner-authorized public74fb94493f97/sourcea44b66ef deployed healthy after exact full receipt (Jest12278/Node123/Python50), empty schema diff and unchanged Mastra45-table fingerprint. Paid real-UI creation PASS: saved676 chars, shared/manual text identical, no publication. Original9–16Oct attempt safely refused before search due direction300 cap and premature paid-slot reservation; original unchanged. Scoped fixes now preserve2000-char direction, explicit dates/asOf and invalid-input slots; repeat release/control pending. Prior128 artifact layouts+24 initial layouts+2 interactions remain bounded fixture evidence. Preserve unrelated work/contracts/statuses; details in outcome.
+Owner-authorized final publicadd562bfc20a/source126b76819253 deployed healthy/0restarts; exact full receipt (Jest12290/Node123/Python50), all5 public CI jobs, empty schema diff, unchanged Mastra45/21 foreign containers. Real-UI creation PASS:676chars, shared/manual text exact and retained after final release. Original9–16Oct broad+narrowed research FAILED: fresh sources found but0 eligible new events, UI offered prior facts; explicit0-fact continuation kept original hash/revisions unchanged. Bugjvrq.9 OPEN blocks .8; exact4-row rejection reason UNKNOWN. Direction/admission/period repairs delivered, no new overview saved. Retention keptadd562+verified0e8 rollback;22.39GB free; owned QA browser/token/host helpers cleaned. Prior128+24 fixture layouts remain bounded proof; epic and broad owner walkthrough OPEN. Linear bridge nowactive; accepted per-task synchronization is separate. Outcome has source/QA details.
 Current stage id: content-factory-next-jvrq-implementation-20261016
 
 ## Shared-host artifact lifecycle delivered
@@ -171,7 +171,7 @@ owner results; no continuous epic goal, portal polling, new paid/provider calls.
 
 ## Explicit defers
 
-Beads content-factory-next-e3nj tracks historical untracked-evidence marker false positives; old logs are preserved. Jvrq.8 retains paid-provider/owner/release gates; no new application debt is deferred.
+Beads content-factory-next-e3nj tracks historical untracked-evidence marker false positives; old logs preserved. Jvrq.9 tracks actual dated-research failure/material starvation and misleading old-fact selection; .8/epic remain OPEN for that repair and broader owner walkthrough. Delivery passed; paid update quality did not.
 Beads24/25/37/28/36/29 CLOSED and delivered;30/31 actual operations retained.
 Store32 independently DEFERRED by owner12Oct. SDK history retains payloads; no global
 retention/privacy/host-loss recovery claim. Historical logs/markers remain unchanged.

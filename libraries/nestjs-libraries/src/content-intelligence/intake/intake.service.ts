@@ -2135,6 +2135,9 @@ export class IntakeService {
       const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
       const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;
       const rawFindings = Array.isArray(raw?.findings) ? raw!.findings!.length : 0;
+      if (settled.periodDiagnostics) {
+        this.logger.log(`Research period digest: ${JSON.stringify(settled.periodDiagnostics)}`);
+      }
       const kept = settled.verdicts.filter((verdict) => verdict.note || verdict.quote).length;
       if (
         settled.rejected.verdicts ||
@@ -2150,7 +2153,7 @@ export class IntakeService {
         // Пустой итог при непустом входе — единственный случай, когда ответ
         // модели стоит увидеть глазами: обрезанный, чтобы не тащить страницы.
         this.logger.warn(
-          `Research digest yielded nothing for ${claims.length} claim(s) and ${sources.length} source(s) (raw ${rawVerdicts}/${rawFindings}): ${JSON.stringify(raw).slice(0, 900)}`
+          `Research digest yielded nothing for ${claims.length} claim(s) and ${sources.length} source(s) (raw ${rawVerdicts}/${rawFindings}): ${researched.researchIntent ? JSON.stringify(settled.periodDiagnostics ?? { unavailable: true }) : JSON.stringify(raw).slice(0, 900)}`
         );
       }
       return settled;
@@ -2281,6 +2284,7 @@ export class IntakeService {
     if (researched.researchIntent) {
       const intent = researched.researchIntent;
       summary.researchIntent = intent;
+      if (digest?.periodDiagnostics) summary.periodDiagnostics = digest.periodDiagnostics;
       summary.periodStatus = intent.clarification ? 'needs_clarification' : summary.found ? 'matched' : 'empty';
       summary.gaps = intent.clarification ? [intent.clarification.split(' / ')[language === 'en' ? 1 : 0]] : summary.found ? [] : [
         `${intent.eventInterval?.start} — ${intent.eventInterval?.end} (${intent.timezone}): ${language === 'en' ? 'no verified events matched.' : 'подтверждённых событий не найдено.'}`,
