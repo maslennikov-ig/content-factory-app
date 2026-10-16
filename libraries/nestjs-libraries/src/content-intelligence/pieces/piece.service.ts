@@ -4905,7 +4905,10 @@ export class PieceService {
         personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions,
         // The model wrote this text from all the material (`97dq.75`): the
         // hand edit is in the old one, and nothing added is waiting any more.
-        editedBy: undefined, materialPending: undefined });
+        editedBy: undefined, editedAt: undefined, materialPending: undefined,
+        revisions: withRevision(core.revisions,
+          { text: core.text, writtenBy: coreAuthorOf(core), materialPending: core.materialPending === true },
+          this.now().toISOString()) });
     await this.snapshots.del(key);
     return accepted;
   }

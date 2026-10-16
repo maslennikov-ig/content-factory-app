@@ -79,6 +79,7 @@ test('empty period research keeps the exact prior draft and never buys a rewrite
 });
 
 test('recorded search → digest → saved findings → writer; continuation never repeats paid search', async () => {
+  const priorBody = piece.body;
   const preview = await start();
   expect(preview.version).toBe('piece-research/v2');
   expect(preview.level).toBe('standard');
@@ -96,8 +97,29 @@ test('recorded search → digest → saved findings → writer; continuation nev
   expect(piece.brief.customMetadata).toBe('keep');
   expect(piece.brief.authorNumbers).toBe(false);
   expect(piece.brief.questions.items).toEqual([]);
+  expect(piece.brief.revisions).toEqual([
+    expect.objectContaining({ text: priorBody, writtenBy: 'model', materialPending: false }),
+  ]);
   await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_EXPIRED' });
   expect(research.research).toHaveBeenCalledTimes(1);
+});
+
+test('research rewrite retains exact prior text and existing revision history with author provenance', async () => {
+  const replacedAt = '2026-10-16T16:00:00.000Z';
+  service.now = () => new Date(replacedAt);
+  const first = { text: 'Первая версия.\n\nАвторский абзац.', writtenBy: 'model', replacedAt: '2026-10-15T10:00:00.000Z' };
+  const priorBody = 'Моя ручная правка.\n\nВторой абзац с точным авторским текстом.';
+  piece.body = priorBody;
+  Object.assign(piece.brief, { revisions: [first], editedBy: 'person', editedAt: '2026-10-16T15:00:00.000Z', materialPending: true });
+
+  await accept(await start());
+
+  expect(piece.brief.revisions).toEqual([first, {
+    text: priorBody, writtenBy: 'person', materialPending: true, replacedAt,
+  }]);
+  expect(piece.brief.editedBy).toBeUndefined();
+  expect(piece.brief.editedAt).toBeUndefined();
+  expect(piece.brief.materialPending).toBeUndefined();
 });
 
 test('deep research carries an optional direction as a wish into search and digest', async () => {

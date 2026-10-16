@@ -61,6 +61,15 @@ suite checks rather than something to remember.
   (`bd`) remains the agent work interface; GitHub is the subordinate mirror.
   This checkout routes to `component:content-factory`, separate from Helixa
   and MC-2. Do not create `tasks.json` or a parallel Markdown task ledger.
+- Task synchronization runs only on Helixa server `82.26.152.8` (`helixa-new`),
+  with native Beads databases centralized there. Keep using local `bd`; its
+  external database connection uses the private `helixa-beads-sync` SSH tunnel.
+  If unavailable, restore the tunnel with `/usr/bin/python3 ~/.agents/orchestration-console/scripts/helixa_beads_tunnel.py ensure`.
+  Never reinitialize these databases or re-enable either Windows sync task.
+  Local hooks do not publish; the server discovers edits every five minutes.
+  The local bridge status is a stale diagnostic copy. Inspect the live server
+  receipt and pending work using the managed runbook. Preserve the per-route
+  `linear-authority.json` publisher binding and explicit server metadata.
 - Existing linked tasks follow project moves within the same Linear team.
   Keep their Beads identity, component and GitHub link; the bridge marks the
   other project with `linear-project:<slug>`. New outside-project tasks are not
