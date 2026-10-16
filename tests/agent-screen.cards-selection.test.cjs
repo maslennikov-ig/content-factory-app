@@ -31,7 +31,7 @@ for (const key of ['window', 'document', 'navigator']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, fireEvent, render, screen, within } = require('@testing-library/react');
+const { act, cleanup, fireEvent, render, screen, waitFor, within } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 
@@ -76,7 +76,12 @@ const renderCard = async (props = {}) => {
       })
     );
   });
-  const card = document.querySelector('[data-agent-card="selection"]');
+  // Native translation loading can suspend the first render; assert after it commits.
+  const card = await waitFor(() => {
+    const node = document.querySelector('[data-agent-card="selection"]');
+    expect(node).not.toBeNull();
+    return node;
+  });
   return { answers, card };
 };
 
