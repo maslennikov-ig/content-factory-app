@@ -96,7 +96,7 @@ describe('beforeToolCall', () => {
       output: { ok: true, capability: 'piece.create', summary: { pieceId, code: 'cnt-9', questions } },
     });
     const answer = (context, pieceId = 'p9') =>
-      hookCall('piece.answer', { pieceId, decide: ['audience'] }, context);
+      hookCall('piece.answer', { pieceId, answers: null, decide: ['audience'] }, context);
 
     test('refused in the request that wrote the piece, before a paid slot; another piece and the next request pass', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
@@ -205,6 +205,38 @@ describe('beforeToolCall', () => {
       await expect(hooks.beforeToolCall(corrected)).resolves.toBeUndefined();
       expect((await hooks.beforeToolCall(corrected)).output.code).toBe('PAID_CAP_REACHED');
       expect(gate.calls).toHaveLength(1);
+    });
+
+    test.each([
+      ['piece.research', { pieceId: 'p1', direction: null, level: null }],
+      ['piece.answer', { pieceId: 'p1', answers: null, decide: ['audience'] }],
+    ])('%s accepts optional null fields like native Mastra and still enforces the paid cap', async (id, input) => {
+      const gate = allowAll();
+      const hooks = registry.createCapabilityHooks(catalogue, gate);
+      const context = requestContextFor(registry);
+      const call = hookCall(id, input, context);
+
+      await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls)).toBe(1);
+      expect((await hooks.beforeToolCall(call)).output.code).toBe('PAID_CAP_REACHED');
+      expect(gate.calls).toHaveLength(1);
+    });
+
+    test('required null fields stay invalid and leave the slot for a corrected call with optional nulls', async () => {
+      const gate = allowAll();
+      const hooks = registry.createCapabilityHooks(catalogue, gate);
+      const context = requestContextFor(registry);
+      const refused = await hooks.beforeToolCall(hookCall('piece.research', {
+        pieceId: null, direction: null, level: null,
+      }, context));
+
+      expect(refused.output).toMatchObject({ ok: false, code: 'CAPABILITY_INPUT_INVALID' });
+      expect(refused.output.reason).toContain('pieceId');
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls) ?? 0).toBe(0);
+      expect(gate.calls).toEqual([]);
+      await expect(hooks.beforeToolCall(hookCall('piece.research', {
+        pieceId: 'p1', direction: null, level: null,
+      }, context))).resolves.toBeUndefined();
     });
 
     test('invalid input is refused before declaration callbacks and never consumes a paid slot', async () => {
@@ -444,7 +476,7 @@ describe('the hooks inside a real Mastra agent', () => {
       const marker = 'PRIVATE-NATIVE-RESEARCH-DIRECTION-';
       const inputs = [
         { pieceId: 'p1', direction: marker.repeat(Math.ceil((limit + 1) / marker.length)) },
-        { pieceId: 'p1', direction: 'Факты за неделю', level: 'quick' },
+        { pieceId: 'p1', direction: 'Факты за неделю', level: null },
         { pieceId: 'p1', direction: 'Ещё факты за неделю', level: 'quick' },
       ];
       const checkpoints = [];

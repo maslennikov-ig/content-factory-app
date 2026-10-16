@@ -1,5 +1,7 @@
 import type { RequestContext } from '@mastra/core/request-context';
 import type { ToolHooks } from '@mastra/core/tools';
+import { validateToolInput } from '@mastra/core/tools';
+import { toStandardSchema } from '@mastra/core/schema';
 import { CONTINUE_LINE, type StepLanguage } from '../conductor/conductor.steps';
 import { approvalFingerprint } from './approval-fingerprint';
 import { approvalContentDigest, approvalContentFingerprint } from './approval-summary';
@@ -112,15 +114,19 @@ export const admitCapabilityCall = async (
 
   // Mastra calls beforeToolCall before its native input validator. An invalid
   // call must not reserve a paid slot or reach declaration callbacks. Check
-  // synchronously so parallel valid calls still reserve atomically below;
-  // leave parsing/transforms to Mastra rather than rewriting the approved call.
-  const validation = capability.input.safeParse(input);
-  if (!validation.success) {
+  // synchronously so parallel valid calls still reserve atomically below.
+  // Reuse Mastra's public validator: it normalizes optional nulls and JSON
+  // arguments the same way execution does. A raw Zod check would reject valid
+  // model calls. Leave the approved input untouched for native execution.
+  const validation = validateToolInput(toStandardSchema(capability.input), input);
+  if (validation.error) {
     // Error messages, rejected values and even record keys in issue paths can
     // contain secrets. Only top-level field names owned by the schema are safe
     // to return; unknown fields and root errors need no path detail.
-    const invalidFields = new Set(validation.error.issues.map(({ path }) => path[0]));
-    const paths = Object.keys(capability.input.shape).filter((key) => invalidFields.has(key));
+    const invalidFields = validation.error.validationErrors.fields;
+    const paths = Object.keys(capability.input.shape).filter((key) =>
+      Object.prototype.hasOwnProperty.call(invalidFields, key)
+    );
     return refusal(
       'CAPABILITY_INPUT_INVALID',
       `The arguments do not match this tool’s input${
