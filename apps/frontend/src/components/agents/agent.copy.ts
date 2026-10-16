@@ -644,6 +644,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Слишком много сообщений подряд.',
           next: 'Подождите минуту и отправьте ещё раз.',
         },
+        CAPABILITY_INPUT_INVALID: {
+          what: 'Параметры действия не подошли. Действие не выполнялось.',
+          next: 'Помощник может исправить параметры в этом же сообщении.',
+        },
         PERMISSION_DENIED: {
           what: 'У вашей роли нет права на это действие.',
           next: 'Попросите администратора пространства.',
@@ -1301,6 +1305,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         ai_rate_limited: {
           what: 'Too many messages in a row.',
           next: 'Wait a minute and send again.',
+        },
+        CAPABILITY_INPUT_INVALID: {
+          what: 'The action parameters were invalid. The action did not run.',
+          next: 'The assistant can correct the parameters in this same message.',
         },
         PERMISSION_DENIED: {
           what: 'Your role has no right to do this.',
