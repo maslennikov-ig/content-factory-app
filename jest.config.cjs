@@ -11,6 +11,8 @@ module.exports = {
   // now reach through the Content section. Stubbed here so no suite has to
   // know about it.
   moduleNameMapper: {
+    '^@contentfactory/nestjs-libraries/openai/search-publication-period$':
+      '<rootDir>/tests/helpers/search-publication-period.cjs',
     '^@contentfactory/nestjs-libraries/content-intelligence/research/reader-summary$':
       '<rootDir>/tests/helpers/reader-summary.cjs',
     '^@contentfactory/nestjs-libraries/openai/reader-source-review$':

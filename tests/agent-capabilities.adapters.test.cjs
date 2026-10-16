@@ -365,6 +365,7 @@ describe('one capability of each class, end to end', () => {
           input: 'Мысль человека про контент-завод',
           inputKind: 'thought',
           language: 'ru',
+          timeZone: 'Europe/Moscow',
           options: { researchEnabled: false, researchLevel: 'standard' },
         },
       ],

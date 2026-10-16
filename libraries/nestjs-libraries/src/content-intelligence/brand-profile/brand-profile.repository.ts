@@ -595,6 +595,21 @@ export class BrandProfileRepository {
     })) as BrandAvatarRowV1[];
   }
 
+  /** Short cards for the assistant picker; never profile content or corpus. */
+  browseAvatars(organizationId: string, query: { q?: string; cursor?: string; ids?: string[]; limit: number }): Promise<Array<{ id: string; name: string | null; activeVersionId: string | null; activeVersion: { id: string } | null }>> {
+    return this.client().projectBrandProfile.findMany({
+      where: {
+        organizationId,
+        deletedAt: null,
+        ...(query.ids ? { id: { in: query.ids } } : query.cursor ? { id: { gt: query.cursor } } : {}),
+        ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
+      },
+      take: Math.min(50, Math.max(1, query.limit)) + 1,
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, activeVersionId: true, activeVersion: { select: { id: true } } },
+    });
+  }
+
   /**
    * A new avatar, empty and unable to write until something analyses it.
    *

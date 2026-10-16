@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Factory — чат и материал · макет</title>
+  <link rel="stylesheet" href="../desert-lab/tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    :root { color-scheme: light; --chat-share: 48%; }
+    .dark { color-scheme: dark; }
+    body { margin: 0; height: 100dvh; min-height: 0; display: flex; flex-direction: column; background: var(--cf-canvas); color: var(--cf-ink); font: 14px/1.55 Geologica, Arial, sans-serif; }
+    button, input, textarea, select { font: inherit; }
+    button, select, summary { cursor: pointer; }
+    button { color: var(--cf-ink); background: transparent; border: 1px solid var(--cf-border-control); border-radius: 7px; min-height: 36px; padding: 6px 12px; }
+    button:hover, summary:hover { background: var(--cf-surface-subtle); }
+    button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cf-focus); outline-offset: 3px; }
+    button[aria-pressed="true"] { background: var(--cf-accent-soft); border-color: var(--cf-accent); color: var(--cf-ink); }
+    .primary { background: var(--cf-accent); border-color: var(--cf-accent); color: var(--cf-accent-ink); font-weight: 650; }
+    .primary:hover { background: var(--cf-accent-hover); }
+    .quiet { border-color: transparent; }
+    .muted { color: var(--cf-ink-muted); }
+    .caption { font: 11px/1.5 "JetBrains Mono", Consolas, monospace; color: var(--cf-ink-muted); }
+    .label { font: 12px/1.5 "JetBrains Mono", Consolas, monospace; color: var(--cf-ink-muted); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 17px; line-height: 1.4; font-weight: 650; }
+    h2 { font-size: 23px; line-height: 1.35; letter-spacing: -.015em; text-wrap: balance; }
+    h3 { font-size: 15px; font-weight: 650; }
+    [hidden] { display: none !important; }
+    .studybar { min-height: 46px; flex: none; padding: 6px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--cf-border); background: var(--cf-surface-raised); }
+    .studybar .caption { margin-right: auto; }
+    .studybar button { min-height: 30px; font-size: 12px; }
+    .app { display: grid; grid-template-columns: 208px minmax(0,1fr); flex: 1; min-height: 0; }
+    .sidebar { background: var(--cf-navigation); border-right: 1px solid var(--cf-border); display: flex; flex-direction: column; padding: 24px 16px; gap: 26px; min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; }
+    .mark { width: 28px; height: 28px; border-radius: 5px; background: var(--cf-signature); color: var(--cf-canvas); display: grid; place-content: center; font: 12px/1 monospace; }
+    .navgroup { display: flex; flex-direction: column; gap: 6px; }
+    .navgroup .label { margin: 0 8px 4px; }
+    .navitem { border: 0; border-radius: 7px; text-align: left; padding: 9px 10px; min-height: 40px; display: flex; align-items: center; gap: 10px; }
+    .navitem.active { background: var(--cf-accent-soft); color: var(--cf-ink); box-shadow: inset 2px 0 var(--cf-accent); }
+    .navicon { width: 19px; height: 19px; display: inline-flex; align-items: center; justify-content: center; color: var(--cf-ink-muted); }
+    .navicon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .sidebarfooter { margin-top: auto; padding: 14px 8px 0; border-top: 1px solid var(--cf-border); }
+    .main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    .topbar { height: 62px; flex: none; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--cf-border); }
+    .topbar > div:first-child { min-width: 0; }
+    .topbar h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar .actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0,1fr); }
+    .workspace.has-artifact { grid-template-columns: minmax(380px,var(--chat-share)) 6px minmax(400px,1fr); }
+    .chat { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+    .chatbar { min-height: 58px; display: flex; gap: 8px; align-items: center; padding: 10px 22px; }
+    .chatbar > button:first-child { margin-right: auto; font-weight: 600; }
+    .messages { flex: 1; min-height: 0; overflow: auto; padding: 24px 28px 12px; scrollbar-gutter: stable; }
+    .messagebody { width: 100%; max-width: 720px; margin: 0 auto; }
+    .conversation { display: flex; flex-direction: column; gap: 25px; }
+    .user { max-width: 92%; align-self: flex-end; background: var(--cf-surface-subtle); border-radius: 10px; padding: 14px 16px; }
+    .assistant { display: flex; gap: 12px; }
+    .assistant .mark { width: 24px; height: 24px; flex: none; font-size: 10px; margin-top: 3px; }
+    .assistantbody { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    .run { padding: 0; color: var(--cf-ink-muted); font-size: 12px; }
+    .run summary { border-radius: 4px; }
+    .run ol { padding-left: 20px; margin: 10px 0; }
+    .result { border: 1px solid var(--cf-border-control); border-radius: 8px; text-align: left; padding: 13px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; }
+    .result strong { font-weight: 600; }
+    .result .label { color: var(--cf-accent); }
+    .empty { max-width: 700px; margin: min(12vh,110px) auto 35px; padding: 0 12px; }
+    .empty h2 { font-size: 30px; line-height: 1.25; }
+    .empty p { margin-top: 14px; max-width: 55ch; }
+    .starters { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+    .composerwrap { flex: none; width: 100%; max-width: 776px; align-self: center; padding: 14px 22px 22px; }
+    .context { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .context button { padding: 2px 6px; min-height: 28px; font-size: 12px; border-color: transparent; }
+    .composer { border: 1px solid var(--cf-border-control); border-radius: 10px; padding: 12px; background: var(--cf-surface); }
+    textarea { display: block; width: 100%; border: 0; background: transparent; color: var(--cf-ink); resize: none; min-width: 0; }
+    textarea::placeholder { color: var(--cf-ink-muted); opacity: 1; }
+    .composer textarea { min-height: 70px; padding: 2px; }
+    .composerfooter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+    .composerfooter .caption { max-width: 36ch; }
+    .composerwrap > .caption { margin-top: 7px; }
+    .splitter { background: var(--cf-border); cursor: col-resize; width: 6px; touch-action: none; }
+    .splitter:hover, .splitter:focus-visible { background: var(--cf-accent); }
+    .artifact { min-width: 0; min-height: 0; background: var(--cf-surface); display: flex; flex-direction: column; }
+    .artifactbar { min-height: 58px; display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; padding: 10px 20px; gap: 8px; border-bottom: 1px solid var(--cf-border); }
+    select { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); border-radius: 7px; padding: 7px 8px; min-width: 0; max-width: 100%; }
+    .artifacttools { display: flex; align-items: center; gap: 2px; }
+    .artifacttools button { font-size: 12px; min-height: 32px; padding: 4px 8px; }
+    .editor { min-height: 0; overflow: auto; padding: 26px 28px; scrollbar-gutter: stable; }
+    .editorheader { margin-bottom: 20px; display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+    .state { color: var(--cf-accent); font: 11px/1.4 Consolas, monospace; }
+    .period { margin: 16px 0 24px; padding: 10px 0; border-top: 1px solid var(--cf-border); border-bottom: 1px solid var(--cf-border); display: flex; justify-content: space-between; gap: 10px; }
+    .copy { font-size: 15px; line-height: 1.75; min-height: 300px; }
+    .editor details { margin-top: 24px; border-top: 1px solid var(--cf-border); padding: 16px 0; }
+    .editor summary { color: var(--cf-ink-muted); font-size: 13px; }
+    .editor details p { margin-top: 12px; color: var(--cf-ink-muted); }
+    .editorfooter { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .formfield { margin-top: 22px; }
+    .formfield label { display: block; font-weight: 600; margin-bottom: 8px; }
+    .formfield textarea { border: 1px solid var(--cf-border-control); border-radius: 7px; padding: 10px; min-height: 100px; }
+    .mobileonly, .compacttabs { display: none; }
+    .manual .workspace.has-artifact { grid-template-columns: minmax(400px,1fr) 6px minmax(380px,var(--chat-share)); }
+    .manual .artifact { grid-column: 1; grid-row: 1; }
+    .manual .splitter { grid-column: 2; grid-row: 1; }
+    .manual .chat { grid-column: 3; grid-row: 1; }
+    .artifact-expanded .workspace.has-artifact { grid-template-columns: minmax(0,1fr); }
+    .artifact-expanded .chat, .artifact-expanded .splitter { display: none; }
+    .artifact-expanded .artifact { grid-column: 1; }
+    dialog { width: min(560px,calc(100vw - 32px)); max-height: min(700px,90dvh); border: 1px solid var(--cf-border-control); border-radius: 12px; color: var(--cf-ink); background: var(--cf-surface-raised); padding: 24px; }
+    dialog::backdrop { background: var(--cf-backdrop); }
+    dialog header { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 18px; }
+    dialog p { margin-bottom: 16px; }
+    .objectrow { display: flex; align-items: center; justify-content: space-between; width: 100%; border-width: 0 0 1px; border-radius: 0; min-height: 65px; padding: 12px 0; text-align: left; gap: 16px; }
+    .objectrow span:first-child { display: flex; flex-direction: column; }
+    dialog input { width: 100%; background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); border-radius: 7px; padding: 10px; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 12px 18px; border: 1px solid var(--cf-border-control); border-radius: 8px; background: var(--cf-surface-raised); color: var(--cf-ink); z-index: 3; }
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 184px minmax(0,1fr); }
+      .workspace.has-artifact, .manual .workspace.has-artifact { display: flex; flex-direction: column; }
+      .splitter { display: none; }
+      .chat, .artifact { flex: 1; }
+      .has-artifact .artifact { display: none; }
+      .has-artifact.show-material .chat { display: none; }
+      .has-artifact.show-material .artifact { display: flex; }
+      .compacttabs { display: flex; gap: 8px; padding: 10px 22px; border-bottom: 1px solid var(--cf-border); }
+      .compacttabs button { flex: 1; }
+      .artifact-expanded .has-artifact .artifact { display: flex; }
+    }
+    @media (max-width: 700px) {
+      .studybar { min-height: 74px; gap: 6px; padding: 8px 12px; }
+      .studybar .caption { width: 100%; }
+      .studybar button { padding: 4px 9px; }
+      .app { grid-template-columns: minmax(0,1fr); }
+      .sidebar { display: none; }
+      .mobileonly { display: inline-flex; }
+      .topbar { padding: 0 12px; height: 58px; }
+      .topbar h1 { font-size: 15px; }
+      .topbar .actions { gap: 0; }
+      .topbar button { padding: 6px 8px; }
+      .chatbar { padding: 8px 14px; }
+      .messages { padding: 20px 16px 12px; }
+      .composerwrap { padding: 10px 12px 14px; }
+      .composerfooter .caption { font-size: 10px; max-width: 25ch; }
+      .empty { margin-top: 28px; padding: 0; }
+      .empty h2 { font-size: 25px; }
+      .user { max-width: 96%; }
+      .editor { padding: 22px 18px; }
+      .artifactbar { padding: 10px 14px; }
+      .artifactbar select { max-width: 190px; }
+      .artifacttools .expand { display: none; }
+      button { min-height: 44px; }
+      .context { flex-wrap: wrap; }
+      .copy { font-size: 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <div class="studybar" aria-label="Управление макетом">
+    <span class="caption">Интерактивный макет · данные примера · без ИИ и сохранения в продукт</span>
+    <button data-scene="empty">Новый разговор</button><button data-scene="working" aria-pressed="true">С материалом</button><button data-scene="manual">Ручной путь</button>
+    <button id="theme" aria-label="Переключить тему">Светлая тема</button>
+  </div>
+  <div class="app" id="app">
+    <aside class="sidebar" aria-label="Навигация продукта">
+      <div class="brand"><span class="mark">CF</span> Content Factory</div>
+      <nav class="navgroup"><span class="label">Работа с ИИ</span><button class="navitem active" data-nav="agent"><span class="navicon"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4z"/><path d="M9 8h6M9 12h4"/></svg></span>ИИ-помощник</button></nav>
+      <nav class="navgroup" aria-label="Ручные разделы"><span class="label">Разделы</span><button class="navitem" data-nav="avatar">Аватары</button><button class="navitem" data-nav="channel">Каналы</button><button class="navitem" data-nav="piece">Контент</button><button class="navitem" data-nav="calendar">Календарь</button><button class="navitem" data-notice="В этом макете показаны создание и редактирование.">Аналитика</button></nav>
+      <nav class="navgroup"><span class="label">Пространство</span><button class="navitem" data-open="objects">Все объекты</button><button class="navitem" data-notice="В продукте здесь откроется существующая медиатека.">Медиа</button><button class="navitem" data-notice="Настройки остаются отдельным разделом.">Настройки</button></nav>
+      <div class="sidebarfooter"><strong>Демо-пространство</strong><div class="caption">Данные для проверки макета</div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div style="display:flex;align-items:center;gap:8px"><button class="mobileonly quiet" data-open="navigation" aria-label="Открыть разделы">Меню</button><h1 id="page-title">ИИ-помощник</h1></div><div class="actions"><button class="quiet" data-open="objects">Пространство</button><button id="restore" class="quiet" hidden>Материал →</button></div></header>
+      <div class="compacttabs" id="compacttabs"><button data-tab="chat" aria-pressed="true">Чат</button><button data-tab="material" aria-pressed="false">Материал</button></div>
+      <div class="workspace has-artifact" id="workspace">
+        <section class="chat" aria-label="Разговор с ИИ">
+          <div class="chatbar"><button class="quiet" data-open="history" id="conversation-title">Обновления продукта ▾</button><button class="quiet" id="new-thread" aria-label="Новый разговор">+</button></div>
+          <div class="messages" id="messages">
+            <div class="messagebody empty" id="empty" hidden><span class="mark">CF</span><h2 style="margin-top:22px">Над чем поработаем?</h2><p class="muted">Расскажите задачу своими словами. Здесь можно создать аватар, настроить канал или подготовить публикацию.</p><div class="starters"><button data-starter="Напишем пост из моей мысли">Написать пост</button><button data-starter="Помоги настроить мой аватар">Настроить аватар</button><button data-open="objects">Взять готовый материал</button></div></div>
+            <div class="messagebody conversation" id="conversation">
+              <div class="user">У меня уже был обзор за 6–8 октября. Подготовь продолжение: что изменилось после него, по 16 октября.</div>
+              <div class="assistant"><span class="mark">CF</span><div class="assistantbody"><p>Возьму события за 9–16 октября. Предыдущий обзор оставлю контекстом. Какой акцент нужен читателям?</p></div></div>
+              <div class="user">Практическая польза для тех, кто работает с продуктом каждый день.</div>
+              <div class="assistant"><span class="mark">CF</span><div class="assistantbody"><details class="run"><summary>Работа завершена · подготовлен черновик</summary><ol><li>Выделен период 9–16 октября</li><li>Отобраны источники и новые события</li><li>Подготовлена заготовка</li></ol><span class="caption">Пример отображения хода работы в будущем интерфейсе</span></details><p>Подготовил текст с акцентом на применение. Он открыт рядом: можно поправить его вручную или дать указания здесь.</p><button class="result" data-artifact="piece"><span class="label">Заготовка · черновик</span><strong>Что изменилось в продукте за неделю</strong><span class="caption">Открыть текущую версию →</span></button></div></div>
+            </div>
+          </div>
+          <div class="composerwrap">
+            <div class="context" id="context"><span class="caption" id="context-label">В работе: заготовка «Обновления продукта»</span><button id="remove-context" aria-label="Убрать контекст заготовки">Убрать</button></div>
+            <div class="composer"><textarea id="prompt" aria-label="Сообщение ИИ-помощнику" placeholder="Например: сократи вступление и добавь мой пример…"></textarea><div class="composerfooter"><button class="quiet" id="attach">+ Файл</button><span class="caption">Здесь можно дать указания к тексту</span><button class="primary" id="send" aria-label="Отправить пример сообщения">↑</button></div></div>
+            <p class="caption">Макет: сообщения остаются только на этом экране.</p>
+          </div>
+        </section>
+        <div class="splitter" id="splitter" role="separator" aria-label="Изменить ширину чата" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
+        <section class="artifact" id="artifact" aria-label="Текущий материал">
+          <div class="artifactbar"><select id="artifact-select" aria-label="Артефакты разговора"><option value="piece">Заготовка · Обновления</option><option value="avatar">Аватар · Редактор</option><option value="channel">Канал · Новости команды</option></select><div class="artifacttools"><button class="quiet expand" id="expand">Развернуть</button><button class="quiet" id="hide">Скрыть</button></div></div>
+          <div class="editor" id="piece-editor">
+            <div class="editorheader"><span class="label">Заготовка</span><span class="state" id="saved-state">Черновик · данные примера</span></div>
+            <h2>Что изменилось в продукте за неделю</h2><div class="period"><span class="caption">События: 9–16 октября</span><span class="caption">Предыдущий обзор: 6–8 октября</span></div>
+            <textarea class="copy" id="piece-text" aria-label="Текст заготовки">В этом обзоре собраны изменения после предыдущего выпуска. Главный вопрос — что они дают в ежедневной работе.
+
+Первое обновление помогает быстрее переходить от исходных данных к рабочему черновику. Вместо повторного ввода контекста можно продолжить работу с тем же материалом.
+
+Второе изменение касается совместного редактирования. История сохраняет предыдущие версии, поэтому выбранную правку можно проверить и вернуть.
+
+Это текст для оценки композиции экрана. Он не описывает реальные релизы и не был создан моделью.</textarea>
+            <details><summary>Исходное задание и источники</summary><p>Подготовить продолжение обзора. Предыдущий материал используется как контекст; период новых событий указан над текстом. В продукте здесь будут настоящие выбранные источники.</p></details>
+            <details><summary>История версий</summary><p>Текущая версия — черновик. В продукте здесь доступны сравнение и восстановление сохранённых версий.</p></details>
+            <div class="editorfooter"><button class="primary" id="adapt">Подготовить для канала</button><button class="quiet" id="open-section">Открыть в разделе →</button><button class="quiet" id="discuss">Обсудить с ИИ</button></div>
+          </div>
+          <div class="editor" id="avatar-editor" hidden><div class="editorheader"><span class="label">Аватар</span><span class="state">Черновик</span></div><h2>Редактор</h2><p class="muted" style="margin-top:12px">Один паспорт в чате и в разделе «Аватары».</p><div class="formfield"><label for="avatar-reader">Для кого пишем</label><textarea id="avatar-reader">Для небольших команд, которые регулярно работают с контентом.</textarea></div><div class="formfield"><label for="avatar-voice">Как звучим</label><textarea id="avatar-voice">Коротко и по делу. Объясняем через конкретные действия и примеры.</textarea></div><div class="editorfooter"><button class="quiet" id="avatar-discuss">Обсудить с ИИ</button><button class="quiet" data-notice="В продукте откроется тот же паспорт аватара.">Открыть в разделе →</button></div></div>
+          <div class="editor" id="channel-editor" hidden><div class="editorheader"><span class="label">Канал</span><span class="state">Настройки примера</span></div><h2>Новости команды</h2><p class="muted" style="margin-top:12px">Настройки письма используют тот же аватар и те же сохранённые поля.</p><div class="formfield"><label for="channel-style">Что учитываем в публикациях</label><textarea id="channel-style">Сначала практическая польза. Ссылки на источники — в конце текста.</textarea></div><div class="period"><span>Аватар</span><strong>Редактор</strong></div><div class="period"><span>Режим плана</span><strong>Бронь</strong></div><div class="editorfooter"><button class="quiet" id="channel-discuss">Обсудить с ИИ</button><button class="quiet" data-notice="В продукте откроется тот же экран канала.">Открыть в разделе →</button></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <dialog id="objects"><header><h2>Пространство</h2><button data-close="objects" class="quiet" aria-label="Закрыть пространство">Закрыть</button></header><p class="muted">Выберите объект, с которым будем работать.</p><input id="object-search" type="search" placeholder="Найти по названию" aria-label="Поиск объектов"><div id="object-list"><button class="objectrow" data-artifact="piece"><span><strong>Обновления продукта</strong><span class="caption">Заготовка</span></span><span class="state">Черновик</span></button><button class="objectrow" data-artifact="avatar"><span><strong>Редактор</strong><span class="caption">Аватар</span></span><span class="state">Черновик</span></button><button class="objectrow" data-artifact="channel"><span><strong>Новости команды</strong><span class="caption">Канал</span></span><span class="caption">Бронь</span></button></div><p id="no-objects" class="muted" hidden style="margin-top:18px">Ничего не найдено. Попробуйте другое название.</p></dialog>
+  <dialog id="history"><header><h2>Разговоры</h2><button data-close="history" class="quiet">Закрыть</button></header><button class="objectrow" data-history="Обновления продукта"><span><strong>Обновления продукта</strong><span class="caption">Заготовка, аватар, канал</span></span></button><button class="objectrow" data-history="План публикаций"><span><strong>План публикаций</strong><span class="caption">Другой разговор · пример переключения</span></span></button></dialog>
+  <dialog id="navigation"><header><h2>Разделы</h2><button data-close="navigation" class="quiet">Закрыть</button></header><button class="objectrow" data-nav="agent">ИИ-помощник</button><button class="objectrow" data-nav="avatar">Аватары</button><button class="objectrow" data-nav="channel">Каналы</button><button class="objectrow" data-nav="piece">Контент</button><button class="objectrow" data-nav="calendar">Календарь</button></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const app = $('app'), workspace = $('workspace');
+    let scene = 'working', active = 'piece', noticeTimer;
+    const originalConversation = $('conversation').innerHTML;
+    const names = {piece:'заготовка «Обновления продукта»',avatar:'аватар «Редактор»',channel:'канал «Новости команды»'};
+    function notice(message) { $('toast').textContent=message; $('toast').hidden=false; clearTimeout(noticeTimer); noticeTimer=setTimeout(()=>$('toast').hidden=true,4500); }
+    function closeDialogs() { document.querySelectorAll('dialog[open]').forEach(d=>d.close()); }
+    function selectTab(tab) { workspace.classList.toggle('show-material',tab==='material'); document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===tab))); }
+    function showArtifact(kind,focus=false) {
+      active=kind; $('artifact-select').value=kind;
+      for (const key of Object.keys(names)) $(key+'-editor').hidden=key!==kind;
+      workspace.classList.add('has-artifact'); $('artifact').hidden=false; $('splitter').hidden=false; $('restore').hidden=true; $('compacttabs').hidden=false; $('context').hidden=false;
+      $('context-label').textContent='В работе: '+names[kind]; closeDialogs(); selectTab('material');
+      if(focus) $('artifact-select').focus();
+    }
+    function hideArtifact() { workspace.classList.remove('has-artifact','show-material'); $('artifact').hidden=true; $('splitter').hidden=true; $('restore').hidden=false; $('compacttabs').hidden=true; app.classList.remove('artifact-expanded'); $('expand').textContent='Развернуть'; $('restore').focus(); }
+    function setScene(next) {
+      scene=next; app.classList.toggle('manual',next==='manual'); app.classList.remove('artifact-expanded');
+      $('empty').hidden=next!=='empty'; $('conversation').hidden=next==='empty';
+      $('page-title').textContent=next==='manual'?'Контент / Заготовка':'ИИ-помощник';
+      $('conversation-title').textContent=next==='empty'?'Новый разговор ▾':next==='manual'?'Обсуждение заготовки ▾':'Обновления продукта ▾';
+      document.querySelectorAll('[data-scene]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scene===next)));
+      document.querySelectorAll('.navitem[data-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.nav===(next==='manual'?'piece':'agent'));b.removeAttribute('aria-current');if(b.classList.contains('active'))b.setAttribute('aria-current','page');});
+      $('conversation').innerHTML=originalConversation;
+      $('conversation').querySelectorAll('[data-artifact]').forEach(b=>b.addEventListener('click',()=>showArtifact(b.dataset.artifact,true)));
+      if(next==='empty') { hideArtifact(); $('restore').hidden=true; $('context').hidden=true; $('prompt').focus(); }
+      else { showArtifact('piece'); selectTab('chat'); }
+    }
+    document.querySelectorAll('[data-scene]').forEach(b=>b.addEventListener('click',()=>setScene(b.dataset.scene)));
+    document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.open).showModal()));
+    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+    document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();dialog.close();}}));
+    document.querySelectorAll('[data-artifact]').forEach(b=>b.addEventListener('click',()=>showArtifact(b.dataset.artifact,true)));
+    document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>selectTab(b.dataset.tab)));
+    document.querySelectorAll('[data-notice]').forEach(b=>b.addEventListener('click',()=>notice(b.dataset.notice)));
+    document.querySelectorAll('[data-starter]').forEach(b=>b.addEventListener('click',()=>{$('prompt').value=b.dataset.starter;$('prompt').focus();}));
+    document.querySelectorAll('[data-history]').forEach(b=>b.addEventListener('click',()=>{closeDialogs();setScene(b.dataset.history==='Обновления продукта'?'working':'empty');$('conversation-title').textContent=b.dataset.history+' ▾';notice('Переключение показано на локальных данных макета.');}));
+    document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{closeDialogs();if(b.dataset.nav==='agent'){setScene('working');return;}setScene('manual');if(b.dataset.nav==='calendar'){notice('В продукте чат получит период календаря и выбранные каналы.');return;}showArtifact(b.dataset.nav);selectTab('material');$('page-title').textContent={avatar:'Аватары / Редактор',channel:'Каналы / Новости команды',piece:'Контент / Заготовка'}[b.dataset.nav];}));
+    $('artifact-select').addEventListener('change',e=>showArtifact(e.target.value));
+    $('hide').addEventListener('click',hideArtifact); $('restore').addEventListener('click',()=>showArtifact(active,true));
+    $('expand').addEventListener('click',()=>{const expanded=app.classList.toggle('artifact-expanded');$('expand').textContent=expanded?'Вернуться к чату':'Развернуть';});
+    $('new-thread').addEventListener('click',()=>setScene('empty')); $('open-section').addEventListener('click',()=>setScene('manual'));
+    for(const id of ['discuss','avatar-discuss','channel-discuss']) $(id).addEventListener('click',()=>{selectTab('chat');$('prompt').focus();notice('Контекст: '+names[active]+'. Сообщение ещё не отправлено.');});
+    $('remove-context').addEventListener('click',()=>{$('context').hidden=true;notice('Контекст убран из сообщения. Материал остаётся открыт.');});
+    $('theme').addEventListener('click',()=>{const dark=document.documentElement.classList.toggle('dark');$('theme').textContent=dark?'Светлая тема':'Тёмная тема';});
+    $('piece-text').addEventListener('input',()=>$('saved-state').textContent='Изменено только в макете');
+    $('attach').addEventListener('click',()=>notice('В продукте используется существующий общий загрузчик файлов.'));
+    $('adapt').addEventListener('click',()=>notice('В продукте откроется существующая адаптация для выбранного канала.'));
+    $('send').addEventListener('click',()=>{const text=$('prompt').value.trim();if(!text){$('prompt').focus();return;}if(scene==='empty'){$('empty').hidden=true;$('conversation').replaceChildren();$('conversation').hidden=false;scene='local-new';}const line=document.createElement('div');line.className='user';line.textContent=text;$('conversation').appendChild(line);$('prompt').value='';$('messages').scrollTop=$('messages').scrollHeight;notice('Макет: сообщение отображено локально. ИИ не вызывается.');});
+    $('object-search').addEventListener('input',e=>{let count=0;document.querySelectorAll('#object-list .objectrow').forEach(b=>{b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase());if(!b.hidden)count++;});$('no-objects').hidden=count>0;});
+    function resize(value) { const n=Math.max(35,Math.min(65,value));document.documentElement.style.setProperty('--chat-share',n+'%');$('splitter').setAttribute('aria-valuenow',String(Math.round(n))); }
+    $('splitter').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const value=Number($('splitter').getAttribute('aria-valuenow'));resize(e.key==='Home'?35:e.key==='End'?65:value+(e.key==='ArrowRight'?2:-2));});
+    $('splitter').addEventListener('pointerdown',e=>{const target=e.currentTarget;target.setPointerCapture(e.pointerId);const move=ev=>{const rect=workspace.getBoundingClientRect();resize((app.classList.contains('manual')?rect.right-ev.clientX:ev.clientX-rect.left)/rect.width*100);};const stop=()=>{target.removeEventListener('pointermove',move);target.removeEventListener('pointerup',stop);};target.addEventListener('pointermove',move);target.addEventListener('pointerup',stop);});
+    setScene('working');
+  </script>
+</body>
+</html>

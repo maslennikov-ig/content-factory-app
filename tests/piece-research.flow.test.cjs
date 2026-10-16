@@ -63,6 +63,21 @@ const start = (input = { confirmWebSpend: true }) =>
 const accept = (preview, selectedKeys = preview.facts.filter(f => f.selected).map(f => f.factKey)) =>
   service.acceptCoreResearch('org', 'p', 'user', { snapshotKey: preview.snapshotKey, selectedKeys });
 
+test('empty period research keeps the exact prior draft and never buys a rewrite', async () => {
+  intake.now = () => new Date('2026-10-16T09:00:00Z');
+  const before = JSON.parse(JSON.stringify(piece));
+  const preview = await start({ confirmWebSpend: true, timeZone: 'Europe/Moscow',
+    researchTask: 'Сделай новый пост о том, что произошло после этого обзора.',
+    priorExample: 'Обзор за 6–8 октября 2025.' });
+  expect(preview.summary.periodStatus).toBe('empty');
+  expect(preview.facts.filter(fact => fact.kind === 'found')).toEqual([]);
+  const accepted = await accept(preview);
+  expect(accepted.body).toBe(before.body);
+  expect(piece).toEqual(before);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+  expect(modelCalls.map(call => call.role)).toEqual(['review']);
+});
+
 test('recorded search → digest → saved findings → writer; continuation never repeats paid search', async () => {
   const preview = await start();
   expect(preview.version).toBe('piece-research/v2');

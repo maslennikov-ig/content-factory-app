@@ -25,6 +25,7 @@ import { useAdaptationPicker } from './adaptation-picker';
 import { calendarPlanningCopy } from './calendar-planning.copy';
 import { PlanAheadChip } from './plan-ahead';
 import { Segmented } from '../ui/segmented';
+import { AssistantContextAction } from '../agents/assistant.workspace-context';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -551,6 +552,12 @@ export const Filters = () => {
           {copy.channelsButton}
         </ButtonLink>
         <div className="min-w-0 flex-1" />
+        <AssistantContextAction context={{
+          version: 'assistant-work-context/v1', kind: 'calendar',
+          from: newDayjs(calendar.startDate).startOf('day').toISOString(),
+          to: newDayjs(calendar.endDate).add(1, 'day').startOf('day').toISOString(),
+          ...(calendar.integrationId ? { channelId: calendar.integrationId } : {}),
+        }} />
         <PlanAheadChip
           locale={locale}
           integrationIds={aheadChannels}

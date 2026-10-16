@@ -155,7 +155,7 @@ const intakePass = async (
   emit: CapabilityEmit
 ): Promise<IntakePass> => {
   const intake = ctx.service(IntakeService);
-  const plan = await intake.prepare(ctx.organizationId, body);
+  const plan = await intake.prepare(ctx.organizationId, { ...body, timeZone: ctx.timeZone });
   let created: Extract<IntakePass, { kind: 'piece' }> | null = null;
   let selection: FactSelection | null = null;
   for await (const event of intake.run(ctx.organizationId, plan, ctx.userId)) {

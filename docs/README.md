@@ -10,6 +10,10 @@
 
 ## С чего начать
 
+План развития основного сценария: [чат, артефакты и ручные разделы](product/chat-first-workspace-spec.md),
+[план реализации](superpowers/plans/2026-10-16-chat-first-workspace.md),
+[интерактивный макет](design/chat-first-workspace/prototype.html). Это целевое поведение эпика `content-factory-next-jvrq`, ещё не реализованный интерфейс.
+
 | Задача                                                 | Документ                                                                                       |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | Понять продукт и границы                               | [Область продукта](product/product-scope.md)                                                   |
@@ -35,6 +39,7 @@
 | Очистить legacy-ошибки старше 90 дней                  | [Retention legacy Errors](operations/legacy-errors-retention.md)                               |
 | Включить вход через Telegram вручную                   | [Подготовка входа через Telegram](operations/telegram-login-setup.md)                          |
 | Развернуть или обновить продукт на сервере             | [Развёртывание на сервере](operations/production-deploy.md)                                    |
+| Ограничить старые образы и сохранить запас места        | [Артефакты общего хоста](operations/shared-host-artifacts.md)                                  |
 | Проверить исправления зависимостей перед выкладкой     | [Аудит и совместимость зависимостей](operations/dependency-security-remediation.md)            |
 | Проверить backup product, Mastra и Temporal            | [Резервное копирование PostgreSQL](operations/postgres-backup.md)                              |
 | Подключить собственную рассылку                        | [Listmonk и согласие на рассылку](operations/newsletter.md)                                    |

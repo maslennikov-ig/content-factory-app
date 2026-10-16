@@ -52,6 +52,7 @@ import {
   type AgentBlock,
   type AgentMessage,
   type AgentPendingRun,
+  type AgentWorkContextV1,
 } from './agent.contract';
 import { errorWordsFor, stageWordFor, type AgentWords } from './agent.copy';
 import { sendSamplesTo } from './agent.samples';
@@ -92,6 +93,8 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { startersFor, type AgentStarter } from './agent.starters';
 import { channelWaitsForAdmin } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
 import { AgentGlyph } from './agent.icons';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { assistantContextKey } from './assistant.route-context';
 
 /**
  * One conversation on `useChat` (`content-factory-next-kcxz.10`, spec §4.4).
@@ -145,6 +148,11 @@ export function AgentConversation({
   onThreadId,
   onTitle,
   onArtifact,
+  onArtifacts,
+  workContext,
+  contextControls,
+  onNewConversation,
+  onWorkContext,
   openArtifact,
   onArtifactRemoved,
   starter,
@@ -161,6 +169,11 @@ export function AgentConversation({
   onTitle: (title: string | null) => void;
   /** The turn produced something, or the person asked to open it. */
   onArtifact: (artifact: AgentArtifact, how: 'produced' | 'asked') => void;
+  onArtifacts?: (artifacts: AgentArtifact[]) => void;
+  workContext?: AgentWorkContextV1 | null;
+  contextControls?: ReactNode;
+  onNewConversation?: () => void;
+  onWorkContext?: (context: AgentWorkContextV1 | null) => void;
   openArtifact: AgentArtifact | null;
   /** The open artifact was deleted in this conversation: close it. */
   onArtifactRemoved: () => void;
@@ -176,6 +189,11 @@ export function AgentConversation({
   words: AgentWords;
 }) {
   const request = useFetch();
+  const t = useT();
+  const currentContext = useRef(workContext);
+  currentContext.current = workContext;
+  const announceContext = useRef(onWorkContext);
+  announceContext.current = onWorkContext;
   const { mutate } = useSWRConfig();
   const revalidateUnder = useRevalidateUnder();
   const thread = useRef(threadId);
@@ -190,6 +208,7 @@ export function AgentConversation({
       createAgentTransport({
         request,
         currentThread: () => thread.current,
+        currentContext: () => currentContext.current,
         onThread: (named) => {
           thread.current = named;
           announceThread.current(named);
@@ -224,15 +243,19 @@ export function AgentConversation({
       withMessages = false
     ) => {
       const id = thread.current;
-      if (!id) return;
+      if (!id) return false;
+      const contextAtRead = assistantContextKey(currentContext.current ?? null);
       try {
         const zone = screenTimeZone();
         const response = await request(
           AGENT_DOORS.thread(id),
           zone ? { headers: { [AGENT_TIMEZONE_HEADER]: zone } } : {}
         );
-        if (!response.ok) return;
+        if (!response.ok) return false;
         const history = readThreadHistory(await response.json());
+        if (history.workspace && contextAtRead === assistantContextKey(currentContext.current ?? null) && contextAtRead === assistantContextKey(history.workspace.workContext)) {
+          announceContext.current?.(history.workspace.workContext);
+        }
         setServerPending(history.pending);
         setSeenQuestions((seen) => [
           ...seen,
@@ -244,8 +267,10 @@ export function AgentConversation({
         if (withMessages && history.messages.length) {
           replaceMessages.current?.(history.messages);
         }
+        return true;
       } catch {
         // Not read: the last message's cards keep the stream's word.
+        return false;
       }
     },
     [request]
@@ -257,6 +282,8 @@ export function AgentConversation({
 
   /** Stage words per tool, from the transient `data-progress` parts. */
   const [stages, setStages] = useState<Record<string, string[]>>({});
+  const [interrupted, setInterrupted] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const {
     messages,
@@ -286,7 +313,8 @@ export function AgentConversation({
           : { ...current, [tool]: [...seen, word] };
       });
     },
-    onFinish: () => {
+    onFinish: ({ isAbort, isError, isDisconnect }) => {
+      if (isAbort || isError || isDisconnect) setInterrupted(true);
       setStages({});
       void refreshPending();
       void mutate(THREADS_KEY);
@@ -305,7 +333,25 @@ export function AgentConversation({
 
   /* ---- Sending ------------------------------------------------------------ */
 
-  const [queued, setQueued] = useState<ComposerSubmit | null>(null);
+  const [queued, setQueued] = useState<{ message: ComposerSubmit; context: AgentWorkContextV1 | null | undefined } | null>(null);
+  const stopAndReconcile = useCallback(() => {
+    setInterrupted(true);
+    setQueued(null);
+    void stop();
+  }, [stop]);
+  const reconcile = useCallback(async () => {
+    setChecking(true);
+    try {
+      if (await refreshPending(true)) {
+        setInterrupted(false);
+        clearError();
+        void revalidateUnder(PIECES_API.list);
+      }
+    } finally { setChecking(false); }
+  }, [refreshPending, clearError, revalidateUnder]);
+  useEffect(() => {
+    if (error && (isNetworkFailure(error) || currentContext.current?.revision && errorCodeOf(error.message) === 'AGENT_BAD_REQUEST')) { setInterrupted(true); setQueued(null); }
+  }, [error]);
 
   /** The last failed request was an approval answer (its card asks again). */
   const approvalFailed = useRef(false);
@@ -313,7 +359,8 @@ export function AgentConversation({
   const approvalSent = useRef(false);
 
   const send = useCallback(
-    (message: ComposerSubmit) => {
+    (message: ComposerSubmit, context?: AgentWorkContextV1 | null) => {
+      const options = context !== undefined ? { body: { workContext: context } } : undefined;
       clearError();
       approvalFailed.current = false;
       if (message.samples || message.media) {
@@ -327,26 +374,27 @@ export function AgentConversation({
             ...(message.media ? [{ type: AGENT_MEDIA_PART_TYPE, data: message.media }] : []),
             ...message.files,
           ],
-        });
+        }, options);
         return;
       }
       void sendMessage(
         message.text
           ? { text: message.text, files: message.files }
-          : { files: message.files }
+          : { files: message.files },
+        options
       );
     },
     [clearError, sendMessage]
   );
 
   const submit = useCallback(
-    (message: ComposerSubmit) => (busy ? setQueued(message) : send(message)),
+    (message: ComposerSubmit) => (busy ? setQueued({ message, context: currentContext.current ?? null }) : send(message)),
     [busy, send]
   );
 
   useEffect(() => {
     if (!busy && queued) {
-      send(queued);
+      send(queued.message, queued.context);
       setQueued(null);
     }
   }, [busy, queued, send]);
@@ -517,6 +565,9 @@ export function AgentConversation({
   }, [messages, onTitle]);
 
   const artifacts = useMemo(() => artifactsOf(messages), [messages]);
+  const announceArtifacts = useRef(onArtifacts);
+  announceArtifacts.current = onArtifacts;
+  useEffect(() => { announceArtifacts.current?.(artifacts); }, [artifacts]);
   const removed = useMemo(() => removedArtifactsOf(messages), [messages]);
   const openKey = openArtifact ? artifactKey(openArtifact) : null;
   const artifactGone = useRef(onArtifactRemoved);
@@ -875,7 +926,7 @@ export function AgentConversation({
             title={block.title}
             current={seen[seen.length - 1] ?? words.progress.working}
             steps={seen.slice(0, -1)}
-            onStop={() => void stop()}
+            onStop={stopAndReconcile}
             words={words}
           />
         );
@@ -1060,7 +1111,7 @@ export function AgentConversation({
               // An approval that did not go through is asked again on its own
               // card; regenerating would re-run the last message instead.
               onRetry={
-                approvalFailed.current
+                approvalFailed.current || interrupted || chatError.network
                   ? undefined
                   : () => {
                       clearError();
@@ -1074,11 +1125,17 @@ export function AgentConversation({
       </div>
       <div className="shrink-0 px-[16px] pb-[16px] pt-[8px] md:px-[20px]">
         <div className="mx-auto max-w-[760px]">
+          {contextControls}
+          {interrupted ? <div role="status" className="mb-[12px] flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
+            <span>{thread.current ? t('assistant_interrupted_note', 'Response interrupted. Check the saved result before continuing.') : t('assistant_unknown_result', 'The response was interrupted before the conversation identifier arrived. Check history: the action may have been saved. You can start a new conversation.')}</span>
+            {thread.current ? <Button type="button" variant="secondary" density="dense" loading={checking} loadingLabel={t('assistant_working', 'Working')} disabled={busy} onClick={() => void reconcile()}>{t('assistant_reconcile', 'Check saved result')}</Button> : onNewConversation ? <Button type="button" variant="secondary" density="dense" onClick={onNewConversation}>{words.threads.newThread}</Button> : null}
+          </div> : null}
+          <fieldset disabled={interrupted && !busy} className="min-w-0">
           <AgentComposer
             busy={busy}
             queued={queued !== null}
             onSubmit={submit}
-            onStop={() => void stop()}
+            onStop={stopAndReconcile}
             uploadSamples={sendSamples}
             samplesTarget={samplesTarget}
             samplesAllowed={editor}
@@ -1090,6 +1147,7 @@ export function AgentConversation({
             draft={draft}
             onDraftUsed={onDraftUsed}
           />
+          </fieldset>
         </div>
       </div>
     </div>

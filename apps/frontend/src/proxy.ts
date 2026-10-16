@@ -399,8 +399,7 @@ export async function proxy(request: NextRequest) {
       const onboarding = await onboardingLanding(request);
       return NextResponse.redirect(
         new URL(
-          onboarding ??
-            (!!process.env.IS_GENERAL ? '/launches' : `/analytics`),
+          onboarding ?? '/agents',
           nextUrl.href
         )
       );

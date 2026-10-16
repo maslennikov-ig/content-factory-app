@@ -27,6 +27,7 @@ import {
   CONDUCTOR_MAX_STEPS,
   conductorContextSchema,
 } from './conductor.context';
+import { AGENT_WORK_CONTEXT_KEY, type ResolvedAgentWorkContext } from './work-context';
 import { conductorInstructions } from './conductor.instructions';
 import { ViewedPicturesProcessor } from './conductor.pictures';
 import { lastStepSpeaks } from './conductor.steps';
@@ -136,6 +137,10 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         now: now(),
         timeZone: identity.timeZone,
         snapshot: await snapshotOf(requestContext as object, identity),
+        workContext: (() => {
+          const selected = requestContext.get(AGENT_WORK_CONTEXT_KEY);
+          return typeof selected === 'string' && selected ? JSON.parse(selected) as ResolvedAgentWorkContext : null;
+        })(),
       });
     },
     model: async ({ requestContext }) => {

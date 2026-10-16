@@ -24,10 +24,13 @@ const ownsBottomMargin = (className: string) =>
 export const OpeningBand: FC<{
   children: ReactNode;
   className?: string;
-}> = ({ children, className }) => (
+  /** Multi-row controls keep the shared minimum height and grow with their content. */
+  wrap?: boolean;
+}> = ({ children, className, wrap = false }) => (
   <div
     className={clsx(
-      'flex h-16 items-center',
+      'flex items-center',
+      wrap ? 'min-h-16 flex-wrap py-2' : 'h-16',
       !ownsBottomMargin(className ?? '') && 'mb-4',
       className
     )}

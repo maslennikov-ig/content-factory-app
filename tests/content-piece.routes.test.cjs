@@ -220,6 +220,7 @@ describe('дверь отвечает ровно по тем адресам, ч�
     ),
     // Additive editing/rewrite doors do not mutate the shipped voice contract.
     'PATCH /content-intelligence/pieces/:id',
+    `GET ${contract.PIECE_BROWSER_PATH}`,
     'PATCH /content-intelligence/pieces/:id/facts',
     'POST /content-intelligence/pieces/:id/rewrite',
     'POST /content-intelligence/pieces/:id/rewrite/accept',

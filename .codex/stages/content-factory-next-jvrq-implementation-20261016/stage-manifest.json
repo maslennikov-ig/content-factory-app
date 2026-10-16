@@ -1,0 +1,218 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-jvrq-implementation-20261016",
+  "goal_id": "content-factory-next-jvrq",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 1,
+  "acceptance_boundary_id": "jvrq-chat-first-workspace-implementation",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "level": "complex",
+  "boundary": {
+    "subsystems": [
+      "chat-navigation",
+      "private-thread-context",
+      "artifact-editors",
+      "manual-workflows",
+      "dated-research",
+      "progress-recovery",
+      "localization-accessibility"
+    ],
+    "risk_models": [
+      "tenant-isolation",
+      "authorization",
+      "write-reconciliation",
+      "provider-cost-and-failure",
+      "accessibility",
+      "evidence-integrity",
+      "source-date-grounding"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "model-free-tests",
+      "scripted-browser-preview"
+    ],
+    "rollback_boundary": "local-implementation-commits-no-schema-or-temporal-contract-change",
+    "acceptance_proofs": [
+      "four-application-build",
+      "frontend-integration-build",
+      "full-suite",
+      "documentation-check",
+      "process-verification",
+      "git-diff-check",
+      "responsive-browser-replay",
+      "manual-parity",
+      "research-period-replay"
+    ]
+  },
+  "rollback_boundary": {
+    "kind": "working_tree",
+    "clean_base_commit": "3c83c067f54f90ecdd039d65d78d319dda7d1ab3",
+    "note": "Local implementation commits can be reverted to the exact planning baseline. No schema or Temporal contract migration. No production, paid provider, push or deployment authority is included."
+  },
+  "work_areas": [
+    "primary-chat",
+    "navigation-shell",
+    "private-context",
+    "shared-artifact-editors",
+    "manual-workflows",
+    "dated-research",
+    "safe-recovery",
+    "localization-accessibility",
+    "integration-evidence"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-jvrq",
+    "source_digest": "ab1a1879717f7408ea53fdfa10c669134d5cee700d62ac3bd10455d1a529c72a",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "All target-spec A1-A10 have matching evidence: primary chat and retained deep/manual paths; correct private thread/object continuity; shared avatar/channel/piece/variant/plan editors; same interview and review behavior; current dated-change research; real progress and safe recovery; accessible RU/EN dark/light responsive UI. Fresh chat-only reserve workflow and manual-to-chat-to-manual equality are recorded separately from model-free checks. Final release, actual owner/provider acceptance and production delivery are independent gates. No duplicate runtime, accidental publication, lost draft or changed historical acceptance.",
+        "text_digest": "794282b405bad10ac0ecc4c556b52e99aa91681e3c50edf7883e834a6290584e"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-jvrq/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "ab1a1879717f7408ea53fdfa10c669134d5cee700d62ac3bd10455d1a529c72a",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    "docs/product/chat-first-workspace-spec.md",
+    "docs/superpowers/plans/2026-10-16-chat-first-workspace.md",
+    ".codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "baseline-diagnostic",
+      "owner": "root",
+      "write_zone": [
+        ".codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.1"
+      ]
+    },
+    {
+      "stream": "workspace-shell-ui",
+      "owner": "assistant_workspace_ui",
+      "write_zone": [
+        "apps/frontend/src/components/agents/**",
+        "apps/frontend/src/components/layout/top.menu.tsx",
+        "apps/frontend/src/components/new-layout/sidebar.tsx"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.2"
+      ]
+    },
+    {
+      "stream": "assistant-localization",
+      "owner": "assistant_i18n",
+      "write_zone": [
+        "libraries/react-shared-libraries/src/translation/locales/**",
+        "docs/design/chat-first-workspace/**",
+        "docs/product/chat-first-workspace-spec.md",
+        "docs/superpowers/plans/2026-10-16-chat-first-workspace.md"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.2"
+      ]
+    },
+    {
+      "stream": "private-context-backend",
+      "owner": "assistant_context_backend",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/chat/**",
+        "apps/backend/src/api/routes/agent.controller.ts"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.3"
+      ]
+    },
+    {
+      "stream": "shared-artifact-editors",
+      "owner": "root",
+      "write_zone": [
+        "apps/frontend/src/components/agents/agent.artifact-*.tsx"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.4"
+      ]
+    },
+    {
+      "stream": "manual-workflow-bridge",
+      "owner": "root",
+      "write_zone": [
+        "apps/frontend/src/components/content-intelligence/**",
+        "libraries/nestjs-libraries/src/chat/**"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.5"
+      ]
+    },
+    {
+      "stream": "dated-period-research",
+      "owner": "assistant_period_research",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/openai/**",
+        "libraries/nestjs-libraries/src/content-intelligence/intake/**",
+        "tests/*period*.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.6"
+      ]
+    },
+    {
+      "stream": "progress-and-recovery",
+      "owner": "root",
+      "write_zone": [
+        "apps/frontend/src/components/agents/agent.transport.ts",
+        "apps/frontend/src/components/agents/agent.conversation.tsx"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.7"
+      ]
+    },
+    {
+      "stream": "independent-review",
+      "owner": "assistant_review",
+      "write_zone": [
+        "read-only review of implementation streams"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.8"
+      ]
+    },
+    {
+      "stream": "final-integration-acceptance",
+      "owner": "root",
+      "write_zone": [
+        ".codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md",
+        "tests/**"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.8"
+      ]
+    }
+  ],
+  "stream_artifacts": [],
+  "branch": "codex/chat-first-workspace-plan-20261016",
+  "engineering_acceptance": {
+    "result": "passed",
+    "source_commit": "3aee2b05ac30f19e7a4bc8b414db20ee17ede799",
+    "kind": "aggregate-local-evidence",
+    "evidence": [
+      "outcome.md",
+      "acceptance-map.md",
+      "source-inputs.actual.json",
+      "integration-full.final.log",
+      "integration-metadata.final.log",
+      "artifact-geometry.actual.json",
+      "browser.actual.json"
+    ],
+    "note": "Jest/Node passed original full run; Python/docs/process passed after handoff-only stage declaration repair. Original pnpm test was nonzero. No release receipt, owner/provider acceptance, canonical-sync or production claim."
+  }
+}

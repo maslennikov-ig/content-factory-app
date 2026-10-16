@@ -37,7 +37,7 @@ dom.window.matchMedia = (query) => ({
 });
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, fireEvent, render } = require('@testing-library/react');
+const { act, cleanup, fireEvent, render, waitFor } = require('@testing-library/react');
 const { SWRConfig } = require('swr');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const load = require('./helpers/load-tsx.cjs').loadTypeScriptModule;
@@ -78,10 +78,15 @@ const reset = () => {
     sent: [],
     submitted: [],
     conversations: 0,
+    calls: [],
+    conversationProps: null,
+    assistant: null,
+    history: null,
   };
 };
 
 const Conversation = (props) => {
+  world.conversationProps = props;
   React.useEffect(() => {
     world.conversations += 1;
   }, []);
@@ -109,17 +114,25 @@ const Gate = ({ children, onUnavailable }) => {
   }, [onUnavailable, unavailable]);
   return unavailable ? h('p', { 'data-gate': 'unavailable' }, 'ИИ не подключён') : children;
 };
+const request = async (url, init = {}) => {
+  world.calls.push({ url, ...init });
+  if (!init.method && world.history && url.startsWith('/agent/threads/')) return world.history;
+  return { ok: true, status: 200, json: async () => init.method === 'PATCH' ? { workspace: { version: 'assistant-workspace/v1', ...JSON.parse(init.body) } } : { thread: null, messages: [], pending: [] } };
+};
+const translate = (_, fallback) => fallback;
 
 const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.screen.tsx', {
   react: React,
   'next/navigation': {
     useParams: () => ({ id: world.routeId }),
+    usePathname: () => window.location.pathname,
     useRouter: () => ({ push: () => {} }),
   },
   '@contentfactory/react/translation/use-interface-language': { useInterfaceLanguage: () => 'ru' },
+  '@contentfactory/react/translation/get.transation.service.client': { useT: () => translate },
   // An existing conversation loads an empty history.
   '@contentfactory/helpers/utils/custom.fetch': {
-    useFetch: () => async () => ({ ok: true, status: 200, json: async () => ({ thread: null, messages: [], pending: [] }) }),
+    useFetch: () => request,
   },
   '@contentfactory/react/form/button': {
     Button: ({ children, density, variant, ...props }) => h('button', props, children),
@@ -141,15 +154,16 @@ const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.sc
   },
   './agent.availability': { AgentAvailabilityGate: Gate },
   './agent.conversation': { AgentConversation: Conversation },
-  './agent.panel': {
-    ArtifactColumn: ({ empty }) => h('aside', {}, empty),
-    ArtifactSheet: () => null,
-    WorkspaceSteps: ({ busy, onStarter }) =>
-      h('button', { type: 'button', 'data-panel-step': 'avatar', disabled: busy, onClick: () => onStarter('avatar') }, 'Сделать в чате'),
-  },
+  './assistant.workspace-context': { useAssistantWorkspace: () => world.assistant },
+  './agent.workspace-shell': { AgentWorkspaceShell: ({ children }) => h('div', { 'data-shared-shell': '' }, children) },
+  './agent.artifact-host': { AgentArtifactHost: () => null },
+  './agent.artifact-picker': { AgentArtifactPicker: () => null },
+  './agent.workspace-browser': { AgentWorkspaceBrowser: ({ onSelect }) => h('button', { type: 'button', 'data-workspace-browser': '', onClick: () => onSelect({ kind: 'avatar', id: 'avatar1', title: 'Avatar', code: null, data: {} }) }, 'Workspace') },
+  './agent.piece-data': { useLoadedPiece: () => null, withPieceData: (artifact) => artifact, pieceIdOf: (artifact) => artifact.kind === 'piece' ? artifact.id : null },
+  './agent.artifact-metadata': { useArtifactMetadata: () => ({ get: () => undefined }), AgentArtifactLiveStatus: () => null },
   './agent.threads': {
     THREADS_KEY: '/agents/threads',
-    ThreadSwitcher: () => h('div', { 'data-switcher': '' }),
+    ThreadSwitcher: ({ actions }) => h('div', { 'data-switcher': '' }, actions),
     useAgentThreads: () => ({ data: [] }),
   },
   './agent.transport': { screenTimeZone: () => null },
@@ -251,15 +265,15 @@ describe('«Сделать в чате» fills the composer and sends nothing', 
   });
 });
 
-describe('the work panel with AI unavailable (review W3-21 P3-4)', () => {
-  test('a press is dropped, the button stays enabled, and nothing fires when AI comes back', async () => {
+describe('explicit workspace browsing with AI unavailable', () => {
+  test('opening an existing object stays available, and nothing fires when AI comes back', async () => {
     world.available = false;
     const view = await open('/agents/new');
-    const button = document.querySelector('[data-panel-step]');
+    const button = document.querySelector('[data-workspace-browser]');
     await act(async () => {
       fireEvent.click(button);
     });
-    expect(document.querySelector('[data-panel-step]').disabled).toBe(false);
+    expect(button.disabled).toBe(false);
     expect(world.sent).toEqual([]);
     // Availability turns positive later in the visit (a revalidation).
     world.available = true;
@@ -271,13 +285,87 @@ describe('the work panel with AI unavailable (review W3-21 P3-4)', () => {
     expect(world.sent).toEqual([]);
   });
 
-  test('with AI available a press sends the starter at once', async () => {
+  test('with AI available an existing object establishes context without sending', async () => {
     await open('/agents/new');
     await act(async () => {
-      fireEvent.click(document.querySelector('[data-panel-step]'));
+      fireEvent.click(document.querySelector('[data-workspace-browser]'));
     });
-    expect(world.sent).toEqual([STARTERS.avatar]);
-    expect(document.querySelector('[data-panel-step]').disabled).toBe(false);
+    expect(world.sent).toEqual([]);
+    expect(world.conversationProps.openArtifact.id).toBe('avatar1');
+    expect(document.querySelector('[data-workspace-browser]').disabled).toBe(false);
+  });
+});
+
+describe('shared assistant session routing and first-turn persistence', () => {
+  test('a late history read cannot override an explicit object selected while loading', async () => {
+    world.routeId = 'thread1';
+    world.assistant = { workContext: null, requestedThreadId: null, requestVersion: 0, contextVersion: 0, rememberThread: () => {}, setWorkContext: (context, artifact) => { world.assistant = { ...world.assistant, workContext: context, contextArtifact: artifact }; } };
+    let resolve;
+    world.history = new Promise((done) => { resolve = done; });
+    await open('/agents/thread1');
+    await act(async () => fireEvent.click(document.querySelector('[data-workspace-browser]')));
+    expect(world.assistant.workContext).toMatchObject({ kind: 'avatar', id: 'avatar1' });
+    await act(async () => resolve({ ok: true, status: 200, json: async () => ({ thread: null, messages: [], pending: [], workspace: { version: 'assistant-workspace/v1', workContext: { version: 'assistant-work-context/v1', kind: 'piece', id: 'oldPiece' }, artifacts: [{ kind: 'piece', id: 'oldPiece' }], activeArtifact: { kind: 'piece', id: 'oldPiece' } } }) }));
+    expect(world.conversationProps.openArtifact.id).toBe('avatar1');
+    expect(world.assistant.workContext).toMatchObject({ kind: 'avatar', id: 'avatar1' });
+  });
+
+  test('a late context refresh from a previous conversation cannot replace the new context revision', async () => {
+    const context = { version: 'assistant-work-context/v1', kind: 'piece', id: 'piece1', revision: 'r1' };
+    world.assistant = { workContext: context, requestedThreadId: null, requestVersion: 0, contextVersion: 0, rememberThread: () => {}, setWorkContext: (next) => { world.assistant = { ...world.assistant, workContext: next }; } };
+    const view = await open('/agents/new');
+    const oldRefresh = world.conversationProps.onWorkContext;
+    await act(async () => world.conversationProps.onNewConversation());
+    world.assistant = { ...world.assistant, workContext: { ...context, revision: 'r2' } };
+    await act(async () => view.rerender(drawn()));
+    await act(async () => oldRefresh({ ...context, revision: 'r1' }));
+    expect(world.assistant.workContext.revision).toBe('r2');
+    await act(async () => world.conversationProps.onWorkContext({ ...context, revision: 'r3' }));
+    expect(world.assistant.workContext.revision).toBe('r3');
+  });
+
+  test('an automatically accepted produced object becomes the next turn current context', async () => {
+    world.assistant = { workContext: null, requestedThreadId: null, requestVersion: 0, contextVersion: 0, rememberThread: () => {}, setWorkContext: (context, artifact) => { world.assistant = { ...world.assistant, workContext: context, contextArtifact: artifact }; } };
+    const view = await open('/agents/new');
+    await act(async () => world.conversationProps.onArtifacts([{ kind: 'piece', id: 'piece1', title: 'Piece one', code: null, data: {} }]));
+    await act(async () => view.rerender(drawn()));
+    expect(world.conversationProps.openArtifact.id).toBe('piece1');
+    expect(world.conversationProps.workContext).toMatchObject({ version: 'assistant-work-context/v1', kind: 'piece', id: 'piece1' });
+  });
+
+  test('reopening the same manual context before the first send retains the unsent composer', async () => {
+    world.routeId = 'piece1';
+    world.assistant = { workContext: { version: 'assistant-work-context/v1', kind: 'piece', id: 'piece1' }, requestedThreadId: null, requestVersion: 1, contextVersion: 1, rememberThread: () => {}, setWorkContext: () => {} };
+    const view = await open('/content/pieces/piece1');
+    await act(async () => fireEvent.change(field(), { target: { value: 'keep this unsent instruction' } }));
+    world.assistant = { ...world.assistant, requestVersion: 2 };
+    await act(async () => view.rerender(drawn()));
+    expect(field().value).toBe('keep this unsent instruction');
+    expect(world.conversations).toBe(1);
+    expect(world.submitted).toEqual([]);
+  });
+
+  test('a manual piece id is not loaded as a conversation and the first response keeps its route', async () => {
+    world.routeId = 'piece1';
+    await open('/content/pieces/piece1');
+    expect(world.conversationProps.threadId).toBeNull();
+    expect(world.calls.some((call) => call.url.includes('/agent/threads/piece1'))).toBe(false);
+    await act(async () => world.conversationProps.onThreadId('thread1'));
+    expect(window.location.pathname).toBe('/content/pieces/piece1');
+  });
+
+  test('all results from turn one are persisted after a new thread receives its id', async () => {
+    await open('/agents/new');
+    const objects = ['one', 'two'].map((id) => ({ kind: 'piece', id, title: id, code: null, data: { id } }));
+    await act(async () => {
+      world.conversationProps.onArtifacts(objects);
+      world.conversationProps.onThreadId('thread1');
+    });
+    await waitFor(() => expect(world.calls.some((call) => call.url === '/agent/threads/thread1/workspace' && call.method === 'PATCH')).toBe(true));
+    const saved = world.calls.filter((call) => call.method === 'PATCH').at(-1);
+    expect(JSON.parse(saved.body).artifacts.map((item) => item.id)).toEqual(['one', 'two']);
+    expect(JSON.parse(saved.body).activeArtifact.id).toBe('two');
+    expect(window.location.pathname).toBe('/agents/thread1');
   });
 });
 

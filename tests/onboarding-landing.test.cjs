@@ -140,11 +140,11 @@ describe('the root landing after sign-in', () => {
     ['a finished workspace', () => ({ ok: true, json: async () => ({ ...finished, founder: true }) })],
     ['a refused request', () => ({ ok: false, json: async () => ({}) })],
     ['an unreachable backend', () => { throw new Error('down'); }],
-  ])('%s lands on the calendar', async (_name, reply) => {
+  ])('%s lands on the AI assistant', async (_name, reply) => {
     answer = reply;
     await expect(loadProxy().proxy(signedIn('/'))).resolves.toMatchObject({
       type: 'redirect',
-      url: 'http://localhost:4200/launches',
+      url: 'http://localhost:4200/agents',
     });
   });
 
@@ -158,7 +158,7 @@ describe('the root landing after sign-in', () => {
   test('an impersonating operator is left alone', async () => {
     await expect(
       loadProxy().proxy(signedIn('/', { impersonate: 'user-2' }))
-    ).resolves.toMatchObject({ url: 'http://localhost:4200/launches' });
+    ).resolves.toMatchObject({ url: 'http://localhost:4200/agents' });
     expect(calls).toEqual([]);
   });
 });

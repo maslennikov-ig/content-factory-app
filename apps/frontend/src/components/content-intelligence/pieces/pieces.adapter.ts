@@ -33,6 +33,7 @@ import {
   PIECE_ROUTES,
   PIECE_TABLE_MIN_WIDTH,
   PIECES_API_BASE,
+  PIECE_BROWSER_PATH,
   type AdaptationKindV1,
   type AdaptationPlanV1,
   type AdaptationStateV1,
@@ -155,6 +156,7 @@ export function platformName(
 /** Адреса, по одному месту на каждый. */
 export const PIECES_API = {
   list: PIECES_API_BASE,
+  browser: PIECE_BROWSER_PATH,
   detail: PIECE_ROUTES.detail.path,
   create: PIECE_ROUTES.create.path,
   adapt: PIECE_ROUTES.adapt.path,

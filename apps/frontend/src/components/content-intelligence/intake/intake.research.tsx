@@ -6,6 +6,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { WorkingLine } from '../../ui/working-line';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import { SelectionCheckIcon, SelectionRows } from './selection-rows';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 /**
  * Итог ресерча «сделали за вас» — вариант 1, выбранный владельцем 13.09.2026
@@ -43,14 +44,7 @@ export type ResearchOutcomeCorrection = {
   accepted: boolean;
 };
 
-export type ResearchOutcomeSummary = {
-  confirmed: number;
-  conflicting: number;
-  unverified: number;
-  found: number;
-  sources: number;
-  encyclopedic: number;
-};
+export type ResearchOutcomeSummary = import('@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract').IntakeResearchSummaryV1;
 
 const hostOf = (url: string | null | undefined): string => {
   if (!url) return '';
@@ -424,6 +418,13 @@ export function ResearchOutcome({
 }) {
   const t = intakeCopy[locale];
   const visibleFacts = sourcedResearchFacts(facts);
+  const translate = useT();
+  const intent = summary?.researchIntent;
+  const periodBlocked = summary?.periodStatus === 'empty' || summary?.periodStatus === 'needs_clarification';
+  const dateLabel = (value: string) => {
+    try { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: intent?.timezone ?? 'UTC' }).format(new Date(value)); }
+    catch { return value; }
+  };
   const claims = visibleFacts.filter(
     (fact) => fact.kind !== 'found' && !isCorrectionTwin(fact)
   );
@@ -453,6 +454,16 @@ export function ResearchOutcome({
       {summary && summary.sources === 0 ? (
         <p className="cf-body-sm text-cf-ink-muted">{t.researchNoSources}</p>
       ) : null}
+
+      {intent?.eventInterval ? <p className="cf-caption text-cf-ink-muted" data-research-period="true">
+        {translate('assistant_period', 'Period')}: {dateLabel(intent.eventInterval.start)} — {dateLabel(intent.eventInterval.end)} · {intent.timezone}
+      </p> : null}
+      {summary?.periodStatus === 'empty' ? <p role="status" className="cf-body-sm text-cf-ink-muted">{translate('assistant_period_empty', 'No confirmed new events were found for the selected period.')}</p> : null}
+      {summary?.periodStatus === 'needs_clarification' ? <p role="status" className="cf-body-sm text-cf-ink">{translate('assistant_period_clarify', 'Specify the search period.')}</p> : null}
+      {summary?.gaps?.length ? <div className="cf-body-sm text-cf-ink-muted">
+        <span className="cf-label-md">{translate('assistant_period_gaps', 'What could not be confirmed')}</span>
+        <ul className="list-disc ps-[20px]">{summary.gaps.map((gap) => <li key={gap}>{gap}</li>)}</ul>
+      </div> : null}
 
       {claims.length ? (
         <div className="flex flex-wrap items-center gap-[12px] rounded-[8px] bg-cf-surface-subtle px-[12px] py-[8px]" data-intake-research-summary="true">
@@ -485,7 +496,7 @@ export function ResearchOutcome({
         <ResearchContinueRow
           locale={locale}
           place="above"
-          busy={busy}
+          busy={busy || periodBlocked}
           working={working}
           workingLabel={workingLabel}
           accepted={accepted}
@@ -508,7 +519,7 @@ export function ResearchOutcome({
         <ResearchContinueRow
           locale={locale}
           place="below"
-          busy={busy}
+          busy={busy || periodBlocked}
           working={working}
           workingLabel={workingLabel}
           accepted={accepted}

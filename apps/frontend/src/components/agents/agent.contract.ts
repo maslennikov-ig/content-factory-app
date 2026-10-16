@@ -255,7 +255,9 @@ export type LibraryUploadReceipt = {
 export const AGENT_DOORS = {
   chat: '/agent/chat',
   threads: '/agent/threads',
+  workspaceBrowser: '/agent/workspace/browser',
   thread: (id: string) => `/agent/threads/${encodeURIComponent(id)}`,
+  threadWorkspace: (id: string) => `/agent/threads/${encodeURIComponent(id)}/workspace`,
 } as const;
 
 export type AgentMessage = UIMessage;
@@ -287,6 +289,92 @@ export type AgentArtifact = {
   code: string | null;
   data: Readonly<Record<string, unknown>>;
 };
+
+export type AgentWorkContextV1 = {
+  version: 'assistant-work-context/v1';
+  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'calendar' | 'ideas' | 'facts' | 'media';
+  id?: string;
+  pieceId?: string;
+  channelId?: string;
+  adaptationId?: string;
+  from?: string;
+  to?: string;
+  revision?: string;
+};
+
+export type AgentArtifactRef = {
+  kind: AgentArtifactKind;
+  id: string;
+  pieceId?: string;
+  channelId?: string;
+  adaptationId?: string;
+};
+
+export type AgentWorkspaceV1 = {
+  version: 'assistant-workspace/v1';
+  workContext: AgentWorkContextV1 | null;
+  artifacts: AgentArtifactRef[];
+  activeArtifact: AgentArtifactRef | null;
+};
+
+const WORK_CONTEXT_KINDS: readonly string[] = ['workspace', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'calendar', 'ideas', 'facts', 'media'];
+const WORK_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null => {
+  const row = recordOf(value);
+  if (row.version !== 'assistant-work-context/v1' || typeof row.kind !== 'string' || !WORK_CONTEXT_KINDS.includes(row.kind)) return null;
+  const result: AgentWorkContextV1 = { version: 'assistant-work-context/v1', kind: row.kind as AgentWorkContextV1['kind'] };
+  for (const key of ['id', 'pieceId', 'channelId', 'adaptationId'] as const) {
+    if (row[key] !== undefined) {
+      if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
+      result[key] = row[key] as string;
+    }
+  }
+  for (const key of ['from', 'to', 'revision'] as const) {
+    if (row[key] !== undefined) {
+      if (typeof row[key] !== 'string' || (row[key] as string).length > 128) return null;
+      result[key] = row[key] as string;
+    }
+  }
+  return result;
+};
+
+const readArtifactRef = (value: unknown): AgentArtifactRef | null => {
+  const row = recordOf(value);
+  if (!isArtifactKind(row.kind) || typeof row.id !== 'string' || !WORK_ID.test(row.id)) return null;
+  const ref: AgentArtifactRef = { kind: row.kind, id: row.id };
+  for (const key of ['pieceId', 'channelId', 'adaptationId'] as const) {
+    if (row[key] !== undefined) {
+      if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
+      ref[key] = row[key] as string;
+    }
+  }
+  if ((ref.kind === 'adaptation' || ref.kind === 'plan') && !ref.pieceId) return null;
+  return ref;
+};
+
+export const readAgentWorkspace = (value: unknown): AgentWorkspaceV1 | null => {
+  const row = recordOf(value);
+  if (row.version !== 'assistant-workspace/v1') return null;
+  const artifacts = (Array.isArray(row.artifacts) ? row.artifacts : []).slice(-24).map(readArtifactRef).filter((ref): ref is AgentArtifactRef => !!ref);
+  const active = readArtifactRef(row.activeArtifact);
+  return {
+    version: 'assistant-workspace/v1',
+    workContext: readAgentWorkContext(row.workContext),
+    artifacts,
+    activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId) ? active : null,
+  };
+};
+
+export const refToArtifact = (ref: AgentArtifactRef): AgentArtifact => ({ kind: ref.kind, id: ref.id, title: null, code: null, data: { ...ref } });
+
+export const artifactRefOf = (artifact: AgentArtifact): AgentArtifactRef => ({
+  kind: artifact.kind,
+  id: artifact.id,
+  ...(typeof artifact.data.pieceId === 'string' ? { pieceId: artifact.data.pieceId } : {}),
+  ...(artifactChannelId(artifact) ? { channelId: artifactChannelId(artifact) as string } : {}),
+  ...(['adaptation', 'plan'].includes(artifact.kind) ? { adaptationId: artifact.id } : {}),
+});
 
 /**
  * The channel an adaptation card is about: `channel.id` of the card
@@ -530,6 +618,7 @@ export type AgentThreadHistory = {
   thread: AgentThreadSummary | null;
   messages: AgentMessage[];
   pending: AgentPendingRun[];
+  workspace?: AgentWorkspaceV1 | null;
 };
 
 /**
@@ -556,7 +645,7 @@ export const readThreadHistory = (body: unknown): AgentThreadHistory => {
   const messages = (Array.isArray(record.messages) ? record.messages : [])
     .filter(isUiMessage)
     .map((message) => reopenApprovals(message, approvals));
-  return { thread: readThread(record.thread), messages, pending };
+  return { thread: readThread(record.thread), messages, pending, ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}) };
 };
 
 const reopenApprovals = (
@@ -638,14 +727,16 @@ export const buildChatBody = ({
   messages,
   messageId,
   resume,
+  workContext,
 }: {
   threadId: string | null;
   messages: readonly AgentMessage[];
   /** The message the SDK's request is for, when it names one. */
   messageId?: string | null;
   resume?: AgentResume | null;
+  workContext?: AgentWorkContextV1 | null;
 }) => {
-  const thread = threadId ? { threadId } : {};
+  const thread = { ...(threadId ? { threadId } : {}), ...(workContext !== undefined ? { workContext } : {}) };
   if (resume) {
     return {
       ...thread,

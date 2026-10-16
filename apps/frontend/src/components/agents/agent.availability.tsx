@@ -72,7 +72,7 @@ export const AgentAvailabilityGate: FC<{
       <div className="flex flex-1 items-start justify-center bg-cf-surface p-[40px]">
         <RestrictedState
           className="max-w-[560px]"
-          title={t('agent_ai_unavailable_title', 'The agent cannot answer yet')}
+          title={t('agent_ai_unavailable_title', 'The AI assistant cannot answer yet')}
           reason={t(
             'ai_allowance_unavailable',
             'AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → Global Settings.'

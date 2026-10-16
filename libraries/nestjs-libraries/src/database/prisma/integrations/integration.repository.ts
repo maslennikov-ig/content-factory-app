@@ -738,6 +738,21 @@ export class IntegrationRepository {
     });
   }
 
+  /** Short cards for the assistant picker, bounded before rows leave Prisma. */
+  browseChannels(organizationId: string, query: { q?: string; cursor?: string; ids?: string[]; limit: number }) {
+    return this._integration.model.integration.findMany({
+      where: {
+        organizationId,
+        deletedAt: null,
+        ...(query.ids ? { id: { in: query.ids } } : query.cursor ? { id: { gt: query.cursor } } : {}),
+        ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
+      },
+      take: Math.min(50, Math.max(1, query.limit)) + 1,
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, disabled: true, refreshNeeded: true, inBetweenSteps: true },
+    });
+  }
+
   /** The recent root posts shown on a channel page, with no provider secrets. */
   getChannelPosts(org: string, id: string, limit: number) {
     const visiblePosts = channelVisiblePostsWhere(org);

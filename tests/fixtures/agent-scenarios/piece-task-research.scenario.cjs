@@ -65,7 +65,7 @@ module.exports = {
     // first pass's snapshot.
     const screen = {
       input: TASK,
-      language: 'ru',
+      language: 'ru', timeZone: '+03:00',
       materialKind: 'instruction',
       options: { researchEnabled: true, researchLevel: 'deep' },
     };

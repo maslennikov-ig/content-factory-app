@@ -49,6 +49,8 @@ export type ResearchDigestSource = {
   excerpt: string;
   /** Страница целиком (очищенная, обрезанная), когда уровень её читал. */
   text?: string | null;
+  /** Page publication metadata, deliberately separate from event-effective dates. */
+  publishedAt?: string | null;
 };
 
 export type ResearchDigestClaim = {
@@ -479,6 +481,7 @@ export type SettledFinding = {
   sourceUrl: string;
   statement: string;
   quote: string;
+  dateProvenance?: import('./research-intent').ResearchEventDateV1;
 };
 
 export type SettledResearchDigest = {

@@ -152,6 +152,21 @@ export class IntakeOptionsDto {
 }
 
 export class IntakeDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  timeZone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000)
+  researchTask?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40_000)
+  priorExample?: string;
+
   /**
    * Мысль, ссылка или чужой пост.
    *

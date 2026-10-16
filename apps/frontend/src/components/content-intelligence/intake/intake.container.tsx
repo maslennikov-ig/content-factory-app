@@ -1,4 +1,5 @@
 'use client';
+import { screenTimeZone } from '@contentfactory/frontend/components/layout/set.timezone';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -250,6 +251,7 @@ export function IntakeContainer({
               buildIntakePayload({
                 input: inputText ?? input,
                 language: language0,
+                timeZone: screenTimeZone() || 'UTC',
                 materialKind,
                 options: { researchEnabled, researchLevel },
                 ...(researchSelections !== undefined ? { researchSelections } : {}),

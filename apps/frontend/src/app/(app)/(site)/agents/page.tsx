@@ -1,8 +1,7 @@
 import { pageTitle } from '@contentfactory/frontend/app/page-title';
-import { redirect } from 'next/navigation';
 
-export const generateMetadata = pageTitle('agent', 'Agent');
+export const generateMetadata = pageTitle('agent', 'AI assistant');
 
-export default async function Page() {
-  return redirect('/agents/new');
+export default async function Page(): Promise<null> {
+  return null;
 }

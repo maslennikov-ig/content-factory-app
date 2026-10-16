@@ -336,7 +336,7 @@ describe('it can be found again', () => {
     expect(menu.indexOf("path: '/onboarding'")).toBeLessThan(
       menu.indexOf("path: '/launches'")
     );
-    expect(menu).toContain('hide: onboardingFinished');
+    expect(menu).toContain("{ ...entry('/onboarding'), hide: false, step: 0 }");
 
     // Вкладка настроек рисует сам обход, а не кнопку к нему.
     const settings = read('settings');
@@ -419,7 +419,7 @@ describe('live walk 25.09.2026: the words match what is on the screen', () => {
     const screen = read('screen');
     expect(screen).toContain('openCount === 0 ? t.comeBackDone : t.comeBack');
     expect(screen.match(/\{t\.counted\}/g)).toHaveLength(1);
-    expect(read('menu')).toContain('hide: onboardingFinished');
+    expect(read('menu')).toContain("{ ...entry('/onboarding'), hide: false, step: 0 }");
     for (const locale of ['ru', 'en']) {
       expect(onboardingCopy[locale].allDoneBody).not.toMatch(/настройках|Settings/);
     }

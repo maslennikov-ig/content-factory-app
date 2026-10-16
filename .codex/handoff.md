@@ -1,29 +1,33 @@
-# Content Factory current handoff — 12 October 2026
+# Content Factory current handoff — 16 October 2026
 
-## dbxe audit epic completed; Skool publication independently deferred
+## AI assistant implementation
 
-Current stage id: content-factory-next-client-test-prep-20261012
+Owner16Oct authorized implementation of epic `content-factory-next-jvrq` and named the primary chat «ИИ-помощник» across all16 locales. Private persistent chat, contextual manual sections, shared artifact editors/browser and event-period research are implemented locally; engineering accepted, actual owner/provider acceptance and delivery remain in jvrq.8.
+Target: `docs/product/chat-first-workspace-spec.md`; plan: `docs/superpowers/plans/2026-10-16-chat-first-workspace.md`; accepted design: `docs/design/chat-first-workspace/prototype.html`. Current source/evidence and accepted child review: `.codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md`; Task state follows current AGENTS.md; accepted synchronization remains separate.
+Product source3aee2b05a: fourbuilds/types PASS; Jest12278+Node123 PASS, Python50/docs/process PASS after handoff-only repair.128 artifact layouts+24 initial layouts and2 source-browser interaction flows PASS; exact limits in outcome. Owner16Oct now explicitly authorizes source publication, production rollout and two paid controls: chat creation and original overview9–16Oct; execution/proof follow below in the stage outcome. Preserve unrelated evidence and existing kcxz/0qgn/2q28/m0iy contracts/statuses.
+Current stage id: content-factory-next-jvrq-implementation-20261016
+
+## Shared-host artifact lifecycle delivered
+
+Current stage id: content-factory-next-host-artifact-lifecycle-20261014 Beads0qgn.24 /producer beads_fmcg_kp-qaa3; original contracts/other statuses retained. AiDevTeam ops source2283eaae5 pushed/main/host installed; source-only, no app rebuild. CF
+still0e8f25e5fe9f/verified rollbackec58; AiDevTeam app3153/image84520a37 unchanged. Canonical deploy now prepare/admit before build, finish after readiness; same custom contract. Keep3 latest distinct rollbacks +3 documented pins +all container references;
+exact removals only. Unused cache older24h toward4GB; fresh/in-use cache kept. Build needs16GB/100k inodes. Unknown capacity/pin/identity, active build or failed readiness refuses unsafe work. Root22 Python +101 CF regression PASS; syntax/compile/diff PASS;
+frontend build proof reused. Actual two obsolete tags/cache cleaned: ~9.24→17.82GB;22 containers/20 volumes/live files preserved. Installed check/prepare dry-run/actual finish PASS; hashes/source and CF/website health exact. No daemon/scheduler, app
+restart/switch, DB/backup/model/provider/message QA. Owned host temp/worktree removed;12 unrelated producer modified files preserved. Outcome/root proof: stages/content-factory-next-host-artifact-lifecycle-20261014/. Original actual owner Telegram login/client
+acceptance remains unverified; use fresh /auth/login. Previous13Oct repair2q28.43/.44/.45 delivered; details in login-flags-repair-20261013/outcome.md. No continuous goal/next work running; resume owner testing, leave original epics/defers unchanged.
+
 Owner12Oct explicitly approves independent Skool publication defer and epic closure.
 Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed.
 Original38 task contracts unchanged; approved defer recorded in Beads, the authority.
-Serving public/image ec58af8b31b1; accepted private source2e357374d91a. Full9 PASS:
-660 Jest suites/12164 checks (70 skips),123 Node (4 skips),50 Python. Current public
-CI all5 PASS; its3 halves independently read (12162 Jest/72 skips,123 Node,50 Python);
-calendar+400 PASS. These are distinct environments, not identical skip counts.
-Fresh12Oct native3 roles online/0restarts; release1792MiB/schema diff0/94 orgs/7 keys,
-Mastra45/selected row counts and same V3/digest runs retained. All21 current foreign
-containers preserved at corrected switch. Source60 files/archive/index/config exact.
-Rejected38c missing emitted mail interceptor kept as failure proof; actual rollback2a
-worked. Minimal c886 compiler inclusion preserves45 prior inputs; emitted image/VM
-proof passed. Retention keeps current ec58 +verified rollback2a; no foreign/volume cleanup.
+Previous dbxe source2e357374d91a/ec58 proof stays historical, not restamped.
+Rejected38c compiler gap, corrected c886 proof and successful2a rollback retained.
 30 old-key401/new-key200 and31 empty V2->V3 cutover remain actual accepted operations.
 Global34/8 retain2 disabled-caller exceptions;33/35 retain native/allocator triggers,
 not a universal patched claim. Four clean owned child worktrees removed; proofs and
 branches kept, release worktree retained. All unrelated work preserved.
 Store2.0.1 package/native fixture is distinct from CWS approval; EXTENSION_ID unset.
 Outcome/runtime/CI/status proof: stages/content-factory-next-dbxe-completion-stage/.
-Unrelated0qgn/client/SaaS/research epics and their defers stay open. No paid/provider/
-real-mail/social/restore used as delivery QA. No full acceptance rerun for final metadata.
+Unrelated epics/defers open; no paid/provider/mail/social/restore QA or metadata full rerun.
 Accepted stage id: content-factory-next-dbxe-completion-stage
 
 ## Previous accepted publishing stage
@@ -49,21 +53,14 @@ Every retained critical/high has an actual-caller/platform exception and a
 reevaluation trigger, not a removed finding. Docs:
 docs/operations/dependency-security-remediation.md; exact source/range/caller
 records: stages/content-factory-next-dbxe-dependencies-stage/applicability.json.
-Patched42 package names, minimum compatible scoped version lines; direct XML4.x
-and AWS XML5.x remain separate, ws7 is scoped to jayson, no peer-wide major force.
-Sharp/Multer/Nodemailer API transitions exercised on real native/multipart/mail
-libraries. Original seven security counterexamples and corrected14 diagnostic
-checks retained. Frozen install PASS Node22.23.2/pnpm10.6.1. Final affected
-acceptance PASS:39 Jest suites/607 tests +47 Node tests, zero skips, four
-production builds and actual Vite extension compile/Python ZIP. Built Next
-loopback login200/remote image400; owned process stopped. Canonical docs/process/diff closeout PASS, raw proof preserved.
-Local dependency stage accepted; stop for owner choice.
-Follow-up root review of48330283b accepted the same local boundary, with no
-package/application correction: dependency-stage/review/review.md. All30 original
-criteria, installed2943-copy proof and four-entry ZIP independently checked.
-No product source/API/Temporal/schema edits, production mutation, provider/model
-call, source push or deployment. Existing untracked evidence preserved.
-Original next-release gate d724 accepted; changed92f/2a release/global34 completes8. SaaS/client/legal/research and unselected scopes unchanged.
+Historical dependency acceptance:42 scoped package names, no peer-wide major force;
+XML4/AWS XML5 and jayson ws7 boundaries retained. Native/multipart/mail transitions,
+seven counterexamples and14 diagnostics retained in dependency-stage/.
+Frozen Node22.23.2/pnpm10.6.1 install,39 suites/607 Jest +47 Node/zero skips,
+four builds/extension ZIP/browser/docs/process/diff passed at that boundary.
+Review48330283b: all30 criteria,2943 installed copies and four-entry ZIP accepted;
+dependency-stage/review/review.md retains exact local proof and exclusions.
+Later92f/2a/global34 release completes8; unrelated gates and untracked proof preserved.
 ## Previous accepted access stage
 
 Previous stage id: content-factory-next-dbxe-access-stage
@@ -159,9 +156,8 @@ Portal project content-factory, slug content-factory-owner-testing-2026-10;
 URL only in that stage's publication.local.json (private, excluded from Git).
 Three short cases +loader/AI instructions/manual-save checks;15–20min.
 Old Julia pagev6/two tokens and existing answers preserved; no owner answers fabricated.
-Fresh12Oct2070 product inputs match actual ec58; API/login/worker/main/source200,
-3 native roles online/0restarts. All application changes already deployed;
-only docs/artifact changed, no new app build/switch/full suite needed.
+Owner13Oct reported Telegram/flag defects; delivered repair is recorded above.
+Resume owner testing on0e8 with fresh sign-in; old callback must not be reused.
 Previous ops5.2 accepted: exact native recovery/auth/accounting/telemetry;
 metadata1054rows/476known/578unknown/0pending, active90daytimer lastsuccess.
 Not invoice completeness or future sizing. Owner explicitly defers finance and
@@ -172,6 +168,7 @@ owner results; no continuous epic goal, portal polling, new paid/provider calls.
 
 ## Explicit defers
 
+Beads content-factory-next-e3nj tracks historical untracked-evidence marker false positives; old logs are preserved. Jvrq.8 retains paid-provider/owner/release gates; no new application debt is deferred.
 Beads24/25/37/28/36/29 CLOSED and delivered;30/31 actual operations retained.
 Store32 independently DEFERRED by owner12Oct. SDK history retains payloads; no global
 retention/privacy/host-loss recovery claim. Historical logs/markers remain unchanged.
@@ -193,8 +190,8 @@ Preparation2q28.42 is separate from owner results; inspect fresh Beads before ac
 Audit dbxe CLOSED; independent32/finance/30-day/legal/pricing/ChatGPT/offsite/research defers retained.
 Use portal-artifact to pull only new owner form; never put bearer URL/client answers in Git.
 If final answers are absent and owner gave none in chat, report ready and wait.
-Preserve healthy ec58/verified rollback2a, V3/digest runs, foreign work and original contracts.
+Preserve healthy0e8/verified rollbackec58, V3/digest runs, foreign work and original contracts.
 Reuse matching full9/publicCI/runtime evidence; release only for concrete changed application inputs.
-graph-reviewed: no-change-needed - this stage changes only guide/prompt/operational docs;
-no architecture or product symbols changed, prior accepted graph evidence retained.
+graph-reviewed: used - focused TelegramProvider query; existing symbol boundaries unchanged.
+Repair outcome: stages/content-factory-next-login-flags-repair-20261013/outcome.md.
 Root-owned closeout; metadata-only source delivery is separate from accepted image.

@@ -1,10 +1,9 @@
 import { pageTitle } from '@contentfactory/frontend/app/page-title';
-import { AgentScreen } from '@contentfactory/frontend/components/agents/agent.screen';
 
-export const generateMetadata = pageTitle('agent', 'Agent');
+export const generateMetadata = pageTitle('agent', 'AI assistant');
 
 /**
- * The screen lives in the layout, not in the page (`content-factory-next-kcxz.10`):
+ * The authenticated workspace host owns the screen (`content-factory-next-jvrq`):
  * `/agents/new` → `/agents/<id>` must not remount the conversation whose
  * first answer is still streaming. The pages only give the address a shape.
  *
@@ -19,10 +18,5 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <AgentScreen />
-      {children}
-    </>
-  );
+  return children;
 }

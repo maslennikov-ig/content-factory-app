@@ -30,6 +30,8 @@
 
 ## Действие
 
+`AssistantWorkspaceHost`, `AssistantContextAction`, `AssistantArtifactBoundary` — `components/agents/assistant.workspace-context.tsx`: единая личная сессия ИИ-помощника в общем layout, действие обсуждения объекта/периода из ручного раздела и подавление повторного входа в уже встроенном редакторе. Смена пользователя/области сбрасывает сессию; скрытие панели сохраняет DOM и несохранённые поля. Действие готовит проверяемый контекст и не отправляет сообщение.
+
 | Что | Откуда | Импортируют | Когда |
 | --- | --- | ---: | --- |
 | `Button` | `@contentfactory/react/form/button` | **107** | Любое действие. Варианты `primary`, `secondary`, `quiet`, `destructive`; высоту снаружи не задают. Плотный вариант — `density="dense"`. Умолчание — `primary`, а не `secondary`. Область нажатия 44px на мобильном — прозрачный `::before` вокруг того же 40/32px контрола, до `md`; обёртки `[&_button]:min-h-[44px]` ради неё не нужны (`11qv`). |
@@ -155,6 +157,12 @@
 | `Panel` | `@contentfactory/react/layout` | 39 |
 | `OpeningBand` | `@contentfactory/react/layout` | 2 |
 | `Table`, `Th`, `Td`, `Tr`, `Section` | `components/ui/table` | 2 |
+
+`OpeningBand` сохраняет фиксированную высоту 64 px по умолчанию. Явный `wrap`
+переносит контролы на следующие строки: минимум остаётся 64 px, добавляются
+вертикальные отступы 8 px, а высоту определяет содержимое. Заголовки разговора
+и материала ИИ-помощника используют этот режим; высоту и перенос call site
+не переопределяет.
 
 `Th` с 07.09.2026 принимает `banded` — шапку тонированной полосой
 (`surface-subtle` и сильная линия под ней). Пропом, а не двумя классами с call
@@ -487,6 +495,11 @@ site: переданные снаружи `bg-*` и `border-*` встают на
 | `SecretCard` | `agents/agent.secret-card.tsx` | Ключ: поле `Input secret` уходит прямо в `POST /settings/ai` через `buildTypedKeyPayload` (`settings/ai-provider.component.tsx`), в чат не попадает никогда. Не администратору — кто вводит ключ, без поля. |
 | `AgentComposer` | `agents/agent.composer.tsx` | Поле ввода: общий `Textarea`, вложения `FileInput`, ссылки из текста строкой «прочитаем по ссылке», строка остатка `AllowanceHint` над ним. Enter — отправить, Shift+Enter — строка; пока агент работает, следующее сообщение ждёт. |
 | `ThreadSwitcher`, `useAgentThreads` | `agents/agent.threads.tsx` | Голова колонки чата (`OpeningBand`): имя разговора открывает список своих разговоров (`Popover`), «Переименовать» и «Удалить разговор» (`ConfirmButton`); плюс — новый разговор. |
+| `AgentWorkspaceShell` | `agents/agent.workspace-shell.tsx` | Оболочка ИИ-помощника: без объекта чат занимает всю область; при доступной ширине — гибкие колонки с разделителем для указателя и клавиатуры, с учётом RTL. В компактном виде — общие `Tabs` «Чат / Материал». Скрытие, разворот и переключение сохраняют смонтированные редакторы и поле сообщения. |
+| `AgentArtifactHost`, `ArtifactEditor` | `agents/agent.artifact-host.tsx`, `agents/agent.panel.tsx` | Один хозяин настоящих `PieceContainer`, `VoiceAvatarScreen`, `ChannelScreen`, идей, фактов и медиатеки. Посещённые объекты разговора сохраняются при скрытии и выборе другого; ввод защищает текущий редактор от автоматического вытеснения. `AssistantArtifactBoundary` запрещает вложенный вызов контекстного помощника. |
+| `AgentArtifactPicker` | `agents/agent.artifact-picker.tsx` | Явно открываемый `Dialog` со списком разных объектов личного разговора по типу/id, поиском, отметкой новых результатов и выбором. Удаление недоступной ссылки через `ConfirmButton` удаляет только связь разговора; состояние заготовки читается тем же SWR-ключом и адаптером редактора. |
+| `AgentWorkspaceBrowser`, `AgentWorkspaceBrowserContent` | `agents/agent.workspace-browser.tsx` | Явный поиск объектов пространства; запросы метаданных заготовок, аватаров и каналов страницами по 24, планы — существующий читатель готовых адаптаций с пределом 50. Общие слои, выбор вкладки с подтверждением клавишей, загрузка, ограничение доступа, пустота и повтор после ошибки. Выбор открывает объект и контекст, без отправки сообщения или создания записи. |
+| `AgentContextChip`, `useArtifactMetadata`, `AgentArtifactLiveStatus` | `agents/agent.context-chip.tsx`, `agents/agent.artifact-metadata.tsx` | Видимый текущий объект у поля сообщения, удаление контекста и явный период. Имена и состояния аватаров/каналов после восстановления читаются короткими запросами по максимум 24 refs, заготовки и адаптации — из ключей существующего редактора; старый результат чата не объявляется текущим состоянием. |
 | `ArtifactColumn`, `ArtifactSheet`, `WorkspaceSteps` | `agents/agent.panel.tsx` | Рабочая панель: от 1280 px колонка рядом с чатом, ниже — лист диалогом (ловушка фокуса, Escape). Заготовка, аватар и канал открываются настоящими экранами (`PieceContainer embedded`, `VoiceAvatarScreen`, `ChannelScreen channelId embedded` — `kcxz.19`); пусто — пять шагов «С чего начать» с «Сделать в чате». Адаптация и место в плане открывают экран заготовки на вкладке своего канала (`initialTab`, у места — ещё `initialWhen`), тот же, что по «Открыть на экране» (`kcxz.16`). «Медиатека» открывается самим `MediaBox standalone`, свежие сверху (`kcxz.25`). |
 | `AgentMarkdown` | `agents/agent.markdown.tsx` | Слова агента в markdown **только React-элементами**, без `dangerouslySetInnerHTML`: абзацы, списки, жирный, курсив, код, ссылки `http(s)`/`mailto`. Для чужого текста в другом месте — тоже он. |
 | `AgentGlyph` | `agents/agent.icons.tsx` | Пиктограммы экрана с холста, `currentColor`, декоративные. |

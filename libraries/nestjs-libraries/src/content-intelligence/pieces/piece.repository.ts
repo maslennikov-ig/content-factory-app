@@ -234,6 +234,32 @@ export class PieceRepository {
    * быть кодом. Ровно это записано у `searchPieceIds` старой вкладки, и здесь
    * то же правило доведено до архива.
    */
+  async browsePieces(organizationId: string, query: { q?: string; cursor?: string; limit?: number }) {
+    const limit = Math.min(50, Math.max(1, query.limit ?? 24));
+    const client = this.client();
+    const cursor = query.cursor ? await client.contentPiece.findFirst({
+      where: { organizationId, id: query.cursor }, select: { id: true, createdAt: true },
+    }) : null;
+    // A stale or foreign cursor never broadens the requested page.
+    if (query.cursor && !cursor) return { items: [], hasMore: false, cursor: null };
+    const items = await client.contentPiece.findMany({
+      where: {
+        organizationId,
+        ...(query.q?.trim() ? { title: { contains: query.q.trim(), mode: 'insensitive' } } : {}),
+        ...(cursor ? { OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+        ] } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      select: { id: true, title: true, kind: true, archivedAt: true, createdAt: true },
+    });
+    const hasMore = items.length > limit;
+    const page = items.slice(0, limit);
+    return { items: page, hasMore, cursor: hasMore ? page.at(-1)!.id : null };
+  }
+
   listPieces(organizationId: string, _query?: PiecesQueryV1): Promise<PieceRow[]> {
     return this.client().contentPiece.findMany({
       where: { organizationId },

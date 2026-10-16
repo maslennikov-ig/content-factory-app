@@ -28,7 +28,7 @@ module.exports = {
     const [ask, answer] = run.turns;
     // The research door's body, as the page posts it.
     expect(run.requests.filter(([door]) => door === 'piece.research')).toEqual([
-      ['piece.research', 'p1', 'user-1', { confirmWebSpend: true, level: 'deep', direction: 'время руководителей' }],
+      ['piece.research', 'p1', 'user-1', { confirmWebSpend: true, timeZone: '+03:00', level: 'deep', direction: 'время руководителей' }],
     ]);
     expect(ask.suspended).toEqual([
       {

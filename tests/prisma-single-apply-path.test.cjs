@@ -35,6 +35,9 @@ const skippedDirectories = new Set([
   // Agent worktrees are whole copies of the tree; scanning them reports every
   // guard, this one included, as its own offender.
   '.claude',
+  // Local agent evidence is excluded from both image and source archive.
+  // Historical JSON snapshots quote commands; they are not execution paths.
+  '.codex',
   '.next',
   'coverage',
   'dist',

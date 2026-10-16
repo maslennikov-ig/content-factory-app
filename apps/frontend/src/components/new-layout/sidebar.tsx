@@ -88,8 +88,8 @@ export const Sidebar: FC<{
 }> = ({ mobileOpen, onCloseMobile }) => {
   const t = useT();
   const user = useUser();
-  const { billingEnabled, language } = useVariables();
-  const { workMenu, adminMenu, secondaryMenu } = useMenuItem();
+  const { billingEnabled } = useVariables();
+  const { assistantMenu, workMenu, adminMenu, secondaryMenu } = useMenuItem();
   const [collapsedCookie, setCollapsedCookie] = useCookie(
     COLLAPSE_COOKIE,
     'open'
@@ -141,7 +141,11 @@ export const Sidebar: FC<{
 
   const groups = [
     {
-      label: language.startsWith('ru') ? 'Путь' : 'Workflow',
+      label: t('assistant_navigation_group', 'Work with AI'),
+      items: filterMenu(assistantMenu, user as any, billingEnabled),
+    },
+    {
+      label: t('assistant_sections', 'Sections'),
       items: filterMenu(workMenu, user as any, billingEnabled),
     },
     {
@@ -171,7 +175,7 @@ export const Sidebar: FC<{
           )}
         >
           <Link
-            href="/launches"
+            href="/agents"
             onClick={isDrawer ? onCloseMobile : undefined}
             className="flex items-center rounded-[8px]"
           >

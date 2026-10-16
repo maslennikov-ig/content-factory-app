@@ -469,17 +469,21 @@ export const readCorrections = (value: unknown): IntakeCorrection[] =>
     }];
   });
 
-export type IntakeResearchSummary = {
-  confirmed: number; conflicting: number; unverified: number; found: number; sources: number; encyclopedic: number;
-};
+export type IntakeResearchSummary = import('@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract').IntakeResearchSummaryV1;
 
 export const readResearchSummary = (value: unknown): IntakeResearchSummary | null => {
   const record = asRecord(value);
   if (!record) return null;
   const number = (key: string) => (typeof record[key] === 'number' && Number.isFinite(record[key]) ? (record[key] as number) : 0);
+  const intent = asRecord(record.researchIntent);
+  const period = asRecord(intent?.eventInterval);
+  const validIntent = intent?.version === 'research-intent/v1' && typeof intent.asOf === 'string' && typeof intent.timezone === 'string' && (!intent.eventInterval || period && typeof period.start === 'string' && typeof period.end === 'string');
   return {
     confirmed: number('confirmed'), conflicting: number('conflicting'), unverified: number('unverified'),
     found: number('found'), sources: number('sources'), encyclopedic: number('encyclopedic'),
+    ...(validIntent ? { researchIntent: intent as unknown as NonNullable<IntakeResearchSummary['researchIntent']> } : {}),
+    ...(['matched', 'empty', 'needs_clarification'].includes(String(record.periodStatus)) ? { periodStatus: record.periodStatus as IntakeResearchSummary['periodStatus'] } : {}),
+    ...(Array.isArray(record.gaps) ? { gaps: record.gaps.filter((gap): gap is string => typeof gap === 'string').slice(0, 8) } : {}),
   };
 };
 
@@ -751,6 +755,7 @@ export type IntakeAnswer = { field: BriefField; text: string };
 
 export function buildIntakePayload(input: {
   input: string;
+  timeZone?: string;
   integrationIds?: readonly string[];
   language: 'ru' | 'en';
   answers?: readonly IntakeAnswer[];
@@ -784,6 +789,7 @@ export function buildIntakePayload(input: {
     input: input.input.trim(),
     ...(kind ? { inputKind: kind } : {}),
     language: input.language,
+    ...(input.timeZone ? { timeZone: input.timeZone } : {}),
     ...(input.answers?.length ? { answers: [...input.answers] } : {}),
     ...(input.decide?.length ? { decide: [...input.decide] } : {}),
     ...(Object.keys(overrides).length

@@ -365,7 +365,7 @@ describe('kcxz.29 D3 — с агентом говорит любой участ�
       '@contentfactory/frontend/components/agents/agent.screen': { AgentScreen },
     });
     await act(async () => {
-      render(await Layout({ children: null }));
+      render(await Layout({ children: h('div', null, 'чат') }));
     });
 
     expect(document.body.textContent).toContain('чат');
@@ -378,8 +378,8 @@ describe('kcxz.29 D3 — с агентом говорит любой участ�
   test('пункт «Агент» в левом меню виден Пользователю', () => {
     const menu = source(TOP_MENU);
     const item = menu.slice(
-      menu.indexOf("name: t('agent', 'Agent')"),
-      menu.indexOf("name: t('analytics', 'Analytics')")
+      menu.indexOf("name: t('agent', 'AI assistant')"),
+      menu.indexOf("path: '/agents'") + "path: '/agents'".length
     );
     expect(item).toContain("path: '/agents'");
     expect(item).not.toContain('requireEditor');

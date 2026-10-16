@@ -2338,6 +2338,7 @@ export type BriefFieldOriginV1 =
   | 'model';
 
 export type BriefFilledFactV1 = {
+  dateProvenance?: import('../intake/research-intent').ResearchEventDateV1;
   statement: string;
   sourceUrl?: string | null;
   factId?: string | null;
@@ -2459,6 +2460,9 @@ export type IntakeOptionsV1 = {
 
 export type IntakeRequestV1 = {
   input: string;
+  timeZone?: string;
+  researchTask?: string;
+  priorExample?: string;
   /** Клиент распознаёт только ссылку; остальное решает сервер. */
   inputKind?: IntakeInputKindV1;
   integrationIds: string[];
@@ -2653,6 +2657,9 @@ export type IntakeResearchSummaryV1 = {
   found: number;
   sources: number;
   encyclopedic: number;
+  researchIntent?: import('../intake/research-intent').ResearchIntentV1;
+  periodStatus?: 'matched' | 'empty' | 'needs_clarification';
+  gaps?: string[];
 };
 
 export type IntakeEventV1 =
@@ -2773,6 +2780,8 @@ export const INTAKE_ROUTES = {
  * ---------------------------------------------------------------------- */
 
 export const PIECES_API_BASE = '/content-intelligence/pieces' as const;
+/** Metadata-only workspace chooser; existing full piece-list shape stays intact. */
+export const PIECE_BROWSER_PATH = `${PIECES_API_BASE}/browser` as const;
 export const PIECE_CORE_VERSION = 'piece-core/v1' as const;
 /** Вопросов за один шаг интервью: при создании и под канал при адаптации. */
 export const PIECE_MAX_QUESTIONS = 3 as const;

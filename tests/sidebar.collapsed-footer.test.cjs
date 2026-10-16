@@ -66,7 +66,7 @@ const mocks = () => ({
   },
   '@contentfactory/frontend/components/layout/top.menu': {
     filterMenu: (items) => items,
-    useMenuItem: () => ({ workMenu: [], adminMenu: [], secondaryMenu: [] }),
+    useMenuItem: () => ({ assistantMenu: [], workMenu: [], adminMenu: [], secondaryMenu: [] }),
   },
   '@contentfactory/frontend/components/new-layout/menu-item': {
     MenuItem: () => null,

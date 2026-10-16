@@ -422,7 +422,7 @@ export function PieceCoreTab({
             />
           ) : null}
 
-          {core && onMaterialAdd && onCoreRebuild ? (
+          {core?.text && onMaterialAdd && onCoreRebuild ? (
             <AddMaterial
               locale={locale}
               disabled={!canWrite || busy || coreEditing}

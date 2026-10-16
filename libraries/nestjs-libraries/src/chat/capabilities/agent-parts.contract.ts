@@ -48,6 +48,35 @@ export const CARD_KINDS = [
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
+/** Validated selection scope only. Titles, prompts and content are read server-side. */
+export type AgentWorkContextV1 = {
+  version: 'assistant-work-context/v1';
+  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'calendar' | 'ideas' | 'facts' | 'media';
+  id?: string;
+  pieceId?: string;
+  channelId?: string;
+  adaptationId?: string;
+  from?: string;
+  to?: string;
+  revision?: string;
+};
+
+/** Persistent references never copy product text, secrets or another user's history. */
+export type AgentArtifactRef = {
+  kind: Exclude<CardKind, 'channel-connect' | 'secret'>;
+  id: string;
+  pieceId?: string;
+  channelId?: string;
+  adaptationId?: string;
+};
+
+export type AgentWorkspaceV1 = {
+  version: 'assistant-workspace/v1';
+  workContext: AgentWorkContextV1 | null;
+  artifacts: AgentArtifactRef[];
+  activeArtifact: AgentArtifactRef | null;
+};
+
 /** The part name of a persisted card. */
 export type CardPartType<K extends CardKind = CardKind> = `data-${K}`;
 export const cardPartType = <K extends CardKind>(kind: K): CardPartType<K> =>
@@ -504,6 +533,8 @@ export const AGENT_APPROVALS_PER_REQUEST = 3;
 export type AgentChatRequestV1 = {
   /** Absent: the server opens a new thread and names it in the response. */
   threadId?: string;
+  /** Absent preserves the saved selection; null explicitly clears it. */
+  workContext?: AgentWorkContextV1 | null;
   messages: unknown[];
   runId?: string;
   toolCallId?: string;
@@ -576,6 +607,8 @@ export type AgentThreadHistoryV1 = {
   thread: AgentThreadV1;
   messages: unknown[];
   pending: AgentPendingRunV1[];
+  /** Absent in histories produced before assistant-workspace/v1. */
+  workspace?: AgentWorkspaceV1;
 };
 
 /** `PATCH /agent/threads/:id`. */

@@ -284,9 +284,9 @@ export const piecesCopy = {
     coreEditFailed: 'Правка не сохранилась. Текст на экране — ваш, попробуйте ещё раз.',
     coreEditRetry: 'Сохранить ещё раз',
     coreEditedByYou: 'правлено вами',
-    materialTitle: 'Дописать материал',
+    materialTitle: 'Добавить исходные материалы',
     materialHint:
-      'Дописанное станет частью материала заготовки — как будто вы прислали это сразу. Суть сама не меняется: нажмите «Пересобрать суть», когда будете готовы.',
+      'Добавляйте факты, исходники и свой опыт. Для правок текста напишите ИИ-помощнику. Дополнения сохраняются как материал заготовки. Суть сама не меняется: нажмите «Пересобрать суть», когда будете готовы.',
     materialPlaceholder: 'Факт, случай, число, мысль — что добавить',
     materialAdd: 'Добавить к материалу',
     materialAdding: 'Добавляем к материалу',
@@ -757,9 +757,9 @@ export const piecesCopy = {
     coreEditFailed: 'The edit was not saved. The text on screen is yours — try again.',
     coreEditRetry: 'Save again',
     coreEditedByYou: 'edited by you',
-    materialTitle: 'Add to the material',
+    materialTitle: 'Add source material',
     materialHint:
-      'What you add becomes part of the piece material — as if you had sent it at the start. The core does not change by itself: press «Rebuild the core» when you are ready.',
+      'Add facts, sources and your own experience. Ask the AI assistant to edit the text. Additions are saved as piece material. The core does not change by itself: press «Rebuild the core» when you are ready.',
     materialPlaceholder: 'A fact, a case, a number, a thought — what to add',
     materialAdd: 'Add to the material',
     materialAdding: 'Adding to the material',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useId, useState, type ReactNode } from 'react';
 import useSWR from 'swr';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
@@ -67,6 +67,7 @@ export function ThreadSwitcher({
   onNew,
   onRemoved,
   words,
+  actions,
 }: {
   /** The thread open now; `null` before its first message. */
   threadId: string | null;
@@ -78,6 +79,7 @@ export function ThreadSwitcher({
   /** The open thread was deleted. */
   onRemoved: () => void;
   words: AgentWords;
+  actions?: ReactNode;
 }) {
   const w = words.threads;
   const request = useFetch();
@@ -131,7 +133,7 @@ export function ThreadSwitcher({
   const list = threads.data ?? [];
 
   return (
-    <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]">
+    <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]" wrap>
       <div ref={holder} className="relative min-w-0 flex-1">
         <Button
           type="button"
@@ -272,6 +274,7 @@ export function ThreadSwitcher({
       >
         <AgentGlyph name="plus" />
       </Button>
+      {actions}
     </OpeningBand>
   );
 }

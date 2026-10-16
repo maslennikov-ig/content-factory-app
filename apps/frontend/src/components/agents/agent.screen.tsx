@@ -1,23 +1,33 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { ErrorState, SkeletonRows } from '@contentfactory/frontend/components/ui/surface';
 import { AgentAvailabilityGate } from './agent.availability';
 import {
-  AGENT_DOORS,
-  AGENT_TIMEZONE_HEADER,
-  readThreadHistory,
-  type AgentArtifact,
-  type AgentThreadHistory,
+  AGENT_DOORS, AGENT_TIMEZONE_HEADER, artifactHref, artifactKey, artifactRefOf,
+  artifactsOf, readAgentWorkspace, readThreadHistory, refToArtifact,
+  type AgentArtifact, type AgentThreadHistory, type AgentWorkContextV1,
 } from './agent.contract';
 import { agentWordsFor, type AgentWords } from './agent.copy';
 import { AgentConversation } from './agent.conversation';
-import { ArtifactColumn, ArtifactSheet, WorkspaceSteps } from './agent.panel';
+import { AgentArtifactHost } from './agent.artifact-host';
+import { AgentArtifactPicker } from './agent.artifact-picker';
+import { AgentWorkspaceShell } from './agent.workspace-shell';
+import { AgentWorkspaceBrowser } from './agent.workspace-browser';
+import { AgentContextChip } from './agent.context-chip';
+import { AgentArtifactLiveStatus, useArtifactMetadata } from './agent.artifact-metadata';
+import { artifactName } from './agent.cards';
+import { pieceIdOf, useLoadedPiece, withPieceData } from './agent.piece-data';
+import { useAssistantWorkspace } from './assistant.workspace-context';
+import { assistantContextKey } from './assistant.route-context';
+import { artifactWorkspaceReducer, emptyArtifactWorkspace, persistedArtifactSelection, type ArtifactWorkspaceState } from './agent.workspace-state';
 import { THREADS_KEY, ThreadSwitcher, useAgentThreads } from './agent.threads';
 import { screenTimeZone } from './agent.transport';
 import { AGENT_START_PARAM, startDraftStep } from './agent.starters';
@@ -25,112 +35,87 @@ import { AGENT_FROM_EDITOR, AGENT_FROM_PARAM, editorDraft, takeEditorHandoff } f
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 
-/**
- * The «Агент» screen, `/agents` (`content-factory-next-kcxz.10`; spec §6;
- * owner 27.09.2026 — «чат плюс артефакт», canvas variant C).
- *
- * The conversation on the left, 520 px from 1280 up; beside it the work
- * panel with what the turn produced, opened as the product's own screen. On
- * narrower screens the chat takes the width and the panel is a sheet opened
- * from the line in the chat.
- *
- * The screen owns which conversation is open. A new one has no id until the
- * server names it in the first answer; the address then becomes
- * `/agents/<id>` without reloading anything, and the stream in flight keeps
- * going in the same session.
- */
-
-/** A lead's title in the composer's request to write from it, at most (review W4-23 F1). */
 const LEAD_TITLE_IN_DRAFT = 200;
-
-const WIDE = '(min-width: 1280px)';
-
-const useWide = () => {
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia(WIDE);
-    const update = () => setWide(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return wide;
-};
-
-type Session = {
-  /** `useChat` identity: stays while a new thread gets its id. */
-  key: string;
-  threadId: string | null;
-  /** Opened in this visit: nothing to load. */
-  fresh: boolean;
-};
-
+type Session = { key: string; threadId: string | null; fresh: boolean };
 let sessionCounter = 0;
-const newSession = (): Session => ({
-  key: `new-${Date.now()}-${(sessionCounter += 1)}`,
-  threadId: null,
-  fresh: true,
-});
-const threadSession = (id: string): Session => ({
-  key: id,
-  threadId: id,
-  fresh: false,
-});
-
+const newSession = (): Session => ({ key: `new-${Date.now()}-${++sessionCounter}`, threadId: null, fresh: true });
+// A revisit reads current history rather than the previous visit's SWR snapshot.
+const threadSession = (id: string): Session => ({ key: `thread-${id}-${++sessionCounter}`, threadId: id, fresh: false });
 const routeThread = (id: string | string[] | undefined) => {
   const value = Array.isArray(id) ? id[0] : id;
-  return value && value !== 'new' ? decodeURIComponent(value) : null;
+  if (!value || value === 'new') return null;
+  try { return decodeURIComponent(value); } catch { return null; }
+};
+const contextFor = (artifact: AgentArtifact): AgentWorkContextV1 => {
+  const ref = artifactRefOf(artifact);
+  const section = ['workspace', 'channels', 'ideas', 'facts', 'media'].includes(ref.kind);
+  return {
+    version: 'assistant-work-context/v1', kind: ref.kind === 'channels' ? 'workspace' : ref.kind,
+    ...(!section ? { id: ref.id } : {}),
+    ...(ref.pieceId ? { pieceId: ref.pieceId } : {}),
+    ...(ref.channelId ? { channelId: ref.channelId } : {}),
+    ...(ref.adaptationId ? { adaptationId: ref.adaptationId } : {}),
+  };
 };
 
-export function AgentScreen() {
-  // The same language source as every `t()` on the screen, the allowance line
-  // included; the request-time variable misses a language switch and differs
-  // from i18next on mixed cookies (kcxz.29, D8).
+/** The authenticated host keeps this one session mounted across manual routes. */
+export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const language = useInterfaceLanguage();
-  const words = agentWordsFor(language);
+  const t = useT();
+  const baseWords = agentWordsFor(language);
+  const words = useMemo(() => ({ ...baseWords, screenLabel: t('agent', 'AI assistant'), conversation: { ...baseWords.conversation, agent: t('agent', 'AI assistant') } }), [baseWords, t]);
   const router = useRouter();
+  const pathname = usePathname();
+  const isAgentsRoute = /^\/agents(?:\/|$)/.test(pathname ?? '');
   const params = useParams<{ id?: string }>();
-  const routeId = routeThread(params?.id);
+  const routeId = isAgentsRoute ? routeThread(params?.id) : null;
+  const assistant = useAssistantWorkspace();
+  const assistantRef = useRef(assistant);
+  assistantRef.current = assistant;
   const { mutate } = useSWRConfig();
-
-  const [session, setSession] = useState<Session>(() =>
-    routeId ? threadSession(routeId) : newSession()
-  );
+  const request = useFetch();
+  const [session, setSession] = useState<Session>(() => routeId ? threadSession(routeId) : newSession());
   const current = useRef(session);
   current.current = session;
-
-  // Back and forward, and links from elsewhere; the screen's own moves set the
-  // session first, so these find nothing to do.
-  useEffect(() => {
-    const open = current.current;
-    if (routeId === open.threadId) return;
-    if (!routeId) {
-      if (!open.fresh) setSession(newSession());
-      return;
-    }
-    setSession(threadSession(routeId));
-  }, [routeId]);
-
-  const [artifact, setArtifact] = useState<AgentArtifact | null>(null);
+  const [states, setStates] = useState<Record<string, ArtifactWorkspaceState>>(() => ({ [session.key]: emptyArtifactWorkspace(session.fresh) }));
+  const fallback = useMemo(() => emptyArtifactWorkspace(session.fresh), [session.key]);
+  const workspace = states[session.key] ?? fallback;
+  const dispatch = useCallback((action: Parameters<typeof artifactWorkspaceReducer>[1]) => {
+    setStates((previous) => ({ ...previous, [session.key]: artifactWorkspaceReducer(previous[session.key] ?? emptyArtifactWorkspace(session.fresh), action) }));
+  }, [session.key, session.fresh]);
   const [title, setTitle] = useState<string | null>(null);
+  const [selectionVersion, setSelectionVersion] = useState(0);
   const [starter, setStarter] = useState<string | null>(null);
-  const wide = useWide();
-
-  // «Сделать в чате» from «С чего начать» (`kcxz.21`; review W3-21 P2-2):
-  // `/agents/new?start=<step>` opens a new conversation with the step's
-  // starter written into the composer. Nothing is sent: a link is weaker
-  // intent than a press, so the person presses send. The parameter is read
-  // once and dropped from the address; it fills the composer only on a new
-  // conversation, for a step this role may run and the workspace still has
-  // open (`startDraftStep`) — otherwise it is ignored. Read from `window`,
-  // not `useSearchParams`, which would need a Suspense boundary around the
-  // whole screen.
   const [requested, setRequested] = useState<string | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
-  // «Спросить агента» from the post window (`kcxz.28`) arrives the same way:
-  // `?from=editor` names the hand-over the window left in `sessionStorage`,
-  // and the words go into the composer of a new conversation, never sent.
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [saveFailed, setSaveFailed] = useState<string | null>(null);
+  const [saveAttempt, setSaveAttempt] = useState(0);
+  const explicitSelection = useRef(new Set<string>());
+
+  useLayoutEffect(() => {
+    if (!isAgentsRoute || routeId === current.current.threadId) return;
+    if (routeId) setSession(threadSession(routeId));
+    else if (pathname === '/agents/new' && !current.current.fresh) setSession(newSession());
+  }, [isAgentsRoute, routeId, pathname]);
+  const lastRequest = useRef({ version: 0, context: assistantContextKey(assistant?.workContext ?? null) });
+  useLayoutEffect(() => {
+    const version = assistant?.requestVersion ?? 0;
+    if (!version || version === lastRequest.current.version) return;
+    const context = assistantContextKey(assistant?.workContext ?? null);
+    const sameContext = lastRequest.current.context === context;
+    lastRequest.current = { version, context };
+    const target = assistant?.requestedThreadId;
+    if (target && current.current.threadId === target) return;
+    if (!target && current.current.fresh && sameContext) return;
+    setSession(target ? threadSession(target) : newSession());
+  }, [assistant?.requestVersion, assistant?.requestedThreadId, assistant?.workContext]);
+  useEffect(() => { setTitle(null); setSaveFailed(null); }, [session.key]);
   useEffect(() => {
+    if (session.threadId) assistantRef.current?.rememberThread(session.threadId);
+  }, [session.threadId]);
+  useEffect(() => {
+    if (!isAgentsRoute) return;
     const query = new URLSearchParams(window.location.search);
     const fromEditor = query.get(AGENT_FROM_PARAM) === AGENT_FROM_EDITOR;
     if (!query.has(AGENT_START_PARAM) && !fromEditor) return;
@@ -138,160 +123,149 @@ export function AgentScreen() {
     query.delete(AGENT_START_PARAM);
     if (fromEditor) query.delete(AGENT_FROM_PARAM);
     const rest = query.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${rest ? `?${rest}` : ''}`
-    );
+    window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
     if (fromEditor) {
       const handoff = takeEditorHandoff(window.sessionStorage);
       if (!routeId && handoff) setDraft(editorDraft(words.panel.fromEditor, handoff));
-      return;
-    }
-    if (!routeId) setRequested(step);
-    // Once, on arrival.
+    } else if (!routeId) setRequested(step);
+    // Consume an explicit handoff once. Opening never submits it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAgentsRoute]);
   const user = useUser();
   const onboarding = useOnboardingProgress();
   useEffect(() => {
     if (requested === null || !user || !onboarding.answered) return;
-    const step = startDraftStep(requested, {
-      newThread: !current.current.threadId,
-      role: user.role,
-      progress: onboarding.progress,
-    });
+    const step = startDraftStep(requested, { newThread: !current.current.threadId, role: user.role, progress: onboarding.progress });
     setRequested(null);
     if (step) setDraft(words.start.starters[step]);
   }, [requested, user, onboarding.answered, onboarding.progress, words]);
+  useEffect(() => { if (aiUnavailable && starter !== null) setStarter(null); }, [aiUnavailable, starter]);
   const onDraftUsed = useCallback(() => setDraft(null), []);
-
-  // With AI unavailable the conversation is not mounted, so a starter from
-  // the work panel would wait for it — keeping «Сделать в чате» disabled and
-  // then sending on its own if availability changed later (review W3-21
-  // P3-4). A press then is dropped, never kept.
-  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const onArtifacts = useCallback((artifacts: AgentArtifact[]) => dispatch({ type: 'produced', artifacts }), [dispatch]);
+  const selectArtifact = useCallback((artifact: AgentArtifact) => {
+    explicitSelection.current.add(session.key);
+    dispatch({ type: 'select', artifact });
+    setSelectionVersion((version) => version + 1);
+    assistantRef.current?.setWorkContext(contextFor(artifact), artifact);
+    if (contextual) router.push(artifactHref(artifact));
+  }, [dispatch, contextual, router, session.key]);
+  const onArtifact = useCallback((artifact: AgentArtifact, how: 'produced' | 'asked') => {
+    if (how === 'asked') selectArtifact(artifact);
+    else dispatch({ type: 'produced', artifacts: [artifact] });
+  }, [dispatch, selectArtifact]);
+  const artifact = workspace.artifacts.find((one) => artifactKey(one) === workspace.active) ?? null;
   useEffect(() => {
-    if (aiUnavailable && starter !== null) setStarter(null);
-  }, [aiUnavailable, starter]);
-
-  useEffect(() => {
-    setArtifact(null);
-    setTitle(null);
-  }, [session.key]);
-
-  const closeArtifact = useCallback(() => setArtifact(null), []);
-
-  // «Взять в работу» in the ideas panel (review W4-23 F1): the lead is taken
-  // there; the request to write from it goes into the composer, as «Сделать
-  // в чате» does — never sent. Below 1280 px the sheet closes so the composer
-  // is in sight. With AI unavailable there is no conversation to write in.
-  const writeFromLead = useCallback(
-    (title: string) => {
-      setDraft(words.panel.writeFromLead(title.trim().slice(0, LEAD_TITLE_IN_DRAFT)));
-      if (!wide) setArtifact(null);
-    },
-    [words, wide]
-  );
-
+    if (contextual || workspace.hidden || workspace.activeSource !== 'produced' || !artifact) return;
+    assistantRef.current?.setWorkContext(contextFor(artifact), artifact);
+    // The accepted selection drives context once; removing context is a separate deliberate action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace.active, workspace.activeSource, workspace.hidden, contextual]);
+  const closeArtifact = useCallback(() => {
+    explicitSelection.current.add(session.key);
+    dispatch({ type: 'hide' });
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>('[data-assistant-restore]')?.focus(), 0);
+  }, [dispatch, session.key]);
+  const onRemoved = useCallback(() => {
+    if (workspace.active) dispatch({ type: 'remove', key: workspace.active });
+  }, [workspace.active, dispatch]);
+  const onHistory = useCallback((history: AgentThreadHistory) => {
+    const saved = history.workspace ?? null;
+    dispatch({ type: 'restore', artifacts: [...(saved?.artifacts.map(refToArtifact) ?? []), ...artifactsOf(history.messages)], workspace: saved });
+    if (!contextual && saved && !explicitSelection.current.has(session.key)) assistantRef.current?.setWorkContext(saved.workContext, saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null);
+  }, [dispatch, contextual, session.key]);
+  const writeFromLead = useCallback((leadTitle: string) => {
+    setDraft(words.panel.writeFromLead(leadTitle.trim().slice(0, LEAD_TITLE_IN_DRAFT)));
+    if (window.innerWidth < 1280) dispatch({ type: 'hide' });
+  }, [words, dispatch]);
   const openThread = useCallback((id: string) => {
     setSession(threadSession(id));
-  }, []);
-
+    if (isAgentsRoute) router.push(`/agents/${encodeURIComponent(id)}`);
+  }, [isAgentsRoute, router]);
   const startNew = useCallback(() => {
     setSession(newSession());
-    router.push('/agents/new');
-  }, [router]);
+    if (isAgentsRoute) assistantRef.current?.setWorkContext(null);
+    if (isAgentsRoute) router.push('/agents/new');
+  }, [isAgentsRoute, router]);
+  const onThreadId = useCallback((id: string) => {
+    if (current.current.key !== session.key) return;
+    setSession((open) => ({ ...open, threadId: id }));
+    assistantRef.current?.rememberThread(id);
+    if (/^\/agents(?:\/|$)/.test(window.location.pathname)) window.history.replaceState(null, '', `/agents/${encodeURIComponent(id)}`);
+    void mutate(THREADS_KEY);
+  }, [mutate, session.key]);
+  const onTitle = useCallback((next: string | null) => {
+    if (current.current.key === session.key) setTitle(next);
+  }, [session.key]);
+  const onWorkContext = useCallback((next: AgentWorkContextV1 | null) => {
+    if (current.current.key !== session.key) return;
+    const open = assistantRef.current;
+    if (open && assistantContextKey(open.workContext) === assistantContextKey(next)) open.setWorkContext(next, open.contextArtifact);
+  }, [session.key]);
 
-  const onThreadId = useCallback(
-    (id: string) => {
-      setSession((open) => ({ ...open, threadId: id }));
-      window.history.replaceState(null, '', `/agents/${encodeURIComponent(id)}`);
-      void mutate(THREADS_KEY);
-    },
-    [mutate]
-  );
-
-  const onArtifact = useCallback(
-    (next: AgentArtifact, how: 'produced' | 'asked') => {
-      // A produced thing opens beside the chat on its own; below 1280 px the
-      // sheet would cover the conversation, so there it waits to be asked.
-      if (how === 'asked' || wide) setArtifact(next);
-    },
-    [wide]
-  );
+  const saveQueue = useRef(Promise.resolve());
+  const lastSaved = useRef<Record<string, string>>({});
+  const workContext = assistant?.workContext ?? null;
+  const selection = useMemo(() => persistedArtifactSelection(workspace), [workspace]);
+  const savedBody = useMemo(() => JSON.stringify({
+    workContext,
+    artifacts: selection.artifacts.map(artifactRefOf),
+    activeArtifact: selection.activeArtifact ? artifactRefOf(selection.activeArtifact) : null,
+  }), [workContext, selection]);
+  useEffect(() => {
+    const id = session.threadId;
+    if (!id || !workspace.ready || lastSaved.current[id] === savedBody) return;
+    const key = session.key;
+    const timer = window.setTimeout(() => {
+      saveQueue.current = saveQueue.current.catch(() => undefined).then(async () => {
+        if (lastSaved.current[id] === savedBody) return;
+        try {
+          const response = await request(AGENT_DOORS.threadWorkspace(id), { method: 'PATCH', body: savedBody });
+          if (!response.ok) throw new Error(String(response.status));
+          const next = readAgentWorkspace((await response.json()).workspace);
+          if (!next) throw new Error('workspace unavailable');
+          lastSaved.current[id] = savedBody;
+          if (current.current.key === key) setSaveFailed(null);
+        } catch {
+          if (current.current.key === key) setSaveFailed(key);
+        }
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [session.key, session.threadId, workspace.ready, savedBody, request, saveAttempt]);
 
   const threads = useAgentThreads();
-  const listed = session.threadId
-    ? threads.data?.find((thread) => thread.id === session.threadId)?.title
-    : null;
+  const listed = session.threadId ? threads.data?.find((thread) => thread.id === session.threadId)?.title : null;
   const shownTitle = listed ?? title ?? words.threads.newThread;
+  const loadedPiece = useLoadedPiece(artifact ? pieceIdOf(artifact) : null);
+  const metadata = useArtifactMetadata(artifact ? [artifact] : []);
+  const resolved = artifact && loadedPiece ? withPieceData(artifact, loadedPiece) : artifact;
+  const materialName = resolved ? resolved.kind === 'piece' && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
+  const picker = <AgentArtifactPicker artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
 
   return (
-    <div
-      data-agent-screen=""
-      // Below `md` the page scrolls, so the screen takes exactly the viewport
-      // under the header and does not grow: the conversation scrolls inside
-      // it and the composer stays on screen. As a flex item of `<main>` it
-      // must not grow, or its content height wins over this one and the
-      // document scrolls instead (kcxz.29, D11).
-      className="relative flex h-[calc(100dvh-56px)] min-h-0 min-w-0 flex-none md:h-auto md:flex-1"
-    >
+    <div data-agent-screen="" className={contextual ? 'relative flex min-h-0 min-w-0 flex-1' : 'relative flex h-[calc(100dvh-56px)] min-h-0 min-w-0 flex-none md:h-auto md:flex-1'}>
       <div className="flex min-h-0 min-w-0 flex-1 md:absolute md:inset-0">
-        <section
-          aria-label={words.screenLabel}
-          className="flex min-h-0 min-w-0 flex-1 flex-col bg-cf-canvas xl:w-[520px] xl:flex-none"
-        >
-          <ThreadSwitcher
-            threadId={session.threadId}
-            title={shownTitle}
-            language={language}
-            onOpen={openThread}
-            onNew={startNew}
-            onRemoved={startNew}
-            words={words}
-          />
-          <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
-            <SessionView
-              key={session.key}
-              session={session}
-              onThreadId={onThreadId}
-              onTitle={setTitle}
-              onArtifact={onArtifact}
-              openArtifact={artifact}
-              onArtifactRemoved={closeArtifact}
-              starter={starter}
-              onStarterUsed={() => setStarter(null)}
-              draft={draft}
-              onDraftUsed={onDraftUsed}
-              words={words}
-            />
-          </AgentAvailabilityGate>
-        </section>
-        {wide ? (
-          <ArtifactColumn
-            artifact={artifact}
-            onClose={() => setArtifact(null)}
-            words={words}
-            {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })}
-            empty={
-              <WorkspaceSteps
-                busy={starter !== null && !aiUnavailable}
-                onStarter={(step) => {
-                  if (!aiUnavailable) setStarter(words.start.starters[step]);
-                }}
-                words={words}
-              />
-            }
-          />
-        ) : artifact ? (
-          <ArtifactSheet
-            artifact={artifact}
-            onClose={() => setArtifact(null)}
-            words={words}
-            {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })}
-          />
-        ) : null}
+        <AgentWorkspaceShell contextual={contextual} hasMaterial={!!artifact} hidden={workspace.hidden} selectionVersion={selectionVersion} materialName={materialName} onHide={closeArtifact} materialActions={<>
+          {resolved ? <AgentArtifactLiveStatus artifact={resolved} metadata={metadata.get(resolved)} /> : null}
+          {workspace.active && workspace.dirty.includes(workspace.active) ? <span className="cf-caption text-cf-ink-muted">{t('assistant_manual_edits', 'Manual edits')}</span> : null}
+          {picker}
+          {artifact ? <ButtonLink href={artifactHref(artifact)} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink> : null}
+        </>} material={<AgentArtifactHost artifact={artifact} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
+          <section aria-label={t('agent', 'AI assistant')} className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <ThreadSwitcher threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={startNew} words={words} actions={<>
+              {picker}
+              <AgentWorkspaceBrowser onSelect={selectArtifact} words={words} />
+              {workspace.hidden && artifact ? <Button data-assistant-restore="" type="button" density="dense" variant="quiet" onClick={() => selectArtifact(artifact)}>{t('assistant_restore', 'Restore')}</Button> : null}
+            </>} />
+            {saveFailed === session.key ? <div role="status" className="flex flex-wrap items-center gap-[8px] border-b border-cf-border px-[16px] py-[8px] cf-body-sm text-cf-ink-muted">
+              {words.threads.actionFailed}
+              <Button type="button" density="dense" variant="quiet" onClick={() => setSaveAttempt((attempt) => attempt + 1)}>{t('assistant_reconcile', 'Check result')}</Button>
+            </div> : null}
+            <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
+              <SessionView key={session.key} session={session} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />
+            </AgentAvailabilityGate>
+          </section>
+        </AgentWorkspaceShell>
       </div>
     </div>
   );
@@ -305,6 +279,12 @@ const EMPTY_HISTORY: AgentThreadHistory = {
 
 function SessionView({
   session,
+  onHistory,
+  workContext,
+  onArtifacts,
+  contextControls,
+  onNewConversation,
+  onWorkContext,
   onThreadId,
   onTitle,
   onArtifact,
@@ -317,6 +297,12 @@ function SessionView({
   words,
 }: {
   session: Session;
+  onHistory: (history: AgentThreadHistory) => void;
+  workContext: AgentWorkContextV1 | null;
+  onArtifacts: (artifacts: AgentArtifact[]) => void;
+  contextControls: ReactNode;
+  onNewConversation: () => void;
+  onWorkContext: (context: AgentWorkContextV1 | null) => void;
   onThreadId: (id: string) => void;
   onTitle: (title: string | null) => void;
   onArtifact: (artifact: AgentArtifact, how: 'produced' | 'asked') => void;
@@ -331,8 +317,8 @@ function SessionView({
   const request = useFetch();
   const load = !session.fresh && session.threadId;
   const history = useSWR<AgentThreadHistory>(
-    load ? AGENT_DOORS.thread(session.threadId as string) : null,
-    async (url: string) => {
+    load ? [AGENT_DOORS.thread(session.threadId as string), session.key] : null,
+    async ([url]: [string, string]) => {
       // The zone the chat door gets too, so a reloaded card tells local time.
       const zone = screenTimeZone();
       const response = await request(url, zone ? { headers: { [AGENT_TIMEZONE_HEADER]: zone } } : {});
@@ -348,6 +334,11 @@ function SessionView({
       revalidateOnReconnect: false,
     }
   );
+  const reportHistory = useRef(onHistory);
+  reportHistory.current = onHistory;
+  useEffect(() => {
+    if (history.data) reportHistory.current(history.data);
+  }, [history.data]);
 
   if (load && !history.data && history.isLoading) {
     return (
@@ -384,6 +375,11 @@ function SessionView({
       threadId={session.threadId}
       initialMessages={loaded.messages}
       pending={loaded.pending}
+      workContext={workContext}
+      onArtifacts={onArtifacts}
+      contextControls={contextControls}
+      onNewConversation={onNewConversation}
+      onWorkContext={onWorkContext}
       onThreadId={onThreadId}
       onTitle={onTitle}
       onArtifact={onArtifact}

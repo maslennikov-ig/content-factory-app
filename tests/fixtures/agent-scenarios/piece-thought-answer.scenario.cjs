@@ -54,7 +54,7 @@ module.exports = {
         'intake',
         screenIntakeBody({
           input: 'Созвоны без повестки съедают день',
-          language: 'ru',
+          language: 'ru', timeZone: '+03:00',
           materialKind: 'thought',
           options: { researchEnabled: false, researchLevel: 'standard' },
         }),

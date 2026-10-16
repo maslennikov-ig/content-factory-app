@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -320,6 +321,9 @@ export class AgentController {
       // This request's own id: the pictures it carries are held under it,
       // never under the thread (review W4-25 vision F3).
       const requestId = randomUUID();
+      // Resolve tenant, role, deletion and revision before an admission or any
+      // model call. An answered card cannot inject a different work target.
+      const workContext = await this.threads.workContextForTurn(identity, threadId, input.mode === 'message' ? input.workContext : undefined);
       const requestContext = buildConductorContext({
         identity,
         threadId,
@@ -327,6 +331,7 @@ export class AgentController {
         approvals: fingerprints,
         openProposals,
         requestId,
+        workContext,
       });
       const mastra = await this.mastraService.mastra();
 
@@ -337,9 +342,13 @@ export class AgentController {
         'agent',
         'agent'
       );
-      if (newThreadTitleFrom !== undefined && !abort.signal.aborted) {
+      if (!abort.signal.aborted) {
         try {
-          await this.threads.threadForMessage(identity, threadId, newThreadTitleFrom);
+          if (newThreadTitleFrom !== undefined) {
+            await this.threads.threadForMessage(identity, threadId, newThreadTitleFrom, input.mode === 'message' && (input.workContext !== undefined || workContext) ? workContext : undefined);
+          } else if (input.mode === 'message' && (input.workContext !== undefined || workContext)) {
+            await this.threads.rememberWorkContext(identity, threadId, workContext);
+          }
         } catch (error) {
           await admission.finish(false, error);
           throw error;
@@ -574,6 +583,16 @@ export class AgentController {
     return this.threads.list(agentIdentity(organization, user));
   }
 
+  @Get('/workspace/browser')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async workspaceBrowser(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Query() query: unknown
+  ) {
+    return this.mastraService.browseWorkObjects(agentIdentity(organization, user), query);
+  }
+
   @Get('/threads/:id')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async getThread(
@@ -607,6 +626,17 @@ export class AgentController {
       threadIdParam(id),
       title
     );
+  }
+
+  @Patch('/threads/:id/workspace')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async updateWorkspace(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    return this.threads.patchWorkspace(agentIdentity(organization, user), threadIdParam(id), body);
   }
 
   @Delete('/threads/:id')

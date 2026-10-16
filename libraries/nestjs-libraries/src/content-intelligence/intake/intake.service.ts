@@ -174,6 +174,8 @@ import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { avatarReader } from './avatar-audience';
 import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
+import { resolveResearchIntent, researchIntentQuery, type ResearchIntentV1 } from './research-intent';
+import { researchDigestPromptV3, researchDigestSchemaV3, settleResearchDigestV3 } from './research-digest.v3';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
 const UNUSABLE_FACT_STATUSES = ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'];
@@ -250,6 +252,10 @@ export type IntakeChannelV1 = {
 
 export type IntakePlanV1 = {
   input: string;
+  timeZone?: string;
+  researchTask?: string;
+  priorExample?: string;
+  resolvedResearchIntent?: ResearchIntentV1;
   inputKind: IntakeInputKindV1;
   /**
    * Вид входа назвал человек, а не догадка по тексту (`97dq.1`).
@@ -323,6 +329,7 @@ type IntakeResearch = {
   sources: ResearchDigestSource[];
   sourcesCount: number;
   encyclopedic: number;
+  researchIntent?: ResearchIntentV1;
 };
 
 /** Шов под проверку на ИИ-штампы: по умолчанию — `text-quality/slop-check` (поток S3), в тестах подменяется. */
@@ -447,11 +454,18 @@ export class IntakeService {
     }
 
     const namedKind = this.knownKind(body?.inputKind);
+    const resolved = body?.options?.researchEnabled === true
+      ? resolveResearchIntent({ input, task: trimmed(body?.researchTask) || undefined,
+          priorExample: trimmed(body?.priorExample) || undefined, timeZone: trimmed(body?.timeZone) || undefined,
+          now: this.now() })
+      : null;
+    const researchIntent = resolved?.mode !== 'general' ? resolved : null;
+    const taskInput = researchIntent?.priorExample ? researchIntent.task : input;
     return {
-      input,
+      input: taskInput,
       // Слово клиента сильнее: ссылку он узнаёт сам и уже подписал ею поле, а
       // разошедшиеся половины одного правила — худшее из двух зол.
-      inputKind: namedKind ?? detectInputKind(input),
+      inputKind: namedKind ?? detectInputKind(taskInput),
       inputKindExplicit: namedKind !== null,
       language,
       channels,
@@ -504,6 +518,10 @@ export class IntakeService {
       snapshotKey: trimmed(body?.snapshotKey) || null,
       brandProfileSelection: body?.brandProfileSelection,
       sourceLeadId: trimmed(body?.sourceLeadId) || undefined,
+      timeZone: trimmed(body?.timeZone) || undefined,
+      researchTask: researchIntent?.task || trimmed(body?.researchTask).slice(0, 20_000) || undefined,
+      priorExample: researchIntent?.priorExample || trimmed(body?.priorExample).slice(0, 40_000) || undefined,
+      ...(researchIntent ? { resolvedResearchIntent: researchIntent } : {}),
     };
   }
 
@@ -768,7 +786,7 @@ export class IntakeService {
       const digest = researched.sources.length
         ? await this.digestResearch(organizationId, plan, filled, extraction, researched, level)
         : null;
-      const rows = this.researchRows(filled, researched, digest, level);
+      const rows = this.researchRows(filled, researched, digest, level, plan.language);
       /*
         Квитанция говорит правду уже на паузе (`97dq.1`): «без опоры» считается
         по строкам после вердиктов, а не по тем, что были до поиска. Иначе
@@ -826,6 +844,11 @@ export class IntakeService {
     actorUserId: string | undefined,
     state: IntakeRunState
   ): AsyncGenerator<IntakeEventV2> {
+    if (state.summary?.periodStatus === 'empty' || state.summary?.periodStatus === 'needs_clarification') {
+      yield { name: 'brief-filled', brief: state.filled.brief };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
     const language = plan.language;
     const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
     const { extraction, urls, foreignShingles } = state;
@@ -1779,11 +1802,14 @@ export class IntakeService {
   /** Reuse intake research for an existing core without filling its brief again. */
   async researchExistingCore(organizationId: string, input: string, brief: BriefFilledV1,
     language: 'ru' | 'en', level: 'quick' | 'standard' | 'deep' = 'standard',
-    direction?: string): Promise<IntakeRunState> {
+    direction?: string, context?: { timeZone?: string; researchTask?: string; priorExample?: string }): Promise<IntakeRunState> {
     const plan = this.existingCorePlan(input, language, null, level);
     const evidence = new Map<string, AcceptedEvidence>();
     const filled: FilledBrief = { options: {}, ...this.settled(brief) };
     const wish = oneLine(direction || '').slice(0, 300);
+    plan.timeZone = context?.timeZone;
+    plan.researchTask = context?.researchTask || wish || undefined;
+    plan.priorExample = context?.priorExample || (wish ? input : undefined);
     const searchSubject = wish
       ? `${input}\n\n${language === 'ru'
         ? 'Пожелание к направлению поиска (не считать фактом)'
@@ -1792,11 +1818,14 @@ export class IntakeService {
     const researched = await this.researchForIntake(organizationId, searchSubject, plan, evidence, level);
     const digest = researched.sources.length
       ? await this.digestResearch(organizationId, plan, filled, null, researched, level, wish) : null;
-    const rows = this.researchRows(filled, researched, digest, level);
+    const rows = this.researchRows(filled, researched, digest, level, plan.language);
     const keys = new Set(rows.facts.map(factKeyOf));
     const previous = brief.facts.filter((fact: PieceFactV2) =>
       factKind(fact, brief.inputKind) === 'found' && !keys.has(factKeyOf(fact)))
-      .map(fact => ({ ...fact, factKey: factKeyOf(fact) }));
+      .map(fact => ({ ...fact, factKey: factKeyOf(fact),
+        ...(researched.researchIntent ? { selected: false,
+          note: language === 'ru' ? 'Контекст предыдущего материала; не новое событие этого периода.' : 'Previous material context; not a new event in this period.' } : {}),
+      }));
     return {
       filled: { ...filled, ...this.settled({ ...brief, facts: [...previous, ...rows.facts] }) },
       evidence: [...evidence.values()], extraction: null, urls: [], foreignShingles: [],
@@ -1966,11 +1995,17 @@ export class IntakeService {
     evidence: Map<string, AcceptedEvidence>,
     level: 'quick' | 'standard' | 'deep'
   ): Promise<IntakeResearch> {
+    const researchIntent = plan.resolvedResearchIntent ?? resolveResearchIntent({ input: plan.input, task: plan.researchTask,
+      priorExample: plan.priorExample, timeZone: plan.timeZone, now: this.now() });
+    const temporal = researchIntent.mode !== 'general';
+    if (researchIntent.clarification) return { found: [], sources: [], sourcesCount: 0,
+      encyclopedic: 0, researchIntent };
     let answer: WebResearchResult;
     try {
-      answer = await this.research.research(organizationId, subject, {
+      answer = await this.research.research(organizationId, temporal ? researchIntentQuery(researchIntent) : subject, {
         language: plan.language,
         level,
+        ...(temporal ? { researchIntent } : {}),
       });
     } catch (error) {
       if (
@@ -1981,7 +2016,7 @@ export class IntakeService {
         throw error;
       }
       this.logger.warn(`Intake research found nothing: ${describeError(error)}`);
-      return { found: [], sources: [], sourcesCount: 0, encyclopedic: 0 };
+      return { found: [], sources: [], sourcesCount: 0, encyclopedic: 0, ...(temporal ? { researchIntent } : {}) };
     }
     const sourceByUrl = new Map((answer.sources || []).map((source) => [source.url, source]));
     const found: BriefFilledFactV1[] = [];
@@ -2000,7 +2035,9 @@ export class IntakeService {
             publishedAt: source?.publishedAt ?? null,
             provider: source?.provider ?? answer.provider,
           },
-          { reuseBy: 'url' }
+          // A rolling URL can contain a different event today. Bind temporal
+          // evidence to this exact excerpt instead of reusing an older URL row.
+          { reuseBy: temporal ? 'hash' : 'url' }
         );
         seen.add(fact.sourceUrl);
         evidence.set(accepted.evidenceId, {
@@ -2015,6 +2052,7 @@ export class IntakeService {
           title: accepted.title,
           excerpt: accepted.excerpt,
           text: source?.text ?? null,
+          publishedAt: source?.publishedAt ?? null,
         });
         found.push({
           statement: oneLine(accepted.excerpt).slice(0, 400),
@@ -2035,6 +2073,7 @@ export class IntakeService {
       encyclopedic: (answer.sources || []).filter(
         (source) => source.provider === 'wikipedia' || source.provider === 'wikidata'
       ).length,
+      ...(temporal ? { researchIntent } : {}),
     };
   }
 
@@ -2065,10 +2104,11 @@ export class IntakeService {
     const input = {
       language: plan.language,
       level,
-      subject: extraction ? this.borrowedSummary(extraction) : plan.input,
+      subject: researched.researchIntent?.task ?? (extraction ? this.borrowedSummary(extraction) : plan.input),
       claims,
       sources: researched.sources,
       ...(direction ? { direction } : {}),
+      ...(researched.researchIntent ? { researchIntent: researched.researchIntent } : {}),
     };
     try {
       const answer = await this.aiUsage.executeAiOperation(
@@ -2077,16 +2117,20 @@ export class IntakeService {
         async () => {
           const model = (
             await getChatModel(organizationId, 0, 4_096, 'review')
-          ).withStructuredOutput(researchDigestSchema);
+          ).withStructuredOutput(researched.researchIntent ? researchDigestSchemaV3 : researchDigestSchema);
           return await model.invoke(
-            direction
+            researched.researchIntent
+              ? researchDigestPromptV3({ ...input, researchIntent: researched.researchIntent }, sources)
+              : direction
               ? researchDigestPromptV2(input, sources)
               : researchDigestPrompt(input, sources)
           );
         },
         'review'
       );
-      const settled = settleResearchDigest(answer as any, input);
+      const settled = researched.researchIntent
+        ? settleResearchDigestV3(answer as any, { ...input, researchIntent: researched.researchIntent })
+        : settleResearchDigest(answer as any, input);
       const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
       const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;
       const rawFindings = Array.isArray(raw?.findings) ? raw!.findings!.length : 0;
@@ -2124,7 +2168,8 @@ export class IntakeService {
     filled: FilledBrief,
     researched: IntakeResearch,
     digest: SettledResearchDigest | null,
-    level: 'quick' | 'standard' | 'deep'
+    level: 'quick' | 'standard' | 'deep',
+    language: ContentLanguage = 'ru'
   ): { facts: PieceFactV2[]; corrections: IntakeCorrectionV1[]; summary: IntakeResearchSummaryV1 } {
     const inputKind = filled.brief.inputKind;
     const facts: PieceFactV2[] = [];
@@ -2217,12 +2262,13 @@ export class IntakeService {
           statement: finding.statement, sourceUrl: finding.sourceUrl, factId: null,
           evidenceId: finding.evidenceId, origin: 'search', verified: true,
           kind: 'found', status: 'confirmed', quote: finding.quote, note: null, selected: true,
+          ...(finding.dateProvenance ? { dateProvenance: finding.dateProvenance } : {}),
         };
         row.factKey = factKeyOf(row);
         facts.push(row);
         summary.found += 1;
       }
-    } else {
+    } else if (!researched.researchIntent) {
       // Без сжатия строки идут как до 13.09: выдержка, «не проверено», не отмечено.
       for (const fact of researched.found.slice(0, RESEARCH_DIGEST_FINDING_CAPS[level])) {
         const row: PieceFactV2 = { ...fact, kind: 'found', status: 'unverified', selected: false };
@@ -2230,6 +2276,15 @@ export class IntakeService {
         facts.push(row);
         summary.found += 1;
       }
+    }
+    if (researched.researchIntent) {
+      const intent = researched.researchIntent;
+      summary.researchIntent = intent;
+      summary.periodStatus = intent.clarification ? 'needs_clarification' : summary.found ? 'matched' : 'empty';
+      summary.gaps = intent.clarification ? [intent.clarification.split(' / ')[language === 'en' ? 1 : 0]] : summary.found ? [] : [
+        `${intent.eventInterval?.start} — ${intent.eventInterval?.end} (${intent.timezone}): ${language === 'en' ? 'no verified events matched.' : 'подтверждённых событий не найдено.'}`,
+        language === 'en' ? 'Missing or out-of-period event dates cannot be replaced by publication or crawl dates.' : 'Нужны даты самих событий; дата публикации или обхода их не заменяет.',
+      ];
     }
     void evidenceTitle;
     return { facts, corrections, summary };

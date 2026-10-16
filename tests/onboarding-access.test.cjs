@@ -52,7 +52,7 @@ describe('onboarding stays reachable after it is skipped', () => {
     const first = menu.indexOf("path: '/onboarding'");
     expect(first).toBeGreaterThan(-1);
     expect(first).toBeLessThan(menu.indexOf("path: '/launches'"));
-    expect(menu).toContain('hide: onboardingFinished');
+    expect(menu).toContain("{ ...entry('/onboarding'), hide: false, step: 0 }");
     expect(menu).toContain('allStepsDone');
     // Пока область не ответила — пункт на месте: спрятать его по незнанию
     // значит спрятать единственный вход у того, кто ещё ничего не сделал.

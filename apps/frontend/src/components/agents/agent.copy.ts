@@ -368,7 +368,7 @@ type AgentWords = {
 export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
   ru: {
     locale: 'ru',
-    screenLabel: 'Агент',
+    screenLabel: 'ИИ-помощник',
     threads: {
       label: 'Разговоры',
       newThread: 'Новый разговор',
@@ -406,7 +406,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     conversation: {
       label: 'Разговор',
       you: 'Вы',
-      agent: 'Агент',
+      agent: 'ИИ-помощник',
       thinking: 'Думаем…',
       attached: (name) => `Приложено: ${name}`,
       samplesAdded: (name, accepted) =>
@@ -416,7 +416,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pictureViewed: (name) => `${name} — ИИ посмотрел, не сохранили`,
     },
     composer: {
-      label: 'Сообщение агенту',
+      label: 'Сообщение ИИ-помощнику',
       placeholder: 'Напишите, что сделать, или вставьте ссылку на пост…',
       placeholderBusy: 'Можно писать дальше — отправим, когда закончим',
       attach: 'Приложить файл',
@@ -1030,7 +1030,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
   },
   en: {
     locale: 'en',
-    screenLabel: 'Agent',
+    screenLabel: 'AI assistant',
     threads: {
       label: 'Conversations',
       newThread: 'New conversation',
@@ -1067,7 +1067,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     conversation: {
       label: 'Conversation',
       you: 'You',
-      agent: 'Agent',
+      agent: 'AI assistant',
       thinking: 'Thinking…',
       attached: (name) => `Attached: ${name}`,
       samplesAdded: (name, accepted) =>
@@ -1077,7 +1077,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pictureViewed: (name) => `${name} — shown to the AI, not saved`,
     },
     composer: {
-      label: 'Message to the agent',
+      label: 'Message to the AI assistant',
       placeholder: 'Say what to do, or paste a link to a post…',
       placeholderBusy: 'Keep writing — we send it when we are done',
       attach: 'Attach a file',

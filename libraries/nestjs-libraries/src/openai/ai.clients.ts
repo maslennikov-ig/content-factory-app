@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { TavilySearch } from '@langchain/tavily';
+import { exaPublicationPeriod, invokeTavilyPeriodSearch, type SearchPublicationPeriod } from '@contentfactory/nestjs-libraries/openai/search-publication-period';
 import {
   AiConfig,
   getActiveAiRole,
@@ -379,6 +380,7 @@ export interface WebSearchClientOptions {
    * adapter (`content-factory-next-75xn.3`).
    */
   windowDays?: number;
+  publicationPeriod?: SearchPublicationPeriod;
 }
 
 /** The window a topic subscription watches, and the only caller of one today. */
@@ -440,7 +442,7 @@ export class ExaWebSearch implements WebSearchClient {
     private readonly maxResults = 5,
     private readonly options: Pick<
       WebSearchClientOptions,
-      'scope' | 'country' | 'freshnessRequired' | 'windowDays'
+      'scope' | 'country' | 'freshnessRequired' | 'windowDays' | 'publicationPeriod'
     > = {}
   ) {}
 
@@ -471,6 +473,7 @@ export class ExaWebSearch implements WebSearchClient {
         // the body, and a null where it documents a string is a 4xx on a
         // search that would otherwise have worked.
         ...(startPublishedDate ? { startPublishedDate } : {}),
+        ...exaPublicationPeriod(this.options.publicationPeriod),
         // `category` narrows the index rather than ranking within it, so it is
         // set only where the subject really is time-sensitive — the classifier
         // already answers that question for both engines.
@@ -588,7 +591,7 @@ const tavilyErrorStatus = (
  * service; this class only stops destroying the evidence for it.
  */
 export class TavilyWebSearch implements WebSearchClient {
-  constructor(private readonly client: TavilySearch) {}
+  constructor(private readonly client: Pick<TavilySearch, 'invoke'>) {}
 
   async invoke({ query }: { query: string }): Promise<WebSearchResponse> {
     const response = (await this.client.invoke({
@@ -731,10 +734,19 @@ export const getWebSearchClient = async (
       config,
       `${provider}|${searchApiKey}|${options.scope || ''}|${country || ''}|${freshnessRequired}|${
         options.maxResults ?? ''
-      }|${options.windowDays ?? ''}${provider === 'tavily' ? `|topic:${tavilyTopic}` : ''}`
+      }|${options.windowDays ?? ''}|${JSON.stringify(options.publicationPeriod ?? null)}${provider === 'tavily' ? `|topic:${tavilyTopic}` : ''}`
     ),
     () => {
       if (provider === 'tavily') {
+        if (options.publicationPeriod) {
+          const period = options.publicationPeriod;
+          return new TavilyWebSearch({ invoke: async ({ query }: { query: string }) =>
+            invokeTavilyPeriodSearch({ apiKey: searchApiKey, query, period,
+              topic: tavilyTopic, depth: config.search.depth,
+              maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), TAVILY_MAX_RESULTS),
+              ...(tavilyTopic === 'general' && country ? { country } : {}),
+            }) } as Pick<TavilySearch, 'invoke'>);
+        }
         return new TavilyWebSearch(
           new TavilySearch({
             tavilyApiKey: searchApiKey,
@@ -772,6 +784,7 @@ export const getWebSearchClient = async (
           country,
           freshnessRequired,
           windowDays: options.windowDays,
+          publicationPeriod: options.publicationPeriod,
         });
       }
 

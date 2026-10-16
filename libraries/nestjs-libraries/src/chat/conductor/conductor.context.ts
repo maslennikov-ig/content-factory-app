@@ -15,6 +15,7 @@ import {
   setOpenProposals,
 } from '../capabilities/capability.context';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
+import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext } from './work-context';
 
 /**
  * The agent's one id in the Mastra registry. Kept from the inherited agent:
@@ -59,6 +60,7 @@ export const CONDUCTOR_REQUEST_ID_KEY = 'cf.requestId';
 export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   ...Object.values(CAPABILITY_CONTEXT_KEYS),
   CONDUCTOR_REQUEST_ID_KEY,
+  AGENT_WORK_CONTEXT_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
 ];
@@ -72,6 +74,7 @@ export const conductorContextSchema = capabilityContextSchema
   .extend({
     [MASTRA_RESOURCE_ID_KEY]: z.string().min(3),
     [MASTRA_THREAD_ID_KEY]: z.string().min(1),
+    [AGENT_WORK_CONTEXT_KEY]: z.string().max(AGENT_WORK_CONTENT_MAX_CHARS + 2_000).optional(),
   })
   .refine(
     (value: Record<string, unknown>) =>
@@ -101,6 +104,7 @@ export type ConductorTurn = {
   openProposals?: readonly string[];
   /** `CONDUCTOR_REQUEST_ID_KEY`: made by the door, one per request; a fresh one when absent. */
   requestId?: string;
+  workContext?: ResolvedAgentWorkContext | null;
 };
 
 /**
@@ -129,6 +133,7 @@ export const buildConductorContext = (turn: ConductorTurn) => {
   context.set(CAPABILITY_CONTEXT_KEYS.questionsOpened, '[]');
   setOpenProposals(context, turn.openProposals ?? []);
   context.set(CONDUCTOR_REQUEST_ID_KEY, turn.requestId ?? randomUUID());
+  context.set(AGENT_WORK_CONTEXT_KEY, turn.workContext ? JSON.stringify(turn.workContext) : '');
   for (const fingerprint of turn.approvals ?? []) {
     grantApproval(context, fingerprint);
   }

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Content Factory',
     description:
       'Plan, draft, review and publish content across channels in one workspace.',
-    start_url: '/launches',
+    start_url: '/agents',
     display: 'standalone',
     // No theme is available in a manifest, so these are the dark theme's
     // `canvas` and `accent` — dark is the primary theme (ADR-0008), and the

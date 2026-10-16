@@ -1093,6 +1093,10 @@ export class PieceService {
    * и ответить на него до того, как клетки посчитаны, нельзя; а код обязан
    * остаться прежним, что бы человек ни отфильтровал.
    */
+  browse(organizationId: string, query: { q?: string; cursor?: string; limit?: number }) {
+    return this.pieces.browsePieces(organizationId, query);
+  }
+
   async list(
     organizationId: string,
     query: PiecesQueryV1,
@@ -4806,7 +4810,8 @@ export class PieceService {
   }
 
   async researchCore(organizationId: string, pieceId: string, actorUserId: string,
-    input: { confirmWebSpend?: boolean; level?: PieceResearchLevel; direction?: string },
+    input: { confirmWebSpend?: boolean; level?: PieceResearchLevel; direction?: string;
+      timeZone?: string; researchTask?: string; priorExample?: string },
     language: 'ru' | 'en' = 'ru'): Promise<PieceResearchPreview> {
     if (input.confirmWebSpend !== true) throw new AdaptationReviewError('PIECE_RESEARCH_CONFIRM', 400,
       language === 'ru' ? 'Подтвердите поиск по источникам.' : 'Confirm source research.');
@@ -4830,7 +4835,8 @@ export class PieceService {
       core.brief,
       language,
       level,
-      direction || undefined
+      direction || undefined,
+      { timeZone: input.timeZone, researchTask: input.researchTask, priorExample: input.priorExample }
     );
     const snapshotKey = randomUUID();
     await this.snapshots.set(this.coreResearchKey(organizationId, actorUserId, pieceId, snapshotKey),
@@ -4869,11 +4875,23 @@ export class PieceService {
     if (!Array.isArray(input.selectedKeys) || input.selectedKeys.length > 100 ||
       input.selectedKeys.some(key => typeof key !== 'string' || !allowed.has(key)))
       throw new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Выберите опоры из результата исследования.');
+    if (saved.state.summary?.periodStatus === 'empty' || saved.state.summary?.periodStatus === 'needs_clarification') {
+      await this.snapshots.del(key);
+      return piece;
+    }
     const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
+    const intent = saved.state.summary?.researchIntent;
+    const originalInstruction = instructionOf(core);
+    const researchInstruction = intent?.eventInterval
+      ? { text: [originalInstruction?.text, intent.task,
+          `Event interval: ${intent.eventInterval.start} through ${intent.eventInterval.end} (${intent.timezone}).`,
+          'Use selected dated findings for new events. The previous draft is context; do not present its already covered events as new news.'].filter(Boolean).join('\n'),
+          links: originalInstruction?.links ?? [] }
+      : originalInstruction;
     const rewritten = await writeCore({ organizationId, language: saved.language,
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedFactsBrief(state.filled.brief), answers: core.answers, questionTextByKey: {},
-      personText: core.personText ?? '', instruction: instructionOf(core), existingCore: state.correctedInput || saved.body,
+      personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
       { aiUsage: this.aiUsage, slopCheck: this.slopCheck, warn: message => this.logger.warn(message) });
     if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())

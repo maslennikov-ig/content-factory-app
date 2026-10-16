@@ -50,10 +50,8 @@ export const useMenuItem = () => {
    * существует». Раньше единственная дверь была вкладкой настроек, и
    * страница, до которой доходили через две двери, читалась как несуществующая.
    *
-   * Пункт исчезает сам, когда пройдены все пять шагов (необязательный факт
-   * не в счёт), — навсегда, потому что шаги считаются по строкам области и назад они не идут. Пока область не
-   * ответила, пункт показан: спрятать его по незнанию — это спрятать
-   * единственный вход в продукт у того, кто ещё ничего не сделал.
+   * Chat-first: «С чего начать» остаётся доступным в ручных разделах после
+   * завершения настройки; основной вход — ИИ-помощник.
    *
    * Подпись живёт в словах самой страницы, а не семнадцатым ключом i18next:
    * `onboarding.copy.ts` уже держит два языка рядом с кодом, и вторая копия
@@ -132,7 +130,7 @@ export const useMenuItem = () => {
       path: '/content',
     },
     {
-      name: t('agent', 'Agent'),
+      name: t('agent', 'AI assistant'),
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -279,8 +277,8 @@ export const useMenuItem = () => {
   // NavConveyor A: stable step numbers survive onboarding completion.
   const entry = (path: string) => firstMenu.find((item) => item.path === path)!;
   const workMenu: MenuItemInterface[] = [
-    { ...entry('/onboarding'), step: 0 },
-    { name: language.startsWith('ru') ? 'Аватар' : 'Avatar', path: '/content?tab=avatars', icon: null, step: 1 },
+    { ...entry('/onboarding'), hide: false, step: 0 },
+    { name: t('assistant_avatars', 'Avatars'), path: '/content?tab=avatars', icon: null, step: 1 },
     { name: t('channels', 'Channels'), path: '/channels', icon: null, step: 2 },
     { ...entry('/content'), step: 3 },
     { ...entry('/launches'), step: 4 },
@@ -292,7 +290,8 @@ export const useMenuItem = () => {
   // Наследие донора из `hidden-upstream-surfaces.ts` (2q28.26) остаётся в
   // списке с `hide`: обычный участник его не видит, суперадмин видит с
   // меткой, а страница сохраняет заголовок.
-  const secondaryMenu = ['/agents', '/media', '/plugs', '/third-party', '/help']
+  const assistantMenu = [entry('/agents')];
+  const secondaryMenu = ['/media', '/plugs', '/third-party', '/help']
     .map(entry)
     .map((item) => (isHiddenMenuPath(item.path) ? { ...item, hide: true } : item));
 
@@ -352,7 +351,8 @@ export const useMenuItem = () => {
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
   return {
-    all: [...workMenu, ...secondaryMenu, ...adminMenu],
+    all: [...assistantMenu, ...workMenu, ...secondaryMenu, ...adminMenu],
+    assistantMenu,
     workMenu,
     adminMenu,
     secondaryMenu,

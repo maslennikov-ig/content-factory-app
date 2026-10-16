@@ -23,6 +23,9 @@ import type { CapabilityIdentity } from '@contentfactory/nestjs-libraries/chat/c
 import { avatarInWorkspace } from '@contentfactory/nestjs-libraries/chat/capabilities/catalogue/avatar.capabilities';
 import { mediaReceiptInWorkspace } from '@contentfactory/nestjs-libraries/chat/capabilities/catalogue/media.capabilities';
 import { createConductorMemory } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
+import { AgentWorkContextResolver } from '@contentfactory/nestjs-libraries/chat/conductor/work-context.resolver';
+import { AgentWorkObjectBrowser } from '@contentfactory/nestjs-libraries/chat/conductor/work-context.browser';
+import type { AgentArtifactRef, AgentWorkContextV1 } from '@contentfactory/nestjs-libraries/chat/capabilities/agent-parts.contract';
 
 /**
  * The one Mastra instance of the backend and its one agent, the conductor
@@ -44,6 +47,22 @@ export class MastraService {
 
   private service = <T>(token: Type<T>): T =>
     this.moduleRef.get(token, { strict: false });
+
+  private workContextResolver() {
+    return new AgentWorkContextResolver({ services: this.service, gate: this.gate(), capabilities: CAPABILITY_CATALOGUE });
+  }
+
+  resolveWorkContext(identity: CapabilityIdentity, context: AgentWorkContextV1, options?: { refresh?: boolean }) {
+    return this.workContextResolver().resolve(identity, context, options);
+  }
+
+  validateWorkArtifact(identity: CapabilityIdentity, artifact: AgentArtifactRef) {
+    return this.workContextResolver().validateArtifact(identity, artifact);
+  }
+
+  browseWorkObjects(identity: CapabilityIdentity, query: unknown) {
+    return new AgentWorkObjectBrowser({ services: this.service, gate: this.gate(), capabilities: CAPABILITY_CATALOGUE }).browse(identity, query);
+  }
 
   /** Resolved on first use: `PermissionsService` lives in the API module. */
   private gate(): CapabilityGate {

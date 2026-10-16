@@ -1,4 +1,5 @@
 'use client';
+import { AssistantContextAction } from '../../agents/assistant.workspace-context';
 
 import { clearRecoverableDraft, readRecoverableDraft, retainRecoverableDraft, textDraftScope } from '../../ui/recoverable-draft';
 
@@ -2016,6 +2017,12 @@ export function PieceContainer({
 
   return (
     <>
+      {!embedded ? <div className="flex shrink-0 justify-end border-b border-cf-border px-[16px] py-[8px]">
+        <AssistantContextAction context={activeAdaptation && activeChannel ? {
+          version: 'assistant-work-context/v1', kind: 'adaptation', id: activeAdaptation.id,
+          adaptationId: activeAdaptation.id, pieceId, channelId: activeChannel.id,
+        } : { version: 'assistant-work-context/v1', kind: 'piece', id: pieceId }} />
+      </div> : null}
       {picker ? (
         <OpenMediaOnce
           key={picker.adaptationId}

@@ -42,6 +42,102 @@ const ru = copy.agentCopy.ru;
 
 afterEach(cleanup);
 
+describe('assistant context and interrupted response recovery', () => {
+  test('transport reads current context at send time and first-turn artifacts are announced before thread assignment', async () => {
+    const onArtifacts = jest.fn();
+    const first = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1' };
+    const next = { ...first, id: 'p2' };
+    const { chat, redraw } = await drawConversation({
+      messages: [{ id: 'm1', role: 'assistant', parts: [{ type: 'data-piece', data: { id: 'p1', title: 'First result' } }] }],
+      pending: [], extra: { threadId: null, workContext: first, onArtifacts },
+    });
+    expect(onArtifacts.mock.calls.at(-1)[0].map((artifact) => artifact.id)).toContain('p1');
+    const transport = chat.transport;
+    expect(transport.currentContext()).toEqual(first);
+    await redraw({ workContext: next });
+    expect(chat.transport).toBe(transport);
+    expect(transport.currentContext()).toEqual(next);
+  });
+
+  test('stop preserves uncertainty until successful history read and never repeats a write', async () => {
+    let available = false;
+    const reads = [];
+    const saved = { id: 'saved', role: 'assistant', parts: [{ type: 'text', text: 'Saved action result' }] };
+    const { chat, view, redraw } = await drawConversation({
+      messages: [person, laterReply], pending: [],
+      request: async (url, init) => {
+        reads.push({ url, method: init?.method ?? 'GET' });
+        return { ok: available, json: async () => ({ thread: { id: 't1' }, messages: [person, saved], pending: [] }) };
+      },
+    });
+    chat.status = 'streaming';
+    await redraw();
+    await act(async () => fireEvent.click(view.getByText('Fixture stop')));
+    await redraw();
+    expect(chat.stops).toBe(1);
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    available = true;
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    expect(document.querySelector('fieldset').disabled).toBe(false);
+    expect(chat.messages).toEqual([person, saved]);
+    expect(chat.sent).toEqual([]);
+    expect(chat.regenerated ?? 0).toBe(0);
+    expect(reads.every((read) => read.method === 'GET')).toBe(true);
+  });
+
+  test('network failure cannot offer automatic regeneration of an uncertain write', async () => {
+    const { chat, view, redraw } = await drawConversation({ messages: [person, laterReply], pending: [] });
+    chat.status = 'error'; chat.error = new TypeError('Failed to fetch');
+    await redraw();
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    expect(view.getByText('Check saved result')).not.toBeNull();
+    expect(chat.regenerated ?? 0).toBe(0);
+    expect(chat.sent).toEqual([]);
+  });
+  test('stop before receiving a thread identifier offers explicit new-conversation recovery with uncertainty intact', async () => {
+    const onNewConversation = jest.fn();
+    const { chat, view, redraw } = await drawConversation({ messages: [person], pending: [], extra: { threadId: null, onNewConversation } });
+    chat.status = 'streaming';
+    await redraw();
+    await act(async () => fireEvent.click(view.getByText('Fixture stop')));
+    await redraw();
+    expect(view.queryByText('Check saved result')).toBeNull();
+    expect(document.body.textContent).toContain('the action may have been saved');
+    fireEvent.click(view.getByText(ru.threads.newThread));
+    expect(onNewConversation).toHaveBeenCalledTimes(1);
+    expect(chat.sent).toEqual([]);
+    expect(chat.regenerated ?? 0).toBe(0);
+  });
+  test('a queued instruction retains its selected object while ordinary send-time context can change', async () => {
+    const first = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1' };
+    const next = { ...first, id: 'p2' };
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], extra: { workContext: first } });
+    chat.status = 'streaming';
+    await redraw();
+    await act(async () => chat.submit({ text: 'Shorten this text', files: [] }));
+    await redraw({ workContext: next });
+    chat.status = 'ready';
+    await redraw();
+    expect(chat.sent).toHaveLength(1);
+    expect(chat.sent[0][1].body.workContext).toEqual(first);
+    expect(chat.transport.currentContext()).toEqual(next);
+  });
+  test('history refresh updates the same target revision and ignores a different persisted selection', async () => {
+    const first = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'old' };
+    let selected = { ...first, revision: 'new' };
+    const onWorkContext = jest.fn();
+    const { chat } = await drawConversation({ messages: [person], pending: [], extra: { workContext: first, onWorkContext }, request: async () => ({ ok: true, json: async () => ({ messages: [], pending: [], workspace: { version: 'assistant-workspace/v1', workContext: selected, artifacts: [], activeArtifact: null } }) }) });
+    await act(async () => chat.options.onFinish({ isAbort: false, isError: false, isDisconnect: false }));
+    expect(onWorkContext).toHaveBeenLastCalledWith(selected);
+    onWorkContext.mockClear();
+    selected = { ...first, id: 'p2' };
+    await act(async () => chat.options.onFinish({ isAbort: false, isError: false, isDisconnect: false }));
+    expect(onWorkContext).not.toHaveBeenCalled();
+  });
+});
+
 /* ---- A conversation whose chat core is a recording stand-in --------------- */
 
 const APPROVAL_ID = 'run-a::call-1';
@@ -119,7 +215,7 @@ const loadConversation = (chat, request) =>
             // The SDK marks the request submitted before it returns.
             chat.status = 'submitted';
           },
-          stop: () => {},
+          stop: () => { chat.stops = (chat.stops ?? 0) + 1; chat.status = 'ready'; },
           clearError: () => {
             chat.cleared += 1;
             if (chat.status === 'error') {
@@ -127,7 +223,7 @@ const loadConversation = (chat, request) =>
               chat.error = undefined;
             }
           },
-          regenerate: () => {},
+          regenerate: () => { chat.regenerated = (chat.regenerated ?? 0) + 1; },
           addToolApprovalResponse: (answer) => chat.addToolApprovalResponse(answer),
           setMessages: (next) => {
             chat.messages = typeof next === 'function' ? next(chat.messages) : next;
@@ -141,6 +237,7 @@ const loadConversation = (chat, request) =>
       useSWRConfig: () => ({ mutate: () => {} }),
     },
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
+    '@contentfactory/react/translation/get.transation.service.client': { useT: () => (_key, fallback) => fallback },
     '@contentfactory/frontend/components/onboarding/use-onboarding-progress': {
       useOnboardingProgress: () => ({ progress: {}, answered: true, error: false }),
     },
@@ -158,14 +255,14 @@ const loadConversation = (chat, request) =>
     '@contentfactory/frontend/components/ui/allowance-hint': { ALLOWANCE_API: '/allowance' },
     './agent.threads': { THREADS_KEY: '/agent/threads' },
     './agent.transport': {
-      createAgentTransport: () => ({}),
+      createAgentTransport: (options) => { chat.transport = options; return {}; },
       screenTimeZone: () => 'Europe/Moscow',
     },
-    './agent.composer': { AgentComposer: () => null },
+    './agent.composer': { AgentComposer: ({ busy, onStop, onSubmit }) => { chat.submit = onSubmit; return busy ? h('button', { onClick: onStop }, 'Fixture stop') : null; } },
     './agent.markdown': { AgentMarkdown: ({ text }) => h('p', null, text) },
   });
 
-const drawConversation = async ({ messages, pending, request = async () => ({ ok: false }) }) => {
+const drawConversation = async ({ messages, pending, request = async () => ({ ok: false }), extra = {} }) => {
   const chat = chatStand(messages);
   const { AgentConversation } = loadConversation(chat, request);
   const props = {
@@ -180,12 +277,14 @@ const drawConversation = async ({ messages, pending, request = async () => ({ ok
     starter: null,
     onStarterUsed: () => {},
     words: ru,
+    ...extra,
   };
   let view;
   await act(async () => {
     view = render(h(AgentConversation, props));
   });
-  const redraw = async () => {
+  const redraw = async (next = {}) => {
+    Object.assign(props, next);
     await act(async () => {
       view.rerender(h(AgentConversation, { ...props }));
     });

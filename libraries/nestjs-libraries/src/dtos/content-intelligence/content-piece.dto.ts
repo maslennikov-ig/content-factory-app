@@ -164,6 +164,26 @@ const asBoolean = ({ value }: { value: unknown }) =>
   : value === false || value === 'false' || value === '0' ? false
   : value;
 
+/** Metadata-only chooser, bounded before reading any piece bodies. */
+export class PieceBrowserQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  q?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
+}
+
 export class PiecesQueryDto {
   /** Слова человека: заголовок, суть, бриф. */
   @IsOptional()

@@ -29,7 +29,7 @@ module.exports = {
         'intake',
         screenIntakeBody({
           input: POST,
-          language: 'ru',
+          language: 'ru', timeZone: '+03:00',
           materialKind: 'foreign_post',
           options: { researchEnabled: false, researchLevel: 'standard' },
         }),

@@ -295,7 +295,7 @@ describe('public SaaS route boundary', () => {
     const { proxy } = loadProxy();
     await expect(proxy(requestFor('/', true))).resolves.toMatchObject({
       type: 'redirect',
-      url: 'http://localhost:4200/analytics',
+      url: 'http://localhost:4200/agents',
     });
     await expect(proxy(requestFor('/product', true))).resolves.toMatchObject({
       type: 'next',

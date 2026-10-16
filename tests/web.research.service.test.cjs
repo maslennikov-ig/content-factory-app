@@ -234,6 +234,35 @@ describe('shared web research service', () => {
     jest.useRealTimers();
   });
 
+  test('anchored event research constrains primary publication and preserves bounded rolling-page recall', async () => {
+    const researchIntent = {
+      version: 'research-intent/v1', task: 'What changed since the previous overview?',
+      priorExample: '6–8 October 2026', asOf: '2026-10-16T09:00:00.000Z', timezone: 'Europe/Moscow',
+      mode: 'delta', eventInterval: { start: '2026-10-08T21:00:00.000Z', end: '2026-10-16T09:00:00.000Z' },
+      priorCoverageEnd: '2026-10-08T20:59:59.999Z', exclusions: [], clarification: null,
+    };
+    classification.freshnessRequired = true;
+    await new WebResearchService(aiUsage).research('org-period-replay', 'OpenAI new events', { level: 'quick', researchIntent });
+    expect(clientFactoryCalls).toHaveLength(2);
+    expect(clientFactoryCalls[0].options.publicationPeriod).toEqual(researchIntent.eventInterval);
+    expect(clientFactoryCalls[1].options.publicationPeriod).toEqual({ end: researchIntent.eventInterval.end });
+    expect(clientFactoryCalls.every(call => call.options.freshnessRequired === false && call.options.topic === 'general')).toBe(true);
+    expect(invocations.every(call => call.input.query.includes(researchIntent.eventInterval.start))).toBe(true);
+    expect(invocations).toHaveLength(2);
+  });
+
+  test('an exhausted empty period search is empty; provider failures still fail', async () => {
+    const researchIntent = { version: 'research-intent/v1', task: 'new events', priorExample: null,
+      asOf: '2026-10-16T09:00:00.000Z', timezone: 'UTC', mode: 'recent',
+      eventInterval: { start: '2026-10-09T09:00:00.000Z', end: '2026-10-16T09:00:00.000Z' },
+      priorCoverageEnd: null, exclusions: [], clarification: null };
+    implementations.tavily = async () => ({ results: [] });
+    const result = await new WebResearchService(aiUsage).research('org-empty-period', 'No current events', { level: 'quick', researchIntent });
+    expect(result.facts).toEqual([]);
+    implementations.tavily = async () => { throw statusError(503); };
+    await expect(new WebResearchService(aiUsage).research('org-failed-period', 'Provider is unavailable', { level: 'quick', researchIntent })).rejects.toThrow();
+  });
+
   /**
    * `content-factory-next-75xn.2`. Задачу почти никто не называет: уровень уже
    * различает два обычных случая, и на том же различии стоит квота. Поэтому

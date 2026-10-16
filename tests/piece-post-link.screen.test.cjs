@@ -6,7 +6,7 @@
  * The fixed question «Какую ссылку поставить в пост?» with «Без ссылки» or an
  * address; «Ссылка для поста» in the post settings, prefilled from that
  * answer and saved as a post override; the core edited in place with
- * autosave; «Дописать материал» with an explicit «Пересобрать суть». Every
+ * autosave; «Добавить исходные материалы» with an explicit «Пересобрать суть». Every
  * new parameter carries its «?», and the words are equal in RU and EN.
  */
 
@@ -589,7 +589,7 @@ describe('the core on the «Суть» tab', () => {
     expect(saves[1]).toEqual(['Вторая правка.', 'Суть заготовки, дописанная мной.']);
   });
 
-  test('«Дописать материал» adds without a rebuild; «Пересобрать суть» appears only while material waits', async () => {
+  test('«Добавить исходные материалы» adds without a rebuild; «Пересобрать суть» appears only while material waits', async () => {
     const added = [];
     let rebuilds = 0;
     const handlers = {
@@ -604,9 +604,9 @@ describe('the core on the «Суть» tab', () => {
       },
     };
     const view = tab(CORE, handlers);
-    expect(screen.getByRole('button', { name: 'Подсказка: Дописать материал' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Подсказка: Добавить исходные материалы' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Пересобрать суть' })).toBeNull();
-    fireEvent.change(screen.getByLabelText('Дописать материал'), {
+    fireEvent.change(screen.getByLabelText('Добавить исходные материалы'), {
       target: { value: 'Клиент звонил в пятницу.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Добавить к материалу' }));
@@ -753,6 +753,6 @@ describe('the core on the «Суть» tab', () => {
   test('without the right to write there is nothing to edit', () => {
     tab(CORE, { canWrite: false });
     expect(screen.queryByRole('button', { name: 'Править суть' })).toBeNull();
-    expect(screen.queryByLabelText('Дописать материал')).toBeNull();
+    expect(screen.queryByLabelText('Добавить исходные материалы')).toBeNull();
   });
 });

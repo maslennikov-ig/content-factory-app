@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-jvrq",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-jvrq",
+  "source_digest": "ab1a1879717f7408ea53fdfa10c669134d5cee700d62ac3bd10455d1a529c72a",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "All target-spec A1-A10 have matching evidence: primary chat and retained deep/manual paths; correct private thread/object continuity; shared avatar/channel/piece/variant/plan editors; same interview and review behavior; current dated-change research; real progress and safe recovery; accessible RU/EN dark/light responsive UI. Fresh chat-only reserve workflow and manual-to-chat-to-manual equality are recorded separately from model-free checks. Final release, actual owner/provider acceptance and production delivery are independent gates. No duplicate runtime, accidental publication, lost draft or changed historical acceptance.",
+      "text_digest": "794282b405bad10ac0ecc4c556b52e99aa91681e3c50edf7883e834a6290584e"
+    }
+  ]
+}

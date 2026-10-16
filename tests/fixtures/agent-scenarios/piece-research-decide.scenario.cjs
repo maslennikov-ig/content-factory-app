@@ -19,6 +19,7 @@ module.exports = {
   check: (run) => {
     expect(run.requests.filter(([door]) => door === 'piece.research')[0][3]).toEqual({
       confirmWebSpend: true,
+      timeZone: '+03:00',
       level: 'standard',
     });
     expect(run.requests.filter(([door]) => door === 'piece.research.accept')).toEqual([

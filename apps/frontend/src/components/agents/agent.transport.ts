@@ -7,7 +7,9 @@ import {
   buildChatBody,
   continuedCallChunk,
   readResumeOption,
+  readAgentWorkContext,
   type AgentMessage,
+  type AgentWorkContextV1,
 } from './agent.contract';
 
 /**
@@ -62,11 +64,14 @@ class AgentChatTransport extends DefaultChatTransport<AgentMessage> {
 export const createAgentTransport = ({
   request,
   currentThread,
+  currentContext,
   onThread,
 }: {
   request: ProductFetch;
   /** The thread the next request writes to; `null` opens a new one. */
   currentThread: () => string | null;
+  /** Read at send time so manual navigation never captures an old object. */
+  currentContext?: () => AgentWorkContextV1 | null | undefined;
   /** The server named the thread in `AGENT_THREAD_HEADER`. */
   onThread: (id: string) => void;
 }) =>
@@ -91,6 +96,9 @@ export const createAgentTransport = ({
         // An answer on an approval card further up names its message (N1).
         messageId,
         resume: readResumeOption(body),
+        workContext: body && Object.prototype.hasOwnProperty.call(body, 'workContext')
+          ? readAgentWorkContext(body.workContext)
+          : currentContext?.(),
       }),
     }),
   });

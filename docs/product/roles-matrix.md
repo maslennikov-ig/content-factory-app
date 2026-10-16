@@ -102,7 +102,7 @@ if (!packageOptions) {
 
 | Дверь | Разделы | Дверей | Кому |
 |---|---|---|---|
-| `/agent` | AI | 5 | любой участник — чат агента и **свои** нити; что участник может сделать в чате, решает дверь каждого действия, и модели предлагаются только действия его роли (`kcxz.8`) |
+| `/agent` | AI | 7 | любой участник — ИИ-помощник и **свои** нити, проверяемый рабочий контекст и браузер метаданных без модели; что участник может сделать в чате, решает дверь каждого действия, и модели предлагаются только действия его роли (`kcxz.8`) |
 | `/autopost` | WEBHOOKS, EDITOR | 1 | редактор |
 | `/billing` | ADMIN | 6 | **администратор** — оформить, сменить и отменить подписку, скидка, конец пробного периода, портал оплаты (способ оплаты и счета) (`zg8w`) |
 | `/autopost/:id` | EDITOR | 3 | редактор |
@@ -128,7 +128,7 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/rewrite` | EDITOR | 1 | редактор; перегенерация сути |
 | `/content-intelligence/pieces/:id/post-link` | EDITOR | 1 | редактор; ответ на «Какую ссылку поставить в пост?» — адрес или «Без ссылки» (`97dq.75`) |
 | `/content-intelligence/pieces/:id/core` | EDITOR | 1 | редактор; правка сути руками с автосохранением, прежний текст хранится (`97dq.75`) |
-| `/content-intelligence/pieces/:id/material` | EDITOR | 1 | редактор; «Дописать материал» — суть не меняется до явной пересборки (`97dq.75`) |
+| `/content-intelligence/pieces/:id/material` | EDITOR | 1 | редактор; «Добавить исходные материалы» — суть не меняется до явной пересборки (`97dq.75`) |
 | `/content-intelligence/pieces/:id/core/rebuild` | EDITOR | 1 | редактор; «Пересобрать суть» по всему материалу — один вызов записи сути (`97dq.75`) |
 | `/content-intelligence/pieces/:id/core/restore` | EDITOR | 1 | редактор; «Вернуть эту версию» — прежний текст сути снова текущий, без нового вызова генерации (`97dq.85`) |
 | `/content-intelligence/pieces/:id/rewrite/accept` | EDITOR | 1 | редактор; принятие подписанных правок сути |
@@ -140,7 +140,7 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/place` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Поставить на ЧЧ:ММ» из календаря — по режиму канала, автопилот ставит в очередь |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
 | `/content-intelligence/pieces/:id/channels/:integrationId/settings` | POSTS_PER_MONTH, EDITOR | 1 | редактор; настройки поста в канале сохраняются сами, свой режим плана применяется к написанному посту сразу (`97dq.70`) |
-| `/content-intelligence/pieces/:id/channels/:integrationId/material-questions` | EDITOR | 1 | редактор; необязательные вопросы под коротким постом — ответы уходят в «Дописать материал», «Не нужно» закрывает их (`97dq.98`) |
+| `/content-intelligence/pieces/:id/channels/:integrationId/material-questions` | EDITOR | 1 | редактор; необязательные вопросы под коротким постом — ответы уходят в «Добавить исходные материалы», «Не нужно» закрывает их (`97dq.98`) |
 | `/content-intelligence/pieces/channels/:integrationId/plan-apply` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Ко всем N» — режим канала к его невышедшим постам без своего режима (`97dq.70`); сколько их — `GET …/plan-impact`, чтение любого участника |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
@@ -564,7 +564,7 @@ GET `/auth/join-org` — та же проверка приглашения бе�
 | Брифы, радар, материалы, архив | **нет** | да | да |
 | Подписки идей, поводы | **нет** | да | да |
 | Наборы, подписи, правило автопоста | **нет** | да | да |
-| Агент (`/agent`): чат и свои нити; в чате — только действия своей роли | да | да | да |
+| ИИ-помощник (`/agent`): чат и свои нити; в чате — только действия своей роли | да | да | да |
 | Каналы: подключить, выключить, удалить | нет | **нет** | да |
 | Команда: пригласить, сменить роль, удалить | нет | **нет** | да |
 | Настройки ИИ, ключи, расход, модели | нет | **нет** | да |

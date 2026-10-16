@@ -30,6 +30,7 @@ import {
   PieceArchiveDto,
   PieceAnswerDoorDto,
   PiecesQueryDto,
+  PieceBrowserQueryDto,
   ReadyAdaptationsQueryDto,
   PieceAdaptationEditDto,
   PieceAdaptationPlaceDto,
@@ -423,6 +424,14 @@ export class ContentPieceController {
   }
 
   /** Draft adaptations available for the calendar chooser. */
+  @Get('/browser')
+  async browse(
+    @GetOrgFromRequest() organization: Organization,
+    @Query() query: PieceBrowserQueryDto
+  ) {
+    return this.pieces.browse(organization.id, query);
+  }
+
   @Get('/ready-adaptations')
   async readyAdaptations(
     @GetOrgFromRequest() organization: Organization,

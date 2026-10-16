@@ -29,6 +29,11 @@ const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const base = 'apps/frontend/src/components/content-intelligence/intake';
 const { ResearchOutcome } = loadTypeScriptModule(`${base}/intake.research.tsx`);
+beforeAll(async () => {
+  const i18n = loadTypeScriptModule('libraries/react-shared-libraries/src/translation/i18next.ts').default;
+  if (!i18n.isInitialized) await new Promise((resolve) => i18n.on('initialized', resolve));
+  await i18n.loadLanguages(['en', 'ru']);
+});
 
 const THOUGHT =
   'Исландский эксперимент охватил 25 тысяч человек, длился десять лет, производительность выросла на 40%.';

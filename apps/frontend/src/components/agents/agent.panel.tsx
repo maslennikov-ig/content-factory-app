@@ -30,6 +30,8 @@ import { OpenOnScreen, artifactOwnName } from './agent.cards';
 import { AgentGlyph } from './agent.icons';
 import { usePieceArtifact } from './agent.piece-data';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { AssistantArtifactBoundary } from './assistant.workspace-context';
+import { AgentWorkspaceBrowserContent } from './agent.workspace-browser';
 
 /**
  * The work panel beside the chat (spec §6.1, canvas C; owner 27.09.2026 «чат
@@ -107,15 +109,20 @@ const textOf = (value: unknown): string | null =>
  */
 export type WriteFromLead = (title: string) => void;
 
-function ArtifactBody({
+export function ArtifactEditor({
   artifact,
   words,
   onWriteFromLead,
+  onSelectArtifact,
 }: {
   artifact: AgentArtifact;
   words: AgentWords;
   onWriteFromLead?: WriteFromLead;
+  onSelectArtifact?: (artifact: AgentArtifact) => void;
 }) {
+  if (artifact.kind === 'workspace' || artifact.kind === 'channels') {
+    return <AgentWorkspaceBrowserContent words={words} initialKind={artifact.kind === 'channels' ? 'channel' : 'piece'} onSelect={onSelectArtifact ?? ((selected) => window.location.assign(artifactHref(selected)))} />;
+  }
   if (artifact.kind === 'piece') {
     return <PieceContainer key={artifact.id} pieceId={artifact.id} embedded />;
   }
@@ -374,7 +381,7 @@ function ResolvedColumn({
   const { artifact } = usePieceArtifact(written);
   return (
     <ColumnFrame artifact={artifact} onClose={onClose} words={words}>
-      <ArtifactBody artifact={written} words={words} onWriteFromLead={onWriteFromLead} />
+      <AssistantArtifactBoundary><ArtifactEditor artifact={written} words={words} onWriteFromLead={onWriteFromLead} /></AssistantArtifactBoundary>
     </ColumnFrame>
   );
 }
@@ -460,7 +467,7 @@ export function ArtifactSheet({
         />
         <PanelHead artifact={artifact} onClose={onClose} words={words} />
         <div className="min-h-0 flex-1 overflow-y-auto px-[16px] py-[16px]">
-          <ArtifactBody artifact={written} words={words} onWriteFromLead={onWriteFromLead} />
+          <AssistantArtifactBoundary><ArtifactEditor artifact={written} words={words} onWriteFromLead={onWriteFromLead} /></AssistantArtifactBoundary>
         </div>
       </section>
     </div>

@@ -63,7 +63,7 @@ const mocks = () => ({
   },
   '@contentfactory/frontend/components/layout/top.menu': {
     filterMenu: (items) => items,
-    useMenuItem: () => ({ workMenu: [], adminMenu: [], secondaryMenu: [] }),
+    useMenuItem: () => ({ assistantMenu: [], workMenu: [], adminMenu: [], secondaryMenu: [] }),
   },
   // Записывает, что через него прошло: вопрос этого набора — идёт ли
   // «Профиль» через общую строку меню, а не как выглядит сама строка.

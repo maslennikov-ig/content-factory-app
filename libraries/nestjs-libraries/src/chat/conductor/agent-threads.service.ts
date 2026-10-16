@@ -11,6 +11,8 @@ import type {
   AgentThreadHistoryV1,
   AgentThreadListV1,
   AgentThreadV1,
+  AgentWorkContextV1,
+  AgentWorkspaceV1,
 } from '../capabilities/agent-parts.contract';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
 import { questionCardId, questionCardView } from '../capabilities/question-card';
@@ -18,6 +20,18 @@ import { claimUnavailable, notYours, type PendingRun } from './agent-chat.reques
 import { AGENT_STREAM_VERSION } from '../capabilities/agent-parts.contract';
 import { conductorResourceId } from './conductor.context';
 import { threadTitleFromMessage } from './conductor.memory';
+import {
+  AGENT_WORKSPACE_METADATA_KEY,
+  AGENT_WORK_ARTIFACTS_MAX,
+  AgentWorkContextError,
+  artifactForWorkContext,
+  emptyAgentWorkspace,
+  invalidWorkContext,
+  parseAgentWorkspacePatch,
+  readStoredAgentWorkspace,
+  sameAgentArtifact,
+  type ResolvedAgentWorkContext,
+} from './work-context';
 import {
   AGENT_RUN_CLAIM_STORE,
   AgentRunClaimUnavailable,
@@ -63,11 +77,12 @@ type ConductorMemory = {
     threadId: string;
     resourceId: string;
     title?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<ThreadRow>;
   updateThread(args: {
     id: string;
-    title: string;
-    metadata: Record<string, unknown>;
+    title?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<ThreadRow>;
   deleteThread(threadId: string): Promise<void>;
   recall(args: Record<string, unknown>): Promise<{ messages: unknown[] }>;
@@ -131,6 +146,7 @@ const AGENT_RUN_WORKFLOWS = ['agentic-loop', 'durable-agentic-loop'] as const;
 @Injectable()
 export class AgentThreadsService {
   private readonly claims: AgentRunClaimStore;
+  private readonly workspaceWrites = new Map<string, Promise<void>>();
 
   constructor(
     private readonly mastraService: MastraService,
@@ -244,6 +260,113 @@ export class AgentThreadsService {
     return thread;
   }
 
+  /** A selected shared object never substitutes for this person's thread check. */
+  async workContextForTurn(
+    identity: CapabilityIdentity,
+    threadId: string,
+    selected?: AgentWorkContextV1 | null
+  ): Promise<ResolvedAgentWorkContext | null> {
+    const thread = await this.ownThread(identity, threadId);
+    const context = selected === undefined ? readStoredAgentWorkspace(thread?.metadata).workContext : selected;
+    if (!context) return null;
+    return this.mastraService.resolveWorkContext(identity, context, { refresh: selected === undefined });
+  }
+
+  private async availableWorkspace(identity: CapabilityIdentity, workspace: AgentWorkspaceV1): Promise<AgentWorkspaceV1> {
+    const artifacts: AgentWorkspaceV1['artifacts'] = [];
+    for (const ref of workspace.artifacts) {
+      try {
+        artifacts.push(await this.mastraService.validateWorkArtifact(identity, ref));
+      } catch (error) {
+        if (!(error instanceof AgentWorkContextError) || ![403, 404, 409].includes(error.getStatus())) throw error;
+      }
+    }
+    let workContext: AgentWorkContextV1 | null = null;
+    if (workspace.workContext) {
+      try {
+        workContext = (await this.mastraService.resolveWorkContext(identity, workspace.workContext, { refresh: true })).context;
+      } catch (error) {
+        if (!(error instanceof AgentWorkContextError) || ![403, 404, 409].includes(error.getStatus())) throw error;
+      }
+    }
+    return {
+      ...workspace,
+      workContext,
+      artifacts,
+      activeArtifact: workspace.activeArtifact ? artifacts.find((ref) => sameAgentArtifact(ref, workspace.activeArtifact!)) ?? null : null,
+    };
+  }
+
+  /** Serializes our read/merge/write pairs without locking a model stream. */
+  private async writeWorkspace<T>(threadId: string, write: () => Promise<T>): Promise<T> {
+    const previous = this.workspaceWrites.get(threadId) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.workspaceWrites.set(threadId, current);
+    await previous;
+    try { return await write(); }
+    finally {
+      release();
+      if (this.workspaceWrites.get(threadId) === current) this.workspaceWrites.delete(threadId);
+    }
+  }
+
+  /** Called only after admission, with server-resolved context; no domain write. */
+  async rememberWorkContext(identity: CapabilityIdentity, threadId: string, resolved: ResolvedAgentWorkContext | null) {
+    return this.writeWorkspace(threadId, async () => {
+      const thread = await this.requireOwnThread(identity, threadId);
+      const workspace = readStoredAgentWorkspace(thread.metadata);
+      workspace.workContext = resolved?.context ?? null;
+      const ref = resolved ? artifactForWorkContext(resolved.context) : null;
+      if (ref) {
+        workspace.artifacts = [...workspace.artifacts.filter((one) => !sameAgentArtifact(one, ref)), ref].slice(-AGENT_WORK_ARTIFACTS_MAX);
+        workspace.activeArtifact = ref;
+      }
+      await (await this.memory()).updateThread({
+        id: thread.id,
+        // Native patchThread merges metadata. Replaying legacy workingMemory
+        // here is a command to overwrite the person's newer resource memory.
+        metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace },
+      });
+      return workspace;
+    });
+  }
+
+  /** Free PATCH: validates every supplied reference, merging metadata on its owned row. */
+  async patchWorkspace(identity: CapabilityIdentity, threadId: string, body: unknown): Promise<{ workspace: AgentWorkspaceV1 }> {
+    // Ownership is checked before looking up any selected product object.
+    await this.requireOwnThread(identity, threadId);
+    const patch = parseAgentWorkspacePatch(body);
+    return this.writeWorkspace(threadId, async () => {
+      const thread = await this.requireOwnThread(identity, threadId);
+      const workspace = await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata));
+      if (patch.workContext !== undefined) workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext)).context;
+      if (patch.artifacts !== undefined) {
+        workspace.artifacts = [];
+        for (const ref of patch.artifacts) {
+          const valid = await this.mastraService.validateWorkArtifact(identity, ref);
+          if (!workspace.artifacts.some((one) => sameAgentArtifact(one, valid))) workspace.artifacts.push(valid);
+        }
+      }
+      if (patch.activeArtifact !== undefined) {
+        workspace.activeArtifact = patch.activeArtifact === null ? null : await this.mastraService.validateWorkArtifact(identity, patch.activeArtifact);
+      }
+      if (workspace.activeArtifact && !workspace.artifacts.some((ref) => sameAgentArtifact(ref, workspace.activeArtifact!))) {
+        if (patch.activeArtifact) throw invalidWorkContext();
+        workspace.activeArtifact = null;
+      }
+      // Re-check ownership after reads, then patch only our namespaced field.
+      // Native metadata merging preserves unrelated keys without reissuing
+      // Mastra's workingMemory command or a stale title.
+      const latest = await this.requireOwnThread(identity, threadId);
+      await (await this.memory()).updateThread({
+        id: latest.id,
+        metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace },
+      });
+      return { workspace };
+    });
+  }
+
   /**
    * The thread a message is written to: the caller's own, or a new one named
    * after the message. Created before the turn so the first write can never
@@ -252,14 +375,23 @@ export class AgentThreadsService {
   async threadForMessage(
     identity: CapabilityIdentity,
     threadId: string,
-    text: string
+    text: string,
+    selected?: ResolvedAgentWorkContext | null
   ): Promise<ThreadRow> {
     const existing = await this.ownThread(identity, threadId);
     if (existing) return existing;
+    const ref = selected ? artifactForWorkContext(selected.context) : null;
+    const workspace = selected === undefined ? undefined : {
+      ...emptyAgentWorkspace(),
+      workContext: selected?.context ?? null,
+      artifacts: ref ? [ref] : [],
+      activeArtifact: ref,
+    };
     return (await this.memory()).createThread({
       threadId,
       resourceId: conductorResourceId(identity.organizationId, identity.userId),
       title: threadTitleFromMessage(text, identity.language),
+      ...(workspace ? { metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace } } : {}),
     });
   }
 
@@ -341,6 +473,7 @@ export class AgentThreadsService {
     }
     return {
       thread: threadView(thread),
+      workspace: await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata)),
       messages: toAISdkMessages(messages as any, {
         version: AGENT_STREAM_VERSION,
       }) as unknown[],
@@ -360,7 +493,6 @@ export class AgentThreadsService {
       await (await this.memory()).updateThread({
         id: thread.id,
         title,
-        metadata: thread.metadata ?? {},
       })
     );
   }

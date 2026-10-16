@@ -228,7 +228,7 @@ export const pieceResearch = defineCapability({
       ctx.organizationId,
       input.pieceId,
       ctx.userId,
-      { confirmWebSpend: true, level: input.level ?? 'standard', ...(direction ? { direction } : {}) },
+      { confirmWebSpend: true, level: input.level ?? 'standard', ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(direction ? { direction } : {}) },
       ctx.language
     );
     // Only keyed rows can be accepted (the accept door refuses the rest).

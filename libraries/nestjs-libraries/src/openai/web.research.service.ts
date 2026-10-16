@@ -412,6 +412,8 @@ export interface WebResearchResult {
 }
 
 export interface WebResearchOptions {
+  /** Shared event intent from manual intake and assistant; server pins the clock. */
+  researchIntent?: import('../content-intelligence/intake/research-intent').ResearchIntentV1;
   /**
    * The language the person reading the answer works in. Optional because the
    * two callers that existed before the search panel — the copilot's tool list
@@ -939,6 +941,10 @@ export class WebSearchFallbackError extends Error {
     this.name = 'WebSearchFallbackError';
   }
 }
+
+const isOnlyEmptySearch = (error: unknown): boolean =>
+  error instanceof EmptyWebSearchResults ||
+  (error instanceof WebSearchFallbackError && error.errors.length > 0 && error.errors.every(isOnlyEmptySearch));
 
 /**
  * The deadline has to be enforced here, not handed to the tool.
@@ -1633,6 +1639,7 @@ export class WebResearchService {
       freshnessRequired: boolean;
       maxResults?: number;
       windowDays?: number;
+      publicationPeriod?: import('./search-publication-period').SearchPublicationPeriod;
     },
     task: SearchTask,
     attempt: SearchAttempt,
@@ -1932,7 +1939,7 @@ Untrusted research data: {evidence}`
       task !== 'discovery';
     const key = `${organizationId}|${searchRouteFingerprint(
       config.search
-    )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${
+    )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${JSON.stringify(options.researchIntent ?? null)}|${
       options.language ?? ''
     }|${
       options.readerResponse === true
@@ -2277,9 +2284,19 @@ Untrusted research data: {evidence}`
     // only useful for a distinct locale query; repeating the same words would
     // spend money without adding recall. Supplied queries are already cut to
     // the same budget by `callerQueries`.
-    const queries = supplied.length
+    let queries = supplied.length
       ? supplied
       : baseQueries.slice(0, preset.maxSearchQueries);
+    if (options.researchIntent?.eventInterval) {
+      const interval = options.researchIntent.eventInterval;
+      const eventBounds = `events ${interval.start} through ${interval.end}`;
+      queries = queries.map(query => `${query} ${eventBounds}`);
+      // A bounded companion may find a dated entry on an older rolling page.
+      // Reuse existing language slots; never exceed the level's search budget.
+      if (queries.length === 1 && preset.maxSearchQueries > 1) {
+        queries.push(`${classifiedQuery} dated release notes retrospective ${eventBounds}`);
+      }
+    }
 
     const country = classification.scope === 'local'
       ? countryForSubjectLanguage(classification.subjectLanguage)
@@ -2293,10 +2310,13 @@ Untrusted research data: {evidence}`
       scope: classification.scope,
       country,
       // Fact validity on a named date does not imply a recent publication.
-      freshnessRequired: asOfRetrieval ? false : classification.freshnessRequired,
+      freshnessRequired: options.researchIntent?.eventInterval ? false : asOfRetrieval ? false : classification.freshnessRequired,
       ...(options.levelWasExplicit ? { maxResults: preset.maxSources } : {}),
       ...(options.windowDays && !asOfRetrieval
         ? { windowDays: options.windowDays }
+        : {}),
+      ...(options.researchIntent?.eventInterval
+        ? { publicationPeriod: options.researchIntent.eventInterval, topic: 'general' as const }
         : {}),
       /**
        * Discovery asks the news index first (`content-factory-next-75xn.23`):
@@ -2477,7 +2497,9 @@ Untrusted research data: {evidence}`
             organizationId,
             query,
             config,
-            queryOptions,
+            options.researchIntent?.eventInterval && index > 0
+              ? { ...queryOptions, publicationPeriod: { end: options.researchIntent.eventInterval.end } }
+              : queryOptions,
             task,
             attempt,
             egressCheck(indexOffset + index),
@@ -2494,7 +2516,14 @@ Untrusted research data: {evidence}`
       const failures = settled.filter(
         (entry): entry is PromiseRejectedResult => entry.status === 'rejected'
       );
-      if (!answered.length && indexOffset === 0) throw failures[0].reason;
+      if (!answered.length && indexOffset === 0) {
+        // Exhausted searches that genuinely found zero rows are an empty
+        // period result. Configuration, quota, transport and mixed failures
+        // remain failures through the existing route.
+        if (!(options.researchIntent?.eventInterval && failures.every(failure => isOnlyEmptySearch(failure.reason)))) {
+          throw failures[0].reason;
+        }
+      }
       for (const failure of failures) {
         this.logger.warn(
           `One of ${queries.length} web research queries failed (${failureLabel(

@@ -165,7 +165,8 @@ describe('D6 — a deleted piece closes and stops offering itself', () => {
     const conversation = source('apps/frontend/src/components/agents/agent.conversation.tsx');
     expect(conversation).toContain('if (openKey && removed.has(openKey)) artifactGone.current();');
     const screen = source('apps/frontend/src/components/agents/agent.screen.tsx');
-    expect(screen).toContain('onArtifactRemoved={closeArtifact}');
+    expect(screen).toContain('onArtifactRemoved={onRemoved}');
+    expect(screen).toContain("dispatch({ type: 'remove', key: workspace.active })");
   });
 });
 
@@ -229,8 +230,10 @@ describe('D7, D9 — refusals in product words, never a raw code as the answer',
 describe('D8 — the allowance line follows the turn, in the screen’s language', () => {
   test('every finished turn refreshes the allowance line', () => {
     const conversation = source('apps/frontend/src/components/agents/agent.conversation.tsx');
-    const finish = conversation.slice(conversation.indexOf('onFinish: () => {'));
-    expect(finish.slice(0, 400)).toContain('mutate(ALLOWANCE_API)');
+    const finishStart = conversation.indexOf('onFinish:');
+    expect(finishStart).toBeGreaterThan(0);
+    const finish = conversation.slice(finishStart);
+    expect(finish.slice(0, 700)).toContain('mutate(ALLOWANCE_API)');
   });
 
   test('the agent screen reads its language where `t()` does', () => {
@@ -248,7 +251,7 @@ describe('D8 — the allowance line follows the turn, in the screen’s language
 describe('D11 — at 390 px the conversation scrolls, not the document', () => {
   test('below `md` the screen is exactly the viewport under the header and does not grow', () => {
     const screen = source('apps/frontend/src/components/agents/agent.screen.tsx');
-    const className = /data-agent-screen=""[\s\S]*?className="([^"]+)"/.exec(screen)[1].split(' ');
+    const className = /data-agent-screen="" className=\{contextual \? '[^']+' : '([^']+)'\}/.exec(screen)[1].split(' ');
     expect(className).toEqual(
       expect.arrayContaining(['h-[calc(100dvh-56px)]', 'flex-none', 'min-h-0', 'md:flex-1', 'md:h-auto'])
     );

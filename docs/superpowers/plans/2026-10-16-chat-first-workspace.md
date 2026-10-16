@@ -1,0 +1,97 @@
+# Chat-first workspace implementation plan
+
+**State:** owner-authorized implementation on16 October2026; local integration verification in progress. Beads remains the status source. No production release is claimed.
+**Epic:** `content-factory-next-jvrq`; T1–T8 correspond to `content-factory-next-jvrq.1`–`.8` in order.
+**Goal:** make the existing AI assistant the primary way to create and refine content while manual sections use the same actions, editors, saved objects and visual language.
+**Spec:** [chat-first workspace](../../product/chat-first-workspace-spec.md). Read it before executing a package.
+**Approach:** reuse the existing Mastra conductor, capabilities and embedded editors; establish one typed object-context boundary, then adopt it in both entry points. Keep dated-change research in the common intake/research pipeline.
+**Non-goals:** another assistant backend, Mastra upgrade, replacement CRUD forms/calendar, new publishing automation, historical thread migration, altered external/MCP acceptance, billing or role redesign.
+
+Beads owns the actual task IDs, status, dependencies and completion evidence. The sections below define stable work packages and their acceptance ownership, not a second status ledger. Runtime delivery and external/owner acceptance stay separate.
+
+## Scope mapping
+
+| Spec criteria | Owning package |
+| --- | --- |
+| A2; existing implementation and reproducible gaps | T1 |
+| A1, A6; primary navigation, split/collapse and mobile shell | T2 |
+| A4–A5; private continuity, context validation and one piece consumer | T3 |
+| A3–A4, A6, A9; same artifact/editor state in both entrances | T4 |
+| A3–A4, A9; contextual manual chat and shared interview/selection controls | T5 |
+| A7; dated-change retrieval and empty result semantics | T6 |
+| A8; observable run lifecycle and honest recovery | T7 |
+| A3, A10 and final cross-package A1–A9 evidence | T8 |
+
+## T1 — Establish the existing AI assistant baseline
+
+**Boundary:** diagnostic of current behavior, before changing its entry points. Explicitly requested by the owner who has not tested the AI assistant workflow. This independent uncertainty boundary is why it is a separate package.
+**Files:** `apps/frontend/src/components/agents/`; `tests/agent-scenarios.test.cjs`; `tests/helpers/agent-scenarios.cjs`; `tests/helpers/agent-scenarios.runner.cjs`; selected `tests/agent-screen.*`, `agent-threads*` and existing stage evidence.
+**Outcome:** a compact capability/parity matrix and reproducible gaps for existing conversation, artifacts, manual changes, reload and permissions. Reuse matching current-source historical evidence with its limits. Browser/recorded source checks are clearly distinguished from real model/owner behavior. Missing live evidence is explicitly unknown, not a failed or passing model result.
+**Verification:** selected existing model-free scenario/browser checks once; any current model/provider replay requires its own authority and is reserved for T8 if unavailable. Do not change the historical suite's acceptance thresholds or open a new fix wave outside the epic.
+**Dependencies:** none.
+
+## T2 — Make the conversation the primary workspace
+
+**Boundary:** navigation and responsive page shell; no domain writes.
+**Files:** `apps/frontend/src/components/layout/top.menu.tsx`; verified post-auth/default-entry routing; `agents/agent.screen.tsx`, `agent.panel.tsx`, `agent.threads.tsx`, `agent.copy.ts`; existing layers/choice/focus primitives; `libraries/react-shared-libraries/src/translation/locales/*/translation.json`; `tests/assistant.i18n.test.cjs`.
+**Outcome:** first «Работа с ИИ / ИИ-помощник» block, retained manual sections/deep links, useful empty conversation, configurable split, hide/restore/expand controls, compact Chat/Material switch and explicit workspace browser. Preserve validated return destinations and role restrictions. Panel preferences are user/workspace scoped and must not overwrite saved editor drafts.
+**Localization:** use the owner-selected visible title «ИИ-помощник» / “AI assistant” and localize the shared `assistant_*` workspace chrome across all 16 shipped languages, including RTL `he` and `ar`.
+**Verification:** navigation/return-destination regression plus deterministic browser states at the four spec widths, both themes and keyboard; focused translation coverage for all 16 shipped locales, including RTL. Update component inventory for any new shared splitter/host chrome. No model call is needed to accept layout behavior.
+**Dependencies:** T1.
+
+## T3 — Bind private conversations to validated work context
+
+**Boundary:** server identity, memory/persistence and the immediate piece-screen consumer. Context/persistence can roll back without rewriting saved product records.
+**Files:** `libraries/nestjs-libraries/src/chat/conductor/{agent-chat.request,conductor.context,agent-threads.service,conductor.instructions}.ts`; `chat/capabilities/{agent-parts.contract,capability.context}.ts`; relevant catalogue readers; `apps/backend/src/api/routes/agent.controller.ts`; `apps/frontend/src/app/(app)/(site)/layout.tsx`; `agents/{agent.contract,agent.transport,agent.handoff,agent.screen}.tsx` or their existing `.ts` counterparts; the piece consumer.
+**Interfaces:** versioned typed target/reference, explicit user/org/thread identity, bounded server-reconstructed current content, revision, persistent artifact references and last target. Confirm exact existing storage APIs before choosing metadata versus a minimal product-owned association. Mirror shared contract changes through the repository's existing contract mechanism; do not create a parallel API.
+**Outcome:** a manually created piece can be discussed with correct current text/task/evidence; the target is visible and removable; reload and back/forward restore it. Old/forged/missing/foreign targets, hidden history and late cross-session events are handled without disclosure or mutation. No secret/raw prompt in URLs; opening never sends a message.
+**Verification:** two users/two organizations, same shared entity with private threads, long context, stale revision, deleted target, reload and thread/workspace switch. First complete vertical slice is piece → open its chat → ask about its current text → retain the same piece; real-model usefulness remains T8's separate gate.
+**Dependencies:** T1.
+
+## T4 — Share the artifact/editor host and live data
+
+**Boundary:** reuse adapters and state synchronization across existing object screens; no duplicate editors or database models.
+**Files:** `agents/agent.panel.tsx`, `agent.cards.tsx`, `agent.piece-data.ts`, `agent.revalidate.ts`, `agent.contract.ts`; `content-intelligence/pieces/piece.container.tsx`; `brand-voice/voice-avatar.screen.tsx`; `channels/channel-screen.tsx`; existing ideas/facts/media and listing adapters.
+**Interfaces:** shared host with page/panel modes and suppressible contextual-chat chrome; stable artifact identity and data keys, explicit selection, dirty/removed states. Plan/adaptation records resolve the exact existing piece/variant/time.
+**Outcome:** the same avatar/channel/piece/variant is editable in the panel and the section. Tool completion and manual saves revalidate the same scoped SWR keys. Distinct objects appear in the conversation's artifact picker; repeated updates do not duplicate them. Manual edits do not get replaced by automatic focus or stale snapshots. Workspace browsing shows actual bounded records and statuses.
+**Verification:** each supported artifact's page/panel save/read equivalence, stale proposal, unsaved work, removed item and zero-call object browsing. Current role and admission checks stay authoritative. Register any extracted shared host in the inventory.
+**Dependencies:** T2, T3.
+
+## T5 — Bring the same conversation into manual work
+
+**Boundary:** adoption in manual workflows and common interview/selection UI, using T3/T4's facade.
+**Files:** `agents/{agent.conversation,agent.composer,agent.interview-card,agent.selection-card,agent.handoff}.tsx` or existing `.ts` counterparts; `content-intelligence/pieces/{piece.container,piece-core-tab,core-edit}.tsx`; existing intake/question controls; `brand-voice/voice-avatar.screen.tsx`; `channels/channel-screen.tsx`; shared headers of content/avatar/channel lists and `launches/launches.component.tsx`; existing ideas/facts/media hosts; relevant copy files and shared component inventory.
+**Outcome:** manual creation/editing exposes «Обсудить с ИИ» with the exact current object; lists, calendar, ideas/facts/media use the actual validated section/filter context. Existing personal linked conversation resumes without auto-send; site-level session continuity survives manual navigation, and embedded routes do not recursively mount assistants. Questions, selection, approvals, drafts and validation use the same components. Remove early «Дописать материал» duplication; keep clear secondary raw-material input and direct manual edit/version restore after a text exists. An edit instruction cannot become an asserted source fact.
+**Verification:** manual → chat → accepted edit → manual equality for a piece; corresponding avatar/channel adoption; unsent draft, reload, back/forward and AI-unavailable manual operation. In-scope UI states and localization are part of this package, not a later polish backlog.
+**Dependencies:** T3, T4.
+
+## T6 — Retrieve new events within the requested period
+
+**Boundary:** common intake/research intent and provider-supported constraints; separate retrieval rollback/test boundary from the page shell.
+**Files:** `content-intelligence/intake/{intake.service,research-digest}.ts`, current prompt contracts and successors as needed; `pieces/{piece.service,piece-research.contract,core-write}.ts`; `openai/{web.research.service,ai.clients}.ts`; relevant existing reader/source date helpers; callers' DTO/contracts and period presentation.
+**Interfaces:** versioned research intent with anchored clock/timezone, new-task versus old-example separation, coverage boundary and event interval. Preserve provider-specific options in provider implementations, existing quota/search fallback and explicit-selection rules. Existing source-admission logic must distinguish source-publication, retrieval and event-effective dates.
+**Outcome:** the owner-reported old-overview case resolves to later events through the actual current instant. Old news is excluded from new findings; rolling sources and retrospective pages can support dated events. Historical requests remain historical; ambiguous boundaries ask one question; empty/unknown results are honest and retain the draft. Both UI entrances use the same logic.
+**Verification:** frozen 16 October regression with selected old/new/no-date/rolling sources, timezone boundary, explicit historical interval and no matching results. Pin time; inspect behavior, not merely the presence of a date in a prompt. Do not use paid searches for ordinary regression. A bounded actual search belongs to T8 only with current authority.
+**Dependencies:** T1.
+
+## T7 — Make ongoing work and interrupted results recoverable
+
+**Boundary:** existing chat transport, run claim/cancellation lifecycle and operation UI. Do not introduce a second stream protocol or rewrite Temporal contracts.
+**Files:** `agents/{agent.conversation,agent.transport,agent.cards,agent.copy}.*`; `chat/conductor/{agent-chat.request,agent-run-claims,conductor.steps,agent-threads.service}.ts`; existing NDJSON/AI SDK bridge and usage integration only where affected.
+**Outcome:** show real active work, personal question/acceptance waiting and saved results; Stop/Retry explain their real effect. Recover an interrupted/uncertain write before any resend, preserve late saved results and old text, isolate session switches, keep explicit approvals. Zero-cost UI reads and one conductor admission plus actual action accounting remain.
+**Verification:** existing recorded streams and deterministic tool interruption at before-call, in-flight, after-save and reconnect boundaries; stale acceptance, permission loss, quota refusal and AI unavailable. Real provider cancellation semantics stay unproven unless separately observed and recorded.
+**Dependencies:** T2, T3, T4.
+
+## T8 — Accept the complete workflow and deliver under explicit authority
+
+**Boundary:** one root-owned integration/release acceptance, then separately authorized owner/provider/production gates. This is the external delivery boundary, not another implementation-only test package.
+**Files:** existing agent scenario fixtures/runners, targeted browser fixtures/evidence under `.codex/stages/`, relevant docs and standard release scripts; app fixes return to their owning package.
+**Outcome:** every A1–A10 criterion has matching evidence. A fresh owned scenario goes through avatar, channel writing settings, piece, personal answers, adaptation and reserve; a manually created object makes the return trip with identical records and versions. The original news-period example, old conversations, roles, approvals and unavailable AI are covered. No real social connection or publication is needed for a reserve-only acceptance.
+**Verification:** scoped checks during implementation; here run `pnpm run build`, all three halves of `pnpm test`, `git diff --check`, and `scripts/orchestration/run_process_verification.sh`. Use the standard exact-HEAD suite receipt if publishing an image. Confirm graph/docs relevance at integration; refresh only at an accepted relevant boundary. Record live model, user acceptance, source delivery and runtime deployment as separate evidence. Actual live/paid checks, source push and deployment need their explicit current delivery step; absent authority leaves that gate open without replacing it with fixtures or HTTP success.
+**Dependencies:** T5, T6, T7.
+
+## Execution order and preservation
+
+Start T1; then T2, T3 and T6 can run independently where ownership allows. T4 adopts the shell/context; T5 and T7 consume that accepted facade; T8 integrates the complete flow. Each package includes its own meaningful focused regression, state coverage, documentation and component-inventory changes. Do not split those into ceremony-only tasks or rerun broad suites at every local step.
+
+Preserve all earlier kcxz/0qgn/2q28/m0iy criteria, owner decisions and external defers. Related historical epics are references, not blockers for this scoped product improvement and not automatically closed by it. Do not copy the owner's screenshot, account details or private generation history into Git. The prototype uses synthetic copy and does not prove AI capability.
