@@ -21,6 +21,8 @@ const selectionOption = z.object({
   id: z.string(),
   label: z.string(),
   selected: z.boolean(),
+  preview: z.object({ before: z.string().max(60_000), after: z.string().max(60_000),
+    reason: z.string().optional(), target: z.enum(['title', 'text']).optional() }).optional(),
   status: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
 });

@@ -5,6 +5,7 @@ import { piecesCopy } from '@contentfactory/frontend/components/content-intellig
 import type { SuggestedQuestionsWords } from '@contentfactory/frontend/components/content-intelligence/intake/questions.card';
 import type { AgentArtifactKind } from './agent.contract';
 import type { EditorDraftWords } from './agent.handoff';
+import { reviewPreviewCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/review-change-preview.copy';
 
 /**
  * Слова экрана «Агент» (`content-factory-next-kcxz.10`), два языка рядом с
@@ -254,6 +255,7 @@ type AgentWords = {
   /** The selection card (`kcxz.16`): rows to keep, several at once. */
   selection: {
     kind: string;
+    preview: { summary: string; before: string; after: string };
     /** «Взять: <statement>» for a screen reader. */
     include: string;
     keep: (count: number) => string;
@@ -545,6 +547,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     selection: {
       kind: 'Выбор',
+      preview: reviewPreviewCopy.ru,
       include: 'Взять',
       keep: (count) => `Оставить выбранные · ${count}`,
       keepNone: 'Продолжить без них',
@@ -1207,6 +1210,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     selection: {
       kind: 'Choice',
+      preview: reviewPreviewCopy.en,
       include: 'Keep',
       keep: (count) => `Keep the ticked · ${count}`,
       keepNone: 'Go on without them',

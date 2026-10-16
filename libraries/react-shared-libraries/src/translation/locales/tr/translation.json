@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Medya kütüphanesi yüklenemedi. Lütfen tekrar deneyin.",
   "post_delete_failed_retry": "Gönderi silinemedi. Lütfen tekrar deneyin.",
   "media_delete_failed_retry": "Medya silinemedi. Lütfen tekrar deneyin.",
-  "channel_delete_failed_retry": "Kanal silinemedi. Lütfen tekrar deneyin."
+  "channel_delete_failed_retry": "Kanal silinemedi. Lütfen tekrar deneyin.",
+  "review_preview_before": "Önce",
+  "review_preview_after": "Öneri",
+  "review_preview_summary": "Önceki metin ve öneri"
 }

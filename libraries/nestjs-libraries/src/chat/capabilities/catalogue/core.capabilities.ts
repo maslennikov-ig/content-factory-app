@@ -320,7 +320,13 @@ export const pieceResearch = defineCapability({
     });
     return undefined;
   },
-  summarize: (output) => ({ ...output }),
+  summarize: (output) => ({ ...output,
+    outcome: output.applied ? 'applied' : 'kept-as-is',
+    factsCard: output.offered > 0 ? 'answered' : 'not_shown', waitingOnCard: 0,
+    note: output.applied
+      ? 'The selected research is already saved in this same piece, with the prior core retained in history. Say it is saved. Do not ask to select facts again, do not say the text is unchanged, and do not offer a separate rewrite to finish this period update.'
+      : 'Nothing was saved. Describe the returned period status or zero selection; no facts card is waiting.',
+  }),
   cardOf: (output) => (output.applied ? pieceCard(output) : null),
 });
 
@@ -374,7 +380,12 @@ const changeOptions = (proposal: ReviewProposal, language: 'ru' | 'en'): Selecti
       const why = change.why?.trim() ? ` — ${change.why.trim()}` : '';
       return {
         id: change.id,
-        label: `${where}${changeWords(change, language)}${why}`.slice(0, 400),
+        label: `${where}${change.excerpt.length + change.replacement.length > 280
+          ? (language === 'ru' ? 'Обновить текст' : 'Update text')
+          : changeWords(change, language)}${why}`.slice(0, 400),
+        preview: { before: change.excerpt, after: change.replacement,
+          ...(change.why?.trim() ? { reason: change.why.trim() } : {}),
+          target: change.target === 'title' ? 'title' : 'text' },
         selected: true,
         status: change.basket,
         source: hostOf(change.sourceUrls?.[0]),

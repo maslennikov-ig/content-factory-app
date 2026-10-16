@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "メディアライブラリを読み込めませんでした。もう一度お試しください。",
   "post_delete_failed_retry": "投稿を削除できませんでした。もう一度お試しください。",
   "media_delete_failed_retry": "メディアを削除できませんでした。もう一度お試しください。",
-  "channel_delete_failed_retry": "チャンネルを削除できませんでした。もう一度お試しください。"
+  "channel_delete_failed_retry": "チャンネルを削除できませんでした。もう一度お試しください。",
+  "review_preview_before": "変更前",
+  "review_preview_after": "変更案",
+  "review_preview_summary": "変更前と変更案"
 }

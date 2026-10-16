@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Impossible de charger la médiathèque. Réessayez.",
   "post_delete_failed_retry": "Impossible de supprimer la publication. Réessayez.",
   "media_delete_failed_retry": "Impossible de supprimer le média. Réessayez.",
-  "channel_delete_failed_retry": "Impossible de supprimer le canal. Réessayez."
+  "channel_delete_failed_retry": "Impossible de supprimer le canal. Réessayez.",
+  "review_preview_before": "Avant",
+  "review_preview_after": "Proposition",
+  "review_preview_summary": "Texte précédent et proposition"
 }

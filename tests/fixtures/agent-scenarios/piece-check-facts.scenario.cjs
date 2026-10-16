@@ -39,8 +39,8 @@ module.exports = {
     // below still reaches the door with it, read from the run's snapshot.
     expect(card).not.toHaveProperty('token');
     expect(card.options).toEqual([
-      { id: 'c1', label: '«23 часа» → «21 час» — Источник называет 21 час', selected: true, status: 'show', source: 'hbr.org' },
-      { id: 'c4', label: '«повеcтки» → «повестки» — Опечатка', selected: true, status: 'silent', source: null },
+      { id: 'c1', label: '«23 часа» → «21 час» — Источник называет 21 час', selected: true, status: 'show', source: 'hbr.org', preview: { before: '23 часа', after: '21 час', reason: 'Источник называет 21 час', target: 'text' } },
+      { id: 'c4', label: '«повеcтки» → «повестки» — Опечатка', selected: true, status: 'silent', source: null, preview: { before: 'повеcтки', after: 'повестки', reason: 'Опечатка', target: 'text' } },
     ]);
     expect(ask.admissions.map(([operation]) => operation)).toEqual([
       'agent',

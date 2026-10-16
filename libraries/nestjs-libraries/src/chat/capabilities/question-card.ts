@@ -55,6 +55,17 @@ export const questionCardView = (payload: unknown): unknown => {
   const shown = Object.fromEntries(
     Object.entries(payload).filter(([key]) => !SERVER_ONLY_CARD_KEYS.includes(key))
   );
+  if (shown.kind === 'selection' && Array.isArray(shown.options)) {
+    shown.options = shown.options.map((option) => {
+      if (!isRecord(option) || !('preview' in option)) return option;
+      const { preview, ...rest } = option;
+      if (!isRecord(preview) || typeof preview.before !== 'string' || typeof preview.after !== 'string' ||
+          preview.before.length > 60_000 || preview.after.length > 60_000) return rest;
+      return { ...rest, preview: { before: preview.before, after: preview.after,
+        ...(typeof preview.reason === 'string' ? { reason: preview.reason } : {}),
+        ...(preview.target === 'title' || preview.target === 'text' ? { target: preview.target } : {}) } };
+    });
+  }
   return { ...shown, [AGENT_CARD_ID_KEY]: questionCardId(payload) };
 };
 

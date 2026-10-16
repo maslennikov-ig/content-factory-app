@@ -251,6 +251,8 @@ export type AgentSelectionQuestionPayload = {
     status?: string | null;
     /** The host of the row's source, when it has one. */
     source?: string | null;
+    /** Complete proposal text; private signed continuation stays server-side. */
+    preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text' };
   }>;
   canDecideForPerson: true;
   /** `AGENT_CARD_ID_KEY`: added by the server to the card it shows. */

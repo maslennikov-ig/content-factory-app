@@ -201,6 +201,7 @@ import {
 import {
   handedQuestionsOf,
   writeCore,
+  selectedCoreEventFacts,
   writeCoreWithDecisions,
   type CoreDecisionV1,
   type CoreDelegatedV1,
@@ -4882,6 +4883,12 @@ export class PieceService {
     }
     const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
     const intent = saved.state.summary?.researchIntent;
+    const selectedBrief = selectedFactsBrief(state.filled.brief);
+    if (intent?.eventInterval && !selectedCoreEventFacts(selectedBrief.facts,
+      { ...intent.eventInterval, timezone: intent.timezone }).length) {
+      await this.snapshots.del(key);
+      return piece;
+    }
     const originalInstruction = instructionOf(core);
     const researchInstruction = intent?.eventInterval
       ? { text: [originalInstruction?.text, intent.task,
@@ -4891,8 +4898,9 @@ export class PieceService {
       : originalInstruction;
     const rewritten = await writeCore({ organizationId, language: saved.language,
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
-      brief: selectedFactsBrief(state.filled.brief), answers: core.answers, questionTextByKey: {},
+      brief: selectedBrief, answers: core.answers, questionTextByKey: {},
       personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
+      ...(intent?.eventInterval ? { eventUpdate: { ...intent.eventInterval, timezone: intent.timezone } } : {}),
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
       { aiUsage: this.aiUsage, slopCheck: this.slopCheck, warn: message => this.logger.warn(message) });
     if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())

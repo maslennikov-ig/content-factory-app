@@ -67,7 +67,7 @@ export const researchDateSpans = (text: string, defaultYear?: number): DateSpan[
   for (const m of text.matchAll(/\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b/g)) {
     add(validDay(+m[3], +m[2], +m[1]), validDay(+m[3], +m[2], +m[1]), m);
   }
-  const named = new RegExp(`\\b(\\d{1,2})(?:\\s*(?:[-–—]|to|through|до|по)\\s*(\\d{1,2}))?\\s+(${monthPattern})[a-zа-я]*(?:[ ,]+(20\\d{2}))?`, 'giu');
+  const named = new RegExp(`\\b(\\d{1,2})(?:\\s*(?:[-–—]|to|through|до|по)\\s*(\\d{1,2}))?\\s*(${monthPattern})[a-zа-я]*(?:[ ,]+(20\\d{2}))?`, 'giu');
   for (const m of text.matchAll(named)) {
     const year = m[4] ? +m[4] : defaultYear;
     if (!year) continue;
@@ -112,12 +112,23 @@ export const resolveResearchIntent = (input: {
   const delta = /после\s+\d|since\s+\d|after\s+\d|(?:новый\s+пост|новый\s+обзор|new\s+post).*после|что\s+(?:произошло|изменилось|нового).*после|после\s+(?:этого|обзора|поста|предыдущ|прошл)|с\s+тех\s+пор|не\s+повтор|новости.*после|what.*(?:changed|happened).*since|since\s+(?:then|the|my)|after\s+(?:that|the|previous)/iu.test(task);
   const dates = researchDateSpans(task, year);
   // A labelled old/excluded range is data, just like priorExample. Inspect
-  // its own clause rather than letting an earlier exclusion taint later dates.
+  // its own local context rather than letting an earlier exclusion taint later dates.
+  const excludedDates: DateSpan[] = [];
   const requestedDates = dates.filter(span => {
     const clause = task.slice(0, span.index).split(/[.!?;,\n]/u).at(-1) || '';
     const direction = clause.split(/(?:найд(?:и|ите)|ищ(?:и|ите)|\bfind\b|\bsearch\b)/iu).at(-1) || '';
-    return !/(?:не\s+повтор|исключ|\bexclude\b|(?:предыдущ|прежн|стар|прошл)[а-яё]*\s+(?:пост|обзор|текст|материал|событ|новост)|(?:previous|old)\s+(?:post|overview|text|material|example|event|news))/iu.test(direction);
+    const following = (task.slice(span.index + span.text.length).split(/[.!?;,\n]/u)[0] || '').trimStart();
+    const excludedBefore = /(?:не\s+(?:повтор|выда|включ|добав|показы|использ)|исключ|\b(?:do\s+not|don't)\s+(?:include|report|show|list|repeat)\b|\bexclude\b|(?:предыдущ|прежн|стар|прошл)[а-яё]*\s+(?:пост|обзор|текст|материал|событ|новост)|(?:previous|old)\s+(?:post|overview|text|material|example|event|news))/iu.test(direction);
+    const excludedAfter = /^(?:не\s+(?:включ|выда|добав|показы|использ|повтор)|(?:should|must)\s+not\s+(?:be\s+)?(?:included|reported|shown|listed)\b|(?:do\s+not|don't)\s+(?:include|report|show|list|repeat)\b|(?:is|are)\s+excluded\b|excluded\b)/iu.test(following);
+    const excluded = excludedBefore || excludedAfter;
+    if (excluded) excludedDates.push(span);
+    return !excluded;
   });
+  if (requestedDates.some(requested => excludedDates.some(excluded =>
+    excluded.start <= requested.end && excluded.end >= requested.start))) {
+    result.clarification = 'Какой один период должен охватывать новый обзор? / Which single period should the new overview cover?';
+    return result;
+  }
   if (dates.length && !requestedDates.length) {
     result.clarification = 'Какой период должен охватывать новый обзор? / Which period should the new overview cover?';
     return result;

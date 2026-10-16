@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Could not load the library. Please try again.",
   "post_delete_failed_retry": "Could not delete the post. Please try again.",
   "media_delete_failed_retry": "Could not delete the media. Please try again.",
-  "channel_delete_failed_retry": "Could not delete the channel. Please try again."
+  "channel_delete_failed_retry": "Could not delete the channel. Please try again.",
+  "review_preview_before": "Before",
+  "review_preview_after": "Proposed",
+  "review_preview_summary": "Before and proposed"
 }

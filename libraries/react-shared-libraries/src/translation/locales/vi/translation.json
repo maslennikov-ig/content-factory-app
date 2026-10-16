@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Không thể tải thư viện nội dung đa phương tiện. Vui lòng thử lại.",
   "post_delete_failed_retry": "Không thể xóa bài đăng. Vui lòng thử lại.",
   "media_delete_failed_retry": "Không thể xóa nội dung đa phương tiện. Vui lòng thử lại.",
-  "channel_delete_failed_retry": "Không thể xóa kênh. Vui lòng thử lại."
+  "channel_delete_failed_retry": "Không thể xóa kênh. Vui lòng thử lại.",
+  "review_preview_before": "Trước",
+  "review_preview_after": "Đề xuất",
+  "review_preview_summary": "Nội dung trước và đề xuất"
 }

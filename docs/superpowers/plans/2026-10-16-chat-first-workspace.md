@@ -109,3 +109,15 @@ Owner explicitly requests the fix, production delivery and paid original9–16Oc
 Root owns intake/digest/provenance/integration/release/paid browser and final acceptance. Isolated `research_material_budget` owns web research material/query helpers and tests; `research_empty_outcome` owns the existing capability/selection outcome and focused tests. Child changes are accepted centrally before source freeze; no child model/provider/host delivery or broad-suite duplication.
 
 The first corrected live search found two dated official events, then actual save inspection exposed missing revision append in `acceptCoreResearch`. The same #1094 acceptance requires the existing `withRevision`/CAS path; root reproduced it, corrected it, recovered the exact original through the manual UI while preserving the intermediate, and repeats exact-source release plus paid original-period control. A successful search or changed body alone does not close this gate.
+
+
+## One-request period refresh and exact proposal preview (jvrq.10)
+
+Owner requires a single natural request to update the overview without repeating dates or sending a separate editorial rewrite. Existing fact/proposal selection remains the person's UI choice.
+
+1. Reproduce negated prior-period ambiguity and stale saved-result prose from retained real-UI evidence; fix bounded grammar and explicit final tool outcome.
+2. Route temporal research acceptance through a versioned standalone-period writer mode in the same native draft call, retaining personal stance/actual observations, only selected dated confirmed new events and official links. Keep ordinary enrichment unchanged, original revision and CAS atomic, no hidden extra paid step.
+3. Show full exact before/after and reasons through one shared manual/chat preview component; optional safe view fields only, private tokens/snapshots server-side. Localize all16 languages; check keyboard, wrapping, themes.
+4. One root exact-source release acceptance, public archive/image/CI and canonical production rollout with rollback/Mastra/foreign-service safeguards.
+5. Paid original9–16Oct UI control starts from the preserved earlier original via normal reversible UI history, after fresh identity/body CAS check. Send one ordinary request mentioning desired and excluded prior dates, no known-answer event/URL injection, accept normal cards only. Require coherent saved new overview without date clarification or separate rewrite message, original in history and shared/fresh-manual equality; all usage terminal and no publication. Preserve current successful850char version in history.
+6. Close only .10 after canonical acceptance. Broader original epic/.8 avatar/channel/owner gates stay open.

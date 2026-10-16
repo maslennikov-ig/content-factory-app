@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Impossibile caricare la libreria multimediale. Riprova.",
   "post_delete_failed_retry": "Impossibile eliminare il post. Riprova.",
   "media_delete_failed_retry": "Impossibile eliminare il contenuto multimediale. Riprova.",
-  "channel_delete_failed_retry": "Impossibile eliminare il canale. Riprova."
+  "channel_delete_failed_retry": "Impossibile eliminare il canale. Riprova.",
+  "review_preview_before": "Prima",
+  "review_preview_after": "Proposta",
+  "review_preview_summary": "Testo precedente e proposta"
 }

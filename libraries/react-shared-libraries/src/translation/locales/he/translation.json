@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "לא ניתן לטעון את ספריית המדיה. נסו שוב.",
   "post_delete_failed_retry": "לא ניתן למחוק את הפוסט. נסו שוב.",
   "media_delete_failed_retry": "לא ניתן למחוק את המדיה. נסו שוב.",
-  "channel_delete_failed_retry": "לא ניתן למחוק את הערוץ. נסו שוב."
+  "channel_delete_failed_retry": "לא ניתן למחוק את הערוץ. נסו שוב.",
+  "review_preview_before": "לפני",
+  "review_preview_after": "הנוסח המוצע",
+  "review_preview_summary": "הנוסח הקודם והמוצע"
 }

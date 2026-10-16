@@ -7,6 +7,8 @@ import { Button } from '@contentfactory/react/form/button';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { WorkingLine } from '../../ui/working-line';
 import { Disclosure } from '../../ui/disclosure';
+import { LocalizedReviewChangePreview } from './review-change-preview.localized';
+import { reviewPreviewCopy } from './review-change-preview.copy';
 import { sentenceChanges } from './core-answer-diff';
 import { ResearchOutcome } from '../intake/intake.research';
 import {
@@ -747,10 +749,12 @@ export function AdaptationReview({
                         label={
                           <span>
                             {c.basket === 'silent' ? t.typoPrefix : ''}
-                            {c.excerpt} → {c.replacement}
-                            <span className="block text-cf-ink-muted">
-                              {c.why}
-                            </span>
+                            <LocalizedReviewChangePreview
+                              before={c.excerpt}
+                              after={c.replacement}
+                              reason={c.why}
+                              fallbackWords={reviewPreviewCopy[locale]}
+                            />
                           </span>
                         }
                       />

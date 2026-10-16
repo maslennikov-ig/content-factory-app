@@ -148,3 +148,12 @@ On16 October2026 the owner authorized implementation of this epic and selected Â
 The implementation reuses the existing Mastra/AI SDK runtime, private organization:user threads and shared product editors. The installed metadata APIs, native resource-memory behavior and bounded context/storage contracts were checked. Exact local acceptance and remaining owner/provider/release gates are recorded in Beads and the current implementation-stage outcome; the planning prototype remains design evidence.
 
 Research acceptance preserves the exact previous core text in the existing bounded revision history in the same compare-and-swap write as the replacement. Existing revisions, author provenance and pending-material state survive; an empty result, failed generation or stale snapshot cannot replace either text or history.
+
+
+### Completing an overview update in one request
+
+A desired event interval remains authoritative when the same request excludes prior dates. Negated prior ranges are exclusions, including ordinary Russian/English wording before or after the dates; genuinely competing positive periods still ask one question. A latest clarification is passed without reintroducing discarded intervals.
+
+After the person selects research findings, a temporal update writes a standalone overview in the same native draft call. The previous core supplies the authorâ€™s stance and actual observations; its old event narrative is replaced. Only selected confirmed dated findings support new events, with their supplied source links; no new personal experience is invented. Ordinary non-temporal enrichment retains its existing preservation behavior. No separate editorial message is required to finish the period update. The exact original/revision CAS and empty/failure safety above still apply.
+
+A proposed text change shows complete exact before/after paragraphs and its reason in the shared manual/chat preview, expanded before acceptance and collapsible with the keyboard. Only public preview fields cross the wire; the signed proposal and private continuation stay server-side. Acceptance sends selected ids, not replacement text. A completed research save reports a final applied state with zero waiting choices; the assistant acknowledges the saved result rather than asking for the same selection again.

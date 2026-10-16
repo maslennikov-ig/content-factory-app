@@ -65,6 +65,19 @@ test('excluded old ranges cannot become the requested interval; independent unkn
   expect(nested.eventInterval).toBeNull();
   expect(nested.clarification).toBeTruthy();
 });
+test('negated Russian and English old ranges leave only the explicit current interval', () => {
+  for (const task of [
+    'Не выдавай события 6–8 октября 2026 за новости. Найди события OpenAI за 9–16 октября 2026.',
+    'События6–8октября 2026 не включайте. Найдите события OpenAI за 9–16 октября 2026.',
+    'Do not report events from 6–8 October 2026 as news. Find OpenAI events from 9–16 October 2026.',
+    'Events from 6–8 October 2026 should not be included in the report. Find OpenAI events from 9–16 October 2026.',
+  ]) {
+    const intent = resolveResearchIntent({ input: task, now, timeZone: 'Europe/Moscow' });
+    expect(intent.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+    expect(intent.clarification).toBeNull();
+    expect(intent.exclusions).toContain('events already covered in the previous example');
+  }
+});
 test('relative days use the pinned instant; calendar days use the caller zone including DST', () => {
   expect(resolveResearchIntent({ input: 'Новое за последние 3 дня', now }).eventInterval).toEqual({ start: '2026-10-13T09:00:00.000Z', end: now.toISOString() });
   expect(researchDayStart('2026-10-09', 'Europe/Moscow')).toBe('2026-10-08T21:00:00.000Z');

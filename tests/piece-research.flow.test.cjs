@@ -747,3 +747,63 @@ describe('the brief after accepted corrections carries no refuted number (97dq.4
     expect(next.filled.brief.thesis).toContain('40%');
   });
 });
+
+
+test('one dated overview request accepts selected events into the standalone writer and preserves original', async () => {
+  intake.now = () => new Date('2026-10-16T09:00:00Z');
+  const old = 'My practical stance. Old overview for 6–8 October 2026.';
+  piece.body = old;
+  piece.brief.personText = 'My practical stance.';
+  const source = 'https://example.org/release-notes';
+  const quote = 'On October 15, 2026 the new voice feature launched.';
+  intake.sources.acceptSearchResult = async () => ({ evidenceId: 'ev-study', url: source, title: 'Release notes', excerpt: quote });
+  research.research.mockImplementation(async () => ({ provider: 'exa',
+    facts: [{ text: quote, sourceUrl: source }],
+    sources: [{ url: source, title: 'Release notes', provider: 'exa' }],
+  }));
+  responses = [
+    { verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
+      eventDate: '2026-10-15', eventDateQuote: quote }] },
+    { text: 'My practical stance. The voice feature launched on October 15. ' + source },
+  ];
+  const preview = await start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
+    direction: 'Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.' });
+  expect(preview.summary.periodStatus).toBe('matched');
+  await accept(preview);
+  expect(modelCalls.map(call => call.role)).toEqual(['review', 'draft']);
+  expect(modelCalls[1].prompt).toContain('PROMPT VERSION: core-write/v17');
+  expect(modelCalls[1].prompt).toContain('Write a new standalone overview');
+  expect(modelCalls[1].prompt).toContain('SELECTED CONFIRMED EVENTS IN THE INTERVAL');
+  expect(modelCalls[1].prompt).toContain(source);
+  expect(modelCalls[1].prompt).not.toContain('this is an ENRICHMENT');
+  expect(piece.brief.revisions.at(-1).text).toBe(old);
+  expect(research.research).toHaveBeenCalledTimes(1);
+  expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
+});
+
+test('declining all period facts retains the original without a paid writer or CAS', async () => {
+  intake.now = () => new Date('2026-10-16T09:00:00Z');
+  const old = 'My practical stance. Old overview for 6–8 October 2026.';
+  piece.body = old;
+  piece.brief.personText = 'My practical stance.';
+  const source = 'https://example.org/release-notes';
+  const quote = 'On October 15, 2026 the new voice feature launched.';
+  intake.sources.acceptSearchResult = async () => ({ evidenceId: 'ev-study', url: source, title: 'Release notes', excerpt: quote });
+  research.research.mockImplementation(async () => ({ provider: 'exa',
+    facts: [{ text: quote, sourceUrl: source }],
+    sources: [{ url: source, title: 'Release notes', provider: 'exa' }],
+  }));
+  responses = [
+    { verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
+      eventDate: '2026-10-15', eventDateQuote: quote }] },
+    { text: 'My practical stance. The voice feature launched on October 15. ' + source },
+  ];
+  const preview = await start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
+    direction: 'Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.' });
+  expect(preview.summary.periodStatus).toBe('matched');
+  const before = JSON.parse(JSON.stringify(piece));
+  await accept(preview, []);
+  expect(piece).toEqual(before);
+  expect(modelCalls.map(call => call.role)).toEqual(['review']);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+});

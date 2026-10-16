@@ -40,8 +40,15 @@ import {
   CORE_WRITE_META_REPAIR_V16,
   CORE_WRITE_PROMPT_VERSION,
   CORE_WRITE_REPAIR_V16,
-  coreWriteSystemV16,
 } from './core-write-prompt.v16';
+import {
+  CORE_WRITE_BLOCK_TITLES_V17,
+  CORE_WRITE_PROMPT_VERSION as CORE_WRITE_EVENT_PROMPT_VERSION,
+  coreEventDayV17,
+  coreWriteEventLeadV17,
+  coreWriteSystemV17,
+  type CoreEventUpdateV17,
+} from './core-write-prompt.v17';
 import {
   DEFAULT_DELEGATED_POLICY,
   type DelegatedPolicyV1,
@@ -138,6 +145,8 @@ export type CoreWriteInputV1 = {
   instruction?: { text: string; links: readonly string[] } | null;
   /** Existing core to enrich; never attributed as fresh author input. */
   existingCore?: string;
+  /** Accepted temporal research writes a new overview, not old-body enrichment. */
+  eventUpdate?: CoreEventUpdateV17;
   /**
    * «Пересобрать суть» (`97dq.85`): the core on the page now. Written from
    * the same input, so the rebuild keeps what it carried from it; `byPerson`
@@ -357,16 +366,35 @@ const fenced = (title: string, lines: string[]): string =>
  */
 const searchRefuted = ownRefutedBySearch;
 
+/** Selected event support shared by acceptance and its writer. */
+export const selectedCoreEventFacts = (
+  facts: BriefFilledV1['facts'], eventUpdate: CoreEventUpdateV17
+): BriefFilledV1['facts'] => facts.filter((fact) => {
+  const date = fact.dateProvenance;
+  return fact.kind === 'found' && fact.selected === true && fact.verified && fact.status === 'confirmed' &&
+    Boolean(trimmed(fact.sourceUrl)) && date?.precision === 'day' &&
+    /^20\d{2}-\d{2}-\d{2}$/u.test(date.eventDate) &&
+    Number.isFinite(Date.parse(date.eventDate)) &&
+    new Date(date.eventDate).toISOString().slice(0, 10) === date.eventDate &&
+    Boolean(trimmed(date.eventDateQuote)) &&
+    date.eventDate >= coreEventDayV17(eventUpdate.start, eventUpdate.timezone) &&
+    date.eventDate <= coreEventDayV17(eventUpdate.end, eventUpdate.timezone);
+});
+
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V16;
+  const eventUpdate = input.eventUpdate;
+  const previousEventContext = eventUpdate
+    ? trimmed(input.rebuildFrom?.text) || trimmed(input.existingCore)
+    : '';
+  const words = eventUpdate ? CORE_WRITE_BLOCK_TITLES_V17 : CORE_WRITE_BLOCK_TITLES_V16;
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
     человек нажал «Дополнить ресерчем». От него зависят и правила системы, и
     блоки ниже, поэтому спрашивается он один раз.
   */
-  const rebuild = trimmed(input.rebuildFrom?.text) ? input.rebuildFrom! : null;
-  const enrichment = !rebuild && Boolean(trimmed(input.existingCore));
+  const rebuild = !eventUpdate && trimmed(input.rebuildFrom?.text) ? input.rebuildFrom! : null;
+  const enrichment = !eventUpdate && !rebuild && Boolean(trimmed(input.existingCore));
   const added = (input.addedMaterial ?? [])
     .map((text) => editorialAnswerText(text))
     .filter(Boolean);
@@ -378,6 +406,15 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       : input.personText
   );
   const brief = input.brief;
+  // This filter is specific to the explicit event-update mode. Ordinary
+  // writing keeps every historical trust bucket and its preservation rules.
+  const promptFacts = eventUpdate ? [] : brief.facts;
+  const selectedEvents = eventUpdate ? selectedCoreEventFacts(brief.facts, eventUpdate) : [];
+  const authorFacts = eventUpdate
+    ? brief.facts.filter((fact) =>
+        (fact.origin === 'person' || fact.origin === 'input') &&
+        fact.kind !== 'external' && !searchRefuted(fact))
+    : [];
   const said = input.answers.filter((answer) => answer.origin !== 'model');
   /*
     Решения модели по отданным вопросам (`97dq.56`): своим блоком и с
@@ -410,13 +447,13 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     бы рука его ни принесла (`97dq.19`): человек, давший чужое число со
     ссылкой, печатался и под «подтверждёнными», и под «заимствованными».
   */
-  const borrowedFacts = brief.facts.filter(
+  const borrowedFacts = promptFacts.filter(
     (fact) =>
       fact.kind === 'external' &&
       Boolean(fact.sourceUrl) &&
       !fact.verified
   );
-  const ownOrConfirmed = brief.facts.filter(
+  const ownOrConfirmed = promptFacts.filter(
     (fact) =>
       !borrowedFacts.includes(fact) &&
       isOwnOrConfirmed(fact) &&
@@ -452,7 +489,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     бриф хранится без миграции. Теперь у «отмечено, не подтверждено» всегда
     есть место, и ни одна строка не стоит в двух блоках.
   */
-  const selectedResearchFacts = brief.facts.filter(
+  const selectedResearchFacts = promptFacts.filter(
     (fact) =>
       fact.selected === true &&
       !fact.verified &&
@@ -532,7 +569,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV16(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV17(input.language, forbiddenPhrasesRule(input.language), {
+      ...(eventUpdate ? { eventUpdate } : {}),
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
       gaps: gaps.length > 0,
@@ -552,7 +590,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       ),
     }),
     '',
-    `PROMPT VERSION: ${CORE_WRITE_PROMPT_VERSION}`,
+    `PROMPT VERSION: ${eventUpdate ? CORE_WRITE_EVENT_PROMPT_VERSION : CORE_WRITE_PROMPT_VERSION}`,
+    eventUpdate ? coreWriteEventLeadV17(eventUpdate) : '',
     instruction ? fenced(words.instruction, [trimmed(instruction.text)]) : '',
     instruction && instruction.links.length
       ? fenced(words.links, [...instruction.links])
@@ -589,6 +628,15 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       gaps.map((item) => `[${item.key}] ${item.question}`)
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
+    eventUpdate ? fenced(CORE_WRITE_BLOCK_TITLES_V17.authorFacts, authorFacts.map((fact) => fact.statement)) : '',
+    eventUpdate
+      ? fenced(CORE_WRITE_BLOCK_TITLES_V17.events, selectedEvents.map((fact) =>
+          `${fact.statement} | Event date: ${fact.dateProvenance!.eventDate} | Date evidence: ${fact.dateProvenance!.eventDateQuote} | Source: ${fact.sourceUrl}`))
+      : '',
+    previousEventContext
+      ? fenced(CORE_WRITE_BLOCK_TITLES_V17.previous,
+          previousEventContext.split(/\n\s*\n/u))
+      : '',
     rebuild
       ? fenced(
           rebuild.byPerson ? words.previousByPerson : words.previous,

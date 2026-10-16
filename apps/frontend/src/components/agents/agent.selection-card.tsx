@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { Button } from '@contentfactory/react/form/button';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { SelectionRows } from '@contentfactory/frontend/components/content-intelligence/intake/selection-rows';
+import { LocalizedReviewChangePreview } from '@contentfactory/frontend/components/content-intelligence/pieces/review-change-preview.localized';
+import { Disclosure } from '../ui/disclosure';
 import {
   DECIDE_FOR_PERSON_ANSWER,
   selectionAnswer,
@@ -38,6 +41,7 @@ export function SelectionCard({
   words: AgentWords;
 }) {
   const w = words.selection;
+  const t = useT();
   const [kept, setKept] = useState<ReadonlySet<string>>(
     () =>
       new Set(
@@ -115,6 +119,20 @@ export function SelectionCard({
             id: option.id,
             label: option.label,
             selected: kept.has(option.id),
+            detail: option.preview ? (
+              <Disclosure
+                defaultOpen
+                summary={t('review_preview_summary', w.preview.summary)}
+                contentClassName="min-w-0 pt-[8px]"
+              >
+                <LocalizedReviewChangePreview
+                  before={option.preview.before}
+                  after={option.preview.after}
+                  reason={option.preview.reason}
+                  fallbackWords={w.preview}
+                />
+              </Disclosure>
+            ) : null,
             meta: meta ? (
               <span className="cf-caption text-cf-ink-muted [overflow-wrap:anywhere]">
                 {meta}

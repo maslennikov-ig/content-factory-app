@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "მედიაბიბლიოთეკის ჩატვირთვა ვერ მოხერხდა. სცადეთ ხელახლა.",
   "post_delete_failed_retry": "პოსტის წაშლა ვერ მოხერხდა. სცადეთ ხელახლა.",
   "media_delete_failed_retry": "მედიის წაშლა ვერ მოხერხდა. სცადეთ ხელახლა.",
-  "channel_delete_failed_retry": "არხის წაშლა ვერ მოხერხდა. სცადეთ ხელახლა."
+  "channel_delete_failed_retry": "არხის წაშლა ვერ მოხერხდა. სცადეთ ხელახლა.",
+  "review_preview_before": "მანამდე",
+  "review_preview_after": "შემოთავაზებული",
+  "review_preview_summary": "წინა და შემოთავაზებული ტექსტი"
 }

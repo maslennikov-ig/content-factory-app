@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "미디어 라이브러리를 불러오지 못했습니다. 다시 시도해 주세요.",
   "post_delete_failed_retry": "게시물을 삭제하지 못했습니다. 다시 시도해 주세요.",
   "media_delete_failed_retry": "미디어를 삭제하지 못했습니다. 다시 시도해 주세요.",
-  "channel_delete_failed_retry": "채널을 삭제하지 못했습니다. 다시 시도해 주세요."
+  "channel_delete_failed_retry": "채널을 삭제하지 못했습니다. 다시 시도해 주세요.",
+  "review_preview_before": "변경 전",
+  "review_preview_after": "제안",
+  "review_preview_summary": "이전 내용과 제안"
 }

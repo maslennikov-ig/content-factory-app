@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Die Mediathek konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
   "post_delete_failed_retry": "Der Beitrag konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
   "media_delete_failed_retry": "Die Medien konnten nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-  "channel_delete_failed_retry": "Der Kanal konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+  "channel_delete_failed_retry": "Der Kanal konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+  "review_preview_before": "Bisher",
+  "review_preview_after": "Vorschlag",
+  "review_preview_summary": "Bisheriger Text und Vorschlag"
 }

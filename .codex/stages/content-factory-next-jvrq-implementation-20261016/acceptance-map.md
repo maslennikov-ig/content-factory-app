@@ -31,3 +31,17 @@ Final tested private source `126b76819253d02942f58e5131ccdc6fc0515710`, public/r
 | A10 delivery | Source published, exact tested image deployed and checked, rollback and host retention verified | Deployment is not owner acceptance or successful research quality; epic stays open |
 
 Proof: `evidence/release-acceptance.final.actual.json`, `evidence/public-ci.final.actual.json`, `evidence/image.final.actual.json`, `evidence/production-paid-controls.actual.json`. Private SSE/source excerpts/account identifiers/session tokens are excluded from Git. No original acceptance criteria or unrelated task gates were waived.
+
+
+## #1094 repaired production control, 16 October 17:44 UTC
+
+Exact tested private `7c8eb3e5a04b9992dd17c6f2db542267deb58133`, public/runtime `f975a2961f9d24753f160710cbb995017419b030`. All9 release commands and all5 public CI jobs passed. Prior negative controls above remain historical evidence.
+
+| Gate | Actual final result | Limit |
+| --- | --- | --- |
+| A7 new period sources/selection | PASS: real standard research20sources/2raw/2admitted, official9Oct Codex and15Oct Voice, only2new dated confirmed choices | Mixed negated old dates required an explicit latest single-period search; dialogue improvement remains in .8 |
+| A4 saved rewrite/history/manual | PASS: actual same-chat native editorial proposal accepted, original850chars/hash89c80ef8 saved, exact original3177/hash8d02 retained in history, shared and fresh manual editors exact | Does not prove avatar/channel parity or fresh complete A3 chain |
+| A8 real operation finality | PASS:6 chat POST streams200/terminal,0pageerrors;10same-principal ledger rows succeeded/terminal; no adaptation/publication, prior676char creation unchanged | Journal0.07004274USD is not provider-invoice completeness |
+| A10 delivery/cleanup | PASS: exact image/complete source archive, healthy0restarts, empty schema diff, Mastra45 and21foreign containers unchanged, verified8127 rollback and canonical retention | Epic/.8 stay OPEN; broader original owner/accessibility gates retained |
+
+Evidence: `research-repair-revisions-{release-acceptance,public-ci,image,production-rollout,public-probes,ui-preview,paid-ui-control}.actual.json`. Raw source passages, private content/account identities, session and SSE remain excluded from Git. The stale research final prose and truncated whole-core AFTER preview are explicit .8 follow-ups, not accepted UX criteria.

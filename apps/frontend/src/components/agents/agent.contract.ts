@@ -105,6 +105,8 @@ export type AgentSelectionQuestionPayload = {
     selected: boolean;
     status?: string | null;
     source?: string | null;
+    /** Complete proposal text; private signed continuation stays server-side. */
+    preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text' };
   }>;
   canDecideForPerson: true;
   cardId?: string;
@@ -1092,6 +1094,14 @@ export const readQuestion = (
   return { ...readQuestionShape(toolName, record, resumeSchema), cardId } as AgentQuestion;
 };
 
+const readChangePreview = (value: unknown): AgentSelectionQuestionPayload['options'][number]['preview'] => {
+  const p = recordOf(value);
+  if (typeof p.before !== 'string' || typeof p.after !== 'string' || p.before.length > 60_000 || p.after.length > 60_000) return undefined;
+  return { before: p.before, after: p.after,
+    ...(typeof p.reason === 'string' ? { reason: p.reason } : {}),
+    ...(p.target === 'title' || p.target === 'text' ? { target: p.target } : {}) };
+};
+
 const readQuestionShape = (
   toolName: string,
   record: Record<string, unknown>,
@@ -1168,6 +1178,7 @@ const readQuestionShape = (
                 selected: value.selected === true,
                 status: stringOf(value.status) ?? null,
                 source: stringOf(value.source) ?? null,
+                ...(readChangePreview(value.preview) ? { preview: readChangePreview(value.preview) } : {}),
               }
             : null;
         })

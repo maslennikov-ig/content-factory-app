@@ -2069,5 +2069,8 @@
   "media_read_failed_retry": "Не удалось загрузить медиатеку. Попробуйте ещё раз.",
   "post_delete_failed_retry": "Не удалось удалить пост. Попробуйте ещё раз.",
   "media_delete_failed_retry": "Не удалось удалить медиа. Попробуйте ещё раз.",
-  "channel_delete_failed_retry": "Не удалось удалить канал. Попробуйте ещё раз."
+  "channel_delete_failed_retry": "Не удалось удалить канал. Попробуйте ещё раз.",
+  "review_preview_before": "Было",
+  "review_preview_after": "Предлагается",
+  "review_preview_summary": "Было и предлагается"
 }
