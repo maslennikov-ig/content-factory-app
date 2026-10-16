@@ -322,6 +322,7 @@ export type AgentInterviewQuestionPayload = {
  */
 export const CAPABILITY_REFUSAL_CODES = [
   'IDENTITY_MISSING',
+  'CAPABILITY_INPUT_INVALID',
   'APPROVAL_MISMATCH',
   'PAID_CAP_REACHED',
   'PERMISSION_DENIED',
