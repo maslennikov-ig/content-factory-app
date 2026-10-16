@@ -111,15 +111,39 @@ export const resolveResearchIntent = (input: {
     priorCoverageEnd: null, exclusions: [], clarification: null };
   const delta = /после\s+\d|since\s+\d|after\s+\d|(?:новый\s+пост|новый\s+обзор|new\s+post).*после|что\s+(?:произошло|изменилось|нового).*после|после\s+(?:этого|обзора|поста|предыдущ|прошл)|с\s+тех\s+пор|не\s+повтор|новости.*после|what.*(?:changed|happened).*since|since\s+(?:then|the|my)|after\s+(?:that|the|previous)/iu.test(task);
   const dates = researchDateSpans(task, year);
-  // Explicit historical interval in the NEW task is authoritative.
-  let range = dates.find(span => span.start !== span.end);
-  if (!range && dates.length === 1 && /(?:\b(?:on|as of)|за|на|события|events)/iu.test(task)) range = dates[0];
-  if (!range && dates.length === 2 && /(?:\bfrom|\bbetween|с\s+\d)/iu.test(task) && /(?:\bto\b|\bthrough\b|\band\b|(?:^|\s)по\s+|до\s+\d)/iu.test(task)) {
-    range = { ...dates[0], end: dates[1].end };
+  // A labelled old/excluded range is data, just like priorExample. Inspect
+  // its own clause rather than letting an earlier exclusion taint later dates.
+  const requestedDates = dates.filter(span => {
+    const clause = task.slice(0, span.index).split(/[.!?;,\n]/u).at(-1) || '';
+    const direction = clause.split(/(?:найд(?:и|ите)|ищ(?:и|ите)|\bfind\b|\bsearch\b)/iu).at(-1) || '';
+    return !/(?:не\s+повтор|исключ|\bexclude\b|(?:предыдущ|прежн|стар|прошл)[а-яё]*\s+(?:пост|обзор|текст|материал|событ|новост)|(?:previous|old)\s+(?:post|overview|text|material|example|event|news))/iu.test(direction);
+  });
+  if (dates.length && !requestedDates.length) {
+    result.clarification = 'Какой период должен охватывать новый обзор? / Which period should the new overview cover?';
+    return result;
   }
-  if (range && !delta) {
+  // Explicit historical interval in the NEW task is authoritative.
+  let range = requestedDates.find(span => span.start !== span.end);
+  if (!range && requestedDates.length === 1 && /(?:\b(?:on|as of)|за|на|события|events)/iu.test(task)) range = requestedDates[0];
+  if (!range && requestedDates.length === 2 && /(?:\bfrom|\bbetween|с\s+\d)/iu.test(task) && /(?:\bto\b|\bthrough\b|\band\b|(?:^|\s)по\s+|до\s+\d)/iu.test(task)) {
+    range = { ...requestedDates[0], end: requestedDates[1].end };
+  }
+  // «Do not repeat» excludes old events; it does not replace an explicit
+  // requested interval with a guessed prior-coverage boundary. «After 6–8»
+  // itself names that boundary and still follows the delta path below.
+  const rangeIsPriorBoundary = range && /(?:после|since|after)\s*$/iu.test(task.slice(0, range.index));
+  if (range && !rangeIsPriorBoundary) {
+    if (requestedDates.some(span =>
+      (span.start !== span.end && (span.start !== range!.start || span.end !== range!.end)) ||
+      span.start < range!.start || span.end > range!.end)) {
+      result.clarification = 'Какой один период должен охватывать новый обзор? / Which single period should the new overview cover?';
+      return result;
+    }
     result.mode = 'historical';
-    result.eventInterval = { start: researchDayStart(range.start, timezone), end: new Date(Date.parse(researchDayStart(shiftDay(range.end, 1), timezone)) - 1).toISOString() };
+    const calendarEnd = Date.parse(researchDayStart(shiftDay(range.end, 1), timezone)) - 1;
+    result.eventInterval = { start: researchDayStart(range.start, timezone), end: new Date(Math.min(calendarEnd, input.now.getTime())).toISOString() };
+    if (delta || requestedDates.length < dates.length) result.exclusions = ['events already covered in the previous example', 'publication or crawl time used as event time'];
+    if (result.eventInterval.start > result.eventInterval.end) result.clarification = 'Указанный период ещё не наступил. / The requested period is in the future.';
     return result;
   }
   if (delta) {

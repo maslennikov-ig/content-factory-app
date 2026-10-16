@@ -6,6 +6,7 @@ import {
 } from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import { INTAKE_SNAPSHOT_STORE, INTAKE_SNAPSHOT_TTL_SECONDS, type IntakeSnapshotStore } from '../intake/intake-snapshot.store';
 import {
+  PIECE_RESEARCH_DIRECTION_MAX,
   PIECE_RESEARCH_VERSION,
   PIECE_RESEARCH_VERSIONS,
   type PieceResearchLevel,
@@ -4827,7 +4828,7 @@ export class PieceService {
       ? input.level
       : 'standard';
     const direction = typeof input.direction === 'string'
-      ? input.direction.trim().slice(0, 300)
+      ? input.direction.trim().slice(0, PIECE_RESEARCH_DIRECTION_MAX)
       : '';
     const state = await this.intake.researchExistingCore(
       organizationId,

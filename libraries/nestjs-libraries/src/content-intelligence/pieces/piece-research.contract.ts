@@ -3,6 +3,8 @@ import type { IntakeCorrectionV1, IntakeResearchSummaryV1 } from '../brand-voice
 
 /** Explicit enrichment, separate from corrective review and persisted core contracts. */
 export const PIECE_RESEARCH_VERSION = 'piece-research/v2' as const;
+/** One bounded request through either chat or the shared manual research form. */
+export const PIECE_RESEARCH_DIRECTION_MAX = 2_000;
 export const PIECE_RESEARCH_VERSIONS = [
   'piece-research/v1',
   PIECE_RESEARCH_VERSION,

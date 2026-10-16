@@ -120,6 +120,14 @@ test('deep research carries an optional direction as a wish into search and dige
   expect(modelCalls[0].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
 });
 
+test('the saved preview, search and digest retain a detailed direction verbatim', async () => {
+  const direction = `${'Сохраните авторскую позицию и ищите только официальные подтверждения. '.repeat(6)}Ссылки приложите к каждому найденному факту.`;
+  const preview = await start({ confirmWebSpend: true, direction });
+  expect(preview.direction).toBe(direction);
+  expect(research.research.mock.calls[0][1]).toContain(direction);
+  expect(modelCalls[0].prompt).toContain(direction);
+});
+
 /**
  * Дополнение сути перестало быть коротким (`content-factory-next-97dq.2`).
  *
@@ -516,8 +524,12 @@ test('research DTOs require explicit intent and reject invalid snapshot IDs', as
   }))).not.toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchDto(), {
     confirmWebSpend: true,
-    direction: 'x'.repeat(301),
+    direction: 'x'.repeat(2_001),
   }))).not.toHaveLength(0);
+  expect(await validate(Object.assign(new PieceResearchDto(), {
+    confirmWebSpend: true,
+    direction: 'x'.repeat(2_000),
+  }))).toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchDto(), { confirmWebSpend: true }))).toHaveLength(0);
   expect(await validate(new PieceResearchDto())).not.toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchAcceptDto(), { snapshotKey: '../other', selectedKeys: [] }))).not.toHaveLength(0);

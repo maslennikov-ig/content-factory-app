@@ -25,6 +25,46 @@ test('historical task overrides the date range in a separate old example', () =>
   expect(resolveResearchIntent({ input: 'Events from 2 September 2025 to 4 October 2025', now, timeZone: 'UTC' }).eventInterval)
     .toEqual({ start: '2025-09-02T00:00:00.000Z', end: '2025-10-04T23:59:59.999Z' });
 });
+test('explicit requested dates survive previous-event exclusions and stop at the current instant', () => {
+  for (const task of [
+    'Найдите события OpenAI за 9–16 октября 2026 года.',
+    'Найдите события OpenAI за 9–16 октября 2026 года. Не повторяйте события прежнего обзора.',
+  ]) {
+    const intent = resolveResearchIntent({ input: '', task, priorExample: 'Старый текст без даты', now, timeZone: 'Europe/Moscow' });
+    expect(intent.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+    expect(intent.clarification).toBeNull();
+    expect(intent.priorExample).toBe('Старый текст без даты');
+  }
+  const boundary = resolveResearchIntent({ input: 'Что произошло после 6–8 октября 2026?', now, timeZone: 'Europe/Moscow' });
+  expect(boundary.mode).toBe('delta');
+  expect(boundary.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+});
+test('excluded old ranges cannot become the requested interval; independent unknown ranges ask before search', () => {
+  for (const task of [
+    'Не повторяйте обзор за 6–8 октября 2026. Найдите события за 9–16 октября 2026.',
+    'Найдите события за 9–16 октября 2026; прежний обзор за 6–8 октября 2026 не повторяйте.',
+    'Exclude the old overview from 6–8 October 2026. Find events from 9–16 October 2026.',
+  ]) {
+    const intent = resolveResearchIntent({ input: task, now, timeZone: 'Europe/Moscow' });
+    expect(intent.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+    expect(intent.clarification).toBeNull();
+  }
+  const ambiguous = resolveResearchIntent({ input: 'События за 6–8 октября 2026 и за 9–16 октября 2026. Не повторяйте прежние события.', now });
+  expect(ambiguous.eventInterval).toBeNull();
+  expect(ambiguous.clarification).toBeTruthy();
+  const combined = resolveResearchIntent({ input: 'Не повторяйте прежний обзор и найдите события за 10–12 октября 2026.',
+    priorExample: 'Обзор за 6–8 октября 2026', now, timeZone: 'Europe/Moscow' });
+  expect(combined.eventInterval).toEqual({ start: '2026-10-09T21:00:00.000Z', end: '2026-10-12T20:59:59.999Z' });
+  const unclear = resolveResearchIntent({ input: 'Не повторяйте обзор за 10–12 октября 2026.',
+    priorExample: 'Обзор за 6–8 октября 2026', now });
+  expect(unclear.eventInterval).toBeNull();
+  expect(unclear.clarification).toBeTruthy();
+  const previousWeek = resolveResearchIntent({ input: 'Найдите события за предыдущую неделю 9–16 октября 2026.', now, timeZone: 'Europe/Moscow' });
+  expect(previousWeek.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+  const nested = resolveResearchIntent({ input: 'Обзор за 6–16 октября 2026 не повторяйте. Найдите события за 10–12 октября 2026.', now });
+  expect(nested.eventInterval).toBeNull();
+  expect(nested.clarification).toBeTruthy();
+});
 test('relative days use the pinned instant; calendar days use the caller zone including DST', () => {
   expect(resolveResearchIntent({ input: 'Новое за последние 3 дня', now }).eventInterval).toEqual({ start: '2026-10-13T09:00:00.000Z', end: now.toISOString() });
   expect(researchDayStart('2026-10-09', 'Europe/Moscow')).toBe('2026-10-08T21:00:00.000Z');

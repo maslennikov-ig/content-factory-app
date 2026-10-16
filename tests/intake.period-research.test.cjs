@@ -44,6 +44,16 @@ test('existing assistant/core and manual intake share anchored intent, source ad
   const result = await intake.researchForIntake('org', task, plan, new Map(), 'standard');
   expect(result.researchIntent).toEqual(state.summary.researchIntent);
 });
+test('a detailed chat request preserves the period and exclusions beyond the former 300-character cut', async () => {
+  const { intake, research } = create();
+  const direction = `${'Ищите подтверждения только в официальных источниках, сохраните авторскую позицию. '.repeat(5)}Только события OpenAI за 9–16 октября 2026 года. Не повторяйте прежний обзор.`;
+  const state = await intake.researchExistingCore('org', 'Existing draft must survive.', brief, 'ru', 'deep', direction,
+    { timeZone: 'Europe/Moscow' });
+  expect(state.summary.researchIntent.eventInterval).toEqual({ start: '2026-10-08T21:00:00.000Z', end: now.toISOString() });
+  expect(state.summary.researchIntent.task).toContain('9–16 октября 2026');
+  expect(calls[0]).toContain(direction);
+  expect(research.research).toHaveBeenCalledTimes(1);
+});
 test('manual brief receives only the new task; older research stays unselected context', async () => {
   const { intake } = create();
   const input = `Вот мой последний пост. ${task}\nОбзор за 6–8 октября 2026\n${prior}`;

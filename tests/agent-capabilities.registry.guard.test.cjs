@@ -30,6 +30,11 @@ const catalogue = registry.CAPABILITY_CATALOGUE;
 const byClass = (risk) => catalogue.filter((capability) => capability.risk === risk);
 
 describe('agent capability registry', () => {
+  test('research accepts a detailed bounded request shared with the manual editor', () => {
+    const research = catalogue.find(item => item.id === 'piece.research');
+    expect(research.input.safeParse({ pieceId: 'p1', direction: 'я'.repeat(2_000) }).success).toBe(true);
+    expect(research.input.safeParse({ pieceId: 'p1', direction: 'я'.repeat(2_001) }).success).toBe(false);
+  });
   test('the catalogue passes its own registry check', () => {
     expect(() => registry.assertCapabilityRegistry(catalogue)).not.toThrow();
   });

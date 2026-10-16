@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { contentLanguageNames } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { stripCitationLabels } from '../text-quality/citation-labels';
+import { PIECE_RESEARCH_DIRECTION_MAX } from '../pieces/piece-research.contract';
 
 /**
  * Найденное поиском превращается в опоры, а вердикты ставит код
@@ -222,7 +223,7 @@ export const researchDigestPromptV2 = (
   input: ResearchDigestInputV2,
   sources: ReadonlyArray<ResearchDigestSource & { material: string }>
 ): string => {
-  const direction = oneLine(input.direction || '').slice(0, 300);
+  const direction = oneLine(input.direction || '').slice(0, PIECE_RESEARCH_DIRECTION_MAX);
   const prompt = researchDigestPrompt(input, sources);
   if (!direction) return prompt;
   const versioned = prompt.replace(

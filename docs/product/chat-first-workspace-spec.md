@@ -100,6 +100,8 @@ Both intake paths consume the same versioned research-intent contract. It distin
 
 For the frozen regression: as of 16 October 2026 in Europe/Moscow, a previous overview covering 6–8 October and the request «что произошло после» means events after that coverage boundary through the current instant on 16 October. Do not substitute a rolling seven-day window or silently choose a newer source-publication date as the event date. If a noncontiguous previous post makes the boundary materially ambiguous, ask one specific question.
 
+An explicit new interval such as «за 9–16 октября; не повторяйте прежний обзор» keeps those requested dates even when the old example has no clear coverage. Exclusion wording does not replace the interval. A range ending today stops at the current instant. Chat and manual research share a 2000-character direction limit throughout validation, search and digest; invalid arguments reserve no paid action slot.
+
 Pass supported publication/date constraints to the provider, then check event-effective dates and prior coverage in the common source-selection/admission layer. Rolling release notes and later retrospective pages can support events in the interval; a recent crawl alone cannot. Older sources may be context but not new events. Preserve date provenance and honest unknowns; do not invent precise event dates. An explicit historical request must not be rewritten to today.
 
 No matching verified events produces a useful empty result that names the searched period and gaps, with the old draft retained. It must not recycle old news as a successful new digest. The composer/panel shows the resolved period so the person can correct it. Replay tests pin the clock; production uses the caller's timezone and real current instant.

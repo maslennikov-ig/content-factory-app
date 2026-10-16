@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
+import { PIECE_RESEARCH_DIRECTION_MAX } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
 import {
   PIECE_CORE_EDIT_MAX,
   PIECE_CORE_REVISIONS_MAX,
@@ -189,7 +190,7 @@ export const pieceResearch = defineCapability({
   input: z.object({
     pieceId,
     level: z.enum(RESEARCH_LEVELS).optional().describe('quick, standard (default) or deep'),
-    direction: z.string().max(300).optional().describe('What to look for, in the person’s words, when they said'),
+    direction: z.string().max(PIECE_RESEARCH_DIRECTION_MAX).optional().describe('What to look for, in the person’s words, including dates, source restrictions and exclusions; maximum 2000 characters'),
   }),
   risk: 'paid',
   card: 'piece',

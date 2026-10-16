@@ -1,4 +1,5 @@
 import { ArrayMaxSize, Equals, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { PIECE_RESEARCH_DIRECTION_MAX } from '../../content-intelligence/pieces/piece-research.contract';
 
 export class PieceResearchDto {
   @IsOptional()
@@ -25,7 +26,7 @@ export class PieceResearchDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(300)
+  @MaxLength(PIECE_RESEARCH_DIRECTION_MAX)
   direction?: string;
 }
 

@@ -56,7 +56,24 @@ suite checks rather than something to remember.
 
 ## Orchestration
 
-- Beads (`bd`) is the only durable task and status truth. Do not create `tasks.json` or a parallel Markdown task ledger.
+- Linear is the canonical task/status authority (owner decision 2026-10-16).
+  [Hoba](https://linear.app/elwork/project/hoba-d8673575bf0c/issues) is the primary intake project. Beads
+  (`bd`) remains the agent work interface; GitHub is the subordinate mirror.
+  This checkout routes to `component:content-factory`, separate from Helixa
+  and MC-2. Do not create `tasks.json` or a parallel Markdown task ledger.
+- Existing linked tasks follow project moves within the same Linear team.
+  Keep their Beads identity, component and GitHub link; the bridge marks the
+  other project with `linear-project:<slug>`. New outside-project tasks are not
+  enrolled automatically.
+- Do not run native `bd linear sync`: it shares the existing GitHub
+  `external_ref`. Use `bd comments add` for durable progress notes. The managed
+  coordinator accepts Linear changes before GitHub publication; same-field
+  conflicts keep Linear's value and journal the attempted Beads edit.
+  Check activation/pending work with
+  `python3 ~/.agents/orchestration-console/scripts/linear_task_sync.py status`.
+  `mode=preparing` means import is ongoing; `mode=active` enables authority.
+  A failed sync is not an accepted task-state update. Operational contract:
+  `/home/me/.agents/orchestration-console/docs/runbooks/linear-task-sync.md`.
 - Current operational state lives in `.codex/handoff.md`; stable navigation lives in `.codex/project-index.md`; stage artifacts live in `.codex/stages/`.
 - Graphify is enabled as a local code graph: read `graphify-out/GRAPH_REPORT.md` and use focused `graphify query`, `path`, or `explain` before broad architecture or impact searches. The graph answers code-structure questions; read documents for their content. Never paste `graphify-out/graph.json` into chat context.
 - A missing local graph is not permission to hand-search. Use a suitable sibling or owner graph explicitly with `--graph <path>`, say whose graph you used, and treat it as read-only orientation. It may describe another branch or worktree, so confirm the exact file in the current tree before relying on it.

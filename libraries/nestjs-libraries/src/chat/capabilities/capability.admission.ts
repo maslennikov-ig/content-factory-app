@@ -39,10 +39,12 @@ import type { CapabilityServices } from './mastra.adapter';
  * What a call must pass, in this order:
  *
  * 1. a server-built identity;
- * 1a. questions only the person answers (`personQuestions.answers`): not for
+ * 1a. valid declared input, before callbacks or paid-slot reservation; native
+ *    Mastra validation still owns parsing and execution;
+ * 1b. questions only the person answers (`personQuestions.answers`): not for
  *    an object whose questions this same request has just put to them
  *    (`kcxz.31`, D1) — before a paid slot is taken;
- * 1b. a proposal of changes (`proposes`): not while a card of proposed
+ * 1c. a proposal of changes (`proposes`): not while a card of proposed
  *    changes to the same text waits in the conversation (`kcxz.32`, N2) —
  *    before a paid slot is taken; the call that card belongs to, resumed
  *    with the person's answer, is not a new proposal;
@@ -105,6 +107,25 @@ export const admitCapabilityCall = async (
     return refusal(
       'IDENTITY_MISSING',
       'The call arrived without a server-built identity; nothing was done.'
+    );
+  }
+
+  // Mastra calls beforeToolCall before its native input validator. An invalid
+  // call must not reserve a paid slot or reach declaration callbacks. Check
+  // synchronously so parallel valid calls still reserve atomically below;
+  // leave parsing/transforms to Mastra rather than rewriting the approved call.
+  const validation = capability.input.safeParse(input);
+  if (!validation.success) {
+    // Error messages, rejected values and even record keys in issue paths can
+    // contain secrets. Only top-level field names owned by the schema are safe
+    // to return; unknown fields and root errors need no path detail.
+    const invalidFields = new Set(validation.error.issues.map(({ path }) => path[0]));
+    const paths = Object.keys(capability.input.shape).filter((key) => invalidFields.has(key));
+    return refusal(
+      'CAPABILITY_INPUT_INVALID',
+      `The arguments do not match this tool’s input${
+        paths.length ? ` (${paths.join(', ')})` : ''
+      }; read its description and call it again with allowed values. Nothing was done.`
     );
   }
 

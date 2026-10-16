@@ -166,6 +166,8 @@ const drawConversation = async ({ messages, pending, role, request, mutate = () 
   await act(async () => {
     view = render(h(AgentConversation, props));
   });
+  // The first render suspends while useT loads its translation resources.
+  await view.findByRole('log', { name: ru.conversation.label });
   return { chat, view, props, AgentConversation };
 };
 

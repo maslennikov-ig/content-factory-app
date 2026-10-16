@@ -19,6 +19,7 @@ import {
   type ReviewV3,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/review.v3.contract';
 import {
+  PIECE_RESEARCH_DIRECTION_MAX,
   PIECE_RESEARCH_VERSIONS,
   type ReadablePieceResearchPreview,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
@@ -587,7 +588,7 @@ export function AdaptationReview({
             <Textarea
               standalone
               layout="content"
-              maxLength={300}
+              maxLength={PIECE_RESEARCH_DIRECTION_MAX}
               disabled={busy === 'research'}
               value={researchDirection}
               onChange={(event) => setResearchDirection(event.target.value)}

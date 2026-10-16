@@ -181,6 +181,63 @@ describe('beforeToolCall', () => {
     const create = (context) =>
       hookCall('piece.create', { text: 'мысль человека' }, context);
 
+    test('invalid research arguments leave the slot for a corrected call, then the paid cap applies', async () => {
+      const gate = allowAll();
+      const hooks = registry.createCapabilityHooks(catalogue, gate);
+      const context = requestContextFor(registry);
+      const limit = registry.pieceResearch.input.shape.direction.unwrap()._def.checks
+        .find((check) => check.kind === 'max').value;
+      const privateValue = 'PRIVATE-RESEARCH-DIRECTION-';
+      const invalid = await hooks.beforeToolCall(hookCall('piece.research', {
+        pieceId: 'p1', direction: privateValue.repeat(Math.ceil((limit + 1) / privateValue.length)),
+      }, context));
+
+      expect(invalid).toEqual({
+        proceed: false,
+        output: expect.objectContaining({ ok: false, code: 'CAPABILITY_INPUT_INVALID' }),
+      });
+      expect(invalid.output.reason).toContain('direction');
+      expect(JSON.stringify(invalid)).not.toContain(privateValue);
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls) ?? 0).toBe(0);
+      expect(gate.calls).toEqual([]);
+
+      const corrected = hookCall('piece.research', { pieceId: 'p1', direction: 'Факты за неделю' }, context);
+      await expect(hooks.beforeToolCall(corrected)).resolves.toBeUndefined();
+      expect((await hooks.beforeToolCall(corrected)).output.code).toBe('PAID_CAP_REACHED');
+      expect(gate.calls).toHaveLength(1);
+    });
+
+    test('invalid input is refused before declaration callbacks and never consumes a paid slot', async () => {
+      const answers = jest.fn(() => { throw new Error('must not read invalid input'); });
+      const proposes = jest.fn(() => { throw new Error('must not read invalid input'); });
+      const capability = { ...registry.pieceResearch, personQuestions: { answers }, proposes };
+      const hooks = registry.createCapabilityHooks([capability], allowAll());
+      const context = requestContextFor(registry);
+
+      const result = await hooks.beforeToolCall(hookCall('piece.research', null, context));
+      expect(result.output.code).toBe('CAPABILITY_INPUT_INVALID');
+      expect(answers).not.toHaveBeenCalled();
+      expect(proposes).not.toHaveBeenCalled();
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls) ?? 0).toBe(0);
+    });
+
+    test('validation paths cannot echo caller-controlled record keys or rejected values', async () => {
+      const { z } = require('zod');
+      const capability = {
+        ...registry.pieceResearch,
+        input: z.object({ entries: z.record(z.enum(['allowed'])) }).strict(),
+      };
+      const hooks = registry.createCapabilityHooks([capability], allowAll());
+      const result = await hooks.beforeToolCall(hookCall('piece.research', {
+        entries: { 'PRIVATE-RECORD-KEY': 'PRIVATE-INVALID-VALUE' },
+        'PRIVATE-UNKNOWN-FIELD': 'PRIVATE-UNKNOWN-VALUE',
+      }, requestContextFor(registry)));
+
+      expect(result.output.code).toBe('CAPABILITY_INPUT_INVALID');
+      expect(result.output.reason).toContain('entries');
+      expect(JSON.stringify(result)).not.toContain('PRIVATE');
+    });
+
     test('one paid action per turn; the second is declined with «say what is left, «дальше»» (W3 walk P2-D)', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
       const context = requestContextFor(registry);
@@ -374,6 +431,92 @@ describe('the hooks inside a real Mastra agent', () => {
       expect.objectContaining({ ok: false, code: 'PERMISSION_DENIED' })
     );
   });
+
+  test('invalid paid research can be corrected in the same native turn without losing its slot', () => {
+    const sequence = JSON.parse(execFileSync(process.execPath, ['-e', String.raw`
+      const { Agent } = require('@mastra/core/agent');
+      const { loadRegistry, requestContextFor, servicesFrom } = require(process.argv[1]);
+      const registry = loadRegistry();
+      const capability = registry.pieceResearch;
+      const context = requestContextFor(registry);
+      const limit = capability.input.shape.direction.unwrap()._def.checks
+        .find((check) => check.kind === 'max').value;
+      const marker = 'PRIVATE-NATIVE-RESEARCH-DIRECTION-';
+      const inputs = [
+        { pieceId: 'p1', direction: marker.repeat(Math.ceil((limit + 1) / marker.length)) },
+        { pieceId: 'p1', direction: 'Факты за неделю', level: 'quick' },
+        { pieceId: 'p1', direction: 'Ещё факты за неделю', level: 'quick' },
+      ];
+      const checkpoints = [];
+      const modelSaw = new Map();
+      const serviceDirections = [];
+      let step = 0;
+      let gateCalls = 0;
+      const usage = { inputTokens: { total: 1, noCache: 1 }, outputTokens: { total: 1, text: 1 } };
+      const model = {
+        specificationVersion: 'v3', provider: 'scripted', modelId: 'scripted', supportedUrls: {},
+        doStream: async () => { throw new Error('The scripted model only generates.'); },
+        doGenerate: async ({ prompt }) => {
+          checkpoints.push({ runs: serviceDirections.length, slots: context.get('cf.paidCalls') ?? 0 });
+          for (const message of prompt) {
+            if (message.role !== 'tool') continue;
+            for (const part of message.content) {
+              modelSaw.set(part.toolCallId, part.output?.value ?? part.output);
+            }
+          }
+          const input = inputs[step++];
+          return {
+            content: input
+              ? [{ type: 'tool-call', toolCallId: 'research-' + step, toolName: 'piece_research', input: JSON.stringify(input) }]
+              : [{ type: 'text', text: 'Готово.' }],
+            finishReason: input ? { unified: 'tool-calls', raw: 'tool_calls' } : { unified: 'stop', raw: 'stop' },
+            usage, warnings: [],
+          };
+        },
+      };
+      const tools = registry.buildMastraCapabilityTools([capability], {
+        services: servicesFrom({ PieceService: {
+          researchCore: async (_organizationId, _pieceId, _userId, request) => {
+            serviceDirections.push(request.direction);
+            return { level: 'quick', facts: [] };
+          },
+        } }),
+        language: 'ru',
+      });
+      const agent = new Agent({
+        id: 'capability-corrected-research', name: 'capability-corrected-research', instructions: 'test',
+        model, tools, hooks: registry.createCapabilityHooks([capability], {
+          check: async () => { gateCalls += 1; return { allowed: true, policies: [] }; },
+        }),
+      });
+      agent.generate('Дополнить ресерчем', { requestContext: context, maxSteps: 4 })
+        .then((result) => process.stdout.write(JSON.stringify({
+          outcomes: result.toolResults.map((entry) => (entry.payload ?? entry).result),
+          checkpoints, modelSaw: [...modelSaw.values()], serviceDirections, gateCalls,
+        })))
+        .catch((error) => { process.stderr.write(String(error?.stack || error)); process.exit(1); });
+    `, path.join(__dirname, 'helpers', 'agent-capabilities.cjs')], {
+      encoding: 'utf8', timeout: 60_000,
+    }));
+
+    expect(sequence.outcomes).toEqual([
+      expect.objectContaining({ ok: false, code: 'CAPABILITY_INPUT_INVALID' }),
+      expect.objectContaining({ ok: true, capability: 'piece.research' }),
+      expect.objectContaining({ ok: false, code: 'PAID_CAP_REACHED' }),
+    ]);
+    expect(sequence.modelSaw).toEqual([
+      sequence.outcomes[0],
+      { ok: true, summary: sequence.outcomes[1].summary },
+      sequence.outcomes[2],
+    ]);
+    expect(sequence.checkpoints).toEqual([
+      { runs: 0, slots: 0 }, { runs: 0, slots: 0 },
+      { runs: 1, slots: 1 }, { runs: 1, slots: 1 },
+    ]);
+    expect(sequence.serviceDirections).toEqual(['Факты за неделю']);
+    expect(sequence.gateCalls).toBe(1);
+    expect(JSON.stringify(sequence)).not.toContain('PRIVATE-NATIVE');
+  }, 90_000);
 });
 
 /* ---- kcxz.38 (R5): an open-card refusal alone ends the turn ------------- */

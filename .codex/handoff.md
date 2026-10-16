@@ -1,10 +1,13 @@
 # Content Factory current handoff — 16 October 2026
 
+Task authority (owner, 2026-10-16): Linear is canonical, Hoba is the intake; linked tasks follow same-team project moves, marked `linear-project:<slug>`; Beads is the agent interface; GitHub is the subordinate mirror. Component: `content-factory`; migration epic: Helixa `helixa-2-lab-2xs0s`.
+Check bridge status for `preparing` versus `active`. Older Beads-authority wording below is historical. See `AGENTS.md` and managed `docs/runbooks/linear-task-sync.md`; product work/gates stay intact.
+
 ## AI assistant implementation
 
 Owner16Oct authorized implementation of epic `content-factory-next-jvrq` and named the primary chat «ИИ-помощник» across all16 locales. Private persistent chat, contextual manual sections, shared artifact editors/browser and event-period research are implemented locally; engineering accepted, actual owner/provider acceptance and delivery remain in jvrq.8.
 Target: `docs/product/chat-first-workspace-spec.md`; plan: `docs/superpowers/plans/2026-10-16-chat-first-workspace.md`; accepted design: `docs/design/chat-first-workspace/prototype.html`. Current source/evidence and accepted child review: `.codex/stages/content-factory-next-jvrq-implementation-20261016/outcome.md`; Task state follows current AGENTS.md; accepted synchronization remains separate.
-Product source3aee2b05a: fourbuilds/types PASS; Jest12278+Node123 PASS, Python50/docs/process PASS after handoff-only repair.128 artifact layouts+24 initial layouts and2 source-browser interaction flows PASS; exact limits in outcome. Owner16Oct now explicitly authorizes source publication, production rollout and two paid controls: chat creation and original overview9–16Oct; execution/proof follow below in the stage outcome. Preserve unrelated evidence and existing kcxz/0qgn/2q28/m0iy contracts/statuses.
+Owner-authorized public74fb94493f97/sourcea44b66ef deployed healthy after exact full receipt (Jest12278/Node123/Python50), empty schema diff and unchanged Mastra45-table fingerprint. Paid real-UI creation PASS: saved676 chars, shared/manual text identical, no publication. Original9–16Oct attempt safely refused before search due direction300 cap and premature paid-slot reservation; original unchanged. Scoped fixes now preserve2000-char direction, explicit dates/asOf and invalid-input slots; repeat release/control pending. Prior128 artifact layouts+24 initial layouts+2 interactions remain bounded fixture evidence. Preserve unrelated work/contracts/statuses; details in outcome.
 Current stage id: content-factory-next-jvrq-implementation-20261016
 
 ## Shared-host artifact lifecycle delivered

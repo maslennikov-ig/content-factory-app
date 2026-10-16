@@ -176,6 +176,7 @@ import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
 import { resolveResearchIntent, researchIntentQuery, type ResearchIntentV1 } from './research-intent';
 import { researchDigestPromptV3, researchDigestSchemaV3, settleResearchDigestV3 } from './research-digest.v3';
+import { PIECE_RESEARCH_DIRECTION_MAX } from '../pieces/piece-research.contract';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
 const UNUSABLE_FACT_STATUSES = ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'];
@@ -1806,7 +1807,7 @@ export class IntakeService {
     const plan = this.existingCorePlan(input, language, null, level);
     const evidence = new Map<string, AcceptedEvidence>();
     const filled: FilledBrief = { options: {}, ...this.settled(brief) };
-    const wish = oneLine(direction || '').slice(0, 300);
+    const wish = oneLine(direction || '').slice(0, PIECE_RESEARCH_DIRECTION_MAX);
     plan.timeZone = context?.timeZone;
     plan.researchTask = context?.researchTask || wish || undefined;
     plan.priorExample = context?.priorExample || (wish ? input : undefined);
