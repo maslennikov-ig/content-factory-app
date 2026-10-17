@@ -72,7 +72,8 @@ jobs:
     # was the reason the full suite stayed out of CI.
     name: Full test suite (required)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Hosted Jest runs can approach 30 minutes; all three halves must finish.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
