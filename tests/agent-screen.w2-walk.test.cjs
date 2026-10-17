@@ -511,12 +511,13 @@ describe('D9, D13 — the piece header by its container, the empty box stays neu
 
   const inSplit = (rule) => rule.at.includes('@container split (min-width: 640px)');
 
-  test('below 640px of the piece section the title has its own row and the actions fit one', () => {
+  test('the title keeps a readable basis while narrow sections wrap the actions', () => {
     const screen = source('apps/frontend/src/components/content-intelligence/pieces/piece.screen.tsx');
-    expect(screen).toMatch(/<h1 className="[^"]*\bbasis-full\b[^"]*\bsplit:basis-0\b/);
     expect(screen).toMatch(/data-piece-back="true"[\s\S]{0,200}'hidden split:inline-flex'/);
+    expect(rules.map((rule) => rule.css)).toContain('flex-basis: min(100%,32rem)');
     const split = rules.filter(inSplit).map((rule) => rule.css);
-    expect(split).toEqual(expect.arrayContaining(['flex-basis: 0px', 'display: inline-flex']));
+    expect(split).toContain('display: inline-flex');
+    expect(split).not.toContain('flex-basis: 0px');
   });
 
   test('the breadcrumb still leads to the list the hidden link led to', () => {
