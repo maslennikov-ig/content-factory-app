@@ -43,12 +43,14 @@ import {
 } from './core-write-prompt.v16';
 import {
   CORE_WRITE_BLOCK_TITLES_V17,
-  CORE_WRITE_PROMPT_VERSION as CORE_WRITE_EVENT_PROMPT_VERSION,
   coreEventDayV17,
-  coreWriteEventLeadV17,
-  coreWriteSystemV17,
   type CoreEventUpdateV17,
 } from './core-write-prompt.v17';
+import {
+  CORE_WRITE_PROMPT_VERSION as CORE_WRITE_EVENT_PROMPT_VERSION,
+  coreWriteEventLeadV18,
+  coreWriteSystemV18,
+} from './core-write-prompt.v18';
 import {
   DEFAULT_DELEGATED_POLICY,
   type DelegatedPolicyV1,
@@ -240,6 +242,12 @@ export const coreSchema = z.object({
     .nullable()
     .optional()
     .describe('One decision per question handed to the model; empty when none was handed over'),
+});
+
+/** Only temporal updates replace the title; ordinary core output stays V16. */
+export const coreEventSchemaV18 = coreSchema.extend({
+  title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/u)
+    .describe('The new period overview title: one plain line, at most 120 characters, same language as the body'),
 });
 
 /** Сколько знаков решения храним: это одно-три предложения, а не текст. */
@@ -569,7 +577,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV17(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV18(input.language, forbiddenPhrasesRule(input.language), {
       ...(eventUpdate ? { eventUpdate } : {}),
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
@@ -591,7 +599,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     }),
     '',
     `PROMPT VERSION: ${eventUpdate ? CORE_WRITE_EVENT_PROMPT_VERSION : CORE_WRITE_PROMPT_VERSION}`,
-    eventUpdate ? coreWriteEventLeadV17(eventUpdate) : '',
+    eventUpdate ? coreWriteEventLeadV18(eventUpdate) : '',
     instruction ? fenced(words.instruction, [trimmed(instruction.text)]) : '',
     instruction && instruction.links.length
       ? fenced(words.links, [...instruction.links])
@@ -755,7 +763,7 @@ export async function writeCore(
 export async function writeCoreWithDecisions(
   input: CoreWriteInputV1,
   deps: CoreWriteDepsV1
-): Promise<{ core: ZagotovkaCoreV1; decisions: CoreDecisionV1[] }> {
+): Promise<{ core: ZagotovkaCoreV1; decisions: CoreDecisionV1[]; title?: string }> {
   const grounded = coreGrounded(input);
   // Only what may be decided comes back as a decision: a gap never does.
   const delegated = handedQuestionsOf(
@@ -763,6 +771,7 @@ export async function writeCoreWithDecisions(
     input.delegatedPolicy
   ).handed;
   let decided: unknown = null;
+  let title: string | undefined;
   const slop = (text: string): SlopReportV1 | null =>
     text && deps.slopCheck
       ? deps.slopCheck(text, CORE_SLOP_PLATFORM, input.language, grounded)
@@ -791,9 +800,10 @@ export async function writeCoreWithDecisions(
       async () => {
         const model = (
           await getChatModel(input.organizationId, 0, 2_048, 'draft')
-        ).withStructuredOutput(coreSchema);
+        ).withStructuredOutput(input.eventUpdate ? coreEventSchemaV18 : coreSchema);
         const prompt = corePrompt(input);
         const answer = (await model.invoke(prompt)) as any;
+        if (input.eventUpdate) title = coreEventSchemaV18.parse(answer).title;
         decided = answer?.decisions ?? null;
         const first = trimmed(answer?.text);
         /** Отрезки чужого поста в тексте; пусто, когда сверять не с чем. */
@@ -828,6 +838,8 @@ export async function writeCoreWithDecisions(
         }
         const next = trimmed(repaired?.text);
         if (!next) return first;
+        const repairedEvent = input.eventUpdate ? coreEventSchemaV18.safeParse(repaired) : null;
+        if (repairedEvent && !repairedEvent.success) return first;
         const nextCopied = copiedRuns(next);
         const copiedLength = (runs: typeof copied) =>
           runs.reduce((total, run) => total + run.end - run.start, 0);
@@ -849,6 +861,7 @@ export async function writeCoreWithDecisions(
         // Decisions belong to the selected text; omitted decisions must not
         // silently inherit choices from the discarded first draft.
         decided = repaired?.decisions ?? null;
+        if (repairedEvent?.success) title = repairedEvent.data.title;
         return next;
       },
       'draft'
@@ -873,6 +886,7 @@ export async function writeCoreWithDecisions(
     return {
       core: shaped(text, 'model'),
       decisions: coreDecisionsOf(decided, delegated, grounded),
+      ...(input.eventUpdate ? { title } : {}),
     };
   }
   // Без модели ссылки из задания всё равно не теряются: последним абзацем.

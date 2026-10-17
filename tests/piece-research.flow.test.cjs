@@ -11,7 +11,7 @@ const mocks = {
         const value = responses.shift();
         if (value instanceof Error) throw value;
         if (!value) throw new Error('Unexpected model call');
-        return value;
+        return typeof value === 'function' ? value() : value;
       },
     }) }),
   },
@@ -44,7 +44,7 @@ beforeEach(() => {
   };
   repo = { getPiece: jest.fn(async (org, id) => org === 'org' && id === 'p' ? JSON.parse(JSON.stringify(piece)) : null),
     acceptCoreReview: jest.fn(async (_org, _id, snapshot, body, title, brief) => {
-      if (snapshot.body !== piece.body || JSON.stringify(snapshot.brief) !== JSON.stringify(piece.brief)) throw new Error('stale');
+      if (snapshot.body !== piece.body || snapshot.title !== piece.title || JSON.stringify(snapshot.brief) !== JSON.stringify(piece.brief)) throw new Error('stale');
       Object.assign(piece, { body, title, brief }); return { body, title };
     }),
   };
@@ -764,14 +764,14 @@ test('one dated overview request accepts selected events into the standalone wri
   responses = [
     { verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
       eventDate: '2026-10-15', eventDateQuote: quote }] },
-    { text: 'My practical stance. The voice feature launched on October 15. ' + source },
+    { title: '9–16 October: the new voice feature', text: 'My practical stance. The voice feature launched on October 15. ' + source },
   ];
   const preview = await start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
     direction: 'Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.' });
   expect(preview.summary.periodStatus).toBe('matched');
   await accept(preview);
   expect(modelCalls.map(call => call.role)).toEqual(['review', 'draft']);
-  expect(modelCalls[1].prompt).toContain('PROMPT VERSION: core-write/v17');
+  expect(modelCalls[1].prompt).toContain('PROMPT VERSION: core-write/v18');
   expect(modelCalls[1].prompt).toContain('Write a new standalone overview');
   expect(modelCalls[1].prompt).toContain('SELECTED CONFIRMED EVENTS IN THE INTERVAL');
   expect(modelCalls[1].prompt).toContain(source);
@@ -779,6 +779,51 @@ test('one dated overview request accepts selected events into the standalone wri
   expect(piece.brief.revisions.at(-1).text).toBe(old);
   expect(research.research).toHaveBeenCalledTimes(1);
   expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
+  expect(piece.title).toBe('9–16 October: the new voice feature');
+  expect(repo.acceptCoreReview.mock.calls[0].slice(2, 5)).toEqual([
+    expect.objectContaining({ title: 'Рабочая неделя', body: old }),
+    piece.body, piece.title,
+  ]);
+});
+
+const periodPreview = async answer => {
+  intake.now = () => new Date('2026-10-16T09:00:00Z');
+  const quote = 'On October 15, 2026 the new voice feature launched.';
+  intake.sources.acceptSearchResult = async () => ({ evidenceId: 'ev-study', url, title: 'Release notes', excerpt: quote });
+  research.research.mockImplementation(async () => ({ provider: 'exa', facts: [{ text: quote, sourceUrl: url }],
+    sources: [{ url, title: 'Release notes', provider: 'exa' }] }));
+  responses = [{ verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
+    eventDate: '2026-10-15', eventDateQuote: quote }] }, answer];
+  return start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
+    direction: 'Update the overview for 9–16 October 2026.' });
+};
+
+test.each([undefined, '', 'x'.repeat(121), 'Two\nlines'])('invalid title %p leaves both stored fields and history unchanged', async title => {
+  const before = JSON.parse(JSON.stringify(piece));
+  const preview = await periodPreview({ title, text: 'The voice feature launched on October 15.' });
+  await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_WRITE_FAILED' });
+  expect(piece).toEqual(before);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+  expect(storage.size).toBe(1);
+});
+
+test('period writer refusal preserves title, body and history for retry', async () => {
+  const before = JSON.parse(JSON.stringify(piece));
+  const preview = await periodPreview(new Error('Model unavailable'));
+  await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_WRITE_FAILED' });
+  expect(piece).toEqual(before);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+});
+
+test('concurrent title edit during generation is preserved and neither generated field is saved', async () => {
+  const before = JSON.parse(JSON.stringify(piece));
+  const preview = await periodPreview(() => {
+    piece.title = 'Concurrent human title';
+    return { title: 'Generated period title', text: 'The voice feature launched on October 15.' };
+  });
+  await expect(accept(preview)).rejects.toThrow('stale');
+  expect(piece).toEqual({ ...before, title: 'Concurrent human title' });
+  expect(storage.size).toBe(1);
 });
 
 test('declining all period facts retains the original without a paid writer or CAS', async () => {

@@ -4896,18 +4896,20 @@ export class PieceService {
           'Use selected dated findings for new events. The previous draft is context; do not present its already covered events as new news.'].filter(Boolean).join('\n'),
           links: originalInstruction?.links ?? [] }
       : originalInstruction;
-    const rewritten = await writeCore({ organizationId, language: saved.language,
+    const written = await writeCoreWithDecisions({ organizationId, language: saved.language,
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedBrief, answers: core.answers, questionTextByKey: {},
       personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
       ...(intent?.eventInterval ? { eventUpdate: { ...intent.eventInterval, timezone: intent.timezone } } : {}),
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
       { aiUsage: this.aiUsage, slopCheck: this.slopCheck, warn: message => this.logger.warn(message) });
-    if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())
+    const rewritten = written.core;
+    if (rewritten.writtenBy !== 'model' || !rewritten.text.trim() ||
+      (intent?.eventInterval && !written.title))
       throw new AdaptationReviewError('PIECE_RESEARCH_WRITE_FAILED', 503,
         'Не удалось дополнить суть. Исходный текст сохранён; попробуйте применить результат ещё раз.');
     const accepted = await this.pieces.acceptCoreReview(organizationId, pieceId,
-      { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, saved.title,
+      { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, written.title ?? saved.title,
       { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
         brief: state.filled.brief, authorNumbers: core.authorNumbers,
         personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions,

@@ -227,21 +227,21 @@
   "branch": "codex/chat-first-workspace-plan-20261016",
   "engineering_acceptance": {
     "result": "passed",
-    "source_commit": "3aee2b05ac30f19e7a4bc8b414db20ee17ede799",
-    "kind": "aggregate-local-evidence",
+    "source_commit": "859d8ca611612a60628f6cb8f79daeda853dbff8",
+    "kind": "exact-source-release",
     "evidence": [
-      "outcome.md",
-      "acceptance-map.md",
-      "source-inputs.actual.json",
-      "integration-full.final.log",
-      "integration-metadata.final.log",
-      "artifact-geometry.actual.json",
-      "browser.actual.json"
+      "evidence/dialogue-final-release-acceptance.actual.json",
+      "evidence/dialogue-final-suite-receipt.actual.json",
+      "evidence/dialogue-final-public-ci.actual.json",
+      "evidence/dialogue-final-image.actual.json",
+      "evidence/dialogue-final-production-rollout.actual.json",
+      "evidence/dialogue-one-request-paid-ui-control.actual.json",
+      "evidence/dialogue-complete-preview-paid-ui-control.actual.json"
     ],
-    "note": "Jest/Node passed original full run; Python/docs/process passed after handoff-only stage declaration repair. Original pnpm test was nonzero. No release receipt, owner/provider acceptance, canonical-sync or production claim."
+    "note": "All9 configured release commands and all5 exact-public CI jobs passed. Production and two paid UI controls accepted. Stage/epic remains in_progress for unchanged broader owner/avatar/channel/fresh-chain gates. Original initial aggregate/failed proofs remain in outcome and existing evidence."
   },
   "delivery_authority": {
     "date": "2026-10-16",
-    "scope": "Owner explicitly authorizes jvrq.10 remaining dialogue/preview correction, exact source/image publication, production and paid original9–16October one-request replay with normal fact/proposal acceptance but no repeat dates/separate editorial command; no social publication/account connection."
+    "scope": "Owner explicitly authorizes jvrq.10 remaining dialogue/preview correction, exact source/image publication, production and paid original9\u201316October one-request replay with normal fact/proposal acceptance but no repeat dates/separate editorial command; no social publication/account connection."
   }
 }

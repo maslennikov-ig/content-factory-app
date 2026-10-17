@@ -5,14 +5,14 @@ const { createHash } = require('node:crypto');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const base = 'libraries/nestjs-libraries/src/content-intelligence';
 const calls = [];
-let result;
+let result, outputSchema;
 const writer = loadWithMocks(`${base}/pieces/core-write.ts`, {
   '@contentfactory/nestjs-libraries/openai/ai.clients': {
-    getChatModel: async () => ({ withStructuredOutput: () => ({ invoke: async prompt => {
+    getChatModel: async () => ({ withStructuredOutput: schema => { outputSchema = schema; return { invoke: async prompt => {
       calls.push(prompt);
       if (result instanceof Error) throw result;
-      return result;
-    } }) }),
+      return typeof result === 'function' ? result() : result;
+    } }; } }),
   },
 });
 const v16 = loadWithMocks(`${base}/pieces/core-write-prompt.v16.ts`);
@@ -53,11 +53,11 @@ const input = (extra = {}) => ({
 const digest = value => createHash('sha256').update(value).digest('hex');
 const deps = { aiUsage: { executeAiOperation: async (_org, _op, run) => run() }, slopCheck: null };
 
-beforeEach(() => { calls.length = 0; result = { text: 'Готовый обзор.', decisions: [] }; });
+beforeEach(() => { calls.length = 0; result = { title: 'Обзор за 9–16 октября: новые инструменты', text: 'Готовый обзор.', decisions: [] }; });
 
 test('period update replaces every conflicting preservation instruction and gives the exact bounded interval', () => {
   const prompt = writer.corePrompt(input({ eventUpdate: PERIOD }));
-  expect(prompt).toContain('PROMPT VERSION: core-write/v17');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v18');
   expect(prompt).toContain(PERIOD.start);
   expect(prompt).toContain(PERIOD.end);
   expect(prompt).toContain(PERIOD.timezone);
@@ -130,6 +130,53 @@ test('the same model invocation receives the period contract; previous core cann
   expect(calls[0]).not.toContain(v15.CORE_WRITE_REBUILD_V15);
   expect(written.core.text).toBe('Готовый обзор.');
   expect(written.core.writtenBy).toBe('model');
+  expect(written.title).toBe(result.title);
+  expect(outputSchema.safeParse({ text: 'Body only' }).success).toBe(false);
+});
+
+test.each(['ru', 'en'])('period title and body come from one call in %s', async language => {
+  result = { title: language === 'ru' ? '9–16 октября: новые инструменты' : '9–16 October: new tools', text: 'Selected events.' };
+  const written = await writer.writeCoreWithDecisions(input({ language, eventUpdate: PERIOD }), deps);
+  expect(written.title).toBe(result.title);
+  expect(written.core.text).toBe(result.text);
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toContain('Return a required `title` alongside `text`');
+});
+
+test.each([undefined, '', '  ', 'x'.repeat(121), 'Two\nlines'])('invalid period title %p cannot become a successful body-only update', async title => {
+  result = { title, text: 'A valid body alone must not be saved.' };
+  const written = await writer.writeCoreWithDecisions(input({ eventUpdate: PERIOD }), deps);
+  expect(written.core.writtenBy).toBe('fallback');
+  expect(written.title).toBeUndefined();
+  expect(calls).toHaveLength(1);
+});
+
+test('repair selects its own matching title and never mixes the first and repaired answers', async () => {
+  const answers = [
+    { title: 'First title', text: 'В исходном материале говорится об инструментах.' },
+    { title: 'Repaired title', text: 'Готовый связный обзор.' },
+  ];
+  result = () => answers.shift();
+  const written = await writer.writeCoreWithDecisions(input({ eventUpdate: PERIOD }), deps);
+  expect(calls).toHaveLength(2);
+  expect(written.title).toBe('Repaired title');
+  expect(written.core.text).toBe('Готовый связный обзор.');
+});
+
+test('a repair without a valid title keeps the complete first pair', async () => {
+  const first = { title: 'First title', text: 'В исходном материале говорится об инструментах.' };
+  const answers = [first, { title: '', text: 'A different repaired body.' }];
+  result = () => answers.shift();
+  const written = await writer.writeCoreWithDecisions(input({ eventUpdate: PERIOD }), deps);
+  expect(calls).toHaveLength(2);
+  expect(written.title).toBe(first.title);
+  expect(written.core.text).toBe(first.text);
+});
+
+test('ordinary writing retains its schema and result without adopting a model title', async () => {
+  const written = await writer.writeCoreWithDecisions(input(), deps);
+  expect(outputSchema).toBe(writer.coreSchema);
+  expect(written).not.toHaveProperty('title');
 });
 
 test('ordinary enrichment still carries old or undated facts and the exact old preservation contract', () => {

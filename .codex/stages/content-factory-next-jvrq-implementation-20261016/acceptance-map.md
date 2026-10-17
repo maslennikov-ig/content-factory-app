@@ -45,3 +45,11 @@ Exact tested private `7c8eb3e5a04b9992dd17c6f2db542267deb58133`, public/runtime 
 | A10 delivery/cleanup | PASS: exact image/complete source archive, healthy0restarts, empty schema diff, Mastra45 and21foreign containers unchanged, verified8127 rollback and canonical retention | Epic/.8 stay OPEN; broader original owner/accessibility gates retained |
 
 Evidence: `research-repair-revisions-{release-acceptance,public-ci,image,production-rollout,public-probes,ui-preview,paid-ui-control}.actual.json`. Raw source passages, private content/account identities, session and SSE remain excluded from Git. The stale research final prose and truncated whole-core AFTER preview are explicit .8 follow-ups, not accepted UX criteria.
+
+## jvrq.10 bounded dialogue and complete-preview repair
+
+Private859d8ca6/public0c8ab40e912c: all9 exact-source release commands and all5 public CI jobs PASS; production identity/archive/health and guarded rollback PASS. Evidence `dialogue-final-*.actual.json`.
+
+Actual original body control PASS (`dialogue-one-request-paid-ui-control.actual.json`): one natural request including excluded6–8 plus desired9–16Oct, standard research immediately, confirmed official15/16Oct facts, one normal fact acceptance automatically saves standalone1042chars; no date clarification or separate editorial command. Original3177 and prior850 retained in native history, shared/fresh manual editors equalDB, final dialogue says saved/no pending selection. Editable title remains separate metadata and was aligned through native title UI after the body control; automatic title generation is not claimed.
+
+Separate prior-owned test control PASS (`dialogue-complete-preview-paid-ui-control.actual.json`): complete676before/448after byte-equivalent to decoded public stream,4allowlisted fields, default-open/keyboard/mobile/CSSzoom reflow; decline-all keeps676body/revisions0. All4 combined chat streams and8same-principal journal rows succeeded/terminal,0pageerrors/adaptations/publications. Existing broader avatar/channel/full-fresh-chain and actual-owner gates stay in .8; model reason-copy polish is a bounded .8 follow-up. Original criteria/historical failed attempts retained.
