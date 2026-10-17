@@ -254,10 +254,12 @@ export function PieceScreen({
         (`kcxz.31`, D9): в панели агента (≈560px внутри) заголовок стоит
         своей строкой, а действия — одной строкой под ним; «Все заготовки»
         там не повторяет хлебную крошку «Заготовки», которая ведёт туда же,
-        и «Удалить» не падает один на третью строку. От 640px — как было.
+        и «Удалить» не падает один на третью строку. Заголовок получает не
+        меньше 32rem, если секция позволяет: иначе действия уходят ниже,
+        в том числе при масштабе браузера 200%.
       */}
       <div className="flex min-w-0 flex-wrap items-start gap-[16px]">
-        <h1 className="min-w-0 max-w-[60ch] flex-1 basis-full cf-heading-lg text-cf-ink [text-wrap:balance] split:basis-0">
+        <h1 className="min-w-0 max-w-[60ch] flex-1 basis-[min(100%,32rem)] cf-heading-lg text-cf-ink [text-wrap:balance]">
           {canWrite && onTitleSave ? (
             <Button
               variant="quiet"
