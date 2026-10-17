@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
@@ -202,10 +202,15 @@ function FieldEditor({
 }) {
   const t = voiceCopy[locale];
   const [draft, setDraft] = useState(value);
+  const previousValue = useRef(value);
   const empty = !draft.trim();
-  // Reopening the editor on a field the server has since changed must offer
-  // what the server holds, not what was typed the time before.
-  useEffect(() => setDraft(value), [value]);
+  // A retained, untouched field follows a new server value. A pending edit
+  // belongs to its author even when returning from another screen refreshes it.
+  useEffect(() => {
+    const previous = previousValue.current;
+    previousValue.current = value;
+    setDraft((current) => current === previous ? value : current);
+  }, [value]);
 
   return (
     <form

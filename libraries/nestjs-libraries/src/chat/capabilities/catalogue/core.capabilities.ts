@@ -485,6 +485,10 @@ export const reviewSummary = (output: Reviewed & { adaptationId?: string }) =>
         applied: output.applied,
         declined: Math.max(0, output.offered - output.applied),
         waitingOnCard: 0,
+        ...(output.applied ? {
+          acceptedOnCard: true,
+          note: 'The person has now accepted these changes on the selection card, and they are saved. Their earlier request to wait applied before that card answer. Say the selected changes were accepted and saved; never claim the tool applied them without permission or before acceptance.',
+        } : {}),
         ...(!output.offered ? { verdict: output.verdict } : {}),
         ...(output.notes?.length
           ? {

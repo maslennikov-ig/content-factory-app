@@ -34,6 +34,19 @@ const sameProfile = (
   right: ChannelWritingProfileV1 | null
 ) => JSON.stringify(left) === JSON.stringify(right);
 
+/** Hold only fields the author changed; the other fields follow the current server profile. */
+const pendingProfilePatch = (
+  patch: Partial<ChannelWritingProfileV1> | null,
+  baseline: ChannelWritingProfileV1
+): Partial<ChannelWritingProfileV1> | null => {
+  if (!patch) return null;
+  const pending = { ...patch };
+  for (const key of Object.keys(pending) as (keyof ChannelWritingProfileV1)[]) {
+    if (JSON.stringify(pending[key]) === JSON.stringify(baseline[key])) delete pending[key];
+  }
+  return Object.keys(pending).length ? pending : null;
+};
+
 /**
  * «Как пишем в «X»» — настройки канала в той же панели, что и настройки
  * поста (`97dq.70`, область `channel`).
@@ -57,7 +70,7 @@ export function ChannelWritingProfile({
   const t = intakeCopy[resolvedLocale];
   const request = useFetch();
   const url = writingProfileUrl(integrationId);
-  const [draft, setDraft] = useState<ChannelWritingProfileV1 | null>(null);
+  const [draft, setDraft] = useState<Partial<ChannelWritingProfileV1> | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -89,18 +102,23 @@ export function ChannelWritingProfile({
   });
 
   useEffect(() => {
-    if (data) setDraft((current) => current ?? data.profile);
+    // Null follows the server. Keep only an actual pending edit locally, so
+    // returning to this mounted screen can display a newer saved profile.
+    if (data) setDraft((current) => pendingProfilePatch(current, data.profile));
   }, [data]);
 
-  const profile = draft ?? data?.profile ?? null;
+  const profile = useMemo(() => data ? { ...data.profile, ...draft } : null, [data, draft]);
   const profileDirty = Boolean(data && !sameProfile(profile, data.profile));
   const dirty = profileDirty || plan.dirty;
 
   const change = useCallback((patch: Partial<ChannelWritingProfileV1>) => {
     setSaved(false);
     setSaveFailed(false);
-    setDraft((current) => (current ? { ...current, ...patch } : current));
-  }, []);
+    setDraft((current) => {
+      if (!data) return current;
+      return pendingProfilePatch({ ...current, ...patch }, data.profile);
+    });
+  }, [data]);
 
   const acceptResponse = useCallback(
     async (response: Response) => {
@@ -108,8 +126,8 @@ export function ChannelWritingProfile({
         await response.json(),
         integrationId
       );
-      setDraft(next.profile);
       await mutate(next, { revalidate: false });
+      setDraft(null);
     },
     [integrationId, mutate]
   );

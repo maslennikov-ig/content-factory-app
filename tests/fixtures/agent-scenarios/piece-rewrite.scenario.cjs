@@ -36,7 +36,7 @@ module.exports = {
     expect(run.requests.filter(([door]) => door === 'piece.review.accept')).toEqual([
       ['piece.review.accept', 'p1', null, { token: 'token-1', selectedIds: ['w2'] }],
     ]);
-    expect(run.turns[1].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'applied', offered: 2, applied: 1, declined: 1, waitingOnCard: 0 });
+    expect(run.turns[1].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'applied', offered: 2, applied: 1, declined: 1, waitingOnCard: 0, acceptedOnCard: true, note: expect.stringMatching(/person.*accepted.*card/i) });
     // None taken: the core stays, no accept, no card.
     expect(run.turns[3].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'kept-as-is', offered: 2, applied: 0, declined: 2, waitingOnCard: 0 });
     expect(run.turns[3].data.filter((part) => part.type === 'data-piece')).toEqual([]);

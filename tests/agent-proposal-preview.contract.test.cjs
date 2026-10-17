@@ -113,3 +113,36 @@ test.each(['empty', 'needs_clarification'])('a %s research outcome never creates
   const { answeredSelectionOf } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
   expect(answeredSelectionOf(output)).toBe(false);
 });
+
+// A later card answer is the person's decision after the original “wait” ask.
+// This provenance belongs to the completed native call, not model inference.
+test.each(['accepted', 'declined', 'stale'])('rewrite completion identifies the actual %s card decision', async (decision) => {
+  const accepted = [];
+  const tool = build('piece.rewrite', { PieceService: {
+    reviewV2: async () => ({ token: 'private-review-token', verdict: 'review', changes: [
+      { id: 'c1', basket: 'show', excerpt: 'Before', replacement: 'After', why: 'Clearer', target: 'body' },
+    ] }),
+    acceptReviewV2: async (_org, _piece, _adaptation, body) => {
+      if (decision === 'stale') throw Object.assign(new Error('Changed'), { code: 'REVIEW_STALE' });
+      accepted.push(body.selectedIds);
+    },
+  } });
+  const input = { pieceId: 'p1', instruction: 'Show changes, do not apply yet' };
+  const asked = await executeTool(tool, input, context());
+  expect(accepted).toEqual([]);
+  const { output } = await executeTool(tool, input, {
+    ...context(), suspendPayload: asked.suspended[0],
+    resumeData: { changeIds: decision === 'declined' ? [] : ['c1'] },
+  });
+  if (decision === 'accepted') {
+    expect(accepted).toEqual([['c1']]);
+    expect(output.summary).toMatchObject({ outcome: 'applied', applied: 1, acceptedOnCard: true, waitingOnCard: 0 });
+    expect(output.summary.note).toMatch(/person.*accepted.*card/i);
+    expect(output.summary.note).toMatch(/earlier.*wait/i);
+  } else {
+    expect(accepted).toEqual([]);
+    expect(output.summary).not.toHaveProperty('acceptedOnCard', true);
+    expect(output.summary).toMatchObject({ outcome: decision === 'stale' ? 'stale' : 'kept-as-is', applied: 0, waitingOnCard: 0 });
+  }
+  expect(JSON.stringify(output.summary)).not.toContain('private-review-token');
+});

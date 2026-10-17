@@ -1567,6 +1567,7 @@ export const channelCallsOf = (messages: readonly AgentMessage[]): number =>
 export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'avatar_list',
   'avatar_overview',
+  'avatar_passport',
   'avatar_proposal',
   'avatar_manual',
   'avatar_samples',

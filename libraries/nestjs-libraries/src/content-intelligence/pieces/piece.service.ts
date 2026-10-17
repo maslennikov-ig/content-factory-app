@@ -2621,6 +2621,12 @@ export class PieceService {
             core,
             post: adaptation.body ?? '',
             brief: plan.core?.brief ?? null,
+            answers: [
+              ...(plan.core?.answers ?? []),
+              // The saved adaptation already carries the normalized current
+              // answers; do not append the same request a second time.
+              ...(adaptation.answers?.length ? adaptation.answers : this.channelAnswers(plan)),
+            ],
           },
           { aiUsage: this.aiUsage, warn: (message) => this.logger.warn(message) }
         ));

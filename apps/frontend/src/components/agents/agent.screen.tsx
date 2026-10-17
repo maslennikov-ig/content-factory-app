@@ -250,7 +250,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
           {workspace.active && workspace.dirty.includes(workspace.active) ? <span className="cf-caption text-cf-ink-muted">{t('assistant_manual_edits', 'Manual edits')}</span> : null}
           {picker}
           {artifact ? <ButtonLink href={artifactHref(artifact)} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink> : null}
-        </>} material={<AgentArtifactHost artifact={artifact} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
+        </>} material={<AgentArtifactHost artifact={artifact} selectionVersion={selectionVersion} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
           <section aria-label={t('agent', 'AI assistant')} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ThreadSwitcher threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={startNew} words={words} actions={<>
               {picker}

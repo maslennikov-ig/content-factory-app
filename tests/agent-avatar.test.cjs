@@ -209,7 +209,7 @@ describe('who may do what', () => {
 
   test('every avatar capability names a door of the avatar screen or the channel card', () => {
     const avatarGroup = catalogue.filter((capability) => capability.group === 'avatar');
-    expect(avatarGroup.length).toBe(20);
+    expect(avatarGroup.length).toBe(22);
     for (const capability of avatarGroup) {
       expect([capability.id, capability.door.controller.name]).toEqual([
         capability.id,

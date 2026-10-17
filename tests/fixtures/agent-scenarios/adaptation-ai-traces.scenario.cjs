@@ -59,6 +59,8 @@ module.exports = {
       applied: 1,
       declined: 1,
       waitingOnCard: 0,
+      acceptedOnCard: true,
+      note: expect.stringMatching(/person.*accepted.*card/i),
     });
     // Nothing kept on the facts card: kept as is, and nothing waits.
     expect(run.turns[3].outputs[0].output.summary).toMatchObject({

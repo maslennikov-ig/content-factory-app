@@ -2246,6 +2246,44 @@ const createWorld = (overrides = {}) => {
           observations: [],
         };
       },
+      // The active passport is separate from manual/proposal drafts. Native
+      // version/content preservation is exercised with real VoiceService in
+      // agent-avatar-passport-parity.test.cjs; this world records routing.
+      passport: async (actor) => {
+        scoped('VoiceService.passport', actor.organizationId);
+        const avatar = voiceAvatar(actor);
+        requests.push(['voice.passport', avatar?.id ?? null]);
+        return avatar?.active && avatar.passport
+          ? { state: 'default', voice: JSON.parse(JSON.stringify(avatar.passport)) }
+          : { state: 'empty', voice: null };
+      },
+      setPassportField: async (actor, body) => {
+        scoped('VoiceService.setPassportField', actor.organizationId);
+        if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Нет прав.');
+        const avatar = voiceAvatar(actor);
+        if (!avatar?.active || !avatar.passport) {
+          throw voiceError('VOICE_PROFILE_NOT_FOUND', 'Голос ещё не включён.');
+        }
+        requests.push(['voice.passport.field', avatar.id, { ...body }]);
+        const property = {
+          WHO_SPEAKS: 'whoSpeaks', TONE: 'tone', AUDIENCE: 'audience',
+          SENTENCE_LENGTH: 'sentenceStyle', NEVER_SAY: 'neverSay', TOPICS: 'topics',
+        }[body.key];
+        const text = body.text.trim();
+        if (!text) throw voiceError('VOICE_FIELDS_INCOMPLETE', 'Пустая строка не сохраняется.');
+        const previous = body.key === 'NEVER_SAY'
+          ? avatar.passport.neverSay.join('; ')
+          : avatar.passport[property];
+        if (previous !== text) {
+          avatar.passport = {
+            ...avatar.passport,
+            [property]: body.key === 'NEVER_SAY' ? text.split(/\s*[;\n]\s*/u).filter(Boolean) : text,
+            versionLabel: `v${++avatar.passportVersionNumber}`,
+          };
+          writes.push(['avatar.passport.field', avatar.id, body.key]);
+        }
+        return { state: 'default', voice: JSON.parse(JSON.stringify(avatar.passport)) };
+      },
       manualField: async (actor, body) => {
         scoped('VoiceService.manualField', actor.organizationId);
         if (!actor.canManage) throw voiceError('VOICE_FORBIDDEN', 'Нет прав.');

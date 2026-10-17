@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { artifactKey, type AgentArtifact } from './agent.contract';
 import type { AgentWords } from './agent.copy';
 import { ArtifactEditor, type WriteFromLead } from './agent.panel';
 import { AssistantArtifactBoundary } from './assistant.workspace-context';
+import { useRevalidateArtifact } from './agent.revalidate';
 
 /** One copy of each visited real editor, retained while hidden or another object is selected. */
-export function AgentArtifactHost({ artifact, available, words, onDirty, onWriteFromLead, onSelectArtifact }: {
+export function AgentArtifactHost({ artifact, selectionVersion = 0, available, words, onDirty, onWriteFromLead, onSelectArtifact }: {
   artifact: AgentArtifact | null;
+  selectionVersion?: number;
   available: readonly AgentArtifact[];
   words: AgentWords;
   onDirty: (key: string) => void;
@@ -16,7 +18,19 @@ export function AgentArtifactHost({ artifact, available, words, onDirty, onWrite
   onSelectArtifact: (artifact: AgentArtifact) => void;
 }) {
   const [visited, setVisited] = useState<AgentArtifact[]>(() => artifact ? [artifact] : []);
+  const revalidate = useRevalidateArtifact();
   const activeKey = artifact ? artifactKey(artifact) : null;
+  const latestArtifact = useRef(artifact);
+  latestArtifact.current = artifact;
+  const previousSelection = useRef({ key: activeKey, version: selectionVersion });
+  useEffect(() => {
+    const previous = previousSelection.current;
+    if (previous.key === activeKey && previous.version === selectionVersion) return;
+    previousSelection.current = { key: activeKey, version: selectionVersion };
+    // Streamed messages recreate artifact refs. Only a changed logical object
+    // or an explicit selection event refreshes its retained editor.
+    if (latestArtifact.current) revalidate(latestArtifact.current);
+  }, [activeKey, selectionVersion, revalidate]);
   useEffect(() => {
     if (!artifact) return;
     setVisited((previous) => previous.some((one) => artifactKey(one) === artifactKey(artifact))

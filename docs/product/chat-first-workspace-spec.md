@@ -162,3 +162,15 @@ A proposed text change shows complete exact before/after paragraphs and its reas
 ### Accepted period overview title (owner17October2026)
 
 Accepting selected dated research refreshes the overview title and body together in the existing content language, within the same native draft operation and atomic save. The title names the selected period and substantive supported events, stays within the existing120-character title field, and remains manually editable. No second editorial command or manual title update is required. Empty/declined research, invalid generation or a concurrent title/body/brief edit leaves the existing fields unchanged; successful updates retain the exact previous body in native history. Ordinary non-period enrichment keeps its current title behavior.
+
+### Live acceptance fixture clarification, 17 October 2026
+
+For the requested complete fresh walkthrough, the owner designated the already
+connected Telegram test group and authorized its use. Actual provider acceptance
+uses a new personal conversation, new avatar, channel writing setup, new piece,
+personal answers, adaptation and reserve on that existing native connection.
+This does not claim a new real-social connection or an empty production
+organization. The original empty-workspace model-free scenarios and all other
+A1–A10 criteria remain recorded separately. The owner delegated this execution;
+a technical walkthrough does not claim their personal clicks or unrelated
+client/provider acceptance.

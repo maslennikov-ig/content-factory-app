@@ -106,7 +106,10 @@ export function useChannelPlanField({
       if (!response.ok) throw new Error('plan mode not saved');
       // Сервер держит `mode`, даже если человек уже выбрал другое.
       await mutate(mode, { revalidate: false });
-      if (mine === turn.current) setSave('saved');
+      if (mine === turn.current) {
+        setChosen((current) => current === mode ? null : current);
+        setSave('saved');
+      }
     } catch {
       if (mine === turn.current) setSave('failed');
       return false;
@@ -256,7 +259,7 @@ export function useChannelPlanField({
       if (!next || !canWrite) return;
       // Новый выбор — новый ход: вопрос о прежнем режиме больше не к месту.
       turn.current += 1;
-      setChosen(next);
+      setChosen(next === held ? null : next);
       setSave('idle');
       setApply({ kind: 'idle' });
     },

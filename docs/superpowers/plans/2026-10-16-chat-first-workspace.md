@@ -137,3 +137,74 @@ Technical premortem: GO WITH CONDITIONS. Blast radius is temporal research accep
 
 
 The17October title release exposed a full-suite CI budget blocker: two fresh hosted attempts reached the30-minute job limit; the first had passed all677Jest suites but never completed Node/Python. Increase only that job budget to45 minutes, retain the whole pnpm test command/pipefail/three-halves guard and every required check. Freeze and test the new source normally, publish its matching archive/image; old98d/3166 and interrupted jobs stay historical and cannot authorize the new source. No product/schema/model-route change or acceptance waiver.
+
+
+17October title slice delivered: exact private2d1175/publicd1e03a, root9 and all5 publicCI PASS; canonical image/pull/pre/post0SQL/switch/production/archive accepted. Actual original control: one natural9–16Oct query, one normal4factselection, automatic39char title+1493char overview in same draft operation; no repeateddate/editorialcommand/manualtitlefix. Bothshared/freshmanual editors and native6version history exact; original3177 and previous1042 retained. Official15/16Oct events independentlychecked, actual authorpromptobservation preserved. All5journalrows succeeded,1draft; recorded0.05727408USD doesnotproveinvoicecompleteness.0derivations/posts/quotareset/accountchange; priorowned676 unchanged. Canonical retention preserved rollback0c8/config733f, removedonlyown3166/f975tags+2oldconfigcopies; final21.233GB/Mastra45/21foreign preserved. Ownbrowser/RPC/session/3hosthelpers/lock disposed; private original/result audit hashes retained outsideGit. Closeonlyjvrq.11 aftercanonicalack; epic/.8 remainopen fororiginalbroaderownercriteria.
+
+
+### 17 October: owner requests complete fresh creation and manual workflow
+
+Continue original epic/.8 without waiving A1–A10. Owner asks to create avatar,
+channel and material through AI assistant from scratch, edit through manual
+surfaces, fix remaining failures and complete the epic. Prior authorized paid
+production QA and in-scope publication/deployment continue; social-account
+connection, real publication, credentials and billing changes remain separate.
+
+1. Fresh inventory/read-only production baseline; preserve customer originals,
+   all existing avatars/channels/pieces and unrelated task criteria. Use one
+   clearly owned QA workspace and synthetic author samples, native UI only.
+2. Real chat-only avatar→channel writing→piece→personal answers→adaptation→reserve;
+   explicit native consent, no social publication, no direct DB seeds/quota reset.
+3. Manual avatar/channel/piece edits, reopen shared chat, make one scoped
+   refinement and accept it; compare exact saved records/revisions on both routes.
+4. Actual reload/conversation continuity, artifact hide/restore/resize/draft
+   protection, RU/EN dark/light widths1440/1024/768/390/zoom/keyboard. Reuse matching
+   regression evidence for private boundaries/recovery and previous dated update;
+   add focused reproducer only for observed missing behavior.
+5. Batch observed fixes, one root final release acceptance on exact source,
+   canonical public tree/CI/image/host guards/rollback if changed, final paid
+   clean-room run, safe own-resource disposition and canonical epic/.8 closure.
+
+Native source: Integration is the channel record; channel.connect creates it through real-social consent. Owner17October explicitly identified the already connected «Тестовая группа» as the dedicated test target and allowed using it for needed test sends. Reuse this native live connection fixture; no new draft-channel layer or fake Integration. Fresh personal conversation/new avatar/new material and channel writing setup must be real, plus manual parity/adaptation/reserve. Distinguish existing social connection fixture from literal empty-organization onboarding; local empty-state fixtures remain complementary evidence. No unrelated channel/account/credential or quota changes; any actual test send is bounded to that exact confirmed group and native explicit approval. Existing owner/provider gates are verified by the delegated real scenario as requested, never by fixtures alone.
+
+Delegation: fresh_chain_acceptance_inventory gpt-6-luna/max, read-only code/spec
+matrix (context_isolation/parallel_latency); root owns live browser, paid actions,
+changes, integration and acceptance. No child DB/network/host/product mutations.
+
+### Fresh-chain repair batch and final acceptance, 17 October
+
+The actual ten-stream diagnostic on d1e completed a new nondefault avatar,
+channel reserve/writing setup, new piece, three accepted personal answers,
+one adaptation/reserve and manual piece→accepted chat edit→manual parity.
+It found four concrete defects, tracked as jvrq.12–.15; the original overview
+and all old avatars/pieces/posts were protected. Diagnostic ledger16 succeeded,
+recorded0.02430876USD; this is not provider invoice completeness.
+
+Batch one release: existing channel format/notes contract; active avatar
+passport native read/edit and skill route; bounded accepted answers/provenance
+for optional material questions; selected retained artifact refresh with pending
+input protection in shared editors. The completed rewrite summary also records
+that the person accepted its card, so earlier “do not apply yet” is not reported
+as a permission bypass after actual acceptance. No new social connection,
+schema, Temporal workflow/activity, dependency or parallel runtime.
+
+After independent review, freeze owned source and run the configured exact
+nine-command release set once, with all three suite halves. Publish the copied
+public tree, verify its CI/image/archive, then canonical pull/schema-read/switch
+with current d1e as rollback and foreign runtime/volume/Mastra preservation.
+Repeat the complete fresh real chat chain on that exact release, using the
+owner-designated existing live test connection. Exercise manual edits and
+return for avatar/channel/piece, a manually created piece opened in chat,
+normal accept/decline, reload/private conversation/artifact continuity, protected
+unsent inputs, scoped responsive RU/EN dark/light keyboard/zoom and one safe
+read-only stop/recovery control. Compare saved native rows and terminal usage,
+not only assistant prose. Preserve the earlier original-period title/body proof
+for unchanged writer/research inputs; no gratuitous original mutation/research.
+
+Owner17October clarified the live fixture: already connected «Тестовая группа».
+The real control therefore proves new content and writing setup on that native
+connection; model-free empty-workspace/admission fixtures remain distinct from
+new real-social account connection, which is not claimed. Owner requested and
+delegated this walkthrough; do not claim they personally clicked through it.
+Close the epic/.8 and repair children only after matching final evidence and
+canonical acknowledgement. Keep all unrelated external/client/provider gates.

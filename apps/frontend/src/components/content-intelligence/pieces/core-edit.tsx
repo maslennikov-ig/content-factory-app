@@ -69,6 +69,8 @@ export function CoreTextEdit({
   const fieldId = useId();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
   /** The text the server holds now: what the next save replaces. */
   const saved = useRef(text);
 
@@ -78,9 +80,10 @@ export function CoreTextEdit({
   useEffect(() => () => onEditingChange?.(false), [onEditingChange]);
 
   // The core changed on the server (rebuild, answer): the field follows it
-  // unless the author is typing.
+  // unless the author has a pending edit. Opening the field alone must not
+  // hold an old compare-and-save base after a manual save on another screen.
   useEffect(() => {
-    if (editing) return;
+    if (editing && latestDraft.current.trim() !== saved.current.trim()) return;
     saved.current = text;
     setDraft(text);
   }, [text, editing]);

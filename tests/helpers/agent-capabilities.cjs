@@ -899,6 +899,14 @@ const avatarFixtures = () => {
     canManage: true,
   });
   const proposal = { outcome: 'ready', fields: [{ key: 'TONE', text: INJECTION, status: 'ACCEPTED' }], observations: [], portrait: { text: INJECTION } };
+  const passport = {
+    state: 'default',
+    voice: {
+      whoSpeaks: INJECTION, tone: INJECTION, audience: INJECTION,
+      sentenceStyle: INJECTION, neverSay: [INJECTION], topics: INJECTION,
+      versionLabel: INJECTION, addressForm: 'vy', delegatedPolicy: 'knowledge',
+    },
+  };
   const learning = { pending: 6, minPairs: 5, rules: [{ id: 'r-1', text: INJECTION, pairs: 5 }], lastRunAt: null };
   const voice = (more = {}) => ({
     VoiceService: {
@@ -912,6 +920,8 @@ const avatarFixtures = () => {
       },
       proposal: async () => proposal,
       manualProposal: async () => ({ ...proposal, mode: 'manual' }),
+      passport: async () => passport,
+      setPassportField: async () => passport,
       proposalField: async () => proposal,
       manualField: async () => ({ ...proposal, mode: 'manual' }),
       samples: async () => ({ samples: [{ code: 'smp-01', title: INJECTION, origin: 'PASTE', charCount: 600 }], readiness }),
@@ -934,6 +944,8 @@ const avatarFixtures = () => {
   return {
     'avatar.list': { input: {}, services: voice() },
     'avatar.overview': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.passport': { input: { avatarId: AVATAR_A }, services: voice() },
+    'avatar.passport.field': { input: { avatarId: AVATAR_A, field: 'TONE', text: 'Спокойно' }, services: voice() },
     'avatar.proposal': { input: { avatarId: AVATAR_A }, services: voice() },
     'avatar.manual': { input: {}, services: voice() },
     'avatar.samples': { input: { avatarId: AVATAR_A }, services: voice() },

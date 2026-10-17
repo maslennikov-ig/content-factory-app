@@ -377,6 +377,57 @@ export const avatarManual = defineCapability({
   cardOf: avatarCard,
 });
 
+/** The same active voice the passport panel reads, never the separate draft. */
+const passportRead = (
+  avatar: string,
+  passport: Awaited<ReturnType<VoiceService['passport']>>
+) => {
+  const voice = passport.voice;
+  const lines = voice
+    ? [
+        ['WHO_SPEAKS', voice.whoSpeaks],
+        ['TONE', voice.tone],
+        ['AUDIENCE', voice.audience],
+        ['SENTENCE_LENGTH', voice.sentenceStyle ?? ''],
+        ['NEVER_SAY', voice.neverSay.join('; ')],
+        ['TOPICS', voice.topics ?? ''],
+      ]
+    : [];
+  return {
+    avatarId: avatar,
+    state: passport.state,
+    hasVoice: voice !== null,
+    versionLabel: voice?.versionLabel.slice(0, 80) ?? null,
+    fields: lines.map(([key, text]) => ({
+      key,
+      text: text.slice(0, 600),
+      // A legacy active line may exceed today's edit bound. The model must
+      // not mistake a bounded excerpt for the whole line and overwrite it.
+      ...(text.length > 600 ? { truncated: true } : {}),
+    })),
+    ...(voice ? { addressForm: voice.addressForm ?? null, delegatedPolicy: voice.delegatedPolicy } : {}),
+  };
+};
+
+export const avatarPassport = defineCapability({
+  id: 'avatar.passport',
+  group: 'avatar',
+  label: { ru: 'Действующий голос аватара', en: 'Active avatar voice' },
+  description:
+    'Read the current active passport of an explicit avatar, including manual edits already saved on its card: six fields, version label, address form and delegated policy. Free. For a voice already switched on, use this instead of avatar.manual or avatar.proposal, which read separate drafts. Before extending or changing an active field, read it here and preserve its existing text except what the person asked to change. A field marked `truncated` is only an excerpt: never use it as a complete replacement. `hasVoice: false` means no active voice yet; follow the creation path.',
+  input: z.object({ avatarId }),
+  risk: 'read',
+  card: 'avatar',
+  door: door(BrandVoiceController, 'passport'),
+  untrusted: ['workspace-text'],
+  run: async (ctx, input) => passportRead(
+    input.avatarId,
+    await ctx.service(VoiceService).passport(actorOf(ctx, input.avatarId))
+  ),
+  summarize: (output) => ({ ...output }),
+  cardOf: avatarCard,
+});
+
 /** Samples the model is shown at most: codes to name, never their texts. */
 const SAMPLES_SHOWN = 30;
 
@@ -725,6 +776,32 @@ const manualLineText = z
   .min(1)
   .max(600)
   .describe('The person\'s words for this line, verbatim');
+
+export const avatarPassportField = defineCapability({
+  id: 'avatar.passport.field',
+  group: 'avatar',
+  label: { ru: 'Правка действующего голоса', en: 'Edit active avatar voice' },
+  description:
+    'Save one complete updated field of the active passport for an explicit avatar, through the same service as the manual passport card. Read avatar.passport first; when adding a rule, keep the current field text and append the requested rule. Other fields and existing content are preserved by the native service. This creates and immediately activates a native version; identical text creates no version. The existing voice is already active: do not call avatar.manual.field or avatar.activate and do not ask again for activation consent or all six lines. Reversible through native version history. Never replace a field from a truncated excerpt.',
+  input: z.object({
+    avatarId,
+    field: fieldKey,
+    text: manualLineText.describe('Complete updated field, retaining existing text except the requested changes; at most 600 characters'),
+  }),
+  risk: 'write',
+  card: 'avatar',
+  door: door(BrandVoiceController, 'setPassportField'),
+  untrusted: ['workspace-text'],
+  run: async (ctx, input) => passportRead(
+    input.avatarId,
+    await ctx.service(VoiceService).setPassportField(actorOf(ctx, input.avatarId), {
+      key: input.field,
+      text: input.text,
+    })
+  ),
+  summarize: (output) => ({ ...output }),
+  cardOf: avatarCard,
+});
 
 type ManualLineRefusal = { field: string; code: string; reason: string };
 
