@@ -5260,12 +5260,28 @@ export class PieceService {
         titleSelected ? title : proposal.snapshot!.adaptationTitle
       );
     }
-    const brief = proposal.pieceSnapshot.brief as Record<string, unknown>;
+    const brief = (proposal.pieceSnapshot.brief ?? {}) as Record<string, unknown>;
+    const bodyChanged = text !== proposal.originalText;
     const stored = {
       ...brief,
       slop: runSlopCheck(text, { platform: 'core', locale: proposal.language }),
-      ...(text !== proposal.originalText
-        ? { writtenBy: 'model', editedBy: undefined }
+      ...(bodyChanged
+        ? {
+            writtenBy: 'model',
+            editedBy: undefined,
+            revisions: withRevision(
+              readCoreRevisions(brief.revisions),
+              {
+                text: proposal.pieceSnapshot.body,
+                writtenBy: coreAuthorOf({
+                  writtenBy: brief.writtenBy === 'fallback' ? 'fallback' : 'model',
+                  editedBy: brief.editedBy === 'person' ? 'person' : undefined,
+                }),
+                materialPending: brief.materialPending === true,
+              },
+              this.now().toISOString()
+            ),
+          }
         : {}),
       ...(title !== proposal.title ? { titleEdited: true } : {}),
     };

@@ -221,6 +221,17 @@
       "issues": [
         "content-factory-next-jvrq.9"
       ]
+    },
+    {
+      "stream": "accepted-core-rewrite-history",
+      "owner": "accepted_rewrite_history_fix",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts",
+        "tests/piece-review-history.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.18"
+      ]
     }
   ],
   "stream_artifacts": [],
