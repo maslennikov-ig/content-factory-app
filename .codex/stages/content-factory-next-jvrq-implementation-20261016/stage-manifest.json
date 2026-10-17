@@ -227,6 +227,24 @@
   "branch": "codex/chat-first-workspace-plan-20261016",
   "engineering_acceptance": {
     "result": "passed",
+    "source_commit": "68c2ca01f2c7935704a45a148478990cd49c7209",
+    "kind": "exact-source-release",
+    "evidence": [
+      "evidence/fresh-chain-release-acceptance.actual.json",
+      "evidence/fresh-chain-suite-receipt.actual.json",
+      "evidence/fresh-chain-public-ci.actual.json",
+      "evidence/fresh-chain-image.actual.json",
+      "evidence/fresh-chain-production-rollout.actual.json",
+      "evidence/fresh-chain-public-probes.actual.json"
+    ],
+    "note": "All9 exact-source root release commands and all5 publicCI jobs passed;058 production verified. Actual fresh creation/reserve and avatar round trip passed. Broader final manual/UI QA and new named-create planner follow-up release/paid replay remain pending; historical failures retained."
+  },
+  "delivery_authority": {
+    "date": "2026-10-17",
+    "scope": "Owner continues prior explicit source/image/production/paid control authority and requests complete fresh avatar/channel/material chat workflow, manual edits, in-scope fixes and epic completion. Existing connected owner-designated Telegram test group is the authorized live fixture; no new social connection/credentials or unrelated publications. Real QA performed by delegated agent, not claimed as owner personal clicks."
+  },
+  "previous_engineering_acceptance": {
+    "result": "passed",
     "source_commit": "859d8ca611612a60628f6cb8f79daeda853dbff8",
     "kind": "exact-source-release",
     "evidence": [
@@ -239,9 +257,5 @@
       "evidence/dialogue-complete-preview-paid-ui-control.actual.json"
     ],
     "note": "All9 configured release commands and all5 exact-public CI jobs passed. Production and two paid UI controls accepted. Stage/epic remains in_progress for unchanged broader owner/avatar/channel/fresh-chain gates. Original initial aggregate/failed proofs remain in outcome and existing evidence."
-  },
-  "delivery_authority": {
-    "date": "2026-10-17",
-    "scope": "Owner continues prior explicit source/image/production/paid control authority and requests complete fresh avatar/channel/material chat workflow, manual edits, in-scope fixes and epic completion. Existing connected owner-designated Telegram test group is the authorized live fixture; no new social connection/credentials or unrelated publications. Real QA performed by delegated agent, not claimed as owner personal clicks."
   }
 }
