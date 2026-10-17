@@ -1,3 +1,7 @@
+# Latest production checkpoint —17October15:14UTC
+
+Private8a8f/public1bf: title creation and separate answers, readable10layouts and actual shared/manual200%, all shared/manual RU/EN forms and preserved dirty avatar input PASS. Exact database readback preserves original and all prior non-owned records. Evidence: `evidence/epic-final-product-controls.actual.json`. Actual third request failed native preview routing (jvrq.20); no product write, manual474/history1 intact. jvrq.18 native accepted history and jvrq.20 real planning replay remain pending; epic/.8 stay in progress. Earlier checkpoint sections are historical.
+
 # Latest delegated live acceptance —17October13:21UTC
 
 Current deployed private68c2/public058a: fresh owned avatar/material, configured owner-designated connected test channel, separate personal answers, adaptation and20Oct12:30 reserve passed. Actual manual→chat→manual avatar/channel/core and manually created cnt-45 also passed; original1493/six versions and prior43pieces/22posts/11avatars exact.13normal terminal chat streams +1native read-onlyStop;23ledger rows terminal,0pending. RU/EN dark/light and native200% exercised. Evidence: `evidence/fresh-chain-paid-ui-control.actual.json`, `evidence/fresh-chain-live-layouts.actual.json`.

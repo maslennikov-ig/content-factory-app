@@ -248,6 +248,20 @@
       "issues": [
         "content-factory-next-jvrq.19"
       ]
+    },
+    {
+      "stream": "native-existing-core-preview-policy",
+      "owner": "native_preview_fix",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts",
+        "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts",
+        "tests/piece-native-preview-contract.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.20"
+      ],
+      "delivery": "accepted-focused146-and-independent-static-review",
+      "completion_event": "final paid planning replay root-owned"
     }
   ],
   "stream_artifacts": [],

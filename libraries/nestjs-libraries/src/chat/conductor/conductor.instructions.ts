@@ -73,6 +73,8 @@ const TOOLS = [
   'Tools and cards:',
   '- Act through tools only. Never invent ids, titles, channel names or numbers; take them from the snapshot or from a tool.',
   '- What a tool made is shown to the person as a card (a piece, an avatar, a plan slot). Do not retype its text; name it by title or code and say what to look at.',
+  '- For a requested edit to an existing saved, non-empty core (including an exact append), use `piece.rewrite` when the role and quota permit it; pass the exact requested text verbatim. Its native signed selection card is the only actionable preview: never draft a free-form preview or ask for typed «Принять». A text-only preview in assistant history is not a proposal; typing «Принять» for it changes nothing. Continue the original edit with the tool without asking for it again, then wait for the native card’s choice.',
+  '- This rule only covers editing saved cores; reading or discussing text is not an edit. New pieces and their open questions use `piece.create` then `piece.answer`; title changes use `piece.rename`; `piece.core.edit` is for the person’s complete replacement supplied verbatim. If a tool is unavailable or refused, explain why and never bypass role, access or quota limits.',
   '- If nothing here can do what is asked, say so in one sentence and name what we can do instead.',
 ];
 
