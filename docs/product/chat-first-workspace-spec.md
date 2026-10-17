@@ -1,8 +1,8 @@
 # Chat-first Content Factory workspace
 
-**Document state:** accepted target, implemented locally on16 October2026; final integration verification in progress. Deployment, paid provider quality and owner acceptance are separate gates.
+**Document state:** accepted target, implemented and deployed; delegated complete-flow acceptance on17 October2026 is recorded in the implementation stage, with final corrective release in progress. Source, production, paid provider and personal owner observations are distinguished there.
 **Epic:** `content-factory-next-jvrq` (eight execution packages, `.1`–`.8`).
-**Task truth:** Beads owns execution status and dependencies; see the implementation plan linked below.
+**Task truth:** Linear is canonical; Beads is the execution interface and GitHub the subordinate mirror; see the implementation plan linked below.
 **Owner direction:** chat is the primary creation workflow; section pages remain a complete manual workflow. Both use the existing Mastra agent, product services, components and saved objects.
 **Design reference:** [interactive layout study](../design/chat-first-workspace/prototype.html).
 **Implementation:** [bounded plan](../superpowers/plans/2026-10-16-chat-first-workspace.md).
@@ -11,7 +11,7 @@
 
 The owner has not yet personally tested the current AI assistant workflow. Historical engineering acceptance is not owner acceptance of this new workflow. The 16 October screenshot shows a narrow conversation and a dominant, unclosable empty panel titled «Что есть в пространстве», with five onboarding steps marked complete before a conversation starts.
 
-Current source confirms:
+The planning source snapshot confirmed:
 
 - `apps/frontend/src/components/layout/top.menu.tsx` places `/agents` in `secondaryMenu` under «Ещё».
 - `agents/agent.screen.tsx` gives the conversation a fixed 520 px desktop width. Its active artifact is local React state; without an artifact it mounts `WorkspaceSteps` in the wide panel.
@@ -143,7 +143,7 @@ The [prototype](../design/chat-first-workspace/prototype.html) is a local intera
 
 ## 11. Delivery and open authority
 
-On16 October2026 the owner authorized implementation of this epic and selected «ИИ-помощник», localized across all16 shipped languages. Local source, design, tracker and verification work are included. Paid/live model/provider checks, real social-account changes, publishing, source push and production deployment remain separate current-authority steps. Earlier releases do not grant new authority or prove the new scenario.
+The owner authorized implementation and the localized «ИИ-помощник» name on16 October2026, then explicitly authorized source publication, production deployment, paid creation/research controls and their corrective replays. On17 October the owner requested completion of the avatar/channel/material/manual scenario and designated the already connected test group. This authority covers the current epic and its bounded fixes; no new real social connection or publication is needed for its reserve-only control. Delivery and actual provider observations remain separate evidence.
 
 The implementation reuses the existing Mastra/AI SDK runtime, private organization:user threads and shared product editors. The installed metadata APIs, native resource-memory behavior and bounded context/storage contracts were checked. Exact local acceptance and remaining owner/provider/release gates are recorded in Beads and the current implementation-stage outcome; the planning prototype remains design evidence.
 
@@ -174,3 +174,11 @@ organization. The original empty-workspace model-free scenarios and all other
 A1–A10 criteria remain recorded separately. The owner delegated this execution;
 a technical walkthrough does not claim their personal clicks or unrelated
 client/provider acceptance.
+
+
+### Shared editor interface language
+
+The assistant and standalone avatar/channel/piece editors follow the current
+interface-language subscription. Switching the native header language updates
+mounted forms immediately and preserves the selected object and dirty fields.
+It does not rewrite saved content or change its content-language settings.

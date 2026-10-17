@@ -48,6 +48,7 @@ const translate = (key, fallback, values) => {
 
 const swrCalls = [];
 let swrAnswer = { data: undefined, error: undefined, isLoading: true };
+let interfaceLanguage = 'ru';
 
 function loadHint() {
   const filename = path.join(root, SOURCE);
@@ -74,6 +75,9 @@ function loadHint() {
     },
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ language: 'ru' }),
+    },
+    '@contentfactory/react/translation/use-interface-language': {
+      useInterfaceLanguage: () => interfaceLanguage,
     },
     '@contentfactory/react/translation/get.transation.service.client': {
       useT: () => translate,
@@ -104,6 +108,26 @@ const render = (state) =>
   );
 
 describe('the allowance line', () => {
+  test('the connected allowance formats its date in the current interface language', () => {
+    const previousAnswer = swrAnswer;
+    swrAnswer = {
+      data: { mode: 'included', remaining: 7, limit: 10, resetsAt: '2026-10-04T00:00:00.000Z' },
+      error: undefined,
+      isLoading: false,
+    };
+    try {
+      interfaceLanguage = 'en';
+      expect(renderToStaticMarkup(React.createElement(hint.AllowanceHint)))
+        .toContain(hint.formatResetDate(swrAnswer.data.resetsAt, 'en'));
+      interfaceLanguage = 'ru';
+      expect(renderToStaticMarkup(React.createElement(hint.AllowanceHint)))
+        .toContain('4 октября');
+    } finally {
+      interfaceLanguage = 'ru';
+      swrAnswer = previousAnswer;
+    }
+  });
+
   test('a counted allowance reads as a remainder, a total and a date', () => {
     const markup = render({
       status: 'included',

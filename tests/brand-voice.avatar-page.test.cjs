@@ -76,6 +76,11 @@ test('the avatar has a route of its own and a screen behind it', () => {
   expect(route).toMatch(/params/);
 });
 
+// Existing assertions pin Russian copy; set the live browser language before loading the page.
+const interfaceLanguage = loadTypeScriptModule(
+  'libraries/react-shared-libraries/src/translation/use-interface-language.ts'
+);
+interfaceLanguage.useInterfaceLanguage = () => 'ru';
 const page = loadTypeScriptModule(files.screen);
 const copy = loadTypeScriptModule(`${base}/voice-copy.ts`);
 const variables = loadTypeScriptModule(

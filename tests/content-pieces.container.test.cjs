@@ -72,6 +72,11 @@ const { SWRConfig } = require('swr');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const base = 'apps/frontend/src/components/content-intelligence/pieces';
+// Existing assertions pin Russian copy; set the live browser language before loading the page.
+const interfaceLanguage = loadTypeScriptModule(
+  'libraries/react-shared-libraries/src/translation/use-interface-language.ts'
+);
+interfaceLanguage.useInterfaceLanguage = () => 'ru';
 const container = loadTypeScriptModule(`${base}/piece.container.tsx`);
 const adapter = loadTypeScriptModule(`${base}/pieces.adapter.ts`);
 const variables = loadTypeScriptModule(

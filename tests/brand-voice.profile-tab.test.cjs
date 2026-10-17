@@ -74,10 +74,16 @@ const contract = loadTypeScriptModule(
 );
 const copy = loadTypeScriptModule(`${base}/voice-copy.ts`);
 const adapter = loadTypeScriptModule(files.adapter);
-const container = loadTypeScriptModule(files.container);
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
+const interfaceLanguage = loadTypeScriptModule(
+  'libraries/react-shared-libraries/src/translation/use-interface-language.ts'
+);
+// This suite pins its native fixture to Russian; live language changes are
+// covered separately by shared-editor-interface-language.test.cjs.
+interfaceLanguage.useInterfaceLanguage = () => 'ru';
+const container = loadTypeScriptModule(files.container);
 
 const source = fs.readFileSync(path.join(root, files.container), 'utf8');
 

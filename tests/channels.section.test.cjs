@@ -24,6 +24,8 @@ const mocks = {
   'next/navigation': { useRouter: () => ({ push }), useParams: () => ({ id: routeId }), useSearchParams: () => new URLSearchParams() },
   '@mantine/hooks': { useMediaQuery: () => mobile },
   '@contentfactory/react/helpers/variable.context': { useVariables: () => ({ language: 'ru' }) },
+  // Keep this suite's Russian fixtures pinned through the live browser source.
+  '@contentfactory/react/translation/use-interface-language': { useInterfaceLanguage: () => 'ru' },
   '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => jest.fn() },
   '@contentfactory/react/form/input': { Input: ({ standalone, fieldClassName, ...props }) => h('input', props) },
   '../layout/user.context': { useUser: () => ({ role, totalChannels: 10 }) },

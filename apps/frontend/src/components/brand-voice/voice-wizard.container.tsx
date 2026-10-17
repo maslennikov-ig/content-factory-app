@@ -4,7 +4,7 @@ import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
@@ -118,7 +118,7 @@ export function VoiceWizardContainer({
   openReady?: boolean;
 } = {}) {
   const request = useFetch();
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
   const locale: VoiceLocale = String(language ?? 'ru')
     .toLowerCase()
     .startsWith('ru')

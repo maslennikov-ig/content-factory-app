@@ -14,7 +14,7 @@ import {
 import useSWR from 'swr';
 import dayjs from 'dayjs';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useUser } from '../../layout/user.context';
 import { createNdjsonSplitter } from '../../new-launch/ndjson';
@@ -180,7 +180,7 @@ export function PieceContainer({
 }) {
   const request = useFetch();
   const t = useT();
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
   const locale = resolveContentLocale(language);
   const w = piecesCopy[locale];
 

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { useUser } from '../layout/user.context';
 import type { ProfileFieldV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import {
@@ -82,7 +82,7 @@ export function VoiceProfileContainer({
 } = {}) {
   const request = useFetch();
   const user = useUser();
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
   const locale: VoiceLocale = language.toLowerCase().startsWith('ru')
     ? 'ru'
     : 'en';

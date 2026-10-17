@@ -27,6 +27,7 @@ import { SettingsModal } from '@contentfactory/frontend/components/launches/sett
 import { CustomVariables } from '@contentfactory/frontend/components/launches/add.provider.component';
 import { useRouter } from 'next/navigation';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launch/compose.modal';
 import dayjs from 'dayjs';
@@ -152,7 +153,8 @@ export const Menu: FC<{
    */
   const manageChannel = isOrganizationAdmin(user?.role);
   const canWritePosts = isOrganizationEditor(user?.role);
-  const { extensionId, language } = useVariables();
+  const { extensionId } = useVariables();
+  const language = useInterfaceLanguage();
   const { integrations, reloadCalendarView } = useCalendar();
   const toast = useToaster();
   const modal = useModals();

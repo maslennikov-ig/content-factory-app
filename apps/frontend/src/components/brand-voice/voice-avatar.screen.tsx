@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { Button } from '@contentfactory/react/form/button';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { VoiceWizardContainer } from './voice-wizard.container';
@@ -81,7 +81,7 @@ export function VoiceAvatarScreen({
 }) {
   const router = useRouter();
   const request = useFetch();
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
   const locale: VoiceLocale = String(language ?? 'ru')
     .toLowerCase()
     .startsWith('ru')

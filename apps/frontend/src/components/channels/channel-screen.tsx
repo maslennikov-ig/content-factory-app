@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useMediaQuery } from '@mantine/hooks';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import {
@@ -426,7 +426,7 @@ export function ChannelScreen({
 }: { channelId?: string; embedded?: boolean } = {}) {
   const params = useParams<{ id: string }>();
   const id = channelId ?? params?.id;
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
   const locale: ChannelsLocale = language.startsWith('ru') ? 'ru' : 'en';
   const t = channelsCopy[locale];
   const { data, isLoading, error, mutate } = useIntegrationList();

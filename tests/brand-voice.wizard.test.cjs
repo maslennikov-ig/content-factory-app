@@ -476,6 +476,11 @@ function mount(
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ language }),
     },
+    '@contentfactory/react/translation/use-interface-language': {
+      // Keep each scenario's pinned reader locale; the mounted subscription
+      // is exercised by shared-editor-interface-language.test.cjs.
+      useInterfaceLanguage: () => language,
+    },
   });
   expect(typeof container.VoiceWizardContainer).toBe('function');
   return container;

@@ -1,13 +1,13 @@
 # Chat-first workspace implementation plan
 
-**State:** owner-authorized implementation on16 October2026; local integration verification in progress. Beads remains the status source. No production release is claimed.
+**State:** owner-authorized implementation and delivery; deployed releases and delegated17October complete-flow acceptance are recorded in the implementation stage. The final corrective release remains in progress; historical steps below are the stable execution plan. Linear is canonical, Beads is the execution interface.
 **Epic:** `content-factory-next-jvrq`; T1–T8 correspond to `content-factory-next-jvrq.1`–`.8` in order.
 **Goal:** make the existing AI assistant the primary way to create and refine content while manual sections use the same actions, editors, saved objects and visual language.
 **Spec:** [chat-first workspace](../../product/chat-first-workspace-spec.md). Read it before executing a package.
 **Approach:** reuse the existing Mastra conductor, capabilities and embedded editors; establish one typed object-context boundary, then adopt it in both entry points. Keep dated-change research in the common intake/research pipeline.
 **Non-goals:** another assistant backend, Mastra upgrade, replacement CRUD forms/calendar, new publishing automation, historical thread migration, altered external/MCP acceptance, billing or role redesign.
 
-Beads owns the actual task IDs, status, dependencies and completion evidence. The sections below define stable work packages and their acceptance ownership, not a second status ledger. Runtime delivery and external/owner acceptance stay separate.
+Linear owns canonical task status; Beads exposes the actual task IDs, dependencies and completion evidence to agents. The sections below define stable work packages and their acceptance ownership, not a second status ledger. Runtime delivery and external/owner acceptance stay separate.
 
 ## Scope mapping
 

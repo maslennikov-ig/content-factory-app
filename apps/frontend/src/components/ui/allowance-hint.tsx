@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 /**
@@ -209,7 +209,7 @@ export const AllowanceHintView = ({
 /** The same line, reading the door. */
 export const AllowanceHint = () => {
   const request = useFetch();
-  const { language } = useVariables();
+  const language = useInterfaceLanguage();
 
   const load = useCallback(
     async () => (await request(ALLOWANCE_API)).json(),

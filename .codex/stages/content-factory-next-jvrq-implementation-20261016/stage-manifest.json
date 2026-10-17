@@ -232,6 +232,22 @@
       "issues": [
         "content-factory-next-jvrq.18"
       ]
+    },
+    {
+      "stream": "shared-editor-interface-language",
+      "owner": "shared_editor_language_fix",
+      "write_zone": [
+        "apps/frontend/src/components/content-intelligence/pieces/piece.container.tsx",
+        "apps/frontend/src/components/brand-voice/voice-avatar.screen.tsx",
+        "apps/frontend/src/components/brand-voice/voice-profile.container.tsx",
+        "apps/frontend/src/components/brand-voice/voice-wizard.container.tsx",
+        "apps/frontend/src/components/channels/channel-screen.tsx",
+        "tests/shared-editor-interface-language.test.cjs",
+        "five directly affected static locale test mocks"
+      ],
+      "issues": [
+        "content-factory-next-jvrq.19"
+      ]
     }
   ],
   "stream_artifacts": [],
