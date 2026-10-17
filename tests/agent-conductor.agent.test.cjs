@@ -93,6 +93,7 @@ describe('what the model is offered', () => {
         'avatar_list',
         'avatar_manual',
         'avatar_overview',
+        'avatar_passport',
         'avatar_proposal',
         'avatar_samples',
         // A channel and its posts are read by every member (kcxz.19).

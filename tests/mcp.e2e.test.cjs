@@ -172,6 +172,7 @@ describe('the tools', () => {
       'plan_ready',
       'avatar_list',
       'avatar_overview',
+      'avatar_passport',
       'avatar_proposal',
       'avatar_manual',
       'avatar_samples',
