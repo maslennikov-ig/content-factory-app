@@ -20,10 +20,7 @@ frontend build proof reused. Actual two obsolete tags/cache cleaned: ~9.24→17.
 restart/switch, DB/backup/model/provider/message QA. Owned host temp/worktree removed;12 unrelated producer modified files preserved. Outcome/root proof: stages/content-factory-next-host-artifact-lifecycle-20261014/. Original actual owner Telegram login/client
 acceptance remains unverified; use fresh /auth/login. Previous13Oct repair2q28.43/.44/.45 delivered; details in login-flags-repair-20261013/outcome.md. No continuous goal/next work running; resume owner testing, leave original epics/defers unchanged.
 
-Owner12Oct explicitly approves independent Skool publication defer and epic closure.
-Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed.
-Original38 task contracts unchanged; approved defer recorded in Beads, the authority.
-Previous dbxe source2e357374d91a/ec58 proof stays historical, not restamped.
+Owner12Oct explicitly approves independent Skool publication defer and epic closure. Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed. Original38 task contracts unchanged; approved defer recorded in Beads, the authority. Previous dbxe source2e357374d91a/ec58 proof stays historical, not restamped.
 Rejected38c compiler gap, corrected c886 proof and successful2a rollback retained.
 30 old-key401/new-key200 and31 empty V2->V3 cutover remain actual accepted operations.
 Global34/8 retain2 disabled-caller exceptions;33/35 retain native/allocator triggers,

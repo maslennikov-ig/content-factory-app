@@ -446,3 +446,11 @@ graph-reviewed: updated — after accepted8a boundary, graphify update . --no-cl
 ## 17October15:14UTC product checkpoint and jvrq.20
 
 Actual1bf title/separateanswers/header/native200/shared+manual reactive forms PASS; original and prior non-owned records exact. Three actual streams200/DONE, five journal rows succeeded, known0.00752561USD (not invoice proof). Native ordinary edit failed planning: only skill(content), free-text preview/typed accept, no selection/no product write. Existing474/person text plus one365/model history remain exact. Bounded jvrq.20 policy recovery preserves role/quota/title/create/interview routes; focused4suites146PASS with trueRED/GREEN, independent correctness review no actionable findings. Child delivery accepted; no resources created or cleanup needed. Final paid natural replay remains root-owned after exact-source release; no fake typed acceptance workaround.
+
+## Final scope audit and canonical child acceptance
+
+Read-only independent audit of original spec A1–A10, task.8 and current actual evidence found no additional required gate after nativepreview/history and exact224 delivery. Personal owner clicks/new social connection/publication are not required for this delegated QA; unrelated2q28/store/provider gates remain. Audit accepted; reviewer changed no files, ran no tests, created no resources; cleanup not required. At15:21:49UTC live server coordinator confirms .16/HOBA-5821, .17/HOBA-5822 and .19/HOBA-5824 closed in both accepted Beads/Linear projections. .18/.20/.8/parent remain in_progress. No task-sync trigger was treated as canonical acceptance.
+
+## Exact224 release refusal — handoff line limit
+
+Root all9 candidate224 was refused by the Python half: the new checkpoint made handoff201lines, limit200. Jest684suites12455PASS/70skip and Node123PASS/4environment skip passed; Python50ran/onefailure, no successful suite receipt written, no image/switch permitted. Original log /tmp/cf-native-preview-final-root-release.log retained as failed source224 evidence. Root joined wrapped prose within one existing paragraph (identical rendered content) to198lines; no criterion/limit/test changed. Full exact-source release including all three suite halves will rerun after this metadata correction. Public421 CI remains historical/superseded, not an accepted production source.
