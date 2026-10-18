@@ -29,7 +29,7 @@ const { approvalContentFingerprint } = require('./helpers/agent-capabilities.cjs
  * What «Нет» on an approval card leaves in the thread (W3 walk P3-K), and what
  * the model reads about it on that request only (correctness review F9).
  */
-const { DECLINED_ON_CARD, DECLINED_STORED } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
+const { APPROVED_ON_CARD, DECLINED_ON_CARD, DECLINED_STORED } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
   '../conductor/agent-chat.request.ts'
 );
 /** The id of the avatar card `pendingQuestion` leaves waiting (review W2 F3). */
@@ -360,6 +360,13 @@ describe('U4: opening the screen spends nothing; each model-running request open
     );
     expect(approval.params.requestContext.get('cf.paidLimit')).toBe(2);
     expect(approval.params.maxSteps).toBe(7);
+    const instructions = [{ role: 'system', content: 'Existing instructions' }];
+    const approvedStep = approval.params.prepareStep({ stepNumber: 0, systemMessages: instructions, messageList: {} });
+    expect(approvedStep.systemMessages).toEqual([...instructions, { role: 'system', content: expect.stringContaining('already answered') }]);
+    expect(approvedStep.systemMessages.at(-1).content).toBe(APPROVED_ON_CARD);
+    expect(approvedStep.toolChoice).toBeUndefined();
+    // Response guidance belongs only to this request, never to recalled memory.
+    expect(JSON.stringify(approval.params.messages)).not.toContain(APPROVED_ON_CARD);
     // The question: resumed by its run and its pinned call (review W1 F7),
     // with the ordinary paid cap (F3).
     expect(resume.params).toMatchObject({
@@ -369,6 +376,10 @@ describe('U4: opening the screen spends nothing; each model-running request open
       messages: [],
     });
     expect(resume.params.requestContext.get('cf.paidLimit')).toBe(1);
+    expect(resume.params.prepareStep({ stepNumber: 0, systemMessages: instructions, messageList: {} })).toBeUndefined();
+    await chat(context, { threadId: 'thread-a-1', messages: [userMessage()] });
+    const normal = context.handleChatStream.mock.calls.at(-1)[0].params;
+    expect(normal.prepareStep({ stepNumber: 0, systemMessages: instructions, messageList: {} })).toBeUndefined();
   });
 });
 
@@ -687,6 +698,28 @@ describe('correctness review W1: cards, answers and attachments at the door', ()
     expect(no.requestContext.get('cf.paidLimit')).toBe(1);
     expect(no.requestContext.get('cf.approvals')).toBe('');
     expect(yes.requestContext.get('cf.paidLimit')).toBe(2);
+    expect(no.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} }).systemMessages)
+      .toEqual([{ role: 'system', content: DECLINED_ON_CARD }]);
+    expect(yes.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} }).systemMessages)
+      .toEqual([{ role: 'system', content: APPROVED_ON_CARD }]);
+  });
+
+  test('mixed approval answers preserve both request notes without granting declined calls', async () => {
+    const context = setup();
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    pendingApproval(context.mastra);
+    context.mastra.runs[0].toolCalls.push({ toolCallId: 'call-2', toolName: 'piece_delete', args: { pieceId: 'p2' }, requiresApproval: true });
+    const body = approvalBody();
+    body.messages[0].parts.push({ type: 'tool-piece_delete', toolCallId: 'call-2', state: 'approval-responded', approval: { id: 'run-approve-1::call-2', approved: false } });
+    await chat(context, body);
+    const params = context.handleChatStream.mock.calls[0][0].params;
+    const noted = params.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} });
+    expect(noted.systemMessages).toEqual([
+      { role: 'system', content: DECLINED_ON_CARD },
+      { role: 'system', content: APPROVED_ON_CARD },
+    ]);
+    expect(params.requestContext.get('cf.approvals')).toBe(fingerprintOf('piece_delete', { pieceId: 'p1' }));
+    expect(noted.toolChoice).toBeUndefined();
   });
 
   test('F4: answers of one step share the step cap of one request', async () => {

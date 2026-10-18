@@ -54,6 +54,7 @@ import {
   samplesReceiptRefused,
   mediaReceiptRefused,
   withMediaReceipt,
+  APPROVED_ON_CARD,
   DECLINED_ON_CARD,
   verifyPendingAnswer,
 } from '@contentfactory/nestjs-libraries/chat/conductor/agent-chat.request';
@@ -293,6 +294,7 @@ export class AgentController {
         ];
         messages = verified.approvalMessage ? [verified.approvalMessage] : [];
         if (verified.declined) stepNotes = [DECLINED_ON_CARD];
+        if (verified.approved?.length) stepNotes.push(APPROVED_ON_CARD);
         answered = {
           runId: verified.runId,
           calls:

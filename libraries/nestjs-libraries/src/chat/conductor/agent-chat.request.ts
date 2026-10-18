@@ -806,6 +806,10 @@ export const verifyPendingAnswer = (
 export const DECLINED_ON_CARD =
   'The person pressed «Нет» on an approval card in this request: that action was not run, nothing changed, and that card is closed. Say in one short line that it stays as it was; do not say an approval is missing, do not point to the card and do not offer to repeat the action now.';
 
+/** Like the decline note, current-request guidance only; never recalled as permission. */
+export const APPROVED_ON_CARD =
+  'The person has already answered «Да» on an approval card in this request. Their earlier instruction to first show that confirmation has been satisfied. For each approved call, continue from its actual tool result: a completed change is already done and supersedes earlier future-tense wording and the workspace snapshot from before it ran. Say what actually changed in one short line; never describe that answered card as still open or a completed action as waiting for confirmation. Approval is permission, not proof of success: report a refused, failed or pending result as such. Other declined or unanswered calls keep their own state. Continue any remaining requested steps within the existing limits; do not repeat the completed tool.';
+
 /** What a «Нет» leaves in the thread with the tool result: the fact only. */
 export const DECLINED_STORED = 'Declined on the approval card («Нет»): not run, nothing changed.';
 

@@ -262,11 +262,14 @@ const doorPipeline = async () => {
     const input = conductor.parseAgentChatBody(body);
     let messages = input.mode === 'message' ? [input.message] : [];
     let resume = {};
+    const notes = [];
     if (input.mode !== 'message') {
       const { runs } = await registered.listSuspendedRuns({ threadId, resourceId });
       const verified = conductor.verifyPendingAnswer(input, runs, { threadId, resourceId });
       fingerprints = verified.fingerprints;
       messages = verified.approvalMessage ? [verified.approvalMessage] : [];
+      if (verified.declined) notes.push(conductor.DECLINED_ON_CARD);
+      if (verified.approved?.length) notes.push(conductor.APPROVED_ON_CARD);
       paidLimit = 2;
       if (input.mode === 'resume') resume = { runId: input.runId, resumeData: input.resumeData };
     }
@@ -286,6 +289,7 @@ const doorPipeline = async () => {
         }),
         memory: { thread: threadId, resource: resourceId },
         maxSteps: conductor.CONDUCTOR_MAX_STEPS,
+        prepareStep: conductor.lastStepSpeaks(conductor.CONDUCTOR_MAX_STEPS, notes, { resumed: input.mode !== 'message' }),
       },
     });
     return drain(stream);
@@ -372,6 +376,9 @@ const doorPipeline = async () => {
     pendingArgs: pendingAfterFirst.flatMap((run) => run.toolCalls.map((call) => call.args)),
     approvalTypes: approval.map((part) => part.type),
     approvalOutput: approval.find((part) => part.type === 'tool-output-available')?.output ?? null,
+    approvalModelSystem: seen.calls[1].system,
+    approvalModelPrompt: seen.calls[1].prompt,
+    laterModelSystems: seen.calls.slice(2).map((call) => call.system),
     deleted: calls.deleted,
     suspendedPayload: suspended?.data?.suspendPayload ?? null,
     resumedTypes: resumed.map((part) => part.type),

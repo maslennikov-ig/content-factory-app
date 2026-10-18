@@ -21,6 +21,7 @@ const { loadCapabilityModule } = require('./helpers/agent-capabilities.cjs');
 const conductor = loadCapabilityModule('../conductor/conductor.context.ts');
 const { LAST_STEP_NOTE } = loadCapabilityModule('../conductor/conductor.steps.ts');
 const { UNTRUSTED_DATA_RULE } = loadCapabilityModule('untrusted-data.ts');
+const { APPROVED_ON_CARD } = loadCapabilityModule('../conductor/agent-chat.request.ts');
 
 let report;
 
@@ -159,6 +160,24 @@ describe('the /agent/chat pipeline with a scripted model', () => {
     expect(door.deleted).toEqual(['p1']);
     expect(door.approvalOutput).toMatchObject({ ok: true, summary: { pieceId: 'p1', deleted: true } });
     expect(door.approvalTypes).toContain('finish');
+    // Real Mastra receives the current-request note beside the completed
+    // stored tool result. Scripted prose is not proof of provider semantics.
+    expect(door.approvalModelSystem).toContain(APPROVED_ON_CARD);
+    expect(JSON.parse(door.approvalModelPrompt)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'tool',
+        content: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'tool-result',
+            output: expect.objectContaining({
+              type: 'json',
+              value: expect.objectContaining({ ok: true, summary: { pieceId: 'p1', deleted: true } }),
+            }),
+          }),
+        ]),
+      }),
+    ]));
+    expect(door.laterModelSystems.every((system) => !system.includes(APPROVED_ON_CARD))).toBe(true);
   });
 
   test('a question card reaches the browser with its payload and is resumed by runId', () => {
