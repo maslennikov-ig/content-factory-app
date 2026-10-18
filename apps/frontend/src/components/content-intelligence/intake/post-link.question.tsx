@@ -203,11 +203,11 @@ export function PostLinkFields({
             value={draft.address}
             disabled={disabled}
             error={draft.invalid ? t.postLinkInvalid : undefined}
-            fieldClassName="min-w-0 max-w-[480px]"
+            fieldClassName="min-w-0"
             onChange={(event) => draft.setAddress(event.target.value)}
             onKeyDown={enter}
           />
-          <div className="flex min-w-0 max-w-[480px] flex-col gap-[4px]">
+          <div className="flex min-w-0 flex-col gap-[4px]">
             <FieldLabel
               htmlFor={`${baseId}-text`}
               label={t.postLinkText}

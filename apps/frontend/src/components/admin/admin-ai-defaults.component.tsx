@@ -534,18 +534,18 @@ export function AdminAiDefaultsView({
       <PageHeader headingLevel={1} title={words.title} />
 
       <SettingsSection>
-        <p className="cf-body-md text-cf-ink max-w-[70ch] [text-wrap:pretty]">
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
           {words.intro}
         </p>
-        <p className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {words.ownKeyUntouched}
         </p>
-        <p className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {words.neverShown}
         </p>
         <p
           data-autosave-note="true"
-          className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
         >
           {words.autosaveNote}
         </p>
@@ -778,7 +778,7 @@ export function AdminAiDefaultsView({
         */}
         <p
           data-openrouter-no-search-key="true"
-          className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
         >
           {words.keys.openrouterNoKey}
         </p>

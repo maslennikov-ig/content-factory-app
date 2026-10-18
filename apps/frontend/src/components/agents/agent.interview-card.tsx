@@ -67,7 +67,7 @@ export function InterviewCard({
       }
     >
       {question.text ? (
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {question.text}
         </p>
       ) : null}

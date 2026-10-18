@@ -356,7 +356,7 @@ export const PlanAheadOverview: FC<{
         <h3 className="cf-heading-md text-cf-ink">{copy.aheadTitle}</h3>
         <Hint label={copy.aheadHintLabel}>{copy.aheadHint}</Hint>
       </div>
-      <p className="cf-body-sm max-w-[70ch] text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {copy.aheadDescription}
       </p>
     </div>

@@ -126,7 +126,7 @@ export function CoreTextEdit({
           layout="content"
           name="piece-core-text"
           aria-label={t.coreEditLabel}
-          className="w-full max-w-[72ch] cf-body-lg"
+          className="w-full cf-body-lg"
           value={draft}
           disabled={disabled}
           onChange={(event) => {
@@ -241,7 +241,7 @@ export function AddMaterial({
   return (
     <section
       data-piece-material="true"
-      className="flex min-w-0 max-w-[72ch] flex-col gap-[8px]"
+      className="flex min-w-0 flex-col gap-[8px]"
     >
       <FieldLabel
         htmlFor={fieldId}
@@ -387,7 +387,7 @@ export function CoreVersions({
   return (
     <section
       data-piece-core-versions="true"
-      className="flex min-w-0 max-w-[72ch] items-start gap-[4px]"
+      className="flex min-w-0 items-start gap-[4px]"
     >
       <Disclosure
         className="min-w-0 flex-1"

@@ -48,7 +48,7 @@ export function HelpDisclosure({
       defaultOpen={defaultOpen}
       className={`rounded-[8px] border border-cf-border bg-cf-surface ${className ?? ''}`}
       triggerClassName="rounded-[8px] p-[16px] text-cf-ink"
-      contentClassName="max-w-[70ch] select-text px-[16px] pb-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+      contentClassName=" select-text px-[16px] pb-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
       triggerProps={{
         'data-help-question': id,
         'data-help-open': undefined,

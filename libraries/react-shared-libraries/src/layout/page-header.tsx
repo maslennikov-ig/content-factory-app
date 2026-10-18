@@ -30,7 +30,7 @@ export const PageHeader: FC<PageHeaderProps> = ({
       )}
     >
       {(title || description) && (
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {title && (
             <Heading className="cf-heading-lg text-cf-ink text-balance">
               {title}
@@ -39,7 +39,7 @@ export const PageHeader: FC<PageHeaderProps> = ({
           {description && (
             <p
               className={clsx(
-                'cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]',
+                'cf-body-sm text-cf-ink-muted [text-wrap:pretty]',
                 title && 'mt-[4px]'
               )}
             >

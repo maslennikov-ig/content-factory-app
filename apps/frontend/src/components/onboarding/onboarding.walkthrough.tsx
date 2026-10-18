@@ -94,7 +94,7 @@ function OptionalFact({
         </span>
       ) : (
         <>
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.fact.body}
           </p>
           <Link
@@ -186,11 +186,10 @@ export function OnboardingWalkthrough({
   const headingSize = embedded ? 'cf-heading-md' : 'cf-heading-lg';
   /*
     Variant C of the 26.09.2026 layout canvas, chosen by the owner. On its own
-    page from `xl` up the screen stops spreading over the whole width: it
-    keeps to one 1200px container, the step takes the left column, and the
+    page from `xl` up the screen fills the available workspace: the step takes the left column, and the
     right column carries what was folded — «Что ещё здесь есть» open, and the
     note on how the steps are counted. Below `xl`, and inside the settings tab
-    (whose surface is already narrow), it is the one-column screen as before.
+    (whose surface owns its layout), it is the one-column screen as before.
   */
   const wide = !embedded;
 
@@ -205,8 +204,7 @@ export function OnboardingWalkthrough({
       // surface around it already has one.
       className={clsx(
         'flex w-full flex-col gap-[24px]',
-        !embedded && 'cf-page-pad',
-        wide && 'xl:mx-auto xl:max-w-[1248px]'
+        !embedded && 'cf-page-pad'
       )}
     >
       <header className="flex flex-col gap-[4px]">
@@ -218,7 +216,7 @@ export function OnboardingWalkthrough({
             {t.pageTitle}
           </h2>
         )}
-        <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
           {t.pageLead}
         </p>
       </header>
@@ -323,8 +321,8 @@ export function OnboardingWalkthrough({
       >
         <div
           className={clsx(
-            'mx-auto flex w-full max-w-[720px] flex-col gap-[24px]',
-            wide && 'xl:row-span-2 xl:mx-0 xl:max-w-none'
+            'flex w-full min-w-0 flex-col gap-[24px]',
+            wide && 'xl:row-span-2'
           )}
         >
           {loading ? (
@@ -344,7 +342,7 @@ export function OnboardingWalkthrough({
                 >
                   {words.title}
                 </Heading>
-                <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
+                <p className="cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
                   {words.why}
                 </p>
                 {stepDone && (
@@ -373,7 +371,7 @@ export function OnboardingWalkthrough({
                 ) : (
                   <>
                     {step !== 'channel' && (
-                      <p className="max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
                         {words.todo}
                       </p>
                     )}
@@ -443,7 +441,7 @@ export function OnboardingWalkthrough({
                   {words.more.map((line) => (
                     <li
                       key={line}
-                      className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                      className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
                     >
                       {line}
                     </li>
@@ -460,7 +458,7 @@ export function OnboardingWalkthrough({
               >
                 {openCount === 0 ? t.allDoneTitle : t.leftTitle}
               </Heading>
-              <p className="max-w-[62ch] cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
+              <p className="cf-body-lg text-cf-ink-muted [text-wrap:pretty]">
                 {openCount === 0 ? t.allDoneBody : t.leftBody(openCount)}
               </p>
               <OptionalFact t={t} progress={progress} />
@@ -551,7 +549,7 @@ export function OnboardingWalkthrough({
         >
           <p
             data-onboarding-note="counted"
-            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
           >
             {t.counted}
           </p>
@@ -563,7 +561,7 @@ export function OnboardingWalkthrough({
           {!embedded && (
             <p
               data-onboarding-note="come-back"
-              className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {openCount === 0 ? t.comeBackDone : t.comeBack}
             </p>

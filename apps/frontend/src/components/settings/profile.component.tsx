@@ -293,7 +293,7 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
       >
         {!!getRef && <Button type="submit" className="hidden" ref={getRef} />}
         <section
-          className="flex w-full max-w-[960px] flex-col gap-[20px]"
+          className="flex w-full flex-col gap-[20px]"
           aria-labelledby="profile-heading"
         >
           <h2 id="profile-heading" className="sr-only">

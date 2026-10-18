@@ -332,7 +332,7 @@ export function VoicePassportScreen({
       ) : null}
 
       {!voice ? (
-        <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.passportNoVoiceBody}
         </p>
       ) : (
@@ -340,7 +340,7 @@ export function VoicePassportScreen({
           {/* What an edit does to the history, said once above the fields
               rather than beside each of the five. */}
           {onEditField ? (
-            <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+            <p className="mt-[8px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
               {t.passportEditNote}
             </p>
           ) : null}
@@ -496,7 +496,7 @@ export function VoicePassportScreen({
           )}
 
           {voice.confidence === 'LOW' ? (
-            <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+            <p className="mt-[8px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
               {t.passportLowConfidence}
             </p>
           ) : null}
@@ -552,7 +552,7 @@ export function VoicePassportScreen({
                   ) : null}
                 </span>
               </div>
-              <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              <p className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
                 {t.passportExamplesHint}
               </p>
 

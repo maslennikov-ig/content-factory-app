@@ -216,7 +216,7 @@ export function VoiceAnalysisScreen({
         ) : null}
         {selectionSummary ? (
           <p
-            className="mt-[4px] max-w-[80ch] cf-body-sm text-cf-ink [text-wrap:pretty]"
+            className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]"
             data-voice-analysis-selection="true"
           >
             {selectionSummary}

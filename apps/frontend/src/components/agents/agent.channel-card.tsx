@@ -184,7 +184,7 @@ export function ChannelConnectCard({
         </Button>
       }
     >
-      <p className="max-w-[65ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
         {w.oauthLead(connect.name)}
       </p>
       {failed ? (

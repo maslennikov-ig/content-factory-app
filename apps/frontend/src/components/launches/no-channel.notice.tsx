@@ -41,7 +41,7 @@ export const NoChannelNotice: FC<{
   const t = useT();
 
   return (
-    <div className="flex max-w-[520px] flex-col items-start gap-[16px]">
+    <div className="flex flex-col items-start gap-[16px]">
       <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
         {t(
           'compose_needs_channel_reason',

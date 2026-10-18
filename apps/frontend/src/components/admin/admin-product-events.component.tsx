@@ -193,7 +193,7 @@ export const AdminProductEventsComponent: FC = () => {
         <h1 className="cf-heading-md text-wrap-balance">
           {t('product_events_access_title', 'Product events are restricted')}
         </h1>
-        <p className="cf-body-sm mt-[8px] max-w-[70ch] text-cf-ink-muted text-pretty">
+        <p className="cf-body-sm mt-[8px] text-cf-ink-muted text-pretty">
           {t(
             'product_events_access_body',
             'You do not have access to this administrative page.'
@@ -224,7 +224,7 @@ export const AdminProductEventsComponent: FC = () => {
           <h1 className="cf-heading-lg text-wrap-balance">
             {t('product_events_title', 'Product events')}
           </h1>
-          <p className="cf-body-sm mt-[4px] max-w-[70ch] text-cf-ink-muted text-pretty">
+          <p className="cf-body-sm mt-[4px] text-cf-ink-muted text-pretty">
             {t(
               'product_events_description',
               'First-party activation and event volume, without names or email addresses.'
@@ -282,7 +282,7 @@ export const AdminProductEventsComponent: FC = () => {
             <h2 className="cf-heading-md">
               {t('product_events_error_title', 'Product events could not load')}
             </h2>
-            <p className="cf-body-sm mt-[4px] max-w-[70ch] text-cf-ink-muted text-pretty">
+            <p className="cf-body-sm mt-[4px] text-cf-ink-muted text-pretty">
               {t(
                 'product_events_error_body',
                 'The report is still available. Try the request again.'
@@ -304,7 +304,7 @@ export const AdminProductEventsComponent: FC = () => {
               'No product events in this period'
             )}
           </h2>
-          <p className="cf-body-sm mt-[4px] max-w-[70ch] text-cf-ink-muted text-pretty">
+          <p className="cf-body-sm mt-[4px] text-cf-ink-muted text-pretty">
             {t(
               'product_events_empty_body',
               'Choose a longer period to check earlier activity.'
@@ -325,7 +325,7 @@ export const AdminProductEventsComponent: FC = () => {
                     'Activation: first channel'
                   )}
                 </h2>
-                <p className="cf-body-sm mt-[4px] max-w-[70ch] text-cf-ink-muted text-pretty">
+                <p className="cf-body-sm mt-[4px] text-cf-ink-muted text-pretty">
                   {t(
                     'product_events_activation_body',
                     'Among organizations registered in this period, how many connected their first channel?'

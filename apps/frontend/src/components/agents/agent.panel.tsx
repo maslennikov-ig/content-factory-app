@@ -216,7 +216,7 @@ export function WorkspaceSteps({
 
   return (
     <div className="flex min-w-0 flex-col gap-[12px]">
-      <p className="max-w-[65ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {words.panel.emptyLead}
       </p>
       {!answered ? (

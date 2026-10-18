@@ -243,7 +243,7 @@ export function ContentSearchContainer({
       >
         {t.title}
       </h2>
-      <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.body}
       </p>
 
@@ -281,7 +281,7 @@ export function ContentSearchContainer({
             onChange={(event) => setSubject(event.target.value)}
             disabled={searching}
           />
-          <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {t.subjectHelp}
           </p>
         </div>
@@ -309,7 +309,7 @@ export function ContentSearchContainer({
               <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.summaryTitle}
               </h3>
-              <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+              <p className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]">
                 {answer.summary}
               </p>
             </div>
@@ -345,7 +345,7 @@ export function ContentSearchContainer({
                       data-content-search-result={row.url}
                       className="py-[12px]"
                     >
-                      <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
                         {row.excerpt}
                       </p>
                       <div className="mt-[4px] flex flex-wrap items-center gap-x-[12px] gap-y-[4px]">
@@ -375,7 +375,7 @@ export function ContentSearchContainer({
                         {refusal ? (
                           <p
                             data-content-search-refusal={row.url}
-                            className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                            className="cf-caption text-cf-ink-muted [text-wrap:pretty]"
                           >
                             {t.refusal[refusal]}
                           </p>
@@ -398,7 +398,7 @@ export function ContentSearchContainer({
                   );
                 })}
               </ul>
-              <p className="mt-[12px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              <p className="mt-[12px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
                 {t.unverifiedNote}
               </p>
             </>

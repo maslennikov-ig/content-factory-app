@@ -63,7 +63,7 @@ export function DeveloperSurface({
       <header className="flex min-w-0 flex-col gap-[8px]">
         <p className="cf-label-sm text-cf-ink-muted">{text.eyebrow}</p>
         <h2 className="cf-heading-md text-balance">{name || text.title}</h2>
-        {message && <p className="cf-body-sm max-w-prose text-pretty text-cf-ink-muted">{message}</p>}
+        {message && <p className="cf-body-sm text-pretty text-cf-ink-muted">{message}</p>}
       </header>
       {state === 'loading' ? (
         <div className="h-[96px] animate-pulse rounded-cf bg-cf-surface-subtle motion-reduce:animate-none" />

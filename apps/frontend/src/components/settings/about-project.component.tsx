@@ -66,7 +66,7 @@ export const AboutProjectComponent = () => {
       </dl>
       </Panel>
 
-      <p className="max-w-[70ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t(
           'about_source_body',
           'The complete source of this exact version is available to download, as AGPL-3.0 requires of software you use over a network.'

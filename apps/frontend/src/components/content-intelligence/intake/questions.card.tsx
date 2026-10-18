@@ -126,7 +126,7 @@ export function QuestionsCard({
             {t.questionsTitle(questions.length)}
           </h3>
         </div>
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.questionsLead}
         </p>
       </header>
@@ -146,7 +146,7 @@ export function QuestionsCard({
             data-intake-question={question.field}
             className="flex min-w-0 flex-col gap-[8px]"
           >
-            <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+            <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
               {question.question}
             </p>
             <RadioGroup
@@ -442,11 +442,11 @@ export function SuggestedQuestionsCard({
             data-piece-question={question.key}
             className="flex min-w-0 flex-col gap-[8px]"
           >
-            <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+            <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
               {question.question}
             </p>
             {question.why ? (
-              <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
                 {question.why}
               </p>
             ) : null}
@@ -680,7 +680,7 @@ export function SuggestedQuestionsCard({
             {words.title(questions.length)}
           </h3>
         </div>
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {words.lead}
         </p>
       </header>

@@ -498,7 +498,7 @@ export function PieceChannelTab({
               {questionsSlot}
               {working}
               {!questionsSlot && !adapting ? (
-                <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+                <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
                   {t.noAdaptationLead(channel.name)}
                 </p>
               ) : null}

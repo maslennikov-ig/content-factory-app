@@ -308,7 +308,7 @@ export function PieceCoreTab({
             >
               <blockquote
                 data-piece-sent-text={sent.kind}
-                className="max-w-[72ch] whitespace-pre-wrap border-s border-cf-border ps-[12px] cf-body-md text-cf-ink [overflow-wrap:anywhere] [text-wrap:pretty]"
+                className=" whitespace-pre-wrap border-s border-cf-border ps-[12px] cf-body-md text-cf-ink [overflow-wrap:anywhere] [text-wrap:pretty]"
               >
                 {sent.text}
               </blockquote>
@@ -327,7 +327,7 @@ export function PieceCoreTab({
             <p
               role="status"
               data-piece-legacy="true"
-              className="max-w-[72ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {t.legacyWarning}
             </p>
@@ -341,15 +341,15 @@ export function PieceCoreTab({
             <p
               role="status"
               data-piece-core-fallback="true"
-              className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {t.coreFallback}
             </p>
           ) : null}
 
           {/*
-            Суть — главный текст страницы, и она читается как текст: мера в
-            72 знака, `body-lg` и никакой рамки.
+            Суть заполняет свою колонку, как и поле правки: `body-lg` и
+            никакой рамки; соседняя панель владеет своей шириной.
           */}
           {core?.text || !core ? (
             (() => {
@@ -357,7 +357,7 @@ export function PieceCoreTab({
                 <article
                   data-piece-core={core ? 'core' : 'legacy'}
                   className={clsx(
-                    'min-w-0 max-w-[72ch] cf-body-lg text-cf-ink [text-wrap:pretty]',
+                    'min-w-0 cf-body-lg text-cf-ink [text-wrap:pretty]',
                     core && 'whitespace-pre-wrap'
                   )}
                 >
@@ -402,7 +402,7 @@ export function PieceCoreTab({
               {core.slop?.verdict === 'rewrite' ? (
                 <p
                   data-piece-slop-rewrite="true"
-                  className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                  className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
                 >
                   {t.slopRewriteNote}
                 </p>

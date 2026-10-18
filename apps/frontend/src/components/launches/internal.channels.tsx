@@ -160,7 +160,7 @@ const Plug: FC<{
         />
       }
     >
-      <div className="w-full max-w-[600px] overflow-y-auto flex flex-col gap-[12px]">
+      <div className="w-full overflow-y-auto flex flex-col gap-[12px]">
         {!allowedIntegrations.length ? (
           <EmptyState
             title={t('no_available_accounts', 'No available accounts')}

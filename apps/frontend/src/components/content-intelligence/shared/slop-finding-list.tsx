@@ -33,10 +33,10 @@ export function SlopFindingList({
           data-slop-severity={finding.severity}
           className="flex min-w-0 flex-col gap-[4px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[8px]"
         >
-          <p className="max-w-[64ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
             «{finding.excerpt}»
           </p>
-          <p className="max-w-[64ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {locale === 'ru' ? finding.hint.ru : finding.hint.en}
           </p>
         </li>

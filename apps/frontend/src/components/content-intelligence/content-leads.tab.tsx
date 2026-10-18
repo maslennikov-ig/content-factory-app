@@ -1055,7 +1055,7 @@ export function ContentLeadsTab({
           <h2 id="content-leads-title" tabIndex={-1} className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.title}
           </h2>
-          <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.body}</p>
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.body}</p>
         </div>
         {loaded && !listFailure && subscriptionRows.length > 0 && canManageFeeds && (
           <span className="flex min-h-[44px] items-center sm:min-h-0">
@@ -1070,7 +1070,7 @@ export function ContentLeadsTab({
         <p
           role="status"
           data-content-leads-read-only="true"
-          className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.readOnlyNote}
         </p>
@@ -1079,7 +1079,7 @@ export function ContentLeadsTab({
       {!feedCheckEnabled && loaded && !listFailure && (
         <p
           role="status"
-          className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.checkDisabledBanner}
         </p>
@@ -1098,14 +1098,14 @@ export function ContentLeadsTab({
           <p
             role="status"
             data-content-leads-topic-check-off="true"
-            className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+            className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
           >
             {t.topicCheckDisabledBanner}
           </p>
         )}
 
       {notice && (
-        <p role="status" className="max-w-[80ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]">
+        <p role="status" className=" rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]">
           {notice}
         </p>
       )}

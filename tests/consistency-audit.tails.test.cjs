@@ -120,15 +120,15 @@ describe('§1.3 / §1.4 — one page gutter, one settings measure', () => {
     }
   });
 
-  test('settings tabs share one width', () => {
+  test('settings tabs use their allocated width', () => {
     for (const file of [
       'apps/frontend/src/components/settings/global.settings.tsx',
       'apps/frontend/src/components/settings/profile.component.tsx',
       'apps/frontend/src/components/settings/sign-in-methods.component.tsx',
     ]) {
       const source = read(file);
-      expect(source).toContain('max-w-[960px]');
-      expect(source).not.toContain('max-w-[720px]');
+      expect(source).toContain('w-full');
+      expect(source).not.toMatch(/max-w-\[\d+px\]/);
     }
   });
 });

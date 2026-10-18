@@ -101,7 +101,7 @@ export function ReviewText({
     );
   });
   return (
-    <p className="max-w-[72ch] whitespace-pre-wrap break-words cf-body-sm text-cf-ink">
+    <p className=" whitespace-pre-wrap break-words cf-body-sm text-cf-ink">
       {fragments}
       {text.slice(end)}
     </p>
@@ -540,7 +540,7 @@ export function AdaptationReview({
             />
           </label>
           {adaptationId ? (
-            <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted">
+            <p className="cf-body-sm text-cf-ink-muted">
               {t.adaptationInstructionsHint}
             </p>
           ) : null}
@@ -669,7 +669,7 @@ export function AdaptationReview({
             <p
               role="status"
               data-review-nothing-to-check="true"
-              className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {result.summary}
             </p>
@@ -716,7 +716,7 @@ export function AdaptationReview({
                       <p
                         key={id}
                         data-review-catalog-group={id}
-                        className="min-w-0 max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                        className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
                       >
                         <span className="text-cf-ink">{label}</span>{' '}
                         {findings
@@ -816,7 +816,7 @@ export function AdaptationReview({
               {result.factCheck?.queries.length ? (
                 <p
                   data-review-queries="true"
-                  className="min-w-0 max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                  className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
                 >
                   <span className="text-cf-ink">{t.searchQueries}</span>{' '}
                   {result.factCheck.queries

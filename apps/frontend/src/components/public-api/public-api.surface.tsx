@@ -44,7 +44,7 @@ export function PublicApiSurface({
       <header className="flex flex-col gap-[8px]">
         <p className="cf-label-sm text-cf-ink-muted">{ru ? 'Доступ разработчика' : 'Developer access'}</p>
         <h2 className="cf-heading-md text-balance">{ru ? 'Публичный API и MCP' : 'Public API and MCP'}</h2>
-        <p className="cf-body-sm max-w-prose text-pretty text-cf-ink-muted">{messages[state]}</p>
+        <p className="cf-body-sm text-pretty text-cf-ink-muted">{messages[state]}</p>
       </header>
       {state === 'loading' ? (
         <div className="h-[96px] animate-pulse rounded-cf bg-cf-surface-subtle motion-reduce:animate-none" />

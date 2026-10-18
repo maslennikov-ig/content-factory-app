@@ -81,7 +81,7 @@ export const SettingsSection = ({
           </p>
         ) : null}
       </div>
-      <div className="flex min-w-0 max-w-[560px] flex-col gap-[16px]">
+      <div className="flex min-w-0 flex-col gap-[16px]">
         {children}
       </div>
     </section>

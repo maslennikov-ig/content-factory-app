@@ -109,7 +109,7 @@ export function BillingFirstUseView({
             ? 'Выберите тариф рабочего пространства'
             : 'Choose a workspace plan'}
         </h1>
-        <p className="cf-body-md mt-[8px] max-w-[70ch] text-cf-ink-muted text-pretty">
+        <p className="cf-body-md mt-[8px] text-cf-ink-muted text-pretty">
           {state === 'long-content'
             ? ru
               ? 'Тариф определяет число подключённых каналов и доступные рабочие возможности. Этот длинный текст проверяет перенос без изменения структуры выбора и внешней границы оплаты.'

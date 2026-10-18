@@ -146,7 +146,7 @@ export function ContentSectionShell({
         className="flex min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink"
       >
         <header className="border-b border-cf-border bg-cf-surface cf-page-pad">
-          <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
             {t.avatarDescription}
           </p>
         </header>
@@ -168,7 +168,7 @@ export function ContentSectionShell({
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
       >
         <header className="border-b border-cf-border bg-cf-surface px-[20px] pt-[20px] md:px-[24px]">
-          <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
             {t.description}
           </p>
 

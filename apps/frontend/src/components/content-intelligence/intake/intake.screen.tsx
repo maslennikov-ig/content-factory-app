@@ -189,7 +189,7 @@ export function IntakeScreen({
         <h2 className="cf-heading-lg text-cf-ink [text-wrap:balance]">
           {t.title}
         </h2>
-        <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
           {t.lead}
         </p>
       </header>
@@ -306,8 +306,8 @@ export function IntakeScreen({
                   Высоту поля просил владелец 18.09.2026 («увеличить высоту
                   поля, когда я создаю новую заготовку»), и она названа именем,
                   а не числом: `composer` — это поле, В которое пишут, и его
-                  высота принадлежит примитиву. Мера ограничена здесь, потому
-                  что ширину колонки знает только экран.
+                  высота принадлежит примитиву. Ширина следует всей рабочей
+                  колонке экрана.
                 */
                 layout="composer"
                 id="intake-input"
@@ -315,7 +315,7 @@ export function IntakeScreen({
                 data-tour="piece-input"
                 aria-label={t.inputLabel}
                 placeholder={t.inputPlaceholder}
-                className="w-full max-w-[80ch]"
+                className="w-full"
                 value={input}
                 onChange={(event) => onInputChange(event.target.value)}
               />
@@ -323,7 +323,7 @@ export function IntakeScreen({
                 <p
                   role="status"
                   data-intake-kind-line="link"
-                  className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                  className="cf-caption text-cf-ink-muted [text-wrap:pretty]"
                 >
                   {t.kindLink}
                 </p>
@@ -340,7 +340,7 @@ export function IntakeScreen({
                   <p
                     role="status"
                     data-intake-links-skipped={`${linksSkipped.unreadable}/${linksSkipped.beyondLimit}`}
-                    className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                    className="cf-caption text-cf-ink-muted [text-wrap:pretty]"
                   >
                     {t.linksSkipped(
                       linksSkipped.unreadable,

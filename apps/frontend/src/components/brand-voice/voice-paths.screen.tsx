@@ -213,7 +213,7 @@ export function VoicePathsScreen({
         </Button>
       </header>
 
-      <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
         {t.pathsLead}
       </p>
 

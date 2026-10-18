@@ -277,7 +277,7 @@ export function PiecesScreen({
               {`· ${t.subtitle(rows.length)}`}
             </span>
           </h2>
-          <p className="max-w-[66ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.lead}
           </p>
         </div>
@@ -323,7 +323,7 @@ export function PiecesScreen({
                     onChange={() => onToggleColumn(column.platform)}
                   />
                 ))}
-                <p className="max-w-[48ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
                   {t.columnsHint}
                 </p>
               </div>
@@ -447,7 +447,7 @@ export function PiecesScreen({
               {row.excerpt.map((line, index) => (
                 <p
                   key={`${row.id}-line-${index}`}
-                  className="max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]"
+                  className="cf-body-sm text-cf-ink [text-wrap:pretty]"
                 >
                   <HighlightedWords
                     text={line}

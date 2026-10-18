@@ -269,7 +269,7 @@ export function VoiceProposalScreen({
             .join(' · ')}
         </p>
         {manual ? (
-          <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.manualProposalLead}
           </p>
         ) : null}
@@ -560,7 +560,7 @@ export function VoiceProposalScreen({
       </div>
 
       {!manual && portrait ? (
-        <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
           {t.portraitFieldRole}
         </p>
       ) : null}
@@ -581,7 +581,7 @@ export function VoiceProposalScreen({
               disabled={state === 'disabled'}
               onChange={(event) => onAvatarNameChange?.(event.target.value)}
             />
-            <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+            <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
               {named ? t.avatarNameHint : t.avatarNameRequired}
             </p>
           </div>

@@ -45,7 +45,7 @@ export function HelpScreen() {
 
       <div
         data-help-list="true"
-        className="flex max-w-[80ch] flex-col gap-[8px]"
+        className="flex flex-col gap-[8px]"
       >
         {t.questions.map((item, index) => (
           <HelpDisclosure
@@ -63,7 +63,7 @@ export function HelpScreen() {
         существующие адреса: «С чего начать» — продолжение первого вопроса
         списка, «Контент» — там, где заготовка пишется без канала.
       */}
-      <p className="max-w-[70ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         <span>{t.whereLabel}: </span>
         <Link
           href={HELP_ONBOARDING_HREF}

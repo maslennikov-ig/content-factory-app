@@ -195,7 +195,7 @@ export function VoiceAvatarScreen({
             contentClassName="flex flex-col items-start gap-[12px]"
           >
             <h2 className="cf-heading-md text-cf-ink">{t.missing}</h2>
-            <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
               {t.missingBody}
             </p>
             <Link
@@ -209,7 +209,7 @@ export function VoiceAvatarScreen({
           <>
             {rebuilding ? (
               <div className="flex flex-wrap items-center justify-between gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px]">
-                <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                   {t.rebuildNote}
                 </p>
                 <Button

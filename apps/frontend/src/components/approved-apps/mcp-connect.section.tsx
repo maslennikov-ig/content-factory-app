@@ -101,7 +101,7 @@ export const McpConnectSection = () => {
           <h3 className="cf-heading-md text-balance">
             {t('mcp_connect_title', 'Connect Claude or ChatGPT')}
           </h3>
-          <p className="cf-body-sm max-w-prose text-pretty text-cf-ink-muted">
+          <p className="cf-body-sm text-pretty text-cf-ink-muted">
             {t(
               'mcp_connect_description',
               'The assistant signs in as you, in this workspace. Deleting, channels, publishing right away and AI keys stay here.'

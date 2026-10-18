@@ -439,7 +439,7 @@ function Notice({
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="cf-label-md [text-wrap:balance]">{title}</h3>
-          <p className="mt-[4px] max-w-[72ch] cf-body-sm [text-wrap:pretty]">
+          <p className="mt-[4px] cf-body-sm [text-wrap:pretty]">
             {body}
           </p>
           {action && <div className="mt-[12px]">{action}</div>}
@@ -746,7 +746,7 @@ export function ContentIntelligenceView({
           <h1 className="cf-heading-lg text-cf-ink [text-wrap:balance]">
             {t.title}
           </h1>
-          <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
             {t.description}
           </p>
           <nav
@@ -914,7 +914,7 @@ function SourcesSection({
         {t.sources}
         <Hint label={t.hintFor(t.sources)}>{t.sourcesHint}</Hint>
       </h2>
-      <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.addSourceBody}
       </p>
       {!capabilities.directFetch && (
@@ -1241,7 +1241,7 @@ function SourcesSection({
       {draftMaterial && (
         <div className="mt-[20px] border-t border-cf-border pt-[20px]">
           <h3 className="cf-label-md text-cf-ink">{t.draftMaterial}</h3>
-          <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.draftMaterialBody}
           </p>
           <p className="mt-[8px] break-all cf-caption text-cf-ink-muted">
@@ -1318,7 +1318,7 @@ function ProvenanceSection({
       >
         {t.contextTitle}
       </h2>
-      <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.contextBody}
       </p>
       <form
@@ -1413,7 +1413,7 @@ function ProvenanceSection({
             {visible.facts.map((fact) => (
               <li key={fact.id} className="py-[16px]">
                 <div className="flex flex-wrap items-start justify-between gap-[8px]">
-                  <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
                     {fact.statement}
                   </p>
                   <Status
@@ -1456,7 +1456,7 @@ function ProvenanceSection({
                             : evidence.sourceLabel}
                         </span>
                       </div>
-                      <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+                      <p className="mt-[8px] cf-body-sm text-cf-ink [text-wrap:pretty]">
                         {evidence.excerpt}
                       </p>
                     </li>

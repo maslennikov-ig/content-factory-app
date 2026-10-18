@@ -75,7 +75,7 @@ export function MaterialAsk({
       data-piece-material-ask={ask.adaptationId}
       aria-label={t.materialAskLabel}
       aria-describedby={noticeId}
-      className="flex min-w-0 max-w-[72ch] flex-col gap-[16px] border-t border-cf-border pt-[16px]"
+      className="flex min-w-0 flex-col gap-[16px] border-t border-cf-border pt-[16px]"
     >
       <div className="flex min-w-0 items-start gap-[4px]">
         <p

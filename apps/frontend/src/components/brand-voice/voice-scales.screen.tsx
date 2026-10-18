@@ -509,13 +509,13 @@ export function VoiceScalesScreen({
           contentClassName="flex flex-col gap-[8px]"
         >
           <p className="cf-label-md text-cf-ink">{t.scalesRecalibrateWhy}</p>
-          <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.scalesRecalibrateWhat}
           </p>
           {/* Сказано до нажатия, а не после: человек, подвинувший полосу,
               должен знать, что с ней будет, пока ещё решает. */}
           {recalibration.movedByHand > 0 ? (
-            <p className="max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+            <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
               {t.scalesRecalibrateMoved(recalibration.movedByHand)}
             </p>
           ) : null}

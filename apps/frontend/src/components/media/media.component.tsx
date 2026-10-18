@@ -269,7 +269,7 @@ export const ReadOnlyMediaNote: FC<{ id: string }> = ({ id }) => {
       id={id}
       role="status"
       data-media-read-only="library"
-      className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+      className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
     >
       {t(
         'media_read_only_role',

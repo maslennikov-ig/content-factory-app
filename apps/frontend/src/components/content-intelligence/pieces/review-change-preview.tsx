@@ -15,7 +15,7 @@ export function ReviewChangePreview({
   afterLabel: string;
 }) {
   return (
-    <span data-review-change-preview className="flex min-w-0 max-w-[72ch] flex-col gap-[8px] cf-body-sm text-cf-ink">
+    <span data-review-change-preview className="flex min-w-0 flex-col gap-[8px] cf-body-sm text-cf-ink">
       <span className="flex min-w-0 flex-col gap-[4px]">
         <span className="cf-caption text-cf-ink-muted">{beforeLabel}</span>
         <del data-review-before dir="auto" className="whitespace-pre-wrap bg-cf-danger-soft [overflow-wrap:anywhere]">{before}</del>

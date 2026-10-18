@@ -413,7 +413,7 @@ export function VoiceBriefContainer() {
           <h3 className="cf-label-sm text-cf-ink-muted">
             {w.formTitle}
           </h3>
-          <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {w.formLead}
           </p>
         </div>
@@ -523,7 +523,7 @@ export function VoiceBriefContainer() {
           ) && (
             <p
               data-brief-bare-link-warning="true"
-              className="mt-[12px] max-w-[72ch] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+              className="mt-[12px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
             >
               {w.bareLinkWarning}
             </p>
@@ -589,7 +589,7 @@ export function VoiceBriefContainer() {
         <h4 className="cf-label-sm text-cf-ink-muted">
           {w.factsMemoryTitle}
         </h4>
-        <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+        <p className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
           {w.factsMemoryLead}
         </p>
         {/*

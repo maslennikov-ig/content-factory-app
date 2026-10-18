@@ -463,7 +463,7 @@ export function ContentFactsContainer({
       >
         {t.title}
       </h2>
-      <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.body}
       </p>
 
@@ -492,7 +492,7 @@ export function ContentFactsContainer({
           <h3 className="cf-label-sm text-cf-ink">
             {t.evidenceTitle}
           </h3>
-          <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+          <p className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]">
             {pendingEvidence.excerpt}
           </p>
           <div className="mt-[8px] flex flex-wrap items-center gap-[12px]">
@@ -521,7 +521,7 @@ export function ContentFactsContainer({
               </Button>
             )}
           </div>
-          <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink [text-wrap:pretty]">
+          <p className="mt-[8px] cf-caption text-cf-ink [text-wrap:pretty]">
             {t.evidenceLead}
           </p>
         </div>
@@ -564,7 +564,7 @@ export function ContentFactsContainer({
           />
           {/* `Textarea` has no helper slot of its own; the sentence sits under
               the field the way `Input`'s helper would. */}
-          <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {t.statementHelp}
           </p>
         </div>
@@ -688,7 +688,7 @@ export function ContentFactsContainer({
                   className="py-[12px]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-[8px]">
-                    <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+                    <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
                       {fact.statement}
                     </p>
                     {/*
@@ -718,7 +718,7 @@ export function ContentFactsContainer({
                     )}
                   </div>
                   {!usable && (
-                    <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink [text-wrap:pretty]">
+                    <p className="mt-[4px] cf-caption text-cf-ink [text-wrap:pretty]">
                       {t.unusable}
                     </p>
                   )}
@@ -735,7 +735,7 @@ export function ContentFactsContainer({
           missing id deserves to know the list is the thing that is short.
         */}
         {rows.length >= 100 && (
-          <p className="mt-[12px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[12px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {t.listCapped}
           </p>
         )}

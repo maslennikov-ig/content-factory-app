@@ -412,8 +412,6 @@ describe('the Content frame is reviewable without a network', () => {
     // neighbours — the calendar, analytics — run edge to edge.
     expect(source('screen')).not.toContain('max-w-[1120px]');
     expect(source('screen')).toContain('flex-1');
-    // Measure is still bounded where measure matters: prose keeps its own.
-    expect(source('screen')).toContain('max-w-[72ch]');
   });
 });
 

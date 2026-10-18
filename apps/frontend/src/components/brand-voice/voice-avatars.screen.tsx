@@ -368,7 +368,7 @@ export function VoiceAvatarsScreen({
           contentClassName="flex flex-col items-start gap-[8px]"
         >
           <p className="cf-label-md text-cf-ink">{t.avatarsEmptyTitle}</p>
-          <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.avatarsEmptyBody}
           </p>
           {canManage ? (
@@ -689,7 +689,7 @@ export function VoiceAvatarsScreen({
               ? t.avatarsDeleteLastTitle
               : t.avatarsDeletePlainTitle(nameOf(deleting))}
           </p>
-          <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+          <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
             {deleting.isDefault && successors.length
               ? t.avatarsDeleteDefaultBody(avatars.length - 1)
               : deleting.isDefault

@@ -56,7 +56,7 @@ export function AdaptationBody({
       <article
         data-intake-draft="true"
         data-piece-draft-id={draftId}
-        className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
+        className=" whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
       >
         {formatStoredMarkup(text)}
       </article>

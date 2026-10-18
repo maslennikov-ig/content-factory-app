@@ -215,13 +215,12 @@ describe('the door is one field, and its refusals are readable', () => {
   /*
     «Увеличить высоту поля, когда я создаю новую заготовку» (владелец,
     18.09.2026). Высота названа именем варианта примитива, а не числом в этом
-    файле: экран просит поле, В которое пишут, и ограничивает только меру.
+    файле: экран просит поле, В которое пишут.
   */
   test('the first field asks the primitive for the composer height instead of typing one', () => {
     draw({ state: 'idle' });
     const field = document.getElementById('intake-input');
     expect(field.className).toContain('min-h-[200px]');
-    expect(field.className).toContain('max-w-[80ch]');
   });
 
   // `content-factory-next-tu3k.9`: дверь делает заготовку, и надпись на

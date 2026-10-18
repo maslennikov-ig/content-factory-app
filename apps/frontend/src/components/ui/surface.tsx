@@ -89,7 +89,7 @@ export const EmptyState: FC<{
   >
     <p className="cf-heading-md text-cf-ink">{title}</p>
     {description && (
-      <p className="cf-body-sm text-cf-ink-muted max-w-[60ch] [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {description}
       </p>
     )}
@@ -113,7 +113,7 @@ export const ErrorState: FC<{
   >
     <p className="cf-label-md text-cf-danger">{title}</p>
     {description && (
-      <p className="cf-body-sm text-cf-ink max-w-[70ch] [text-wrap:pretty]">
+      <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
         {description}
       </p>
     )}
@@ -138,7 +138,7 @@ export const RestrictedState: FC<{
     )}
   >
     <p className="cf-label-md text-cf-ink">{title}</p>
-    <p className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
+    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
       {reason}
     </p>
     {action && <div className="mt-[4px]">{action}</div>}

@@ -92,7 +92,7 @@ export function VoiceLearningScreen({
         <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
           {t.learnTitle}
         </h2>
-        <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.learnLead}
         </p>
       </header>
@@ -174,7 +174,7 @@ export function VoiceLearningScreen({
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.learnEmpty}
           </h3>
-          <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.learnEmptyBody}
           </p>
         </Panel>
@@ -191,7 +191,7 @@ export function VoiceLearningScreen({
                 className="flex min-w-0 flex-wrap items-start justify-between gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[12px]"
               >
                 <div className="min-w-0">
-                  <p className="max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+                  <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
                     {rule.text}
                   </p>
                   <p className="mt-[4px] cf-caption text-cf-ink-muted">

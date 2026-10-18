@@ -142,7 +142,7 @@ export function VoiceAvatarCreateDialog({
           onCreate({ name: trimmed, kind });
         }}
       >
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.lead}
         </p>
 

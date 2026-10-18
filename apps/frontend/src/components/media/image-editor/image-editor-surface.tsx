@@ -247,7 +247,7 @@ export function ImageEditorSurface({
             >
               {c.title}
             </h1>
-            <p className="cf-body-sm max-w-prose text-pretty text-cf-ink-muted">
+            <p className="cf-body-sm text-pretty text-cf-ink-muted">
               {c.source}
             </p>
           </div>

@@ -183,7 +183,7 @@ export function VoiceMaterialsScreen({
       {noChannelAnywhere && materials.length > 0 ? (
         <p
           data-voice-no-channel-anywhere="true"
-          className="max-w-[72ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
         >
           {t.materialsNoChannelAnywhere}
         </p>
@@ -198,7 +198,7 @@ export function VoiceMaterialsScreen({
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.materialsEmptyTitle}
           </h3>
-          <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.materialsEmptyBody}
           </p>
         </Panel>
@@ -384,7 +384,7 @@ export function VoiceMaterialsScreen({
 
           {availablePlatforms &&
           PLATFORMS.some((platform) => !availablePlatforms.includes(platform)) ? (
-            <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+            <p className="mt-[8px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
               {t.materialsNoChannelNote}
             </p>
           ) : null}

@@ -103,13 +103,13 @@ export function QualityLine({
               <li
                 key={`${run.start}-${index}`}
                 data-anti-copy-run={run.start}
-                className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[8px] max-w-[64ch] cf-body-sm text-cf-ink [text-wrap:pretty]"
+                className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[8px] cf-body-sm text-cf-ink [text-wrap:pretty]"
               >
                 «{run.text}»
               </li>
             ))}
           </ul>
-          <p className="max-w-[64ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {t.qualityAntiCopyDetail}
           </p>
         </div>
@@ -128,7 +128,7 @@ export function QualityLine({
       id: 'voice',
       word: t.qualityVoiceFar,
       details: reason ? (
-        <p className="max-w-[64ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
           {reason}
         </p>
       ) : null,
@@ -140,7 +140,7 @@ export function QualityLine({
       id: 'gaps',
       word: t.qualityGaps,
       details: (
-        <p className="max-w-[64ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.qualityGapsDetail}
         </p>
       ),

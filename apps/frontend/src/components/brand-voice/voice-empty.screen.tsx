@@ -98,10 +98,10 @@ export function VoiceEmptyScreen({
       <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
         {t.emptyTitle}
       </h2>
-      <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[8px] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
         {t.emptyBody}
       </p>
-      <p className="mt-[12px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      <p className="mt-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.emptyWhatItIs}
       </p>
 
@@ -113,8 +113,8 @@ export function VoiceEmptyScreen({
           role={state === 'error' ? 'alert' : undefined}
           className={
             state === 'error'
-              ? 'mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]'
-              : 'mt-[16px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]'
+              ? 'mt-[16px] rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]'
+              : 'mt-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]'
           }
           data-voice-note="true"
         >
@@ -126,7 +126,7 @@ export function VoiceEmptyScreen({
         <p
           data-voice-empty-collected={String(collected.sampleCount)}
           data-voice-empty-resume={resumeAt}
-          className="mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className="mt-[16px] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {resumeAt === 'samples'
             ? t.emptyCollected(collected.sampleCount, collected.charCount)
@@ -141,7 +141,7 @@ export function VoiceEmptyScreen({
       {hasManualDraft && manualDraft ? (
         <p
           data-voice-empty-manual={`${manualDraft.filled}/${manualDraft.total}`}
-          className="mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className="mt-[16px] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.emptyManualDraft(manualDraft.filled, manualDraft.total)}
         </p>

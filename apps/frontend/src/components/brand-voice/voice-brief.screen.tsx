@@ -129,7 +129,7 @@ export function VoiceBriefScreen({
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.radarEmptyTitle}
           </h3>
-          <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.radarEmptyBody}
           </p>
         </Panel>
@@ -226,7 +226,7 @@ export function VoiceBriefScreen({
             <p className="cf-label-sm text-cf-ink">
               {t.briefBlockedTitle}
             </p>
-            <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+            <p className="mt-[8px] cf-body-sm text-cf-ink [text-wrap:pretty]">
               {t.briefBlockedBody}
             </p>
             <ul className="mt-[12px] flex flex-col gap-[8px]">

@@ -80,7 +80,7 @@ export const Panel: FC<PanelProps> = ({
           <div className="flex-1 min-w-0">
             {title && <h3 className="cf-heading-md text-cf-ink">{title}</h3>}
             {description && (
-              <p className="mt-[4px] cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
+              <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                 {description}
               </p>
             )}

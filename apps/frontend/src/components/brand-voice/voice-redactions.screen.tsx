@@ -164,7 +164,7 @@ export function VoiceRedactionsScreen({
         </p>
       ) : null}
 
-      <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+      <p className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
         {t.redactionsLead}
       </p>
 
@@ -180,7 +180,7 @@ export function VoiceRedactionsScreen({
           {/* "Пустой список — тоже результат. Показываем его, а не прячем
               экран." A screen that disappears when it has nothing to report
               teaches the reader that the check is optional. */}
-          <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.redactionsEmptyBody}
           </p>
         </Panel>

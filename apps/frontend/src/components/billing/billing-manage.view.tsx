@@ -79,7 +79,7 @@ export function BillingManageView({
           as="div"
           role="status"
           contentPadding="snug"
-          className="mt-[16px] max-w-[70ch]"
+          className="mt-[16px]"
         >
           <p className="cf-body-md text-cf-ink text-pretty">
             {ru
@@ -122,7 +122,7 @@ export function BillingManageView({
           <h1 className="cf-heading-lg text-balance">
             {ru ? 'Тариф и оплата' : 'Plan and billing'}
           </h1>
-          <p className="cf-body-md mt-[8px] max-w-[70ch] text-cf-ink-muted text-pretty">
+          <p className="cf-body-md mt-[8px] text-cf-ink-muted text-pretty">
             {state === 'long-content'
               ? ru
                 ? 'Измените тариф, период оплаты или способ платежа для этого рабочего пространства. Длинное название организации не должно скрывать текущий тариф и безопасное действие.'
@@ -138,7 +138,7 @@ export function BillingManageView({
         <p
           role="note"
           data-billing-admin-only="manage"
-          className="cf-body-sm mt-[16px] max-w-[70ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] text-cf-ink-muted text-pretty"
+          className="cf-body-sm mt-[16px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] text-cf-ink-muted text-pretty"
         >
           {ru
             ? 'Менять тариф и способ оплаты и отменять подписку может только администратор пространства. Здесь видно, какой тариф сейчас; если нужен другой — попросите администратора.'

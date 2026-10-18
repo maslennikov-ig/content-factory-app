@@ -85,7 +85,7 @@ export function AdaptationRichText({
         // instead: with no inset the words touched the ring (twelfth stand
         // walk, 04-editor-open-d).
         class:
-          '-mx-[8px] -my-[4px] px-[8px] py-[4px] min-h-[160px] max-w-[calc(72ch+16px)] rounded-[4px] cf-body-lg text-cf-ink [overflow-wrap:anywhere] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
+          '-mx-[8px] -my-[4px] px-[8px] py-[4px] min-h-[160px] rounded-[4px] cf-body-lg text-cf-ink [overflow-wrap:anywhere] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
       },
     },
     autofocus: autoFocus ? 'end' : false,
