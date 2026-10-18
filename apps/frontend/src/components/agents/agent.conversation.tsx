@@ -206,6 +206,7 @@ export function AgentConversation({
   }, [threadId]);
   const announceThread = useRef(onThreadId);
   announceThread.current = onThreadId;
+  const refusedBeforeStart = useRef(false);
 
   const transport = useMemo(
     () =>
@@ -213,6 +214,7 @@ export function AgentConversation({
         request,
         currentThread: () => thread.current,
         currentContext: () => currentContext.current,
+        onNotStarted: () => { refusedBeforeStart.current = true; },
         onThread: (named) => {
           thread.current = named;
           announceThread.current(named);
@@ -290,7 +292,6 @@ export function AgentConversation({
   const [stages, setStages] = useState<Record<string, string[]>>({});
   const [interrupted, setInterrupted] = useState(false);
   const interruptedNow = useRef(false);
-  const refusedBeforeStart = useRef(false);
   const interrupt = useCallback(() => {
     interruptedNow.current = true;
     setInterrupted(true);
@@ -334,9 +335,13 @@ export function AgentConversation({
       }
     },
     onFinish: ({ isAbort, isError, isDisconnect }) => {
-      const notStarted = isError && refusedBeforeStart.current;
+      const notStarted = refusedBeforeStart.current;
       refusedBeforeStart.current = false;
-      if (isAbort || isDisconnect || isError && !notStarted) { interrupt(); setQueued(null); }
+      if (notStarted) {
+        interruptedNow.current = false;
+        setInterrupted(false);
+        setQueued(null);
+      } else if (isAbort || isDisconnect || isError) { interrupt(); setQueued(null); }
       setStages({});
       void refreshPending();
       void mutate(THREADS_KEY);

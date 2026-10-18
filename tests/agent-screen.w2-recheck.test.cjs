@@ -103,6 +103,21 @@ describe('assistant context and interrupted response recovery', () => {
     expect(reads.every((read) => read.method === 'GET')).toBe(true);
   });
 
+  test('Stop during proven local preparation needs no nonexistent server execution marker', async () => {
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], extra: { threadId: 'legacy-without-marker' } });
+    chat.status = 'submitted'; await redraw();
+    await act(async () => chat.options.onFinish({ isAbort: true, isError: false, isDisconnect: false }));
+    chat.status = 'ready'; await redraw();
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    await act(async () => {
+      chat.transport.onNotStarted();
+      chat.options.onFinish({ isAbort: true, isError: false, isDisconnect: false });
+    });
+    chat.status = 'ready'; await redraw();
+    expect(document.querySelector('fieldset').disabled).toBe(false);
+    expect(chat.sent).toEqual([]);
+  });
+
   test('network failure cannot offer automatic regeneration of an uncertain write', async () => {
     const { chat, view, redraw } = await drawConversation({ messages: [person, laterReply], pending: [] });
     chat.status = 'error'; chat.error = new TypeError('Failed to fetch');

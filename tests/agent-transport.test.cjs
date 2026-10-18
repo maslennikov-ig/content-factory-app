@@ -136,3 +136,42 @@ describe('the chat transport through the product fetch', () => {
     ]);
   });
 });
+
+
+describe('manual edits before the next deliberate user turn', () => {
+  test('an inline save refreshes the implicit selected revision before the sole POST, without a focus event', () => {
+    const run = report['inline-saved'];
+    expect(run.error).toBeUndefined();
+    expect(run.historyReads).toHaveLength(1);
+    expect(run.historyReads[0].zone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(run.seen).toHaveLength(1);
+    expect(run.seen[0].body.workContext).toEqual({ version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'after-inline-save' });
+  });
+  test.each(['queued-context', 'regenerate', 'native-question', 'native-approval'])('%s preserves its existing binding and performs no preflight', name => {
+    const run = report[name];
+    expect(run.error).toBeUndefined();
+    expect(run.historyReads).toEqual([]);
+    expect(run.seen).toHaveLength(1);
+    expect(run.seen[0].body.workContext.revision).toBe('before-inline-save');
+  });
+  test.each(['read-refused', 'read-disconnect', 'read-other-target', 'selection-changed', 'thread-changed'])('%s is proven before start and never submits the model request', name => {
+    const run = report[name];
+    expect(run.historyReads).toHaveLength(1);
+    expect(run.seen).toEqual([]);
+    expect(run.notStarted).toBe(true);
+  });
+  test('an explicit queued null context stays null without a preflight', () => {
+    const run = report['queued-null'];
+    expect(run.error).toBeUndefined();
+    expect(run.historyReads).toEqual([]);
+    expect(run.seen).toHaveLength(1);
+    expect(run.seen[0].body.workContext).toBeNull();
+  });
+  test('Stop during the free context read prevents the paid POST', () => {
+    const run = report['stopped-before-post'];
+    expect(run.historyReads).toHaveLength(1);
+    expect(run.seen).toEqual([]);
+    expect(run.error).toBeDefined();
+    expect(run.preStartSignals).toBe(1);
+  });
+});

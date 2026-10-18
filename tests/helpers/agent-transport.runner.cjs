@@ -41,8 +41,19 @@ const readAll = async (stream) => {
   // The zone header each request carried (kcxz.15), beside the body.
   const zones = [];
   let refusal = null;
+  const historyReads = [];
+  let preStartSignals = 0;
+  let historyStatus = 200;
+  let serverContext = null;
+  let onHistoryRead = null;
   const app = express();
   app.use(express.json());
+  app.get('/agent/threads/:id', async (req, res) => {
+    historyReads.push({ id: req.params.id, zone: req.headers['x-agent-timezone'] ?? null });
+    if (onHistoryRead) await onHistoryRead();
+    if (historyStatus === 0) { res.destroy(); return; }
+    res.status(historyStatus).json({ messages: [], pending: [], workspace: { version: 'assistant-workspace/v1', workContext: serverContext, artifacts: [], activeArtifact: null } });
+  });
   app.post('/agent/chat', (req, res) => {
     seen.push({ contentType: req.headers['content-type'], body: req.body ?? null });
     zones.push(req.headers['x-agent-timezone'] ?? null);
@@ -78,12 +89,13 @@ const readAll = async (stream) => {
   const play = async (name, run) => {
     seen.length = 0;
     zones.length = 0;
+    historyReads.length = 0; preStartSignals = 0; historyStatus = 200; serverContext = null; onHistoryRead = null;
     const named = [];
     try {
       const parts = await run(named);
-      report[name] = { seen: [...seen], zones: [...zones], named, parts: parts ?? [] };
+      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], preStartSignals, named, parts: parts ?? [] };
     } catch (error) {
-      report[name] = { seen: [...seen], zones: [...zones], named, error: String(error?.message ?? error), notStarted: isAgentRequestNotStarted(error), status: error.status ?? null };
+      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], preStartSignals, named, error: String(error?.message ?? error), notStarted: isAgentRequestNotStarted(error), status: error.status ?? null };
     }
   };
   const transport = (thread, named) =>
@@ -259,6 +271,32 @@ const readAll = async (stream) => {
     return { events, status: state.status, typedError: isAgentRequestNotStarted(state.error) };
   });
   refusal = null;
+
+
+  const oldContext = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'before-inline-save' };
+  const freshContext = { ...oldContext, revision: 'after-inline-save' };
+  for (const mode of ['inline-saved', 'queued-context', 'queued-null', 'regenerate', 'native-question', 'native-approval', 'read-refused', 'read-disconnect', 'read-other-target', 'selection-changed', 'thread-changed', 'stopped-before-post']) {
+    await play(mode, async (named) => {
+      let selected = oldContext, thread = THREAD;
+      serverContext = freshContext;
+      if (mode === 'read-refused') historyStatus = 403;
+      if (mode === 'read-disconnect') historyStatus = 0;
+      if (mode === 'read-other-target') serverContext = { ...freshContext, id: 'p2' };
+      const abort = new AbortController();
+      if (mode === 'selection-changed') onHistoryRead = () => { selected = { ...oldContext, id: 'p2' }; };
+      if (mode === 'thread-changed') onHistoryRead = () => { thread = 'different-thread'; };
+      if (mode === 'stopped-before-post') onHistoryRead = async () => { abort.abort(); await new Promise(r => setTimeout(r, 20)); };
+      const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => thread, currentContext: () => selected, onThread: id => named.push(id), onNotStarted: () => { preStartSignals += 1; } });
+      const options = { chatId: 'chat-context', trigger: 'submit-message', abortSignal: abort.signal,
+        messages: [{ id: 'new-edit', role: 'user', parts: [{ type: 'text', text: 'Append my next sentence.' }] }] };
+      if (mode === 'queued-null') options.body = { workContext: null };
+      if (mode === 'queued-context') options.body = { workContext: oldContext };
+      if (mode === 'native-question') options.body = { resume: { runId: 'run-1', toolCallId: 'call-1', resumeData: { consentGiven: true } } };
+      if (mode === 'regenerate') options.trigger = 'regenerate-message';
+      if (mode === 'native-approval') { options.messages = [earlierCard, ...later]; options.messageId = 'a-card'; }
+      return (await readAll(await client.sendMessages(options))).map(part => part.type);
+    });
+  }
 
   await new Promise((resolve) => server.close(resolve));
   process.stdout.write(JSON.stringify(report));
