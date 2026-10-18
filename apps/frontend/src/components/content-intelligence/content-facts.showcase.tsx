@@ -315,7 +315,7 @@ export function FactRowView({
         className="flex items-start gap-[16px] py-[16px] opacity-[.55]"
       >
         <div className="min-w-0 flex-1">
-          <p className="max-w-[72ch] cf-body-md text-cf-ink line-through [text-wrap:pretty]">
+          <p className="cf-body-md text-cf-ink line-through [text-wrap:pretty]">
             <HighlightedWords text={fact.statement} query={query} />
           </p>
           <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
@@ -375,7 +375,7 @@ export function FactRowView({
       className="flex items-start gap-[16px] py-[16px]"
     >
       <div className="min-w-0 flex-1">
-        <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
           <HighlightedWords text={fact.statement} query={query} />
         </p>
         <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
@@ -415,7 +415,7 @@ export function FactRowView({
           )}
         </div>
         {expanded && grounding.excerpt && (
-          <div className="mt-[8px] max-w-[80ch] rounded-[8px] bg-cf-surface-subtle p-[12px]">
+          <div className="mt-[8px] rounded-[8px] bg-cf-surface-subtle p-[12px]">
             <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
               «{grounding.excerpt}»
             </p>
@@ -625,7 +625,7 @@ export function ContentFactsShowcase() {
         >
           {t.title}
         </h2>
-        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.body}
         </p>
       </div>

@@ -1070,7 +1070,7 @@ export function ContentLeadsTab({
         <p
           role="status"
           data-content-leads-read-only="true"
-          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.readOnlyNote}
         </p>
@@ -1079,7 +1079,7 @@ export function ContentLeadsTab({
       {!feedCheckEnabled && loaded && !listFailure && (
         <p
           role="status"
-          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
           {t.checkDisabledBanner}
         </p>
@@ -1098,14 +1098,14 @@ export function ContentLeadsTab({
           <p
             role="status"
             data-content-leads-topic-check-off="true"
-            className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+            className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
           >
             {t.topicCheckDisabledBanner}
           </p>
         )}
 
       {notice && (
-        <p role="status" className=" rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]">
+        <p role="status" className="rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]">
           {notice}
         </p>
       )}

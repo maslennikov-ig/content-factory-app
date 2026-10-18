@@ -705,14 +705,14 @@ export function AdaptationEditor({
               <p
                 role="status"
                 aria-busy="true"
-                className=" whitespace-pre-wrap cf-body-lg text-cf-ink-muted [overflow-wrap:anywhere]"
+                className="whitespace-pre-wrap cf-body-lg text-cf-ink-muted [overflow-wrap:anywhere]"
               >
                 <span className="sr-only">{t.editOpening}</span>
                 {formatStoredMarkup(value)}
               </p>
             ) : null}
             {richTextFailed ? (
-              <article className=" whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]">
+              <article className="whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]">
                 {formatStoredMarkup(value)}
               </article>
             ) : null}
@@ -730,7 +730,7 @@ export function AdaptationEditor({
           <article
             data-intake-draft="true"
             data-piece-draft-id={draftId}
-            className=" whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
+            className="whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
           >
             {formatStoredMarkup(value)}
           </article>

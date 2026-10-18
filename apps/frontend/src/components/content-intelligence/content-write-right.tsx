@@ -130,7 +130,7 @@ export function ContentReadOnlyNote({
       role="status"
       data-content-read-only={surface}
       data-content-read-only-refusal={refusal}
-      className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+      className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
     >
       {children}
     </p>

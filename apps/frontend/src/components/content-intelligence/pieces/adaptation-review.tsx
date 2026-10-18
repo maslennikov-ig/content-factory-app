@@ -101,7 +101,7 @@ export function ReviewText({
     );
   });
   return (
-    <p className=" whitespace-pre-wrap break-words cf-body-sm text-cf-ink">
+    <p className="whitespace-pre-wrap break-words cf-body-sm text-cf-ink">
       {fragments}
       {text.slice(end)}
     </p>

@@ -71,7 +71,7 @@ export const AgentAvailabilityGate: FC<{
     return (
       <div className="flex flex-1 items-start justify-center bg-cf-surface p-[40px]">
         <RestrictedState
-          className="max-w-[560px]"
+          className="w-full min-w-0"
           title={t('agent_ai_unavailable_title', 'The AI assistant cannot answer yet')}
           reason={t(
             'ai_allowance_unavailable',

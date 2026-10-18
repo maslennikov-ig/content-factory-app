@@ -183,7 +183,7 @@ export function VoiceMaterialsScreen({
       {noChannelAnywhere && materials.length > 0 ? (
         <p
           data-voice-no-channel-anywhere="true"
-          className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
         >
           {t.materialsNoChannelAnywhere}
         </p>

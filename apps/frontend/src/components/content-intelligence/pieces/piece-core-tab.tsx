@@ -308,7 +308,7 @@ export function PieceCoreTab({
             >
               <blockquote
                 data-piece-sent-text={sent.kind}
-                className=" whitespace-pre-wrap border-s border-cf-border ps-[12px] cf-body-md text-cf-ink [overflow-wrap:anywhere] [text-wrap:pretty]"
+                className="whitespace-pre-wrap border-s border-cf-border ps-[12px] cf-body-md text-cf-ink [overflow-wrap:anywhere] [text-wrap:pretty]"
               >
                 {sent.text}
               </blockquote>
@@ -327,7 +327,7 @@ export function PieceCoreTab({
             <p
               role="status"
               data-piece-legacy="true"
-              className=" rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {t.legacyWarning}
             </p>
