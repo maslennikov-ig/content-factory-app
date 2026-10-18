@@ -78,12 +78,19 @@ const { AgentArtifactHost } = loadWithMocks('apps/frontend/src/components/agents
   './assistant.workspace-context': { AssistantArtifactBoundary: ({ children }) => h(React.Fragment, null, children) },
   './agent.panel': { ArtifactEditor: Editor },
 });
-function draw(initial, probes = [], strict = false) {
+const { useRefreshOnReturn, useRevalidateArtifact } = loadWithMocks('apps/frontend/src/components/agents/agent.revalidate.ts', { react: React });
+function Foreground({ artifact, visible }) {
+  const revalidate = useRevalidateArtifact();
+  useRefreshOnReturn(() => revalidate(artifact), visible, false);
+  return null;
+}
+function draw(initial, probes = [], strict = false, foreground = false) {
   const value = { provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false };
   let current = initial;
   let hidden = false;
   let selectionVersion = 0;
   const app = () => h(SWRConfig, { value },
+    foreground ? h(Foreground, { artifact: current, visible: !hidden }) : null,
     ...probes.map((route) => h(ReadProbe, { key: route, route })),
     h('div', { hidden }, h(AgentArtifactHost, { artifact: current, selectionVersion, available: [piece, avatar, channel], words: {}, onDirty: () => {}, onSelectArtifact: () => {} })));
   const tree = () => strict ? h(React.StrictMode, null, app()) : app();
@@ -109,6 +116,35 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); window.sessionStorage.clear(); });
 afterAll(() => dom.window.close());
+
+test('foreground and same-tab pane return refresh the real retained editor, preserving its dirty CAS base', async () => {
+  const view = draw(piece, [], false, true);
+  await view.findByText('Old saved core');
+  const node = document.querySelector('[data-assistant-editor="piece:p1"]');
+  server.set(PIECE, 'External manual save');
+  await act(async () => {
+    fireEvent(window, new window.Event('focus'));
+    fireEvent(document, new window.Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  await view.findByText('External manual save');
+  expect(document.querySelector('[data-assistant-editor="piece:p1"]')).toBe(node);
+  fireEvent.click(document.querySelector('[data-piece-core-edit-toggle="edit"]'));
+  const field = view.getByRole('textbox');
+  fireEvent.change(field, { target: { value: 'My unsaved draft' } });
+  await view.hide();
+  server.set(PIECE, 'Another external manual save');
+  const before = reads.length;
+  await view.hide();
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+  expect(reads.slice(before)).toEqual([PIECE]);
+  expect(view.getByRole('textbox')).toBe(field);
+  expect(field.value).toBe('My unsaved draft');
+  await act(async () => fireEvent.blur(field));
+  expect(saved).toHaveBeenLastCalledWith('My unsaved draft', 'External manual save');
+  expect(mounts).toEqual(['piece:p1']);
+  expect(writes).toEqual([]);
+});
 
 test('a deliberate same-object return reads current core once without clearing or remounting; hide and ordinary rerenders do not fetch', async () => {
   const view = draw(piece);

@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useChat } from '@ai-sdk/react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useRevalidateUnder, useRevalidateWhenCountGrows } from './agent.revalidate';
+import { useRefreshOnReturn, useRevalidateArtifact, useRevalidateUnder, useRevalidateWhenCountGrows } from './agent.revalidate';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { CfMark } from '@contentfactory/frontend/components/ui/brand/cf-mark';
@@ -159,6 +159,7 @@ export function AgentConversation({
   onStarterUsed,
   draft = null,
   onDraftUsed,
+  visible = true,
   words,
 }: {
   threadId: string | null;
@@ -186,6 +187,8 @@ export function AgentConversation({
    */
   draft?: string | null;
   onDraftUsed?: () => void;
+  /** The shared session stays mounted while a manual route hides its pane. */
+  visible?: boolean;
   words: AgentWords;
 }) {
   const request = useFetch();
@@ -196,6 +199,7 @@ export function AgentConversation({
   announceContext.current = onWorkContext;
   const { mutate } = useSWRConfig();
   const revalidateUnder = useRevalidateUnder();
+  const revalidateArtifact = useRevalidateArtifact();
   const thread = useRef(threadId);
   useEffect(() => {
     if (threadId) thread.current = threadId;
@@ -253,7 +257,9 @@ export function AgentConversation({
         );
         if (!response.ok) return false;
         const history = readThreadHistory(await response.json());
+        if (thread.current !== id) return false;
         if (history.workspace && contextAtRead === assistantContextKey(currentContext.current ?? null) && contextAtRead === assistantContextKey(history.workspace.workContext)) {
+          currentContext.current = history.workspace.workContext;
           announceContext.current?.(history.workspace.workContext);
         }
         setServerPending(history.pending);
@@ -343,6 +349,13 @@ export function AgentConversation({
   replaceMessages.current = setMessages;
 
   const busy = status === 'submitted' || status === 'streaming';
+  const refreshOnReturn = useCallback(() => {
+    if (openArtifact) revalidateArtifact(openArtifact);
+    // Refresh the revision separately from the editor cache. This never
+    // replaces messages, clears an interruption or repeats a model request.
+    void refreshPending();
+  }, [openArtifact, revalidateArtifact, refreshPending]);
+  useRefreshOnReturn(refreshOnReturn, visible, busy);
   useEffect(() => {
     if (busy) setPendingKnown(false);
   }, [busy]);

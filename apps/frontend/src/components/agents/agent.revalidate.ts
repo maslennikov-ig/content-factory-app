@@ -27,6 +27,42 @@ export const useRevalidateArtifact = () => {
     void mutate((key) => artifactReadMatches(artifact, key)), [mutate]);
 };
 
+/** Refresh retained readers on tab return and when the persistent assistant is shown again. */
+export const useRefreshOnReturn = (refresh: () => void, visible: boolean, busy: boolean) => {
+  const latest = useRef({ refresh, visible, busy });
+  latest.current = { refresh, visible, busy };
+  const wasVisible = useRef(visible);
+  const pending = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const schedule = useCallback(() => {
+    if (!latest.current.visible || document.visibilityState !== 'visible') return;
+    pending.current = true;
+    if (latest.current.busy || timer.current !== null) return;
+    // A browser may emit both visibilitychange and focus for the same return.
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (!latest.current.visible || latest.current.busy || document.visibilityState !== 'visible') return;
+      pending.current = false;
+      latest.current.refresh();
+    }, 0);
+  }, []);
+  useEffect(() => {
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+    };
+  }, [schedule]);
+  useEffect(() => {
+    const shown = visible && !wasVisible.current;
+    wasVisible.current = visible;
+    if (shown || visible && !busy && pending.current) schedule();
+  }, [visible, busy, schedule]);
+};
+
 /**
  * Reads every SWR route under a prefix again, keeping what the screens show
  * until the answer comes (correctness review of the W3 walk fixes, F2).

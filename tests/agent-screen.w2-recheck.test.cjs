@@ -292,7 +292,7 @@ const loadConversation = (chat, request) =>
     swr: {
       __esModule: true,
       default: () => ({ data: undefined }),
-      useSWRConfig: () => ({ mutate: () => {} }),
+      useSWRConfig: () => ({ mutate: (...args) => { (chat.mutations ??= []).push(args); } }),
     },
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
     '@contentfactory/react/translation/get.transation.service.client': { useT: () => (_key, fallback) => fallback },
@@ -350,6 +350,92 @@ const drawConversation = async ({ messages, pending, request = async () => ({ ok
   };
   return { chat, view, redraw };
 };
+
+
+describe('retained assistant foreground reads', () => {
+  const old = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'old' };
+  const current = { ...old, revision: 'manually-saved' };
+  const artifact = { kind: 'piece', id: 'p1', title: null, code: null, data: {} };
+  const history = (context = current) => ({ thread: { id: 't1' }, messages: [laterReply], pending: [],
+    execution: { requestId: 'old-request', state: 'settled', outcome: 'completed' },
+    workspace: { version: 'assistant-workspace/v1', workContext: context, artifacts: [], activeArtifact: null } });
+  const flushReturn = async () => act(async () => {
+    fireEvent(window, new window.Event('focus'));
+    fireEvent(document, new window.Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  beforeEach(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
+  afterEach(() => delete document.visibilityState);
+
+  test('one tab return refreshes the active detail AND revision; messages and model calls stay untouched', async () => {
+    const request = jest.fn(async () => ({ ok: true, json: async () => history() }));
+    const onWorkContext = jest.fn();
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], request,
+      extra: { workContext: old, onWorkContext, openArtifact: artifact } });
+    await flushReturn();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(onWorkContext).toHaveBeenLastCalledWith(current);
+    const mutations = chat.mutations.filter(([key]) => typeof key === 'function');
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0]).toHaveLength(1); // No data argument: retain the mounted editor/cache.
+    expect(mutations[0][0]('/content-intelligence/pieces/p1')).toBe(true);
+    expect(mutations[0][0]('/content-intelligence/pieces/p2')).toBe(false);
+    expect(chat.messages).toEqual([person]);
+    expect(chat.sent).toEqual([]);
+    await redraw({ workContext: current });
+    await act(async () => chat.submit({ text: 'My next deliberate edit', files: [] }));
+    expect(chat.transport.currentContext()).toEqual(current);
+    expect(chat.sent).toHaveLength(1);
+  });
+
+  test('same-tab hidden to shown refreshes once without reselecting; ordinary rerender and hidden events do not read', async () => {
+    const request = jest.fn(async () => ({ ok: true, json: async () => history() }));
+    const onWorkContext = jest.fn();
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], request,
+      extra: { visible: false, workContext: old, onWorkContext, openArtifact: artifact } });
+    await flushReturn();
+    expect(request).not.toHaveBeenCalled();
+    await redraw({ visible: true });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(onWorkContext).toHaveBeenLastCalledWith(current);
+    await redraw({ workContext: current });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(chat.sent).toEqual([]);
+    expect(chat.messages).toEqual([person]);
+  });
+
+  test('focus during a stream defers the read; terminal foreground history cannot unlock Stop or replay', async () => {
+    const request = jest.fn(async () => ({ ok: true, json: async () => history() }));
+    const { chat, view, redraw } = await drawConversation({ messages: [person], pending: [], request });
+    chat.status = 'streaming'; await redraw();
+    await flushReturn();
+    expect(request).not.toHaveBeenCalled();
+    await act(async () => fireEvent.click(view.getByText('Fixture stop')));
+    await redraw();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    expect(chat.messages).toEqual([person]);
+    expect(chat.sent).toEqual([]);
+    expect(chat.regenerated ?? 0).toBe(0);
+  });
+
+  test('a delayed foreground response cannot replace a newly selected object context', async () => {
+    let answer;
+    const request = jest.fn(() => new Promise((resolve) => { answer = resolve; }));
+    const onWorkContext = jest.fn();
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], request,
+      extra: { workContext: old, onWorkContext, openArtifact: artifact } });
+    await flushReturn();
+    const other = { ...old, id: 'p2', revision: 'other' };
+    await redraw({ workContext: other, openArtifact: { ...artifact, id: 'p2' } });
+    await act(async () => answer({ ok: true, json: async () => history() }));
+    expect(onWorkContext).not.toHaveBeenCalled();
+    expect(chat.transport.currentContext()).toEqual(other);
+    expect(chat.sent).toEqual([]);
+  });
+});
 
 const approvalOnScreen = () => document.querySelector('[data-agent-card="approval"]');
 const button = (name) => within(approvalOnScreen()).queryByRole('button', { name });

@@ -262,7 +262,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
               <Button type="button" density="dense" variant="quiet" onClick={() => setSaveAttempt((attempt) => attempt + 1)}>{t('assistant_reconcile', 'Check result')}</Button>
             </div> : null}
             <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
-              <SessionView key={session.key} session={session} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />
+              <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />
             </AgentAvailabilityGate>
           </section>
         </AgentWorkspaceShell>
@@ -278,6 +278,7 @@ const EMPTY_HISTORY: AgentThreadHistory = {
 };
 
 function SessionView({
+  visible,
   session,
   onHistory,
   workContext,
@@ -296,6 +297,7 @@ function SessionView({
   onDraftUsed,
   words,
 }: {
+  visible: boolean;
   session: Session;
   onHistory: (history: AgentThreadHistory) => void;
   workContext: AgentWorkContextV1 | null;
@@ -372,6 +374,7 @@ function SessionView({
   const loaded = history.data ?? EMPTY_HISTORY;
   return (
     <AgentConversation
+      visible={visible}
       threadId={session.threadId}
       initialMessages={loaded.messages}
       pending={loaded.pending}

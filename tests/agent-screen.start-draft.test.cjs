@@ -170,8 +170,8 @@ const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.sc
 });
 
 // A cache of its own and no deduping timer, so nothing outlives the test.
-const drawn = () =>
-  h(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0, loadingTimeout: 0 } }, h(screenModule.AgentScreen));
+const drawn = (contextual = false) =>
+  h(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0, loadingTimeout: 0 } }, h(screenModule.AgentScreen, { contextual }));
 
 const open = async (address) => {
   window.history.replaceState(null, '', address);
@@ -187,6 +187,35 @@ const field = () => document.querySelector('textarea');
 
 beforeEach(reset);
 afterEach(cleanup);
+
+test('persistent route and contextual show signal reach the same conversation without remounting or losing composer input', async () => {
+  world.routeId = 't1';
+  const view = await open('/agents/t1');
+  const original = field();
+  fireEvent.change(original, { target: { value: 'My pending question' } });
+  expect(world.conversationProps.visible).toBe(true);
+  const route = async (path, contextual = false) => {
+    window.history.replaceState(null, '', path);
+    await act(async () => view.rerender(drawn(contextual)));
+  };
+  await route('/content/pieces/p1');
+  expect(world.conversationProps.visible).toBe(false);
+  await route('/agents/t1');
+  expect(world.conversationProps.visible).toBe(true);
+  await route('/content/pieces/p1');
+  await route('/agents');
+  expect(world.conversationProps.visible).toBe(true);
+  await route('/content/pieces/p1', true);
+  expect(world.conversationProps.visible).toBe(true);
+  await route('/content/pieces/p1', false);
+  expect(world.conversationProps.visible).toBe(false);
+  await route('/content/pieces/p1', true);
+  expect(world.conversationProps.visible).toBe(true);
+  expect(field()).toBe(original);
+  expect(field().value).toBe('My pending question');
+  expect(world.conversations).toBe(1);
+  expect(world.sent).toEqual([]);
+});
 
 describe('«Сделать в чате» fills the composer and sends nothing', () => {
   test('an open step the role can run: its starter is in the field, nothing sent, the parameter gone', async () => {
