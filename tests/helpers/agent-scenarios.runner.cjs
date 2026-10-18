@@ -341,8 +341,12 @@ const stand = (scenario) => {
   );
   const aiUsage = new AiUsageService(table.prisma);
 
-  const conductor = loadCapabilityModule('../conductor/index.ts', { aiConfig });
-  const registry = loadCapabilityModule('index.ts', { aiConfig });
+  // Source loaders are isolated; production imports share one module. Keep
+  // the real lifecycle registry shared by the adapter and private-thread door.
+  const lifecycle = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
+  const lifecycleMocks = { '../conductor/agent-turn-lifecycle': lifecycle, './agent-turn-lifecycle': lifecycle };
+  const conductor = loadCapabilityModule('../conductor/index.ts', { aiConfig, mocks: lifecycleMocks });
+  const registry = loadCapabilityModule('index.ts', { aiConfig, mocks: lifecycleMocks });
   const world = createWorld(scenario.world);
   // `outsideTurn`: what runs on the worker, not in the turn — the periodic
   // idea check (review W4-23 F5) — admits its own operation, as there.
@@ -404,6 +408,7 @@ const stand = (scenario) => {
   };
 
   const doorModules = {
+    ...lifecycleMocks,
     '@nestjs/swagger': { ApiTags: noOp },
     '@contentfactory/backend/services/auth/permissions/permissions.ability': {
       CheckPolicies: noOp,
@@ -826,7 +831,7 @@ const playWatched = async (scenario, logs) => {
           return refused
             ? new Response(JSON.stringify({ code: refused.code }), {
                 status: refused.status ?? 500,
-                headers: { 'content-type': 'application/json' },
+                headers: { ...res.headers, 'content-type': 'application/json' },
               })
             : new Response(res.chunks.join(''), {
                 headers: {

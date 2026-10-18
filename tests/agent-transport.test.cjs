@@ -34,6 +34,24 @@ beforeAll(() => {
 }, 90_000);
 
 describe('the chat transport through the product fetch', () => {
+  test.each(['pre-start-context', 'pre-start-allowance'])('%s retains explicit server pre-start proof as a typed refusal', (name) => {
+    expect(report[name].notStarted).toBe(true);
+    expect(report[name].status).toBe(name === 'pre-start-context' ? 400 : 402);
+    expect(report[name].named).toEqual([]);
+  });
+
+  test.each(['unproven-context', 'unproven-proxy', 'unproven-header-value'])('%s never fabricates pre-start proof', (name) => {
+    expect(report[name].error).toBeDefined();
+    expect(report[name].notStarted).toBe(false);
+  });
+
+  test('native chat core preserves pre-start proof before its error finish callback', () => {
+    expect(report['native-pre-start'].parts).toEqual({
+      events: [['error', true], ['finish', true, false, false]],
+      status: 'error', typedError: true,
+    });
+  });
+
   test('a message reaches a JSON body parser as JSON, with one content type', () => {
     const run = report.message;
     expect(run.error).toBeUndefined();

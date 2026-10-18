@@ -1,18 +1,19 @@
 import { z } from 'zod';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { IntegrationRepository } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.repository';
+import { PieceRepository } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.repository';
 import type { CapabilityDeclaration, CapabilityIdentity } from '../capabilities/capability.types';
 import type { CapabilityGate } from '../capabilities/capability.admission';
 import type { CapabilityServices } from '../capabilities/mastra.adapter';
 import { forbiddenWorkContext, invalidWorkContext } from './work-context';
 
 const querySchema = z.object({
-  kind: z.enum(['avatar', 'channel']),
+  kind: z.enum(['avatar', 'channel', 'plan']),
   q: z.string().trim().max(200).optional(),
   limit: z.union([z.number(), z.string().regex(/^\d{1,2}$/).transform(Number)]).pipe(z.number().int().min(1).max(50)).optional(),
   cursor: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
   ids: z.string().max(3_096).transform((value) => value.split(',')).pipe(z.array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)).min(1).max(24)).optional(),
-}).strict().refine((value) => !(value.ids && value.cursor));
+}).strict().refine((value) => !(value.ids && (value.cursor || value.kind === 'plan')));
 
 type BrowserDependencies = {
   services: CapabilityServices;
@@ -29,8 +30,9 @@ export class AgentWorkObjectBrowser {
     if (!parsed.success) throw invalidWorkContext();
     const { kind, q, cursor, ids } = parsed.data;
     const limit = ids ? ids.length : parsed.data.limit ?? 24;
-    const capability = this.deps.capabilities.find((one) => one.id === (kind === 'avatar' ? 'avatar.list' : 'channels.list'));
+    const capability = this.deps.capabilities.find((one) => one.id === (kind === 'avatar' ? 'avatar.list' : kind === 'plan' ? 'plan.ready' : 'channels.list'));
     if (!capability || !(await this.deps.gate.check(capability.door, identity)).allowed) throw forbiddenWorkContext();
+    if (kind === 'plan') return this.deps.services(PieceRepository).browsePlannedAdaptations(identity.organizationId, { limit, ...(q ? { q } : {}), ...(cursor ? { cursor } : {}) });
     const options = { limit, ...(q ? { q } : {}), ...(cursor ? { cursor } : {}), ...(ids ? { ids } : {}) };
     const rows = kind === 'avatar'
       ? await this.deps.services(BrandProfileRepository).browseAvatars(identity.organizationId, options)

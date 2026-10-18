@@ -7,7 +7,7 @@ const UPDATED_TONE = `${MANUAL_TONE} Всегда отделять факт от
 const passport = {
   whoSpeaks: 'Редактор', tone: INITIAL_TONE, audience: 'Руководители команд',
   sentenceStyle: 'Короткие фразы', neverSay: ['мы лучшие'], topics: 'Практика; разборы',
-  addressForm: 'vy', delegatedPolicy: 'knowledge', versionLabel: 'v1',
+  addressForm: 'vy', delegatedPolicy: 'knowledge', versionLabel: 'v1', versionId: 'ver-1',
   activeSince: '01.01.2026',
 };
 
@@ -35,13 +35,13 @@ module.exports = {
       // must read that active value, not its old tool result or empty draft.
       before: (rows) => {
         const avatar = rows.avatars.find((one) => one.id === AVATAR);
-        avatar.passport = { ...avatar.passport, tone: MANUAL_TONE, versionLabel: 'v2' };
+        avatar.passport = { ...avatar.passport, tone: MANUAL_TONE, versionLabel: 'v2', versionId: 'ver-2' };
         avatar.passportVersionNumber = 2;
       },
       say: 'Я изменил тон вручную. Прочитай его заново и добавь правило: «Всегда отделять факт от предположения». Остальное сохрани.',
       model: [
         [['tool', 'avatar_passport', { avatarId: AVATAR }]],
-        [['tool', 'avatar_passport_field', { avatarId: AVATAR, field: 'TONE', text: UPDATED_TONE }]],
+        [['tool', 'avatar_passport_field', { avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-2', text: UPDATED_TONE }]],
         [['tool', 'avatar_passport', { avatarId: AVATAR }]],
         [['text', 'Сохранил ручную формулировку и добавил правило. Действующий паспорт обновлён.']],
       ],
@@ -56,20 +56,20 @@ module.exports = {
       'avatar_passport', 'avatar_passport_field', 'avatar_passport',
     ]);
     expect(edited.outputs.every(({ output }) => output.ok)).toBe(true);
-    expect(value(edited.outputs[0])).toMatchObject({ avatarId: AVATAR, versionLabel: 'v2' });
+    expect(value(edited.outputs[0])).toMatchObject({ avatarId: AVATAR, versionLabel: 'v2', versionId: 'ver-2' });
     expect(value(edited.outputs[0]).fields.find((field) => field.key === 'TONE').text).toBe(MANUAL_TONE);
     for (const entry of edited.outputs.slice(1)) {
       expect(value(entry)).toMatchObject({ avatarId: AVATAR, versionLabel: 'v3' });
       expect(value(entry).fields.find((field) => field.key === 'TONE').text).toBe(UPDATED_TONE);
     }
-    expect(run.world.avatars[0].passport).toEqual({ ...passport, tone: UPDATED_TONE, versionLabel: 'v3' });
+    expect(run.world.avatars[0].passport).toEqual({ ...passport, tone: UPDATED_TONE, versionLabel: 'v3', versionId: 'ver-3' });
     expect(run.world.avatars[0].manual).toEqual({});
     expect(run.reads).not.toContain('VoiceService.manualProposal');
     expect(run.reads).not.toContain('VoiceService.proposal');
     expect(run.reads).not.toContain('VoiceService.activateProposal');
     expect(run.requests.filter(([name]) => name.startsWith('voice.'))).toEqual([
       ['voice.passport', AVATAR], ['voice.passport', AVATAR],
-      ['voice.passport.field', AVATAR, { key: 'TONE', text: UPDATED_TONE }],
+      ['voice.passport.field', AVATAR, { key: 'TONE', text: UPDATED_TONE, expectedVersionId: 'ver-2' }],
       ['voice.passport', AVATAR],
     ]);
     expect(run.writes).toEqual([['avatar.passport.field', AVATAR, 'TONE']]);

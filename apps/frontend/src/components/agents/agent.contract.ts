@@ -189,6 +189,8 @@ export const AGENT_TIMEZONE_HEADER = 'x-agent-timezone' as const;
 
 /** Response header of `POST /agent/chat` naming the thread it wrote to. */
 export const AGENT_THREAD_HEADER = 'x-agent-thread-id' as const;
+/** A refused chat request never reached its native run (`1`). */
+export const AGENT_NOT_STARTED_HEADER = 'x-agent-not-started' as const;
 
 export const AGENT_THREAD_TITLE_MAX = 120;
 
@@ -617,11 +619,28 @@ const readPending = (row: unknown): AgentPendingRun | null => {
   };
 };
 
+export type AgentThreadExecution = {
+  requestId: string | null;
+  state: 'running' | 'settled' | 'unknown';
+  outcome?: 'completed' | 'failed' | 'interrupted';
+};
+
+const readExecution = (body: unknown): AgentThreadExecution => {
+  const record = recordOf(body);
+  const requestId = stringOf(record.requestId);
+  if (requestId && record.state === 'running') return { requestId, state: 'running' };
+  if (requestId && record.state === 'settled' && ['completed', 'failed', 'interrupted'].includes(String(record.outcome))) {
+    return { requestId, state: 'settled', outcome: record.outcome as AgentThreadExecution['outcome'] };
+  }
+  return { requestId, state: 'unknown' };
+};
+
 export type AgentThreadHistory = {
   thread: AgentThreadSummary | null;
   messages: AgentMessage[];
   pending: AgentPendingRun[];
   workspace?: AgentWorkspaceV1 | null;
+  execution?: AgentThreadExecution;
 };
 
 /**
@@ -648,7 +667,7 @@ export const readThreadHistory = (body: unknown): AgentThreadHistory => {
   const messages = (Array.isArray(record.messages) ? record.messages : [])
     .filter(isUiMessage)
     .map((message) => reopenApprovals(message, approvals));
-  return { thread: readThread(record.thread), messages, pending, ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}) };
+  return { thread: readThread(record.thread), messages, pending, ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}), ...(record.execution !== undefined ? { execution: readExecution(record.execution) } : {}) };
 };
 
 const reopenApprovals = (

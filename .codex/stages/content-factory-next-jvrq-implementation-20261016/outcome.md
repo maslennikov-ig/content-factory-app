@@ -1,3 +1,11 @@
+# Final delegated functional acceptance —17October16:30UTC
+
+A1–A10 PASS; exact private2e/public5efa delivered, all9root/all5publicCI/full3suitehalves accepted. Real final native control passed in the old conversation containing the former text-only preview: same exact user request, correct piece_rewrite, nativecomplete107→169 paragraph preview equals decodedtransport, no typed acceptance/repeatededitorial command, no write beforecard. One nativeclick saves536 preserving all474existingchars; nativehistory shows exact474/person and365/model, mountedshared/freshmanual/DBequal.2streams200DONE,3journalrows succeeded/0pending/0pageerrors, known0.00366237USD notinvoiceproof. Original1493/sixversions, namedtitleflag/328body and allotherrecords exact. Final runtime16:29 healthy0/3online0/Mastra45/21foreign+20volumes, schema0SQL0; sourcearchive12844805/SHA0ebfb5 matches complete productiondownload. Verifiedrollback1bf retained; canonicalcleanup removedonlyown058/two before-d1e configcopies. Browser/cookies/session/RPC/three hashedhosthelpers/lock closed. Clean temporaryexportWT removed after childacceptance; fullreleaseWT/image/archive/privateaudit retained. Evidence native-preview-final2-* and final acceptance-map supersede pending statements in historical sections below. Personal owner/client/external gates are distinct and unchanged.
+
+project-index: reviewed-updated; docs-reviewed: updated — spec/plan/inventory/current runbook/handoff/A1–A10 evidence agree. graph-reviewed: used — accepted8a localgraph and directly confirmed current source owners;2e adds only scoped conductor policies/test, no new module/import boundary, no external extraction. Final evidence/documentation edits are metadata only; exact fullsuite receipt remains source2e, not restamped onto later documentation commits.
+
+---
+
 # AI assistant implementation — 16 October 2026
 
 Owner authorized implementing epic `content-factory-next-jvrq` and selected the visible name “ИИ-помощник”, localized across all16 shipped languages. Local source, tests and review only; paid model/search calls, production writes, release deployment and source delivery require their own authority.
@@ -454,3 +462,23 @@ Read-only independent audit of original spec A1–A10, task.8 and current actual
 ## Exact224 release refusal — handoff line limit
 
 Root all9 candidate224 was refused by the Python half: the new checkpoint made handoff201lines, limit200. Jest684suites12455PASS/70skip and Node123PASS/4environment skip passed; Python50ran/onefailure, no successful suite receipt written, no image/switch permitted. Original log /tmp/cf-native-preview-final-root-release.log retained as failed source224 evidence. Root joined wrapped prose within one existing paragraph (identical rendered content) to198lines; no criterion/limit/test changed. Full exact-source release including all three suite halves will rerun after this metadata correction. Public421 CI remains historical/superseded, not an accepted production source.
+
+## Exact2e root release accepted15:58:52UTC
+
+All9 configured commands PASS on clean frozen private2e9822081974d91209501d4627e731a179807eb7; three types/four builds, Jest684/12455PASS70skip, Node123PASS4environment skips, Python50OK, brand/docs/process/diff. Exact receipt SHAe18f80b58c546279055e11cd7f34770f40cce7d293137a2f485ecce4701c404b. Refused224 preserved separately; no missing half/limit waiver or restamp. Public5efa all5CI and canonicalimage are independent gates. Conditional imageGO after matching all5 success only; production/actualnative18/20 remain root-owned and pending.
+
+## Public5efa all5 accepted; imageGO
+
+Exactpublic5efa70e0057e1e07f24e93f69efc46173f41fe0e binds private2e9822081974d91209501d4627e731a179807eb7. Build39046149755 all4jobs +CodeQL39046149745 success; all3fullsuite halves: Jest684/12453PASS72skip/12525total, Node123PASS4envskip, Python50OK. Root12455PASS70skip same12525; extra2CI skip identities/reasons UNKNOWN in retained aggregate log, no waiver/rerun. Canonical mode/blob equality4570 publishedpaths,6658heldback evidencepaths, no missing/extra/changed; remoteexactandcloneclean. ConditionalimageGO satisfied; child now owns exactarchive/build/offlinehelp/push only, host and paid replay remain pending root.
+
+## Public image child delivery accepted16:19UTC
+
+Canonical source2e/public5efa image accepted: registryddca0287, configce46bbb1, platformc1c282d8; complete12844805byte archiveSHA0ebfb5caf4a0cfee65fad38e8ed4f6c379c0db50d9ad6570481ca8c6e376842a. Exactsource/mode/blob and all9/all5 receipt bindings independently rootchecked; imageproofSHAe2b435dec693905fe43d294053ea1a7b77bdd9c213338fc80ae203d723885339, publicationSHAbbb11fe7e9fbbfc610d2a0ae203d43b84e2294a6477f5df6c08ca58dae45d04f. Nginx/offlinehelp--networknone/inimagearchive/registryweightPASS; no own containers/processes/authconfig remain. Root retainsimages/archive/WT/logs for hostdelivery; no childcleanup of dependencies. Hostpull is active rootPTY2089 underlock53675, no switch or paid replay yet. Child scope complete; no duplicate build/check needed.
+
+## Final documentation contract check
+
+Links199filesPASS; first metadata processcheck refused a renamed required Next recommended heading. Restored exact consumed heading and moved the unrelated-client clarification into its existing prose; handoff remains198lines. This is documentation-only, no app/source2e receipt restamp or production rerun. At16:35UTC livecanonical coordinator accepts .18/HOBA-5823 and .20/HOBA-5825 CLOSED in both projections; .8/parent closure remains finalmetadata work.
+
+## Canonical completion16:43UTC
+
+Linear live server accepts epicHOBA-2540/.8HOBA-2532 and all20children CLOSED in both native/remote projections,0pending relevantoperations. Direct GitHub1083/1087 bothCLOSED at16:42:18/16:42:17UTC. Closure receipt native-preview-final2-task-closure.actual.json. Metadata63b9a7406 was pushed after all functional/release/cleanup/documentation checks; this final status receipt is documentation only, no app/fullsuite restamp. Entire current jvrq scope complete; no further paid/control/release needed. Unrelated gates/historical negative proofs retained.

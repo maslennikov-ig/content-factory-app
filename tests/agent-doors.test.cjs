@@ -81,7 +81,8 @@ const fakeMastra = () => {
       return thread;
     },
     updateThread: async ({ id, title, metadata }) => {
-      const thread = { ...threads.get(id), title, metadata };
+      const previous = threads.get(id);
+      const thread = { ...previous, ...(title !== undefined ? { title } : {}), ...(metadata ? { metadata: { ...previous.metadata, ...metadata } } : {}) };
       threads.set(id, thread);
       return thread;
     },
@@ -372,6 +373,35 @@ describe('U4: opening the screen spends nothing; each model-running request open
 });
 
 describe('S5: the turn is built by the server', () => {
+  test('a contextual refusal before start carries explicit no-start proof; legacy history remains additive', async () => {
+    const context = setup();
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    const { HttpException } = require('@nestjs/common');
+    context.mastra.mastraService.resolveWorkContext = jest.fn(async () => {
+      throw new HttpException({ code: 'AGENT_BAD_REQUEST' }, 400);
+    });
+    const response = new FakeResponse();
+    await expect(context.controller.chat(ORG, USER_A, {
+      threadId: 'thread-a-1', messages: [userMessage()],
+      workContext: { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'stale' },
+    }, response)).rejects.toMatchObject({ status: 400 });
+    expect(response.headers['x-agent-not-started']).toBe('1');
+    expect(context.mastra.mastraService.resolveWorkContext).toHaveBeenCalledTimes(1);
+    expect(context.aiUsage.beginAiOperation).not.toHaveBeenCalled();
+    expect(context.handleChatStream).not.toHaveBeenCalled();
+    expect((await context.controller.getThread(ORG, USER_A, 'thread-a-1')).execution).toBeUndefined();
+  });
+
+  test('a started native request cannot claim pre-start proof even when it fails before headers', async () => {
+    const context = setup();
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    context.handleChatStream.mockRejectedValueOnce(new Error('Native startup failed.'));
+    const response = new FakeResponse();
+    await expect(context.controller.chat(ORG, USER_A, { threadId: 'thread-a-1', messages: [userMessage()] }, response)).rejects.toMatchObject({ status: 502 });
+    expect(response.headers['x-agent-not-started']).toBeUndefined();
+    expect((await context.controller.getThread(ORG, USER_A, 'thread-a-1')).execution).toMatchObject({ state: 'settled', outcome: 'failed' });
+  });
+
   test('memory, request context, limits, tool choice and provider options in the body change nothing', async () => {
     const context = setup();
     await threadOf(context, 'thread-a-1', RESOURCE_A);
@@ -1121,12 +1151,12 @@ describe('A3: /agent/chat is throttled per person', () => {
   };
   const handler = function chat() {};
   class AgentController {}
-  const executionFor = (user) => ({
+  const executionFor = (user, response = { header: () => undefined }) => ({
     getClass: () => AgentController,
     getHandler: () => handler,
     switchToHttp: () => ({
       getRequest: () => ({ method: 'POST', url: '/agent/chat', org: { id: 'org-1' }, user, ip: '10.0.0.1', headers: {} }),
-      getResponse: () => ({ header: () => undefined }),
+      getResponse: () => response,
     }),
   });
 
@@ -1139,13 +1169,17 @@ describe('A3: /agent/chat is throttled per person', () => {
 
   test('twenty a minute, then 429 ai_rate_limited — and a colleague is not affected', async () => {
     const guard = await guardWith();
+    const response = { header: jest.fn() };
     for (let index = 0; index < AGENT_CHAT_THROTTLE.limit; index += 1) {
-      await expect(guard.canActivate(executionFor({ id: 'u-1' }))).resolves.toBe(true);
+      await expect(guard.canActivate(executionFor({ id: 'u-1' }, response))).resolves.toBe(true);
     }
-    await expect(guard.canActivate(executionFor({ id: 'u-1', language: 'ru' }))).rejects.toMatchObject({
+    expect(response.header).not.toHaveBeenCalledWith('x-agent-not-started', '1');
+    await expect(guard.canActivate(executionFor({ id: 'u-1', language: 'ru' }, response))).rejects.toMatchObject({
       status: 429,
       response: { code: 'ai_rate_limited' },
     });
+    expect(response.header).toHaveBeenCalledWith('x-agent-not-started', '1');
+    expect(response.header).toHaveBeenCalledWith('Retry-After', expect.any(Number));
     await expect(guard.canActivate(executionFor({ id: 'u-2' }))).resolves.toBe(true);
     expect(AGENT_CHAT_THROTTLE).toEqual({ limit: 20, ttl: 60_000 });
   });

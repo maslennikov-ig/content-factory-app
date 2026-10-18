@@ -14,7 +14,6 @@ import { ErrorState, SkeletonRows } from '@contentfactory/frontend/components/ui
 import { voiceCopy } from '@contentfactory/frontend/components/brand-voice/voice-copy';
 import { ChannelStatus } from '@contentfactory/frontend/components/channels/channel-parts';
 import type { ChannelRow } from '@contentfactory/frontend/components/channels/channel-model';
-import { READY_ADAPTATIONS_PATH, type ReadyAdaptationV1 as ReadyAdaptation } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/ready-adaptations.contract';
 import { calendarPlanningCopy } from '@contentfactory/frontend/components/launches/calendar-planning.copy';
 import { piecesCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.copy';
 import { AGENT_DOORS, type AgentArtifact } from './agent.contract';
@@ -24,7 +23,6 @@ import { PIECES_API } from '@contentfactory/frontend/components/content-intellig
 type BrowserKind = 'piece' | 'avatar' | 'channel' | 'plan';
 type BrowserRow = { artifact: AgentArtifact; state: ReactNode };
 const LIMIT = 24;
-const READY_ADAPTATIONS_URL = `${READY_ADAPTATIONS_PATH}?limit=50`;
 const sectionHref: Record<BrowserKind, string> = { piece: '/content?tab=materials', avatar: '/content?tab=avatars', channel: '/channels', plan: '/launches' };
 
 export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'piece' }: { onSelect: (artifact: AgentArtifact) => void; words: AgentWords; initialKind?: BrowserKind }) {
@@ -37,16 +35,13 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | null>(null);
   const [previous, setPrevious] = useState<Array<string | null>>([]);
-  const [page, setPage] = useState(0);
-  const serverPaged = kind !== 'plan';
   useEffect(() => {
-    const timer = window.setTimeout(() => { setSearch(query.trim().slice(0, 200)); setCursor(null); setPrevious([]); setPage(0); }, 250);
+    const timer = window.setTimeout(() => { setSearch(query.trim().slice(0, 200)); setCursor(null); setPrevious([]); }, 250);
     return () => window.clearTimeout(timer);
   }, [query]);
   const url = useMemo(() => {
-    if (kind === 'plan') return READY_ADAPTATIONS_URL;
     const params = new URLSearchParams({ limit: String(LIMIT) });
-    if (kind === 'avatar' || kind === 'channel') params.set('kind', kind);
+    if (kind !== 'piece') params.set('kind', kind);
     if (search) params.set('q', search);
     if (cursor) params.set('cursor', cursor);
     return `${kind === 'piece' ? PIECES_API.browser : AGENT_DOORS.workspaceBrowser}?${params}`;
@@ -69,10 +64,10 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
         state: <ChannelStatus row={channel as ChannelRow} locale={locale} />,
       }));
     } else if (kind === 'plan') {
-      if (body.version !== 'ready-adaptations/v1' || !Array.isArray(body.items)) throw new Error('plans unavailable');
-      rows = body.items.filter((row: ReadyAdaptation) => !!row.slot && row.slot.status !== 'free').map((row: ReadyAdaptation): BrowserRow => ({
-        artifact: { kind: 'plan', id: row.adaptationId, title: row.title, code: row.pieceCode, data: { id: row.adaptationId, postId: row.postId, pieceId: row.pieceId, channelId: row.integrationId, adaptationId: row.adaptationId, at: row.slot?.date } },
-        state: row.slot?.status === 'queued' ? calendarPlanningCopy[locale].slotQueued : calendarPlanningCopy[locale].slotReserved,
+      if (!Array.isArray(body.items)) throw new Error('plans unavailable');
+      rows = body.items.map((row: { id: string; title: string; postId: string; pieceId: string; channelId: string; adaptationId: string; slot: { status: 'queued' | 'reserved'; date: string | null } }): BrowserRow => ({
+        artifact: { kind: 'plan', id: row.adaptationId, title: row.title, code: null, data: { id: row.adaptationId, postId: row.postId, pieceId: row.pieceId, channelId: row.channelId, adaptationId: row.adaptationId, at: row.slot.date } },
+        state: row.slot.status === 'queued' ? calendarPlanningCopy[locale].slotQueued : calendarPlanningCopy[locale].slotReserved,
       }));
     } else {
       if (!Array.isArray(body.items)) throw new Error('pieces unavailable');
@@ -81,20 +76,19 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
         state: row.archivedAt ? piecesCopy[locale].archived : t('active', 'Active'),
       }));
     }
-    const needle = search.toLocaleLowerCase();
     return {
-      rows: rows.filter((row) => serverPaged || !needle || row.artifact.title?.toLocaleLowerCase().includes(needle)),
-      hasMore: serverPaged && body.hasMore === true,
+      rows,
+      hasMore: body.hasMore === true,
       cursor: typeof body.cursor === 'string' ? body.cursor : null,
     };
   }, { revalidateOnFocus: false });
   const rows = list.data?.rows ?? [];
-  const visible = serverPaged ? rows : rows.slice(page * LIMIT, (page + 1) * LIMIT);
+  const visible = rows;
   const labels: Record<BrowserKind, string> = { piece: t('assistant_pieces', 'Pieces'), avatar: t('assistant_avatars', 'Avatars'), channel: t('channels', 'Channels'), plan: t('calendar', 'Calendar') };
-  const nextPage = serverPaged ? list.data?.hasMore && !!list.data.cursor : (page + 1) * LIMIT < rows.length;
+  const nextPage = list.data?.hasMore && !!list.data.cursor;
   return <div className="flex min-h-0 min-w-0 flex-col gap-[12px]">
     <Input standalone name="workspace-search" label={t('assistant_workspace_search', 'Search workspace')} value={query} onChange={(event) => setQuery(event.target.value)} />
-    <Tabs value={kind} onChange={(value) => { setKind(value as BrowserKind); setCursor(null); setPrevious([]); setPage(0); }}>
+    <Tabs value={kind} onChange={(value) => { setKind(value as BrowserKind); setCursor(null); setPrevious([]); }}>
       <TabList activation="manual" aria-label={t('assistant_workspace', 'Workspace')} className="flex flex-wrap gap-[4px] border-b border-cf-border pb-[8px]">
         {(Object.keys(labels) as BrowserKind[]).map((value) => <Tab key={value} value={value} className="rounded-[8px] px-[12px] py-[8px] cf-label-md text-cf-ink aria-selected:bg-cf-accent-soft aria-selected:text-cf-accent">{labels[value]}</Tab>)}
       </TabList>
@@ -110,8 +104,8 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
     <div className="flex flex-wrap items-center justify-between gap-[8px] border-t border-cf-border pt-[12px]">
       <ButtonLink href={sectionHref[kind]} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink>
       <div className="flex gap-[8px]">
-        <Button type="button" variant="quiet" density="dense" disabled={serverPaged ? !previous.length : page === 0} onClick={() => { if (serverPaged) { setCursor(previous.at(-1) ?? null); setPrevious(previous.slice(0, -1)); } else setPage(page - 1); }}>{t('previous', 'Previous')}</Button>
-        <Button type="button" variant="quiet" density="dense" disabled={!nextPage} onClick={() => { if (serverPaged) { setPrevious([...previous, cursor]); setCursor(list.data?.cursor ?? null); } else setPage(page + 1); }}>{t('next', 'Next')}</Button>
+        <Button type="button" variant="quiet" density="dense" disabled={!previous.length} onClick={() => { setCursor(previous.at(-1) ?? null); setPrevious(previous.slice(0, -1)); }}>{t('previous', 'Previous')}</Button>
+        <Button type="button" variant="quiet" density="dense" disabled={!nextPage} onClick={() => { setPrevious([...previous, cursor]); setCursor(list.data?.cursor ?? null); }}>{t('next', 'Next')}</Button>
       </div>
     </div>
     </TabPanel>

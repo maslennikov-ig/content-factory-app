@@ -397,6 +397,7 @@ const passportRead = (
     avatarId: avatar,
     state: passport.state,
     hasVoice: voice !== null,
+    versionId: voice?.versionId ?? null,
     versionLabel: voice?.versionLabel.slice(0, 80) ?? null,
     fields: lines.map(([key, text]) => ({
       key,
@@ -782,10 +783,11 @@ export const avatarPassportField = defineCapability({
   group: 'avatar',
   label: { ru: 'Правка действующего голоса', en: 'Edit active avatar voice' },
   description:
-    'Save one complete updated field of the active passport for an explicit avatar, through the same service as the manual passport card. Read avatar.passport first; when adding a rule, keep the current field text and append the requested rule. Other fields and existing content are preserved by the native service. This creates and immediately activates a native version; identical text creates no version. The existing voice is already active: do not call avatar.manual.field or avatar.activate and do not ask again for activation consent or all six lines. Reversible through native version history. Never replace a field from a truncated excerpt.',
+    'Save one complete updated field of the active passport for an explicit avatar, through the same service as the manual passport card. Read avatar.passport first and pass its versionId as expectedVersionId; when adding a rule, keep the current field text and append the requested rule. A version conflict requires reading the current passport and preserving newer edits before proposing the requested change again. Other fields and existing content are preserved by the native service. This creates and immediately activates a native version; identical text creates no version. The existing voice is already active: do not call avatar.manual.field or avatar.activate and do not ask again for activation consent or all six lines. Reversible through native version history. Never replace a field from a truncated excerpt.',
   input: z.object({
     avatarId,
     field: fieldKey,
+    expectedVersionId: z.string().min(1).max(128).describe('versionId returned by the preceding active avatar.passport read'),
     text: manualLineText.describe('Complete updated field, retaining existing text except the requested changes; at most 600 characters'),
   }),
   risk: 'write',
@@ -797,6 +799,7 @@ export const avatarPassportField = defineCapability({
     await ctx.service(VoiceService).setPassportField(actorOf(ctx, input.avatarId), {
       key: input.field,
       text: input.text,
+      expectedVersionId: input.expectedVersionId,
     })
   ),
   summarize: (output) => ({ ...output }),

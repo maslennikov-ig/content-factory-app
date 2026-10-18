@@ -250,6 +250,8 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
     threadId: 'thread-1',
     paidLimit: 1,
     approvals: ['print-1'],
+    requestId: 'request-1',
+    trackExecution: true,
   });
   const entries = [...built.entries()];
 
@@ -268,7 +270,14 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
     expect(built.get('mastra__threadId')).toBe('thread-1');
     expect(built.get('cf.approvals')).toBe('print-1');
     expect(built.get('cf.paidCalls')).toBe(0);
+    expect(built.get('cf.executionId')).toBe('request-1');
     expect(context.conductorContextSchema.safeParse(Object.fromEntries(entries)).success).toBe(true);
+  });
+
+  test('legacy direct callers remain valid without a managed execution id', () => {
+    const legacy = context.buildConductorContext({ identity: IDENTITY, threadId: 'legacy-thread', paidLimit: 1 });
+    expect(legacy.get('cf.executionId')).toBeUndefined();
+    expect(context.conductorContextSchema.safeParse(Object.fromEntries(legacy.entries())).success).toBe(true);
   });
 
   test('a resource that is not the caller’s own fails the agent’s schema', () => {

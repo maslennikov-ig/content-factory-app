@@ -2264,6 +2264,9 @@ const createWorld = (overrides = {}) => {
         if (!avatar?.active || !avatar.passport) {
           throw voiceError('VOICE_PROFILE_NOT_FOUND', 'Голос ещё не включён.');
         }
+        if (body.expectedVersionId && body.expectedVersionId !== avatar.passport.versionId) {
+          throw voiceError('VOICE_VERSION_CONFLICT', 'Голос изменился после чтения.');
+        }
         requests.push(['voice.passport.field', avatar.id, { ...body }]);
         const property = {
           WHO_SPEAKS: 'whoSpeaks', TONE: 'tone', AUDIENCE: 'audience',
@@ -2279,6 +2282,7 @@ const createWorld = (overrides = {}) => {
             ...avatar.passport,
             [property]: body.key === 'NEVER_SAY' ? text.split(/\s*[;\n]\s*/u).filter(Boolean) : text,
             versionLabel: `v${++avatar.passportVersionNumber}`,
+            versionId: `ver-${avatar.passportVersionNumber}`,
           };
           writes.push(['avatar.passport.field', avatar.id, body.key]);
         }

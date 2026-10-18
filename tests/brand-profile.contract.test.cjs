@@ -426,6 +426,63 @@ test('activation publishes immutable content, moves the pointer and audits atomi
   );
 });
 
+test('a pinned active version refuses stale activation without publishing the losing draft or auditing it', async () => {
+  const { prisma, repository, service } = createHarness();
+  const first = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  await service.activateVersion('org-a', 'admin-a', first.id);
+  const manual = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  await service.activateVersion('org-a', 'admin-a', manual.id);
+  const stale = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  const before = clone(prisma.state);
+  await assert.rejects(repository.activateVersion('org-a', 'admin-a', stale.id, {
+    revision: stale.revision, contentDigest: stale.contentDigest, activeVersionId: first.id,
+  }), (error) => error.code === 'REVISION_CONFLICT');
+  assert.deepEqual(prisma.state, before);
+  assert.equal(prisma.state.profiles[0].activeVersionId, manual.id);
+});
+
+test('a passport draft pin refuses changed or deleted active profiles without reviving or writing a draft', async () => {
+  const { prisma, repository, service } = createHarness();
+  const active = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  await service.activateVersion('org-a', 'admin-a', active.id);
+  for (const deletedAt of [null, new Date('2026-01-01T00:00:00Z')]) {
+    prisma.state.profiles[0].activeVersionId = deletedAt ? active.id : 'newer-active';
+    prisma.state.profiles[0].deletedAt = deletedAt;
+    const before = clone(prisma.state);
+    await assert.rejects(repository.createDraft('org-a', 'admin-a', { content: validContent }, active.contentDigest, active.profileId, active.id), (error) => error.code === 'REVISION_CONFLICT');
+    assert.deepEqual(prisma.state, before);
+  }
+});
+
+test('a lost pointer compare rolls back publication even when the initial active-version read matched', async () => {
+  const { prisma, repository, service } = createHarness();
+  const first = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  await service.activateVersion('org-a', 'admin-a', first.id);
+  const next = await service.createDraft('org-a', 'admin-a', { content: validContent });
+  const before = clone(prisma.state);
+  const transact = prisma.transaction.model.$transaction;
+  let compared = false;
+  prisma.transaction.model.$transaction = (work, options) => transact(async (client) => {
+    const update = client.projectBrandProfile.updateMany;
+    client.projectBrandProfile.updateMany = async (args) => {
+      if (args.where.activeVersionId === first.id) {
+        compared = true;
+        assert.equal(args.where.organizationId, 'org-a');
+        assert.equal(args.where.id, before.profiles[0].id);
+        assert.equal(args.where.deletedAt, null);
+        return { count: 0 }; // A concurrent committed pointer no longer matches.
+      }
+      return update(args);
+    };
+    return work(client);
+  }, options);
+  await assert.rejects(repository.activateVersion('org-a', 'admin-a', next.id, {
+    revision: next.revision, contentDigest: next.contentDigest, activeVersionId: first.id,
+  }), (error) => error.code === 'REVISION_CONFLICT');
+  assert.equal(compared, true);
+  assert.deepEqual(prisma.state, before);
+});
+
 test('tampered persisted content is unavailable before activation and on every runtime resolution', async () => {
   const { prisma, service } = createHarness();
   const draft = await service.createDraft('org-a', 'admin-a', {

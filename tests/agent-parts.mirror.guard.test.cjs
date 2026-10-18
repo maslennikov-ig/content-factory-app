@@ -31,6 +31,7 @@ const MIRRORED = [
   'AGENT_ERROR_CODES',
   'AGENT_DOOR_ERROR_CODES',
   'AGENT_THREAD_HEADER',
+  'AGENT_NOT_STARTED_HEADER',
   'AGENT_TIMEZONE_HEADER',
   'AGENT_THREAD_TITLE_MAX',
   // What the composer sends is what the door takes (review W1 F2, F4, F1).

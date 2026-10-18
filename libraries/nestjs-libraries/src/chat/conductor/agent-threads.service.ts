@@ -16,7 +16,7 @@ import type {
 } from '../capabilities/agent-parts.contract';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
 import { questionCardId, questionCardView } from '../capabilities/question-card';
-import { claimUnavailable, notYours, type PendingRun } from './agent-chat.request';
+import { claimUnavailable, notPending, notYours, type PendingRun } from './agent-chat.request';
 import { AGENT_STREAM_VERSION } from '../capabilities/agent-parts.contract';
 import { conductorResourceId } from './conductor.context';
 import { threadTitleFromMessage } from './conductor.memory';
@@ -45,6 +45,12 @@ import {
   type AgentRunClaimStore,
   type AnsweredCall,
 } from './agent-run-claims';
+import {
+  AGENT_EXECUTION_METADATA_KEY,
+  AgentTurnLifecycle,
+  readAgentThreadExecution,
+  writeAgentThreadExecution,
+} from './agent-turn-lifecycle';
 
 /**
  * Personal threads (`content-factory-next-kcxz.8`, spec §1.6, §4.7; premortem
@@ -168,6 +174,58 @@ export class AgentThreadsService {
     } catch (error) {
       return refusedWhenUnavailable(error);
     }
+  }
+
+  /** One web turn per private thread, including work left running by Stop. */
+  async claimThreadTurn(identity: CapabilityIdentity, threadId: string) {
+    await this.ownThread(identity, threadId);
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    const release = await this.claimRun(`thread:${resourceId}:${threadId}`);
+    if (!release) throw notPending();
+    try {
+      const thread = await this.ownThread(identity, threadId);
+      const execution = await readAgentThreadExecution(this.claims, thread?.metadata).catch(refusedWhenUnavailable);
+      // An expired claim is no evidence that its service Promise settled.
+      if (execution && execution.state !== 'settled') throw notPending();
+      return release;
+    } catch (error) {
+      await release();
+      throw error;
+    }
+  }
+
+  /** The marker is a native partial metadata patch, never a working-memory replay. */
+  async startTurn(
+    identity: CapabilityIdentity,
+    threadId: string,
+    requestId: string,
+    releaseThread: () => Promise<void>
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    await writeAgentThreadExecution(this.claims, { requestId, state: 'running' }).catch(refusedWhenUnavailable);
+    await this.writeWorkspace(threadId, async () => {
+      await this.requireOwnThread(identity, threadId);
+      await (await this.memory()).updateThread({
+        id: threadId,
+        metadata: { [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'running' } },
+      });
+    });
+    return new AgentTurnLifecycle(requestId, async (outcome) => {
+      // Release before publishing the terminal receipt, after all real work
+      // settled. Otherwise an old expired lease could delete a new turn's
+      // claim after it observed our terminal receipt and acquired the key.
+      await releaseThread();
+      await this.writeWorkspace(threadId, async () => {
+        const thread = await this.requireOwnThread(identity, threadId);
+        const marker = thread.metadata?.[AGENT_EXECUTION_METADATA_KEY] as { requestId?: unknown } | undefined;
+        if (marker?.requestId !== requestId) return;
+        await (await this.memory()).updateThread({
+          id: threadId,
+          metadata: { [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'settled', outcome } },
+        });
+      });
+      await writeAgentThreadExecution(this.claims, { requestId, state: 'settled', outcome }).catch(refusedWhenUnavailable);
+    });
   }
 
   /**
@@ -453,6 +511,9 @@ export class AgentThreadsService {
   ): Promise<AgentThreadHistoryV1> {
     const thread = await this.requireOwnThread(identity, threadId);
     const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    // Read before the snapshot: a write unfinished when this GET began must
+    // remain unfinished in its response even if it completes during recall.
+    const execution = await readAgentThreadExecution(this.claims, thread.metadata).catch(refusedWhenUnavailable);
     const [{ messages }, runs] = await Promise.all([
       (await this.memory()).recall({
         threadId,
@@ -480,6 +541,7 @@ export class AgentThreadsService {
       pending: await pendingView(runs, (toolName, args) =>
         this.describeApproval(identity, toolName, args)
       ),
+      ...(execution ? { execution } : {}),
     };
   }
 

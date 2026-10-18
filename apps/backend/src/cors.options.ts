@@ -39,6 +39,9 @@ export function buildBackendCorsOptions(
       // frontend on another origin (the stand, a split self-host) must read it
       // or every message would open a new thread. `AGENT_THREAD_HEADER`.
       'x-agent-thread-id',
+      // Positive pre-start refusal proof; the chat must distinguish it from
+      // an uncertain interrupted write on a frontend of another origin too.
+      'x-agent-not-started',
       ...(env.NOT_SECURED ? ['auth', 'showorg', 'impersonate'] : []),
     ],
     origin: [

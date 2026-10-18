@@ -294,6 +294,51 @@ export class PieceRepository {
     });
   }
 
+  /** Metadata-only workspace search. Planned state is filtered before paging. */
+  async browsePlannedAdaptations(organizationId: string, query: { q?: string; cursor?: string; limit: number }) {
+    type Row = {
+      id: string; title: string | null; plan: string | null;
+      piece: { id: string; title: string | null };
+      post: { id: string; integrationId: string; state: string; publishDate: Date | null };
+    };
+    const client = this.client();
+    const visible: Row[] = [];
+    let after = query.cursor;
+    const batch = Math.min(50, query.limit + 1);
+    while (visible.length <= query.limit) {
+      const rows: Row[] = await client.contentDerivation.findMany({
+        where: {
+          organizationId,
+          ...(after ? { id: { gt: after } } : {}),
+          post: { is: { organizationId, state: { in: ['DRAFT', 'QUEUE'] }, deletedAt: null,
+            integration: { is: { organizationId, deletedAt: null } } } },
+          piece: { is: { organizationId } },
+          AND: [
+            { OR: [{ plan: { in: ['reserve', 'autopilot'] } }, { post: { is: { state: 'QUEUE' } } }] },
+            ...(query.q ? [{ OR: [{ piece: { is: { title: { contains: query.q, mode: 'insensitive' } } } }, { title: { contains: query.q, mode: 'insensitive' } }] }] : []),
+          ],
+        },
+        orderBy: { id: 'asc' }, take: batch,
+        select: { id: true, title: true, plan: true, piece: { select: { id: true, title: true } },
+          post: { select: { id: true, integrationId: true, state: true, publishDate: true } } },
+      });
+      const drafts = rows.filter((row) => row.post.state === 'DRAFT').map((row) => row.post.id);
+      const hidden = new Set(drafts.length ? await supersededDraftPostIds(client, organizationId, null, { id: { in: drafts } }) : []);
+      visible.push(...rows.filter((row) => !hidden.has(row.post.id)));
+      if (rows.length < batch || visible.length > query.limit) break;
+      after = rows.at(-1)!.id;
+    }
+    const items = visible.slice(0, query.limit).map((row) => ({
+      id: row.id, adaptationId: row.id, pieceId: row.piece.id,
+      channelId: row.post.integrationId, postId: row.post.id,
+      title: (row.piece.title?.trim() || row.title?.trim() || '').slice(0, 200),
+      slot: { status: row.post.state === 'QUEUE' ? 'queued' as const : 'reserved' as const,
+        date: row.post.publishDate?.toISOString() ?? null },
+    }));
+    const hasMore = visible.length > query.limit;
+    return { items, hasMore, cursor: hasMore ? items.at(-1)?.id ?? null : null };
+  }
+
   /**
    * Adaptations that can still enter or move in the calendar: drafts and
    * queued posts (`97dq.57` — the picker shows the booked date instead of

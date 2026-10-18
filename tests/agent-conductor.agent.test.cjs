@@ -178,7 +178,15 @@ describe('the /agent/chat pipeline with a scripted model', () => {
     const { door } = report;
     expect(door.snapshotCount).toBeGreaterThan(0);
     const ours = door.snapshotContextKeys.filter((key) => key !== 'MastraMemory');
-    expect(ours.sort()).toEqual([...conductor.CONDUCTOR_CONTEXT_KEYS].sort());
+    // This native pipeline probe bypasses the HTTP controller and its tracked
+    // execution scope. The managed request's complete whitelist is covered by
+    // agent-conductor.unit; this legacy path must not claim an execution id.
+    expect(ours).not.toContain(conductor.CONDUCTOR_EXECUTION_ID_KEY);
+    expect(ours.sort()).toEqual(
+      conductor.CONDUCTOR_CONTEXT_KEYS.filter(
+        (key) => key !== conductor.CONDUCTOR_EXECUTION_ID_KEY
+      ).sort()
+    );
     expect(door.snapshotContextValueTypes).toEqual(
       expect.arrayContaining(['string'])
     );

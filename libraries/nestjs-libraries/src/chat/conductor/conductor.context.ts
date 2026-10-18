@@ -56,10 +56,13 @@ export const conductorResourceId = (organizationId: string, userId: string) =>
  * requests of one thread never see or release each other's.
  */
 export const CONDUCTOR_REQUEST_ID_KEY = 'cf.requestId';
+/** This web request tracks its real capability Promises through Stop. */
+export const CONDUCTOR_EXECUTION_ID_KEY = 'cf.executionId';
 
 export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   ...Object.values(CAPABILITY_CONTEXT_KEYS),
   CONDUCTOR_REQUEST_ID_KEY,
+  CONDUCTOR_EXECUTION_ID_KEY,
   AGENT_WORK_CONTEXT_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
@@ -104,6 +107,7 @@ export type ConductorTurn = {
   openProposals?: readonly string[];
   /** `CONDUCTOR_REQUEST_ID_KEY`: made by the door, one per request; a fresh one when absent. */
   requestId?: string;
+  trackExecution?: boolean;
   workContext?: ResolvedAgentWorkContext | null;
 };
 
@@ -132,7 +136,9 @@ export const buildConductorContext = (turn: ConductorTurn) => {
   // Questions put to the person in this request, none yet (kcxz.31, D1).
   context.set(CAPABILITY_CONTEXT_KEYS.questionsOpened, '[]');
   setOpenProposals(context, turn.openProposals ?? []);
-  context.set(CONDUCTOR_REQUEST_ID_KEY, turn.requestId ?? randomUUID());
+  const requestId = turn.requestId ?? randomUUID();
+  context.set(CONDUCTOR_REQUEST_ID_KEY, requestId);
+  if (turn.trackExecution) context.set(CONDUCTOR_EXECUTION_ID_KEY, requestId);
   context.set(AGENT_WORK_CONTEXT_KEY, turn.workContext ? JSON.stringify(turn.workContext) : '');
   for (const fingerprint of turn.approvals ?? []) {
     grantApproval(context, fingerprint);

@@ -117,7 +117,7 @@ const providerConfig = () =>
  * Loads one file of the capability module. Every call shares nothing with the
  * last, except `aiConfig` when the suite passes one in.
  */
-const loadCapabilityModule = (file, { aiConfig = providerConfig() } = {}) =>
+const loadCapabilityModule = (file, { aiConfig = providerConfig(), mocks = {} } = {}) =>
   loadTypeScriptModule(
     `${CAPABILITIES}/${file}`,
     {
@@ -126,6 +126,7 @@ const loadCapabilityModule = (file, { aiConfig = providerConfig() } = {}) =>
         pricing: {},
       },
       '@contentfactory/nestjs-libraries/openai/ai.provider.config': aiConfig,
+      ...mocks,
     },
     {
       sources: {
@@ -945,7 +946,7 @@ const avatarFixtures = () => {
     'avatar.list': { input: {}, services: voice() },
     'avatar.overview': { input: { avatarId: AVATAR_A }, services: voice() },
     'avatar.passport': { input: { avatarId: AVATAR_A }, services: voice() },
-    'avatar.passport.field': { input: { avatarId: AVATAR_A, field: 'TONE', text: 'Спокойно' }, services: voice() },
+    'avatar.passport.field': { input: { avatarId: AVATAR_A, field: 'TONE', expectedVersionId: 'ver-1', text: 'Спокойно' }, services: voice() },
     'avatar.proposal': { input: { avatarId: AVATAR_A }, services: voice() },
     'avatar.manual': { input: {}, services: voice() },
     'avatar.samples': { input: { avatarId: AVATAR_A }, services: voice() },

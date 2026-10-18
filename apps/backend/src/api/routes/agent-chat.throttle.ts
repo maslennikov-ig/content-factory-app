@@ -8,6 +8,7 @@ import {
   resolveBackendLocale,
   translateBackendText,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
+import { AGENT_NOT_STARTED_HEADER } from '@contentfactory/nestjs-libraries/chat/capabilities/agent-parts.contract';
 
 /**
  * A ceiling on `POST /agent/chat` per person (`content-factory-next-kcxz.8`,
@@ -55,6 +56,8 @@ export class AgentChatThrottleGuard extends ThrottlerGuard {
     _detail: ThrottlerLimitDetail
   ): Promise<void> {
     const request = context.switchToHttp().getRequest();
+    // A guard refusal never entered the controller or started native work.
+    context.switchToHttp().getResponse().header(AGENT_NOT_STARTED_HEADER, '1');
     this.logger.warn(
       `Agent chat throttle exhausted in organization ${request?.org?.id ?? 'unknown'}`
     );

@@ -566,6 +566,8 @@ export const AGENT_TIMEZONE_HEADER = 'x-agent-timezone' as const;
 
 /** Response header of `POST /agent/chat` naming the thread it wrote to. */
 export const AGENT_THREAD_HEADER = 'x-agent-thread-id' as const;
+/** A refused chat request never reached its native run (`1`); no absence-based inference. */
+export const AGENT_NOT_STARTED_HEADER = 'x-agent-not-started' as const;
 
 export type AgentThreadV1 = {
   id: string;
@@ -606,12 +608,21 @@ export type AgentPendingRunV1 = {
  * `GET /agent/threads/:id` — the thread, its messages as AI SDK UI v7
  * messages (the `useChat` initial messages), and what still waits.
  */
+export type AgentThreadExecutionV1 = {
+  requestId: string | null;
+  state: 'running' | 'settled' | 'unknown';
+  /** Settled means no started work remains; it does not imply a successful write. */
+  outcome?: 'completed' | 'failed' | 'interrupted';
+};
+
 export type AgentThreadHistoryV1 = {
   thread: AgentThreadV1;
   messages: unknown[];
   pending: AgentPendingRunV1[];
   /** Absent in histories produced before assistant-workspace/v1. */
   workspace?: AgentWorkspaceV1;
+  /** Absent for threads that have never started a tracked request. */
+  execution?: AgentThreadExecutionV1;
 };
 
 /** `PATCH /agent/threads/:id`. */

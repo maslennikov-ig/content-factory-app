@@ -251,13 +251,16 @@ describe('private workspace metadata and pre-admission boundary', () => {
     expect(env.stored.get('thread-1').metadata.assistantWorkspace).toMatchObject({ workContext: { id: 'piece-1' }, artifacts: [ownRef], activeArtifact: ownRef });
   });
 
-  test('new message creates its context atomically with the thread, without a second metadata write', async () => {
+  test('new message creates its context atomically with the thread, without a second workspace write', async () => {
     const env = setupPersistence();
     const body = { ...messageBody(target('piece', { id: 'piece-1' })), threadId: undefined };
     await env.controller.chat(ORG, USER, body, new Response());
     expect(env.memory.createThread).toHaveBeenCalledTimes(1);
     expect(env.memory.createThread.mock.calls[0][0].metadata.assistantWorkspace).toMatchObject({ workContext: { id: 'piece-1' }, artifacts: [ownRef], activeArtifact: ownRef });
-    expect(env.memory.updateThread).not.toHaveBeenCalled();
+    for (const [patch] of env.memory.updateThread.mock.calls) {
+      expect(patch.metadata).not.toHaveProperty('assistantWorkspace');
+      expect(patch.metadata).not.toHaveProperty('workingMemory');
+    }
   });
 
   test('selected content reaches instructions as untrusted data and reports truncation', async () => {

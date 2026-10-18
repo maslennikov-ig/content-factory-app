@@ -114,11 +114,12 @@ describe('backend CORS', () => {
   test('lets a frontend on another origin read the agent chat thread header', () => {
     // `POST /agent/chat` names the thread a first message opened; hidden, every
     // message would open a new thread (correctness review W1 F10).
-    const { AGENT_THREAD_HEADER } = loadTypeScriptModule(
+    const { AGENT_THREAD_HEADER, AGENT_NOT_STARTED_HEADER } = loadTypeScriptModule(
       'libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts'
     );
     for (const env of [{ FRONTEND_URL: 'http://localhost:4200' }, { FRONTEND_URL: 'https://x.example', NOT_SECURED: 'true' }]) {
       expect(buildBackendCorsOptions(env).exposedHeaders).toContain(AGENT_THREAD_HEADER);
+      expect(buildBackendCorsOptions(env).exposedHeaders).toContain(AGENT_NOT_STARTED_HEADER);
     }
   });
 

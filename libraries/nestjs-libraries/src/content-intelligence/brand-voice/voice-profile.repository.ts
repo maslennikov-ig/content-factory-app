@@ -196,20 +196,22 @@ export class VoiceProfileRepository {
     return changed.count;
   }
 
-  createDraft(
+  async createDraft(
     organizationId: string,
     actorUserId: string,
     content: BrandProfileContentV1,
     label?: string,
-    avatarId?: string
+    avatarId?: string,
+    expectedActiveVersionId?: string
   ) {
-    return this._profiles.createDraft(
-      organizationId,
-      actorUserId,
-      { label, content },
-      digestBrandProfileContent(content),
-      avatarId
-    );
+    try {
+      return await this._profiles.createDraft(
+        organizationId, actorUserId, { label, content },
+        digestBrandProfileContent(content), avatarId, expectedActiveVersionId
+      );
+    } catch (error) {
+      throw this.named(expectedActiveVersionId ?? avatarId ?? '', error);
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -594,7 +596,8 @@ export class VoiceProfileRepository {
   async activate(
     organizationId: string,
     actorUserId: string,
-    versionId: string
+    versionId: string,
+    expectedActiveVersionId?: string
   ) {
     const version = await this._profiles.getVersion(organizationId, versionId);
     if (!version) {
@@ -610,7 +613,7 @@ export class VoiceProfileRepository {
         organizationId,
         actorUserId,
         versionId,
-        { revision: version.revision, contentDigest: version.contentDigest }
+        { revision: version.revision, contentDigest: version.contentDigest, ...(expectedActiveVersionId !== undefined ? { activeVersionId: expectedActiveVersionId } : {}) }
       );
     } catch (error) {
       throw this.named(versionId, error);

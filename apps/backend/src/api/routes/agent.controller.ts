@@ -33,10 +33,12 @@ import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/ba
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import { AgentThreadsService } from '@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service';
+import type { AgentTurnLifecycle } from '@contentfactory/nestjs-libraries/chat/conductor/agent-turn-lifecycle';
 import {
   AGENT_ERROR_CODES,
   AGENT_STREAM_VERSION,
   AGENT_THREAD_HEADER,
+  AGENT_NOT_STARTED_HEADER,
   AGENT_TIMEZONE_HEADER,
   PROGRESS_PART_TYPE,
 } from '@contentfactory/nestjs-libraries/chat/capabilities/agent-parts.contract';
@@ -198,15 +200,18 @@ export class AgentController {
     const abort = new AbortController();
     let finished = false;
     let reader: ReadableStreamDefaultReader<any> | undefined;
+    let turn: AgentTurnLifecycle | undefined;
     // `res` closes when the person leaves (and after the end, when `finished`
     // is already set); `req` closes as soon as the body was read.
     const onClose = () => {
       if (finished) return;
+      turn?.stop();
       abort.abort();
       void reader?.cancel().catch(() => undefined);
     };
     res.on?.('close', onClose);
     let release: (() => Promise<void>) | null = null;
+    let releaseThread: (() => Promise<void>) | undefined;
 
     try {
       const identity = agentIdentity(organization, user, timeZone);
@@ -321,6 +326,7 @@ export class AgentController {
       // This request's own id: the pictures it carries are held under it,
       // never under the thread (review W4-25 vision F3).
       const requestId = randomUUID();
+      releaseThread = await this.threads.claimThreadTurn(identity, threadId);
       // Resolve tenant, role, deletion and revision before an admission or any
       // model call. An answered card cannot inject a different work target.
       const workContext = await this.threads.workContextForTurn(identity, threadId, input.mode === 'message' ? input.workContext : undefined);
@@ -331,6 +337,7 @@ export class AgentController {
         approvals: fingerprints,
         openProposals,
         requestId,
+        trackExecution: true,
         workContext,
       });
       const mastra = await this.mastraService.mastra();
@@ -374,7 +381,9 @@ export class AgentController {
       // A provider refusal of the step that carried them is about the picture.
       const errorScope = { picturesInStep: pictures.lastStepShown };
       try {
-        await admission.run(async () => {
+        turn = await this.threads.startTurn(identity, threadId, requestId, releaseThread);
+        if (abort.signal.aborted) return;
+        await turn.run(() => admission.run(async () => {
           let stream: ReadableStream<any>;
           try {
             stream = (await handleChatStream({
@@ -469,7 +478,7 @@ export class AgentController {
             );
           }
           if (!abort.signal.aborted) await flushHeld();
-        });
+        }));
       } catch (error) {
         failed = true;
         if (!res.headersSent) throw error;
@@ -479,6 +488,17 @@ export class AgentController {
         res.write(`data: ${JSON.stringify({ type: 'error', errorText: code })}\n\n`);
       } finally {
         finished = true;
+        // UI cancellation can finish before a non-cancellable service write.
+        // Hold both claims and the unknown-result guard until those actual
+        // capability Promises settle, including failures.
+        try {
+          await turn?.finish(failed ? 'failed' : abort.signal.aborted ? 'interrupted' : 'completed');
+        } catch {
+          // No terminal receipt: history stays running/unknown and refuses
+          // a retry. A failed store write must never fabricate success.
+          failed = true;
+          this.logger.warn('Agent turn outcome could not be recorded.');
+        }
         pictures.release();
         // A turn with an `error` part, or one the person left, is not a
         // success (premortem U2, U3); its tokens are recorded either way.
@@ -488,10 +508,17 @@ export class AgentController {
           res.end();
         }
       }
+    } catch (error) {
+      // A local refusal before the native run is positive proof that this
+      // request started no model/tool work. Proxy/network errors cannot add
+      // it, and a failed or interrupted started turn must use its receipt.
+      if (!res.headersSent && !turn) res.setHeader(AGENT_NOT_STARTED_HEADER, '1');
+      throw error;
     } finally {
       finished = true;
       res.off?.('close', onClose);
       await release?.();
+      await releaseThread?.();
     }
   }
 

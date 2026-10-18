@@ -3,6 +3,7 @@ import { screenTimeZone } from '@contentfactory/frontend/components/layout/set.t
 import {
   AGENT_DOORS,
   AGENT_THREAD_HEADER,
+  AGENT_NOT_STARTED_HEADER,
   AGENT_TIMEZONE_HEADER,
   buildChatBody,
   continuedCallChunk,
@@ -25,6 +26,18 @@ import {
  */
 
 type ProductFetch = (url: string, init: RequestInit) => Promise<Response>;
+
+/** Constructed only from the server's explicit pre-start refusal header. */
+export class AgentRequestNotStartedError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'AgentRequestNotStartedError';
+  }
+}
+
+export const isAgentRequestNotStarted = (
+  error: unknown
+): error is AgentRequestNotStartedError => error instanceof AgentRequestNotStartedError;
 
 /**
  * The zone the screens read and write times in (`screenTimeZone`, now beside
@@ -79,6 +92,9 @@ export const createAgentTransport = ({
     api: AGENT_DOORS.chat,
     fetch: async (input, init) => {
       const response = await request(String(input), init ?? {});
+      if (!response.ok && response.headers.get(AGENT_NOT_STARTED_HEADER) === '1') {
+        throw new AgentRequestNotStartedError(await response.text(), response.status);
+      }
       const named = response.headers.get(AGENT_THREAD_HEADER);
       if (named && named !== currentThread()) onThread(named);
       return response;

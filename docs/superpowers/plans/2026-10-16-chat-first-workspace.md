@@ -1,6 +1,6 @@
 # Chat-first workspace implementation plan
 
-**State:** owner-authorized implementation and delivery; deployed releases and delegated17October complete-flow acceptance are recorded in the implementation stage. The final corrective release remains in progress; historical steps below are the stable execution plan. Linear is canonical, Beads is the execution interface.
+**State:** implementation, authorized delivery and owner-delegated full-flow QA complete17October2026; final private2e/public5efa evidence and A1–A10 acceptance are in the implementation stage. Historical steps below remain the stable execution plan. Linear is canonical, Beads is the execution interface.
 **Epic:** `content-factory-next-jvrq`; T1–T8 correspond to `content-factory-next-jvrq.1`–`.8` in order.
 **Goal:** make the existing AI assistant the primary way to create and refine content while manual sections use the same actions, editors, saved objects and visual language.
 **Spec:** [chat-first workspace](../../product/chat-first-workspace-spec.md). Read it before executing a package.

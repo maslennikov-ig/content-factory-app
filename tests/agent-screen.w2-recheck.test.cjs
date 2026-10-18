@@ -39,6 +39,9 @@ const contract = loadTypeScriptModule('apps/frontend/src/components/agents/agent
 const cards = loadTypeScriptModule('apps/frontend/src/components/agents/agent.cards.tsx');
 const copy = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
 const ru = copy.agentCopy.ru;
+// The transport proof boundary is stubbed in this component stand; its real
+// server-header → typed Error path is exercised by agent-transport.test.cjs.
+class ProvenNotStarted extends Error {}
 
 afterEach(cleanup);
 
@@ -59,15 +62,16 @@ describe('assistant context and interrupted response recovery', () => {
     expect(transport.currentContext()).toEqual(next);
   });
 
-  test('stop preserves uncertainty until successful history read and never repeats a write', async () => {
+  test('stop preserves uncertainty through successful intermediate history reads until the work settles', async () => {
     let available = false;
+    let execution;
     const reads = [];
     const saved = { id: 'saved', role: 'assistant', parts: [{ type: 'text', text: 'Saved action result' }] };
     const { chat, view, redraw } = await drawConversation({
       messages: [person, laterReply], pending: [],
       request: async (url, init) => {
         reads.push({ url, method: init?.method ?? 'GET' });
-        return { ok: available, json: async () => ({ thread: { id: 't1' }, messages: [person, saved], pending: [] }) };
+        return { ok: available, json: async () => ({ thread: { id: 't1' }, messages: [person, saved], pending: [], ...(execution ? { execution } : {}) }) };
       },
     });
     chat.status = 'streaming';
@@ -79,6 +83,18 @@ describe('assistant context and interrupted response recovery', () => {
     await act(async () => fireEvent.click(view.getByText('Check saved result')));
     expect(document.querySelector('fieldset').disabled).toBe(true);
     available = true;
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    // A legacy history, a still-running write and a lost outcome are all
+    // successful reads; none proves that a stopped service stopped writing.
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    for (const state of ['running', 'unknown']) {
+      execution = { requestId: 'request-1', state };
+      await act(async () => fireEvent.click(view.getByText('Check saved result')));
+      expect(document.querySelector('fieldset').disabled).toBe(true);
+    }
+    await act(async () => chat.submit({ text: 'Repeat the write', files: [] }));
+    expect(chat.sent).toEqual([]);
+    execution = { requestId: 'request-1', state: 'settled', outcome: 'interrupted' };
     await act(async () => fireEvent.click(view.getByText('Check saved result')));
     expect(document.querySelector('fieldset').disabled).toBe(false);
     expect(chat.messages).toEqual([person, saved]);
@@ -95,6 +111,48 @@ describe('assistant context and interrupted response recovery', () => {
     expect(view.getByText('Check saved result')).not.toBeNull();
     expect(chat.regenerated ?? 0).toBe(0);
     expect(chat.sent).toEqual([]);
+  });
+  test('a proven pre-start contextual refusal refreshes a first legacy history without trapping the composer', async () => {
+    const old = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'old' };
+    const current = { ...old, revision: 'current' };
+    const onWorkContext = jest.fn();
+    const { chat, view, redraw } = await drawConversation({
+      messages: [person], pending: [], extra: { workContext: old, onWorkContext },
+      request: async () => ({ ok: true, json: async () => ({
+        thread: { id: 't1' }, messages: [person], pending: [],
+        workspace: { version: 'assistant-workspace/v1', workContext: current, artifacts: [], activeArtifact: null },
+      }) }),
+    });
+    chat.status = 'error';
+    chat.error = new ProvenNotStarted(JSON.stringify({ code: 'AGENT_BAD_REQUEST' }));
+    await act(async () => {
+      chat.options.onError?.(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: false });
+    });
+    await redraw();
+    expect(document.querySelector('fieldset').disabled).toBe(false);
+    expect(view.queryByText('Check saved result')).toBeNull();
+    expect(onWorkContext).toHaveBeenLastCalledWith(current);
+    expect(chat.sent).toEqual([]);
+    expect(chat.regenerated ?? 0).toBe(0);
+  });
+  test('a headerless contextual error stays uncertain after a successful legacy history GET', async () => {
+    const context = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1', revision: 'old' };
+    const { chat, view, redraw } = await drawConversation({
+      messages: [person], pending: [], extra: { workContext: context },
+      request: async () => ({ ok: true, json: async () => ({ thread: { id: 't1' }, messages: [person], pending: [] }) }),
+    });
+    chat.status = 'error';
+    chat.error = new Error(JSON.stringify({ code: 'AGENT_BAD_REQUEST' }));
+    await act(async () => {
+      chat.options.onError?.(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: false });
+    });
+    await redraw();
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    expect(document.querySelector('fieldset').disabled).toBe(true);
+    expect(chat.sent).toEqual([]);
+    expect(chat.regenerated ?? 0).toBe(0);
   });
   test('stop before receiving a thread identifier offers explicit new-conversation recovery with uncertainty intact', async () => {
     const onNewConversation = jest.fn();
@@ -255,6 +313,7 @@ const loadConversation = (chat, request) =>
     '@contentfactory/frontend/components/ui/allowance-hint': { ALLOWANCE_API: '/allowance' },
     './agent.threads': { THREADS_KEY: '/agent/threads' },
     './agent.transport': {
+      isAgentRequestNotStarted: (error) => error instanceof ProvenNotStarted,
       createAgentTransport: (options) => { chat.transport = options; return {}; },
       screenTimeZone: () => 'Europe/Moscow',
     },
@@ -343,10 +402,15 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     expect(chat.sent).toHaveLength(1);
   });
 
-  test('a request that failed on the way: the card asks again, and «Попробовать снова» does not re-run the turn', async () => {
-    const { chat, redraw } = await drawConversation({
+  test('a request that failed on the way waits for terminal reconciliation before its approval can be retried', async () => {
+    let settled = false;
+    const { chat, view, redraw } = await drawConversation({
       messages: [approvalCard(), person, laterReply],
       pending: PENDING_APPROVAL,
+      request: async () => ({ ok: true, json: async () => ({
+        thread: { id: 't1' }, messages: [approvalCard(), person, laterReply], pending: PENDING_APPROVAL,
+        execution: { requestId: 'approval-request', state: settled ? 'settled' : 'running', ...(settled ? { outcome: 'failed' } : {}) },
+      }) }),
     });
     await act(async () => {
       fireEvent.click(button(ru.approval.yes));
@@ -356,11 +420,21 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     await redraw();
     await redraw();
     expect(approvalOnScreen().getAttribute('data-agent-approval')).toBeNull();
-    expect(button(ru.approval.yes).disabled).toBe(false);
+    expect(button(ru.approval.yes).disabled).toBe(true);
     expect(chat.messages[0].parts[1].state).toBe('approval-requested');
     const error = document.querySelector('[data-agent-card="error"]');
     expect(error).not.toBeNull();
     expect(within(error).queryByRole('button')).toBeNull();
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    expect(button(ru.approval.yes).disabled).toBe(true);
+    expect(chat.sent).toHaveLength(1);
+    settled = true;
+    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await redraw();
+    expect(button(ru.approval.yes).disabled).toBe(false);
+    expect(chat.sent).toHaveLength(1);
+    await act(async () => fireEvent.click(button(ru.approval.yes)));
+    expect(chat.sent).toHaveLength(2);
   });
 });
 

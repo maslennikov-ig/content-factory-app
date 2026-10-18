@@ -108,6 +108,20 @@ describe('active avatar passport has the same native read and edit path in chat'
     }
   });
 
+  test('a chat edit based on v1 cannot replace a manual v2 saved after the chat read', async () => {
+    const h = harness();
+    const read = await h.call('avatar.passport', { avatarId: AVATAR });
+    expect(read.output.summary.untrustedData.value.versionLabel).toBe('v1');
+    await h.service.setPassportField(h.actor, { key: 'TONE', text: 'Свежая ручная правка' });
+    const result = await h.call('avatar.passport.field', {
+      avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-1',
+      text: 'Исходный тон. Дополнение из чата.',
+    });
+    expect(result.output).toMatchObject({ ok: false, code: 'VOICE_VERSION_CONFLICT' });
+    expect(toneOf(h.active().content)).toBe('Свежая ручная правка');
+    expect(h.versions).toHaveLength(2);
+  });
+
   test('manual v2 is read and extended into native v3 without losing the manual edit or other content', async () => {
     const h = harness();
     const manualTone = 'Ручная правка: спокойно, точно, без пафоса.';
@@ -122,7 +136,7 @@ describe('active avatar passport has the same native read and edit path in chat'
     expect(current.fields).toHaveLength(6);
 
     const extended = `${manualTone} Всегда отделять факт от предположения.`;
-    const edited = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', text: extended });
+    const edited = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', expectedVersionId: h.active().id, text: extended });
     expect(edited.output.ok).toBe(true);
     expect(edited.suspended).toEqual([]);
     expect(edited.output.summary.untrustedData.value).toMatchObject({ avatarId: AVATAR, versionLabel: 'v3' });
@@ -136,7 +150,7 @@ describe('active avatar passport has the same native read and edit path in chat'
     expect(h.service.manualProposal).not.toHaveBeenCalled();
     expect(h.service.proposal).not.toHaveBeenCalled();
 
-    await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', text: extended });
+    await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', expectedVersionId: h.active().id, text: extended });
     expect(h.versions).toHaveLength(3);
   });
 
@@ -144,7 +158,7 @@ describe('active avatar passport has the same native read and edit path in chat'
     const h = harness();
     const identity = { ...IDENTITY, role: 'USER' };
     expect((await h.call('avatar.passport', { avatarId: AVATAR }, identity)).output.ok).toBe(true);
-    const refused = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', text: 'Новый тон' }, identity);
+    const refused = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-1', text: 'Новый тон' }, identity);
     expect(refused.output).toMatchObject({ ok: false, code: 'PERMISSION_DENIED' });
     expect(h.profiles.createDraft).not.toHaveBeenCalled();
   });
@@ -152,10 +166,10 @@ describe('active avatar passport has the same native read and edit path in chat'
   test.each(['avatar.passport', 'avatar.passport.field'])('%s preserves foreign-avatar and invalid-id native refusals', async (id) => {
     const h = harness();
     for (const avatarId of [FOREIGN, 'undefined']) {
-      const result = await h.call(id, { avatarId, field: 'TONE', text: 'Новый тон' });
+      const result = await h.call(id, { avatarId, field: 'TONE', expectedVersionId: 'ver-1', text: 'Новый тон' });
       expect(result.output).toMatchObject({ ok: false, code: 'VOICE_AVATAR_NOT_FOUND' });
     }
-    const result = await h.call(id, { avatarId: AVATAR, field: 'TONE', text: 'Новый тон' }, { ...IDENTITY, organizationId: 'org-other' });
+    const result = await h.call(id, { avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-1', text: 'Новый тон' }, { ...IDENTITY, organizationId: 'org-other' });
     expect(result.output).toMatchObject({ ok: false, code: 'VOICE_AVATAR_NOT_FOUND' });
     expect(h.profiles.createDraft).not.toHaveBeenCalled();
   });
@@ -165,7 +179,7 @@ describe('active avatar passport has the same native read and edit path in chat'
     h.clearVoice();
     const read = await h.call('avatar.passport', { avatarId: AVATAR });
     expect(read.output.summary.untrustedData.value).toMatchObject({ hasVoice: false, fields: [], versionLabel: null });
-    const edited = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', text: 'Новый тон' });
+    const edited = await h.call('avatar.passport.field', { avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-1', text: 'Новый тон' });
     expect(edited.output).toMatchObject({ ok: false, code: 'VOICE_PROFILE_NOT_FOUND' });
     expect(h.profiles.createDraft).not.toHaveBeenCalled();
   });
@@ -174,9 +188,10 @@ describe('active avatar passport has the same native read and edit path in chat'
     const capability = find('avatar.passport.field');
     expect(capability).toBeDefined();
     for (const input of [{ field: 'UNKNOWN', text: 'Тон' }, { field: 'TONE', text: '  ' }, { field: 'TONE', text: 'я'.repeat(601) }]) {
-      expect(capability.input.safeParse({ avatarId: AVATAR, ...input }).success).toBe(false);
+      expect(capability.input.safeParse({ avatarId: AVATAR, expectedVersionId: 'ver-1', ...input }).success).toBe(false);
     }
-    expect(capability.input.safeParse({ avatarId: AVATAR, field: 'TONE', text: 'я'.repeat(600) }).success).toBe(true);
+    expect(capability.input.safeParse({ avatarId: AVATAR, field: 'TONE', expectedVersionId: 'ver-1', text: 'я'.repeat(600) }).success).toBe(true);
+    expect(capability.input.safeParse({ avatarId: AVATAR, field: 'TONE', text: 'Тон без прочитанной версии' }).success).toBe(false);
   });
 
   test('passport text is bounded untrusted data; examples and arbitrary native properties never reach the model', async () => {

@@ -259,6 +259,12 @@ export class VoiceProposalManualFieldDto {
  * one. The bounds match the manual path because the field is the same field.
  */
 export class VoicePassportFieldDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  expectedVersionId?: string;
+
   /*
     Два тела у одной двери (`content-factory-next-97dq.38`): строка паспорта
     `{ key, text }` или обращение `{ addressForm }`. Пока `addressForm` не

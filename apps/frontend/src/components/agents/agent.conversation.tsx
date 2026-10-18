@@ -85,7 +85,7 @@ import { AgentMarkdown } from './agent.markdown';
 import { AgentComposer, type ComposerSubmit, type SamplesTarget } from './agent.composer';
 import { ALLOWANCE_API } from '@contentfactory/frontend/components/ui/allowance-hint';
 import { THREADS_KEY } from './agent.threads';
-import { createAgentTransport, screenTimeZone } from './agent.transport';
+import { createAgentTransport, isAgentRequestNotStarted, screenTimeZone } from './agent.transport';
 import { PIECES_API } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
 import { LEADS_API } from '@contentfactory/frontend/components/content-intelligence/content-leads.adapter';
 import { FACTS_API } from '@contentfactory/frontend/components/content-intelligence/content-facts.adapter';
@@ -267,7 +267,7 @@ export function AgentConversation({
         if (withMessages && history.messages.length) {
           replaceMessages.current?.(history.messages);
         }
-        return true;
+        return history;
       } catch {
         // Not read: the last message's cards keep the stream's word.
         return false;
@@ -283,6 +283,12 @@ export function AgentConversation({
   /** Stage words per tool, from the transient `data-progress` parts. */
   const [stages, setStages] = useState<Record<string, string[]>>({});
   const [interrupted, setInterrupted] = useState(false);
+  const interruptedNow = useRef(false);
+  const refusedBeforeStart = useRef(false);
+  const interrupt = useCallback(() => {
+    interruptedNow.current = true;
+    setInterrupted(true);
+  }, []);
   const [checking, setChecking] = useState(false);
 
   const {
@@ -313,8 +319,18 @@ export function AgentConversation({
           : { ...current, [tool]: [...seen, word] };
       });
     },
+    onError: (failure) => {
+      refusedBeforeStart.current = isAgentRequestNotStarted(failure);
+      if (refusedBeforeStart.current) {
+        interruptedNow.current = false;
+        setInterrupted(false);
+        setQueued(null);
+      }
+    },
     onFinish: ({ isAbort, isError, isDisconnect }) => {
-      if (isAbort || isError || isDisconnect) setInterrupted(true);
+      const notStarted = isError && refusedBeforeStart.current;
+      refusedBeforeStart.current = false;
+      if (isAbort || isDisconnect || isError && !notStarted) { interrupt(); setQueued(null); }
       setStages({});
       void refreshPending();
       void mutate(THREADS_KEY);
@@ -335,14 +351,16 @@ export function AgentConversation({
 
   const [queued, setQueued] = useState<{ message: ComposerSubmit; context: AgentWorkContextV1 | null | undefined } | null>(null);
   const stopAndReconcile = useCallback(() => {
-    setInterrupted(true);
+    interrupt();
     setQueued(null);
     void stop();
-  }, [stop]);
+  }, [interrupt, stop]);
   const reconcile = useCallback(async () => {
     setChecking(true);
     try {
-      if (await refreshPending(true)) {
+      const history = await refreshPending(true);
+      if (history && history.execution?.state === 'settled') {
+        interruptedNow.current = false;
         setInterrupted(false);
         clearError();
         void revalidateUnder(PIECES_API.list);
@@ -350,8 +368,8 @@ export function AgentConversation({
     } finally { setChecking(false); }
   }, [refreshPending, clearError, revalidateUnder]);
   useEffect(() => {
-    if (error && (isNetworkFailure(error) || currentContext.current?.revision && errorCodeOf(error.message) === 'AGENT_BAD_REQUEST')) { setInterrupted(true); setQueued(null); }
-  }, [error]);
+    if (error && !isAgentRequestNotStarted(error) && (isNetworkFailure(error) || currentContext.current?.revision && errorCodeOf(error.message) === 'AGENT_BAD_REQUEST')) { interrupt(); setQueued(null); }
+  }, [error, interrupt]);
 
   /** The last failed request was an approval answer (its card asks again). */
   const approvalFailed = useRef(false);
@@ -360,6 +378,7 @@ export function AgentConversation({
 
   const send = useCallback(
     (message: ComposerSubmit, context?: AgentWorkContextV1 | null) => {
+      if (interruptedNow.current) return;
       const options = context !== undefined ? { body: { workContext: context } } : undefined;
       clearError();
       approvalFailed.current = false;
@@ -444,6 +463,7 @@ export function AgentConversation({
       /** Whether a card still waits, as the conversation draws it. */
       waits: (id: string) => boolean
     ) => {
+      if (interruptedNow.current) return;
       clearError();
       approvalFailed.current = false;
       // The server's list is the truth: a card it no longer holds sends
@@ -461,6 +481,7 @@ export function AgentConversation({
         (id) => !answered.has(id) && waits(id)
       );
       if (remaining.length) return;
+      if (interruptedNow.current) return;
       approvalSent.current = true;
       void sendMessage();
     },
@@ -508,6 +529,7 @@ export function AgentConversation({
       cardId: string | null,
       resumeData: Record<string, unknown>
     ) => {
+      if (interruptedNow.current) return;
       clearError();
       approvalFailed.current = false;
       if (cardId) setAnsweredCards((seen) => new Set(seen).add(cardId));
@@ -815,7 +837,7 @@ export function AgentConversation({
             irreversible={block.irreversible}
             toolName={block.toolName}
             state={state}
-            busy={busy}
+            busy={busy || interrupted}
             sending={sending ?? null}
             onAnswer={(approved) =>
               void answerApproval(message, block.approvalId, approved, waits)
@@ -876,7 +898,7 @@ export function AgentConversation({
             <SelectionCard
               key={block.key}
               question={selection}
-              busy={busy}
+              busy={busy || interrupted}
               onAnswer={(resumeData) =>
                 answerQuestion(runId, block.toolCallId, block.question.cardId, resumeData)
               }
@@ -892,7 +914,7 @@ export function AgentConversation({
             <InterviewCard
               key={block.key}
               question={interview}
-              busy={busy}
+              busy={busy || interrupted}
               onAnswer={(resumeData) =>
                 answerQuestion(runId, block.toolCallId, block.question.cardId, resumeData)
               }
@@ -907,7 +929,7 @@ export function AgentConversation({
             question={block.question}
             answered={block.runId === null}
             stale={block.stale === true}
-            busy={busy}
+            busy={busy || interrupted}
             onAnswer={(resumeData) =>
               block.runId &&
               answerQuestion(block.runId, block.toolCallId, block.question.cardId, resumeData)

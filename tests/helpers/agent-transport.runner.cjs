@@ -14,12 +14,13 @@
 
 const http = require('node:http');
 const express = require('express');
+const { AbstractChat } = require('ai');
 const { loadTypeScriptModule } = require('./load-tsx.cjs');
 
 const { customFetch } = loadTypeScriptModule(
   'libraries/helpers/src/utils/custom.fetch.func.ts'
 );
-const { createAgentTransport } = loadTypeScriptModule(
+const { createAgentTransport, isAgentRequestNotStarted } = loadTypeScriptModule(
   'apps/frontend/src/components/agents/agent.transport.ts'
 );
 
@@ -39,11 +40,17 @@ const readAll = async (stream) => {
   const seen = [];
   // The zone header each request carried (kcxz.15), beside the body.
   const zones = [];
+  let refusal = null;
   const app = express();
   app.use(express.json());
   app.post('/agent/chat', (req, res) => {
     seen.push({ contentType: req.headers['content-type'], body: req.body ?? null });
     zones.push(req.headers['x-agent-timezone'] ?? null);
+    if (refusal) {
+      if (refusal.proof) res.setHeader('x-agent-not-started', refusal.proof);
+      res.status(refusal.status).json({ code: refusal.code });
+      return;
+    }
     if (!req.body || typeof req.body !== 'object' || !Array.isArray(req.body.messages)) {
       res.status(400).json({ code: 'AGENT_BAD_REQUEST', message: 'The body is not an object.' });
       return;
@@ -76,7 +83,7 @@ const readAll = async (stream) => {
       const parts = await run(named);
       report[name] = { seen: [...seen], zones: [...zones], named, parts: parts ?? [] };
     } catch (error) {
-      report[name] = { seen: [...seen], zones: [...zones], named, error: String(error?.message ?? error) };
+      report[name] = { seen: [...seen], zones: [...zones], named, error: String(error?.message ?? error), notStarted: isAgentRequestNotStarted(error), status: error.status ?? null };
     }
   };
   const transport = (thread, named) =>
@@ -216,6 +223,42 @@ const readAll = async (stream) => {
     });
     return [];
   });
+
+  const refusalCases = {
+    'pre-start-context': { status: 400, code: 'AGENT_BAD_REQUEST', proof: '1' },
+    'pre-start-allowance': { status: 402, code: 'AI_ALLOWANCE_EXHAUSTED', proof: '1' },
+    'unproven-context': { status: 400, code: 'AGENT_BAD_REQUEST' },
+    'unproven-proxy': { status: 502, code: 'AGENT_FAILED' },
+    'unproven-header-value': { status: 400, code: 'AGENT_BAD_REQUEST', proof: 'true' },
+  };
+  for (const [name, config] of Object.entries(refusalCases)) {
+    refusal = config;
+    await play(name, async (named) => readAll(await transport(null, named).sendMessages({
+      chatId: 'chat-refusal', trigger: 'submit-message',
+      messages: [{ id: 'refused', role: 'user', parts: [{ type: 'text', text: 'Запиши изменение.' }] }],
+    })));
+  }
+  // AbstractChat is what useChat wraps: verify that its onError preserves
+  // the proof type and precedes the error-marked onFinish callback.
+  refusal = refusalCases['pre-start-context'];
+  await play('native-pre-start', async (named) => {
+    const state = {
+      status: 'ready', messages: [], error: undefined,
+      pushMessage(message) { this.messages = [...this.messages, message]; },
+      popMessage() { this.messages = this.messages.slice(0, -1); },
+      replaceMessage(index, message) { this.messages[index] = message; },
+      snapshot(value) { return structuredClone(value); },
+    };
+    const events = [];
+    const chat = new AbstractChat({
+      transport: transport(null, named), state,
+      onError: (error) => events.push(['error', isAgentRequestNotStarted(error)]),
+      onFinish: ({ isError, isAbort, isDisconnect }) => events.push(['finish', isError, isAbort, isDisconnect]),
+    });
+    await chat.sendMessage({ text: 'Запиши изменение.' });
+    return { events, status: state.status, typedError: isAgentRequestNotStarted(state.error) };
+  });
+  refusal = null;
 
   await new Promise((resolve) => server.close(resolve));
   process.stdout.write(JSON.stringify(report));

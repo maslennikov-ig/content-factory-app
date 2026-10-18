@@ -3,7 +3,7 @@
   "stage_id": "content-factory-next-jvrq-implementation-20261016",
   "goal_id": "content-factory-next-jvrq",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "accepted",
   "sequence": 1,
   "acceptance_boundary_id": "jvrq-chat-first-workspace-implementation",
   "acceptance_owner": "root",

@@ -2799,6 +2799,7 @@ export class VoiceService {
           ? { addressForm: content.voice.addressForm }
           : {}),
         delegatedPolicy: delegatedPolicyOf(content.voice),
+        versionId: activeVersion.id,
         versionLabel: activeVersion.label ?? `v${activeVersion.versionNumber}`,
         activeSince: formatDate(
           activeVersion.publishedAt ?? activeVersion.createdAt,
@@ -2957,6 +2958,9 @@ export class VoiceService {
       );
     }
 
+    if (body.expectedVersionId !== undefined && activeVersion.id !== body.expectedVersionId) {
+      throw new VoiceError('VOICE_VERSION_CONFLICT', 'Голос изменился после чтения. Прочитайте действующий паспорт и повторите правку.');
+    }
     const fields = this.fieldsFromContent(activeVersion.content);
     if (fields[body.key] === text) return this.passport(actor);
     fields[body.key] = text;
@@ -2976,12 +2980,14 @@ export class VoiceService {
         activeVersion.content
       ),
       activeVersion.label ?? undefined,
-      actor.avatarId
+      actor.avatarId,
+      activeVersion.id
     );
     await this._profiles.activate(
       actor.organizationId,
       actor.userId,
-      draft.id
+      draft.id,
+      activeVersion.id
     );
     await this.carryMeasurement(actor.organizationId, draft.id, measured);
     return this.passport(actor);

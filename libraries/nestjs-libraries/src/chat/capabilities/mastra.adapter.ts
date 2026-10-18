@@ -28,6 +28,7 @@ import { runPaidCapability } from './paid-adapter';
 import { questionCardView } from './question-card';
 import { modelSummary, wrapUntrusted } from './untrusted-data';
 import { redactSecretLeaves } from '../conductor/secret-shapes';
+import { trackAgentTurnWork } from '../conductor/agent-turn-lifecycle';
 import { approvalContentDigest, cleanApprovalSummary } from './approval-summary';
 import {
   isConfirmationNeeded,
@@ -481,7 +482,10 @@ export const buildCapabilityTool = (
       display: TOOL_PAYLOAD_TRANSFORM,
       transcript: TOOL_PAYLOAD_TRANSFORM,
     },
-    execute: execute as any,
+    execute: ((input: any, context: ToolContextLike) =>
+      options.entrance === 'chat'
+        ? trackAgentTurnWork(context?.requestContext, () => execute(input, context))
+        : execute(input, context)) as any,
   });
 };
 

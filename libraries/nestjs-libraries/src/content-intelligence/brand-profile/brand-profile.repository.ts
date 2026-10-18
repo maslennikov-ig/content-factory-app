@@ -203,7 +203,8 @@ export class BrandProfileRepository {
     actorUserId: string,
     input: BrandProfileDraftInputV1,
     contentDigest: string,
-    avatarId?: string
+    avatarId?: string,
+    expectedActiveVersionId?: string
   ) {
     return this.transact(async (client) => {
       const existingProfile = (await client.projectBrandProfile.findFirst({
@@ -215,6 +216,9 @@ export class BrandProfileRepository {
       // under the name of one somebody had just deleted in another tab.
       if (avatarId && !existingProfile) {
         throw new BrandProfileRepositoryError('NOT_FOUND');
+      }
+      if (expectedActiveVersionId !== undefined && (!existingProfile || existingProfile.deletedAt || existingProfile.activeVersionId !== expectedActiveVersionId)) {
+        throw new BrandProfileRepositoryError('REVISION_CONFLICT');
       }
       const wasDeleted = Boolean(existingProfile?.deletedAt);
       const profile = (
@@ -361,7 +365,7 @@ export class BrandProfileRepository {
     organizationId: string,
     actorUserId: string,
     versionId: string,
-    expected: { revision: number; contentDigest: string }
+    expected: { revision: number; contentDigest: string; activeVersionId?: string }
   ) {
     return this.transact(async (client) => {
       const version = (await client.projectBrandProfileVersion.findFirst({
@@ -375,6 +379,9 @@ export class BrandProfileRepository {
       if (!profile || profile.deletedAt)
         throw new BrandProfileRepositoryError('VERSION_UNAVAILABLE');
       this.assertVersionIntegrity(version);
+      if (expected.activeVersionId !== undefined && profile.activeVersionId !== expected.activeVersionId) {
+        throw new BrandProfileRepositoryError('REVISION_CONFLICT');
+      }
 
       if (
         version.lifecycle === 'PUBLISHED' &&
@@ -435,13 +442,22 @@ export class BrandProfileRepository {
           id: { not: profile.id },
         },
       })) as BrandProfileRecordV1 | null;
-      const updatedProfile = await client.projectBrandProfile.update({
-        where: { organizationId_id: { organizationId, id: profile.id } },
-        data: {
-          activeVersionId: versionId,
-          ...(writableDefault ? {} : { isDefault: true }),
-        },
-      });
+      const data = { activeVersionId: versionId, ...(writableDefault ? {} : { isDefault: true }) };
+      let updatedProfile;
+      if (expected.activeVersionId !== undefined) {
+        // A field was derived from this exact active version. Compare in the
+        // pointer write itself; a read earlier in this transaction can race.
+        const changed = await client.projectBrandProfile.updateMany({
+          where: { organizationId, id: profile.id, deletedAt: null, activeVersionId: expected.activeVersionId },
+          data,
+        });
+        if (changed.count !== 1) throw new BrandProfileRepositoryError('REVISION_CONFLICT');
+        updatedProfile = await client.projectBrandProfile.findFirst({ where: { organizationId, id: profile.id } });
+      } else {
+        updatedProfile = await client.projectBrandProfile.update({
+          where: { organizationId_id: { organizationId, id: profile.id } }, data,
+        });
+      }
       if (!writableDefault) {
         await client.projectBrandProfile.updateMany({
           where: { organizationId, id: { not: profile.id } },

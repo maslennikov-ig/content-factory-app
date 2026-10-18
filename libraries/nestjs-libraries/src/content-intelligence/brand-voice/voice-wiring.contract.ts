@@ -895,6 +895,8 @@ export type VoicePassportV1 = {
    * without the field means.
    */
   delegatedPolicy: DelegatedPolicyV1;
+  /** Immutable active version identity, used to refuse stale edits. */
+  versionId?: string;
   versionLabel: string;
   activeSince: string;
   /**
@@ -956,6 +958,8 @@ export type VoicePassportFieldRequestV1 = {
   /** One of the six lines; `TOPICS` since the final recheck F-6a. */
   key: ProfileFieldV2;
   text: string;
+  /** The active version from which the complete replacement was derived. */
+  expectedVersionId?: string;
 };
 
 /**

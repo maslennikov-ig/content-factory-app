@@ -1,8 +1,33 @@
-# Latest production checkpoint —17October15:14UTC
+# Final delegated acceptance —17October2026, production5efa
+
+Canonical closure16:43UTC: Linear epic HOBA-2540, acceptance HOBA-2532 and all20children CLOSED; GitHub1083/1087 CLOSED. Receipt `evidence/native-preview-final2-task-closure.actual.json`.
+
+**A1–A10 PASS.** Tested private `2e9822081974d91209501d4627e731a179807eb7`, production/public `5efa70e0057e1e07f24e93f69efc46173f41fe0e`. The owner explicitly delegated the full-flow walkthrough and authorized delivery/paid controls. Personal owner clicks and unrelated client/external gates are not claimed.
+
+This is composite acceptance: the actual fresh chain on058 is combined with targeted deployed corrective controls on1bf and5efa. It is not a claim that the13-stream chain was repeated wholesale on5efa. Later proofs replace the matching failed steps; all current release regressions pass. The frontend is byte-identical in Git from8a through2e; the final native-preview change is confined to two conductor policies plus its regression test. Historical failures and superseded releases below remain audit evidence.
+
+| Scenario | Accepted evidence | Scope and limits |
+| --- | --- | --- |
+| A1 primary entry/manual routes | `fresh-chain-paid-ui-control.actual.json`; navigation/entry/return-destination regressions | Native primary assistant, retained sections, zero model calls on opening/selection. |
+| A2 native baseline | Baseline capability map and current full scenario/capability suites | Existing Mastra/services retained; no replacement runtime or SDK upgrade. |
+| A3 fresh creation chain | `fresh-chain-paid-ui-control.actual.json`; `epic-final-product-controls.actual.json` | Actual new avatar, owner-designated connected test group writing settings, new piece/questions/separate answers, adaptation and20Oct12:30Moscow DRAFT reserve. Explicit-title/separate-answer correction passed1bf. No new social connection/publication required. |
+| A4 manual/chat equality | Fresh-chain avatarv2→chatv3/channel/core controls; `native-preview-final2-paid-ui-control.actual.json` | Actual manual474→nativecard→536, exact mounted shared/fresh manual/DB; old474/person and365/model both visible in native history. Title328-body fixture unchanged. |
+| A5 private continuity | Fresh private-history/reload/switch controls; current context/ownership/tenant guards; final old-conversation replay | Old private chat restored natively on a fresh browser; selected correct manual object;0model calls before sending. Shared records do not grant another user's chat access. |
+| A6 flexible artifacts | `fresh-chain-live-layouts.actual.json`; `epic-final-product-controls.actual.json` | Actual hide/restore/draft/keyboard/compact transitions;10deployed title layouts390–1440 and shared/manual genuineChrome200. Source128layout/all16locale fixtures complement live RU/EN. |
+| A7 dated updates | `title-paid-original-control.actual.json`; final strict original readback | Actual original9–16Oct one-request research and one normal fact selection automatically saved title39/body1493, no repeated dates/editorial command. Original3177/prior1042 and six native versions retained. Current control preserves that entire original record. No new research run claimed. |
+| A8 progress/recovery | Fresh-chain13normal streams plus native read-onlyStop; lifecycle/retry/stale/quota/role regressions; final native control | Final2streams200/DONE,3native journal rows succeeded,0pending/page errors. One normal selection click, no typed acceptance/repeated editorial command. Journal is not invoice completeness. |
+| A9 localization/accessibility | All16locale/RTL/design/contrast/foundation regressions; fresh live layouts;1bf shared/manual form controls | Actual RU/EN form labels, same dirty avatar DOM/value then nativeCancel, language restoredRU; dark/light, keyboard and native200 exercised. No universal assistive-technology/provider-quality claim. |
+| A10 release/delivery | `native-preview-final2-release-acceptance.actual.json`, suite/publication/image/public-probes/production-rollout | All9 exact-source checks/all5publicCI, full3test halves, complete archive match, healthy0/3online0, schema0SQL0, Mastra45/21foreign containers/20volumes exact, verified1bf rollback. Refused224 was fully rerun after handoff correction. |
+
+Final owned browser/cookies/session/RPC, three hashed host helpers, deploy lock and clean temporary export worktree are disposed. Full release worktree, exact image/source archive and private audit copies remain. Model-generated explanatory wording can vary; exact requested content/preservation and native controls were checked. Unrelated2q28/client, ChatGPT/store, finance/legal/offsite/research gates retain their original status.
+
+---
+
+# Historical production checkpoint —17October15:14UTC
 
 Private8a8f/public1bf: title creation and separate answers, readable10layouts and actual shared/manual200%, all shared/manual RU/EN forms and preserved dirty avatar input PASS. Exact database readback preserves original and all prior non-owned records. Evidence: `evidence/epic-final-product-controls.actual.json`. Actual third request failed native preview routing (jvrq.20); no product write, manual474/history1 intact. jvrq.18 native accepted history and jvrq.20 real planning replay remain pending; epic/.8 stay in progress. Earlier checkpoint sections are historical.
 
-# Latest delegated live acceptance —17October13:21UTC
+# Historical delegated live acceptance —17October13:21UTC
 
 Current deployed private68c2/public058a: fresh owned avatar/material, configured owner-designated connected test channel, separate personal answers, adaptation and20Oct12:30 reserve passed. Actual manual→chat→manual avatar/channel/core and manually created cnt-45 also passed; original1493/six versions and prior43pieces/22posts/11avatars exact.13normal terminal chat streams +1native read-onlyStop;23ledger rows terminal,0pending. RU/EN dark/light and native200% exercised. Evidence: `evidence/fresh-chain-paid-ui-control.actual.json`, `evidence/fresh-chain-live-layouts.actual.json`.
 
