@@ -1105,7 +1105,7 @@ export function AgentConversation({
           aria-label={words.conversation.label}
           aria-live="polite"
           aria-relevant="additions"
-          className="mx-auto flex min-w-0 max-w-[760px] flex-col gap-[20px]"
+          className="flex w-full min-w-0 flex-col gap-[20px]"
         >
           {!messages.length ? (
             <StartHere
@@ -1164,7 +1164,7 @@ export function AgentConversation({
         </div>
       </div>
       <div className="shrink-0 px-[16px] pb-[16px] pt-[8px] md:px-[20px]">
-        <div className="mx-auto max-w-[760px]">
+        <div className="w-full min-w-0">
           {contextControls}
           {interrupted ? <div role="status" className="mb-[12px] flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
             <span>{thread.current ? t('assistant_interrupted_note', 'Response interrupted. Check the saved result before continuing.') : t('assistant_unknown_result', 'The response was interrupted before the conversation identifier arrived. Check history: the action may have been saved. You can start a new conversation.')}</span>
@@ -1295,16 +1295,16 @@ function StartHere({
       <span className="pt-[4px]">
         <CfMark size={24} decorative />
       </span>
-      <div className="flex min-w-0 flex-col gap-[16px]">
+      <div className="flex min-w-0 flex-1 flex-col gap-[16px]">
         <div className="flex flex-col gap-[4px]">
           <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">{w.title}</h2>
-          <p className="max-w-[65ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {w.lead}
           </p>
           {channelByAdmin ? (
             <p
               data-agent-start-note="channel-by-admin"
-              className="max-w-[65ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
             >
               {w.channelByAdmin}
             </p>

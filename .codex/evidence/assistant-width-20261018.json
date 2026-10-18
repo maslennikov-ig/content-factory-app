@@ -1,0 +1,159 @@
+{
+  "source": "Actual AgentConversation, AgentComposer and AgentWorkspaceShell rendered with mocked network/chat; production CSS; no model or provider calls.",
+  "cases": [
+    {
+      "name": "wide-empty",
+      "pane": 2221,
+      "log": 2181,
+      "input": 2181,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "wide-dialogue",
+      "pane": 2221,
+      "log": 2181,
+      "input": 2181,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "desktop",
+      "pane": 1440,
+      "log": 1400,
+      "input": 1400,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "tablet",
+      "pane": 1024,
+      "log": 984,
+      "input": 984,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "compact",
+      "pane": 768,
+      "log": 728,
+      "input": 728,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "phone",
+      "pane": 390,
+      "log": 358,
+      "input": 358,
+      "leftGutter": 16,
+      "rightGutter": 16,
+      "inputLeft": 16,
+      "inputRight": 16,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "split",
+      "pane": 977.234375,
+      "log": 937.234375,
+      "input": 937.234375,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "material-hidden",
+      "pane": 2221,
+      "log": 2181,
+      "input": 2181,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "contextual",
+      "pane": 560,
+      "log": 528,
+      "input": 528,
+      "leftGutter": 16,
+      "rightGutter": 16,
+      "inputLeft": 16,
+      "inputRight": 16,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "english-light",
+      "pane": 1440,
+      "log": 1400,
+      "input": 1400,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    },
+    {
+      "name": "rtl",
+      "pane": 1440,
+      "log": 1400,
+      "input": 1400,
+      "leftGutter": 20,
+      "rightGutter": 20,
+      "inputLeft": 20,
+      "inputRight": 20,
+      "overflow": false,
+      "passed": true
+    }
+  ],
+  "contract": "assistant-allocated-width/v1",
+  "sourceFile": "apps/frontend/src/components/agents/agent.conversation.tsx",
+  "sourceSha256": "7109f75bf6c5f1c7a353c7332385d65ba612e433b2d86e50ba3a7f039868b41d",
+  "fonts": "Bundled Geologica and JetBrains Mono; awaited document.fonts.ready.",
+  "scope": "Root-owned local Chromium layout acceptance of actual components with mocked network/chat; no production, provider or paid calls.",
+  "checks": {
+    "focusedJest": {
+      "suites": 6,
+      "tests": 116,
+      "failed": 0
+    },
+    "docsCheck": {
+      "files": 199,
+      "exitCode": 0
+    },
+    "layoutDetector": {
+      "findings": 0
+    },
+    "diffCheck": {
+      "exitCode": 0
+    }
+  }
+}

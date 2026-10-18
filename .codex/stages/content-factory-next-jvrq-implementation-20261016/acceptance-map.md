@@ -1,3 +1,11 @@
+# Accepted production follow-up —18October2026
+
+Private dd67538d524417749bc46935ffb84431bc3da42f/public ebdd0fdd6d86d44152465f72e678e429d0387715 delivered. Root all9/exact full3suitehalves and all5publicCI PASS; real final native approval now reports the saved action as completed. Matching fresh avatar/testgroup/piece/manual chain and changed4f focus/inline/nativeStop controls are accepted composite, not a wholesale rerun on every image. Original/default/prior records and full channel values are preserved; final runtime healthy0/3online0/schema0SQL0/Mastra45/21foreign+21volumes, verified4f rollback. Owned cleanup complete. [Delivery/findings/receipts/defers](production-delivery-20261018.md). Original17Oct A1–A10 contracts/closure remain unchanged below.
+
+docs-reviewed: updated — current two-level docs, runbook and proof agree. graph-reviewed: updated — local AST/no-label dd integration,0API; scoped file digests match,55metadata coverage limit remains. Source acceptance remains dd, not later docs-only commits. External managed relation-sync failure is a bounded defer, distinct from selected accepted task fields.
+
+---
+
 # Final delegated acceptance —17October2026, production5efa
 
 Canonical closure16:43UTC: Linear epic HOBA-2540, acceptance HOBA-2532 and all20children CLOSED; GitHub1083/1087 CLOSED. Receipt `evidence/native-preview-final2-task-closure.actual.json`.
