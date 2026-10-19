@@ -91,12 +91,28 @@ test('unknown/old-only search names the exact period and missing event dates wit
   expect(events.map(event => event.name)).toEqual(['brief-filled', 'done']);
   expect(events.at(-1).pieceId).toBeNull();
 });
-test('an explicitly unresolved temporal boundary returns a clarification before search/model egress', async () => {
+test('inverted explicit temporal boundaries return a clarification before search/model egress', async () => {
   const { intake, research } = create();
   const state = await intake.researchExistingCore('org', 'Original draft.', brief, 'ru', 'standard', undefined,
-    { timeZone: 'Europe/Moscow', researchTask: task, priorExample: 'Новости 2 октября 2026 и 8 октября 2026.', request: { ...requestMeaning(), constraints: { temporal: { mode: 'delta' } } } });
+    { timeZone: 'Europe/Moscow', researchTask: task, priorExample: 'Новости 2 октября 2026 и 8 октября 2026.', request: { ...requestMeaning(), constraints: { temporal: { mode: 'delta', eventInterval: { start: '2026-10-16', end: '2026-10-09' } } } } });
   expect(state.summary.periodStatus).toBe('needs_clarification');
   expect(state.summary.researchIntent.clarification).toBeTruthy();
   expect(research.research).not.toHaveBeenCalled();
   expect(calls).toEqual([]);
+});
+
+
+test('a descriptive delta label does not invent a reporting interval from reference dates', async () => {
+  const { intake, research } = create();
+  const goal = 'Объясни документированные возможности без календарного отбора событий.';
+  const state = await intake.researchExistingCore('org', 'Original draft.', brief, 'ru', 'standard', undefined,
+    { timeZone: 'Europe/Moscow', researchTask: goal, priorExample: prior,
+      request: { ...requestMeaning(), goal, constraints: { temporal: { mode: 'delta' } } } });
+  expect(state.resumePlan.resolvedResearchIntent).toMatchObject({ mode: 'general', eventInterval: null, clarification: null });
+  expect(state.summary.researchIntent).toBeUndefined();
+  expect(state.summary.periodStatus).toBeUndefined();
+  expect(state.filled.brief.facts.filter(row => row.kind === 'found')).toHaveLength(3);
+  expect(research.research).toHaveBeenCalledTimes(1);
+  expect(research.research.mock.calls[0][1]).not.toContain('Event interval:');
+  expect(calls).toHaveLength(1);
 });

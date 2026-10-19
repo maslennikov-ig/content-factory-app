@@ -151,7 +151,7 @@ import { interviewQuestionsV9 } from './intake.prompts.v9';
   отданному полю может опираться на общеизвестное знание, но по-прежнему не
   на выдуманный опыт человека. Модуль v10 остаётся для квитанций.
 */
-import { briefFillPromptV12, briefFillSchemaV12 } from './intake.prompts.v12';
+import { briefFillPromptV13, briefFillSchemaV13 } from './intake.prompts.v13';
 import {
   DEFAULT_DELEGATED_POLICY,
   delegatedPolicyOf,
@@ -171,8 +171,8 @@ import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { avatarReader } from './avatar-audience';
 import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
-import { resolveResearchIntent, researchIntentQuery, researchTimezone, type ResearchIntentV1 } from './research-intent';
-import { digestSourcesForV4, researchDigestPromptV4, researchDigestSchemaV4, settleResearchDigestV4 } from './research-digest.v4';
+import { resolveResearchIntentV2 as resolveResearchIntent, researchIntentQuery, researchTimezone, type ResearchIntentV1 } from './research-intent';
+import { digestSourcesForV5, researchDigestPromptV5, researchDigestSchemaV5, settleResearchDigestV5 } from './research-digest.v5';
 import { parseIntakeUnderstanding, parseModelIntakeUnderstanding, type IntakeUnderstandingV1, type IntakeResearchSelectionV1 } from './request-understanding';
 import { PIECE_RESEARCH_DIRECTION_MAX } from '../pieces/piece-research.contract';
 
@@ -969,7 +969,11 @@ export class IntakeService {
     const { extraction, urls, foreignShingles } = state;
     let filled = state.filled;
     const selectedResearch = selectedFactsBrief(filled.brief).facts.filter(fact => factKind(fact) === 'found');
-    if (actorUserId && filled.inputSufficient === false && state.summary?.status === 'partial' &&
+    // Native model continuation already admitted its owned, confirmed choice.
+    // A pre-search brief must not purchase another verdict over that decision.
+    const modelSelectionContinues = state.researchSelection?.origin === 'model' &&
+      plan.researchSelectionPolicy === 'model' && selectedResearch.length > 0;
+    if (!modelSelectionContinues && actorUserId && filled.inputSufficient === false && state.summary?.status === 'partial' &&
         selectedResearch.length && !this.openQuestions(filled, plan).length) {
       // A pre-search assessment cannot decide whether newly selected evidence
       // now supports the goal. Reuse the native brief model with the actual
@@ -989,7 +993,7 @@ export class IntakeService {
       return;
     }
     const open = this.openQuestions(filled, plan);
-    if (!open.length && filled.inputSufficient === false && state.summary?.status !== 'sufficient') {
+    if (!modelSelectionContinues && !open.length && filled.inputSufficient === false && state.summary?.status !== 'sufficient') {
       yield { name: 'error', error: true, code: 'INTAKE_INPUT_INSUFFICIENT', canReviseInput: true,
         message: plan.request?.unresolvedChoices?.join('\n') || (language === 'ru'
           ? 'Для запрошенного результата пока недостаточно материала или подтверждений.'
@@ -1035,6 +1039,7 @@ export class IntakeService {
         language,
         delegatedPolicy: await this.delegatedPolicyOf(organizationId, plan),
         brief: selectedFactsBrief(filled.brief),
+        ...(modelSelectionContinues && state.summary ? { researchSummary: state.summary } : {}),
         answers,
         questionTextByKey: Object.fromEntries(
           answers.map((answer) => [
@@ -1413,9 +1418,9 @@ export class IntakeService {
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 4_096, 'extract')
-        ).withStructuredOutput(briefFillSchemaV12);
+        ).withStructuredOutput(briefFillSchemaV13);
         return await model.invoke(
-          briefFillPromptV12({
+          briefFillPromptV13({
             language: plan.language,
             originalRequest: plan.input,
             contextMaterial: plan.contextMaterial,
@@ -2361,7 +2366,8 @@ export class IntakeService {
   ): Promise<IntakeResearch> {
     const researchIntent = plan.resolvedResearchIntent ?? resolveResearchIntent({ input: plan.input, task: plan.researchTask,
       priorExample: plan.priorExample, temporal: plan.request?.constraints?.temporal, timeZone: plan.timeZone, now: this.now() });
-    const temporal = researchIntent.mode !== 'general';
+    if (plan.request) plan.resolvedResearchIntent = researchIntent;
+    const temporal = Boolean(researchIntent.eventInterval || researchIntent.clarification);
     const request = plan.request;
     const materials = plan.materialReads;
     const found: BriefFilledFactV1[] = [];
@@ -2482,7 +2488,7 @@ export class IntakeService {
         statement: fact.statement,
         own: factKind(fact, filled.brief.inputKind) === 'own',
       }));
-    const sources = digestSourcesForV4(researched.sources);
+    const sources = digestSourcesForV5(researched.sources);
     if (!sources.length) return null;
     // General is also a model-understood scope; a later digest must not
     // replace it with a period found inside reference material.
@@ -2506,12 +2512,12 @@ export class IntakeService {
         async () => {
           const model = (
             await getChatModel(organizationId, 0, 4_096, 'review')
-          ).withStructuredOutput(researchDigestSchemaV4);
-          return await model.invoke(researchDigestPromptV4(input, sources));
+          ).withStructuredOutput(researchDigestSchemaV5);
+          return await model.invoke(researchDigestPromptV5(input, sources));
         },
         'review'
       );
-      const settled = settleResearchDigestV4(answer as any, input);
+      const settled = settleResearchDigestV5(answer as any, input);
       if (settled.resolvedIntent) researched.researchIntent = settled.resolvedIntent;
       const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
       const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;

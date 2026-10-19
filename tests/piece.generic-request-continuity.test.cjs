@@ -24,8 +24,8 @@ const request = () => ({ version: 'intake-request/v1',
 });
 const selection = { origin: 'model', selectedKeys: ['source-approval:fact-1'], selectedAt: NOW.toISOString() };
 const summary = { confirmed: 0, conflicting: 0, unverified: 0, found: 1, sources: 1, encyclopedic: 0,
-  status: 'sufficient', requestedScope: { goal: request().goal, evidenceNeeds: request().evidenceNeeds },
-  assessment: { status: 'sufficient', summary: 'Условия подтверждены источником.', coveredNeeds: ['Условия согласования'], gaps: [], suggestedQueries: [] }, gaps: [] };
+  status: 'partial', requestedScope: { goal: request().goal, evidenceNeeds: request().evidenceNeeds },
+  assessment: { status: 'partial', summary: 'Подтверждена часть условий.', coveredNeeds: ['Условия согласования'], gaps: ['Полнота сравнения не подтверждена.'], suggestedQueries: [] }, gaps: ['Полнота сравнения не подтверждена.'] };
 const storedCore = () => ({ version: 'piece-core/v1', brief: {
   inputKind: 'instruction', goal: request().goal, thesis: 'Сравнение способов согласования',
   position: null, disagreement: null, audience: 'руководители команд', format: 'auto',
@@ -120,6 +120,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   expect(answered.plan.core.text).toBe('');
   expect(writers[0].name).toBe('writeCoreWithDecisions');
   expect(writers[0].input.request).toEqual(request());
+  expect(writers[0].input.researchSummary).toEqual(summary);
   expect(writers[0].input.answers).toEqual([expect.objectContaining({ key: 'ask-1', text: AUTHOR_REPLY, question: QUESTION, origin: 'person' })]);
   expect(writers[0].output.core.request).toEqual(request());
   expect(saved.answers).toHaveLength(1);
@@ -132,7 +133,8 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   expect(piece.brief.questions.items).toEqual([]);
   expect(piece.brief.questions.answered).toContainEqual(expect.objectContaining({ key: 'ask-1', text: AUTHOR_REPLY, origin: 'person' }));
   expect(answered.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
-  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v19');
+  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v20');
+  expect(prompts[0].prompt).toContain(summary.gaps[0]);
   expect(prompts[0].prompt).toContain(request().goal);
   expect(prompts[0].prompt).toContain(AUTHOR_REPLY);
   expect(prompts[0].prompt).toContain('https://official.example/approval');
@@ -141,6 +143,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   expect(rebuilt).toEqual({ text: REBUILT_BODY, revisions: 1 });
   expect(writers[1].name).toBe('writeCore');
   expect(writers[1].input.request).toEqual(request());
+  expect(writers[1].input.researchSummary).toEqual(summary);
   expect(writers[1].input.rebuildFrom).toEqual({ text: FIRST_BODY, byPerson: false });
   expect(writers[1].input.answers).toContainEqual(expect.objectContaining({ text: AUTHOR_REPLY, origin: 'person' }));
   expect(writers[1].output.request).toEqual(request());
@@ -152,7 +155,8 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   const reread = await service.detail('org', 'piece-1', 'ru');
   expect(reread.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
   expect(prompts.map(call => call.role)).toEqual(['draft', 'draft']);
-  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v19');
+  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v20');
+  expect(prompts[1].prompt).toContain(summary.gaps[0]);
   expect(prompts[1].prompt).toContain(AUTHOR_REPLY);
 });
 
@@ -171,6 +175,7 @@ test('legacy native cores remain answerable and rebuildable without manufacturin
   const { service, piece, saved } = build({ legacy: true });
   const answered = await answer(service);
   expect(writers[0].input).not.toHaveProperty('request');
+  expect(writers[0].input).not.toHaveProperty('researchSummary');
   expect(writers[0].output.core).not.toHaveProperty('request');
   expect(answered.core.request).toBeUndefined();
   for (const field of ['request', 'researchSelection', 'researchSummary']) expect(saved.answers[0].brief).not.toHaveProperty(field);

@@ -46,11 +46,11 @@ const sourceFiles = [
   'chat/capabilities/mastra.adapter.ts', 'chat/capabilities/capability.types.ts',
   'content-intelligence/brand-voice/intake-v2.contract.ts',
   'chat/capabilities/catalogue/research.capabilities.ts', 'chat/capabilities/catalogue/material-read.capabilities.ts',
-  'content-intelligence/intake/intake.service.ts', 'content-intelligence/intake/intake.prompts.v12.ts',
+  'content-intelligence/intake/intake.service.ts', 'content-intelligence/intake/intake.prompts.v12.ts', 'content-intelligence/intake/intake.prompts.v13.ts',
   'content-intelligence/intake/request-understanding.ts', 'content-intelligence/pieces/piece.service.ts',
-  'content-intelligence/intake/research-intent.ts', 'content-intelligence/intake/research-digest.v4.ts',
+  'content-intelligence/intake/research-intent.ts', 'content-intelligence/intake/research-digest.v4.ts', 'content-intelligence/intake/research-digest.v5.ts',
   'content-intelligence/source-registry/source-fetch.gateway.ts', 'content-intelligence/source-registry/network-policy.ts',
-  'content-intelligence/pieces/core-write.ts', 'content-intelligence/pieces/core-write-prompt.v19.ts',
+  'content-intelligence/pieces/core-write.ts', 'content-intelligence/pieces/core-write-prompt.v19.ts', 'content-intelligence/pieces/core-write-prompt.v20.ts',
   'openai/web.research.service.ts', 'openai/ai.clients.ts', 'openai/ai.text-chain.ts', 'openai/ai.usage.service.ts',
 ].map(file => PREFIX + file);
 const sourceHashes = () => Object.fromEntries(sourceFiles.map(file => [file, fileHash(file)]));
@@ -223,6 +223,13 @@ async function main() {
     privateWrite('offline-diagnostic.json', { outcome, intakeEvents, runtimeLogs });
     stdout(JSON.parse(safeJson({ diagnostic: true, outcome, intakeEvents, runtimeLogs, privateTraceDirectory: privateDir })));
     return;
+  }
+  if (process.env.CF_QA_PROMPT_FILE) {
+    const stat = fs.statSync(process.env.CF_QA_PROMPT_FILE);
+    if (!stat.isFile() || (stat.mode & 0o077) !== 0) throw new Error('External QA prompt must be a private file.');
+    const supplied = JSON.parse(fs.readFileSync(process.env.CF_QA_PROMPT_FILE, 'utf8'));
+    if (typeof supplied.text !== 'string' || !supplied.text.trim()) throw new Error('External QA prompt is missing text.');
+    cases.push({ id: 'production-acceptance-recheck', goal: 'Complete the exact independently selected production acceptance request.', prompt: supplied.text });
   }
   const selected = process.argv.find(arg => arg.startsWith('--case='))?.slice(7);
   const selectedCases = selected ? new Set(selected.split(',')) : null;

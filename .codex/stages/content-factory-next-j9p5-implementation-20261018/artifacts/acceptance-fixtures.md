@@ -74,3 +74,26 @@ See ../evidence/acceptance-fixtures-delivery.md and ../evidence/acceptance-fixtu
 # Risks / Follow-ups
 
 Shared root worktree; worker finished without commits, paid calls or background runtimes. Source and evidence retained. Safe cleanup complete. No foreign runtime or data changed.
+
+
+## Production date-role contract diagnosis, accepted by root
+
+Read-only follow-up on a0d00a42b found that invalid_event_context conflates model date-basis/status decisions with source-span failures; it does not establish a lexical source-context veto. Brief V12 and digest V4 leave ambiguity between subject-identifying dates and requested report intervals, and between a common dated heading and a distant item in its section. Root accepts these bounded findings and owns versioned prompt/diagnostic corrections plus natural acceptance. Exact raw production digest fields were unavailable, so no particular missing span is claimed. The first production control is retained as incomplete: zero pieces, terminal failed agent admission and possible provider billing after the shared deadline. The browser draft assertion targeted an administrative input and is a harness defect, not demonstrated product data loss. Worker made no edits, tests, paid calls, SSH, configuration reads or runtime resources; safe-only cleanup is complete.
+
+
+Root accepts the subsequent read-only correction review: the real service consumes V13/V5; their schemas remain compatible and V5 delegates all admission to unchanged V4. Only date-role instructions and finite diagnostic counters change. No further defect was found in the bounded diff; success still requires the natural control. No edits, tests, paid calls, SSH, configuration access or resources were made by the reviewer; cleanup complete.
+
+
+Read-only V2 review found two mode-dependent priorCoverageEnd branches. Root reproduced the overlapping-boundary failure in a regression and accepts the finding for correction. Explicit boundaries must apply irrespective of a descriptive mode; legacy resolver policy remains frozen. Reviewer made no edits, tests, paid calls, configuration reads, SSH or resources. Safe-only cleanup complete.
+
+
+Read-only confirmation accepts the corrected V2 prior-coverage overlap and derived-interval branches irrespective of descriptive mode. Legacy policy remains unchanged; service V2 -> V5 -> V4 consumers are consistent. No further regression found in the bounded correction. No edits, tests, paid calls, SSH, configuration access or resources; cleanup complete.
+
+
+Read-only follow-up confirmed a duplicate sufficiency veto: native conductor-selected admitted facts still bought a second brief assessment and could be refused despite permitted gaps. Root accepts the bounded finding, reproduced the refused save, and is correcting only trusted model-origin continuation. Manual/person/legacy flow, unanswered private questions, source admission, ownership, atomic claims and no-replay remain required. Existing actual research limitations must reach the writer and survive subsequent native writes. Reviewer made no edits, tests, paid calls, configuration access, SSH or resources; cleanup complete.
+
+
+Read-only review accepts the actual duplicate-veto correction. Only trusted model-origin continuation with nonempty admitted selected research skips the extra sufficiency call and blanket veto; status remains partial and inputSufficient is not promoted. Native questions, manual/legacy flow, ownership/key/source admission and atomic no-replay remain. V20 receives actual research coverage/gaps, including model-origin existing-core apply, author answers and rebuild. No further bounded finding. Reviewer made no edits, tests, paid calls, SSH, configuration access or resources; safe cleanup complete.
+
+
+Read-only final scope-propagation review accepted (completion event ed089534-59f8-4bd5-9456-a75d296746c3). The current request stores its resolved intent before digest, including normalized general scope; requestless legacy remains unchanged. The positive regression checks resumePlan rather than inventing a temporal summary field. Inverted explicit-boundary refusals still prove no search/model/write. Root verified 52 affected suites and 1070 tests. Reviewer made no edits, tests, paid calls, SSH, configuration reads or runtime resources; safe-only cleanup is complete.

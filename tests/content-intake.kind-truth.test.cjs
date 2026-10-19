@@ -609,7 +609,7 @@ describe('задание: слова человека о посте — не м�
         (prompt) => {
           // V12 keeps the explicit instruction label and output-only links;
           // it does not impose that role on every URL in every request.
-          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v13');
           expect(prompt).toContain('"materialKind":"instruction"');
           expect(prompt).toContain('A link explicitly requested in the finished text remains an exact output requirement.');
           expect(prompt).toContain(`"outputLinks":${JSON.stringify(RADIO_LINKS)}`);

@@ -6,10 +6,14 @@ const base = 'libraries/nestjs-libraries/src/content-intelligence/intake/';
 const meaning = loadWithMocks(base + 'request-understanding.ts');
 const brief = loadWithMocks(base + 'intake.prompts.v12.ts');
 const digest = loadWithMocks(base + 'research-digest.v4.ts');
+const briefV13 = loadWithMocks(base + 'intake.prompts.v13.ts');
+const digestV5 = loadWithMocks(base + 'research-digest.v5.ts');
 
 test.each([
   ['native intake extraction', brief.briefFillSchemaV12],
   ['native evidence digest', digest.researchDigestSchemaV4],
+  ['current native intake extraction', briefV13.briefFillSchemaV13],
+  ['current native evidence digest', digestV5.researchDigestSchemaV5],
 ])('%s converts through the exact SDK used by LangChain before any paid request', (_name, schema) => {
   const response = zodResponseFormat(schema, 'extract');
   expect(response.type).toBe('json_schema');

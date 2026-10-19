@@ -24,9 +24,9 @@ const { IntakeService } = loadWithMocks(intakePath, {
 });
 const now = new Date('2026-10-18T09:00:00Z');
 const original = 'Подготовь новую заготовку по подтверждённым изменениям продукта.';
-const request = (needsClarification = false) => ({ version: 'intake-request/v1', goal: original,
+const request = (invalidBoundary = false) => ({ version: 'intake-request/v1', goal: original,
   requestedOutputs: ['новая заготовка'], evidenceNeeds: ['Проверенные изменения из первичных источников'],
-  constraints: { research: 'required', ...(needsClarification ? { temporal: { mode: 'delta' } } : {}) } });
+  constraints: { research: 'required', ...(invalidBoundary ? { temporal: { mode: 'delta', eventInterval: { start: '2026-10-16', end: '2026-10-09' } } } : {}) } });
 const brief = () => ({ goal: original, thesis: 'Проверенные изменения продукта', position: null,
   disagreement: null, audience: 'читатели канала', format: 'auto', facts: [],
   origins: { thesis: 'model', audience: 'model' }, options: {}, questions: [] });

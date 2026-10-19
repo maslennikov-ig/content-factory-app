@@ -86,11 +86,13 @@ export const researchDateSpans = (text: string, defaultYear?: number): DateSpan[
   return spans.sort((a, b) => a.index - b.index);
 };
 
-/** Validate and calculate explicit model-selected boundaries; source prose is data. */
-export const resolveResearchIntent = (input: {
+type ResearchIntentInput = {
   input: string; task?: string; priorExample?: string; timeZone?: string; now: Date;
   temporal?: IntakeTemporalConstraintV1 | null;
-}): ResearchIntentV1 => {
+};
+
+/** Calendar validation is shared; legacy callers retain their mode-boundary policy. */
+const resolveResearchIntentWithPolicy = (input: ResearchIntentInput, requireModeBoundaries: boolean): ResearchIntentV1 => {
   const timezone = researchTimezone(input.timeZone);
   const temporal = input.temporal;
   const result: ResearchIntentV1 = {
@@ -122,20 +124,29 @@ export const resolveResearchIntent = (input: {
       result.clarification = 'Invalid structured event interval; resolve the requested start and end.';
     } else {
       result.eventInterval = { start, end: new Date(Math.min(Date.parse(end), input.now.getTime())).toISOString() };
-      if (result.mode === 'general') result.clarification = 'Structured general mode conflicts with the supplied event interval; resolve the intended scope.';
-      if (result.mode === 'delta' && result.priorCoverageEnd && start <= result.priorCoverageEnd) {
+      if (requireModeBoundaries && result.mode === 'general') result.clarification = 'Structured general mode conflicts with the supplied event interval; resolve the intended scope.';
+      if ((result.mode === 'delta' || !requireModeBoundaries) && result.priorCoverageEnd && start <= result.priorCoverageEnd) {
         result.clarification = 'The new-event interval overlaps the explicit prior-coverage boundary; resolve the intended scope.';
       }
       if (start > result.eventInterval.end) result.clarification = 'The requested event interval has not started.';
     }
-  } else if (result.mode === 'delta' && result.priorCoverageEnd) {
+  } else if ((result.mode === 'delta' || !requireModeBoundaries) && result.priorCoverageEnd) {
     result.eventInterval = { start: new Date(Date.parse(result.priorCoverageEnd) + 1).toISOString(), end: result.asOf };
     if (result.eventInterval.start > result.eventInterval.end) result.clarification = 'The requested event interval has not started.';
-  } else if (result.mode !== 'general' && !result.clarification) {
+  } else if (requireModeBoundaries && result.mode !== 'general' && !result.clarification) {
     result.clarification = 'A temporal request needs a model-resolved interval or prior-coverage boundary.';
   }
+  if (!requireModeBoundaries && !result.eventInterval && !result.clarification) result.mode = 'general';
   return result;
 };
+
+/** Frozen policy for existing callers and stored versioned workflows. */
+export const resolveResearchIntent = (input: ResearchIntentInput): ResearchIntentV1 =>
+  resolveResearchIntentWithPolicy(input, true);
+
+/** The model's explicit boundaries constrain research; a descriptive mode cannot invent them. */
+export const resolveResearchIntentV2 = (input: ResearchIntentInput): ResearchIntentV1 =>
+  resolveResearchIntentWithPolicy(input, false);
 
 export const admitResearchEvent = (intent: ResearchIntentV1 | undefined,
   evidence: { quote: string; eventDate?: string | null; eventDateQuote?: string | null; material: string }

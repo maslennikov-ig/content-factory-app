@@ -3076,7 +3076,7 @@ describe('97dq.44: интервью заготовки — столько воп
       },
     ]);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v13');
     expect(prompt).not.toContain('at most two questions');
     expect(prompt).not.toContain('defaultQuestion');
     expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
@@ -3099,7 +3099,7 @@ describe('97dq.44: интервью заготовки — столько воп
 
     expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v13');
   });
 
   test('вопрос по умолчанию из v8 больше не задаётся', async () => {
@@ -3145,7 +3145,7 @@ describe('97dq.44: интервью заготовки — столько воп
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
+    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v13');
     const questions = named(events, 'questions')[0].questions;
     expect(questions.some(row => row.field === 'position')).toBe(false);
     expect(questions.map((row) => row.key).filter(Boolean)).toEqual(['ask-1']);

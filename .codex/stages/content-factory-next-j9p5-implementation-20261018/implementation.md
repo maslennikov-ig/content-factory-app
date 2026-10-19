@@ -98,3 +98,71 @@ The next controls exposed a real integration conflict: legacy25/60-second soft p
 All seven varied natural controls were accepted on331df7f4a with the configured model/search, native history and actual guarded retrieval. One earlier Calendar attempt remained uncertain at540seconds and is retained; an independent read-only confirmation returned correctly in18.54seconds. No forced tool order or output repair. Temporary QA configuration was removed after the controls. The complete331 diagnostic Jest run had696passing suites, one failing suite (an obsolete pre-model homepage-filter assertion), seven skipped suites,12598passing tests and one failure. No full-suite receipt or node/python acceptance was produced. The corrected fixture still verifies that the model-admitted final facts exclude unsupported homepage rows, preserving actual relevance/provenance coverage.
 
 Independent read-only review found that non-chat SDK endpoints bypassed the task signal. The shared SDK transport now applies task Stop, expiry and pre-call admission before the endpoint split; images keep domain accounting and bypass the text retry chain. Root's cancellation reproducer failed before the fix. A second actual-SDK reproducer exposed a phantom possibly-billed image attempt when preflight was refused before HTTP: the image domain now preserves the direct or SDK-wrapped server no-start proof, retains any paid prompt and still records a sent-but-lost response as uncertain. All187checks across execution, transport, clients, real usage and intake research pass. The reviewer confirmed no changed successful text payload/model/retry semantics in this relocation; the seven331 natural controls are reused with that explicit bounded impact, rather than relabelled as new exact-source calls. The final nine-command root release acceptance is rerun after committing this correction.
+
+
+## Authorized production control and generic date-role correction
+
+Owner explicitly authorized private/public publication, production switch and
+own-account chat/draft checks on19October, after reviewing the concrete release
+packet. Exact source a0d00a42b passed all nine local release checks (Jest12605,
+Node126, Python50) and was published as public-production c4a57b488e92. Runtime,
+source archive, schema and foreign-workload checks passed. The actual natural
+production task nevertheless exhausted its shared540second deadline before a
+write; zero pieces and possibly-billed uncertainty are retained as an incomplete
+control. A subsequent draft assertion used the administrative debug input; the
+harness selector was corrected, and this is not evidence of product draft loss.
+
+The bounded correction uses brief V13, digest V5 and the current intent V2.
+Dates identifying a version/document do not automatically impose a reporting
+period. A descriptive model mode cannot invent a missing boundary or discard
+an explicitly supplied one. The model can relate a dated heading to a distant
+item in its own section through two independent faithful spans; admission still
+checks original quotes, valid dates and actual bounds. Finite diagnostics now
+separate model date-basis/status decisions from span failures. The raw original
+digest fields were unavailable; no particular quote failure is asserted.
+Frozen V12/V4 schemas and old resolver semantics remain available to existing
+callers. No vendor, version, date or example dispatch was added.
+
+The first V13/V5 natural recheck saved and read one correct official-source
+artifact but also exposed an unnecessary delta-label/no-interval refusal. The
+V2 recheck completed that same task in152.099seconds, five native steps, one
+saved/opened artifact, reportedUSD0.039177949975, zero unknown-cost calls and no
+possibly-billed flag. Storage is isolated and the configured model/search are
+real. This control is not a substitute for the final exact-source production
+browser check. Independent review also found prior-coverage handling coupled
+to the mode label; root reproduced that edge and owns the regression/fix.
+
+
+## Native model selection owns its writing decision
+
+Independent review of the retained historical control found a concrete duplicate
+veto. After the conductor selected owned admitted facts, finish still bought a
+second brief assessment and could refuse a partial result from the stale
+pre-search insufficiency. Root reproduced a refused intended save. Trusted
+model-origin continuation with a nonempty admitted selection now skips that
+extra assessment and blanket veto; it does not promote either research status
+or inputSufficient. Empty/failed/unresolved research, genuine author questions,
+manual/legacy paths, source/ownership/key validation and atomic no-replay remain.
+
+The existing actual research summary reaches a separate writer V20 as labelled
+coverage/limitations. Model-origin existing-core application, author answers and
+rebuild retain it; V19 and old callers stay available. Six affected suites,
+220checks pass, including partial save/read receipts, confirmed-repeat reuse,
+empty selection refusal before a claim, private questions, manual reassessment,
+existing-core preservation and request/title/provenance/gap continuity. The
+read-only reviewer found no further issue in that bounded correction. Earlier
+interrupted release runs on80f53ee08 are diagnostics and are not acceptance.
+
+
+## Preserve the resolved scope through existing-core research
+
+The broad current-consumer check exposed two fixtures that still expected a
+descriptive delta label alone to require dates. Their refusal cases now use
+actual inverted explicit boundaries and retain zero-egress/zero-write checks.
+A positive dated-reference regression also exposed a real propagation defect:
+existing-core research calculated a normalized general intent but did not
+retain it for digest. The current structured request now stores that exact
+resolved intent before digest; requestless legacy is unchanged. The positive
+case retains three admitted facts without inventing a reporting interval.
+All52 affected suites and1070 tests pass. The final exact-source nine-command
+release acceptance and corrected production browser control remain required.

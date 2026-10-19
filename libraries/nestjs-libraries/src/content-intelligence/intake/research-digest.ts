@@ -497,6 +497,11 @@ export type ResearchPeriodDiagnosticsV1 = {
   reasons: Record<
     'unmatched_provenance' | 'missing_event_date' | 'missing_event_context' |
     'invalid_event_context' | 'outside_period' | 'clarification' | 'prior_coverage', number>;
+  modelDateAssessment?: {
+    basis: Record<'event' | 'publication' | 'unknown', number>;
+    eventStatus: Record<'occurred' | 'scheduled' | 'unknown', number>;
+    quote: Record<'matched' | 'missing' | 'not_in_source' | 'too_long', number>;
+  };
 };
 
 export type SettledResearchDigest = {

@@ -2860,6 +2860,7 @@ export class PieceService {
         delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
         brief: selectedFactsBrief(core.brief),
         ...(core.request ? { request: core.request } : {}),
+        ...(core.researchSelection?.origin === 'model' && core.researchSummary ? { researchSummary: core.researchSummary } : {}),
         answers: core.answers,
         // Every answer goes with its question, the model's decisions included.
         questionTextByKey: Object.fromEntries(
@@ -3176,6 +3177,7 @@ export class PieceService {
           delegatedPolicy,
           brief: selectedFactsBrief(answeredBrief),
           ...(plan.core.request ? { request: plan.core.request } : {}),
+          ...(plan.core.researchSelection?.origin === 'model' && plan.core.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
@@ -5002,6 +5004,7 @@ export class PieceService {
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedBrief, answers: core.answers, questionTextByKey: {},
       ...(state.resumePlan?.request ? { request: state.resumePlan.request } : {}),
+      ...(origin === 'model' && state.summary ? { researchSummary: state.summary } : {}),
       personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
       ...(intent?.eventInterval ? { eventUpdate: { ...intent.eventInterval, timezone: intent.timezone } } : {}),
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },

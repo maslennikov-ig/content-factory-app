@@ -50,11 +50,21 @@ later evidence digestion, including references with unrelated dates.
 When a pre-search insufficiency meets newly selected partial evidence, the brief
 model reassesses that actual evidence before writing, retaining the selection's
 provenance and any personal questions.
-The V4 evidence digest receives all passages already bounded by retrieval;
+The V5 evidence digest receives all passages already bounded by retrieval;
 another prefix cut cannot silently discard the relevant paragraph. Homepage
 relevance is a model judgment. Accepted source and event-date quotes must each
 occur in an original retrieved passage, never across an artificial join of
 separate excerpts.
+
+Brief V13 and digest V5 distinguish dates identifying a version/document from a
+requested event interval. A descriptive mode such as delta does not require a
+calendar interval. The current intent resolver consumes actual validated
+boundaries, including prior coverage, independently of that label; frozen
+legacy callers retain their earlier policy. A dated section heading and a
+supported item elsewhere in that section can be separate exact source spans.
+The model judges their relationship; code verifies faithful quotations,
+calendar values and explicit bounds. Diagnostics distinguish the model's date
+basis/status from missing or invalid source spans without weakening admission.
 
 `research.search` supports factual investigations without creating a piece.
 `piece.create` and `piece.research` return research evidence before editorial
@@ -64,6 +74,16 @@ continuations persist `selectionOrigin: model`; they do not impersonate a
 person answering a card. Requested human review stays bound to the owned
 snapshot and uses the existing signed card. Manual and legacy snapshots default
 to that human boundary.
+
+A trusted model continuation with a nonempty admitted evidence selection does
+not buy a second brief sufficiency verdict or acquire a new blanket veto from
+the pre-search brief. The conductor owns that writing decision. Empty/failed
+research, source admission, unanswered private questions and atomic continuation
+rules remain. The existing actual coverage and gaps reach writer V20 as labelled
+research data, remain partial when partial, and survive model-origin research
+application, author answers and rebuilds. Legacy/manual writing retains its
+prior path. Saving a qualified partial artifact does not complete an exhaustive
+request; the conductor still checks the requested result.
 
 Continuation receipts bind the actor, snapshot, origin and normalized selected
 keys. An identical confirmed repeat returns the saved result; different choices,
