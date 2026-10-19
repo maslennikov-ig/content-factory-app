@@ -309,6 +309,26 @@ describe('per-organization AI clients', () => {
     expect(clients.WEB_SEARCH_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
+  test('native task SDK budgets are isolated from legacy clients and share remaining time without cache churn', async () => {
+    const chain = require('@contentfactory/nestjs-libraries/openai/ai.text-chain');
+    const organization = register(openrouter);
+    const legacy = await clients.getChatModel(organization, 0.7, 2247);
+    let remaining = 540_000;
+    await chain.runWithAiExecutionUsage({ signal: new AbortController().signal, maxDurationMs: 540_000,
+      remainingMs: () => remaining, beforeProviderCall: () => {} }, async () => {
+      const first = await clients.getChatModel(organization, 0.7, 2247);
+      expect(first).not.toBe(legacy);
+      expect(built.chat.at(-1)).toMatchObject({ timeout: 540_000, maxRetries: 0 });
+      const direct = await clients.getOpenAiClient(organization);
+      expect(built.openai.at(-1)).toMatchObject({ timeout: 540_000, maxRetries: 0 });
+      remaining = 1_000;
+      expect(await clients.getChatModel(organization, 0.7, 2247)).toBe(first);
+      expect(chain.textRequestOptions(direct)).toEqual({ maxRetries: 0, timeout: 1_000 });
+    });
+    expect(await clients.getChatModel(organization, 0.7, 2247)).toBe(legacy);
+    expect(chain.textRequestOptions({}).timeout).toBe(60_000);
+  });
+
   test('a chat model never streams, even inside streamEvents (sixteenth walk B1)', async () => {
     await clients.getChatModel(register(openrouter));
 

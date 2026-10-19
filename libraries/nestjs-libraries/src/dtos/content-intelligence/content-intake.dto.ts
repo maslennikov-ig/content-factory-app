@@ -17,6 +17,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -152,6 +153,11 @@ export class IntakeOptionsDto {
 }
 
 export class IntakeDto {
+  /** Shape and bounds are validated by the same schema as model/tool input. */
+  @IsOptional()
+  @IsObject()
+  request?: import('../../content-intelligence/intake/request-understanding').IntakeUnderstandingV1;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)

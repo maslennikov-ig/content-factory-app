@@ -121,6 +121,14 @@ export class OpenaiService {
         })
       ).data[0];
     } catch (error) {
+      // The SDK may wrap the server's no-start proof in APIConnectionError.
+      // No image was sent; keep any already-paid prompt without inventing
+      // another possibly billed provider attempt.
+      const refusal = error as {
+        executionBudgetStop?: unknown;
+        cause?: { executionBudgetStop?: unknown };
+      };
+      if (refusal?.executionBudgetStop === true || refusal?.cause?.executionBudgetStop === true) throw error;
       // The drawing ran and failed: the row names the image model that
       // refused. A provider's answer with a status is a refusal; without one
       // the request may have been billed (the ledger's rule).

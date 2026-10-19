@@ -12,7 +12,6 @@ import {
   applyCorrection,
   correctionCoversStatement,
   correctedBriefField,
-  digestSourcesFor,
   factKeyOf,
   normalizeForMatch,
   researchDigestPrompt,
@@ -54,6 +53,7 @@ import {
   ResearchQuotaExceeded,
   WebSearchNotConfigured,
   WebSearchFallbackError,
+  usableHttpsUrl,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import type { WebResearchResult } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { RESEARCH_LEVEL_PRESETS } from '@contentfactory/nestjs-libraries/openai/web.research.service';
@@ -151,10 +151,7 @@ import { interviewQuestionsV9 } from './intake.prompts.v9';
   отданному полю может опираться на общеизвестное знание, но по-прежнему не
   на выдуманный опыт человека. Модуль v10 остаётся для квитанций.
 */
-import {
-  briefFillPromptV11,
-  briefFillSchemaV11,
-} from './intake.prompts.v11';
+import { briefFillPromptV12, briefFillSchemaV12 } from './intake.prompts.v12';
 import {
   DEFAULT_DELEGATED_POLICY,
   delegatedPolicyOf,
@@ -174,8 +171,9 @@ import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { avatarReader } from './avatar-audience';
 import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
-import { resolveResearchIntent, researchIntentQuery, type ResearchIntentV1 } from './research-intent';
-import { researchDigestPromptV3, researchDigestSchemaV3, settleResearchDigestV3 } from './research-digest.v3';
+import { resolveResearchIntent, researchIntentQuery, researchTimezone, type ResearchIntentV1 } from './research-intent';
+import { digestSourcesForV4, researchDigestPromptV4, researchDigestSchemaV4, settleResearchDigestV4 } from './research-digest.v4';
+import { parseIntakeUnderstanding, parseModelIntakeUnderstanding, type IntakeUnderstandingV1, type IntakeResearchSelectionV1 } from './request-understanding';
 import { PIECE_RESEARCH_DIRECTION_MAX } from '../pieces/piece-research.contract';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
@@ -253,6 +251,12 @@ export type IntakeChannelV1 = {
 
 export type IntakePlanV1 = {
   input: string;
+  contextMaterial?: string;
+  request?: IntakeUnderstandingV1;
+  /** Actual bounded source reads, never claims inferred from source URLs. */
+  materialReads?: import('./request-understanding').IntakeMaterialReadV1[];
+  /** Trusted call-site policy, never read from HTTP/tool body fields. */
+  researchSelectionPolicy?: 'model' | 'person';
   timeZone?: string;
   researchTask?: string;
   priorExample?: string;
@@ -314,6 +318,15 @@ export type IntakeRunState = {
    */
   inputKind?: IntakeInputKindV1;
   inputKindExplicit?: boolean;
+  /** Server-owned original goal and options; never reconstructed from a resume card. */
+  resumePlan?: IntakePlanV1;
+  researchSelection?: IntakeResearchSelectionV1;
+  modelContinuation?: {
+    status: 'writing' | 'complete' | 'failed';
+    /** Exact origin and canonical key set bound to this saved write. */
+    choices?: string;
+    events?: IntakeEventV2[];
+  };
 };
 
 /** Доказательство, принятое за этот вход: адрес, заголовок, выдержка. */
@@ -322,6 +335,7 @@ export type AcceptedEvidence = {
   url: string;
   title: string | null;
   excerpt: string;
+  requestMaterial?: import('./request-understanding').IntakeSourceMaterialV1;
 };
 
 /** Что платный поиск принёс входу: строки как прежде и источники для сжатия. */
@@ -331,6 +345,9 @@ type IntakeResearch = {
   sourcesCount: number;
   encyclopedic: number;
   researchIntent?: ResearchIntentV1;
+  request?: IntakeUnderstandingV1;
+  failure?: string;
+  materials?: import('./request-understanding').IntakeMaterialReadV1[];
 };
 
 /** Шов под проверку на ИИ-штампы: по умолчанию — `text-quality/slop-check` (поток S3), в тестах подменяется. */
@@ -347,6 +364,7 @@ const defaultSlopCheck: SlopCheckPort = (text, platform, locale, grounded) =>
 
 type FilledBrief = {
   questions?: PieceOpenQuestionV1[];
+  inputSufficient?: boolean;
   brief: BriefFilledV1;
   /** Поля, которые модель честно оставила пустыми, и её варианты для них. */
   options: Partial<Record<BriefField, string[]>>;
@@ -361,6 +379,7 @@ export class IntakeService {
   private readonly parse: typeof parseSourcePayload;
   private readonly slopCheck: SlopCheckPort | null;
   private readonly deniedDomains: string[];
+  private readonly modelContinuations = new Map<string, { choices: string; promise: Promise<IntakeEventV2[]> }>();
 
   constructor(
     private readonly generator: AgentGraphService,
@@ -437,11 +456,12 @@ export class IntakeService {
    */
   async prepare(
     organizationId: string,
-    body: Record<string, any>
+    body: Record<string, any>,
+    internal?: { researchSelectionPolicy: 'model' | 'person' }
   ): Promise<IntakePlanV1> {
     const language: ContentLanguage = body?.language === 'en' ? 'en' : 'ru';
-    const input = trimmed(body?.input);
-    if (input.length < INTAKE_INPUT_MIN_CHARS) {
+    const input = typeof body?.input === 'string' ? body.input : '';
+    if (input.trim().length < INTAKE_INPUT_MIN_CHARS) {
       throw intakeError('INTAKE_INPUT_TOO_SHORT', language);
     }
 
@@ -455,19 +475,21 @@ export class IntakeService {
     }
 
     const namedKind = this.knownKind(body?.inputKind);
-    const resolved = body?.options?.researchEnabled === true
-      ? resolveResearchIntent({ input, task: trimmed(body?.researchTask) || undefined,
-          priorExample: trimmed(body?.priorExample) || undefined, timeZone: trimmed(body?.timeZone) || undefined,
-          now: this.now() })
-      : null;
-    const researchIntent = resolved?.mode !== 'general' ? resolved : null;
-    const taskInput = researchIntent?.priorExample ? researchIntent.task : input;
+    const request = body?.request === undefined ? null : parseIntakeUnderstanding(body.request);
+    if (body?.request !== undefined && !request) throw intakeError('INTAKE_REQUEST_INVALID', language);
+    const researchEnabled = body?.options?.researchEnabled === true && request?.constraints?.research !== 'forbidden';
+    const resolved = researchEnabled ? resolveResearchIntent({ input,
+      task: request?.goal || trimmed(body?.researchTask) || undefined,
+      priorExample: trimmed(body?.priorExample) || undefined,
+      temporal: request?.constraints?.temporal,
+      timeZone: trimmed(body?.timeZone) || undefined, now: this.now() }) : null;
     return {
-      input: taskInput,
-      // Слово клиента сильнее: ссылку он узнаёт сам и уже подписал ею поле, а
-      // разошедшиеся половины одного правила — худшее из двух зол.
-      inputKind: namedKind ?? detectInputKind(taskInput),
-      inputKindExplicit: namedKind !== null,
+      input,
+      ...(typeof body?.contextMaterial === 'string' ? { contextMaterial: body.contextMaterial } : {}),
+      researchSelectionPolicy: internal?.researchSelectionPolicy === 'model' ? 'model' : 'person',
+      ...(request ? { request } : {}),
+      inputKind: namedKind ?? (request ? 'instruction' : detectInputKind(input)),
+      inputKindExplicit: namedKind !== null || !!request,
       language,
       channels,
       answers: (Array.isArray(body?.answers) ? body.answers : [])
@@ -503,7 +525,7 @@ export class IntakeService {
         снимает незнакомое поле молча, и отказа не случается.
       */
       options: {
-        researchEnabled: body?.options?.researchEnabled === true,
+        researchEnabled,
         researchLevel:
           body?.options?.researchLevel === 'quick' || body?.options?.researchLevel === 'deep'
             ? body.options.researchLevel
@@ -520,9 +542,9 @@ export class IntakeService {
       brandProfileSelection: body?.brandProfileSelection,
       sourceLeadId: trimmed(body?.sourceLeadId) || undefined,
       timeZone: trimmed(body?.timeZone) || undefined,
-      researchTask: researchIntent?.task || trimmed(body?.researchTask).slice(0, 20_000) || undefined,
-      priorExample: researchIntent?.priorExample || trimmed(body?.priorExample).slice(0, 40_000) || undefined,
-      ...(researchIntent ? { resolvedResearchIntent: researchIntent } : {}),
+      researchTask: request?.goal || trimmed(body?.researchTask).slice(0, 20_000) || undefined,
+      priorExample: trimmed(body?.priorExample).slice(0, 40_000) || undefined,
+      ...(resolved ? { resolvedResearchIntent: resolved } : {}),
     };
   }
 
@@ -543,17 +565,8 @@ export class IntakeService {
     return plan.inputKind === 'thought' || plan.inputKind === 'instruction';
   }
 
-  /**
-   * Что классификация материала вправе изменить в виде входа (`97dq.1`).
-   *
-   * Названный человеком вид не трогается вовсе. Догадку модель может только
-   * ПОВЫСИТЬ — «мысль» до «чужого поста», — и никогда не понижает. Причина в
-   * цене ошибки, а она несимметрична: лишний вопрос о позиции человек
-   * пропускает одним нажатием, а чужое мнение, выданное за его собственное,
-   * уходит в текст и в канал (`cnt-19 760615d5` восьмого захода: модель дважды
-   * ответила «мысль», блок уточнения позиции не появился, и адаптация встала
-   * на позицию чужого автора).
-   */
+  /** Preserve explicit material ownership; model classification may promote an
+   * unlabeled note to a source reference. Questions remain model-selected. */
   private settleKind(
     plan: IntakePlanV1,
     classified: IntakeExtractionV1
@@ -595,6 +608,7 @@ export class IntakeService {
         ? {
             inputKind: input.plan.inputKind,
             inputKindExplicit: input.plan.inputKindExplicit,
+            resumePlan: { ...input.plan, researchSelections: null, snapshotKey: null },
           }
         : {}),
     };
@@ -612,6 +626,19 @@ export class IntakeService {
    * остаётся как было.
    */
   private restoreKind(plan: IntakePlanV1, state: IntakeRunState): void {
+    if (state.resumePlan) {
+      const saved = state.resumePlan;
+      plan.input = saved.input;
+      plan.request = saved.request;
+      plan.researchSelectionPolicy = saved.researchSelectionPolicy ?? 'person';
+      plan.researchTask = saved.researchTask;
+      plan.priorExample = saved.priorExample;
+      plan.timeZone = saved.timeZone;
+      plan.resolvedResearchIntent = saved.resolvedResearchIntent;
+      plan.brandProfileSelection = saved.brandProfileSelection;
+      plan.sourceLeadId = saved.sourceLeadId;
+      plan.options = saved.options;
+    }
     /*
       Снимок, записанный до этой волны, полей вида не несёт — но несёт бриф, а
       в нём `inputKind` стоял с самого первого прохода. Он и есть решение
@@ -658,14 +685,57 @@ export class IntakeService {
     };
 
     if (snapshot) {
+      const choices = this.researchContinuationChoices('person', plan.researchSelections!);
+      if (snapshot.modelContinuation && snapshot.modelContinuation.choices !== choices) {
+        throw this.researchContinuationConflict();
+      }
+      if (snapshot.modelContinuation?.status === 'complete') {
+        for (const event of snapshot.modelContinuation.events ?? []) yield event;
+        return;
+      }
+      if (snapshot.modelContinuation) {
+        throw new Error('This saved intake continuation already started; inspect its saved artifact before retrying');
+      }
       const state = this.applySelections(snapshot, plan);
+      if (this.snapshots?.claim) {
+        const key = intakeSnapshotKey(organizationId, actorUserId!, plan.snapshotKey!);
+        if (!await this.snapshots.claim(`${key}:continuation`, JSON.stringify({ choices, status: 'writing' }), INTAKE_SNAPSHOT_TTL_SECONDS)) {
+          await this.assertResearchClaimMatches(key, choices);
+          throw new Error('This saved intake continuation has already been claimed');
+        }
+        state.modelContinuation = { status: 'writing', choices };
+        const save = async () => this.snapshots!.set(key,
+          JSON.stringify({ organizationId, actorUserId, state }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+        await save();
+        const events: IntakeEventV2[] = [{ name: 'brief-started' }, this.researchReadyEvent(state, plan.snapshotKey)];
+        try {
+          for await (const event of this.finish(organizationId, plan, actorUserId, state)) events.push(event);
+          state.modelContinuation = { status: events.some(event => event.name === 'error') ? 'failed' : 'complete', choices, events };
+          await save();
+          for (const event of events) yield event;
+        } catch (error) {
+          state.modelContinuation = { status: 'failed', choices };
+          await save();
+          throw error;
+        }
+        return;
+      }
       yield { name: 'brief-started' };
       yield this.researchReadyEvent(state, plan.snapshotKey);
       yield* this.finish(organizationId, plan, actorUserId, state);
       return;
     }
     if (resuming) {
-      this.logger.log('The intake snapshot was not found; running the first pass again.');
+      yield { name: 'error', error: true, code: 'INTAKE_SNAPSHOT_EXPIRED', message: language === 'ru' ? 'Сохранённый результат поиска недоступен. Новый поиск требует отдельного запуска.' : 'The saved research result is unavailable. Start a new search explicitly.' };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
+    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled) {
+      yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_OPT_IN_REQUIRED', canReviseInput: true, message: language === 'ru'
+        ? 'Для этой задачи нужны внешние подтверждения. Поиск не был разрешён, поэтому результат пока не подготовлен.'
+        : 'This task needs external evidence. Research was not authorized, so the artifact has not been prepared.' };
+      yield { name: 'done', pieceId: null };
+      return;
     }
 
     const evidence = new Map<string, AcceptedEvidence>();
@@ -700,9 +770,10 @@ export class IntakeService {
       ТЕКСТА ход не обрывает: материал у нас уже есть — сам текст. Ссылка как
       вход (`link`) остаётся fail-closed: там, кроме неё, читать нечего.
     */
-    const links = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
+    const links = !plan.request && (plan.inputKind === 'link' || plan.inputKind === 'foreign_post')
       ? linksOf(plan.input) : [];
     const pasted = links.slice(0, INTAKE_MAX_PASTED_LINKS);
+    const attemptedLinks = new Set(pasted);
     // Прочитанные, а не присланные: строка источника в брифе обязана иметь
     // доказательство, иначе заготовка ссылается на страницу, которой у неё нет.
     const urls: string[] = [];
@@ -734,10 +805,19 @@ export class IntakeService {
     if (unreadableLinks || beyondLimit) {
       yield { name: 'links-skipped', unreadable: unreadableLinks, beyondLimit };
     }
+    const materialReads = await this.readMaterialLinks(organizationId, plan, evidence, attemptedLinks);
+    for (const accepted of materialReads.accepted) {
+      urls.push(accepted.url);
+      yield { name: 'link-fetched', url: accepted.url, title: accepted.title,
+        evidenceId: accepted.evidenceId, requestMaterial: accepted.requestMaterial };
+    }
+    if (materialReads.unreadable || materialReads.beyondLimit) {
+      yield { name: 'links-skipped', unreadable: materialReads.unreadable, beyondLimit: materialReads.beyondLimit };
+    }
     borrowedText = borrowedParts.length ? borrowedParts.join('\n\n') : null;
 
     let foreignShingles: string[] = [];
-    if (borrowedText && !extraction) {
+    if (borrowedText && !extraction && (plan.inputKind === 'link' || plan.inputKind === 'foreign_post')) {
       /*
         Сюда заходят только `link` и `foreign_post`: чужой текст собирается
         лишь для них. Вид на этом шве уже решён — галочкой человека, ссылкой
@@ -759,15 +839,49 @@ export class IntakeService {
       yield { name: 'claims', claims: this.skippedClaims(extraction) };
       foreignShingles = wordShingles(borrowedText || plan.input);
     }
+    if (plan.request?.materials?.length) {
+      const referenceText = plan.request.materials.filter(material =>
+        material.role === 'reference' || material.role === 'evidence').map(material => material.text).join('\n\n');
+      if (referenceText) foreignShingles = wordShingles(referenceText);
+    }
 
     yield { name: 'brief-started' };
-    const filled = await this.fillBrief(
+    let filled = await this.fillBrief(
       organizationId,
       plan,
       extraction,
       evidence
     );
-    if (plan.options.researchEnabled) {
+    // A manual instruction can first acquire its source roles in v12. Read
+    // those explicit URLs and let the same brief boundary consume their actual
+    // contents; do not crawl links embedded in the fetched material.
+    const understoodMaterials = await this.readMaterialLinks(organizationId, plan, evidence, attemptedLinks);
+    for (const accepted of understoodMaterials.accepted) {
+      urls.push(accepted.url);
+      yield { name: 'link-fetched', url: accepted.url, title: accepted.title,
+        evidenceId: accepted.evidenceId, requestMaterial: accepted.requestMaterial };
+    }
+    if (understoodMaterials.unreadable || understoodMaterials.beyondLimit) {
+      yield { name: 'links-skipped', unreadable: understoodMaterials.unreadable, beyondLimit: understoodMaterials.beyondLimit };
+    }
+    if (understoodMaterials.accepted.length) {
+      filled = await this.fillBrief(organizationId, plan, extraction, evidence);
+    }
+    if (plan.request?.materials?.length) {
+      foreignShingles = wordShingles([
+        ...plan.request.materials.filter(material => material.role === 'reference' || material.role === 'evidence').map(material => material.text),
+        ...[...evidence.values()].filter(row => row.requestMaterial).map(row => row.excerpt),
+      ].join('\n\n'));
+    }
+    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled) {
+      yield { name: 'brief-filled', brief: filled.brief };
+      yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_OPT_IN_REQUIRED', canReviseInput: true, message: language === 'ru'
+        ? 'Для этой задачи нужны внешние подтверждения. Поиск не был разрешён, поэтому результат пока не подготовлен.'
+        : 'This task needs external evidence. Research was not authorized, so the artifact has not been prepared.' };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
+    if (plan.options.researchEnabled && plan.request?.constraints?.research !== 'forbidden') {
       const level = plan.options.researchLevel;
       yield {
         name: 'research-started',
@@ -809,7 +923,7 @@ export class IntakeService {
         plan,
       });
       const state = this.applySelections(base, plan);
-      const pausing = !!actorUserId && plan.researchSelections === null;
+      const pausing = !!actorUserId && plan.researchSelections === null && rows.summary.status !== 'empty' && rows.summary.status !== 'failed' && rows.summary.status !== 'needs_clarification';
       const snapshotKey = pausing
         ? await this.writeSnapshot(organizationId, actorUserId!, state)
         : plan.snapshotKey ?? null;
@@ -845,7 +959,7 @@ export class IntakeService {
     actorUserId: string | undefined,
     state: IntakeRunState
   ): AsyncGenerator<IntakeEventV2> {
-    if (state.summary?.periodStatus === 'empty' || state.summary?.periodStatus === 'needs_clarification') {
+    if (state.summary?.periodStatus === 'empty' || state.summary?.periodStatus === 'needs_clarification' || state.summary?.status === 'empty' || state.summary?.status === 'failed' || state.summary?.status === 'needs_clarification') {
       yield { name: 'brief-filled', brief: state.filled.brief };
       yield { name: 'done', pieceId: null };
       return;
@@ -853,7 +967,16 @@ export class IntakeService {
     const language = plan.language;
     const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
     const { extraction, urls, foreignShingles } = state;
-    const filled = state.filled;
+    let filled = state.filled;
+    const selectedResearch = selectedFactsBrief(filled.brief).facts.filter(fact => factKind(fact) === 'found');
+    if (actorUserId && filled.inputSufficient === false && state.summary?.status === 'partial' &&
+        selectedResearch.length && !this.openQuestions(filled, plan).length) {
+      // A pre-search assessment cannot decide whether newly selected evidence
+      // now supports the goal. Reuse the native brief model with the actual
+      // selection; preserve its provenance and never answer personal questions.
+      const reconsidered = await this.fillBrief(organizationId, plan, extraction, evidence, undefined, selectedResearch);
+      filled = { ...filled, ...reconsidered, brief: { ...filled.brief, ...reconsidered.brief, facts: filled.brief.facts } };
+    }
     (filled.brief as BriefFilledV2).inputSources = [
       ...(plan.inputKind !== 'link' ? [{ kind: plan.inputKind }] : []),
       ...urls.map((url) => ({ kind: 'link' as const, url, evidenceId: [...evidence.values()].find((item) => item.url === url)?.evidenceId })),
@@ -866,6 +989,14 @@ export class IntakeService {
       return;
     }
     const open = this.openQuestions(filled, plan);
+    if (!open.length && filled.inputSufficient === false && state.summary?.status !== 'sufficient') {
+      yield { name: 'error', error: true, code: 'INTAKE_INPUT_INSUFFICIENT', canReviseInput: true,
+        message: plan.request?.unresolvedChoices?.join('\n') || (language === 'ru'
+          ? 'Для запрошенного результата пока недостаточно материала или подтверждений.'
+          : 'The requested result still lacks sufficient material or evidence.') };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
     const answers = this.interviewAnswers(plan);
     /*
       Слова человека с принятыми поправками (`75xn.18`): число, которое источник
@@ -877,12 +1008,17 @@ export class IntakeService {
       блок «СЛОВА ЧЕЛОВЕКА» остаётся пустым. Само задание едет своим блоком, а
       ссылки из него — списком, который переносится в текст как есть.
     */
-    const instruction = plan.inputKind === 'instruction'
-      ? { text: trimmed(state.correctedInput || plan.input), links: linksOf(plan.input) }
+    const instruction = plan.request || plan.inputKind === 'instruction'
+      ? { text: plan.request?.goal || trimmed(state.correctedInput || plan.input), links: this.outputLinks(plan) }
       : null;
-    const personText = extraction || instruction
-      ? ''
-      : contentFromIntent(state.correctedInput || plan.input);
+    let personText = plan.request
+      ? (plan.request.materials ?? []).filter(material => material.role === 'author_material').map(material => material.text).join('\n\n')
+      : extraction || instruction ? '' : contentFromIntent(state.correctedInput || plan.input);
+    if (plan.request) {
+      for (const correction of state.corrections.filter(item => item.accepted)) {
+        personText = applyCorrection(personText, correction).text;
+      }
+    }
     /*
       Чужой пост или сообщение со ссылкой — дословно, для страницы заготовки,
       пока сути нет (`97dq.25`). В `writeCore` ниже он не передаётся: суть
@@ -910,6 +1046,7 @@ export class IntakeService {
         // словами человека не располагаем вовсе, и блок остаётся пустым.
         personText,
         ...(instruction ? { instruction } : {}),
+        ...(plan.request ? { request: plan.request } : {}),
         borrowed: extraction ? this.borrowedForCore(extraction) : null,
         foreignShingles,
       },
@@ -936,7 +1073,10 @@ export class IntakeService {
         (`97dq.41`): до разбора, до поправок и до вопросов. Только для
         страницы «Что вы прислали»; в промпт не идёт ни одним полем.
       */
-      ...(trimmed(plan.input) ? { inputText: trimmed(plan.input) } : {}),
+      ...(plan.input.trim() ? { inputText: plan.input } : {}),
+      ...(plan.request ? { request: plan.request } : {}),
+      ...(state.researchSelection ? { researchSelection: state.researchSelection } : {}),
+      ...(state.summary ? { researchSummary: state.summary } : {}),
       ...(instruction
         ? { instructionText: instruction.text, keepLinks: instruction.links }
         : {}),
@@ -947,7 +1087,7 @@ export class IntakeService {
     if (actorUserId) {
       try {
         piece = await this.briefRepository.recordCore(organizationId, {
-          title: briefTitle({ thesis: textOrNull(filled.brief.thesis) || core.text }, plan.language),
+          title: plan.request?.constraints?.title || briefTitle({ thesis: textOrNull(filled.brief.thesis) || core.text }, plan.language),
           body: core.text,
           brief: {
             ...this.storedCore(core),
@@ -1101,6 +1241,62 @@ export class IntakeService {
     };
   }
 
+  private sourceMaterials(request?: IntakeUnderstandingV1): Array<{ url: string;
+    requestMaterial: import('./request-understanding').IntakeSourceMaterialV1 }> {
+    return (request?.materials ?? []).flatMap(material => {
+      if (material.role !== 'evidence' && material.role !== 'reference') return [];
+      const url = usableHttpsUrl(material.sourceUrl);
+      return url ? [{ url, requestMaterial: { role: material.role, origin: material.origin, sourceUrl: url } }] : [];
+    });
+  }
+
+  private outputLinks(plan: IntakePlanV1): string[] {
+    if (!plan.request) return linksOf(plan.input);
+    return [...new Set((plan.request.materials ?? []).filter(material => material.role === 'instruction')
+      .flatMap(material => [...linksOf(material.text), ...(usableHttpsUrl(material.sourceUrl) ? [material.sourceUrl!] : [])]))];
+  }
+
+  /** Same native gateway and total link cap as direct link intake. No search. */
+  private async readMaterialLinks(organizationId: string, plan: IntakePlanV1,
+    evidence: Map<string, AcceptedEvidence>, attempted = new Set<string>()) {
+    const accepted: AcceptedEvidence[] = [];
+    let unreadable = 0;
+    let beyondLimit = 0;
+    const targets = this.sourceMaterials(plan.request);
+    if (!targets.length) return { accepted, unreadable, beyondLimit };
+    plan.materialReads ??= [];
+    for (const { url, requestMaterial } of targets) {
+      if (plan.materialReads.some(read => read.sourceUrl === url)) continue;
+      const existing = [...evidence.values()].find(row => row.url === url || row.requestMaterial?.sourceUrl === url);
+      if (existing) {
+        existing.requestMaterial = requestMaterial;
+        plan.materialReads.push({ ...requestMaterial, status: 'read', evidenceId: existing.evidenceId });
+        continue;
+      }
+      if (attempted.has(url)) {
+        plan.materialReads.push({ ...requestMaterial, status: 'unreadable' });
+        continue;
+      }
+      if (attempted.size >= INTAKE_MAX_PASTED_LINKS) {
+        plan.materialReads.push({ ...requestMaterial, status: 'limit' });
+        beyondLimit += 1;
+        continue;
+      }
+      attempted.add(url);
+      try {
+        const row = { ...await this.readLink(organizationId, url), requestMaterial };
+        evidence.set(row.evidenceId, row);
+        accepted.push(row);
+        plan.materialReads.push({ ...requestMaterial, status: 'read', evidenceId: row.evidenceId });
+      } catch (error) {
+        this.logger.warn(`Intake could not read labelled source material: ${describeError(error)}`);
+        plan.materialReads.push({ ...requestMaterial, status: 'unreadable' });
+        unreadable += 1;
+      }
+    }
+    return { accepted, unreadable, beyondLimit };
+  }
+
   /** Обрезка по границе абзаца: обрубленное на полуслове читается как сбой. */
   private cutAtParagraph(value: string, maximum: number): string {
     const text = (value || '').trim();
@@ -1135,7 +1331,7 @@ export class IntakeService {
       'intake',
       async () => {
         const model = (
-          await getChatModel(organizationId, 0, 2_048, 'extract')
+          await getChatModel(organizationId, 0, 4_096, 'extract')
         ).withStructuredOutput(extractionSchema);
         const prompt = known ? extractionPromptKnownKind : extractionPrompt;
         const extracted = await model.invoke(prompt(text, language)) as IntakeExtractionV1;
@@ -1190,13 +1386,19 @@ export class IntakeService {
     organizationId: string,
     plan: IntakePlanV1,
     extraction: IntakeExtractionV1 | null,
-    evidence: Map<string, AcceptedEvidence>
+    evidence: Map<string, AcceptedEvidence>,
+    existingCoreContext?: { text: string; brief: BriefFilledV1; direction?: string },
+    selectedResearch?: BriefFilledV1['facts']
   ): Promise<FilledBrief> {
     const person = this.personFields(plan);
     const avatar = await this.avatarOf(organizationId, plan);
     const memory = await this.rememberedFacts(organizationId, plan, extraction);
 
-    const material = extraction
+    const material = existingCoreContext
+      ? JSON.stringify({ operation: 'research-existing-core',
+          existingCore: { role: 'reference', origin: 'selected_object', text: existingCoreContext.text, brief: existingCoreContext.brief },
+          originalDirection: existingCoreContext.direction ?? null })
+      : extraction
       ? this.borrowedSummary(extraction)
       : plan.input;
     const materialKind = extraction
@@ -1210,15 +1412,28 @@ export class IntakeService {
       'intake',
       async () => {
         const model = (
-          await getChatModel(organizationId, 0, 2_048, 'extract')
-        ).withStructuredOutput(briefFillSchemaV11);
+          await getChatModel(organizationId, 0, 4_096, 'extract')
+        ).withStructuredOutput(briefFillSchemaV12);
         return await model.invoke(
-          briefFillPromptV11({
+          briefFillPromptV12({
             language: plan.language,
+            originalRequest: plan.input,
+            contextMaterial: plan.contextMaterial,
+            request: plan.request,
+            requestClock: { asOf: this.now().toISOString(), timezone: researchTimezone(plan.timeZone) },
+            researchEnabled: plan.options.researchEnabled,
+            selectedResearch,
+            materialReads: plan.materialReads,
+            materialEvidence: [...evidence.values()].filter(item => item.requestMaterial).map(item => ({
+              evidenceId: item.evidenceId, url: item.url, role: item.requestMaterial!.role,
+              origin: item.requestMaterial!.origin, text: item.excerpt.slice(0, WEB_SEARCH_MAX_SOURCE_CHARS),
+            })),
+            priorExample: plan.priorExample,
+            researchTask: plan.researchTask,
             material,
             materialKind,
             ...(materialKind === 'instruction'
-              ? { keepLinks: linksOf(plan.input) }
+              ? { keepLinks: this.outputLinks(plan) }
               : {}),
             fixed: Object.entries(person).map(([field, text]) => ({
               field,
@@ -1230,7 +1445,7 @@ export class IntakeService {
             facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
             evidence: [...evidence.values()].map(
               (item) =>
-                `[E:${item.evidenceId}] ${oneLine(item.title || item.url)} — ${oneLine(
+                `[E:${item.evidenceId}] ${item.requestMaterial ? JSON.stringify(item.requestMaterial) + ' ' : ''}${oneLine(item.title || item.url)} — ${oneLine(
                   item.excerpt
                 ).slice(0, 400)}`
             ),
@@ -1240,7 +1455,20 @@ export class IntakeService {
       'extract'
     );
 
-    return this.settleBrief({
+    const understood = parseModelIntakeUnderstanding((answer as any)?.understanding);
+    // A structured constraint already supplied by the conductor must survive
+    // the brief call. The manual entry point obtains its semantics here.
+    if (!plan.request && understood) {
+      plan.request = understood;
+      plan.researchTask = understood.goal;
+    }
+    if (plan.request) {
+      plan.resolvedResearchIntent = resolveResearchIntent({ input: plan.input, task: plan.request.goal,
+        priorExample: plan.priorExample, temporal: plan.request.constraints?.temporal,
+        timeZone: plan.timeZone, now: this.now() });
+    }
+
+    const filled = await this.settleBrief({
       plan,
       answer: answer as any,
       person,
@@ -1250,6 +1478,8 @@ export class IntakeService {
       extraction,
       organizationId,
     });
+    return { ...filled, ...(typeof (answer as any)?.inputSufficient === 'boolean'
+      ? { inputSufficient: (answer as any).inputSufficient } : {}) };
   }
 
   /**
@@ -1316,25 +1546,7 @@ export class IntakeService {
         ? true
         : question.field !== 'facts' && !settled.includes(question.field)
     );
-    if (plan.inputKind !== 'foreign_post') {
-      return modelQuestions.slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
-    }
-
-    const positionQuestion = openQuestionsFor({
-      brief: filled.brief,
-      options: filled.options,
-      language: plan.language,
-      settled: [...settled],
-    }).find((question) => question.field === 'position');
-    if (!positionQuestion) {
-      return modelQuestions.slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
-    }
-    return [
-      positionQuestion,
-      ...modelQuestions.filter(
-        (question) => question.key || question.field !== 'position'
-      ),
-    ].slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
+    return modelQuestions.slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
   }
 
   /**
@@ -1803,19 +2015,40 @@ export class IntakeService {
   /** Reuse intake research for an existing core without filling its brief again. */
   async researchExistingCore(organizationId: string, input: string, brief: BriefFilledV1,
     language: 'ru' | 'en', level: 'quick' | 'standard' | 'deep' = 'standard',
-    direction?: string, context?: { timeZone?: string; researchTask?: string; priorExample?: string }): Promise<IntakeRunState> {
+    direction?: string, context?: { timeZone?: string; researchTask?: string; priorExample?: string; request?: IntakeUnderstandingV1; researchSelectionPolicy?: 'model' | 'person' }): Promise<IntakeRunState> {
     const plan = this.existingCorePlan(input, language, null, level);
     const evidence = new Map<string, AcceptedEvidence>();
     const filled: FilledBrief = { options: {}, ...this.settled(brief) };
     const wish = oneLine(direction || '').slice(0, PIECE_RESEARCH_DIRECTION_MAX);
     plan.timeZone = context?.timeZone;
-    plan.researchTask = context?.researchTask || wish || undefined;
-    plan.priorExample = context?.priorExample || (wish ? input : undefined);
+    plan.researchSelectionPolicy = context?.researchSelectionPolicy === 'model' ? 'model' : 'person';
+    if (context?.request) {
+      const request = parseIntakeUnderstanding(context.request);
+      if (!request) throw new Error('Invalid structured research request');
+      plan.request = request;
+    }
+    plan.researchTask = plan.request?.goal || context?.researchTask || wish || undefined;
+    plan.priorExample = context?.priorExample;
+    // A native research button has an existing subject. Free-form manual
+    // direction/context needs the same model-owned understanding as chat,
+    // before retrieval chooses its scope. Reuse v12; never replace the saved
+    // brief/facts with the planner's proposed writing brief.
+    if (!plan.request && (wish || context?.researchTask || context?.priorExample)) {
+      const understandingPlan: IntakePlanV1 = { ...plan, input: context?.researchTask || wish || input,
+        inputKind: 'instruction', inputKindExplicit: true };
+      await this.fillBrief(organizationId, understandingPlan, null, evidence, { text: input, brief, direction: wish || undefined });
+      if (!understandingPlan.request) throw Object.assign(new Error('The manual research request could not be understood; no search was started'),
+        { code: 'INTAKE_RESEARCH_UNDERSTANDING_FAILED', status: 503 });
+      plan.request = understandingPlan.request;
+      plan.researchTask = understandingPlan.request.goal;
+      plan.resolvedResearchIntent = understandingPlan.resolvedResearchIntent;
+    }
     const searchSubject = wish
       ? `${input}\n\n${language === 'ru'
         ? 'Пожелание к направлению поиска (не считать фактом)'
         : 'Search direction wish (do not treat as a fact)'}: ${wish}`
       : input;
+    const materialReads = await this.readMaterialLinks(organizationId, plan, evidence);
     const researched = await this.researchForIntake(organizationId, searchSubject, plan, evidence, level);
     const digest = researched.sources.length
       ? await this.digestResearch(organizationId, plan, filled, null, researched, level, wish) : null;
@@ -1829,9 +2062,10 @@ export class IntakeService {
       }));
     return {
       filled: { ...filled, ...this.settled({ ...brief, facts: [...previous, ...rows.facts] }) },
-      evidence: [...evidence.values()], extraction: null, urls: [], foreignShingles: [],
+      evidence: [...evidence.values()], extraction: null, urls: materialReads.accepted.map(row => row.url), foreignShingles: [],
       level, corrections: rows.corrections, summary: rows.summary, correctedInput: '',
       inputKind: plan.inputKind, inputKindExplicit: plan.inputKindExplicit,
+      resumePlan: { ...plan, snapshotKey: null, researchSelections: null },
     };
   }
 
@@ -1840,9 +2074,137 @@ export class IntakeService {
     return this.applySelections(state, this.existingCorePlan(input, language, selectedKeys));
   }
 
+  /** Same research rows, with a genuine model decision instead of a human resume. */
+  selectCoreResearchForModel(state: IntakeRunState, input: string, language: 'ru' | 'en',
+    selectedKeys: string[]): IntakeRunState {
+    this.assertModelResearchSelection(state, selectedKeys);
+    const selectionPlan = state.resumePlan
+      ? { ...state.resumePlan, researchSelections: selectedKeys }
+      : this.existingCorePlan(input, language, selectedKeys);
+    const selected = this.applySelections(state, selectionPlan);
+    return { ...selected, researchSelection: { origin: 'model', selectedKeys: [...new Set(selectedKeys)], selectedAt: this.now().toISOString() } };
+  }
+
+  /** Read-only tool view, scoped to the same organization and person as intake. */
+  async readResearchSnapshot(organizationId: string, actorUserId: string, snapshotKey: string) {
+    const state = await this.readSnapshot(organizationId, actorUserId, snapshotKey);
+    if (!state) return null;
+    return { snapshotKey, input: state.resumePlan?.input ?? null,
+      request: state.resumePlan?.request ?? null, facts: state.filled.brief.facts,
+      summary: state.summary, corrections: state.corrections,
+      evidence: state.evidence, selection: state.researchSelection ?? null,
+      selectionPolicy: state.resumePlan?.researchSelectionPolicy ?? 'person',
+      continuationStatus: state.modelContinuation?.status ?? null };
+  }
+
+  /** Continue the captured plan; no extraction/research replay and no forged person answer. */
+  async *selectResearchForModel(organizationId: string, actorUserId: string,
+    snapshotKey: string, selectedKeys: string[]): AsyncGenerator<IntakeEventV2> {
+    const key = intakeSnapshotKey(organizationId, actorUserId, snapshotKey);
+    const choices = this.researchContinuationChoices('model', selectedKeys);
+    const state = await this.readSnapshot(organizationId, actorUserId, snapshotKey);
+    if (!state?.resumePlan) throw new Error('The saved intake result is unavailable; research was not replayed');
+    if (state.modelContinuation && state.modelContinuation.choices !== choices) throw this.researchContinuationConflict();
+    try { this.assertModelResearchSelection(state, selectedKeys); }
+    catch (error) {
+      // Only this invocation's validation precedes every claim and writer.
+      // A later persistence/receipt failure must never inherit this proof.
+      if ((error as { code?: unknown })?.code === 'INTAKE_RESEARCH_SELECTION_INVALID')
+        Object.assign(error as Error, { canReviseInput: true });
+      throw error;
+    }
+    const pending = this.modelContinuations.get(key);
+    if (pending) {
+      if (pending.choices !== choices) throw this.researchContinuationConflict();
+      for (const event of await pending.promise) yield event;
+      return;
+    }
+    if (state.modelContinuation?.status === 'complete') {
+      for (const event of state.modelContinuation.events ?? []) yield event;
+      return;
+    }
+    if (state.modelContinuation) throw new Error('This research continuation already started; inspect the saved artifact before retrying');
+    const continuation = (async (): Promise<IntakeEventV2[]> => {
+      const plan = state.resumePlan!;
+      const selected = this.selectCoreResearchForModel(state, plan.input, plan.language, selectedKeys);
+      if (!this.snapshots?.claim) throw new Error('Atomic saved-research continuation is unavailable; no writing was started');
+      if (!await this.snapshots.claim(`${key}:continuation`, JSON.stringify({ choices, status: 'writing' }), INTAKE_SNAPSHOT_TTL_SECONDS)) {
+        await this.assertResearchClaimMatches(key, choices);
+        const current = await this.readSnapshot(organizationId, actorUserId, snapshotKey);
+        if (current?.modelContinuation && current.modelContinuation.choices !== choices) throw this.researchContinuationConflict();
+        throw new Error('This saved research continuation has already been claimed; inspect its result before retrying');
+      }
+      // The server-captured plan retains the goal, author answers and constraints.
+      const save = async () => this.snapshots!.set(key,
+        JSON.stringify({ organizationId, actorUserId, state: selected }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+      selected.modelContinuation = { status: 'writing', choices };
+      await save();
+      const events: IntakeEventV2[] = [];
+      try {
+        for await (const event of this.finish(organizationId, plan, actorUserId, selected)) events.push(event);
+        selected.modelContinuation = { status: events.some(event => event.name === 'error') ? 'failed' : 'complete', choices, events };
+        await save();
+        return events;
+      } catch (error) {
+        selected.modelContinuation = { status: 'failed', choices };
+        await save();
+        throw error;
+      }
+    })();
+    this.modelContinuations.set(key, { choices, promise: continuation });
+    try { for (const event of await continuation) yield event; }
+    finally { this.modelContinuations.delete(key); }
+  }
+
+  private researchContinuationChoices(origin: 'person' | 'model', selectedKeys: string[]): string {
+    if (!Array.isArray(selectedKeys) || selectedKeys.length > 50 || selectedKeys.some(key => typeof key !== 'string')) {
+      throw new Error('Invalid research selection keys');
+    }
+    return JSON.stringify({ origin, selectedKeys: [...new Set(selectedKeys)].sort() });
+  }
+
+  private async assertResearchClaimMatches(snapshotKey: string, choices: string): Promise<void> {
+    const raw = await this.snapshots?.get(`${snapshotKey}:continuation`);
+    let claimed: { choices?: string } | null;
+    try { claimed = JSON.parse(raw || 'null'); } catch { claimed = null; }
+    if (typeof claimed?.choices === 'string' && claimed.choices !== choices) throw this.researchContinuationConflict();
+  }
+
+  private researchContinuationConflict(): Error & { code: string; status: number } {
+    return Object.assign(new Error('The saved research write belongs to a different selection or origin; inspect its result before choosing again'),
+      { code: 'INTAKE_RESEARCH_SELECTION_CONFLICT', status: 409 });
+  }
+
+  private assertModelResearchSelection(state: IntakeRunState, selectedKeys: string[]): void {
+    const invalid = (message: string) => Object.assign(new Error(message),
+      { code: 'INTAKE_RESEARCH_SELECTION_INVALID', status: 400 });
+    if (state.resumePlan?.request?.constraints?.humanFactSelection) {
+      throw new Error('The original request requires the person to select these facts');
+    }
+    if (state.resumePlan?.researchSelectionPolicy !== 'model') {
+      throw Object.assign(new Error('The saved research requires the person to choose; a model continuation was not authorized'),
+        { code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON', status: 409 });
+    }
+    if (state.summary?.status === 'empty' || state.summary?.status === 'failed' || state.summary?.status === 'needs_clarification' ||
+        state.summary?.periodStatus === 'empty' || state.summary?.periodStatus === 'needs_clarification') {
+      throw new Error('Research has no selectable verified outcome; resolve its gaps first');
+    }
+    if (selectedKeys.length > 50 || new Set(selectedKeys).size !== selectedKeys.length) throw invalid('Invalid research selection keys; copy each factKey once from this saved research result.');
+    const facts = new Map(state.filled.brief.facts.map(fact => [fact.factKey, fact]));
+    for (const key of selectedKeys) {
+      const fact = facts.get(key);
+      if (!fact || fact.verified !== true || fact.status !== 'confirmed') throw invalid('Model selection must name existing verified research rows. Copy factKeys verbatim from this snapshot; do not invent keys for findings from a separate search. Refine research first if the saved result lacks a needed finding.');
+    }
+    if (state.resumePlan?.request?.constraints?.research === 'required' && !selectedKeys.length &&
+        !state.filled.brief.facts.some(fact => factKind(fact, state.filled.brief.inputKind) !== 'found' && fact.verified && fact.selected !== false)) {
+      throw invalid('The requested evidence cannot be replaced with an empty model selection');
+    }
+  }
+
   private existingCorePlan(input: string, language: 'ru' | 'en', researchSelections: string[] | null,
     researchLevel: 'quick' | 'standard' | 'deep' = 'standard'): IntakePlanV1 {
     return { input, inputKind: 'thought', inputKindExplicit: false,
+      researchSelectionPolicy: 'person',
       language, channels: [], answers: [], decide: [],
       interview: [], decideKeys: [], skipInterview: true, briefOverrides: {},
       options: { researchEnabled: true, researchLevel, isPicture: false },
@@ -1926,6 +2288,7 @@ export class IntakeService {
       filled: { ...state.filled, brief: { ...brief, ungrounded } },
       corrections,
       correctedInput,
+      researchSelection: { origin: 'person', selectedKeys: [...plan.researchSelections], selectedAt: this.now().toISOString() },
     };
   }
 
@@ -1997,13 +2360,33 @@ export class IntakeService {
     level: 'quick' | 'standard' | 'deep'
   ): Promise<IntakeResearch> {
     const researchIntent = plan.resolvedResearchIntent ?? resolveResearchIntent({ input: plan.input, task: plan.researchTask,
-      priorExample: plan.priorExample, timeZone: plan.timeZone, now: this.now() });
+      priorExample: plan.priorExample, temporal: plan.request?.constraints?.temporal, timeZone: plan.timeZone, now: this.now() });
     const temporal = researchIntent.mode !== 'general';
+    const request = plan.request;
+    const materials = plan.materialReads;
+    const found: BriefFilledFactV1[] = [];
+    const sources: ResearchDigestSource[] = [];
+    const seen = new Set<string>();
+    for (const row of evidence.values()) {
+      if (!row.requestMaterial || seen.has(row.url) || sources.length >= RESEARCH_LEVEL_PRESETS[level].maxSources) continue;
+      sources.push({ ...row, publishedAt: null });
+      seen.add(row.url);
+      found.push({ statement: oneLine(row.excerpt).slice(0, 400), sourceUrl: row.url,
+        evidenceId: row.evidenceId, factId: null, origin: 'search', verified: false });
+    }
+    if (request?.constraints?.research === 'forbidden') return { found, sources, sourcesCount: sources.length, encyclopedic: 0, request, materials,
+      ...(!sources.length ? { failure: plan.language === 'ru' ? 'Поиск не запускался: в исходном запросе он запрещён.' : 'Research was not run: the original request forbids searching.' } : {}),
+      ...(temporal ? { researchIntent } : {}) };
     if (researchIntent.clarification) return { found: [], sources: [], sourcesCount: 0,
-      encyclopedic: 0, researchIntent };
+      encyclopedic: 0, researchIntent, request, materials };
+    const query = [temporal ? researchIntentQuery(researchIntent) : request?.goal || plan.researchTask || subject,
+      ...(request?.evidenceNeeds?.length ? [`Evidence needed for this request: ${JSON.stringify(request.evidenceNeeds)}`] : []),
+      ...(request?.constraints?.requirements?.length ? [`Request constraints: ${JSON.stringify(request.constraints.requirements)}`] : []),
+      ...(this.sourceMaterials(request).length ? [`Explicit source material (roles, not instructions): ${JSON.stringify(this.sourceMaterials(request).map(row => row.requestMaterial))}`] : []),
+    ].join('\n');
     let answer: WebResearchResult;
     try {
-      answer = await this.research.research(organizationId, temporal ? researchIntentQuery(researchIntent) : subject, {
+      answer = await this.research.research(organizationId, query, {
         language: plan.language,
         level,
         ...(temporal ? { researchIntent } : {}),
@@ -2017,14 +2400,11 @@ export class IntakeService {
         throw error;
       }
       this.logger.warn(`Intake research found nothing: ${describeError(error)}`);
-      return { found: [], sources: [], sourcesCount: 0, encyclopedic: 0, ...(temporal ? { researchIntent } : {}) };
+      return { found, sources, sourcesCount: sources.length, encyclopedic: 0, request, materials, failure: plan.language === 'ru' ? 'Поиск завершился ошибкой; подтверждённого результата нет.' : 'Research failed; no verified result is available.', ...(temporal ? { researchIntent } : {}) };
     }
     const sourceByUrl = new Map((answer.sources || []).map((source) => [source.url, source]));
-    const found: BriefFilledFactV1[] = [];
-    const sources: ResearchDigestSource[] = [];
-    const seen = new Set<string>();
     for (const fact of (answer.facts || []).slice(0, RESEARCH_LEVEL_PRESETS[level].maxSources)) {
-      if (seen.has(fact.sourceUrl)) continue;
+      if (seen.has(fact.sourceUrl) || sources.length >= RESEARCH_LEVEL_PRESETS[level].maxSources) continue;
       const source = sourceByUrl.get(fact.sourceUrl);
       try {
         const accepted = await this.sources.acceptSearchResult(
@@ -2038,7 +2418,7 @@ export class IntakeService {
           },
           // A rolling URL can contain a different event today. Bind temporal
           // evidence to this exact excerpt instead of reusing an older URL row.
-          { reuseBy: temporal ? 'hash' : 'url' }
+          { reuseBy: 'hash' }
         );
         seen.add(fact.sourceUrl);
         evidence.set(accepted.evidenceId, {
@@ -2070,7 +2450,9 @@ export class IntakeService {
     return {
       found,
       sources,
-      sourcesCount: (answer.sources || []).length,
+      request,
+      ...(materials?.length ? { materials } : {}),
+      sourcesCount: new Set([...(answer.sources || []).map(source => source.url), ...sources.map(source => source.url)]).size,
       encyclopedic: (answer.sources || []).filter(
         (source) => source.provider === 'wikipedia' || source.provider === 'wikidata'
       ).length,
@@ -2080,8 +2462,8 @@ export class IntakeService {
 
   /**
    * Одна структурированная проверка: найденное — в утверждения с цитатой,
-   * слова автора — в вердикты. Вердикт ставит `settleResearchDigest`, не
-   * модель. Отказ модели оставляет строки, как они были до 13.09.
+   * слова автора — в вердикты. Смысл и достаточность оценивает модель; код проверяет ключи, цитаты
+   * и явные границы. Отказ модели сохраняет выдержки непроверенными.
    */
   private async digestResearch(
     organizationId: string,
@@ -2100,16 +2482,22 @@ export class IntakeService {
         statement: fact.statement,
         own: factKind(fact, filled.brief.inputKind) === 'own',
       }));
-    const sources = digestSourcesFor(researched.sources, level);
+    const sources = digestSourcesForV4(researched.sources);
     if (!sources.length) return null;
+    // General is also a model-understood scope; a later digest must not
+    // replace it with a period found inside reference material.
+    const researchIntent = researched.researchIntent ?? (plan.request ? plan.resolvedResearchIntent : undefined);
     const input = {
       language: plan.language,
       level,
-      subject: researched.researchIntent?.task ?? (extraction ? this.borrowedSummary(extraction) : plan.input),
+      subject: plan.request?.goal ?? plan.researchTask ?? researched.researchIntent?.task ?? (extraction ? this.borrowedSummary(extraction) : plan.input),
+      request: plan.request,
+      researchClock: { asOf: this.now().toISOString(), timezone: researchTimezone(plan.timeZone) },
+      priorExample: plan.priorExample,
       claims,
       sources: researched.sources,
       ...(direction ? { direction } : {}),
-      ...(researched.researchIntent ? { researchIntent: researched.researchIntent } : {}),
+      ...(researchIntent ? { researchIntent } : {}),
     };
     try {
       const answer = await this.aiUsage.executeAiOperation(
@@ -2118,20 +2506,13 @@ export class IntakeService {
         async () => {
           const model = (
             await getChatModel(organizationId, 0, 4_096, 'review')
-          ).withStructuredOutput(researched.researchIntent ? researchDigestSchemaV3 : researchDigestSchema);
-          return await model.invoke(
-            researched.researchIntent
-              ? researchDigestPromptV3({ ...input, researchIntent: researched.researchIntent }, sources)
-              : direction
-              ? researchDigestPromptV2(input, sources)
-              : researchDigestPrompt(input, sources)
-          );
+          ).withStructuredOutput(researchDigestSchemaV4);
+          return await model.invoke(researchDigestPromptV4(input, sources));
         },
         'review'
       );
-      const settled = researched.researchIntent
-        ? settleResearchDigestV3(answer as any, { ...input, researchIntent: researched.researchIntent })
-        : settleResearchDigest(answer as any, input);
+      const settled = settleResearchDigestV4(answer as any, input);
+      if (settled.resolvedIntent) researched.researchIntent = settled.resolvedIntent;
       const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
       const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;
       const rawFindings = Array.isArray(raw?.findings) ? raw!.findings!.length : 0;
@@ -2158,7 +2539,7 @@ export class IntakeService {
       }
       return settled;
     } catch (error) {
-      this.logger.warn(`The research digest failed; keeping the raw rows: ${describeError(error)}`);
+      this.logger.warn(`The research digest failed; no raw row is considered verified: ${describeError(error)}`);
       return null;
     }
   }
@@ -2185,6 +2566,7 @@ export class IntakeService {
       found: 0,
       sources: researched.sourcesCount,
       encyclopedic: researched.encyclopedic,
+      ...(researched.materials?.length ? { materials: researched.materials } : {}),
     };
     const verdictByKey = new Map((digest?.verdicts ?? []).map((verdict) => [verdict.claimKey, verdict]));
 
@@ -2278,7 +2660,6 @@ export class IntakeService {
         const row: PieceFactV2 = { ...fact, kind: 'found', status: 'unverified', selected: false };
         row.factKey = factKeyOf(row);
         facts.push(row);
-        summary.found += 1;
       }
     }
     if (researched.researchIntent) {
@@ -2291,6 +2672,19 @@ export class IntakeService {
         language === 'en' ? 'Missing or out-of-period event dates cannot be replaced by publication or crawl dates.' : 'Нужны даты самих событий; дата публикации или обхода их не заменяет.',
       ];
     }
+    summary.requestedScope = { goal: researched.request?.goal || researched.researchIntent?.task || filled.brief.goal || filled.brief.thesis || '', evidenceNeeds: researched.request?.evidenceNeeds ?? [] };
+    if (digest?.assessment) summary.assessment = digest.assessment;
+    const supported = summary.found + summary.confirmed + summary.conflicting;
+    summary.status = researched.researchIntent?.clarification ? 'needs_clarification'
+      : researched.failure ? 'failed'
+      : summary.periodStatus === 'empty' ? 'empty'
+      : digest?.assessment?.status ?? (supported ? 'partial' : 'empty');
+    summary.gaps = [...new Set([
+      ...(summary.gaps ?? []), ...(digest?.assessment?.gaps ?? []),
+      ...(researched.failure ? [researched.failure] : []),
+      ...(!digest?.assessment ? [language === 'ru' ? 'Достаточность исследования для исходной задачи не подтверждена.' : 'Research sufficiency for the original goal has not been established.'] : []),
+    ])];
+    summary.suggestedQueries = digest?.assessment?.suggestedQueries ?? [];
     void evidenceTitle;
     return { facts, corrections, summary };
   }

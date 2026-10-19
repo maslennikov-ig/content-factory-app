@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-j9p5",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-j9p5",
+  "source_digest": "4f918ca51160918c049f9e0370d392e008f556c57d7a31177456e8475c9dfa5a",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Model decisions govern intent, context relevance, evidence strategy, ordinary editorial choices, action sequencing and result sufficiency for varied natural requests. No mandatory previous-post/vendor/date/channel or phrase-specific branch exists. Models receive and can retrieve necessary material/history and actual tool outcomes. Arbitrary operation-count rituals are replaced with a grounded bounded execution policy; actual quotas/consents/access/source/persistence safety remain. Nine scoped tasks and the final natural-request/source/runtime acceptance cover the original example plus independent untuned cases. Planning does not claim implementation or authorize paid/deploy actions. Personal chats have visible creation/list access, complete native paged history and safe private thread/draft/artifact continuity; UI hydration and model context are accepted separately.",
+      "text_digest": "27b963eda9a8dd1a2c860ea2e8b224e8970daf7cb12d804f779926ac1be45161"
+    }
+  ]
+}

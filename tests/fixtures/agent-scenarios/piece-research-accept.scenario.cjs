@@ -20,7 +20,7 @@ module.exports = {
   turns: [
     {
       say: 'Найди глубоко факты к cnt-1, про время руководителей',
-      model: [[['tool', 'piece_research', { pieceId: 'p1', level: 'deep', direction: 'время руководителей' }]]],
+      model: [[['tool', 'piece_research', { selection: 'person', pieceId: 'p1', level: 'deep', direction: 'время руководителей' }]]],
     },
     { resume: { factKeys: ['r2', 'nope'] }, model: [[['text', 'Суть дополнена выбранной опорой.']]] },
   ],

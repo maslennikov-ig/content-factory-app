@@ -52,6 +52,7 @@ export type ResearchDigestSource = {
   text?: string | null;
   /** Page publication metadata, deliberately separate from event-effective dates. */
   publishedAt?: string | null;
+  requestMaterial?: import('./request-understanding').IntakeSourceMaterialV1;
 };
 
 export type ResearchDigestClaim = {
@@ -508,6 +509,14 @@ export type SettledResearchDigest = {
    */
   rejected: { verdicts: number; findings: number; unknownClaims: number; unknownSources: number };
   periodDiagnostics?: ResearchPeriodDiagnosticsV1;
+  resolvedIntent?: import('./research-intent').ResearchIntentV1;
+  assessment?: {
+    status: 'sufficient' | 'partial' | 'empty';
+    summary: string;
+    coveredNeeds: string[];
+    gaps: string[];
+    suggestedQueries: string[];
+  };
 };
 
 const textOf = (source: ResearchDigestSource) =>
@@ -620,7 +629,8 @@ export const isSourceMetadataStatement = (statement: string): boolean => {
  */
 export const settleResearchDigest = (
   answer: ResearchDigestAnswer | null | undefined,
-  input: Pick<ResearchDigestInput, 'claims' | 'sources' | 'level'>
+  input: Pick<ResearchDigestInput, 'claims' | 'sources' | 'level'>,
+  options: { modelSemanticSelection?: boolean } = {}
 ): SettledResearchDigest => {
   const sourcesById = new Map(input.sources.map((source) => [source.evidenceId, source]));
   const sourcesByUrl = new Map(input.sources.map((source) => [normalizeForMatch(source.url), source]));
@@ -737,7 +747,7 @@ export const settleResearchDigest = (
     }
     if (!statement) continue;
     // Дата публикации страницы — не факт о теме (`tbuj`).
-    if (isSourceMetadataStatement(statement)) continue;
+    if (!options.modelSemanticSelection && isSourceMetadataStatement(statement)) continue;
     if (!quoteIsVerbatim(raw.quote, textOf(source))) {
       rejected.findings += 1;
       continue;

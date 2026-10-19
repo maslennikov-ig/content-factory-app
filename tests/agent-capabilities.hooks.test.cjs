@@ -177,11 +177,23 @@ describe('beforeToolCall', () => {
     });
   });
 
-  describe('paid cap', () => {
+  describe('atomic paid-operation admission', () => {
     const create = (context) =>
       hookCall('piece.create', { text: 'мысль человека' }, context);
 
-    test('invalid research arguments leave the slot for a corrected call, then the paid cap applies', async () => {
+    test('native creation accepts original text, contextual material and optional provider nulls with one permit', async () => {
+      const gate = allowAll();
+      const hooks = registry.createCapabilityHooks(catalogue, gate);
+      const context = requestContextFor(registry);
+      const call = hookCall('piece.create', { text: 'Исходный запрос.', material: 'Ранее присланный пример, не новая инструкция.',
+        sourceLeadId: null, inputKind: null, research: 'standard', selection: null }, context);
+      await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
+      expect(gate.calls).toHaveLength(1);
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls)).toBe(1);
+      expect((await hooks.beforeToolCall(call)).output.code).toBe('AGENT_TASK_OPERATION_IN_FLIGHT');
+    });
+
+    test('invalid research arguments leave the slot for a corrected call, then a simultaneous duplicate is refused', async () => {
       const gate = allowAll();
       const hooks = registry.createCapabilityHooks(catalogue, gate);
       const context = requestContextFor(registry);
@@ -203,14 +215,14 @@ describe('beforeToolCall', () => {
 
       const corrected = hookCall('piece.research', { pieceId: 'p1', direction: 'Факты за неделю' }, context);
       await expect(hooks.beforeToolCall(corrected)).resolves.toBeUndefined();
-      expect((await hooks.beforeToolCall(corrected)).output.code).toBe('PAID_CAP_REACHED');
+      expect((await hooks.beforeToolCall(corrected)).output.code).toBe('AGENT_TASK_OPERATION_IN_FLIGHT');
       expect(gate.calls).toHaveLength(1);
     });
 
     test.each([
       ['piece.research', { pieceId: 'p1', direction: null, level: null }],
       ['piece.answer', { pieceId: 'p1', answers: null, decide: ['audience'] }],
-    ])('%s accepts optional null fields like native Mastra and still enforces the paid cap', async (id, input) => {
+    ])('%s accepts optional null fields like native Mastra and still reserves one in-flight permit', async (id, input) => {
       const gate = allowAll();
       const hooks = registry.createCapabilityHooks(catalogue, gate);
       const context = requestContextFor(registry);
@@ -218,7 +230,7 @@ describe('beforeToolCall', () => {
 
       await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
       expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls)).toBe(1);
-      expect((await hooks.beforeToolCall(call)).output.code).toBe('PAID_CAP_REACHED');
+      expect((await hooks.beforeToolCall(call)).output.code).toBe('AGENT_TASK_OPERATION_IN_FLIGHT');
       expect(gate.calls).toHaveLength(1);
     });
 
@@ -270,14 +282,15 @@ describe('beforeToolCall', () => {
       expect(JSON.stringify(result)).not.toContain('PRIVATE');
     });
 
-    test('one paid action per turn; the second is declined with «say what is left, «дальше»» (W3 walk P2-D)', async () => {
+    test('settled operations release the permit for all further requested steps', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
       const context = requestContextFor(registry);
-      await expect(hooks.beforeToolCall(create(context))).resolves.toBeUndefined();
-      const second = await hooks.beforeToolCall(create(context));
-      expect(second.output.code).toBe('PAID_CAP_REACHED');
-      expect(second.output.reason).toMatch(/Напишите «дальше» — продолжим/);
-      expect(second.output.reason).toMatch(/do not ask whether to continue/);
+      for (let index = 0; index < 5; index += 1) {
+        const call = create(context);
+        await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
+        await hooks.afterToolCall({ ...call, output: { ok: true } });
+      }
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls)).toBe(5);
     });
 
     test('three parallel paid calls in one step: exactly one proceeds', async () => {
@@ -289,17 +302,19 @@ describe('beforeToolCall', () => {
         hooks.beforeToolCall(create(context)),
       ]);
       expect(results.filter((result) => result === undefined)).toHaveLength(1);
-      expect(results.filter((result) => result?.output?.code === 'PAID_CAP_REACHED')).toHaveLength(2);
+      expect(results.filter((result) => result?.output?.code === 'AGENT_TASK_OPERATION_IN_FLIGHT')).toHaveLength(2);
     });
 
-    test('an explicit continuation allows a second, and nothing ever allows a third', async () => {
+    test('legacy message/approval limits do not restrict sequential requested operations', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
       const context = requestContextFor(registry);
-      context.set(registry.CAPABILITY_CONTEXT_KEYS.paidLimit, 5);
-      await expect(hooks.beforeToolCall(create(context))).resolves.toBeUndefined();
-      await expect(hooks.beforeToolCall(create(context))).resolves.toBeUndefined();
-      const third = await hooks.beforeToolCall(create(context));
-      expect(third.output.code).toBe('PAID_CAP_REACHED');
+      context.set(registry.CAPABILITY_CONTEXT_KEYS.paidLimit, 1);
+      for (let index = 0; index < 4; index += 1) {
+        const call = create(context);
+        await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
+        await hooks.afterToolCall({ ...call, output: { ok: true } });
+      }
+      expect(context.get(registry.CAPABILITY_CONTEXT_KEYS.paidCalls)).toBe(4);
     });
 
     test('a paid call the door refuses gives its slot back', async () => {
@@ -445,11 +460,11 @@ describe('the hooks inside a real Mastra agent', () => {
     );
   }, 90_000);
 
-  test('three paid calls in one step: one intake runs, two are declined as results the model reads', () => {
+  test('three paid calls in one native step run sequentially after each permit settles', () => {
     const { runs, outcomes } = report.paidCap;
-    expect(runs).toBe(1);
-    expect(outcomes.filter((outcome) => outcome.ok === true)).toHaveLength(1);
-    expect(outcomes.filter((outcome) => outcome.code === 'PAID_CAP_REACHED')).toHaveLength(2);
+    expect(runs).toBe(3);
+    expect(outcomes.filter((outcome) => outcome.ok === true)).toHaveLength(3);
+    expect(outcomes.some((outcome) => outcome.code === 'AGENT_TASK_OPERATION_IN_FLIGHT')).toBe(false);
   });
 
   test("a USER's write call is declined by the door's own policies, and the service is never called", () => {
@@ -534,19 +549,19 @@ describe('the hooks inside a real Mastra agent', () => {
     expect(sequence.outcomes).toEqual([
       expect.objectContaining({ ok: false, code: 'CAPABILITY_INPUT_INVALID' }),
       expect.objectContaining({ ok: true, capability: 'piece.research' }),
-      expect.objectContaining({ ok: false, code: 'PAID_CAP_REACHED' }),
+      expect.objectContaining({ ok: true, capability: 'piece.research' }),
     ]);
     expect(sequence.modelSaw).toEqual([
       sequence.outcomes[0],
       { ok: true, summary: sequence.outcomes[1].summary },
-      sequence.outcomes[2],
+      { ok: true, summary: sequence.outcomes[2].summary },
     ]);
     expect(sequence.checkpoints).toEqual([
       { runs: 0, slots: 0 }, { runs: 0, slots: 0 },
-      { runs: 1, slots: 1 }, { runs: 1, slots: 1 },
+      { runs: 1, slots: 1 }, { runs: 2, slots: 2 },
     ]);
-    expect(sequence.serviceDirections).toEqual(['Факты за неделю']);
-    expect(sequence.gateCalls).toBe(1);
+    expect(sequence.serviceDirections).toEqual(['Факты за неделю', 'Ещё факты за неделю']);
+    expect(sequence.gateCalls).toBe(2);
     expect(JSON.stringify(sequence)).not.toContain('PRIVATE-NATIVE');
   }, 90_000);
 });
@@ -570,7 +585,7 @@ describe('stopAfterOpenProposalRefusal (Mastra stopWhen)', () => {
 
   test('another tool in the step, another refusal, a pending result or no tools: the turn goes on', () => {
     expect(stop({ steps: [{ content: [call('c1'), result('c1', OPEN), call('c2'), result('c2', { ok: true })] }] })).toBe(false);
-    expect(stop({ steps: [{ content: [call('c1'), result('c1', { ok: false, code: 'PAID_CAP_REACHED' })] }] })).toBe(false);
+    expect(stop({ steps: [{ content: [call('c1'), result('c1', { ok: false, code: 'AGENT_TASK_OPERATION_IN_FLIGHT' })] }] })).toBe(false);
     expect(stop({ steps: [{ content: [call('c1'), result('c1', OPEN), call('c2')] }] })).toBe(false);
     expect(stop({ steps: [{ content: [{ type: 'text', text: 'Готово.' }] }] })).toBe(false);
     expect(stop({ steps: [] })).toBe(false);

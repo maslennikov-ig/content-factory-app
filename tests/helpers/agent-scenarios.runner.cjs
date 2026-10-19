@@ -323,6 +323,9 @@ const stand = (scenario) => {
   // One instance of the transport's ledger store, shared by the admission and
   // the scripted model, as in the running backend.
   const textChain = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.text-chain.ts');
+  const execution = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/conductor.execution.ts', {
+    '../../openai/ai.text-chain': textChain,
+  });
   const { AiUsageService } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/ai.usage.service.ts',
     {
@@ -344,7 +347,12 @@ const stand = (scenario) => {
   // Source loaders are isolated; production imports share one module. Keep
   // the real lifecycle registry shared by the adapter and private-thread door.
   const lifecycle = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
-  const lifecycleMocks = { '../conductor/agent-turn-lifecycle': lifecycle, './agent-turn-lifecycle': lifecycle };
+  const lifecycleMocks = {
+    '../conductor/agent-turn-lifecycle': lifecycle, './agent-turn-lifecycle': lifecycle,
+    '../conductor/conductor.execution': execution, './conductor.execution': execution,
+    '../../openai/ai.text-chain': textChain,
+    '@contentfactory/nestjs-libraries/openai/ai.text-chain': textChain,
+  };
   const conductor = loadCapabilityModule('../conductor/index.ts', { aiConfig, mocks: lifecycleMocks });
   const registry = loadCapabilityModule('index.ts', { aiConfig, mocks: lifecycleMocks });
   const world = createWorld(scenario.world);

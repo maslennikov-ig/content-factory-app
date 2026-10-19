@@ -7,14 +7,13 @@ import {
 } from '@mastra/core/request-context';
 import {
   CAPABILITY_CONTEXT_KEYS,
-  PAID_CALLS_HARD_LIMIT,
-  PAID_CALLS_PER_TURN,
   capabilityContextSchema,
   grantApproval,
   seedCapabilityContext,
   setOpenProposals,
 } from '../capabilities/capability.context';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
+import { CONDUCTOR_EXECUTION_DEFAULTS, type ConductorExecutionPolicy } from './conductor.execution';
 import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext } from './work-context';
 
 /**
@@ -26,14 +25,12 @@ import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgen
 export const CONDUCTOR_AGENT_ID = 'content-factory';
 
 /**
- * Caps of one turn (spike Q5, ADR-0012 §7). Seven since the W3 live walk
- * (28.09.2026, P2-B): the last step of a turn is kept for words
- * (`lastStepSpeaks`), so seven keeps the six working steps the cap had.
+ * Emergency loop fuse. A task is complete when its requested result is
+ * reached, not when a small number of model/tool steps has been consumed.
  */
-export const CONDUCTOR_MAX_STEPS = 7;
+export const CONDUCTOR_MAX_STEPS = CONDUCTOR_EXECUTION_DEFAULTS.emergencyMaxSteps;
 /** The transport's chain owns retries (`ai.text-chain.ts`). */
 export const CONDUCTOR_MAX_RETRIES = 0;
-export { PAID_CALLS_PER_TURN, PAID_CALLS_HARD_LIMIT };
 
 /**
  * The resource every memory row of a person's chat is written under
@@ -93,11 +90,11 @@ export type ConductorTurn = {
   identity: CapabilityIdentity;
   threadId: string;
   /**
-   * 1 for a new message; 2 when the request carries the person's own answer
-   * on a card (approval or question) — the explicit continuation of
-   * premortem A2. Never more.
+   * Accepted for legacy native callers/snapshots; ignored. Domain operations
+   * follow the actual organization allowance and execution policy.
    */
-  paidLimit: number;
+  paidLimit?: number;
+  executionPolicy?: ConductorExecutionPolicy;
   /** Approval fingerprints of the calls the person approved in this request. */
   approvals?: readonly string[];
   /**
@@ -125,13 +122,8 @@ export const buildConductorContext = (turn: ConductorTurn) => {
   );
   context.set(MASTRA_THREAD_ID_KEY, turn.threadId);
   context.set(CAPABILITY_CONTEXT_KEYS.paidCalls, 0);
-  context.set(
-    CAPABILITY_CONTEXT_KEYS.paidLimit,
-    Math.min(
-      Math.max(Math.floor(turn.paidLimit) || PAID_CALLS_PER_TURN, 1),
-      PAID_CALLS_HARD_LIMIT
-    )
-  );
+  context.set(CAPABILITY_CONTEXT_KEYS.paidInFlight, 0);
+  if (turn.executionPolicy) context.set(CAPABILITY_CONTEXT_KEYS.executionPolicy, JSON.stringify(turn.executionPolicy));
   context.set(CAPABILITY_CONTEXT_KEYS.approvals, '');
   // Questions put to the person in this request, none yet (kcxz.31, D1).
   context.set(CAPABILITY_CONTEXT_KEYS.questionsOpened, '[]');

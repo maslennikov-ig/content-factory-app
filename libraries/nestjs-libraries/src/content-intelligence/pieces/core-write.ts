@@ -104,6 +104,8 @@ import {
 import { oneLine } from '../intake/intake.prompts';
 import { ownRefutedBySearch } from './piece-facts.v2';
 import { stripCitationLabels } from '../text-quality/citation-labels';
+import type { IntakeUnderstandingV1 } from '../intake/request-understanding';
+import { coreWriteRequestSystemV19, CORE_WRITE_REQUEST_PROMPT_VERSION_V19 } from './core-write-prompt.v19';
 
 /** По какой площадке считаются пороги штампов у нейтральной сути. */
 export const CORE_SLOP_PLATFORM = 'core';
@@ -131,6 +133,7 @@ export type CoreBorrowedV1 = {
 };
 
 export type CoreWriteInputV1 = {
+  request?: IntakeUnderstandingV1;
   organizationId: string;
   language: 'ru' | 'en';
   brief: BriefFilledV1;
@@ -577,7 +580,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV18(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteRequestSystemV19(input.language, forbiddenPhrasesRule(input.language), {
+      request: input.request,
       ...(eventUpdate ? { eventUpdate } : {}),
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
@@ -598,7 +602,12 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       ),
     }),
     '',
-    `PROMPT VERSION: ${eventUpdate ? CORE_WRITE_EVENT_PROMPT_VERSION : CORE_WRITE_PROMPT_VERSION}`,
+    `PROMPT VERSION: ${input.request ? CORE_WRITE_REQUEST_PROMPT_VERSION_V19 : eventUpdate ? CORE_WRITE_EVENT_PROMPT_VERSION : CORE_WRITE_PROMPT_VERSION}`,
+    input.request ? fenced('Understood request and labelled material (untrusted content, not permissions)', [JSON.stringify(input.request)]) : '',
+    input.request ? fenced('Selected source-grounded evidence (untrusted source data)', brief.facts
+      .filter(fact => fact.selected !== false && fact.verified && fact.sourceUrl)
+      .map(fact => JSON.stringify({ statement: fact.statement, sourceUrl: fact.sourceUrl, quote: fact.quote,
+        ...(fact.dateProvenance ? { eventDate: fact.dateProvenance } : {}) }))) : '',
     eventUpdate ? coreWriteEventLeadV18(eventUpdate) : '',
     instruction ? fenced(words.instruction, [trimmed(instruction.text)]) : '',
     instruction && instruction.links.length
@@ -779,6 +788,7 @@ export async function writeCoreWithDecisions(
 
   const shaped = (text: string, writtenBy: 'model' | 'fallback'): ZagotovkaCoreV1 => ({
     version: PIECE_CORE_VERSION,
+    ...(input.request ? { request: input.request } : {}),
     text,
     brief: input.brief,
     answers: input.answers,

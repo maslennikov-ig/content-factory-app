@@ -12,6 +12,7 @@ module.exports = {
   id: 'avatar-analysis-failed-rerun',
   title: 'Разбор упал после чисел — не «ещё идёт», повтор после согласия работает',
   covers: ['avatar.analyse'],
+  incompleteTurns: [0],
   world: {
     assistFails: 1,
     avatars: [

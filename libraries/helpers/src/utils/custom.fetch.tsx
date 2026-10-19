@@ -11,7 +11,7 @@ import {
 import { customFetch, Params } from './custom.fetch.func';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
-const FetchProvider = createContext(
+export const FetchProvider = createContext(
   customFetch(
     // @ts-ignore
     {

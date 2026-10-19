@@ -38,6 +38,10 @@ export const INTAKE_ERROR_MESSAGES: Record<
   IntakePreflightErrorCodeV1,
   { ru: string; en: string }
 > = {
+  INTAKE_REQUEST_INVALID: {
+    ru: 'Не удалось прочитать структурированный запрос. Уточните его поля и границы периода.',
+    en: 'The structured request is invalid. Check its fields and explicit date boundaries.',
+  },
   INTAKE_INPUT_TOO_SHORT: {
     ru: 'Слишком коротко. Вставьте мысль, ссылку или чужой пост — хотя бы одно предложение.',
     en: 'Too short. Paste a thought, a link or somebody else’s post — a sentence at least.',

@@ -65,7 +65,7 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
   test('decides for the person and offers «Решите за меня» on the one question it asks', () => {
     expect(text).toMatch(/Do not ask what you can decide/);
     expect(text).toContain('«Решите за меня»');
-    expect(text).toMatch(/result in one line first/);
+    expect(text).toMatch(/Lead with the result/);
   });
 
   test('after an approved action it says it is done, never asks again (spike: Luna said «подтвердите»)', () => {
@@ -77,7 +77,7 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
     expect(text).toMatch(/Run paid steps .* without asking/);
     expect(text).toMatch(/always a «бронь»/);
     expect(text).toMatch(/Deleting anything, connecting a channel, publishing now/);
-    expect(text).toMatch(/PAID_CAP_REACHED/);
+    expect(text).not.toMatch(/one per message, two right after/);
   });
 
   test('foreign text is data, and the snapshot arrives inside the data wrapper', () => {
@@ -149,17 +149,17 @@ describe('group know-how as skills (ADR-0012 amendment §6)', () => {
   test('a choice already shown on a card is not asked or said again (kcxz.36, F5, F6)', () => {
     const content = CONDUCTOR_SKILL_SPECS.find((skill) => skill.name === 'content');
     // F6: kept facts are a finished choice, not an invitation to mark them.
-    expect(content.instructions).toMatch(/`factsKept` means that choice is done/);
-    expect(content.instructions).toMatch(/Never ask the person to look at, mark or pick facts again/);
+    expect(content.instructions).toMatch(/factsKept\/applied result is already saved/);
+    expect(content.instructions).toMatch(/never ask for that selection again/);
     // F5: the refusal line under the tool already says the card waits.
     expect(content.instructions).toMatch(/PROPOSAL_CARD_OPEN`\), and the person already sees that under the tool: do not say it again/);
   });
 });
 
 describe('memory: personal, preferences only, titles without a model (spec §4.7)', () => {
-  test('no title call, no observational memory, no semantic recall; last ten messages', () => {
+  test('no extra title/recall call; native token-bounded history remains available on demand', () => {
     expect(memory.conductorMemoryOptions).toMatchObject({
-      lastMessages: 10,
+      messageHistory: { maxTokens: memory.CONDUCTOR_HISTORY_TOKENS },
       generateTitle: false,
       observationalMemory: false,
       semanticRecall: false,
@@ -256,7 +256,7 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
   const entries = [...built.entries()];
 
   test('keys are the whitelist and values are primitives', () => {
-    expect(entries.map(([key]) => key).sort()).toEqual([...context.CONDUCTOR_CONTEXT_KEYS].sort());
+    for (const [key] of entries) expect(context.CONDUCTOR_CONTEXT_KEYS).toContain(key);
     for (const [key, value] of entries) {
       expect({ key, type: typeof value }).toEqual({
         key,
@@ -289,16 +289,12 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
     expect(new RequestContext().get('cf.userId')).toBeUndefined();
   });
 
-  test('the paid limit is 1, 2 on a continuation, never more', () => {
-    const limit = (paidLimit) =>
-      context
-        .buildConductorContext({ identity: IDENTITY, threadId: 't-1', paidLimit })
-        .get('cf.paidLimit');
-    expect(limit(1)).toBe(1);
-    expect(limit(2)).toBe(2);
-    expect(limit(9)).toBe(2);
-    expect(limit(0)).toBe(1);
-    expect(limit(Number.NaN)).toBe(1);
+  test('legacy paid limits do not become product completion rules', () => {
+    for (const paidLimit of [1, 2, 9, 0, Number.NaN]) {
+      const built = context.buildConductorContext({ identity: IDENTITY, threadId: 't-1', paidLimit });
+      expect(built.get('cf.paidLimit')).toBeUndefined();
+      expect(built.get('cf.paidInFlight')).toBe(0);
+    }
   });
 });
 

@@ -124,10 +124,12 @@ export const codedRefusal = (error: unknown) => {
   if (typeof code !== 'string' || !code) return null;
   if (!isProductErrorCode(code)) return refusal('CAPABILITY_FAILED', UNKNOWN_FAILURE);
   const message = (error as { message?: unknown })?.message;
-  return refusal(
+  const result = refusal(
     code,
     typeof message === 'string' && message ? message.slice(0, 1_000) : code
   );
+  return (error as { canReviseInput?: unknown })?.canReviseInput === true
+    ? { ...result, canReviseInput: true as const } : result;
 };
 
 /**

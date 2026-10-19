@@ -133,7 +133,7 @@ describe('F1 residual: the last step counts this request’s steps only', () => 
     const choices = [6, 7, 8, 9, 10, 11].map(
       (stepNumber) => prepare({ stepNumber, systemMessages: system, messageList: list })?.toolChoice ?? 'auto'
     );
-    expect(choices).toEqual(['auto', 'auto', 'auto', 'auto', 'auto', 'none']);
+    expect(choices).toEqual(['auto', 'auto', 'auto', 'auto', 'auto', 'auto']);
   });
 
   test('each stream (and each approval leg) is counted apart; nothing is kept between requests', () => {
@@ -142,9 +142,9 @@ describe('F1 residual: the last step counts this request’s steps only', () => 
     const second = {};
     expect(prepare({ stepNumber: 4, messageList: first })).toBeUndefined();
     expect(prepare({ stepNumber: 0, messageList: second })).toBeUndefined();
-    expect(prepare({ stepNumber: 6, messageList: first })).toEqual({ toolChoice: 'none' });
+    expect(prepare({ stepNumber: 6, messageList: first })).toBeUndefined();
     expect(prepare({ stepNumber: 1, messageList: second })).toBeUndefined();
-    expect(prepare({ stepNumber: 2, messageList: second })).toEqual({ toolChoice: 'none' });
+    expect(prepare({ stepNumber: 2, messageList: second })).toBeUndefined();
   });
 
   test('the notes of a request ride on every step of it, the last-step note on the last', () => {
@@ -154,12 +154,7 @@ describe('F1 residual: the last step counts this request’s steps only', () => 
       systemMessages: [...system, { role: 'system', content: 'NOTE' }],
     });
     expect(prepare({ stepNumber: 1, systemMessages: system, messageList: list })).toEqual({
-      toolChoice: 'none',
-      systemMessages: [
-        ...system,
-        { role: 'system', content: 'NOTE' },
-        { role: 'system', content: steps.LAST_STEP_NOTE },
-      ],
+      systemMessages: [...system, { role: 'system', content: 'NOTE' }],
     });
   });
 });
@@ -170,20 +165,16 @@ describe('F8: the continuation line in the person’s language', () => {
       ru: 'Напишите «дальше» — продолжим.',
       en: 'Write “next” — we\'ll continue.',
     });
-    expect(steps.STEP_CAP_CLOSING.en).toContain(steps.CONTINUE_LINE.en);
-    expect(steps.STEP_CAP_CLOSING.ru).toContain(steps.CONTINUE_LINE.ru);
+    expect(steps.STEP_CAP_CLOSING.en).toContain('task is incomplete');
+    expect(steps.STEP_CAP_CLOSING.ru).toContain('Задача не завершена');
     const { paidCapReason } = loadCapabilityModule('capability.admission.ts');
-    expect(paidCapReason(1, 'en')).toContain(`«${steps.CONTINUE_LINE.en}»`);
-    expect(paidCapReason(1, 'en')).not.toContain('дальше');
-    expect(paidCapReason(1)).toContain(`«${steps.CONTINUE_LINE.ru}»`);
+    expect(paidCapReason()).toContain('do not retry uncertain work automatically');
     const { conductorInstructions } = loadCapabilityModule('../conductor/conductor.instructions.ts');
     const now = new Date('2026-09-28T10:00:00Z');
     const en = conductorInstructions({ language: 'en', now, snapshot: null });
-    expect(en).toContain(`end with «${steps.CONTINUE_LINE.en}»`);
+    expect(en).not.toContain('one per message, two right after');
     expect(en).toContain('“next”');
-    expect(conductorInstructions({ language: 'ru', now, snapshot: null })).toContain(
-      `end with «${steps.CONTINUE_LINE.ru}»`
-    );
+    expect(conductorInstructions({ language: 'ru', now, snapshot: null })).not.toContain('one per message, two right after');
   });
 });
 
@@ -296,9 +287,9 @@ describe('F2: the chat re-reads the screens beside it without clearing them', ()
     expect(contract.channelCallsOf([message(['channel_open', 'channel_posts', 'channel_writing'])])).toBe(1);
     const registry = loadCapabilityModule('index.ts');
     const reads = registry.CAPABILITY_CATALOGUE.filter(
-      (capability) => capability.risk === 'read' && /^(avatar|channel|ideas|facts|media)\./.test(capability.id)
+      (capability) => capability.risk === 'read' && (/^(avatar|channel|ideas|facts|media)\./.test(capability.id) || capability.id === 'piece.read')
     ).map((capability) => capability.id.replace(/\./g, '_'));
-    expect([...contract.READ_ONLY_TOOLS].sort()).toEqual(reads.sort());
+    expect([...contract.READ_ONLY_TOOLS].sort()).toEqual([...reads, 'readConversationHistory', 'read-conversation-history'].sort());
   });
 
   test('W4 walk P2-B: a finished read re-reads the panel it opens, for every group; a refused one does not', () => {

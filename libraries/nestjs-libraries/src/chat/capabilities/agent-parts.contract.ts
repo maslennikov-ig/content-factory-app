@@ -327,8 +327,20 @@ export const CAPABILITY_REFUSAL_CODES = [
   'CAPABILITY_INPUT_INVALID',
   'APPROVAL_MISMATCH',
   'PAID_CAP_REACHED',
+  'AGENT_TASK_OPERATION_IN_FLIGHT',
+  'AGENT_TASK_OPERATION_FAILED',
+  'AGENT_TASK_TIME_BUDGET',
+  'AGENT_TASK_TOKEN_BUDGET',
+  'AGENT_TASK_COST_BUDGET',
+  'AGENT_TASK_COST_UNKNOWN',
+  'AGENT_TASK_UNCERTAIN',
+  'AGENT_TASK_NO_PROGRESS',
+  'AGENT_TASK_EMERGENCY_FUSE',
+  'AGENT_TASK_STOPPED',
   'PERMISSION_DENIED',
   'INPUT_NEEDS_PERSON',
+  'MATERIAL_NOT_AVAILABLE',
+  'MATERIAL_STALE',
   /**
    * The person said «Да» to a post whose text (or picture, or the number of
    * posts a mode applies to) is no longer what the card showed; nothing ran

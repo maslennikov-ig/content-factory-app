@@ -3,6 +3,7 @@ import { Memory } from '@mastra/memory';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import { AGENT_THREAD_TITLE_MAX } from '../capabilities/agent-parts.contract';
 import { redactSecretShapes } from './secret-shapes';
+import { conversationHistoryTool } from './conversation-history';
 
 /**
  * The conductor's memory (`content-factory-next-kcxz.7`, spec §4.7).
@@ -71,11 +72,11 @@ export const personPreferencesSchema = z.object({
 });
 export type PersonPreferences = z.infer<typeof personPreferencesSchema>;
 
-/** Messages of the thread the agent reads on every turn. */
-export const CONDUCTOR_HISTORY_MESSAGES = 10;
+/** Native token-bounded history; earlier messages remain available on demand. */
+export const CONDUCTOR_HISTORY_TOKENS = 32_000;
 
 export const conductorMemoryOptions = {
-  lastMessages: CONDUCTOR_HISTORY_MESSAGES,
+  messageHistory: { maxTokens: CONDUCTOR_HISTORY_TOKENS },
   semanticRecall: false,
   generateTitle: false,
   observationalMemory: false,
@@ -86,8 +87,14 @@ export const conductorMemoryOptions = {
   },
 };
 
+class ConductorMemory extends Memory {
+  override listTools(config?: Parameters<Memory['listTools']>[0]) {
+    return { ...super.listTools(config), readConversationHistory: conversationHistoryTool(this) };
+  }
+}
+
 export const createConductorMemory = (storage: MastraCompositeStore) =>
-  new Memory({ storage, options: conductorMemoryOptions });
+  new ConductorMemory({ storage, options: conductorMemoryOptions });
 
 const FALLBACK_TITLE = { ru: 'Новый разговор', en: 'New conversation' };
 /** Short enough for one line of the thread list. */

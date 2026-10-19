@@ -51,6 +51,7 @@ const SERVICE_MODULES = {
   '@contentfactory/nestjs-libraries/database/prisma/webhooks/webhooks.service':
     'WebhooksService',
   '@contentfactory/nestjs-libraries/openai/ai.usage.service': 'AiUsageService',
+  '@contentfactory/nestjs-libraries/openai/web.research.service': 'WebResearchService',
   // The platforms and how each connects (`channel.connect`, kcxz.19).
   '@contentfactory/nestjs-libraries/integrations/integration.manager':
     'IntegrationManager',
@@ -399,6 +400,31 @@ const fixtures = () => ({
       },
     },
   },
+  'piece.create.from-research': {
+    input: { snapshotKey: 'snap-1', factKeys: ['r1'] },
+    services: {
+      IntakeService: {
+        selectResearchForModel: async function* () {
+          yield { name: 'piece', pieceId: 'p9', code: 'cnt-9', core: { text: INJECTION } };
+          yield { name: 'done', pieceId: 'p9' };
+        },
+      },
+    },
+  },
+  'research.search': {
+    input: { query: 'Какие новые сведения появились по теме?' },
+    services: {
+      WebResearchService: {
+        research: async () => ({
+          summary: INJECTION,
+          facts: [{ statement: INJECTION, sourceUrl: 'https://x.org/source' }],
+          sources: [{ title: INJECTION, url: 'https://x.org/source', content: INJECTION }],
+          readerAssessment: { status: 'sufficient', gaps: [INJECTION] },
+          fromCache: false,
+        }),
+      },
+    },
+  },
   'piece.list': {
     input: { search: 'созвоны' },
     services: {
@@ -429,6 +455,17 @@ const fixtures = () => ({
             },
           },
           adaptations: [],
+        }),
+      },
+    },
+  },
+  'piece.read': {
+    input: { pieceId: 'p1' },
+    services: {
+      PieceService: {
+        detail: async () => ({
+          piece: { id: 'p1', title: INJECTION },
+          core: { text: INJECTION },
         }),
       },
     },
@@ -486,7 +523,7 @@ const fixtures = () => ({
     },
   },
   'piece.research': {
-    input: { pieceId: 'p1', level: 'quick' },
+    input: { pieceId: 'p1', level: 'quick', selection: 'person' },
     resumeData: { decideForPerson: true },
     services: {
       PieceService: {
@@ -500,6 +537,12 @@ const fixtures = () => ({
         }),
         acceptCoreResearch: async () => ({ body: INJECTION }),
       },
+    },
+  },
+  'piece.research.apply': {
+    input: { pieceId: 'p1', snapshotKey: 'snap-1', factKeys: ['r1'] },
+    services: {
+      PieceService: { acceptCoreResearchForModel: async () => ({ text: INJECTION }) },
     },
   },
   'piece.check_facts': {

@@ -1,3 +1,4 @@
+import { chatWordsFor, type ChatWords } from './agent.chats.copy';
 import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
 import { intakeCopy } from '@contentfactory/frontend/components/content-intelligence/intake/intake.copy';
 import { onboardingCopy } from '@contentfactory/frontend/components/onboarding/onboarding.copy';
@@ -30,19 +31,7 @@ type AgentWords = {
   /** The language of these words; the requests they go with use it too. */
   locale: AgentCopyLocale;
   screenLabel: string;
-  threads: {
-    label: string;
-    newThread: string;
-    untitled: string;
-    empty: string;
-    failed: string;
-    rename: string;
-    renameLabel: string;
-    renameSave: string;
-    remove: string;
-    removeArmed: string;
-    actionFailed: string;
-  };
+  threads: ChatWords;
   history: {
     loading: string;
     failedTitle: string;
@@ -372,6 +361,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     locale: 'ru',
     screenLabel: 'ИИ-помощник',
     threads: {
+      ...chatWordsFor('ru'),
       label: 'Разговоры',
       newThread: 'Новый разговор',
       untitled: 'Без названия',
@@ -655,9 +645,21 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'У вашей роли нет права на это действие.',
           next: 'Попросите администратора пространства.',
         },
+        MATERIAL_NOT_AVAILABLE: { what: "Материал или его версия больше недоступны.", next: "Выберите доступный материал в карточке." },
+        MATERIAL_STALE: { what: "Материал изменился во время чтения.", next: "Помощник прочитает текущую версию заново." },
+        AGENT_TASK_OPERATION_IN_FLIGHT: { what: "Предыдущий шаг ещё выполняется.", next: "Дождитесь результата перед следующим действием." },
+        AGENT_TASK_OPERATION_FAILED: { what: "Шаг завершился с ошибкой; вся задача ещё не выполнена.", next: "Проверьте сохранённый результат перед повтором." },
+        AGENT_TASK_TIME_BUDGET: { what: "Задача заняла отведённое время; часть работы осталась.", next: "Сохранённые результаты доступны. Помощник укажет, что осталось." },
+        AGENT_TASK_TOKEN_BUDGET: { what: "Достигнут настроенный предел объёма работы.", next: "Проверьте результаты и оставшиеся шаги перед продолжением." },
+        AGENT_TASK_COST_BUDGET: { what: "Достигнут настроенный предел расходов на задачу.", next: "Проверьте расходы и оставшуюся работу перед продолжением." },
+        AGENT_TASK_COST_UNKNOWN: { what: "Не удалось подтвердить стоимость выполненного шага.", next: "Проверьте расход и сохранённый результат перед повтором." },
+        AGENT_TASK_UNCERTAIN: { what: "Результат платного шага пока не подтверждён.", next: "Сначала проверьте сохранённый результат: повтор может создать дубликат." },
+        AGENT_TASK_NO_PROGRESS: { what: "Повторные действия не дали новых результатов.", next: "Помощник объяснит пробел и предложит другой способ продолжить." },
+        AGENT_TASK_EMERGENCY_FUSE: { what: "Длинная цепочка остановлена; задача ещё не завершена.", next: "Проверьте полученные результаты и оставшиеся шаги." },
+        AGENT_TASK_STOPPED: { what: "Выполнение остановлено. Уже сохранённые результаты доступны.", next: "Проверьте их перед продолжением." },
         PAID_CAP_REACHED: {
-          what: 'За одно сообщение — один платный шаг; сразу после вашего «Да» на карточке — до двух.',
-          next: 'Напишите «дальше» — продолжим.',
+          what: 'Этот шаг остановлен ограничением старой версии помощника.',
+          next: 'Проверьте сохранённые результаты перед продолжением.',
         },
         APPROVAL_MISMATCH: {
           what: 'Ваше «да» было для другого действия — ничего не сделали.',
@@ -1039,6 +1041,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     locale: 'en',
     screenLabel: 'AI assistant',
     threads: {
+      ...chatWordsFor('en'),
       label: 'Conversations',
       newThread: 'New conversation',
       untitled: 'Untitled',
@@ -1318,9 +1321,21 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Your role has no right to do this.',
           next: 'Ask an administrator of the workspace.',
         },
+        MATERIAL_NOT_AVAILABLE: { what: "This material or version is no longer available.", next: "Choose available material from its card." },
+        MATERIAL_STALE: { what: "The material changed while it was being read.", next: "The assistant will read its current version again." },
+        AGENT_TASK_OPERATION_IN_FLIGHT: { what: "The previous step is still running.", next: "Wait for its result before another action." },
+        AGENT_TASK_OPERATION_FAILED: { what: "A step failed; the whole task is still incomplete.", next: "Check the saved result before repeating it." },
+        AGENT_TASK_TIME_BUDGET: { what: "The task reached its time limit with work remaining.", next: "Saved results remain available. The assistant will identify what remains." },
+        AGENT_TASK_TOKEN_BUDGET: { what: "The configured task token limit was reached.", next: "Check results and remaining steps before continuing." },
+        AGENT_TASK_COST_BUDGET: { what: "The configured task spending limit was reached.", next: "Check costs and remaining work before continuing." },
+        AGENT_TASK_COST_UNKNOWN: { what: "The cost of a completed step could not be confirmed.", next: "Check usage and the saved result before repeating it." },
+        AGENT_TASK_UNCERTAIN: { what: "The result of a paid step is not confirmed yet.", next: "Check the saved result first: repeating it may create a duplicate." },
+        AGENT_TASK_NO_PROGRESS: { what: "Repeated actions did not produce new results.", next: "The assistant will explain the gap and propose another way forward." },
+        AGENT_TASK_EMERGENCY_FUSE: { what: "A long execution chain stopped; the task is still incomplete.", next: "Check the available results and remaining steps." },
+        AGENT_TASK_STOPPED: { what: "Execution stopped. Saved results remain available.", next: "Check them before continuing." },
         PAID_CAP_REACHED: {
-          what: 'One paid step per message; up to two right after your “Yes” on a card.',
-          next: 'Write “next” — we\'ll continue.',
+          what: 'This step was stopped by an older assistant limit.',
+          next: 'Check saved results before continuing.',
         },
         APPROVAL_MISMATCH: {
           what: 'Your yes was for a different action — nothing was done.',
@@ -1699,8 +1714,17 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
 };
 
 /** Тот же единственный вопрос о языке, что у остальных экранов. */
-export const agentWordsFor = (language: string | undefined | null) =>
-  agentCopy[resolveContentLocale(language)];
+const navigationCopies = new Map<string, AgentWords>();
+export const agentWordsFor = (language: string | undefined | null): AgentWords => {
+  const key = language ?? 'en';
+  let words = navigationCopies.get(key);
+  if (!words) {
+    const threads = chatWordsFor(language);
+    words = { ...agentCopy[resolveContentLocale(language)], threads, history: { loading: threads.historyLoading, failedTitle: threads.historyFailedTitle, failedBody: threads.historyFailedBody, retry: threads.retry } };
+    navigationCopies.set(key, words);
+  }
+  return words;
+};
 
 /**
  * Слова отказа по коду: код, который продукт знает, — его фраза; иначе общая

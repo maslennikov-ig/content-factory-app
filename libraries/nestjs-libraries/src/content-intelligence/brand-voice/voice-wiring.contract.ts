@@ -2464,6 +2464,7 @@ export type IntakeOptionsV1 = {
 
 export type IntakeRequestV1 = {
   input: string;
+  request?: import('../intake/request-understanding').IntakeUnderstandingV1;
   timeZone?: string;
   researchTask?: string;
   priorExample?: string;
@@ -2665,6 +2666,11 @@ export type IntakeResearchSummaryV1 = {
   periodStatus?: 'matched' | 'empty' | 'needs_clarification';
   gaps?: string[];
   periodDiagnostics?: import('../intake/research-digest').ResearchPeriodDiagnosticsV1;
+  status?: 'sufficient' | 'partial' | 'empty' | 'failed' | 'needs_clarification';
+  assessment?: import('../intake/research-digest').SettledResearchDigest['assessment'];
+  requestedScope?: { goal: string; evidenceNeeds: string[] };
+  suggestedQueries?: string[];
+  materials?: import('../intake/request-understanding').IntakeMaterialReadV1[];
 };
 
 export type IntakeEventV1 =
@@ -2673,7 +2679,8 @@ export type IntakeEventV1 =
       inputKind: IntakeInputKindV1;
       channels: Array<{ id: string; name: string; providerIdentifier: string }>;
     }
-  | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string }
+  | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string;
+      requestMaterial?: import('../intake/request-understanding').IntakeSourceMaterialV1 }
   /**
    * Ссылка из текста, которую не прочитали, — сказанная человеку, а не только
    * журналу (`content-factory-next-97dq.12`).
@@ -2749,6 +2756,7 @@ export type IntakeEventNameV1 = IntakeEventV1['name'];
 
 /** Отказы до первого байта стрима — обычные HTTP 422 с этим кодом. */
 export type IntakePreflightErrorCodeV1 =
+  | 'INTAKE_REQUEST_INVALID'
   | 'INTAKE_INPUT_TOO_SHORT'
   | 'INTAKE_CHANNEL_REQUIRED'
   | 'INTAKE_CHANNEL_UNKNOWN'
@@ -3177,6 +3185,9 @@ export type PieceCoreRevisionV1 = {
 
 export type ZagotovkaCoreV1 = {
   version: typeof PIECE_CORE_VERSION;
+  request?: import('../intake/request-understanding').IntakeUnderstandingV1;
+  researchSelection?: import('../intake/request-understanding').IntakeResearchSelectionV1;
+  researchSummary?: IntakeResearchSummaryV1;
   text: string;
   brief: BriefFilledV1;
   /** Ответы интервью при создании, дословно. */

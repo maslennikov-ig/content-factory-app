@@ -44,7 +44,7 @@ import {
   searchRouteFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
-import { currentUsageLedger } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+import { assertAiExecutionBudget, currentUsageLedger, usesAiOperationResearchAdmission } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import {
   ContentLanguage,
   contentLanguageNames,
@@ -863,6 +863,7 @@ const meteredSearch = async (
   provider: SearchProvider,
   invoke: () => Promise<SearchResult>
 ): Promise<SearchResult> => {
+  assertAiExecutionBudget();
   if (provider === 'openrouter') return invoke();
   try {
     const response = await invoke();
@@ -2007,7 +2008,12 @@ Untrusted research data: {evidence}`
         // Deep-search quota belongs to system spend. An own key never reserves
         // it; an own-to-system fallback reserves it immediately before the
         // first system request leaves the process.
-        if (credential.source === 'system' && levelWasExplicit) {
+        // Native tasks use the real source-aware allowance below and shared
+        // execution fuses. The old fixed 20/10/3 counter is a legacy lane,
+        // not an additional tariff or a limit on one model-led goal.
+        const taskAdmission = usesAiOperationResearchAdmission() &&
+          typeof this.aiUsage.beginAiOperationWithConfig === 'function';
+        if (credential.source === 'system' && levelWasExplicit && !taskAdmission) {
           systemQuota ??= (this.quota ?? this.fallbackQuota).reserve(
             organizationId,
             level

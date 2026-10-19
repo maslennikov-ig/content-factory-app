@@ -17,7 +17,7 @@ module.exports = {
   turns: [
     {
       say: 'Напиши пост про созвоны, с поиском',
-      model: [[['tool', 'piece_create', { text: 'Напиши пост про созвоны', inputKind: 'instruction', research: 'standard' }]]],
+      model: [[['tool', 'piece_create', { selection: 'person', text: 'Напиши пост про созвоны', inputKind: 'instruction', research: 'standard' }]]],
     },
     { resume: { decideForPerson: true }, model: [[['text', 'Готово, опоры выбрали за вас.']]] },
   ],

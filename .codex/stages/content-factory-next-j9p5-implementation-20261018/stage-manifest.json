@@ -1,0 +1,176 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-j9p5-implementation-20261018",
+  "goal_id": "content-factory-next-j9p5",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 1,
+  "acceptance_boundary_id": "j9p5-model-led-assistant-and-native-chats",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "level": "complex",
+  "boundary": {
+    "subsystems": [
+      "model-request-semantics",
+      "native-evidence-research",
+      "tool-feedback-and-continuation",
+      "private-native-history",
+      "chat-navigation",
+      "execution-and-cost"
+    ],
+    "risk_models": [
+      "tenant-isolation",
+      "native-human-consent",
+      "write-replay",
+      "provider-cost-and-failure",
+      "goal-continuity",
+      "source-integrity"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "native-mastra",
+      "browser-synthetic",
+      "natural-provider-qa"
+    ],
+    "rollback_boundary": "scoped-source-no-schema-or-temporal-change",
+    "acceptance_proofs": [
+      "four-application-build",
+      "full-three-part-suite",
+      "docs-and-process",
+      "browser-chats",
+      "natural-model-decisions",
+      "service-goal-continuity"
+    ]
+  },
+  "rollback_boundary": {
+    "kind": "working_tree",
+    "clean_base_commit": "4305609a6248a8eb04add199c5daf82fc2d05a48",
+    "note": "Revert only task-owned source changes. Keep confirmed artifacts, original text, approvals, ledger and history. No migration or production deployment included."
+  },
+  "work_areas": [
+    "model-semantics",
+    "research-evidence",
+    "goal-execution",
+    "native-context",
+    "private-chats",
+    "integration-acceptance"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-j9p5",
+    "source_digest": "4f918ca51160918c049f9e0370d392e008f556c57d7a31177456e8475c9dfa5a",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Model decisions govern intent, context relevance, evidence strategy, ordinary editorial choices, action sequencing and result sufficiency for varied natural requests. No mandatory previous-post/vendor/date/channel or phrase-specific branch exists. Models receive and can retrieve necessary material/history and actual tool outcomes. Arbitrary operation-count rituals are replaced with a grounded bounded execution policy; actual quotas/consents/access/source/persistence safety remain. Nine scoped tasks and the final natural-request/source/runtime acceptance cover the original example plus independent untuned cases. Planning does not claim implementation or authorize paid/deploy actions. Personal chats have visible creation/list access, complete native paged history and safe private thread/draft/artifact continuity; UI hydration and model context are accepted separately.",
+        "text_digest": "27b963eda9a8dd1a2c860ea2e8b224e8970daf7cb12d804f779926ac1be45161"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-j9p5/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "4f918ca51160918c049f9e0370d392e008f556c57d7a31177456e8475c9dfa5a",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    "docs/superpowers/plans/2026-10-18-delta-news-research-and-telegram.md",
+    "docs/product/model-led-assistant.md",
+    ".codex/stages/content-factory-next-j9p5-implementation-20261018/implementation.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "intake-semantics",
+      "owner": "intake_semantics",
+      "write_zone": [
+        "content-intelligence/intake",
+        "versioned-intake-prompts",
+        "manual-research-fixtures"
+      ],
+      "issues": [
+        "content-factory-next-j9p5.1",
+        "content-factory-next-j9p5.2",
+        "content-factory-next-j9p5.4"
+      ]
+    },
+    {
+      "stream": "native-chats",
+      "owner": "native_chats",
+      "write_zone": [
+        "components/agents",
+        "AgentThreadsService"
+      ],
+      "issues": [
+        "content-factory-next-j9p5.9"
+      ]
+    },
+    {
+      "stream": "execution-budget",
+      "owner": "execution_budget",
+      "write_zone": [
+        "native-execution",
+        "admission",
+        "metering"
+      ],
+      "issues": [
+        "content-factory-next-j9p5.8"
+      ]
+    },
+    {
+      "stream": "integration",
+      "owner": "root",
+      "write_zone": [
+        "controller",
+        "capability-read-research",
+        "native-context",
+        "PieceService",
+        "tests",
+        "docs"
+      ],
+      "issues": [
+        "content-factory-next-j9p5.3",
+        "content-factory-next-j9p5.5",
+        "content-factory-next-j9p5.6",
+        "content-factory-next-j9p5.7"
+      ]
+    },
+    {
+      "stream": "acceptance-fixtures",
+      "owner": "acceptance_fixtures",
+      "write_zone": [
+        "tests/agent-doors.test.cjs",
+        "tests/agent-piece-explicit-title.test.cjs",
+        "tests/agent-proposal-preview.contract.test.cjs",
+        "tests/web.research.event-material.test.cjs",
+        "tests/fixtures/agent-scenarios"
+      ],
+      "issues": [
+        "content-factory-next-j9p5.6"
+      ]
+    }
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-j9p5.9",
+      "stream_owner": "native_chats",
+      "artifact_path": ".codex/stages/content-factory-next-j9p5-implementation-20261018/artifacts/native-chats.md"
+    },
+    {
+      "task_id": "content-factory-next-j9p5.1",
+      "stream_owner": "intake_semantics",
+      "artifact_path": ".codex/stages/content-factory-next-j9p5-implementation-20261018/artifacts/intake_semantics.md"
+    },
+    {
+      "task_id": "content-factory-next-j9p5.8",
+      "stream_owner": "execution_budget",
+      "artifact_path": ".codex/stages/content-factory-next-j9p5-implementation-20261018/artifacts/execution_budget.md"
+    },
+    {
+      "task_id": "content-factory-next-j9p5.6",
+      "stream_owner": "acceptance_fixtures",
+      "artifact_path": ".codex/stages/content-factory-next-j9p5-implementation-20261018/artifacts/acceptance-fixtures.md"
+    }
+  ],
+  "branch": "codex/j9p5-model-led-20261018",
+  "financial_authority": "Owner18Oct2026 explicitly accepts necessary model expense with configured route, no default task money ceiling. No deployment/social/credential authority inferred."
+}

@@ -4,6 +4,7 @@
 // handleChatStream. The model is scripted, the service is a deferred Promise;
 // no provider, network, database or paid call is made.
 require('reflect-metadata');
+require('@nestjs/common').Logger.overrideLogger(false);
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { z } = require('zod');
@@ -60,7 +61,7 @@ class Response extends EventEmitter {
   end() { this.writableEnded = true; }
 }
 
-async function scenario(outcome, resumed) {
+async function scenario(outcome, resumed, repair = false) {
   contextTrace = [];
   const claims = inProcessRunClaimStore();
   const memory = new Memory({ storage: new InMemoryStore(), options: {
@@ -72,12 +73,17 @@ async function scenario(outcome, resumed) {
   const began = deferred();
   const service = deferred();
   let writes = 0;
+  let refusals = 0;
   const capability = {
     id: 'test.deferred', label: { ru: 'Изменить', en: 'Change' }, description: 'A deferred non-cancellable service write.',
     risk: resumed === 'approval' ? 'confirm' : resumed === 'question' ? 'input' : 'paid', input: z.object({}), untrusted: [],
     ...(resumed === 'question' ? { suspendSchema: z.object({ question: z.string() }), resumeSchema: z.object({ yes: z.boolean() }) } : {}),
     run: async (context) => {
       if (resumed === 'question' && !context.resumeData) { await context.suspend({ question: 'Write?' }); return; }
+      if (repair && refusals === 0) {
+        refusals += 1;
+        throw Object.assign(new Error('Revise the input before the artifact write.'), { code: 'INTAKE_INPUT_INSUFFICIENT', canReviseInput: true });
+      }
       began.resolve(); await service.promise; writes += 1; return { saved: true };
     },
     summarize: () => ({ saved: true }),
@@ -88,9 +94,10 @@ async function scenario(outcome, resumed) {
     doGenerate: async () => { throw new Error('Streaming only.'); },
     doStream: async () => {
       const parts = [{ type: 'stream-start', warnings: [] }];
-      if (step++ === 0) parts.push({ type: 'tool-call', toolCallId: 'deferred-call', toolName: 'test_deferred', input: '{}' });
+      const calling = step++ === 0 || (repair && step === 2);
+      if (calling) parts.push({ type: 'tool-call', toolCallId: `deferred-call-${step}`, toolName: 'test_deferred', input: '{}' });
       else parts.push({ type: 'text-start', id: 'done' }, { type: 'text-delta', id: 'done', delta: 'Готово.' }, { type: 'text-end', id: 'done' });
-      parts.push({ type: 'finish', finishReason: { unified: step === 1 ? 'tool-calls' : 'stop', raw: step === 1 ? 'tool_calls' : 'stop' }, usage });
+      parts.push({ type: 'finish', finishReason: { unified: calling ? 'tool-calls' : 'stop', raw: calling ? 'tool_calls' : 'stop' }, usage });
       return { stream: new ReadableStream({ start(controller) { for (const part of parts) controller.enqueue(part); controller.close(); } }) };
     },
   };
@@ -182,7 +189,9 @@ async function scenario(outcome, resumed) {
   assert.equal(await memory.getWorkingMemory({ threadId, resourceId }), 'Current preferences');
   const registrations = contextTrace.filter((entry) => entry.registered).map((entry) => entry.registered);
   const lastExecute = contextTrace.filter((entry) => entry.executeId).at(-1);
+  if (repair) assert.ok(response.chunks.some(chunk => chunk.includes('INTAKE_INPUT_INSUFFICIENT')));
   return { ...(intermediate ? { intermediate, missingReceipt } : {}), state: terminal.state, outcome: terminal.outcome, writes,
+    ...(repair ? { revisedInputRefusals: refusals } : {}),
     ...(resumed ? { serializedExecutionStayedOld: lastExecute.executeId === registrations[0] && lastExecute.executeId !== registrations[1] } : {}),
   };
 }
@@ -193,8 +202,9 @@ async function main() {
   const failed = await scenario('failed');
   const resumedQuestion = await scenario('interrupted', 'question');
   const resumedApproval = await scenario('completed', 'approval');
+  const recoveredInput = await scenario('completed', undefined, true);
   const lateCallback = await lateOldCallback();
-  process.stdout.write(JSON.stringify({ completed, interrupted, failed, resumedQuestion, resumedApproval, lateCallback, privateLegacyAndMetadata: true }));
+  process.stdout.write(JSON.stringify({ completed, interrupted, failed, resumedQuestion, resumedApproval, recoveredInput, lateCallback, privateLegacyAndMetadata: true }));
 }
 
 async function lateOldCallback() {

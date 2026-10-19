@@ -69,7 +69,10 @@ const composer = loadWithMocks('apps/frontend/src/components/agents/agent.compos
 let world;
 
 const reset = () => {
+  window.sessionStorage.clear();
   world = {
+    sessions: new Map(),
+    switcher: null,
     role: 'ADMIN',
     progress: { ...NONE },
     answered: true,
@@ -87,6 +90,7 @@ const reset = () => {
 
 const Conversation = (props) => {
   world.conversationProps = props;
+  world.sessions.set(props.threadId ?? "new", props);
   React.useEffect(() => {
     world.conversations += 1;
   }, []);
@@ -104,6 +108,7 @@ const Conversation = (props) => {
     words: props.words,
     draft: props.draft,
     onDraftUsed: props.onDraftUsed,
+    draftStorageKey: props.draftStorageKey,
   });
 };
 
@@ -163,7 +168,7 @@ const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.sc
   './agent.artifact-metadata': { useArtifactMetadata: () => ({ get: () => undefined }), AgentArtifactLiveStatus: () => null },
   './agent.threads': {
     THREADS_KEY: '/agents/threads',
-    ThreadSwitcher: ({ actions }) => h('div', { 'data-switcher': '' }, actions),
+    ThreadSwitcher: (props) => { world.switcher = props; return h('div', { 'data-switcher': '' }, props.actions); },
     useAgentThreads: () => ({ data: [] }),
   },
   './agent.transport': { screenTimeZone: () => null },
@@ -492,4 +497,79 @@ describe('«Спросить агента» fills the composer from the post win
     expect(window.location.search).toBe('');
     expect(window.sessionStorage.getItem(handoff.EDITOR_HANDOFF_KEY)).toBeNull();
   });
+});
+
+
+test('switching threads preserves each SDK/composer session and isolates late first-thread events', async () => {
+  world.routeId = 't1';
+  const view = await open('/agents/t1');
+  const first = view.getByRole('textbox');
+  fireEvent.change(first, { target: { value: 'Draft for first thread' } });
+  const previous = world.sessions.get('t1');
+  await act(async () => world.switcher.onOpen('t2'));
+  await waitFor(() => expect(world.switcher.threadId).toBe('t2'));
+  const second = view.getByRole('textbox');
+  expect(second).not.toBe(first);
+  fireEvent.change(second, { target: { value: 'Draft for second thread' } });
+  await act(async () => {
+    previous.onThreadId('t1');
+    previous.onArtifacts([{ kind: 'piece', id: 'late-first', title: 'Late first-thread material', code: null, data: {} }]);
+  });
+  expect(world.switcher.threadId).toBe('t2');
+  expect(view.getByRole('textbox')).toBe(second);
+  expect(second.value).toBe('Draft for second thread');
+  await act(async () => world.switcher.onOpen('t1'));
+  expect(view.getByRole('textbox')).toBe(first);
+  expect(first.value).toBe('Draft for first thread');
+  expect(world.conversations).toBe(2);
+  expect(world.submitted).toEqual([]);
+  expect(world.calls.filter((call) => call.method === 'POST')).toEqual([]);
+});
+
+test('new unsent chat remains local and its draft is recovered by the visible New chat action', async () => {
+  const view = await open('/agents/new');
+  const first = view.getByRole('textbox');
+  fireEvent.change(first, { target: { value: 'Unsent separate chat' } });
+  await act(async () => world.switcher.onOpen('t1'));
+  await waitFor(() => expect(world.switcher.threadId).toBe('t1'));
+  await act(async () => world.switcher.onNew());
+  expect(world.switcher.threadId).toBe(null);
+  expect(view.getByRole('textbox')).toBe(first);
+  expect(first.value).toBe('Unsent separate chat');
+  expect(world.calls.filter((call) => call.method === 'POST')).toEqual([]);
+});
+
+test('actor and thread scoped unsent text survives reload without storing transcript or replaying send', async () => {
+  world.routeId = 't1';
+  let view = await open('/agents/t1');
+  fireEvent.change(view.getByRole('textbox'), { target: { value: 'Reload this unsent text' } });
+  expect(window.sessionStorage.getItem('cf-assistant-draft/v1:::t1')).toBe('Reload this unsent text');
+  view.unmount();
+  view = await open('/agents/t1');
+  expect(view.getByRole('textbox').value).toBe('Reload this unsent text');
+  expect(world.submitted).toEqual([]);
+});
+
+test('direct thread routes and back/forward select the same native sessions without clearing drafts', async () => {
+  world.routeId = 'deep-a';
+  const view = await open('/agents/deep-a');
+  const first = view.getByRole('textbox');
+  fireEvent.change(first, { target: { value: 'Route A draft' } });
+  const route = async (id) => {
+    world.routeId = id;
+    window.history.replaceState(null, '', `/agents/${id}`);
+    await act(async () => view.rerender(drawn()));
+    await waitFor(() => expect(world.switcher.threadId).toBe(id));
+  };
+  await route('deep-b');
+  const second = view.getByRole('textbox');
+  fireEvent.change(second, { target: { value: 'Route B draft' } });
+  await route('deep-a');
+  expect(view.getByRole('textbox')).toBe(first);
+  expect(first.value).toBe('Route A draft');
+  await route('deep-b');
+  expect(view.getByRole('textbox')).toBe(second);
+  expect(second.value).toBe('Route B draft');
+  expect(world.conversations).toBe(2);
+  expect(world.calls.filter((call) => call.method === 'POST')).toEqual([]);
 });

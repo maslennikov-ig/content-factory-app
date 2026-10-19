@@ -68,6 +68,8 @@ describe('the web agent is the conductor, with the hooks', () => {
     // With the request's scope: a refused picture step is worded as such (review W4-25 vision F5).
     expect(code).toMatch(/onError:\s*\(error: unknown\) => conductorOnError\(error, errorScope\)/);
     expect(code).toMatch(/agentId:\s*CONDUCTOR_AGENT_ID/);
+    expect(code).toMatch(/execution!?\.streamOptions\(stepNotes\)/);
+    expect(code).not.toContain('PAID_CALLS_HARD_LIMIT');
     // One admission per model-running request, role `agent`.
     expect(code.match(/beginAiOperation\(/g)).toHaveLength(1);
     expect(code).toMatch(/'agent',\s*'agent'/);
@@ -206,20 +208,20 @@ describe('kcxz.32 N2 (c): a thanks is not a request', () => {
 
   test('it names the refusal that holds it and the honest stale outcome', () => {
     expect(content).toMatch(/PROPOSAL_CARD_OPEN/);
-    expect(content).toMatch(/`outcome: stale`[^\n]*nothing was applied and nothing more spent/);
+    expect(content).toMatch(/stale proposals changed nothing and must not replay/);
   });
 });
 
-describe('content creation asks for a missing thought before calling piece.create', () => {
+describe('content creation asks only for materially missing author-owned facts', () => {
   const { CONDUCTOR_SKILL_SPECS } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts',
     { '@mastra/core/skills': { createSkill: (spec) => spec } }
   );
   const content = CONDUCTOR_SKILL_SPECS.find((spec) => spec.name === 'content').instructions;
 
-  test('it asks and waits when no actual thought, text, or source was supplied', () => {
-    expect(content).toMatch(
-      /if the person asks to write from a thought but has supplied no actual thought, text or source, ask what they want to write from and wait; do not invent it or call `piece\.create`\./i
-    );
+  test('the model uses the actual request and does not invent personal stance', () => {
+    expect(content).toContain('interpret the actual request, available conversation and selected material');
+    expect(content).toContain('Ask only for a materially missing author-owned fact');
+    expect(content).toContain('an ordinary factual task needs no invented personal stance');
   });
 });

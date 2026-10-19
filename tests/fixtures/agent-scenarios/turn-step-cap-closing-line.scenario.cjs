@@ -4,17 +4,12 @@ const { loadCapabilityModule } = require('../../helpers/agent-capabilities.cjs')
 
 const { STEP_CAP_CLOSING } = loadCapabilityModule('../conductor/conductor.steps.ts');
 
-/**
- * W3 live walk 28.09.2026, P2-B (b), the door's guarantee: a provider that
- * calls tools even under `toolChoice: 'none'` still leaves the stream ending
- * on tool calls with no words and no card — the walk's silence. The door then
- * writes its own closing line before `finish`, and the browser's chat core
- * takes it like any text.
- */
+/** A silent technical stop gets a visible incomplete closing in the native UI stream. */
 const LIST = ['tool', 'channels_list', {}];
 
 module.exports = {
   id: 'turn-step-cap-closing-line',
+  incompleteTurns: [0],
   title: 'Предел шагов — поставщик не послушал: дверь сама закрывает ход строкой «напишите «дальше»»',
   covers: ['channels.list'],
   ignoreToolChoice: true,
@@ -26,13 +21,12 @@ module.exports = {
   ],
   check: (run) => {
     const [turn] = run.turns;
-    expect(turn.modelCalls).toBe(7);
-    expect(turn.steps.at(-1).toolChoice).toBe('none');
-    expect(turn.toolCalls).toHaveLength(7);
-    expect(turn.text).toBe(STEP_CAP_CLOSING.ru);
-    // Before the finish, as ordinary text the chat core keeps.
-    const types = turn.types;
-    expect(types.slice(-4)).toEqual(['text-start', 'text-delta', 'text-end', 'finish']);
-    expect(turn.client.messages.at(-1).parts.some((part) => part.type === 'text' && part.text === STEP_CAP_CLOSING.ru)).toBe(true);
+    expect(turn.modelCalls).toBe(3);
+    expect(turn.steps.every((step) => step.toolChoice !== 'none' && !step.lastStepNote)).toBe(true);
+    expect(turn.toolCalls).toHaveLength(3);
+    expect(turn.text).toContain('Одинаковые действия');
+    expect(turn.text).toContain('Задача не завершена');
+    expect(turn.types.at(-1)).toBe('finish');
+    expect(turn.client.messages.at(-1).parts.some((part) => part.type === 'text' && part.text.includes('Задача не завершена'))).toBe(true);
   },
 };

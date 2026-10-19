@@ -13,6 +13,7 @@ import {
   type PieceResearchPreview,
   type PieceResearchSelection,
 } from './piece-research.contract';
+import { parseIntakeUnderstanding } from '../intake/request-understanding';
 import type { IntakeRunState } from '../intake/intake.service';
 import { reviewOnceV3, signReview, readReview } from './review.v3';
 import { neverSayList } from '../text-quality/never-say';
@@ -2858,6 +2859,7 @@ export class PieceService {
         language,
         delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
         brief: selectedFactsBrief(core.brief),
+        ...(core.request ? { request: core.request } : {}),
         answers: core.answers,
         // Every answer goes with its question, the model's decisions included.
         questionTextByKey: Object.fromEntries(
@@ -3173,6 +3175,7 @@ export class PieceService {
           language,
           delegatedPolicy,
           brief: selectedFactsBrief(answeredBrief),
+          ...(plan.core.request ? { request: plan.core.request } : {}),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
@@ -3271,7 +3274,10 @@ export class PieceService {
 
     let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
     if (rewritten) {
-      core = { ...rewritten, answers: [...rewritten.answers, ...decisionAnswers], brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core), ...keptAuthor(plan.core) };
+      core = { ...rewritten, ...(plan.core.request ? { request: plan.core.request } : {}),
+        ...(plan.core.researchSelection ? { researchSelection: plan.core.researchSelection } : {}),
+        ...(plan.core.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
+        answers: [...rewritten.answers, ...decisionAnswers], brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core), ...keptAuthor(plan.core) };
     }
 
     if (!core.text.trim()) {
@@ -3283,7 +3289,9 @@ export class PieceService {
       if (!this.briefs) {
         throw new Error('The piece service was built without its repository');
       }
-      const title = !plan.titleEdited && (!plan.core.text || !textOrNull(plan.title) || plan.title === briefTitle(briefForGate(plan.core.brief), language) || ['Материал без названия', 'Untitled piece'].includes(plan.title)) ? { title: briefTitle({ thesis: textOrNull(brief.thesis) || core.text }, language) } : {};
+      const title = !plan.titleEdited && plan.core.request?.constraints?.title
+        ? { title: plan.core.request.constraints.title }
+        : !plan.titleEdited && (!plan.core.text || !textOrNull(plan.title) || plan.title === briefTitle(briefForGate(plan.core.brief), language) || ['Материал без названия', 'Untitled piece'].includes(plan.title)) ? { title: briefTitle({ thesis: textOrNull(brief.thesis) || core.text }, language) } : {};
       /*
         The model call takes seconds, and meanwhile the author may answer the
         link question, add material or edit the core (`97dq.75` review P1-2).
@@ -4819,14 +4827,18 @@ export class PieceService {
 
   async researchCore(organizationId: string, pieceId: string, actorUserId: string,
     input: { confirmWebSpend?: boolean; level?: PieceResearchLevel; direction?: string;
-      timeZone?: string; researchTask?: string; priorExample?: string },
-    language: 'ru' | 'en' = 'ru'): Promise<PieceResearchPreview> {
+      timeZone?: string; researchTask?: string; priorExample?: string;
+      request?: import('../intake/request-understanding').IntakeUnderstandingV1 },
+    language: 'ru' | 'en' = 'ru',
+    internal?: { researchSelectionPolicy: 'model' | 'person' }): Promise<PieceResearchPreview> {
     if (input.confirmWebSpend !== true) throw new AdaptationReviewError('PIECE_RESEARCH_CONFIRM', 400,
       language === 'ru' ? 'Подтвердите поиск по источникам.' : 'Confirm source research.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
     const core = this.coreOf(piece);
-    if (!core?.text.trim()) throw new AdaptationReviewError('PIECE_CORE_MISSING', 409,
+    const subject = core?.text.trim() || input.request?.goal?.trim() ||
+      input.researchTask?.trim() || input.direction?.trim() || core?.request?.goal?.trim();
+    if (!core || !subject) throw new AdaptationReviewError('PIECE_CORE_MISSING', 409,
       language === 'ru' ? 'Сначала добавьте суть.' : 'Add the core text first.');
     if (!this.snapshots || !this.intake || !this.aiUsage || !actorUserId)
       throw new AdaptationReviewError('PIECE_RESEARCH_UNAVAILABLE', 503,
@@ -4837,14 +4849,18 @@ export class PieceService {
     const direction = typeof input.direction === 'string'
       ? input.direction.trim().slice(0, PIECE_RESEARCH_DIRECTION_MAX)
       : '';
+    // Research may supply missing public evidence while personal questions
+    // still wait. An empty writer output is not a missing saved task.
+    const request = input.request ?? (!core.text.trim() && !direction &&
+      !input.researchTask && !input.priorExample ? core.request : undefined);
     const state = await this.intake.researchExistingCore(
       organizationId,
-      core.text,
+      subject,
       core.brief,
       language,
       level,
       direction || undefined,
-      { timeZone: input.timeZone, researchTask: input.researchTask, priorExample: input.priorExample }
+      { timeZone: input.timeZone, researchTask: input.researchTask, priorExample: input.priorExample, request, researchSelectionPolicy: internal?.researchSelectionPolicy ?? 'person' }
     );
     const snapshotKey = randomUUID();
     await this.snapshots.set(this.coreResearchKey(organizationId, actorUserId, pieceId, snapshotKey),
@@ -4859,6 +4875,83 @@ export class PieceService {
 
   async acceptCoreResearch(organizationId: string, pieceId: string, actorUserId: string,
     input: PieceResearchSelection) {
+    return this.continueCoreResearch(organizationId, pieceId, actorUserId, input, 'person');
+  }
+
+  /** Editorial selection is recorded as model-origin, never a human card answer. */
+  async acceptCoreResearchForModel(organizationId: string, pieceId: string, actorUserId: string,
+    input: PieceResearchSelection) {
+    return this.continueCoreResearch(organizationId, pieceId, actorUserId, input, 'model');
+  }
+
+  private async continueCoreResearch(organizationId: string, pieceId: string, actorUserId: string,
+    input: PieceResearchSelection, origin: 'person' | 'model') {
+    if (!this.snapshots) throw new AdaptationReviewError('PIECE_RESEARCH_EXPIRED', 409, 'Research snapshot is unavailable.');
+    if (!Array.isArray(input.selectedKeys) || input.selectedKeys.length > 100 || input.selectedKeys.some((key) => typeof key !== 'string'))
+      throw new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Choose facts from the saved research result.');
+    const receiptKey = `${this.coreResearchKey(organizationId, actorUserId, pieceId, input.snapshotKey)}:continuation`;
+    const choices = JSON.stringify({ origin, selectedKeys: [...new Set(input.selectedKeys)].sort() });
+    const readReceipt = async () => {
+      try {
+        const value = JSON.parse((await this.snapshots!.get(receiptKey)) || 'null');
+        return value?.version === 'piece-research-continuation/v1' ? value : null;
+      } catch { return null; }
+    };
+    const previous = await readReceipt();
+    if (previous) {
+      if (previous.choices === choices && previous.status === 'completed') {
+        const piece = await this.pieces.getPiece(organizationId, pieceId);
+        if (piece) return piece;
+      }
+      throw new AdaptationReviewError('PIECE_RESEARCH_CONTINUATION_PENDING', 409,
+        'The research was already applied or its write has not been confirmed. Inspect the saved piece; do not repeat the paid write.');
+    }
+    // Validate reversible input failures before taking a continuation claim.
+    const preflightRaw = await this.snapshots.get(this.coreResearchKey(organizationId, actorUserId, pieceId, input.snapshotKey));
+    let preflight: any;
+    try { preflight = JSON.parse(preflightRaw || 'null'); } catch { preflight = null; }
+    if (!preflight || preflight.organizationId !== organizationId || preflight.actorUserId !== actorUserId ||
+      preflight.pieceId !== pieceId || !Number.isFinite(preflight.expiresAt) || preflight.expiresAt <= this.now().getTime())
+      throw new AdaptationReviewError('PIECE_RESEARCH_EXPIRED', 409, 'The research result expired.');
+    if (['empty', 'failed', 'needs_clarification'].includes(preflight.state?.summary?.status ?? ''))
+      throw new AdaptationReviewError('PIECE_RESEARCH_INCOMPLETE', 409, 'Research is empty, failed or unresolved. No core write was started.');
+    const allowedKeys = new Set((preflight.state?.filled?.brief?.facts ?? []).map((fact: PieceFactV2) => fact.factKey));
+    if (input.selectedKeys.some((key) => !allowedKeys.has(key)))
+      throw Object.assign(new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Choose exact fact keys from the saved research result.'),
+        origin === 'model' ? { canReviseInput: true } : {});
+    if (origin === 'model') {
+      try { this.intake!.selectCoreResearchForModel(preflight.state, preflight.body, preflight.language, input.selectedKeys); }
+      catch (error) {
+        if ((error as { code?: unknown })?.code === 'INTAKE_RESEARCH_SELECTION_INVALID')
+          Object.assign(error as Error, { canReviseInput: true });
+        throw error;
+      }
+    }
+    // Production uses native Redis SET EX NX; old manual-only fixtures remain
+    // compatible, while a model continuation refuses an unprotected write.
+    const claim = this.snapshots.claim;
+    if (!claim && origin === 'model') throw new AdaptationReviewError('PIECE_RESEARCH_CONTINUATION_UNAVAILABLE', 503,
+      'A safe research continuation is unavailable; no new write was started.');
+    if (claim) {
+      const owned = await claim.call(this.snapshots, receiptKey,
+        JSON.stringify({ version: 'piece-research-continuation/v1', choices, status: 'running' }), INTAKE_SNAPSHOT_TTL_SECONDS);
+      if (!owned) throw new AdaptationReviewError('PIECE_RESEARCH_CONTINUATION_PENDING', 409,
+        'The research continuation is already running; do not repeat the paid write.');
+    }
+    try {
+      const result = await this.applyCoreResearchSelection(organizationId, pieceId, actorUserId, input, origin);
+      await this.snapshots.set(receiptKey, JSON.stringify({ version: 'piece-research-continuation/v1', choices,
+        status: 'completed', pieceId }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+      return result;
+    } catch (error) {
+      if (claim) await this.snapshots.set(receiptKey, JSON.stringify({ version: 'piece-research-continuation/v1', choices,
+        status: 'unconfirmed' }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+      throw error;
+    }
+  }
+
+  private async applyCoreResearchSelection(organizationId: string, pieceId: string, actorUserId: string,
+    input: PieceResearchSelection, origin: 'person' | 'model') {
     const expired = () => new AdaptationReviewError('PIECE_RESEARCH_EXPIRED', 409,
       'Результат исследования истёк. Запустите исследование снова.');
     if (!this.snapshots || !this.intake || !this.aiUsage) throw expired();
@@ -4883,11 +4976,14 @@ export class PieceService {
     if (!Array.isArray(input.selectedKeys) || input.selectedKeys.length > 100 ||
       input.selectedKeys.some(key => typeof key !== 'string' || !allowed.has(key)))
       throw new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Выберите опоры из результата исследования.');
-    if (saved.state.summary?.periodStatus === 'empty' || saved.state.summary?.periodStatus === 'needs_clarification') {
+    if (saved.state.summary?.periodStatus === 'empty' || saved.state.summary?.periodStatus === 'needs_clarification' ||
+      ['empty', 'failed', 'needs_clarification'].includes(saved.state.summary?.status ?? '')) {
       await this.snapshots.del(key);
       return piece;
     }
-    const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
+    const state = origin === 'model'
+      ? this.intake.selectCoreResearchForModel(saved.state, saved.body, saved.language, input.selectedKeys)
+      : this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
     const intent = saved.state.summary?.researchIntent;
     const selectedBrief = selectedFactsBrief(state.filled.brief);
     if (intent?.eventInterval && !selectedCoreEventFacts(selectedBrief.facts,
@@ -4905,6 +5001,7 @@ export class PieceService {
     const written = await writeCoreWithDecisions({ organizationId, language: saved.language,
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedBrief, answers: core.answers, questionTextByKey: {},
+      ...(state.resumePlan?.request ? { request: state.resumePlan.request } : {}),
       personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
       ...(intent?.eventInterval ? { eventUpdate: { ...intent.eventInterval, timezone: intent.timezone } } : {}),
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
@@ -4918,6 +5015,9 @@ export class PieceService {
       { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, written.title ?? saved.title,
       { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
         brief: state.filled.brief, authorNumbers: core.authorNumbers,
+        ...(state.researchSelection ? { researchSelection: state.researchSelection } : {}),
+        ...(state.summary ? { researchSummary: state.summary } : {}),
+        ...(state.resumePlan?.request ? { request: state.resumePlan.request, requestUnderstanding: state.resumePlan.request } : {}),
         personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions,
         // The model wrote this text from all the material (`97dq.75`): the
         // hand edit is in the old one, and nothing added is waiting any more.
@@ -5374,9 +5474,19 @@ export class PieceService {
     if (piece.kind !== 'CORE') return null;
     const stored = (piece.brief || {}) as Record<string, any>;
     const brief = (stored.brief || null) as BriefFilledV1 | null;
+    const request = parseIntakeUnderstanding(stored.request ?? stored.requestUnderstanding);
     if (!brief) return null;
     return {
       version: PIECE_CORE_VERSION,
+      ...(request ? { request } : {}),
+      ...(stored.researchSelection && ['person', 'model'].includes(stored.researchSelection.origin) &&
+        Array.isArray(stored.researchSelection.selectedKeys) && stored.researchSelection.selectedKeys.every((key: unknown) => typeof key === 'string') &&
+        typeof stored.researchSelection.selectedAt === 'string' && Number.isFinite(Date.parse(stored.researchSelection.selectedAt))
+        ? { researchSelection: { origin: stored.researchSelection.origin, selectedKeys: stored.researchSelection.selectedKeys,
+          selectedAt: stored.researchSelection.selectedAt } } : {}),
+      ...(stored.researchSummary && typeof stored.researchSummary === 'object' &&
+        ['confirmed', 'conflicting', 'unverified', 'found', 'sources', 'encyclopedic'].every((key) => Number.isFinite(stored.researchSummary[key]) && stored.researchSummary[key] >= 0)
+        ? { researchSummary: stored.researchSummary } : {}),
       text: piece.body,
       brief,
       answers: Array.isArray(stored.answers) ? stored.answers : [],

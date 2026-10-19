@@ -1,9 +1,5 @@
 'use strict';
 
-const { loadCapabilityModule } = require('../../helpers/agent-capabilities.cjs');
-
-const { STEP_CAP_CLOSING } = loadCapabilityModule('../conductor/conductor.steps.ts');
-
 /**
  * Correctness review of the W3 walk fixes, F1: a reasoning model whose budget
  * went on reasoning ends the step after a tool with `finishReason: length`
@@ -14,6 +10,7 @@ module.exports = {
   id: 'turn-length-cut-closing-line',
   title: 'Обрыв по длине после инструмента — дверь закрывает ход строкой',
   covers: ['channels.list'],
+  incompleteTurns: [0, 1],
   turns: [
     {
       say: 'Какие у меня каналы?',
@@ -27,9 +24,14 @@ module.exports = {
   check: (run) => {
     const [cut, spoke] = run.turns;
     expect(cut.modelCalls).toBe(2);
-    expect(cut.text).toBe(STEP_CAP_CLOSING.ru);
+    expect(cut.text).toContain('Задача не завершена');
     expect(cut.types.slice(-4)).toEqual(['text-start', 'text-delta', 'text-end', 'finish']);
     // Words after the tool are an answer, whatever the finish reason.
     expect(spoke.text).toBe('Один канал: «Канал про работу».');
+    expect(run.writes).toEqual([]);
+    for (const turn of [cut, spoke]) {
+      expect(turn.outputs[0]).toMatchObject({ toolName: 'channels_list', output: { ok: true } });
+      expect(turn.admissions).toEqual([['agent', 'agent', 'user-1', 'failed']]);
+    }
   },
 };

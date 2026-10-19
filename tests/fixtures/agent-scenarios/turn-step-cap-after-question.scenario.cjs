@@ -1,10 +1,6 @@
 'use strict';
 
-/**
- * Correctness review of the W3 walk fixes, F1 / residual risk: the same for a
- * run resumed with an answer on a question card (the adaptation's interview)
- * — the steps before the card do not count against the answer's request.
- */
+/** A native question resume continues requested work with tools still available. */
 const LIST = ['tool', 'channels_list', {}];
 
 module.exports = {
@@ -18,26 +14,26 @@ module.exports = {
     {
       say: 'Проверь каналы и адаптируй cnt-1 в Telegram',
       model: [
-        ...Array.from({ length: 5 }, () => [LIST]),
+        ...Array.from({ length: 2 }, () => [LIST]),
         [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]],
       ],
     },
     {
       resume: { answers: [], decideKeys: ['hook'] },
       model: [
-        ...Array.from({ length: 5 }, () => [LIST]),
-        [LIST, ['text', 'Пост готов, каналы проверены.']],
+        ...Array.from({ length: 2 }, () => [LIST]),
+        [['text', 'Пост готов, каналы проверены.']],
       ],
     },
   ],
   check: (run) => {
     const [ask, answer] = run.turns;
     expect(ask.suspended).toHaveLength(1);
-    // Five model steps with tools after the answered one, the last speaks.
+    // The answered call is followed by the requested reads and a normal final answer.
     expect(answer.steps.map((step) => step.toolChoice === 'none')).toEqual([
-      false, false, false, false, false, true,
+      false, false, false,
     ]);
-    expect(answer.toolCalls.filter(({ toolName }) => toolName === 'channels_list')).toHaveLength(5);
+    expect(answer.toolCalls.filter(({ toolName }) => toolName === 'channels_list')).toHaveLength(2);
     expect(answer.text).toBe('Пост готов, каналы проверены.');
   },
 };

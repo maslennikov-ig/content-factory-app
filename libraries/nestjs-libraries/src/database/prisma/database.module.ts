@@ -114,7 +114,16 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     { provide: RESEARCH_QUOTA_STORE, useValue: ioRedis },
     // The intake's first-pass snapshot lives in the same Redis for an hour
     // (`content-factory-next-75xn.19`); same reason for the token.
-    { provide: INTAKE_SNAPSHOT_STORE, useValue: ioRedis },
+    {
+      provide: INTAKE_SNAPSHOT_STORE,
+      useFactory: () => ({
+        get: (key: string) => ioRedis.get(key),
+        set: (key: string, value: string, mode: 'EX', seconds: number) => ioRedis.set(key, value, mode, seconds),
+        del: (key: string) => ioRedis.del(key),
+        claim: async (key: string, value: string, seconds: number) =>
+          (await (ioRedis as any).set(key, value, 'EX', seconds, 'NX')) === 'OK',
+      }),
+    },
     // One analysis per avatar at a time (`kcxz.39`); same Redis, same reason.
     // Owned claim over the same Redis (review W4-39-40 F3).
     {

@@ -42,9 +42,8 @@ const SERVICE =
  * класса. Ни одного платного вызова при этом не делается: модуль только
  * загружается.
  */
-const { usableHttpsUrl, WebSearchNotConfigured } = loadWithMocks(
-  'libraries/nestjs-libraries/src/openai/web.research.service.ts'
-);
+const researchModule = loadWithMocks('libraries/nestjs-libraries/src/openai/web.research.service.ts');
+const { usableHttpsUrl, WebSearchNotConfigured, RESEARCH_LEVEL_PRESETS } = researchModule;
 
 const modelCalls = [];
 let modelAnswers = [];
@@ -74,9 +73,11 @@ const { IntakeService, INTAKE_MAX_PASTED_LINKS } = loadWithMocks(SERVICE, {
     }),
   },
   '@contentfactory/nestjs-libraries/openai/web.research.service': {
+    ...researchModule,
     WebResearchService: class {},
     WebSearchNotConfigured,
     usableHttpsUrl,
+    RESEARCH_LEVEL_PRESETS,
   },
   '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
     AiUsageService: class {},
@@ -558,7 +559,7 @@ describe('чужой пост: утверждения не проверяютс�
       research: [],
     });
 
-  test('recorded WB/Ozon extract overrides the fallback kind and asks for the person position', async () => {
+  test('recorded source kind is preserved without manufacturing a position question', async () => {
     const walkText = [
       'Маркетплейсы снова подняли комиссии, и продавцы опять пишут, что работать стало невыгодно.',
       'Wildberries и Ozon объясняют это логистикой и скидками для покупателей, а по факту переписывают правила игры каждый квартал.',
@@ -600,23 +601,9 @@ describe('чужой пост: утверждения не проверяютс�
     expect(plan.inputKind).toBe('thought');
     const events = await drain(service, 'org-a', plan);
     const [filled] = named(events, 'brief-filled');
-    const [questions] = named(events, 'questions');
-
     expect(filled.brief.inputKind).toBe('foreign_post');
     expect(filled.brief.origins.position).toBe('model');
-    expect(questions.questions).toHaveLength(1);
-    // The three stances, not the model's own options: on the stand the model
-    // offered rewordings of the source author's view with one pre-filled.
-    expect(questions.questions[0]).toMatchObject({
-      field: 'position',
-      suggested: null,
-      options: [
-        'Я согласен с позицией автора исходного поста',
-        'Я не согласен с позицией автора исходного поста',
-        'Я согласен частично и хочу уточнить свою позицию',
-      ],
-    });
-    expect(questions.questions[0].options.every((option) => option.startsWith('Я '))).toBe(true);
+    expect(named(events, 'questions')).toEqual([]);
     // Преемник разбора с волны `97dq.1`: v4 остаётся импортируемым, но вход
     // спрашивает по v5 — одно число на утверждение.
     expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-extract/v5');
@@ -901,7 +888,7 @@ describe('слово человека и выключенный поиск', () 
     expect(fields.filter((field) => field === 'facts')).toEqual([]);
   });
 
-  test('поиск, не настроенный в области, не роняет ход', async () => {
+  test('явно разрешённый поиск без настройки честно отказывает до сохранения', async () => {
     const { service, calls } = build({
       models: [extractionAnswer(), fullBriefAnswer()],
       // Ни одного заготовленного ответа: заглушка бросает
@@ -910,32 +897,23 @@ describe('слово человека и выключенный поиск', () 
     });
     const plan = await service.prepare(
       'org-a',
-      request({ input: foreignPost, options: { searchEnrichment: true } })
+      request({ input: foreignPost, options: { researchEnabled: true, researchLevel: 'standard' } })
     );
-    const events = await drain(service, 'org-a', plan);
+    const events = [];
+    await expect((async () => {
+      for await (const event of service.run('org-a', plan, 'user-1')) events.push(event);
+    })()).rejects.toBeInstanceOf(WebSearchNotConfigured);
 
     const [claims] = named(events, 'claims');
     // «Не проверяли», а не «проверили и не нашли»: выключенный поиск — это
     // настройка области, и ни одно число она виноватым не делает.
     expect(claims.claims.every((claim) => claim.status === 'skipped')).toBe(true);
     expect(named(events, 'error')).toEqual([]);
-    expect(named(events, 'brief-filled')).toHaveLength(1);
-    /*
-      Опоры не нашлось, и продукт про неё спрашивает — но заготовку всё равно
-      записывает. Это и есть правка живого прогона: вопрос перестал быть
-      условием существования заготовки.
-    */
-    expect(named(events, 'questions')[0].questions).toEqual([
-      expect.objectContaining({
-        field: 'position',
-        options: [
-          'Я согласен с позицией автора исходного поста',
-          'Я не согласен с позицией автора исходного поста',
-          'Я согласен частично и хочу уточнить свою позицию',
-        ],
-      }),
-    ]);
-    expect(calls.recordCore).toHaveLength(1);
+    // A missing configured search lane is a definitive refusal. It cannot
+    // produce a successful artifact or a compulsory author-opinion question.
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'piece')).toEqual([]);
+    expect(calls.recordCore).toHaveLength(0);
   });
 
   test('старый searchEnrichment не запускает платный поиск без галочки', async () => {

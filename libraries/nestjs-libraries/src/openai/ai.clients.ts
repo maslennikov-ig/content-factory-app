@@ -24,6 +24,7 @@ import {
   STANDARD_ATTEMPT_TIMEOUT_MS,
   TextChainSource,
   createTextChainFetch,
+  currentAiExecutionTimeoutMs,
   generationTimeoutMs,
   registerChainClient,
   textChainApplies,
@@ -170,24 +171,26 @@ export const getModelForRole = async (
 const openAiMemo = memo<OpenAI>();
 export const getOpenAiClient = async (organizationId: string) => {
   const config = await requireActiveAiConfig(organizationId);
-  return openAiMemo(identity(organizationId, config), () => {
+  const taskTimeout = currentAiExecutionTimeoutMs();
+  return openAiMemo(identity(organizationId, config, taskTimeout === undefined ? '' : `task:${taskTimeout}`), () => {
     // A direct client serves any role, so its budget covers the longest
     // chain any role's model can walk — flex included — whatever the default
     // role's model is (correctness review F14).
     const chained = textChainApplies(chainSourceOf(config))
       ? { timeout: maxTextChainBudgetMs(chainSourceOf(config)), maxRetries: 0 }
       : undefined;
+    const sdkBudget = taskTimeout === undefined ? chained?.timeout : Math.max(taskTimeout, chained?.timeout ?? 0);
     const client = new OpenAI({
       apiKey: config.apiKey,
       ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
-      ...(chained ?? {}),
+      ...(sdkBudget !== undefined ? { timeout: sdkBudget, maxRetries: 0 } : {}),
       // The transport knows the SDK's deadline, so the retry after a cut
       // answer starts only while it fits (review F1 of the fifteenth walk).
       fetch: createTextChainFetch(chainSourceOf(config), undefined, {
-        budgetMs: chained?.timeout,
+        budgetMs: sdkBudget,
       }),
     });
-    if (chained) registerChainClient(client, chained.timeout);
+    if (sdkBudget !== undefined) registerChainClient(client, sdkBudget);
     return client;
   });
 };
@@ -217,15 +220,21 @@ export const getChatModel = async (
 ) => {
   const config = await requireActiveAiConfig(organizationId);
   const chosen = activeRole(role);
+  const taskTimeout = currentAiExecutionTimeoutMs();
   return chatMemo(
     identity(
       organizationId,
       config,
-      `${chosen}:${temperature}:${maxTokens ?? 'no-ceiling'}`
+      `${chosen}:${temperature}:${maxTokens ?? 'no-ceiling'}${taskTimeout === undefined ? '' : `:task:${taskTimeout}`}`
     ),
     () => {
       const model = modelFor(chosen, config);
       const chained = chainClientOptions(config, model);
+      const sdkBudget = Math.max(
+        taskTimeout ?? 0,
+        chained?.timeout ?? Math.max(CHAT_TIMEOUT_MS,
+          generationTimeoutMs(maxTokens ? withReasoningHeadroom(maxTokens) : undefined))
+      );
       return new ChatOpenAI({
         apiKey: config.apiKey,
         model,
@@ -234,13 +243,8 @@ export const getChatModel = async (
         // Outside the chain the SDK's deadline is the whole call: a whole
         // answer arrives at once, after the reasoning and the text, so it gets
         // the generation room of the ceiling the transport sends (97dq.95).
-        timeout:
-          chained?.timeout ??
-          Math.max(
-            CHAT_TIMEOUT_MS,
-            generationTimeoutMs(maxTokens ? withReasoningHeadroom(maxTokens) : undefined)
-          ),
-        maxRetries: chained?.maxRetries ?? CHAT_MAX_RETRIES,
+        timeout: sdkBudget,
+        maxRetries: taskTimeout !== undefined ? 0 : chained?.maxRetries ?? CHAT_MAX_RETRIES,
         // Inside `streamEvents` LangChain turns `invoke` into a stream on its
         // own, and nothing here reads tokens as they come. A stream skips the
         // retry after a cut answer and the body window, so the post draft of
@@ -251,10 +255,10 @@ export const getChatModel = async (
           ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
           // Every text call leaves through the shared transport: the chain
           // where it applies, a plain pass that reads usage everywhere else.
-          // Outside the chain there is no retry after a cut answer, so the
-          // SDK's 60 s and its retries wrap one request as before.
+          // Legacy calls keep their standalone deadline/retries. Native
+          // tasks additionally share their remaining execution signal.
           fetch: createTextChainFetch(chainSourceOf(config), undefined, {
-            budgetMs: chained?.timeout,
+            budgetMs: sdkBudget,
           }),
         },
       });

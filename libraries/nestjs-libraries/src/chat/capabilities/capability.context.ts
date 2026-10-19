@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { RequestContext } from '@mastra/core/request-context';
 import type { CapabilityIdentity } from './capability.types';
+import { currentConductorExecution } from '../conductor/conductor.execution';
 
 /**
  * The keys the server writes into Mastra's `RequestContext` for the registry
@@ -22,8 +23,12 @@ export const CAPABILITY_CONTEXT_KEYS = {
   timeZone: 'cf.timeZone',
   /** Paid capability calls already admitted in this turn. */
   paidCalls: 'cf.paidCalls',
-  /** 1 by default; 2 only when the person explicitly asked to continue. */
+  /** Legacy snapshot field, no longer a per-message completion rule. */
   paidLimit: 'cf.paidLimit',
+  /** One admitted domain operation at a time; not a limit on completed work. */
+  paidInFlight: 'cf.paidInFlight',
+  paidOwner: 'cf.paidOwner',
+  executionPolicy: 'cf.executionPolicy',
   /** Comma-joined approval fingerprints the person approved for this request. */
   approvals: 'cf.approvals',
   /**
@@ -38,10 +43,6 @@ export const CAPABILITY_CONTEXT_KEYS = {
    */
   openProposals: 'cf.openProposals',
 } as const;
-
-/** One paid action per turn; a second only on an explicit continuation. */
-export const PAID_CALLS_PER_TURN = 1;
-export const PAID_CALLS_HARD_LIMIT = 2;
 
 const K = CAPABILITY_CONTEXT_KEYS;
 
@@ -106,29 +107,40 @@ export const readCapabilityIdentity = (
   };
 };
 
-const paidLimitOf = (context: AnyRequestContext) => {
-  const asked = Number(read(context, K.paidLimit));
-  const limit = Number.isFinite(asked) && asked > 0 ? asked : PAID_CALLS_PER_TURN;
-  return Math.min(Math.floor(limit), PAID_CALLS_HARD_LIMIT);
-};
-
 /**
  * Takes a paid slot, synchronously (premortem A2). Parallel tool calls of one
  * step run their hooks concurrently, but each hook reaches this line before
  * its first `await`, so the count cannot be read twice before it is written.
  */
 export const reservePaidSlot = (
-  context: AnyRequestContext
-): { ok: boolean; limit: number } => {
+  context: AnyRequestContext,
+  owner?: string
+): { ok: boolean; code?: string } => {
+  const execution = currentConductorExecution();
+  const reserved = execution
+    ? execution.reservePaidOperation(owner)
+    : read(context, K.paidInFlight) === 1
+      ? { ok: false, code: 'AGENT_TASK_OPERATION_IN_FLIGHT' }
+      : { ok: true };
+  if (!reserved.ok) return reserved;
   const used = Number(read(context, K.paidCalls)) || 0;
-  const limit = paidLimitOf(context);
-  if (used >= limit) return { ok: false, limit };
   context.set(K.paidCalls as never, (used + 1) as never);
-  return { ok: true, limit };
+  context.set(K.paidInFlight as never, 1 as never);
+  context.set(K.paidOwner as never, (owner ?? '') as never);
+  return { ok: true };
+};
+
+/** An admitted operation settled; the next requested domain operation can run. */
+export const settlePaidSlot = (context: AnyRequestContext, owner?: string) => {
+  if (owner !== undefined && read(context, K.paidOwner) !== owner) return;
+  currentConductorExecution()?.releasePaidOperation(owner);
+  context.set(K.paidInFlight as never, 0 as never);
+  context.set(K.paidOwner as never, '' as never);
 };
 
 /** Gives the slot back when the call was refused before it could spend. */
 export const releasePaidSlot = (context: AnyRequestContext) => {
+  settlePaidSlot(context);
   const used = Number(read(context, K.paidCalls)) || 0;
   context.set(K.paidCalls as never, Math.max(0, used - 1) as never);
 };

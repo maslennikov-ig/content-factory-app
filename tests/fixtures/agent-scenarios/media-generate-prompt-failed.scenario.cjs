@@ -2,17 +2,10 @@
 
 const { mediaRows } = require('./media-rows.cjs');
 
-/**
- * The picture's one operation was admitted, then the provider failed the
- * picture-prompt call (kcxz.44 review F6). A request left for the provider,
- * so the operation is closed as failed and counted, and the message's paid
- * step is not given back (§5.7: only a refusal before any spend is); the
- * credit row is taken back by `useCredit`, nothing is drawn, stored or saved,
- * and the chat says `MEDIA_IMAGE_FAILED`. A second picture in the same
- * message meets the paid cap.
- */
+/** A failed admitted paid operation is accounted once and cannot replay automatically. */
 module.exports = {
   id: 'media-generate-prompt-failed',
+  incompleteTurns: [0],
   title: 'Операция на картинку открыта, промпт упал — операция учтена, кредит вернули, шаг не вернули',
   covers: ['media.generate'],
   world: { ...mediaRows(), promptFails: true },
@@ -27,11 +20,12 @@ module.exports = {
     },
   ],
   check: (run) => {
-    const [failed, retried] = run.turns[0].outputs.map((one) => one.output);
+    const [failed] = run.turns[0].outputs.map((one) => one.output);
     expect(failed).toMatchObject({ ok: false, code: 'MEDIA_IMAGE_FAILED' });
-    expect(retried).toMatchObject({ ok: false, code: 'PAID_CAP_REACHED' });
+    expect(run.turns[0].outputs).toHaveLength(1);
+    expect(run.turns[0].text).toContain('Задача не завершена');
     expect(run.turns[0].admissions.map(([operation, , , status]) => [operation, status])).toEqual([
-      ['agent', 'succeeded'],
+      ['agent', 'failed'],
       ['image_generation', 'failed'],
     ]);
     expect(run.requests.filter(([name]) => name.startsWith('media.')).map(([name]) => name)).toEqual([

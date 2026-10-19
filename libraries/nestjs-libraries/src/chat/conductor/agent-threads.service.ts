@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import type { MastraDBMessage } from '@mastra/core/memory';
 import { toAISdkMessages } from '@mastra/ai-sdk/ui';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import type {
@@ -62,10 +64,25 @@ import {
  * history and the pending cards are free.
  */
 
-/** Newest threads first; the screen's list is short on purpose. */
+/** Bounded native pages; older records remain available on demand. */
 export const AGENT_THREADS_PAGE = 100;
 /** The history a reload hydrates; older messages stay in storage. */
 export const AGENT_HISTORY_MESSAGES = 200;
+
+export type AgentPageOptions = { page?: number; perPage?: number };
+export type AgentPagination = { page: number; perPage: number; total: number; hasMore: boolean };
+
+const pageOptions = (options: AgentPageOptions, maximum: number) => {
+  const page = options.page ?? 0;
+  const perPage = options.perPage ?? maximum;
+  if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(perPage) || perPage < 1 || perPage > maximum) {
+    throw new BadRequestException({ code: 'AGENT_INVALID_PAGE', message: 'Invalid conversation page.' });
+  }
+  return { page, perPage };
+};
+const pageView = (result: Partial<AgentPagination>, options: Required<AgentPageOptions>, count: number): AgentPagination => ({
+  ...options, total: result.total ?? count, hasMore: result.hasMore ?? false,
+});
 
 type ThreadRow = {
   id: string;
@@ -78,7 +95,7 @@ type ThreadRow = {
 
 type ConductorMemory = {
   getThreadById(args: { threadId: string }): Promise<ThreadRow | null>;
-  listThreads(args: Record<string, unknown>): Promise<{ threads: ThreadRow[] }>;
+  listThreads(args: Record<string, unknown>): Promise<{ threads: ThreadRow[] } & Partial<AgentPagination>>;
   createThread(args: {
     threadId: string;
     resourceId: string;
@@ -91,7 +108,7 @@ type ConductorMemory = {
     metadata?: Record<string, unknown>;
   }): Promise<ThreadRow>;
   deleteThread(threadId: string): Promise<void>;
-  recall(args: Record<string, unknown>): Promise<{ messages: unknown[] }>;
+  recall(args: Record<string, unknown>): Promise<{ messages: MastraDBMessage[] } & Partial<AgentPagination>>;
 };
 
 type ConductorLike = {
@@ -460,16 +477,30 @@ export class AgentThreadsService {
     return thread;
   }
 
-  async list(identity: CapabilityIdentity): Promise<AgentThreadListV1> {
-    const { threads } = await (await this.memory()).listThreads({
-      filter: {
-        resourceId: conductorResourceId(identity.organizationId, identity.userId),
-      },
-      perPage: AGENT_THREADS_PAGE,
-      page: 0,
+  async list(identity: CapabilityIdentity, options: AgentPageOptions = {}): Promise<AgentThreadListV1 & { pagination: AgentPagination }> {
+    const paging = pageOptions(options, AGENT_THREADS_PAGE);
+    const result = await (await this.memory()).listThreads({
+      filter: { resourceId: conductorResourceId(identity.organizationId, identity.userId) },
+      ...paging,
       orderBy: { field: 'updatedAt', direction: 'DESC' },
     });
-    return { threads: threads.map(threadView) };
+    return { threads: result.threads.map(threadView), pagination: pageView(result, paging, result.threads.length) };
+  }
+
+  /** Authorized bounded native read shared by human history and model history tools. */
+  async readMessages(identity: CapabilityIdentity, threadId: string, options: AgentPageOptions = {}) {
+    const paging = pageOptions(options, AGENT_HISTORY_MESSAGES);
+    const thread = await this.requireOwnThread(identity, threadId);
+    const result = await (await this.memory()).recall({
+      threadId,
+      resourceId: conductorResourceId(identity.organizationId, identity.userId),
+      ...paging,
+      orderBy: { field: 'createdAt', direction: 'DESC' },
+    });
+    // Native recall pages are selected newest first. The product transcript
+    // and model tool both consume each bounded page in chronological order.
+    const messages = [...result.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return { thread: threadView(thread), messages, pagination: pageView(result, paging, messages.length) };
   }
 
   /**
@@ -507,19 +538,15 @@ export class AgentThreadsService {
 
   async history(
     identity: CapabilityIdentity,
-    threadId: string
-  ): Promise<AgentThreadHistoryV1> {
+    threadId: string,
+    options: AgentPageOptions = {}
+  ): Promise<AgentThreadHistoryV1 & { pagination: AgentPagination }> {
     const thread = await this.requireOwnThread(identity, threadId);
-    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
     // Read before the snapshot: a write unfinished when this GET began must
     // remain unfinished in its response even if it completes during recall.
     const execution = await readAgentThreadExecution(this.claims, thread.metadata).catch(refusedWhenUnavailable);
-    const [{ messages }, runs] = await Promise.all([
-      (await this.memory()).recall({
-        threadId,
-        resourceId,
-        perPage: AGENT_HISTORY_MESSAGES,
-      }),
+    const [{ messages, pagination }, runs] = await Promise.all([
+      this.readMessages(identity, threadId, options),
       this.pendingRuns(identity, threadId),
     ]);
     // A card first drawn on this reload is remembered as drawn now.
@@ -534,6 +561,7 @@ export class AgentThreadsService {
     }
     return {
       thread: threadView(thread),
+      pagination,
       workspace: await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata)),
       messages: toAISdkMessages(messages as any, {
         version: AGENT_STREAM_VERSION,

@@ -1,0 +1,160 @@
+[
+  {
+    "width": 390,
+    "theme": "dark",
+    "errors": [],
+    "overflow": {
+      "horizontal": false,
+      "vertical": false
+    },
+    "api": {
+      "calls": [
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/settings/ai/allowance",
+          "method": "GET"
+        },
+        {
+          "url": "/onboarding/progress",
+          "method": "GET"
+        },
+        {
+          "url": "/content-intelligence/voice/avatars",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0?page=1&perPage=200",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0/workspace",
+          "method": "PATCH"
+        },
+        {
+          "url": "/agent/threads/review-chat-0?page=2&perPage=200",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-1",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/chat",
+          "method": "POST"
+        },
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-1/workspace",
+          "method": "PATCH"
+        },
+        {
+          "url": "/agent/threads/review-new-105",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/settings/ai/allowance",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-new-105",
+          "method": "GET"
+        }
+      ],
+      "modelCalls": 0,
+      "nativeThreadCount": 106
+    }
+  },
+  {
+    "width": 1440,
+    "theme": "light",
+    "errors": [],
+    "overflow": {
+      "horizontal": false,
+      "vertical": false
+    },
+    "api": {
+      "calls": [
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/settings/ai/allowance",
+          "method": "GET"
+        },
+        {
+          "url": "/onboarding/progress",
+          "method": "GET"
+        },
+        {
+          "url": "/content-intelligence/voice/avatars",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0?page=1&perPage=200",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0?page=2&perPage=200",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-0/workspace",
+          "method": "PATCH"
+        },
+        {
+          "url": "/agent/threads/review-chat-1",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/chat",
+          "method": "POST"
+        },
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-chat-1/workspace",
+          "method": "PATCH"
+        },
+        {
+          "url": "/agent/threads/review-new-105",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads?page=0&perPage=100",
+          "method": "GET"
+        },
+        {
+          "url": "/settings/ai/allowance",
+          "method": "GET"
+        },
+        {
+          "url": "/agent/threads/review-new-105",
+          "method": "GET"
+        }
+      ],
+      "modelCalls": 0,
+      "nativeThreadCount": 106
+    }
+  }
+]

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { researchReady, researchModelView, type ResearchReady } from './research-evidence';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { ContentIntakeController } from '@contentfactory/backend/api/routes/content-intake.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
@@ -139,11 +140,16 @@ type PieceCreated = {
    * answer names it.
    */
   fromLead?: string;
+  researchSummary?: Record<string, unknown> | null;
+  selectionOrigin?: 'person' | 'model';
 };
+
+type PieceCreateResult = PieceCreated | ResearchReady;
 
 type IntakePass =
   | { kind: 'piece'; pieceId: string; code: string | null; questions: number }
-  | { kind: 'selection'; selection: FactSelection };
+  | { kind: 'selection'; selection: FactSelection; research: ResearchReady }
+  | { kind: 'research'; research: ResearchReady };
 
 /**
  * One request of the door: the same generator, its events forwarded as
@@ -152,13 +158,24 @@ type IntakePass =
 const intakePass = async (
   ctx: CapabilityRunContext,
   body: Record<string, unknown>,
-  emit: CapabilityEmit
+  emit: CapabilityEmit,
+  selectionPolicy?: 'model' | 'person'
 ): Promise<IntakePass> => {
   const intake = ctx.service(IntakeService);
-  const plan = await intake.prepare(ctx.organizationId, { ...body, timeZone: ctx.timeZone });
+  const plan = await intake.prepare(ctx.organizationId, { ...body, timeZone: ctx.timeZone },
+    { researchSelectionPolicy: selectionPolicy ?? 'model' });
+  return collectIntakePass(ctx, intake.run(ctx.organizationId, plan, ctx.userId), emit);
+};
+
+const collectIntakePass = async (
+  ctx: CapabilityRunContext,
+  events: AsyncIterable<unknown>,
+  emit: CapabilityEmit
+): Promise<IntakePass> => {
   let created: Extract<IntakePass, { kind: 'piece' }> | null = null;
   let selection: FactSelection | null = null;
-  for await (const event of intake.run(ctx.organizationId, plan, ctx.userId)) {
+  let research: ResearchReady | null = null;
+  for await (const event of events) {
     const named = event as { name: string } & Record<string, any>;
     await emit({
       kind: 'progress',
@@ -176,8 +193,12 @@ const intakePass = async (
       created.questions = Array.isArray(named.questions) ? named.questions.length : 0;
     }
     // The research pause: the screen stops here and shows the rows to keep.
+    if (named.name === 'research-ready') {
+      research = researchReady(named.snapshotKey, named.level ?? 'standard', named.facts, named.summary);
+    }
     if (named.name === 'research-selection-required') {
       const facts: any[] = Array.isArray(named.facts) ? named.facts : [];
+      research = researchReady(named.snapshotKey, named.level ?? 'standard', facts, named.summary);
       selection = {
         kind: 'selection',
         question: SELECTION_QUESTION[ctx.language],
@@ -190,11 +211,16 @@ const intakePass = async (
       };
     }
     if (named.name === 'error') {
-      throw eventFailure(named.code, named.message, 'INTAKE_FAILED', 'The piece could not be written.');
+      const error = eventFailure(named.code, named.message, 'INTAKE_FAILED', 'The piece could not be written.');
+      // A server-owned refusal before the artifact write permits a revised call;
+      // incurred model/search usage is still charged and never rolled back.
+      if (named.canReviseInput === true) Object.assign(error, { canReviseInput: true });
+      throw error;
     }
   }
   if (created) return created;
-  if (selection) return { kind: 'selection', selection };
+  if (selection && research) return { kind: 'selection', selection, research };
+  if (research) return { kind: 'research', research };
   throw intakeFailure('INTAKE_FAILED', 'The piece could not be written.');
 };
 
@@ -206,8 +232,10 @@ export const pieceCreate = defineCapability({
   group: 'content',
   label: { ru: 'Написать заготовку', en: 'Write a piece' },
   description:
-    'Write a new piece (заготовка) — the intake of «Новый материал». Paid. From a lead taken with ideas.take, pass `sourceLeadId` and, as `text`, only words the person added (or none): the piece is written from the lead as the server stores it and keeps its address as the source; the person did not see that text, so say in one line which lead it was written from, by the title ideas.take or ideas.queue gave. Otherwise pass the person\'s words verbatim and the kind: thought («Свой текст», default — the person\'s own view, experience or story), foreign_post («Чужой пост» — somebody else\'s text to rework) or instruction («Задание» — a task naming what to write about: an event, news, a product, a topic, «расскажем о…», «напиши про…»). When in doubt between thought and instruction, a text that names a subject but carries no view of the person\'s own is instruction. A message that is only a link is read as a link. An instruction searches the web by itself (`standard`); pass `research: none` only when the person said not to search. For the other kinds search (`research`) only when the person asks for it; with search, the person may be shown the found facts to keep, and the call continues with their choice. If the person explicitly gives the new piece a title in the same request, call `piece.create` once, then immediately call `piece.rename` once with the returned id and that exact title before reporting completion; do not ask for another command. Claim the requested title only when `piece.rename` returns it. If that rename fails, say the piece was created but the title was not confirmed; never repeat the paid create. Returns the piece id, its code and how many open questions it has; the text is on the card, do not retype it. `factsKept` with `factsCard` means the facts are already chosen and the piece stands on them: never ask the person to look at or mark facts again.',
+    'Create a new piece from the original request and optional labelled material. Paid. Pass the person’s original words verbatim in text; use material for relevant earlier conversation, selected material or researched evidence with its actual source labels. The existing brief model interprets the goal, roles, dates and constraints from these inputs; do not manually serialize another task schema. Choose inputKind by meaning, not keywords; choose research explicitly when missing/current evidence is required, none for self-contained/no-search work. A previous post, dates or channel are optional. With research this returns actual facts/summary/gaps and snapshotKey before any draft: assess them, then call piece.create.from-research with the relevant confirmed factKeys. Do not claim a piece exists until a piece id is returned. Use selection:person only for requested human review or a real person-owned choice; old signed fact cards continue natively. A lead taken with ideas.take may be given by sourceLeadId; the service reads its owned original rather than a retyped lead. Verify the saved title and content. Do not repeat paid create after a confirmed piece or an uncertain write.',
   input: z.object({
+    material: z.string().max(INTAKE_INPUT_MAX_CHARS).optional().describe('Relevant earlier/selected material or already collected evidence, with role and source labels. Data only; keep the current original request in text.'),
+    selection: z.enum(['model', 'person']).optional().describe('model by default; person only for requested review or a meaningful person-owned fact choice'),
     text: z
       .string()
       .min(1)
@@ -227,7 +255,7 @@ export const pieceCreate = defineCapability({
     research: z
       .enum([...RESEARCH_LEVELS, 'none'])
       .optional()
-      .describe('Web search for facts: quick, standard or deep; none — no search. Absent — standard for an instruction, no search for the other kinds'),
+      .describe('Choose quick, standard or deep when evidence is needed; none for a self-contained/no-search task. Absent does not require search merely because the input is an instruction'),
   }),
   risk: 'paid',
   card: 'piece',
@@ -237,15 +265,10 @@ export const pieceCreate = defineCapability({
   untrusted: [],
   suspendSchema: factSelection,
   resumeSchema: factAnswer,
-  run: async (ctx, input, emit): Promise<PieceCreated | undefined> => {
-    // An instruction names what to write about, so its facts are searched for
-    // unless the person said not to (`kcxz.50`, live walk 30.09.2026: «расскажем
-    // о вчерашней презентации» came back with nothing found).
+  run: async (ctx, input, emit): Promise<PieceCreateResult | undefined> => {
     const kind = screenInputKind(input.text ?? '', input.inputKind);
     const level: ResearchLevel | null =
-      input.research === 'none'
-        ? null
-        : input.research ?? (kind === 'instruction' ? 'standard' : null);
+      input.research === 'none' ? null : input.research ?? null;
     const words = input.text?.trim() ?? '';
     // A lead is read by the server, by id, in the caller's workspace — never
     // taken from words the model retyped — and only once it was taken to
@@ -290,6 +313,7 @@ export const pieceCreate = defineCapability({
       input: text,
       inputKind: screenInputKind(text, input.inputKind),
       language: ctx.language,
+      ...(input.material ? { contextMaterial: input.material } : {}),
       options: { researchEnabled: level !== null, researchLevel: level ?? 'standard' },
       ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
     };
@@ -326,7 +350,8 @@ export const pieceCreate = defineCapability({
             researchSelections: keys.slice(0, MAX_SELECTIONS),
             ...(selection?.snapshotKey ? { snapshotKey: selection.snapshotKey } : {}),
           },
-          emit
+          emit,
+          input.selection === 'person' ? 'person' : 'model'
         ),
         Math.min(keys.length, MAX_SELECTIONS),
         card
@@ -361,13 +386,15 @@ export const pieceCreate = defineCapability({
       );
     }
 
-    const pass = await intakePass(ctx, body, emit);
+    const pass = await intakePass(ctx, body, emit,
+      input.selection === 'person' ? 'person' : 'model');
     if (pass.kind === 'piece') return finished(pass);
-    // Nothing to choose, or no card to ask on (MCP): the product decides, with
-    // the defaults the screen would send untouched.
-    if (!pass.selection.options.length || !ctx.suspend) {
-      return continueWith(pass.selection, defaultSelection(pass.selection), 'not_shown');
-    }
+    if (pass.kind === 'research') return pass.research;
+    // Return actual evidence before any model assessment or routine choice.
+    // An empty/partial investigation is not a draft or a successful facts card.
+    if (input.selection !== 'person') return pass.research;
+    if (!pass.selection.options.length || ['empty', 'failed', 'needs_clarification'].includes(pass.research.summary?.status) || pass.research.summary?.periodStatus === 'empty') return pass.research;
+    if (!ctx.suspend) return pass.research;
     // When the card was asked: the first pass it continues lives an hour.
     await ctx.suspend({ ...pass.selection, askedAt: Date.now() });
     return undefined;
@@ -378,7 +405,7 @@ export const pieceCreate = defineCapability({
     opens: (summary) =>
       Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null,
   },
-  summarize: (output) => ({
+  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}), note: 'Research ran; no piece was written. Assess the actual evidence and gaps, refine search if needed, or select relevant confirmed fact keys through piece.create.from-research. No human card is waiting.' } : {
     pieceId: output.pieceId,
     code: output.code,
     questions: output.questions,
@@ -394,12 +421,39 @@ export const pieceCreate = defineCapability({
         }
       : {}),
   }),
-  cardOf: (output) => ({
+  cardOf: (output) => ('outcome' in output ? null : {
     kind: 'piece',
     id: output.pieceId,
     code: output.code,
     questions: output.questions,
   }),
+});
+
+/** The model’s editorial continuation is not a person answering a signed card. */
+export const pieceCreateFromResearch = defineCapability({
+  id: 'piece.create.from-research',
+  group: 'content',
+  label: { ru: 'Написать по найденным фактам', en: 'Write from researched facts' },
+  description: 'After assessing piece.create research, choose relevant confirmed factKeys from its server-owned snapshot and write the requested piece. Paid. Saves model-origin selection, not human consent. Empty, insufficient or user-review-required research must not be turned into a successful draft; refine the research or ask the material question instead. Never reuse this after an uncertain write; confirmed repeat returns the saved result.',
+  input: z.object({
+    snapshotKey: z.string().min(1).max(128),
+    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(50),
+  }),
+  risk: 'paid',
+  card: 'piece',
+  door: door(ContentIntakeController, 'intakeRun'),
+  untrusted: [],
+  run: async (ctx, input, emit): Promise<PieceCreated> => {
+    const intake = ctx.service(IntakeService);
+    const pass = await collectIntakePass(ctx,
+      intake.selectResearchForModel(ctx.organizationId, ctx.userId, input.snapshotKey, input.factKeys), emit);
+    if (pass.kind !== 'piece') throw intakeFailure('INTAKE_RESEARCH_INCOMPLETE', 'The investigation needs assessment before a piece can be written.');
+    return { pieceId: pass.pieceId, code: pass.code, questions: pass.questions,
+      research: null, factsKept: input.factKeys.length, factsCard: 'not_shown', selectionOrigin: 'model' };
+  },
+  personQuestions: { opens: (summary) => Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null },
+  summarize: (output) => ({ ...output, outcome: 'created', note: 'The requested piece is saved with model-origin fact selection. No facts card is waiting; continue other requested steps.' }),
+  cardOf: (output) => ({ kind: 'piece', id: output.pieceId, code: output.code, questions: output.questions }),
 });
 
 /** The id the screen gives a question: its material key, or its brief field. */
@@ -629,7 +683,7 @@ export const pieceOpen = defineCapability({
   group: 'content',
   label: { ru: 'Открыть заготовку', en: 'Open a piece' },
   description:
-    'Open one piece: shows it on the card beside the chat and returns its code, title, its adaptations (`adaptationList`: id, channel name, state — draft, reserve, scheduled, published or error; the id is what adaptation.* and plan.* take, so find «the adaptation for channel X» here, never send the person to the card for it), its open questions (id, question, suggested options) — what piece.answer takes —, whether added material waits for a rebuild, and its earlier core versions (index, date, who wrote it) — what piece.core.restore takes. The core text stays on the card; do not ask for it.',
+    'Open one piece: shows its native editor and returns code/title, adaptation ids with channel/state, open questions, pending material and earlier core versions. For the actual full core, original material, task or adaptation text call piece.read, continuing ranges when needed. Do not ask the person to copy accessible text from the card.',
   input: z.object({ pieceId }),
   risk: 'read',
   card: 'piece',

@@ -178,9 +178,11 @@ const paidCap = async (paidLimit) => {
       ['tool', 'piece_create', { text: 'третья мысль' }],
     ],
   ]);
-  const result = await agent.generate('напиши три заготовки', {
+  const execution = conductor.createConductorExecution({ requestId: 'paid-probe' });
+  const result = await execution.run(() => agent.generate('напиши три заготовки', {
+    ...execution.streamOptions(), abortSignal: execution.signal,
     requestContext: contextFor(IDENTITY, { paidLimit }),
-  });
+  }));
   return { runs: calls.intake, outcomes: outcomesOf(result) };
 };
 
@@ -189,10 +191,13 @@ const stepCap = async () => {
     ['tool', 'channels_list', {}],
   ]);
   const { agent, seen, calls } = agentWith(forever);
-  await agent.generate('листай каналы без конца', {
+  const execution = conductor.createConductorExecution({ requestId: 'loop-probe' });
+  await execution.run(() => agent.generate('листай каналы без конца', {
+    ...execution.streamOptions(), abortSignal: execution.signal,
     requestContext: contextFor(IDENTITY),
-  });
+  }));
   return {
+    budget: execution.snapshot(),
     modelCalls: seen.calls.length,
     snapshotReads: calls.snapshotReads,
     toolChoices: seen.calls.map((call) => call.toolChoice),
@@ -273,6 +278,8 @@ const doorPipeline = async () => {
       paidLimit = 2;
       if (input.mode === 'resume') resume = { runId: input.runId, resumeData: input.resumeData };
     }
+    const execution = conductor.createConductorExecution({ requestId: 'pipeline-probe' });
+    return execution.run(async () => {
     const stream = await handleChatStream({
       mastra,
       agentId: conductor.CONDUCTOR_AGENT_ID,
@@ -288,11 +295,12 @@ const doorPipeline = async () => {
           approvals: fingerprints,
         }),
         memory: { thread: threadId, resource: resourceId },
-        maxSteps: conductor.CONDUCTOR_MAX_STEPS,
-        prepareStep: conductor.lastStepSpeaks(conductor.CONDUCTOR_MAX_STEPS, notes, { resumed: input.mode !== 'message' }),
+        ...execution.streamOptions(notes),
+        abortSignal: execution.signal,
       },
     });
     return drain(stream);
+    });
   };
 
   const first = await turn({

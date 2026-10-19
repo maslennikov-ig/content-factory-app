@@ -422,6 +422,43 @@ export interface SearchCallUsage {
   possiblyBilled?: boolean;
 }
 
+/** Request-scoped metering, independent of an operation's persistent ledger. */
+export interface AiExecutionUsageObserver {
+  /** Trusted task scope already admits search through the real operation allowance. */
+  researchAdmission?: 'operation-allowance';
+  /** Native task time replaces the chain's legacy soft fallback timers. */
+  signal?: AbortSignal;
+  maxDurationMs?: number;
+  remainingMs?: () => number;
+  beforeProviderCall?: () => void;
+  text?: (call: TextCallUsage) => void;
+  search?: (call: SearchCallUsage) => void;
+}
+
+const executionUsage = new AsyncLocalStorage<AiExecutionUsageObserver>();
+const ledgerObservers = new WeakMap<TextUsageLedger, AiExecutionUsageObserver>();
+
+/** Nested product operations keep their own billing rows and share this observer. */
+export const runWithAiExecutionUsage = <T>(
+  observer: AiExecutionUsageObserver,
+  callback: () => T
+): T => executionUsage.run(observer, callback);
+
+/** Before an outbound attempt, including a fallback or a length retry. */
+export const assertAiExecutionBudget = () =>
+  executionUsage.getStore()?.beforeProviderCall?.();
+
+/** Stable SDK ceiling for cached clients; the shared signal enforces remaining time. */
+export const currentAiExecutionTimeoutMs = () => {
+  const execution = executionUsage.getStore();
+  return execution?.signal && execution.beforeProviderCall ? execution.maxDurationMs : undefined;
+};
+
+export const usesAiOperationResearchAdmission = () => {
+  const observer = executionUsage.getStore();
+  return observer?.researchAdmission === 'operation-allowance' && typeof observer.beforeProviderCall === 'function';
+};
+
 /**
  * The search part of an operation as one readable line, per engine in the
  * order first asked: `search tavily requests=2 credits=4; exa requests=1`.
@@ -478,10 +515,12 @@ export class TextUsageLedger {
 
   record(call: TextCallUsage) {
     this.calls.push(call);
+    (ledgerObservers.get(this) ?? executionUsage.getStore())?.text?.(call);
   }
 
   recordSearch(call: SearchCallUsage) {
     this.searches.push(call);
+    (ledgerObservers.get(this) ?? executionUsage.getStore())?.search?.(call);
   }
 
   /**
@@ -563,7 +602,11 @@ const ledgerStore = new AsyncLocalStorage<TextUsageLedger>();
 export const runWithUsageLedger = <T>(
   ledger: TextUsageLedger,
   callback: () => T
-): T => ledgerStore.run(ledger, callback);
+): T => {
+  const observer = executionUsage.getStore();
+  if (observer) ledgerObservers.set(ledger, observer);
+  return ledgerStore.run(ledger, callback);
+};
 
 export const currentUsageLedger = () => ledgerStore.getStore();
 
@@ -867,8 +910,9 @@ const parseBody = (init?: RequestInit): Record<string, unknown> | undefined => {
 /**
  * The shared `fetch` for every text-capable client.
  *
- * - Anything other than `POST …/chat/completions` passes through untouched:
- *   images, embeddings, model lists.
+ * - Anything other than `POST …/chat/completions` skips the text chain:
+ *   images, embeddings, model lists. Native task cancellation and pre-call
+ *   admission still apply; the endpoint's caller owns its usage accounting.
  * - Outside the chain (see `textChainApplies`), a chat completion goes out
  *   exactly as the SDK built it, once. The only addition is reading the usage
  *   it reports.
@@ -1095,6 +1139,15 @@ const sendText = (
   baseFetch: FetchLike
 ): FetchLike => {
   return async (input, init) => {
+    const execution = executionUsage.getStore();
+    if (execution?.beforeProviderCall) {
+      assertAiExecutionBudget();
+      if (execution.signal) {
+        // Apply Stop and shared task expiry to every SDK endpoint. Images
+        // retain their own domain accounting and never enter the text chain.
+        init = { ...init, signal: AbortSignal.any([execution.signal, ...(init?.signal ? [init.signal] : [])]) };
+      }
+    }
     const url = urlOf(input);
     if (!isChatCompletions(url, init)) return baseFetch(input, init);
     const original = parseBody(init);
@@ -1123,6 +1176,7 @@ const sendText = (
         timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
       };
       let response: Response;
+      assertAiExecutionBudget();
       try {
         const roomy =
           imageRequest || pluginCall
@@ -1132,12 +1186,16 @@ const sendText = (
         if (roomy && response.status === 400) {
           // The model refused the raised ceiling: send what the SDK built.
           void response.body?.cancel().catch(() => undefined);
+          ledger?.record(failedCall(attempt, false));
+          assertAiExecutionBudget();
           response = await baseFetch(input, init);
         }
       } catch (error) {
         // The request left and no answer came back: an abort or a transport
         // failure may still be billed (review F4 of the fifteenth walk).
-        if (!imageRequest) ledger?.record(failedCall(attempt, true));
+        if (!imageRequest && !(error as { executionBudgetStop?: boolean })?.executionBudgetStop) {
+          ledger?.record(failedCall(attempt, true));
+        }
         throw error;
       }
       return imageRequest ? response : observe(response, attempt, ledger, streaming);
@@ -1148,6 +1206,7 @@ const sendText = (
     for (const attempt of attempts) {
       // A tier refusal will not change on the second flex attempt (F18).
       if (flexRefused && attempt.flex) continue;
+      assertAiExecutionBudget();
       const startedAt = Date.now();
       try {
         return await runAttempt(
@@ -1193,14 +1252,29 @@ const observe = async (
   ledger: TextUsageLedger | undefined,
   streaming: boolean
 ): Promise<Response> => {
-  if (!ledger || !response.ok || !response.body) return response;
+  if (!ledger) return response;
+  if (!response.ok) {
+    ledger.record(failedCall(attempt, false));
+    return response;
+  }
+  if (!response.body) {
+    ledger.record(failedCall(attempt, true));
+    return response;
+  }
   if (!streaming) {
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      ledger.record(failedCall(attempt, true));
+      throw error;
+    }
     try {
       const payload = JSON.parse(text);
-      if (!errorOf(payload)) ledger.record(readUsage(payload, attempt));
+      ledger.record(errorOf(payload) ? failedCall(attempt, false) : readUsage(payload, attempt));
     } catch {
-      /* not JSON: nothing to read */
+      // The request was served but its usable result/usage is unknown.
+      ledger.record(failedCall(attempt, true));
     }
     return new Response(text, {
       status: response.status,
@@ -1210,18 +1284,32 @@ const observe = async (
   }
   const reader = response.body.getReader();
   const observer = new SseObserver();
+  let settled = false;
+  const cut = () => {
+    if (settled) return;
+    settled = true;
+    ledger.record(failedCall(attempt, true));
+  };
   const body = new ReadableStream<Uint8Array>({
     pull: async (controller) => {
-      const { done, value } = await reader.read();
-      if (done) {
-        ledger.record(readUsage(observer.result(), attempt));
-        controller.close();
-        return;
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          if (!settled) {
+            settled = true;
+            ledger.record(readUsage(observer.result(), attempt));
+          }
+          controller.close();
+          return;
+        }
+        observer.push(value);
+        controller.enqueue(value);
+      } catch (error) {
+        cut();
+        controller.error(error);
       }
-      observer.push(value);
-      controller.enqueue(value);
     },
-    cancel: (reason) => reader.cancel(reason),
+    cancel: (reason) => { cut(); return reader.cancel(reason); },
   });
   return new Response(body, {
     status: response.status,
@@ -1240,8 +1328,13 @@ const runAttempt = async (
   streaming: boolean,
   ledger: TextUsageLedger | undefined
 ): Promise<Response> => {
-  const deadline = attemptSignal(init?.signal, attempt.timeoutMs);
-  const outer = init?.signal;
+  const execution = executionUsage.getStore();
+  const sharedDeadline = execution?.signal && execution.remainingMs && execution.beforeProviderCall;
+  const waitMs = sharedDeadline ? Math.max(1, execution.remainingMs!()) : attempt.timeoutMs;
+  const outer = sharedDeadline
+    ? AbortSignal.any([execution.signal!, ...(init?.signal ? [init.signal] : [])])
+    : init?.signal;
+  const deadline = attemptSignal(outer, waitMs);
   const startedAt = Date.now();
   let handedOff = false;
   /** Which deadline is running: the start of the answer, or the body. */
@@ -1250,7 +1343,7 @@ const runAttempt = async (
     (value): value is number => typeof value === 'number'
   );
   // The whole non-streaming attempt, from sending to its last byte (F2).
-  const bodyWindowMs = Math.max(attempt.timeoutMs, generationTimeoutMs(cap));
+  const bodyWindowMs = sharedDeadline ? waitMs : Math.max(attempt.timeoutMs, generationTimeoutMs(cap));
   /**
    * A rejection from `fetch` or from reading the body. The caller's own
    * abort ends the chain. Anything else is the transport (a refused
@@ -1278,7 +1371,7 @@ const runAttempt = async (
       message: deadline.state.timedOut
         ? phase === 'body'
           ? `the body did not finish within ${bodyWindowMs} ms`
-          : `no answer within ${attempt.timeoutMs} ms`
+          : `no answer within ${waitMs} ms`
         : error instanceof Error
         ? error.message
         : String(error),
@@ -1460,7 +1553,7 @@ const runAttempt = async (
 
 const clientBudgets = new WeakMap<object, number>();
 
-/** Called by `ai.clients.ts` for a client whose calls walk the chain. */
+/** Called by `ai.clients.ts` for a client with an admitted SDK time budget. */
 export const registerChainClient = (client: object, budgetMs: number) => {
   clientBudgets.set(client, budgetMs);
 };
@@ -1470,13 +1563,15 @@ export const registerChainClient = (client: object, budgetMs: number) => {
  *
  * Those call sites used to pass `{maxRetries: 0, timeout: 60000}`, and the
  * SDK's timeout covers the whole `fetch`, which here is the whole chain. So a
- * chained client gets the chain's budget. Any other client keeps the old 60
- * seconds, and SDK retries stay off in both cases.
+ * chained client gets the chain's budget. Native tasks use their remaining
+ * execution time; other clients keep the old 60 seconds. SDK retries stay off.
  */
 export const textRequestOptions = (
   client: object,
   standardTimeoutMs = STANDARD_ATTEMPT_TIMEOUT_MS
 ) => ({
   maxRetries: 0,
-  timeout: clientBudgets.get(client) ?? standardTimeoutMs,
+  timeout: executionUsage.getStore()?.remainingMs && currentAiExecutionTimeoutMs() !== undefined
+    ? Math.max(1, executionUsage.getStore()!.remainingMs!())
+    : clientBudgets.get(client) ?? standardTimeoutMs,
 });

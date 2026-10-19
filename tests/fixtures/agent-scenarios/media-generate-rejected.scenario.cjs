@@ -13,6 +13,7 @@ module.exports = {
   id: 'media-generate-rejected',
   title: 'ИИ отказался рисовать — код продукта, картинки нет',
   covers: ['media.generate'],
+  incompleteTurns: [0],
   world: { ...mediaRows(), imageRefused: true },
   turns: [
     {
@@ -27,7 +28,7 @@ module.exports = {
     const [output] = run.turns[0].outputs.map((one) => one.output);
     expect(output).toMatchObject({ ok: false, code: 'MEDIA_IMAGE_REJECTED' });
     expect(run.turns[0].admissions.map(([operation, , , status]) => [operation, status])).toEqual([
-      ['agent', 'succeeded'],
+      ['agent', 'failed'],
       ['image_generation', 'failed'],
     ]);
     // The person's words come first, then the post; in their style.

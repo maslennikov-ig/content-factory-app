@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, cloneElement, type ReactElement, type ReactNode } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
@@ -75,6 +75,10 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const { mutate } = useSWRConfig();
   const request = useFetch();
   const [session, setSession] = useState<Session>(() => routeId ? threadSession(routeId) : newSession());
+  const knownSessions = useRef(new Map<string, Session>([[session.key, session]]));
+  knownSessions.current.set(session.key, session);
+  const renderedSessions = useRef(new Map<string, ReactElement<{ visible: boolean }>>());
+  const sessionContexts = useRef(new Map<string, { context: AgentWorkContextV1 | null; artifact: AgentArtifact | null }>());
   const current = useRef(session);
   current.current = session;
   const [states, setStates] = useState<Record<string, ArtifactWorkspaceState>>(() => ({ [session.key]: emptyArtifactWorkspace(session.fresh) }));
@@ -92,11 +96,20 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const [saveFailed, setSaveFailed] = useState<string | null>(null);
   const [saveAttempt, setSaveAttempt] = useState(0);
   const explicitSelection = useRef(new Set<string>());
+  const manualContextSessions = useRef(new Set<string>());
 
   useLayoutEffect(() => {
     if (!isAgentsRoute || routeId === current.current.threadId) return;
-    if (routeId) setSession(threadSession(routeId));
-    else if (pathname === '/agents/new' && !current.current.fresh) setSession(newSession());
+    if (routeId) {
+      const next = [...knownSessions.current.values()].find((item) => item.threadId === routeId) ?? threadSession(routeId);
+      const saved = sessionContexts.current.get(next.key);
+      assistantRef.current?.setWorkContext(saved?.context ?? null, saved?.artifact ?? null);
+      setSession(next);
+    }
+    else if (pathname === '/agents/new' && current.current.threadId) {
+      assistantRef.current?.setWorkContext(null);
+      setSession([...knownSessions.current.values()].find((item) => item.threadId === null) ?? newSession());
+    }
   }, [isAgentsRoute, routeId, pathname]);
   const lastRequest = useRef({ version: 0, context: assistantContextKey(assistant?.workContext ?? null) });
   useLayoutEffect(() => {
@@ -106,9 +119,11 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
     const sameContext = lastRequest.current.context === context;
     lastRequest.current = { version, context };
     const target = assistant?.requestedThreadId;
-    if (target && current.current.threadId === target) return;
+    if (target && current.current.threadId === target) { manualContextSessions.current.add(current.current.key); return; }
     if (!target && current.current.fresh && sameContext) return;
-    setSession(target ? threadSession(target) : newSession());
+    const next = target ? [...knownSessions.current.values()].find((item) => item.threadId === target) ?? threadSession(target) : newSession();
+    manualContextSessions.current.add(next.key);
+    setSession(next);
   }, [assistant?.requestVersion, assistant?.requestedThreadId, assistant?.workContext]);
   useEffect(() => { setTitle(null); setSaveFailed(null); }, [session.key]);
   useEffect(() => {
@@ -171,24 +186,42 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const onHistory = useCallback((history: AgentThreadHistory) => {
     const saved = history.workspace ?? null;
     dispatch({ type: 'restore', artifacts: [...(saved?.artifacts.map(refToArtifact) ?? []), ...artifactsOf(history.messages)], workspace: saved });
-    if (!contextual && saved && !explicitSelection.current.has(session.key)) assistantRef.current?.setWorkContext(saved.workContext, saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null);
+    if (saved) sessionContexts.current.set(session.key, { context: saved.workContext, artifact: saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null });
+    if (current.current.key === session.key && (!contextual || !manualContextSessions.current.has(session.key)) && saved && !explicitSelection.current.has(session.key)) assistantRef.current?.setWorkContext(saved.workContext, saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null);
   }, [dispatch, contextual, session.key]);
   const writeFromLead = useCallback((leadTitle: string) => {
     setDraft(words.panel.writeFromLead(leadTitle.trim().slice(0, LEAD_TITLE_IN_DRAFT)));
     if (window.innerWidth < 1280) dispatch({ type: 'hide' });
   }, [words, dispatch]);
   const openThread = useCallback((id: string) => {
-    setSession(threadSession(id));
+    const next = [...knownSessions.current.values()].find((item) => item.threadId === id) ?? threadSession(id);
+    const saved = sessionContexts.current.get(next.key);
+    manualContextSessions.current.delete(next.key);
+    assistantRef.current?.setWorkContext(saved?.context ?? null, saved?.artifact ?? null);
+    setSession(next);
     if (isAgentsRoute) router.push(`/agents/${encodeURIComponent(id)}`);
   }, [isAgentsRoute, router]);
   const startNew = useCallback(() => {
-    setSession(newSession());
-    if (isAgentsRoute) assistantRef.current?.setWorkContext(null);
+    const next = [...knownSessions.current.values()].find((item) => item.threadId === null) ?? newSession();
+    setSession(next);
+    const saved = sessionContexts.current.get(next.key);
+    const manual = contextual && manualContextSessions.current.has(current.current.key);
+    if (manual) manualContextSessions.current.add(next.key);
+    if (saved) assistantRef.current?.setWorkContext(saved.context, saved.artifact);
+    else if (!manual) assistantRef.current?.setWorkContext(null);
     if (isAgentsRoute) router.push('/agents/new');
-  }, [isAgentsRoute, router]);
+  }, [isAgentsRoute, contextual, router]);
+  const removeThread = useCallback(() => {
+    knownSessions.current.delete(session.key);
+    renderedSessions.current.delete(session.key);
+    sessionContexts.current.delete(session.key);
+    startNew();
+  }, [session.key, startNew]);
   const onThreadId = useCallback((id: string) => {
-    if (current.current.key !== session.key) return;
-    setSession((open) => ({ ...open, threadId: id }));
+    const named = { ...(knownSessions.current.get(session.key) ?? session), threadId: id };
+    knownSessions.current.set(session.key, named);
+    if (current.current.key !== session.key) { void mutate(THREADS_KEY); return; }
+    setSession(named);
     assistantRef.current?.rememberThread(id);
     if (/^\/agents(?:\/|$)/.test(window.location.pathname)) window.history.replaceState(null, '', `/agents/${encodeURIComponent(id)}`);
     void mutate(THREADS_KEY);
@@ -199,12 +232,16 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const onWorkContext = useCallback((next: AgentWorkContextV1 | null) => {
     if (current.current.key !== session.key) return;
     const open = assistantRef.current;
-    if (open && assistantContextKey(open.workContext) === assistantContextKey(next)) open.setWorkContext(next, open.contextArtifact);
-  }, [session.key]);
+    if (open && open.workContext?.revision === assistant?.workContext?.revision && assistantContextKey(open.workContext) === assistantContextKey(next)) open.setWorkContext(next, open.contextArtifact);
+  }, [session.key, assistant?.workContext?.revision]);
 
   const saveQueue = useRef(Promise.resolve());
   const lastSaved = useRef<Record<string, string>>({});
   const workContext = assistant?.workContext ?? null;
+  useEffect(() => {
+    if (!workspace.ready) return;
+    sessionContexts.current.set(session.key, { context: workContext, artifact: assistant?.contextArtifact ?? null });
+  }, [session.key, workContext, assistant?.contextArtifact, workspace.ready]);
   const selection = useMemo(() => persistedArtifactSelection(workspace), [workspace]);
   const savedBody = useMemo(() => JSON.stringify({
     workContext,
@@ -242,6 +279,8 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const materialName = resolved ? resolved.kind === 'piece' && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
   const picker = <AgentArtifactPicker artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
 
+  renderedSessions.current.set(session.key, <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} draftStorageKey={`cf-assistant-draft/v1:${user?.orgId ?? ''}:${user?.id ?? ''}:${session.threadId ?? 'new'}`} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />);
+
   return (
     <div data-agent-screen="" className={contextual ? 'relative flex min-h-0 min-w-0 flex-1' : 'relative flex h-[calc(100dvh-56px)] min-h-0 min-w-0 flex-none md:h-auto md:flex-1'}>
       <div className="flex min-h-0 min-w-0 flex-1 md:absolute md:inset-0">
@@ -252,7 +291,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
           {artifact ? <ButtonLink href={artifactHref(artifact)} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink> : null}
         </>} material={<AgentArtifactHost artifact={artifact} selectionVersion={selectionVersion} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
           <section aria-label={t('agent', 'AI assistant')} className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <ThreadSwitcher threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={startNew} words={words} actions={<>
+            <ThreadSwitcher contextual={contextual} threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={removeThread} words={words} actions={<>
               {picker}
               <AgentWorkspaceBrowser onSelect={selectArtifact} words={words} />
               {workspace.hidden && artifact ? <Button data-assistant-restore="" type="button" density="dense" variant="quiet" onClick={() => selectArtifact(artifact)}>{t('assistant_restore', 'Restore')}</Button> : null}
@@ -262,7 +301,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
               <Button type="button" density="dense" variant="quiet" onClick={() => setSaveAttempt((attempt) => attempt + 1)}>{t('assistant_reconcile', 'Check result')}</Button>
             </div> : null}
             <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
-              <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />
+              {[...renderedSessions.current].map(([key, view]) => <div key={key} hidden={key !== session.key} className={key === session.key ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>{cloneElement(view, { visible: key === session.key && (isAgentsRoute || contextual) })}</div>)}
             </AgentAvailabilityGate>
           </section>
         </AgentWorkspaceShell>
@@ -278,6 +317,7 @@ const EMPTY_HISTORY: AgentThreadHistory = {
 };
 
 function SessionView({
+  draftStorageKey,
   visible,
   session,
   onHistory,
@@ -298,6 +338,7 @@ function SessionView({
   words,
 }: {
   visible: boolean;
+  draftStorageKey: string;
   session: Session;
   onHistory: (history: AgentThreadHistory) => void;
   workContext: AgentWorkContextV1 | null;
@@ -377,6 +418,8 @@ function SessionView({
       visible={visible}
       threadId={session.threadId}
       initialMessages={loaded.messages}
+      initialPagination={loaded.pagination}
+      draftStorageKey={draftStorageKey}
       pending={loaded.pending}
       workContext={workContext}
       onArtifacts={onArtifacts}

@@ -15,6 +15,7 @@ export type IntakeEventV2 =
           | 'content-context'
           | 'generator'
           | 'draft'
+          | 'error'
           | 'done';
       }
     >
@@ -24,6 +25,7 @@ export type IntakeEventV2 =
       sources: Array<import('./voice-wiring.contract').IntakeInputKindV1>;
     }
   | { name: 'brief-started' }
+  | (Extract<IntakeEventWithPieceV1, { name: 'error' }> & { canReviseInput?: true })
   | Extract<import('./voice-wiring.contract').IntakeEventV1, { name: 'research-started' | 'research-ready' | 'research-selection-required' }>
   | { name: 'done'; pieceId: string | null };
 export type PieceAnswerEventV2 =

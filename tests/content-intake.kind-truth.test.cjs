@@ -185,7 +185,7 @@ const briefAnswer = (overrides = {}) => ({
     disagreement: null,
     audience: null,
   },
-  questions: [],
+  questions: [{ about: 'position', question: 'Какова ваша позиция в споре о комиссиях маркетплейсов?', options: ['Я поддерживаю самостоятельный канал продаж', 'Я хочу продолжать работу только на площадках'] }],
   ...overrides,
 });
 
@@ -406,8 +406,8 @@ describe('второй проход помнит, чей это был текс�
   /** Первый проход с ресерчем: пауза, снимок, ключ. */
   const firstPass = async (snapshots) => {
     const first = build({
-      models: [extractAnswer(), briefAnswer()],
-      research: [{ summary: 'Ничего', provider: 'exa', facts: [], sources: [] }],
+      models: [extractAnswer(), briefAnswer(), { verdicts: [], findings: [{ evidenceId: 'ev-1', statement: 'Площадки изменили условия работы.', quote: 'Marketplaces have changed their seller conditions.' }] }],
+      research: [{ summary: 'Найдены условия', provider: 'exa', facts: [{ sourceUrl: 'https://market.example/conditions', text: 'Marketplaces have changed their seller conditions.' }], sources: [{ url: 'https://market.example/conditions', title: 'Conditions' }] }],
       snapshots,
     });
     const plan = await first.service.prepare(
@@ -471,6 +471,7 @@ describe('второй проход помнит, чей это был текс�
       const parsed = JSON.parse(raw);
       delete parsed.state.inputKind;
       delete parsed.state.inputKindExplicit;
+      delete parsed.state.resumePlan;
       if (alsoDropBriefKind) delete parsed.state.filled.brief.inputKind;
       snapshots.rows.set(key, JSON.stringify(parsed));
     }
@@ -606,12 +607,12 @@ describe('задание: слова человека о посте — не м�
     const { service, calls } = build({
       models: [
         (prompt) => {
-          // Бриф по заданию заполняет v9 на правилах задания из v7 (одна строка
-          // версии, `97dq.44`), и ссылки в нём — адреса, а не источники.
-          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
-          expect(prompt).toContain('person’s INSTRUCTION: they describe the post they want written');
-          expect(prompt).toContain('Links the person told us to keep (addresses only, not sources):');
-          for (const link of RADIO_LINKS) expect(prompt).toContain(`- ${link}`);
+          // V12 keeps the explicit instruction label and output-only links;
+          // it does not impose that role on every URL in every request.
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
+          expect(prompt).toContain('"materialKind":"instruction"');
+          expect(prompt).toContain('A link explicitly requested in the finished text remains an exact output requirement.');
+          expect(prompt).toContain(`"outputLinks":${JSON.stringify(RADIO_LINKS)}`);
           return briefAnswer({
             thesis: 'Я выступил на радио и отвечал на вопросы о том, может ли ИИ украсть идею',
             position: null,

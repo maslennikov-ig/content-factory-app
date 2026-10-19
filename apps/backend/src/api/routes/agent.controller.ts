@@ -60,9 +60,6 @@ import {
 } from '@contentfactory/nestjs-libraries/chat/conductor/agent-chat.request';
 import {
   CONDUCTOR_AGENT_ID,
-  CONDUCTOR_MAX_STEPS,
-  PAID_CALLS_HARD_LIMIT,
-  PAID_CALLS_PER_TURN,
   buildConductorContext,
   conductorResourceId,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.context';
@@ -72,11 +69,11 @@ import {
   logConductorError,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.errors';
 import { normaliseThreadTitle } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
+import { createConductorExecution, type ConductorExecution } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.execution';
 import { holdViewedPictures } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.pictures';
 import {
   STEP_CAP_CLOSING,
   closingLineWatch,
-  lastStepSpeaks,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.steps';
 import { AgentChatThrottleGuard } from './agent-chat.throttle';
 
@@ -142,6 +139,24 @@ const threadIdParam = (value: string) => {
   return value;
 };
 
+/** Bounds are native page sizes; subsequent pages stay reachable. */
+const threadPageQuery = (query: unknown, maximum: number) => {
+  const value = query && typeof query === 'object' && !Array.isArray(query)
+    ? query as Record<string, unknown> : {};
+  const parse = (key: string, fallback: number, min: number, max: number) => {
+    if (value[key] === undefined) return fallback;
+    if (typeof value[key] !== 'string' || !/^\d+$/.test(value[key] as string)) {
+      throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Invalid conversation page.');
+    }
+    const n = Number(value[key]);
+    if (!Number.isSafeInteger(n) || n < min || n > max) {
+      throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Invalid conversation page.');
+    }
+    return n;
+  };
+  return { page: parse('page', 0, 0, Number.MAX_SAFE_INTEGER), perPage: parse('perPage', maximum, 1, maximum) };
+};
+
 /**
  * An `error` part never carries more than a code (premortem S6). Progress is
  * transient on the wire as the contract says: Mastra 1.71 drops the flag a
@@ -159,11 +174,11 @@ const sanitisedPart = (part: any) => {
 };
 
 /** The step-cap closing line as UI message stream parts. */
-const closingLine = (language: 'ru' | 'en') => {
+const closingLine = (language: 'ru' | 'en', message?: string) => {
   const id = `cf-closing-${randomUUID()}`;
   return [
     { type: 'text-start', id },
-    { type: 'text-delta', id, delta: STEP_CAP_CLOSING[language] },
+    { type: 'text-delta', id, delta: message ?? STEP_CAP_CLOSING[language] },
     { type: 'text-end', id },
   ];
 };
@@ -202,10 +217,12 @@ export class AgentController {
     let finished = false;
     let reader: ReadableStreamDefaultReader<any> | undefined;
     let turn: AgentTurnLifecycle | undefined;
+    let execution: ConductorExecution | undefined;
     // `res` closes when the person leaves (and after the end, when `finished`
     // is already set); `req` closes as soon as the body was read.
     const onClose = () => {
       if (finished) return;
+      execution?.stop('AGENT_TASK_STOPPED');
       turn?.stop();
       abort.abort();
       void reader?.cancel().catch(() => undefined);
@@ -223,8 +240,6 @@ export class AgentController {
       let threadId: string;
       let fingerprints: string[] = [];
       let messages: unknown[];
-      let paidLimit = PAID_CALLS_PER_TURN;
-      let maxSteps = CONDUCTOR_MAX_STEPS;
       let resume:
         | { runId: string; toolCallId: string; resumeData: Record<string, unknown> }
         | undefined;
@@ -302,20 +317,7 @@ export class AgentController {
               ? input.approvals.map((answer) => ({ toolCallId: answer.toolCallId }))
               : [{ toolCallId: verified.toolCallId as string, card: verified.card }],
         };
-        if (input.mode === 'approval') {
-          // Only a «Да» is the explicit continuation of premortem A2; a «Нет»
-          // keeps the ordinary cap (review W1 F3).
-          if (input.approvals.some((answer) => answer.approved)) {
-            paidLimit = PAID_CALLS_HARD_LIMIT;
-          }
-          // Mastra resumes each answer as its own leg; the legs share the
-          // request's step cap, so one admission never covers more than
-          // `CONDUCTOR_MAX_STEPS` model steps (review W1 F4).
-          maxSteps = Math.max(
-            1,
-            Math.floor(CONDUCTOR_MAX_STEPS / input.approvals.length)
-          );
-        } else {
+        if (input.mode !== 'approval') {
           resume = {
             runId: input.runId,
             // Pinned: Mastra does not choose the question (review W1 F7).
@@ -328,6 +330,7 @@ export class AgentController {
       // This request's own id: the pictures it carries are held under it,
       // never under the thread (review W4-25 vision F3).
       const requestId = randomUUID();
+      execution = createConductorExecution({ requestId, signal: abort.signal });
       releaseThread = await this.threads.claimThreadTurn(identity, threadId);
       // Resolve tenant, role, deletion and revision before an admission or any
       // model call. An answered card cannot inject a different work target.
@@ -335,7 +338,7 @@ export class AgentController {
       const requestContext = buildConductorContext({
         identity,
         threadId,
-        paidLimit,
+        executionPolicy: execution.policy,
         approvals: fingerprints,
         openProposals,
         requestId,
@@ -370,6 +373,10 @@ export class AgentController {
       }
 
       let failed = false;
+      const failedExecution = () => {
+        const stopCode = execution?.snapshot().stopCode;
+        return !!stopCode && !(stopCode === 'AGENT_TASK_STOPPED' && abort.signal.aborted);
+      };
       /** Tool calls of this stream by id, for the approval card's words. */
       const calls = new Map<string, { toolName: string; input: unknown }>();
       // Pictures to look at reach the model for this request only; the
@@ -385,7 +392,7 @@ export class AgentController {
       try {
         turn = await this.threads.startTurn(identity, threadId, requestId, releaseThread);
         if (abort.signal.aborted) return;
-        await turn.run(() => admission.run(async () => {
+        await execution.run(() => turn!.run(() => admission.run(async () => {
           let stream: ReadableStream<any>;
           try {
             stream = (await handleChatStream({
@@ -400,12 +407,8 @@ export class AgentController {
                 ...(resume ?? {}),
                 requestContext: requestContext as any,
                 memory: { thread: threadId, resource: resourceId },
-                maxSteps,
-                // The last step of this request's cap speaks (W3 walk P2-B),
-                // counted from this request's first step; what a «Нет» means
-                // is read on every step of it and never stored (review F9).
-                prepareStep: lastStepSpeaks(maxSteps, stepNotes, { resumed: input.mode !== 'message' }),
-                abortSignal: abort.signal,
+                ...execution!.streamOptions(stepNotes),
+                abortSignal: execution!.signal,
               } as any,
             })) as unknown as ReadableStream<any>;
           } catch (error) {
@@ -461,7 +464,8 @@ export class AgentController {
             }
             await flushHeld();
             if (silence.before(value)) {
-              for (const part of closingLine(identity.language)) write(part);
+              failed = true;
+              for (const part of closingLine(identity.language, execution!.closing(identity.language) || undefined)) write(part);
             }
             if (value?.type === 'tool-input-available' && value.toolCallId) {
               calls.set(value.toolCallId, {
@@ -480,15 +484,23 @@ export class AgentController {
             );
           }
           if (!abort.signal.aborted) await flushHeld();
-        }));
+        })));
+        if (failedExecution()) failed = true;
       } catch (error) {
-        failed = true;
+        if (!abort.signal.aborted || failedExecution()) failed = true;
         if (!res.headersSent) throw error;
         logConductorError(error, errorScope);
+        const stopped = execution?.snapshot().stopCode;
+        if (stopped && execution) {
+          for (const part of closingLine(identity.language, execution.closing(identity.language))) {
+            res.write(`data: ${JSON.stringify(sanitisedPart(part))}\n\n`);
+          }
+        }
         const code = conductorErrorCode(error, errorScope);
-        this.logger.warn(`Agent turn failed after the stream opened: ${code}`);
+        this.logger.warn(`Agent turn failed after the stream opened: ${stopped ?? code}`);
         res.write(`data: ${JSON.stringify({ type: 'error', errorText: code })}\n\n`);
       } finally {
+        if (failedExecution()) failed = true;
         finished = true;
         // UI cancellation can finish before a non-cancellable service write.
         // Hold both claims and the unknown-result guard until those actual
@@ -501,6 +513,7 @@ export class AgentController {
           failed = true;
           this.logger.warn('Agent turn outcome could not be recorded.');
         }
+        if (execution) this.logger.log?.(JSON.stringify({ event: 'agent_task_execution', ...execution.snapshot() }));
         pictures.release();
         // A turn with an `error` part, or one the person left, is not a
         // success (premortem U2, U3); its tokens are recorded either way.
@@ -607,9 +620,10 @@ export class AgentController {
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async listThreads(
     @GetOrgFromRequest() organization: RequestOrganization,
-    @GetUserFromRequest() user: User
+    @GetUserFromRequest() user: User,
+    @Query() query?: unknown
   ) {
-    return this.threads.list(agentIdentity(organization, user));
+    return this.threads.list(agentIdentity(organization, user), threadPageQuery(query, 100));
   }
 
   @Get('/workspace/browser')
@@ -629,9 +643,10 @@ export class AgentController {
     @GetUserFromRequest() user: User,
     @Param('id') id: string,
     // The pending approval cards are redrawn in the reader's zone.
-    @Headers(AGENT_TIMEZONE_HEADER) timeZone?: string
+    @Headers(AGENT_TIMEZONE_HEADER) timeZone?: string,
+    @Query() query?: unknown
   ) {
-    return this.threads.history(agentIdentity(organization, user, timeZone), threadIdParam(id));
+    return this.threads.history(agentIdentity(organization, user, timeZone), threadIdParam(id), threadPageQuery(query, 200));
   }
 
   @Patch('/threads/:id')

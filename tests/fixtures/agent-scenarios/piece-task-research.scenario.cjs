@@ -23,7 +23,7 @@ module.exports = {
   turns: [
     {
       say: `${TASK}, поищи глубоко`,
-      model: [[['tool', 'piece_create', { text: TASK, inputKind: 'instruction', research: 'deep' }]]],
+      model: [[['tool', 'piece_create', { selection: 'person', text: TASK, inputKind: 'instruction', research: 'deep' }]]],
     },
     {
       resume: { factKeys: ['f1', 'f2'] },

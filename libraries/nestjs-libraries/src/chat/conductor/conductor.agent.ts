@@ -30,7 +30,7 @@ import {
 import { AGENT_WORK_CONTEXT_KEY, type ResolvedAgentWorkContext } from './work-context';
 import { conductorInstructions } from './conductor.instructions';
 import { ViewedPicturesProcessor } from './conductor.pictures';
-import { lastStepSpeaks } from './conductor.steps';
+import { stepNotes } from './conductor.steps';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
 import {
   conductorInputProcessors,
@@ -44,17 +44,17 @@ import {
  * - tools: the capability registry's own Mastra tools, filtered by the
  *   caller's role per request (the model is offered only what the role may
  *   use), labelled in the caller's interface language;
- * - per-call checks: `createCapabilityHooks` — the CASL re-check, the paid
- *   cap, an approval bound to `toolName + args`; the web agent never runs
+ * - per-call checks: `createCapabilityHooks` — the CASL re-check, the in-flight
+ *   paid permit, an approval bound to `toolName + args`; the web agent never runs
  *   without them (`tests/agent-conductor.guard.test.cjs`);
  * - identity and memory keys: a server-built `RequestContext`, validated by
  *   `requestContextSchema` before the model is reached;
  * - the workspace snapshot at the start of every turn, inside the instruction
  *   and wrapped as data;
  * - group know-how as skills; secrets redacted by processors both ways;
- * - caps: 7 steps, the last one text-only (`lastStepSpeaks`, W3 walk P2-B),
- *   `maxRetries: 0`; paid 1 (hard 2) is the hooks' job; a step refused only
- *   for an open card of proposed changes ends the turn.
+ * - a native emergency loop fuse and `maxRetries: 0`; the web request supplies
+ *   shared time/token/cost metering. No routine per-message paid operation cap
+ *   and no forced text-only final step; effective human boundaries remain.
  *
  * It holds no Nest dependency: `MastraService` passes the service resolver,
  * the policy gate and the model, so a test can build the same agent with a
@@ -163,7 +163,8 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     defaultOptions: {
       maxSteps: CONDUCTOR_MAX_STEPS,
       stopWhen: stopAfterOpenProposalRefusal as any,
-      prepareStep: lastStepSpeaks(CONDUCTOR_MAX_STEPS) as any,
+      prepareStep: stepNotes() as any,
+      toolCallConcurrency: 1,
     },
     // Pictures to look at go back into the outgoing prompt only (owner
     // decision 28.09, `conductor.pictures.ts`).

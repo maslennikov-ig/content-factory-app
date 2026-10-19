@@ -19,7 +19,12 @@ export class MockRedis {
    * it valid for as long as the process lived and would quietly diverge from
    * how the same code behaves against a real Redis.
    */
-  async set(key: string, value: any, mode?: string, ttlSeconds?: number) {
+  async set(key: string, value: any, mode?: string, ttlSeconds?: number, condition?: 'NX') {
+    // Match Redis atomic SET NX even in a process-only development store.
+    if (condition === 'NX') {
+      this.expired(key);
+      if (this.data.has(key)) return null;
+    }
     this.data.set(key, value);
     if (mode?.toUpperCase() === 'EX' && typeof ttlSeconds === 'number') {
       this.expiries.set(key, Date.now() + ttlSeconds * 1000);

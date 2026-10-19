@@ -1,19 +1,20 @@
 'use client';
 
 import { useCallback, useId, useState, type ReactNode } from 'react';
-import useSWR from 'swr';
+import useSWRInfinite, { unstable_serialize } from 'swr/infinite';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { Input } from '@contentfactory/react/form/input';
 import { OpeningBand } from '@contentfactory/react/layout';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { Popover } from '@contentfactory/frontend/components/ui/layers';
+import { Dialog } from '@contentfactory/frontend/components/ui/layers';
 import { ConfirmButton } from '@contentfactory/frontend/components/ui/confirm-button';
-import { usePopoverTrigger } from '@contentfactory/frontend/components/ui/use-popover-trigger';
+import { SkeletonRows } from '@contentfactory/frontend/components/ui/surface';
 import {
   AGENT_DOORS,
   AGENT_THREAD_TITLE_MAX,
-  readThreadList,
+  readThreadList, readPagination,
+  type AgentPagination,
   type AgentThreadSummary,
 } from './agent.contract';
 import type { AgentWords } from './agent.copy';
@@ -21,26 +22,31 @@ import { AgentGlyph } from './agent.icons';
 
 /**
  * The person's own conversations (spec §1.6, §6.1; canvas C): the current
- * one's name is the head of the chat column, and pressing it opens the list —
- * every conversation, plus renaming or deleting the one open. «Новый
- * разговор» sits beside it. Threads are personal: the doors answer only the
+ * one's name stays visible beside explicit Chats and New chat actions.
+ * The native list pages on demand; rename and delete stay in its dialog. Threads are personal: the doors answer only the
  * caller's own.
  */
 
 /** SWR key of the list, shared with the screen that refreshes it. */
-export const THREADS_KEY = AGENT_DOORS.threads;
+type ThreadPage = { threads: AgentThreadSummary[]; pagination?: AgentPagination };
+const threadPageKey = (page: number, previous: ThreadPage | null) =>
+  previous && !previous.pagination?.hasMore ? null : `${AGENT_DOORS.threads}?page=${page}&perPage=100`;
+export const THREADS_KEY = unstable_serialize(threadPageKey);
 
 export const useAgentThreads = () => {
   const request = useFetch();
-  return useSWR<AgentThreadSummary[]>(
-    THREADS_KEY,
-    async () => {
-      const response = await request(AGENT_DOORS.threads);
-      if (!response.ok) throw new Error(String(response.status));
-      return readThreadList(await response.json());
-    },
-    { revalidateOnFocus: false }
-  );
+  const result = useSWRInfinite<ThreadPage>(threadPageKey, async (url: string) => {
+    const response = await request(url);
+    if (!response.ok) throw new Error(String(response.status));
+    const body = await response.json();
+    return { threads: readThreadList(body), pagination: readPagination(body) };
+  }, { revalidateOnFocus: false });
+  const rows = result.data?.flatMap((page) => page.threads);
+  return { ...result, data: rows ? [...new Map(rows.map((row) => [row.id, row])).values()] : undefined,
+    hasMore: result.data?.at(-1)?.pagination?.hasMore ?? false,
+    loadingMore: result.isValidating && !!result.data,
+    loadMore: () => result.setSize(result.size + 1),
+  };
 };
 
 const formatWhen = (iso: string | null, language: string) => {
@@ -68,6 +74,7 @@ export function ThreadSwitcher({
   onRemoved,
   words,
   actions,
+  contextual = false,
 }: {
   /** The thread open now; `null` before its first message. */
   threadId: string | null;
@@ -80,11 +87,12 @@ export function ThreadSwitcher({
   onRemoved: () => void;
   words: AgentWords;
   actions?: ReactNode;
+  contextual?: boolean;
 }) {
   const w = words.threads;
   const request = useFetch();
   const threads = useAgentThreads();
-  const { open, setOpen, holder } = usePopoverTrigger<HTMLDivElement>();
+  const [open, setOpen] = useState(false);
   const listId = useId();
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
@@ -132,73 +140,36 @@ export function ThreadSwitcher({
 
   const list = threads.data ?? [];
 
-  return (
+  const navigation = <nav aria-label={w.label} id={listId} className="flex min-h-0 flex-col gap-[8px]">
+    {threads.isLoading ? <SkeletonRows rows={3} label={w.loading} /> : null}
+    {threads.error ? <div role="status" className="flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
+      {w.failed}<Button type="button" variant="quiet" density="dense" onClick={() => void threads.mutate()}>{w.retry}</Button>
+    </div> : null}
+    {!list.length && !threads.isLoading && !threads.error ? <p className="cf-body-sm text-cf-ink-muted">{w.empty}</p> : null}
+    <ul className="flex max-h-[min(50dvh,360px)] flex-col gap-[4px] overflow-y-auto">
+      {list.map((thread) => <li key={thread.id}>
+        <ButtonLink prefetch={false} href={`/agents/${encodeURIComponent(thread.id)}`} variant={thread.id === threadId ? 'secondary' : 'quiet'} density="dense" aria-current={thread.id === threadId ? 'page' : undefined}
+          onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); setOpen(false); onOpen(thread.id); }} className="w-full justify-between gap-[12px]">
+          <span className="min-w-0 truncate">{thread.title ?? w.untitled}</span>
+          <span className="shrink-0 cf-caption text-cf-ink-muted">{formatWhen(thread.updatedAt, language)}</span>
+        </ButtonLink>
+      </li>)}
+    </ul>
+    {threads.hasMore ? <Button type="button" variant="quiet" density="dense" loading={threads.loadingMore} loadingLabel={w.loading} onClick={() => void threads.loadMore()}>{w.more}</Button> : null}
+  </nav>;
+
+  return <>
     <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]" wrap>
-      <div ref={holder} className="relative min-w-0 flex-1">
-        <Button
-          type="button"
-          variant="quiet"
-          density="dense"
-          aria-expanded={open}
-          aria-controls={open ? listId : undefined}
-          aria-haspopup="dialog"
-          onClick={() => {
-            setOpen(!open);
-            setRenaming(false);
-            setFailed(false);
-          }}
-          className="max-w-full justify-start"
-          // The label wrapper may shrink, or a long title overflows the
-          // button on both sides at 390 px instead of ending in «…»
-          // (kcxz.29 recheck).
-          innerClassName="min-w-0 justify-start"
-        >
-          <span className="min-w-0 truncate cf-label-md">{title}</span>
-          <AgentGlyph name="chevron" size={14} />
-        </Button>
-        {open ? (
-          <Popover
-            role="dialog"
-            className="absolute start-0 top-[calc(100%+4px)] z-[60] flex w-[min(360px,calc(100vw-24px))] flex-col gap-[4px] p-[8px]"
-          >
-            <div id={listId} aria-label={w.label} className="flex flex-col gap-[4px]">
-              <p className="px-[8px] pb-[4px] pt-[4px] cf-label-sm text-cf-ink-muted">
-                {w.label}
-              </p>
-              {threads.error ? (
-                <p className="px-[8px] cf-body-sm text-cf-ink-muted">{w.failed}</p>
-              ) : !list.length && !threads.isLoading ? (
-                <p className="px-[8px] cf-body-sm text-cf-ink-muted">{w.empty}</p>
-              ) : (
-                <ul className="flex max-h-[320px] flex-col gap-[4px] overflow-y-auto">
-                  {list.map((thread) => {
-                    const current = thread.id === threadId;
-                    return (
-                      <li key={thread.id}>
-                        <ButtonLink
-                          href={`/agents/${encodeURIComponent(thread.id)}`}
-                          variant={current ? 'secondary' : 'quiet'}
-                          density="dense"
-                          aria-current={current ? 'page' : undefined}
-                          onClick={() => {
-                            setOpen(false);
-                            onOpen(thread.id);
-                          }}
-                          className="w-full justify-between gap-[12px]"
-                        >
-                          <span className="min-w-0 truncate">
-                            {thread.title ?? w.untitled}
-                          </span>
-                          <span className="shrink-0 cf-caption text-cf-ink-muted">
-                            {formatWhen(thread.updatedAt, language)}
-                          </span>
-                        </ButtonLink>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+      <Button type="button" variant="secondary" density="dense" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen(true); setRenaming(false); setFailed(false); }}>
+        {w.label}<AgentGlyph name="chevron" size={14} />
+      </Button>
+      <span className="min-w-0 flex-1 truncate cf-label-md" title={title}>{title}</span>
+      <Button type="button" variant="secondary" density="dense" onClick={onNew}><AgentGlyph name="plus" />{w.newThread}</Button>
+      {actions}
+    </OpeningBand>
+    {!contextual ? <div className="hidden shrink-0 border-b border-cf-border bg-cf-surface-subtle px-[16px] py-[8px] xl:block [&_ul]:max-h-[144px]">{!open ? navigation : null}</div> : null}
+    <Dialog open={open} onClose={() => setOpen(false)} title={w.label} footer={<Button type="button" variant="quiet" onClick={() => setOpen(false)}>{w.close}</Button>}>
+      {navigation}
             {threadId ? (
               <div className="flex flex-col gap-[8px] border-t border-cf-border px-[4px] pt-[8px]">
                 {renaming ? (
@@ -260,21 +231,6 @@ export function ThreadSwitcher({
                 ) : null}
               </div>
             ) : null}
-          </Popover>
-        ) : null}
-      </div>
-      <Button
-        iconOnly
-        type="button"
-        variant="quiet"
-        density="dense"
-        aria-label={w.newThread}
-        title={w.newThread}
-        onClick={onNew}
-      >
-        <AgentGlyph name="plus" />
-      </Button>
-      {actions}
-    </OpeningBand>
-  );
+    </Dialog>
+  </>;
 }

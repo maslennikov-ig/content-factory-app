@@ -7,6 +7,8 @@
 **Design reference:** [interactive layout study](../design/chat-first-workspace/prototype.html).
 **Implementation:** [bounded plan](../superpowers/plans/2026-10-16-chat-first-workspace.md).
 
+**18 October successor:** [model-led assistant and native chats](model-led-assistant.md) records generic request semantics, model-origin research selection, complete paged history and task execution budgets. Its implementation and delivery are tracked under `content-factory-next-j9p5`; earlier acceptance below remains historical.
+
 ## 1. Problem and current evidence
 
 The owner has not yet personally tested the current AI assistant workflow. Historical engineering acceptance is not owner acceptance of this new workflow. The 16 October screenshot shows a narrow conversation and a dominant, unclosable empty panel titled «Что есть в пространстве», with five onboarding steps marked complete before a conversation starts.

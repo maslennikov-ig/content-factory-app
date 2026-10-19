@@ -1,0 +1,87 @@
+{
+  "checks": [
+    {
+      "id": "media-generate-prompt-failed",
+      "passed": true,
+      "turns": 1,
+      "modelCalls": [
+        1
+      ],
+      "agentOutcomes": [
+        "failed"
+      ]
+    },
+    {
+      "id": "piece-chain-across-paid-cap",
+      "passed": true,
+      "turns": 1,
+      "modelCalls": [
+        4
+      ],
+      "agentOutcomes": [
+        "succeeded"
+      ]
+    },
+    {
+      "id": "turn-step-cap-after-approval",
+      "passed": true,
+      "turns": 2,
+      "modelCalls": [
+        3,
+        3
+      ],
+      "agentOutcomes": [
+        "succeeded",
+        "succeeded"
+      ]
+    },
+    {
+      "id": "turn-step-cap-after-question",
+      "passed": true,
+      "turns": 2,
+      "modelCalls": [
+        3,
+        3
+      ],
+      "agentOutcomes": [
+        "succeeded",
+        "succeeded"
+      ]
+    },
+    {
+      "id": "turn-step-cap-closing-line",
+      "passed": true,
+      "turns": 1,
+      "modelCalls": [
+        3
+      ],
+      "agentOutcomes": [
+        "failed"
+      ]
+    },
+    {
+      "id": "turn-step-cap-last-step-speaks",
+      "passed": true,
+      "turns": 1,
+      "modelCalls": [
+        3
+      ],
+      "agentOutcomes": [
+        "failed"
+      ]
+    },
+    {
+      "id": "turn-step-cap-silent-last-step",
+      "passed": true,
+      "turns": 1,
+      "modelCalls": [
+        3
+      ],
+      "agentOutcomes": [
+        "failed"
+      ]
+    }
+  ],
+  "paidCalls": 0,
+  "providerCalls": 0
+}

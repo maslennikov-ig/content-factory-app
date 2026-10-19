@@ -13,7 +13,7 @@ module.exports = {
     ],
   },
   turns: [
-    { say: 'Дополни cnt-1 ресерчем', model: [[['tool', 'piece_research', { pieceId: 'p1' }]]] },
+    { say: 'Дополни cnt-1 ресерчем', model: [[['tool', 'piece_research', { selection: 'person', pieceId: 'p1' }]]] },
     { resume: { decideForPerson: true }, model: [[['text', 'Взяли подтверждённые опоры.']]] },
   ],
   check: (run) => {

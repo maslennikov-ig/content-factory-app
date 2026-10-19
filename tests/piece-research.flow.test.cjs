@@ -62,20 +62,63 @@ const start = (input = { confirmWebSpend: true }) =>
   service.researchCore('org', 'p', 'user', input, 'ru');
 const accept = (preview, selectedKeys = preview.facts.filter(f => f.selected).map(f => f.factKey)) =>
   service.acceptCoreResearch('org', 'p', 'user', { snapshotKey: preview.snapshotKey, selectedKeys });
+const manualUnderstanding = (goal, temporal, requestedOutputs = ['подтверждённые сведения для заготовки']) => ({
+  goal, thesis: 'Рабочая неделя', position: null, audience: null, facts: [], origins: {}, options: {}, questions: [],
+  understanding: { version: 'intake-request/v1', goal, requestedOutputs,
+    constraints: { research: 'required', ...(temporal ? { temporal } : {}) } },
+});
+const overviewUnderstanding = goal => manualUnderstanding(goal, { mode: 'historical',
+  eventInterval: { start: '2026-10-09', end: '2026-10-16' }, exclusions: ['Не считать события 6–8 октября новыми.'] },
+  ['новый самостоятельный обзор']);
+const occurredFinding = (quote, changes = {}) => ({ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
+  eventDate: '2026-10-15', eventDateQuote: quote, relevance: 'substantive', alreadyCovered: false,
+  dateBasis: 'event', eventStatus: 'occurred', ...changes });
+
+test('model continuation corrects unknown snapshot keys before claiming, then writes once with model provenance', async () => {
+  snapshots.claim = async (key, value) => { if (storage.has(key)) return false; storage.set(key, value); return true; };
+  const original = piece.body;
+  const preview = await service.researchCore('org', 'p', 'user', { confirmWebSpend: true }, 'ru', { researchSelectionPolicy: 'model' });
+  const input = { snapshotKey: preview.snapshotKey, selectedKeys: preview.facts.filter(f => f.verified && f.status === 'confirmed').map(f => f.factKey) };
+  await expect(service.acceptCoreResearchForModel('org', 'p', 'user', { ...input, selectedKeys: ['made-up-key'] })).rejects.toMatchObject({ code: 'PIECE_RESEARCH_SELECTION', canReviseInput: true });
+  expect([...storage.keys()].some(k => k.endsWith(':continuation'))).toBe(false);
+  expect(piece.body).toBe(original);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+  await service.acceptCoreResearchForModel('org', 'p', 'user', input);
+  expect(piece.brief.researchSelection).toMatchObject({ origin: 'model', selectedKeys: input.selectedKeys });
+  expect(piece.brief.revisions.at(-1).text).toBe(original);
+  await service.acceptCoreResearchForModel('org', 'p', 'user', input);
+  expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
+  expect(research.research).toHaveBeenCalledTimes(1);
+  const changed = await service.acceptCoreResearchForModel('org', 'p', 'user', { ...input, selectedKeys: ['different-key'] }).catch(error => error);
+  expect(changed.code).toBe('PIECE_RESEARCH_CONTINUATION_PENDING');
+  expect(changed.canReviseInput).toBeUndefined();
+});
+
+test('a persistence failure after a model claim never inherits pre-write revision proof', async () => {
+  snapshots.claim = async (key, value) => { if (storage.has(key)) return false; storage.set(key, value); return true; };
+  const preview = await service.researchCore('org', 'p', 'user', { confirmWebSpend: true }, 'ru', { researchSelectionPolicy: 'model' });
+  const input = { snapshotKey: preview.snapshotKey, selectedKeys: preview.facts.filter(f => f.verified && f.status === 'confirmed').map(f => f.factKey) };
+  repo.acceptCoreReview.mockRejectedValueOnce(new Error('Persistence result is unknown.'));
+  const failed = await service.acceptCoreResearchForModel('org', 'p', 'user', input).catch(error => error);
+  expect(failed.canReviseInput).toBeUndefined();
+  await expect(service.acceptCoreResearchForModel('org', 'p', 'user', input)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_CONTINUATION_PENDING' });
+  expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
+});
 
 test('empty period research keeps the exact prior draft and never buys a rewrite', async () => {
   intake.now = () => new Date('2026-10-16T09:00:00Z');
   const before = JSON.parse(JSON.stringify(piece));
+  responses.unshift(manualUnderstanding('Сделай новый пост о том, что произошло после этого обзора.',
+    { mode: 'delta', priorCoverageEnd: '2025-10-08' }, ['новый самостоятельный обзор']));
   const preview = await start({ confirmWebSpend: true, timeZone: 'Europe/Moscow',
     researchTask: 'Сделай новый пост о том, что произошло после этого обзора.',
     priorExample: 'Обзор за 6–8 октября 2025.' });
   expect(preview.summary.periodStatus).toBe('empty');
   expect(preview.facts.filter(fact => fact.kind === 'found')).toEqual([]);
-  const accepted = await accept(preview);
-  expect(accepted.body).toBe(before.body);
+  await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_INCOMPLETE' });
   expect(piece).toEqual(before);
   expect(repo.acceptCoreReview).not.toHaveBeenCalled();
-  expect(modelCalls.map(call => call.role)).toEqual(['review']);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
 });
 
 test('recorded search → digest → saved findings → writer; continuation never repeats paid search', async () => {
@@ -100,7 +143,7 @@ test('recorded search → digest → saved findings → writer; continuation nev
   expect(piece.brief.revisions).toEqual([
     expect.objectContaining({ text: priorBody, writtenBy: 'model', materialPending: false }),
   ]);
-  await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_EXPIRED' });
+  await expect(accept(preview)).resolves.toMatchObject({ body: piece.body, title: piece.title });
   expect(research.research).toHaveBeenCalledTimes(1);
 });
 
@@ -124,6 +167,8 @@ test('research rewrite retains exact prior text and existing revision history wi
 
 test('deep research carries an optional direction as a wish into search and digest', async () => {
   const direction = 'Свежие цифры за 2026 год';
+  const goal = `Уточнить доказательства для тезиса «${piece.body}». ${direction}`;
+  responses.unshift(manualUnderstanding(goal));
   const preview = await start({ confirmWebSpend: true, level: 'deep', direction });
 
   expect(preview).toEqual(expect.objectContaining({
@@ -133,21 +178,24 @@ test('deep research carries an optional direction as a wish into search and dige
   }));
   expect(research.research).toHaveBeenCalledWith(
     'org',
-    expect.stringMatching(/не считать фактом[\s\S]*Свежие цифры за 2026 год/i),
+    goal,
     { language: 'ru', level: 'deep' }
   );
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
   expect(modelCalls[0].prompt).toContain(direction);
-  expect(modelCalls[0].prompt).toMatch(/^PROMPT VERSION: research-digest\/v2\n/);
-  expect(modelCalls[0].prompt).toMatch(/пожелание|wish/i);
-  expect(modelCalls[0].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
+  expect(modelCalls[1].prompt).toMatch(/^PROMPT VERSION: research-digest\/v4\n/);
+  expect(modelCalls[1].prompt).toContain(direction);
+  expect(modelCalls[1].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
 });
 
 test('the saved preview, search and digest retain a detailed direction verbatim', async () => {
   const direction = `${'Сохраните авторскую позицию и ищите только официальные подтверждения. '.repeat(6)}Ссылки приложите к каждому найденному факту.`;
+  responses.unshift(manualUnderstanding(`Уточнить доказательства для тезиса «${piece.body}». ${direction}`));
   const preview = await start({ confirmWebSpend: true, direction });
   expect(preview.direction).toBe(direction);
   expect(research.research.mock.calls[0][1]).toContain(direction);
   expect(modelCalls[0].prompt).toContain(direction);
+  expect(modelCalls.find(call => call.role === 'review').prompt).toContain(direction);
 });
 
 /**
@@ -762,20 +810,21 @@ test('one dated overview request accepts selected events into the standalone wri
     sources: [{ url: source, title: 'Release notes', provider: 'exa' }],
   }));
   responses = [
-    { verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
-      eventDate: '2026-10-15', eventDateQuote: quote }] },
+    overviewUnderstanding('Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.'),
+    { verdicts: [], findings: [occurredFinding(quote)] },
     { title: '9–16 October: the new voice feature', text: 'My practical stance. The voice feature launched on October 15. ' + source },
   ];
   const preview = await start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
     direction: 'Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.' });
   expect(preview.summary.periodStatus).toBe('matched');
   await accept(preview);
-  expect(modelCalls.map(call => call.role)).toEqual(['review', 'draft']);
-  expect(modelCalls[1].prompt).toContain('PROMPT VERSION: core-write/v18');
-  expect(modelCalls[1].prompt).toContain('Write a new standalone overview');
-  expect(modelCalls[1].prompt).toContain('SELECTED CONFIRMED EVENTS IN THE INTERVAL');
-  expect(modelCalls[1].prompt).toContain(source);
-  expect(modelCalls[1].prompt).not.toContain('this is an ENRICHMENT');
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review', 'draft']);
+  const draftPrompt = modelCalls.find(call => call.role === 'draft').prompt;
+  expect(draftPrompt).toContain('PROMPT VERSION: core-write/v19');
+  expect(draftPrompt).toContain('Update the overview for 9–16 October 2026.');
+  expect(draftPrompt).toContain('SELECTED CONFIRMED EVENTS IN THE INTERVAL');
+  expect(draftPrompt).toContain(source);
+  expect(draftPrompt).not.toContain('this is an ENRICHMENT');
   expect(piece.brief.revisions.at(-1).text).toBe(old);
   expect(research.research).toHaveBeenCalledTimes(1);
   expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
@@ -792,8 +841,8 @@ const periodPreview = async answer => {
   intake.sources.acceptSearchResult = async () => ({ evidenceId: 'ev-study', url, title: 'Release notes', excerpt: quote });
   research.research.mockImplementation(async () => ({ provider: 'exa', facts: [{ text: quote, sourceUrl: url }],
     sources: [{ url, title: 'Release notes', provider: 'exa' }] }));
-  responses = [{ verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
-    eventDate: '2026-10-15', eventDateQuote: quote }] }, answer];
+  responses = [overviewUnderstanding('Update the overview for 9–16 October 2026.'),
+    { verdicts: [], findings: [occurredFinding(quote)] }, answer];
   return start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
     direction: 'Update the overview for 9–16 October 2026.' });
 };
@@ -839,8 +888,8 @@ test('declining all period facts retains the original without a paid writer or C
     sources: [{ url: source, title: 'Release notes', provider: 'exa' }],
   }));
   responses = [
-    { verdicts: [], findings: [{ statement: 'The voice feature launched.', evidenceId: 'ev-study', quote,
-      eventDate: '2026-10-15', eventDateQuote: quote }] },
+    overviewUnderstanding('Update the overview for 9–16 October 2026. Do not report events from 6–8 October 2026 as new.'),
+    { verdicts: [], findings: [occurredFinding(quote)] },
     { text: 'My practical stance. The voice feature launched on October 15. ' + source },
   ];
   const preview = await start({ confirmWebSpend: true, level: 'standard', timeZone: 'Europe/Moscow',
@@ -849,6 +898,28 @@ test('declining all period facts retains the original without a paid writer or C
   const before = JSON.parse(JSON.stringify(piece));
   await accept(preview, []);
   expect(piece).toEqual(before);
-  expect(modelCalls.map(call => call.role)).toEqual(['review']);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
   expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+});
+
+test('a saved task may research missing public facts while its personal questions remain unanswered', async () => {
+  piece.body = '';
+  const personal = { field: 'position', question: 'Какой личный вывод вы хотите добавить?', options: [] };
+  piece.brief.questions.items = [personal];
+  const request = { version: 'intake-request/v1', goal: 'Проверить публичные сведения перед написанием.',
+    constraints: { research: 'required' } };
+  piece.brief.request = request;
+  const preview = await service.researchCore('org', 'p', 'user', { confirmWebSpend: true }, 'ru');
+  expect(research.research.mock.calls[0][1]).toContain(request.goal);
+  expect(piece.body).toBe('');
+  expect(piece.brief.questions.items).toEqual([personal]);
+  expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+  expect(preview.facts).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'found', sourceUrl: url })]));
+});
+
+test('an empty core without any supplied or retained task refuses before search', async () => {
+  piece.body = '';
+  await expect(start()).rejects.toMatchObject({ code: 'PIECE_CORE_MISSING' });
+  expect(research.research).not.toHaveBeenCalled();
+  expect(modelCalls).toEqual([]);
 });

@@ -232,8 +232,16 @@ describe('D8 — the allowance line follows the turn, in the screen’s language
     const conversation = source('apps/frontend/src/components/agents/agent.conversation.tsx');
     const finishStart = conversation.indexOf('onFinish:');
     expect(finishStart).toBeGreaterThan(0);
-    const finish = conversation.slice(finishStart);
-    expect(finish.slice(0, 700)).toContain('mutate(ALLOWANCE_API)');
+    const ts = require('typescript');
+    const file = ts.createSourceFile('conversation.tsx', conversation, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    let finish;
+    const walk = node => {
+      if (ts.isPropertyAssignment(node) && node.name.getText(file) === 'onFinish') finish = node.initializer;
+      ts.forEachChild(node, walk);
+    };
+    walk(file);
+    expect(finish).toBeDefined();
+    expect(finish.getText(file)).toContain('mutate(ALLOWANCE_API)');
   });
 
   test('the agent screen reads its language where `t()` does', () => {

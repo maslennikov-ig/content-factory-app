@@ -47,6 +47,7 @@ const clientFactoryCalls = [];
 const invocations = [];
 const logEntries = [];
 const usageAdmissions = [];
+const taskUsage = require('./helpers/ai-text-chain.cjs');
 const aiUsage = {
   executeAiOperation: async (_organizationId, _operation, callback) =>
     callback(),
@@ -651,6 +652,24 @@ describe('shared web research service', () => {
         finished: true,
       }),
     ]);
+  });
+
+  test('native task admission replaces the placeholder count but still refuses the actual exhausted allowance before search', async () => {
+    const placeholder = new Error('legacy placeholder count exhausted');
+    const quota = { reserve: jest.fn(async () => { throw placeholder; }) };
+    const policy = { researchAdmission: 'operation-allowance', beforeProviderCall: () => {} };
+    const options = { level: 'deep', task: 'facts', queries: ['official task evidence'] };
+    const service = new WebResearchService(aiUsage, quota);
+    await taskUsage.runWithAiExecutionUsage(policy, () => service.research('organization-a', 'Task subject', options));
+    expect(quota.reserve).not.toHaveBeenCalled();
+    expect(usageAdmissions).toEqual([expect.objectContaining({ operation: 'web_research', usageMode: 'included', finished: true })]);
+    const calls = invocations.length;
+    const exhausted = Object.assign(new Error('actual monthly allowance exhausted'), { code: 'AI_ALLOWANCE_EXHAUSTED' });
+    const denied = new WebResearchService({ ...aiUsage, beginAiOperationWithConfig: async () => { throw exhausted; } }, quota);
+    await expect(taskUsage.runWithAiExecutionUsage(policy, () => denied.research('organization-a', 'Denied task', options))).rejects.toBe(exhausted);
+    expect(invocations).toHaveLength(calls);
+    await expect(service.research('organization-a', 'Legacy subject', options)).rejects.toBe(placeholder);
+    expect(quota.reserve).toHaveBeenCalledTimes(1);
   });
 
   test('an own-to-system fallback admits and reserves the actual fallback source', async () => {

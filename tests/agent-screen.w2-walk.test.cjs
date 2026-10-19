@@ -615,11 +615,11 @@ describe('D1, D11 — the refusal words', () => {
     );
   });
 
-  test('the paid cap says one step per message, two after a «Да»', () => {
+  test('a legacy paid-cap receipt explains its old-version origin', () => {
     expect(ru.error.codes.PAID_CAP_REACHED).toEqual({
-      what: 'За одно сообщение — один платный шаг; сразу после вашего «Да» на карточке — до двух.',
-      next: 'Напишите «дальше» — продолжим.',
+      what: 'Этот шаг остановлен ограничением старой версии помощника.',
+      next: 'Проверьте сохранённые результаты перед продолжением.',
     });
-    expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.what).toMatch(/^One paid step per message/);
+    expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.what).toContain('older assistant limit');
   });
 });

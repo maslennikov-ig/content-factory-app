@@ -109,7 +109,10 @@ test.each(['empty', 'needs_clarification'])('a %s research outcome never creates
   const { output } = await executeTool(build('piece.research', { PieceService: {
     researchCore: async () => ({ level: 'standard', summary: { periodStatus, gaps: [] } }),
   } }), { pieceId: 'p1' }, context());
-  expect(output.summary).toMatchObject({ applied: false, factsCard: 'not_shown', waitingOnCard: 0, periodStatus });
+  expect(output.summary).toMatchObject({ outcome: 'research-ready', waitingOnCard: 0, periodStatus });
+  expect(output.summary).not.toHaveProperty('applied', true);
+  expect(output.summary).not.toHaveProperty('factsCard', 'answered');
+  expect(JSON.stringify(output.summary.evidence)).toContain(periodStatus);
   const { answeredSelectionOf } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
   expect(answeredSelectionOf(output)).toBe(false);
 });

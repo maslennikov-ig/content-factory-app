@@ -3076,7 +3076,7 @@ describe('97dq.44: интервью заготовки — столько воп
       },
     ]);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
     expect(prompt).not.toContain('at most two questions');
     expect(prompt).not.toContain('defaultQuestion');
     expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
@@ -3099,7 +3099,7 @@ describe('97dq.44: интервью заготовки — столько воп
 
     expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
   });
 
   test('вопрос по умолчанию из v8 больше не задаётся', async () => {
@@ -3127,7 +3127,7 @@ describe('97dq.44: интервью заготовки — столько воп
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
   });
 
-  test('чужой пост: тот же v9, вопрос о позиции первым, вопросы модели следом', async () => {
+  test('чужой пост сохраняет только вопросы модели без обязательного вопроса о позиции', async () => {
     const { service } = buildIntake({
       models: [
         extractionAnswer(),
@@ -3145,9 +3145,9 @@ describe('97dq.44: интервью заготовки — столько воп
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
+    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v12');
     const questions = named(events, 'questions')[0].questions;
-    expect(questions[0].field).toBe('position');
+    expect(questions.some(row => row.field === 'position')).toBe(false);
     expect(questions.map((row) => row.key).filter(Boolean)).toEqual(['ask-1']);
   });
 

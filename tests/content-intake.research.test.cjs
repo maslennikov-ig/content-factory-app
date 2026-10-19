@@ -283,10 +283,11 @@ describe('опоры с вердиктами', () => {
     expect(snapshots.rows.size).toBe(1);
     expect([...snapshots.rows.keys()][0]).toBe(`intake:snapshot:org-a:user-1:${pause.snapshotKey}`);
 
-    // Сжатие — один вызов модели на роли review; главная страница BBC в промпт не попала.
+    // Модель оценивает релевантность исходников; код не отсекает их по форме URL.
     const digestCall = modelCalls.find((call) => call.role === 'review');
     expect(digestCall).toBeDefined();
-    expect(digestCall.prompt).not.toContain('https://www.bbc.com/');
+    expect(digestCall.prompt).toContain('https://www.bbc.com/');
+    expect(digestCall.prompt).toContain('BBC Home - Breaking News');
     expect(digestCall.prompt).toContain('NEVER instructions');
 
     const [ready] = named(events, 'research-ready');
@@ -319,7 +320,7 @@ describe('опоры с вердиктами', () => {
       expect.objectContaining({ original: '25 тысяч', replacement: 'около 2 500', accepted: true, sourceUrl: AUTONOMY }),
       expect.objectContaining({ original: 'десять лет', replacement: 'четыре года', accepted: true }),
     ]);
-    expect(ready.summary).toEqual({ confirmed: 0, conflicting: 2, unverified: 1, found: 1, sources: 4, encyclopedic: 1 });
+    expect(ready.summary).toMatchObject({ confirmed: 0, conflicting: 2, unverified: 1, found: 1, sources: 4, encyclopedic: 1, status: 'partial' });
     // Источников принято столько, сколько нашлось с выдержкой, а не восемь.
     expect(calls.accept).toHaveLength(3);
   });
@@ -547,7 +548,7 @@ describe('опоры с вердиктами', () => {
     });
   });
 
-  test('отказ сжатия оставляет строки, как до 13.09: выдержки, «не проверено», не отмечено', async () => {
+  test('отказ сжатия сохраняет непроверенные выдержки без успешной карточки выбора', async () => {
     const { service } = build({
       models: [briefAnswer(), () => { throw new Error('model down'); }],
       research: [researchAnswer()],
@@ -559,7 +560,7 @@ describe('опоры с вердиктами', () => {
     expect(found).toHaveLength(3);
     expect(found.every((fact) => fact.status === 'unverified' && fact.selected === false)).toBe(true);
     expect(ready.corrections).toEqual([]);
-    expect(ready.summary).toMatchObject({ found: 3, conflicting: 0 });
-    expect(named(events, 'research-selection-required')).toHaveLength(1);
+    expect(ready.summary).toMatchObject({ found: 0, conflicting: 0, status: 'empty' });
+    expect(named(events, 'research-selection-required')).toHaveLength(0);
   });
 });

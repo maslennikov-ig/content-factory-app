@@ -1,0 +1,9 @@
+{
+  "threadsBeyondFirst100": true,
+  "preStartDraftRetained": true,
+  "noAutomaticRetry": true,
+  "explicitRetrySends": 2,
+  "errors": [],
+  "horizontalOverflow": false,
+  "modelCalls": 0
+}

@@ -51,6 +51,7 @@ import {
   type AgentArtifact,
   type AgentBlock,
   type AgentMessage,
+  type AgentPagination,
   type AgentPendingRun,
   type AgentWorkContextV1,
 } from './agent.contract';
@@ -82,7 +83,7 @@ import { SelectionCard } from './agent.selection-card';
 import { InterviewCard } from './agent.interview-card';
 import { PlanCard } from './agent.plan-card';
 import { AgentMarkdown } from './agent.markdown';
-import { AgentComposer, type ComposerSubmit, type SamplesTarget } from './agent.composer';
+import { AgentComposer, type ComposerSubmit, type ComposerRecovery, type SamplesTarget } from './agent.composer';
 import { ALLOWANCE_API } from '@contentfactory/frontend/components/ui/allowance-hint';
 import { THREADS_KEY } from './agent.threads';
 import { createAgentTransport, isAgentRequestNotStarted, screenTimeZone } from './agent.transport';
@@ -144,6 +145,8 @@ const isNetworkFailure = (error: Error) =>
 export function AgentConversation({
   threadId,
   initialMessages,
+  initialPagination,
+  draftStorageKey,
   pending,
   onThreadId,
   onTitle,
@@ -164,6 +167,8 @@ export function AgentConversation({
 }: {
   threadId: string | null;
   initialMessages: AgentMessage[];
+  initialPagination?: AgentPagination;
+  draftStorageKey?: string;
   pending: AgentPendingRun[];
   /** The server named the thread a first message opened. */
   onThreadId: (id: string) => void;
@@ -207,6 +212,9 @@ export function AgentConversation({
   const announceThread = useRef(onThreadId);
   announceThread.current = onThreadId;
   const refusedBeforeStart = useRef(false);
+  const submittedMessage = useRef<{ message: ComposerSubmit; context?: AgentWorkContextV1 | null } | null>(null);
+  const refusedMessage = useRef<typeof submittedMessage.current>(null);
+  const [composerRecovery, setComposerRecovery] = useState<ComposerRecovery | null>(null);
 
   const transport = useMemo(
     () =>
@@ -241,8 +249,10 @@ export function AgentConversation({
   const [seenQuestions, setSeenQuestions] = useState<readonly AgentPendingRun[]>(
     () => pending.filter((run) => run.kind === 'question')
   );
-  /** `setMessages` of the chat below, for a thread read again whole. */
-  const replaceMessages = useRef<((next: AgentMessage[]) => void) | null>(null);
+  /** Native message IDs confirmed before any live/possibly unsaved stream. */
+  const confirmedHistoryIds = useRef(new Set(initialMessages.map((message) => message.id)));
+  /** `setMessages` of the chat below, for an authoritative native snapshot. */
+  const replaceMessages = useRef<((next: AgentMessage[] | ((current: AgentMessage[]) => AgentMessage[])) => void) | null>(null);
   const refreshPending = useCallback(
     async (
       /** Also take the thread's messages: another tab moved it on (R2). */
@@ -273,8 +283,18 @@ export function AgentConversation({
         ]);
         setPendingKnown(true);
         if (withMessages && history.messages.length) {
-          replaceMessages.current?.(history.messages);
+          replaceMessages.current?.((current) => {
+            const savedIds = new Set(history.messages.map((message) => message.id));
+            const boundary = current.findIndex((message) => savedIds.has(message.id));
+            // Only a confirmed older prefix lies outside a bounded newest
+            // page. An absent live fragment is not a saved action result.
+            const prefix = history.pagination?.hasMore
+              ? (boundary >= 0 ? current.slice(0, boundary) : current).filter((message) => confirmedHistoryIds.current.has(message.id) && !savedIds.has(message.id))
+              : [];
+            return [...prefix, ...history.messages];
+          });
         }
+        for (const message of history.messages) confirmedHistoryIds.current.add(message.id);
         return history;
       } catch {
         // Not read: the last message's cards keep the stream's word.
@@ -329,6 +349,11 @@ export function AgentConversation({
     onError: (failure) => {
       refusedBeforeStart.current = isAgentRequestNotStarted(failure);
       if (refusedBeforeStart.current) {
+        const refused = submittedMessage.current;
+        if (refused) {
+          refusedMessage.current = refused;
+          setComposerRecovery((previous) => ({ version: (previous?.version ?? 0) + 1, kind: 'restore', text: refused.message.text }));
+        }
         interruptedNow.current = false;
         setInterrupted(false);
         setQueued(null);
@@ -341,7 +366,11 @@ export function AgentConversation({
         interruptedNow.current = false;
         setInterrupted(false);
         setQueued(null);
-      } else if (isAbort || isDisconnect || isError) { interrupt(); setQueued(null); }
+      } else {
+        submittedMessage.current = null;
+        refusedMessage.current = null;
+        if (isAbort || isDisconnect || isError) { interrupt(); setQueued(null); }
+      }
       setStages({});
       void refreshPending();
       void mutate(THREADS_KEY);
@@ -350,6 +379,30 @@ export function AgentConversation({
       void mutate(ALLOWANCE_API);
     },
   });
+
+  const [pagination, setPagination] = useState(initialPagination);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderFailed, setOlderFailed] = useState(false);
+  const loadOlder = useCallback(async () => {
+    const id = thread.current;
+    if (!id || !pagination?.hasMore || loadingOlder) return;
+    setLoadingOlder(true); setOlderFailed(false);
+    try {
+      const zone = screenTimeZone();
+      const response = await request(`${AGENT_DOORS.thread(id)}?page=${pagination.page + 1}&perPage=${pagination.perPage}`, zone ? { headers: { [AGENT_TIMEZONE_HEADER]: zone } } : {});
+      if (!response.ok) throw new Error(String(response.status));
+      const history = readThreadHistory(await response.json());
+      if (thread.current !== id) return;
+      for (const message of history.messages) confirmedHistoryIds.current.add(message.id);
+      const node = scroller.current;
+      const before = node?.scrollHeight ?? 0;
+      setMessages((current) => [...history.messages.filter((older) => !current.some((message) => message.id === older.id)), ...current]);
+      setPagination(history.pagination);
+      // Prepending history keeps the person's reading position.
+      requestAnimationFrame(() => { if (node) node.scrollTop += node.scrollHeight - before; });
+    } catch { setOlderFailed(true); }
+    finally { setLoadingOlder(false); }
+  }, [pagination, loadingOlder, request, setMessages]);
 
   replaceMessages.current = setMessages;
 
@@ -397,9 +450,28 @@ export function AgentConversation({
   const send = useCallback(
     (message: ComposerSubmit, context?: AgentWorkContextV1 | null) => {
       if (interruptedNow.current) return;
-      const options = context !== undefined ? { body: { workContext: context } } : undefined;
+      const retry = refusedMessage.current;
+      refusedMessage.current = null;
       clearError();
       approvalFailed.current = false;
+      if (retry && message.text === retry.message.text && !message.files.length && !message.samples && !message.media) {
+        // Explicit Enter retries the same SDK user message, including its
+        // already prepared files/receipts, rather than appending it twice.
+        submittedMessage.current = retry;
+        void regenerate(retry.context !== undefined ? { body: { workContext: retry.context } } : undefined);
+        return;
+      }
+      if (retry) {
+        // The person edited a positively refused instruction. Its unsaved
+        // user message is replaced by the new deliberate instruction.
+        setMessages((current) => {
+          let index = current.length - 1;
+          while (index >= 0 && current[index].role !== 'user') index--;
+          return index >= 0 ? current.slice(0, index) : current;
+        });
+      }
+      submittedMessage.current = { message, context };
+      const options = context !== undefined ? { body: { workContext: context } } : undefined;
       if (message.samples || message.media) {
         // The receipt of files already added to an avatar (`kcxz.18`) or of
         // pictures already in the media library (`kcxz.25`): the chat door
@@ -421,7 +493,7 @@ export function AgentConversation({
         options
       );
     },
-    [clearError, sendMessage]
+    [clearError, sendMessage, regenerate, setMessages]
   );
 
   const submit = useCallback(
@@ -501,6 +573,7 @@ export function AgentConversation({
       if (remaining.length) return;
       if (interruptedNow.current) return;
       approvalSent.current = true;
+      submittedMessage.current = null; refusedMessage.current = null;
       void sendMessage();
     },
     [addToolApprovalResponse, clearError, sendMessage, sendingApprovals]
@@ -552,6 +625,7 @@ export function AgentConversation({
       approvalFailed.current = false;
       if (cardId) setAnsweredCards((seen) => new Set(seen).add(cardId));
       questionSent.current = cardId ? { cardId, toolCallId } : null;
+      submittedMessage.current = null; refusedMessage.current = null;
       void sendMessage(undefined, {
         body: { resume: { runId, toolCallId, cardId, resumeData } },
       });
@@ -1098,7 +1172,7 @@ export function AgentConversation({
           pinned.current =
             node.scrollHeight - node.scrollTop - node.clientHeight < 96;
         }}
-        className="min-h-0 flex-1 overflow-y-auto px-[16px] py-[24px] md:px-[20px]"
+        className="relative min-h-0 flex-1 overflow-y-auto px-[16px] py-[24px] md:px-[20px]"
       >
         <div
           role="log"
@@ -1107,6 +1181,10 @@ export function AgentConversation({
           aria-relevant="additions"
           className="flex w-full min-w-0 flex-col gap-[20px]"
         >
+          {pagination?.hasMore ? <div className="flex flex-wrap items-center gap-[8px]">
+            <Button type="button" variant="quiet" density="dense" disabled={busy} loading={loadingOlder} loadingLabel={words.history.loading} onClick={() => void loadOlder()}>{words.threads.older}</Button>
+            {olderFailed ? <span role="status" className="cf-body-sm text-cf-danger">{words.threads.actionFailed}</span> : null}
+          </div> : null}
           {!messages.length ? (
             <StartHere
               starters={starters}
@@ -1154,8 +1232,14 @@ export function AgentConversation({
                 approvalFailed.current || interrupted || chatError.network
                   ? undefined
                   : () => {
+                      const retry = refusedMessage.current;
+                      if (retry) {
+                        submittedMessage.current = retry;
+                        refusedMessage.current = null;
+                        setComposerRecovery((previous) => ({ version: (previous?.version ?? 0) + 1, kind: 'clear', text: retry.message.text }));
+                      }
                       clearError();
-                      void regenerate();
+                      void regenerate(retry?.context !== undefined ? { body: { workContext: retry.context } } : undefined);
                     }
               }
               words={words}
@@ -1185,6 +1269,8 @@ export function AgentConversation({
             words={words}
             autoFocus={!messages.length}
             draft={draft}
+            draftStorageKey={draftStorageKey}
+            recovery={composerRecovery}
             onDraftUsed={onDraftUsed}
           />
           </fieldset>

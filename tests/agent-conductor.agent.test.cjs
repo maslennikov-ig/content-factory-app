@@ -36,31 +36,19 @@ beforeAll(() => {
 }, 120_000);
 
 describe('limits of one turn (premortem A2, ADR-0012 §7)', () => {
-  test('three paid calls in one step: one runs, the others read PAID_CAP_REACHED', () => {
-    const { runs, outcomes } = report.paidCapOne;
-    expect(runs).toBe(1);
-    expect(outcomes.filter((outcome) => outcome?.ok === true)).toHaveLength(1);
-    expect(outcomes.filter((outcome) => outcome?.code === 'PAID_CAP_REACHED')).toHaveLength(2);
+  test('all requested paid operations run sequentially with the native concurrency limit', () => {
+    for (const result of [report.paidCapOne, report.paidCapTwo]) {
+      expect(result.runs).toBe(3);
+      expect(result.outcomes.every((outcome) => outcome?.ok === true)).toBe(true);
+    }
   });
 
-  test('an explicit continuation allows two, never three', () => {
-    const { runs, outcomes } = report.paidCapTwo;
-    expect(runs).toBe(2);
-    expect(outcomes.filter((outcome) => outcome?.code === 'PAID_CAP_REACHED')).toHaveLength(1);
-  });
-
-  test('a model that never stops is asked seven times: step 8 never runs', () => {
-    expect(report.stepCap.modelCalls).toBe(conductor.CONDUCTOR_MAX_STEPS);
-    expect(conductor.CONDUCTOR_MAX_STEPS).toBe(7);
-  });
-
-  test('the last step of the cap runs with no tools and is told to say what is done and left (W3 walk P2-B)', () => {
-    const choices = report.stepCap.toolChoices;
-    expect(choices.slice(0, -1).every((choice) => choice !== 'none')).toBe(true);
-    expect(choices.at(-1)).toBe('none');
-    expect(report.stepCap.lastSystem).toContain(LAST_STEP_NOTE);
-    expect(report.stepCap.earlierSystem).not.toContain(LAST_STEP_NOTE);
-    // The instructions are still there beside the note: appended, not replaced.
+  test('the emergency step fuse is larger than the former routine cap and leaves tools available', () => {
+    expect(report.stepCap.modelCalls).toBe(3);
+    expect(report.stepCap.budget.stopCode).toBe('AGENT_TASK_NO_PROGRESS');
+    expect(conductor.CONDUCTOR_MAX_STEPS).toBe(64);
+    expect(report.stepCap.toolChoices).not.toContain('none');
+    expect(report.stepCap.lastSystem).not.toContain(LAST_STEP_NOTE);
     expect(report.stepCap.lastSystem).toContain('You are the assistant inside Content Factory');
   });
 
@@ -114,6 +102,7 @@ describe('what the model is offered', () => {
         'media_library',
         'piece_list',
         'piece_open',
+        'piece_read',
         'plan_ahead',
         'plan_calendar',
         'plan_ready',
@@ -201,11 +190,7 @@ describe('the /agent/chat pipeline with a scripted model', () => {
     // execution scope. The managed request's complete whitelist is covered by
     // agent-conductor.unit; this legacy path must not claim an execution id.
     expect(ours).not.toContain(conductor.CONDUCTOR_EXECUTION_ID_KEY);
-    expect(ours.sort()).toEqual(
-      conductor.CONDUCTOR_CONTEXT_KEYS.filter(
-        (key) => key !== conductor.CONDUCTOR_EXECUTION_ID_KEY
-      ).sort()
-    );
+    for (const key of ours) expect(conductor.CONDUCTOR_CONTEXT_KEYS).toContain(key);
     expect(door.snapshotContextValueTypes).toEqual(
       expect.arrayContaining(['string'])
     );

@@ -1218,7 +1218,7 @@ describe('the retry after a cut answer has its own budget (fifteenth F1)', () =>
       require('node:path').join(__dirname, '..', 'libraries/nestjs-libraries/src/openai/ai.clients.ts'),
       'utf8'
     );
-    expect(source.match(/budgetMs: chained\?\.timeout/g)).toHaveLength(2);
+    expect(source.match(/budgetMs: sdkBudget/g)).toHaveLength(2);
     expect(source).toMatch(/\{ timeout: textChainBudgetMs\(model, chainSourceOf\(config\)\), maxRetries: 0 \}/);
     expect(source).toMatch(/\{ timeout: maxTextChainBudgetMs\(chainSourceOf\(config\)\), maxRetries: 0 \}/);
   });

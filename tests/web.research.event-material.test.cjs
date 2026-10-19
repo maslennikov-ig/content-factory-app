@@ -35,9 +35,10 @@ test('uses a bounded scan and retains prose around an inline event date', () => 
 });
 
 
-test.each(['Published October 15, 2026.', 'Updated: October 15, 2026', 'Опубликовано: 15 октября 2026'])('ignores metadata date %s before a later event section', (metadata) => {
+test.each(['Published October 15, 2026.', 'Updated: October 15, 2026', 'Опубликовано: 15 октября 2026'])('prefers a dated section on long pages and preserves short metadata %s for semantic admission', (metadata) => {
   const event = 'October 14, 2026\nOrbit launched with a team workspace and documented constraints.';
   const source = `${metadata}\n\n${'Background without an event date. '.repeat(300)}\n\n${event}`;
   expect(researchEventMaterial(source, intent, 48_000)).toBe(event);
-  expect(researchEventMaterial(`${metadata}\n\nUndated background.`, intent, 48_000)).toBeUndefined();
+  const metadataOnly = `${metadata}\n\nUndated background.`;
+  expect(researchEventMaterial(metadataOnly, intent, 48_000)).toBe(metadataOnly);
 });

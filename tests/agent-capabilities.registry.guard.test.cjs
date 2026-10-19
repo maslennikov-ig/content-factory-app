@@ -86,7 +86,7 @@ describe('agent capability registry', () => {
     }
   });
 
-  test('kcxz.13: no model input names what a card accepts — rows, keys, tokens or snapshots', () => {
+  test('human card answers remain private; model-origin research has separate scoped inputs', () => {
     const SELECTION_KEY = /^(selected|selectedids|selectedkeys|selection|selections|factkeys|changeids|token|snapshotkey|decideforperson)$/i;
     const keysOf = (schema, path = []) => {
       const def = schema?._def ?? {};
@@ -98,11 +98,23 @@ describe('agent capability registry', () => {
       if (def.typeName === 'ZodArray') return keysOf(def.type, [...path, '[]']);
       return [];
     };
+    const modelInputs = {
+      'piece.create': [['selection']],
+      'piece.research': [['selection']],
+      'piece.create.from-research': [['snapshotKey'], ['factKeys']],
+      'piece.research.apply': [['snapshotKey'], ['factKeys']],
+    };
     for (const capability of catalogue) {
       const found = keysOf(capability.input).filter((path) => SELECTION_KEY.test(path.at(-1)));
-      expect({ id: capability.id, found }).toEqual({ id: capability.id, found: [] });
+      expect({ id: capability.id, found }).toEqual({ id: capability.id, found: modelInputs[capability.id] ?? [] });
     }
-    // The accepting capabilities take their choice only from the person's answer.
+    for (const id of ['piece.create.from-research', 'piece.research.apply']) {
+      const capability = catalogue.find(entry => entry.id === id);
+      expect(capability.risk).toBe('paid');
+      expect(capability.resumeSchema).toBeUndefined();
+      expect(capability.suspendSchema).toBeUndefined();
+    }
+    // Genuine requested review retains its signed human-answer schema.
     for (const id of ['piece.research', 'piece.check_facts', 'piece.rewrite']) {
       const capability = catalogue.find((entry) => entry.id === id);
       expect({ id, risk: capability.risk, asks: !!capability.resumeSchema }).toEqual({ id, risk: 'paid', asks: true });

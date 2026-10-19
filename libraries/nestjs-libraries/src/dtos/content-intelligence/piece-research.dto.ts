@@ -1,7 +1,11 @@
-import { ArrayMaxSize, Equals, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PIECE_RESEARCH_DIRECTION_MAX } from '../../content-intelligence/pieces/piece-research.contract';
 
 export class PieceResearchDto {
+  @IsOptional()
+  @IsObject()
+  request?: import('../../content-intelligence/intake/request-understanding').IntakeUnderstandingV1;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)

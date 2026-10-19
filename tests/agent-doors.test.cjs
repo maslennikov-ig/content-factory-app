@@ -12,6 +12,7 @@
  * Premortem rows: U2, U3, U4, S2, S4, S5, S6, S7, A3.
  */
 
+const { CONDUCTOR_EXECUTION_DEFAULTS } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule('../conductor/conductor.execution.ts');
 const { EventEmitter } = require('node:events');
 const { Reflector } = require('@nestjs/core');
 const { Logger } = require('@nestjs/common');
@@ -358,8 +359,8 @@ describe('U4: opening the screen spends nothing; each model-running request open
     expect(approval.params.requestContext.get('cf.approvals')).toBe(
       fingerprintOf('piece_delete', { pieceId: 'p1' })
     );
-    expect(approval.params.requestContext.get('cf.paidLimit')).toBe(2);
-    expect(approval.params.maxSteps).toBe(7);
+    expect(approval.params.requestContext.get('cf.paidLimit')).toBeUndefined();
+    expect(approval.params.maxSteps).toBe(CONDUCTOR_EXECUTION_DEFAULTS.emergencyMaxSteps);
     const instructions = [{ role: 'system', content: 'Existing instructions' }];
     const approvedStep = approval.params.prepareStep({ stepNumber: 0, systemMessages: instructions, messageList: {} });
     expect(approvedStep.systemMessages).toEqual([...instructions, { role: 'system', content: expect.stringContaining('already answered') }]);
@@ -368,14 +369,14 @@ describe('U4: opening the screen spends nothing; each model-running request open
     // Response guidance belongs only to this request, never to recalled memory.
     expect(JSON.stringify(approval.params.messages)).not.toContain(APPROVED_ON_CARD);
     // The question: resumed by its run and its pinned call (review W1 F7),
-    // with the ordinary paid cap (F3).
+    // with the same server execution controls (F3).
     expect(resume.params).toMatchObject({
       runId: 'run-question-1',
       toolCallId: 'call-7',
       resumeData: { consentGiven: true },
       messages: [],
     });
-    expect(resume.params.requestContext.get('cf.paidLimit')).toBe(1);
+    expect(resume.params.requestContext.get('cf.paidLimit')).toBeUndefined();
     expect(resume.params.prepareStep({ stepNumber: 0, systemMessages: instructions, messageList: {} })).toBeUndefined();
     await chat(context, { threadId: 'thread-a-1', messages: [userMessage()] });
     const normal = context.handleChatStream.mock.calls.at(-1)[0].params;
@@ -431,16 +432,19 @@ describe('S5: the turn is built by the server', () => {
     expect(agentId).toBe('content-factory');
     expect(onError).toEqual(expect.any(Function));
     expect(Object.keys(params).sort()).toEqual(
-      ['abortSignal', 'maxSteps', 'memory', 'messages', 'prepareStep', 'requestContext'].sort()
+      ['abortSignal', 'maxSteps', 'memory', 'messages', 'modelSettings', 'onStepFinish', 'prepareStep', 'requestContext', 'stopWhen', 'toolCallConcurrency'].sort()
     );
-    // The last step of the cap speaks (W3 walk P2-B): built by the server.
-    expect(params.prepareStep({ stepNumber: 6, systemMessages: [] })).toMatchObject({ toolChoice: 'none' });
+    // The server keeps tools available until the actual technical stop.
+    expect(params.prepareStep({ stepNumber: 6, systemMessages: [] })).toBeUndefined();
+    expect(params.toolCallConcurrency).toBe(1);
+    expect(params.modelSettings.timeout.totalMs).toBeGreaterThan(0);
+    expect(params.stopWhen({ steps: [] })).toBe(false);
     expect(params.prepareStep({ stepNumber: 5, systemMessages: [] })).toBeUndefined();
     expect(params.memory).toEqual({ thread: 'thread-a-1', resource: RESOURCE_A });
-    expect(params.maxSteps).toBe(7);
+    expect(params.maxSteps).toBe(CONDUCTOR_EXECUTION_DEFAULTS.emergencyMaxSteps);
     expect(params.requestContext.get('mastra__resourceId')).toBe(RESOURCE_A);
     expect(params.requestContext.get('cf.role')).toBe('EDITOR');
-    expect(params.requestContext.get('cf.paidLimit')).toBe(1);
+    expect(params.requestContext.get('cf.paidLimit')).toBeUndefined();
     expect(params.messages).toEqual([
       { id: 'msg-user-1', role: 'user', parts: [{ type: 'text', text: 'что у нас есть?' }] },
     ]);
@@ -682,7 +686,7 @@ describe('correctness review W1: cards, answers and attachments at the door', ()
     });
   });
 
-  test('F3: «Нет» keeps the ordinary paid cap; «Да» raises it to the hard one', async () => {
+  test('F3: approval grants only the stored call; technical execution limits stay server-owned', async () => {
     // Two workspaces: one card is answered once (kcxz.29, D2).
     const answered = async (approved) => {
       const context = setup();
@@ -695,9 +699,9 @@ describe('correctness review W1: cards, answers and attachments at the door', ()
     };
     const no = await answered(false);
     const yes = await answered(true);
-    expect(no.requestContext.get('cf.paidLimit')).toBe(1);
+    expect(no.requestContext.get('cf.paidLimit')).toBeUndefined();
     expect(no.requestContext.get('cf.approvals')).toBe('');
-    expect(yes.requestContext.get('cf.paidLimit')).toBe(2);
+    expect(yes.requestContext.get('cf.paidLimit')).toBeUndefined();
     expect(no.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} }).systemMessages)
       .toEqual([{ role: 'system', content: DECLINED_ON_CARD }]);
     expect(yes.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} }).systemMessages)
@@ -745,7 +749,7 @@ describe('correctness review W1: cards, answers and attachments at the door', ()
       messages: [{ id: 'msg-assistant-1', role: 'assistant', parts: [part('call-1'), part('call-2')] }],
     });
     const [{ params }] = context.handleChatStream.mock.calls[0];
-    expect(params.maxSteps).toBe(3);
+    expect(params.maxSteps).toBe(CONDUCTOR_EXECUTION_DEFAULTS.emergencyMaxSteps);
     expect(context.admissions).toHaveLength(1);
   });
 
@@ -1091,9 +1095,9 @@ describe('kcxz.32: an earlier card, an open proposal', () => {
     const noted = params.prepareStep({ stepNumber: 0, systemMessages: [], messageList: {} });
     expect(noted.systemMessages).toEqual([{ role: 'system', content: DECLINED_ON_CARD }]);
     expect(noted.toolChoice).toBeUndefined();
-    // «Нет» grants nothing and keeps the ordinary cap.
+    // «Нет» grants nothing; no arbitrary paid-call allowance is installed.
     expect(params.requestContext.get('cf.approvals')).toBe('');
-    expect(params.requestContext.get('cf.paidLimit')).toBe(1);
+    expect(params.requestContext.get('cf.paidLimit')).toBeUndefined();
     expect(context.admissions).toHaveLength(1);
     // The same answer again (a second tab): no longer pending, billed nothing.
     await expect(chat(context, earlier)).rejects.toMatchObject({ code: 'AGENT_RUN_NOT_PENDING' });

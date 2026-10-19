@@ -54,8 +54,20 @@ export const CAPABILITY_REFUSAL_CODES = [
   'CAPABILITY_INPUT_INVALID',
   'APPROVAL_MISMATCH',
   'PAID_CAP_REACHED',
+  'AGENT_TASK_OPERATION_IN_FLIGHT',
+  'AGENT_TASK_OPERATION_FAILED',
+  'AGENT_TASK_TIME_BUDGET',
+  'AGENT_TASK_TOKEN_BUDGET',
+  'AGENT_TASK_COST_BUDGET',
+  'AGENT_TASK_COST_UNKNOWN',
+  'AGENT_TASK_UNCERTAIN',
+  'AGENT_TASK_NO_PROGRESS',
+  'AGENT_TASK_EMERGENCY_FUSE',
+  'AGENT_TASK_STOPPED',
   'PERMISSION_DENIED',
   'INPUT_NEEDS_PERSON',
+  'MATERIAL_NOT_AVAILABLE',
+  'MATERIAL_STALE',
   'APPROVAL_CONTENT_CHANGED',
   'PROPOSAL_CARD_OPEN',
   'CONFIRMATION_INVALID',
@@ -590,6 +602,14 @@ export const readThreadList = (body: unknown): AgentThreadSummary[] => {
     : [];
 };
 
+/** Optional on old servers; each page remains bounded by native memory. */
+export type AgentPagination = { page: number; perPage: number; total: number; hasMore: boolean };
+export const readPagination = (body: unknown): AgentPagination | undefined => {
+  const value = recordOf(recordOf(body).pagination);
+  if (!Number.isSafeInteger(value.page) || !Number.isSafeInteger(value.perPage) || !Number.isSafeInteger(value.total) || typeof value.hasMore !== 'boolean') return undefined;
+  return { page: value.page as number, perPage: value.perPage as number, total: value.total as number, hasMore: value.hasMore };
+};
+
 /**
  * An approval or a question still waiting, read from storage after a reload
  * (`AgentPendingRunV1`), so the card is redrawn and answered by `runId`.
@@ -641,6 +661,7 @@ export type AgentThreadHistory = {
   pending: AgentPendingRun[];
   workspace?: AgentWorkspaceV1 | null;
   execution?: AgentThreadExecution;
+  pagination?: AgentPagination;
 };
 
 /**
@@ -667,7 +688,7 @@ export const readThreadHistory = (body: unknown): AgentThreadHistory => {
   const messages = (Array.isArray(record.messages) ? record.messages : [])
     .filter(isUiMessage)
     .map((message) => reopenApprovals(message, approvals));
-  return { thread: readThread(record.thread), messages, pending, ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}), ...(record.execution !== undefined ? { execution: readExecution(record.execution) } : {}) };
+  return { thread: readThread(record.thread), messages, pending, pagination: readPagination(body), ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}), ...(record.execution !== undefined ? { execution: readExecution(record.execution) } : {}) };
 };
 
 const reopenApprovals = (
@@ -1584,6 +1605,9 @@ export const channelCallsOf = (messages: readonly AgentMessage[]): number =>
  * (`useRevalidateUnder`), so a wizard mid-edit stays mounted.
  */
 export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  'piece_read',
+  'readConversationHistory',
+  'read-conversation-history',
   'avatar_list',
   'avatar_overview',
   'avatar_passport',

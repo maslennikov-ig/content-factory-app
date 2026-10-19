@@ -19,6 +19,7 @@ import {
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
 import {
+  assertAiExecutionBudget,
   TextUsageLedger,
   runWithUsageLedger,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
@@ -405,6 +406,9 @@ export class AiUsageService {
     config: AiConfig,
     role: AiRole
   ) {
+    // A task fuse refuses before a row or a provider request is created.
+    // The organization allowance below remains the atomic billing authority.
+    assertAiExecutionBudget();
     const data = {
       organizationId,
       // Null for work no person asked for: scheduled autoposting, queued

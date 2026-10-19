@@ -17,6 +17,8 @@ export interface IntakeSnapshotStore {
   get(key: string): Promise<string | null | undefined>;
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
+  /** Native atomic SET EX NX. Required for a model-origin saved continuation. */
+  claim?(key: string, value: string, seconds: number): Promise<boolean>;
 }
 
 export const INTAKE_SNAPSHOT_TTL_SECONDS = 60 * 60;

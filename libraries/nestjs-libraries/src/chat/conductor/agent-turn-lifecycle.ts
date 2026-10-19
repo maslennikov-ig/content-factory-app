@@ -83,7 +83,8 @@ export class AgentTurnLifecycle {
     this.pending.add(pending);
     try {
       const result = await pending;
-      if (result && typeof result === 'object' && 'ok' in result && result.ok === false) this.failed = true;
+      if (result && typeof result === 'object' && 'ok' in result && result.ok === false &&
+        (!('canReviseInput' in result) || result.canReviseInput !== true)) this.failed = true;
       return result;
     } catch (error) {
       this.failed = true;

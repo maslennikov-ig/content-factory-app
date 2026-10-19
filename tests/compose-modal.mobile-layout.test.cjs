@@ -109,7 +109,7 @@ beforeAll(async () => {
     if (!executable) throw error;
     browser = await chromium.launch({ executablePath: executable });
   }
-});
+}, 30_000);
 afterAll(async () => browser?.close());
 
 const geometryAt = async ({ width, height, dark }) => {

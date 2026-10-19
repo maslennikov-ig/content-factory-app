@@ -28,23 +28,15 @@ export const researchEventMaterial = (
   const end = day(intent.eventInterval.end);
   // No defaultYear: an undated/yearless heading remains unknown.
   const dates = researchDateSpans(bounded);
-  // A page dateline is evidence of publication/update time, never the
-  // event anchor. Skipping it lets a later dated section (or the caller's
-  // query-selected snippet) retain its own date and claim together.
-  const metadataDate = (index: number) => {
-    const lineStart = bounded.lastIndexOf('\n', index) + 1;
-    const prefix = bounded
-      .slice(lineStart, index)
-      .replace(/^[\s#*>_]+/, '')
-      .replace(/[\s*_]+$/, '');
-    return /^(?:published(?:\s+(?:on|at))?|publication date|date published|posted(?:\s+(?:on|at))?|updated(?:\s+(?:on|at))?|last (?:updated|modified|revised)(?:\s+(?:on|at))?|created(?:\s+(?:on|at))?|опубликован[оа]?|обновл[её]н[оа]?|дата (?:публикации|обновления|создания))\s*[:：–—-]?\s*$/iu.test(
-      prefix
-    );
-  };
-  const relevant = dates.find(
-    (date) =>
-      date.start <= end && date.end >= start && !metadataDate(date.index)
-  );
+  // Date syntax is a retrieval anchor only. The semantic reader decides
+  // which date belongs to which event; no metadata/future phrase dictionary.
+  const within = dates.filter(date => date.start <= end && date.end >= start);
+  const headingDate = (index: number) => /^\s*(?:#{1,6}\s*)?$/.test(
+    bounded.slice(bounded.lastIndexOf('\n', index) + 1, index));
+  // Prefer a dated section on a long page; otherwise retain the provider's
+  // query-selected snippet. This is a layout/size choice, not event admission.
+  const relevant = within.find(date => headingDate(date.index)) ??
+    (bounded.length <= 1_600 ? within[0] : undefined);
   if (!relevant) return undefined;
   const paragraphStart = bounded.lastIndexOf('\n\n', relevant.index);
   const lineStart = bounded.lastIndexOf('\n', relevant.index);

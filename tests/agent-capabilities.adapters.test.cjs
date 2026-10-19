@@ -78,7 +78,7 @@ describe('piece.research period-aware facts card', () => {
       },
     };
     const { calls, services } = serviceFor(preview);
-    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1', selection: 'person' }, {
       requestContext: requestContextFor(registry),
     });
 
@@ -121,7 +121,7 @@ describe('piece.research period-aware facts card', () => {
       },
     };
     const { calls, services } = serviceFor(preview);
-    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+    const { suspended, output } = await executeTool(build('piece.research', services), { pieceId: 'p1', selection: 'person' }, {
       requestContext: requestContextFor(registry),
     });
 
@@ -132,14 +132,14 @@ describe('piece.research period-aware facts card', () => {
       summary: {
         pieceId: 'p1',
         level: 'standard',
-        offered: 0,
-        kept: 0,
-        applied: false,
+        outcome: 'research-ready',
+        waitingOnCard: 0,
         periodStatus,
-        gaps,
+        evidence: { untrustedData: { value: { summary: { periodStatus, gaps } } } },
       },
     });
-    expect(JSON.stringify(output)).not.toContain('PRIVATE-');
+    // Owned request and old facts remain labelled evidence for assessment.
+    expect(output.summary.evidence.untrustedData.sources).toContain('search-result');
     expect(calls.researchCore).toHaveBeenCalledTimes(1);
     expect(calls.acceptCoreResearch).not.toHaveBeenCalled();
   });
@@ -154,8 +154,8 @@ describe('piece.research period-aware facts card', () => {
     const { calls, services } = serviceFor(preview);
     const tool = build('piece.research', services);
     const requestContext = requestContextFor(registry);
-    const asked = await executeTool(tool, { pieceId: 'p1' }, { requestContext });
-    const answered = await executeTool(tool, { pieceId: 'p1' }, {
+    const asked = await executeTool(tool, { pieceId: 'p1', selection: 'person' }, { requestContext });
+    const answered = await executeTool(tool, { pieceId: 'p1', selection: 'person' }, {
       requestContext,
       resumeData: { factKeys: [] },
       suspendPayload: asked.suspended[0],
@@ -180,8 +180,8 @@ describe('piece.research period-aware facts card', () => {
     const { calls, services } = serviceFor(preview);
     const tool = build('piece.research', services);
     const requestContext = requestContextFor(registry);
-    const asked = await executeTool(tool, { pieceId: 'p1' }, { requestContext });
-    const answered = await executeTool(tool, { pieceId: 'p1' }, {
+    const asked = await executeTool(tool, { pieceId: 'p1', selection: 'person' }, { requestContext });
+    const answered = await executeTool(tool, { pieceId: 'p1', selection: 'person' }, {
       requestContext,
       resumeData: { factKeys: ['new-event'] },
       suspendPayload: asked.suspended[0],
@@ -209,7 +209,7 @@ describe('piece.research period-aware facts card', () => {
       summary: null,
     };
     const { services } = serviceFor(preview);
-    const { suspended } = await executeTool(build('piece.research', services), { pieceId: 'p1' }, {
+    const { suspended } = await executeTool(build('piece.research', services), { pieceId: 'p1', selection: 'person' }, {
       requestContext: requestContextFor(registry),
     });
 
@@ -232,15 +232,19 @@ describe('native Mastra tools', () => {
       'channels_list',
       'piece_list',
       'piece_open',
+      'piece_read',
+      'research_search',
       'piece_rename',
       'piece_archive',
       'piece_create',
+      'piece_create_from-research',
       'piece_answer',
       'piece_core_edit',
       'piece_material_add',
       'piece_core_restore',
       'piece_core_rebuild',
       'piece_research',
+      'piece_research_apply',
       'piece_check_facts',
       'piece_rewrite',
       'piece_adapt',
@@ -575,10 +579,9 @@ describe('one capability of each class, end to end', () => {
     expect(output.summary).toEqual({ pieceId: 'p9', code: 'cnt-9', questions: 1 });
   });
 
-  // kcxz.50 (live walk 30.09.2026): «расскажем о вчерашней презентации»
-  // is a task — its facts are searched for without a separate request.
+  // The model chooses evidence needs; input kind alone cannot buy a search.
   test.each([
-    ['an instruction searches by itself', { inputKind: 'instruction' }, true],
+    ['an instruction has no implicit search', { inputKind: 'instruction' }, false],
     ['an instruction the person said not to search', { inputKind: 'instruction', research: 'none' }, false],
     ['a thought stays without search', { inputKind: 'thought' }, false],
     ['a thought searches on request', { inputKind: 'thought', research: 'deep' }, true],
@@ -773,15 +776,19 @@ describe('MCP tools from the same registry', () => {
       'channels_list',
       'piece_list',
       'piece_open',
+      'piece_read',
+      'research_search',
       'piece_rename',
       'piece_archive',
       'piece_create',
+      'piece_create_from-research',
       'piece_answer',
       'piece_core_edit',
       'piece_material_add',
       'piece_core_restore',
       'piece_core_rebuild',
       'piece_research',
+      'piece_research_apply',
       'piece_check_facts',
       'piece_rewrite',
       'piece_adapt',
@@ -867,6 +874,7 @@ describe('MCP tools from the same registry', () => {
       'channels_list',
       'piece_list',
       'piece_open',
+      'piece_read',
       'plan_ahead',
       'plan_calendar',
       'plan_ready',
@@ -906,47 +914,36 @@ describe('MCP tools from the same registry', () => {
     }
   });
 
-  test('over MCP the intake decides the facts for the person: no card to ask on (kcxz.12)', async () => {
+  test('over MCP the model receives research before choosing a genuine model-origin continuation', async () => {
     const prepared = [];
+    const chosen = [];
     const services = {
       IntakeService: {
-        prepare: async (_organizationId, body) => {
-          prepared.push(body);
-          return { body };
+        prepare: async (_organizationId, body) => { prepared.push(body); return { body }; },
+        run: async function* () {
+          yield { name: 'research-selection-required', level: 'quick', snapshotKey: 'snap-9',
+            facts: [{ factKey: 'f1', statement: 'one', selected: true, status: 'confirmed' }] };
+          yield { name: 'done', pieceId: null };
         },
-        run: async function* (_organizationId, plan) {
-          if (!plan.body.researchSelections) {
-            yield {
-              name: 'research-selection-required',
-              level: 'quick',
-              snapshotKey: 'snap-9',
-              facts: [
-                { factKey: 'f1', statement: 'one', selected: true },
-                { factKey: 'f2', statement: 'two', selected: false },
-              ],
-            };
-            yield { name: 'done', pieceId: null };
-            return;
-          }
+        selectResearchForModel: async function* (...args) {
+          chosen.push(args);
           yield { name: 'piece', pieceId: 'p9', code: 'cnt-9' };
           yield { name: 'done', pieceId: 'p9' };
         },
       },
     };
-    const tool = mcpTools('EDITOR', services).piece_create;
-    // As the MCP server calls it: no agent, so no suspend.
-    const output = await tool.execute(
-      { text: 'Напиши пост про созвоны', inputKind: 'instruction', research: 'quick' },
-      { requestContext: requestContextFor(registry) }
+    const tools = mcpTools('EDITOR', services);
+    const context = { requestContext: requestContextFor(registry) };
+    const preview = await tools.piece_create.execute(
+      { text: 'Напиши пост про созвоны', inputKind: 'instruction', research: 'quick' }, context
     );
-    expect(output).toMatchObject({
-      ok: true,
-      summary: { pieceId: 'p9', research: 'quick', factsKept: 1, factsCard: 'not_shown' },
-    });
-    expect(prepared.map((body) => [body.researchSelections ?? null, body.snapshotKey ?? null])).toEqual([
-      [null, null],
-      [['f1'], 'snap-9'],
-    ]);
+    expect(preview).toMatchObject({ ok: true, summary: { outcome: 'research-ready', snapshotKey: 'snap-9', waitingOnCard: 0 } });
+    expect(chosen).toEqual([]);
+    const written = await tools['piece_create_from-research'].execute({ snapshotKey: 'snap-9', factKeys: ['f1'] }, context);
+    expect(written).toMatchObject({ ok: true, summary: { pieceId: 'p9', outcome: 'created', selectionOrigin: 'model' } });
+    expect(prepared).toHaveLength(1);
+    expect(prepared[0].researchSelections).toBeUndefined();
+    expect(chosen).toEqual([['org-1', 'user-1', 'snap-9', ['f1']]]);
   });
 
   test('over MCP accepting a proposal is refused before anything is spent (kcxz.13)', async () => {
@@ -959,7 +956,6 @@ describe('MCP tools from the same registry', () => {
     };
     const tools = mcpTools('EDITOR', services);
     for (const [name, input] of [
-      ['piece_research', { pieceId: 'p1' }],
       ['piece_check_facts', { pieceId: 'p1' }],
       ['piece_rewrite', { pieceId: 'p1', instruction: 'короче' }],
     ]) {

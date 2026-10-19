@@ -4,6 +4,7 @@
  * (`MastraService`, `AgentThreadsService`) import from the files directly.
  */
 export * from './conductor.context';
+export * from './conductor.execution';
 export * from './conductor.instructions';
 export * from './conductor.skills';
 export * from './conductor.memory';

@@ -86,22 +86,14 @@ describe('P2-B: a turn never ends in silence at the step cap', () => {
   const steps = loadCapabilityModule('../conductor/conductor.steps.ts');
   const context = loadCapabilityModule('../conductor/conductor.context.ts');
 
-  test('seven steps, the last one text-only with its note appended to the instructions', () => {
-    expect(context.CONDUCTOR_MAX_STEPS).toBe(7);
+  test('the technical fuse keeps tools available and never manufactures a final text-only step', () => {
+    expect(context.CONDUCTOR_MAX_STEPS).toBe(64);
     const prepare = steps.lastStepSpeaks(7);
     const instructions = [{ role: 'system', content: 'instructions' }];
-    expect(prepare({ stepNumber: 0, systemMessages: instructions })).toBeUndefined();
-    expect(prepare({ stepNumber: 5, systemMessages: instructions })).toBeUndefined();
-    expect(prepare({ stepNumber: 6, systemMessages: instructions })).toEqual({
-      toolChoice: 'none',
-      systemMessages: [...instructions, { role: 'system', content: steps.LAST_STEP_NOTE }],
-    });
-    // Without the list nothing is replaced, only the tools are off.
-    expect(prepare({ stepNumber: 6 })).toEqual({ toolChoice: 'none' });
-    // An approval request splits the cap: its own last step speaks.
-    expect(steps.lastStepSpeaks(3)({ stepNumber: 2, systemMessages: [] })).toMatchObject({ toolChoice: 'none' });
-    expect(steps.LAST_STEP_NOTE).toContain('«Напишите «дальше» — продолжим.»');
-    expect(steps.LAST_STEP_NOTE).toContain('“Write “next” — we\'ll continue.”');
+    for (const stepNumber of [0, 5, 6, 63, 64]) {
+      expect(prepare({ stepNumber, systemMessages: instructions })).toBeUndefined();
+    }
+    expect(steps.lastStepSpeaks(3)({ stepNumber: 2, systemMessages: [] })).toBeUndefined();
   });
 
   test('the door writes its own closing line only for a silent end (behaviour: agent-w3-review-fixes)', () => {
@@ -112,7 +104,7 @@ describe('P2-B: a turn never ends in silence at the step cap', () => {
       { type: 'finish', finishReason: 'tool-calls' },
     ];
     expect(parts.map((part) => watch.before(part))).toEqual([false, false, true]);
-    expect(steps.STEP_CAP_CLOSING.ru).toContain('Напишите «дальше» — продолжим.');
+    expect(steps.STEP_CAP_CLOSING.ru).toContain('Задача не завершена');
   });
 
   test('the lines by hand are one call of several lines, each once', async () => {
@@ -142,12 +134,12 @@ describe('P2-D: a chain in one message is not asked about', () => {
     const { conductorInstructions } = loadCapabilityModule('../conductor/conductor.instructions.ts');
     const text = conductorInstructions({ language: 'ru', now: new Date('2026-09-28T10:00:00Z'), snapshot: null });
     expect(text).toContain('without asking «Продолжить?»');
-    expect(text).toContain('and end with «Напишите «дальше» — продолжим.» — a statement, not a question');
+    expect(text).not.toContain('one per message, two right after');
     const { paidCapReason } = loadCapabilityModule('capability.admission.ts');
-    expect(paidCapReason(1)).toContain('do not ask whether to continue');
+    expect(paidCapReason()).toContain('do not retry uncertain work automatically');
     const skills = loadCapabilityModule('../conductor/conductor.skills.ts').CONDUCTOR_SKILL_SPECS;
     const content = skills.find((skill) => skill.name === 'content').instructions;
-    expect(content).toContain('is one request: answer, then adapt, then the reserve');
+    expect(content).toContain('A request for several outputs is one goal');
   });
 });
 

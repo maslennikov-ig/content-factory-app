@@ -167,6 +167,7 @@ describe('the tools', () => {
       'channels_list',
       'piece_list',
       'piece_open',
+      'piece_read',
       'plan_ahead',
       'plan_calendar',
       'plan_ready',

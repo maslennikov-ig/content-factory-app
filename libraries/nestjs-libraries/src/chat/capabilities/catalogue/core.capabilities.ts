@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { researchReady, researchModelView, type ResearchReady } from './research-evidence';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { PIECE_RESEARCH_DIRECTION_MAX } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
@@ -221,8 +222,9 @@ export const pieceResearch = defineCapability({
   group: 'content',
   label: { ru: 'Дополнить ресерчем', en: 'Research the core' },
   description:
-    'Search the web for facts for a piece’s core («Дополнить ресерчем»). Paid; run it without asking when the person wants facts. The person then marks the facts to add on a card (or says «Решите за меня») and the core is rewritten with them; you never choose the facts. Returns counts only.',
+    'Research missing/current evidence for an existing piece, using its native research service. Paid. Returns actual findings, requested scope, summary/assessment/gaps and snapshotKey for your assessment; does not automatically rewrite or force human selection. Choose relevant confirmed keys then call piece.research.apply if the request calls for updating this piece. Empty/insufficient results are not success; refine evidence strategy or explain the gap. Use selection:person only for requested human review/material ambiguity. Legacy signed fact cards still resume natively.',
   input: z.object({
+    selection: z.enum(['model', 'person']).optional(),
     pieceId,
     level: z.enum(RESEARCH_LEVELS).optional().describe('quick, standard (default) or deep'),
     direction: z.string().max(PIECE_RESEARCH_DIRECTION_MAX).optional().describe('What to look for, in the person’s words, including dates, source restrictions and exclusions; maximum 2000 characters'),
@@ -230,11 +232,11 @@ export const pieceResearch = defineCapability({
   risk: 'paid',
   card: 'piece',
   door: door(ContentPieceController, 'researchCore'),
-  // Counts only; the found rows go to the person's card.
+  // Machine ids/counts stay flat; source evidence is wrapped separately.
   untrusted: [],
   suspendSchema: factSelection,
   resumeSchema: factAnswer,
-  run: async (ctx, input, emit): Promise<Researched | undefined> => {
+  run: async (ctx, input, emit): Promise<Researched | (ResearchReady & { pieceId: string }) | undefined> => {
     const pieces = ctx.service(PieceService);
     if (ctx.resumeData !== undefined) {
       const answer = factAnswer.safeParse(ctx.resumeData);
@@ -255,7 +257,6 @@ export const pieceResearch = defineCapability({
       });
       return { ...done, applied: true };
     }
-    if (!ctx.suspend) throw needsPerson();
     await progress(emit, 'piece.research', 'research-started');
     const direction = input.direction?.trim();
     // The research door's body: the agent confirms the web spend itself — a
@@ -265,21 +266,15 @@ export const pieceResearch = defineCapability({
       input.pieceId,
       ctx.userId,
       { confirmWebSpend: true, level: input.level ?? 'standard', ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(direction ? { direction } : {}) },
-      ctx.language
+      ctx.language,
+      { researchSelectionPolicy: input.selection === 'person' ? 'person' : 'model' }
     );
     const summary = preview.summary;
-    if (summary?.periodStatus === 'empty' || summary?.periodStatus === 'needs_clarification') {
-      return {
-        pieceId: input.pieceId,
-        level: preview.level,
-        offered: 0,
-        kept: 0,
-        applied: false,
-        ...boundedResearchOutcome(summary),
-      };
-    }
+    const evidence = { ...researchReady(preview.snapshotKey, preview.level, preview.facts, summary), pieceId: input.pieceId };
+    const human = input.selection === 'person';
+    if (!human || !ctx.suspend || summary?.periodStatus === 'empty' || summary?.periodStatus === 'needs_clarification' || ['empty', 'failed', 'needs_clarification'].includes(summary?.status ?? '')) return evidence;
     // Only keyed rows can be accepted (the accept door refuses the rest).
-    const temporal = !!summary?.researchIntent || summary?.periodStatus === 'matched';
+    const temporal = !!summary?.researchIntent?.eventInterval;
     const offeredFacts = temporal ? preview.facts.filter(isDatedFinding) : preview.facts;
     let options = factOptions(offeredFacts, { keyed: true });
     if (temporal) {
@@ -320,14 +315,35 @@ export const pieceResearch = defineCapability({
     });
     return undefined;
   },
-  summarize: (output) => ({ ...output,
+  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}), note: 'Research ran but nothing was rewritten. Assess the returned evidence and gaps; if sufficient choose confirmed factKeys through piece.research.apply. No facts card is waiting.' } : { ...output,
     outcome: output.applied ? 'applied' : 'kept-as-is',
     factsCard: output.offered > 0 ? 'answered' : 'not_shown', waitingOnCard: 0,
     note: output.applied
       ? 'The selected research is already saved in this same piece, with the prior core retained in history. Say it is saved. Do not ask to select facts again, do not say the text is unchanged, and do not offer a separate rewrite to finish this period update.'
       : 'Nothing was saved. Describe the returned period status or zero selection; no facts card is waiting.',
   }),
-  cardOf: (output) => (output.applied ? pieceCard(output) : null),
+  cardOf: (output) => (!('outcome' in output) && output.applied ? pieceCard(output) : null),
+});
+
+export const pieceResearchApply = defineCapability({
+  id: 'piece.research.apply',
+  group: 'content',
+  label: { ru: 'Применить найденные факты', en: 'Apply researched facts' },
+  description: 'Apply your selected relevant confirmed factKeys from piece.research to that same piece. Paid native writer retains original/history and records model-origin editorial selection, never human approval. Call only after assessing sufficient evidence and when the original request calls for an update. It checks scope/current version/expiry, blocks uncertain replay and returns a confirmed saved result. Requested human fact review uses the existing card instead.',
+  input: z.object({ pieceId, snapshotKey: z.string().min(1).max(128),
+    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(50) }),
+  risk: 'paid',
+  card: 'piece',
+  door: door(ContentPieceController, 'acceptCoreResearch'),
+  untrusted: [],
+  run: async (ctx, input) => {
+    await ctx.service(PieceService).acceptCoreResearchForModel(ctx.organizationId, input.pieceId, ctx.userId,
+      { snapshotKey: input.snapshotKey, selectedKeys: input.factKeys });
+    return { pieceId: input.pieceId, applied: true, kept: input.factKeys.length,
+      selectionOrigin: 'model', outcome: 'applied', factsCard: 'not_shown', waitingOnCard: 0 };
+  },
+  summarize: (output) => ({ ...output, note: 'Selected evidence is saved in this piece with its original retained in history. No selection card waits; continue other requested steps without repeating research or writing.' }),
+  cardOf: pieceCard,
 });
 
 /* ---- «Проверить факты» and «Переписать…» with the changes card ------------ */

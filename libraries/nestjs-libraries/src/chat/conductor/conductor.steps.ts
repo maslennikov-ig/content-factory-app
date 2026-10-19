@@ -1,30 +1,4 @@
-/**
- * The last step of a turn speaks (W3 live walk 28.09.2026, P2-B; spec §4.6).
- *
- * A turn runs at most `maxSteps` model steps. The walk's «second avatar by
- * five lines» spent all six on tool calls and the stream ended with
- * `finishReason: "tool-calls"`: no words, no card, the person had to write
- * again to learn what happened. Asking the model to leave room is a request;
- * this is the guarantee, in Mastra's own per-step hook (`prepareStep`, run
- * before every step): the step that is the last one this request may take
- * runs with `toolChoice: 'none'` and one more system line saying what to say.
- * A turn that ends earlier never meets it.
- *
- * Steps are counted from the first step of this request (correctness review
- * F1, proven in `turn-step-cap-after-approval` / `-after-question`): a run
- * resumed after «Да» or a question card gets `stepNumber` = the steps it took
- * before the pause, while Mastra's own `stepCountIs(maxSteps)` counts only the
- * steps of this stream — the resumed step itself among them. Counting from 0
- * made the first step after «Да» the «last» one — tools off, the person's
- * follow-up blocked. The first step a
- * stream shows is remembered per stream (its `messageList`, one per stream
- * and per approval leg), so the hook holds no state between requests.
- *
- * The door passes its own `maxSteps` (it splits the cap between the answers of
- * one approval request) and the notes of this request (what «Нет» means), so
- * the hook is built per request; the agent's `defaultOptions` carry the one
- * for the ordinary cap.
- */
+/** Native per-step notes and stream closing; technical fuses live in conductor.execution.ts. */
 
 export type StepLanguage = 'ru' | 'en';
 
@@ -41,7 +15,7 @@ export const CONTINUE_LINE = {
 export const CONTINUE_WORDS = '«дальше», «продолжай», “next”, “continue”';
 
 /** What the model reads on the last step, beside its instructions. */
-export const LAST_STEP_NOTE = `This is the last step of this message: no more tools can run now. In one or two short sentences say what was done and what is left, if anything. When something is left, end with the continuation line in the language you answer in — «${CONTINUE_LINE.ru}» in Russian, “${CONTINUE_LINE.en}” in English. Do not ask whether to continue and do not promise anything you did not do.`;
+export const LAST_STEP_NOTE = 'An execution budget is a technical stop, never evidence of task completion. Preserve confirmed results and explain exactly what remains when a budget stops work.';
 
 type PrepareStepArgs = {
   stepNumber: number;
@@ -50,59 +24,46 @@ type PrepareStepArgs = {
   messageList?: unknown;
 };
 
-/** The first `stepNumber` each stream showed, by its message list. */
-const firstStepOf = new WeakMap<object, number>();
-
-const stepsTakenHere = ({ stepNumber, messageList }: PrepareStepArgs) => {
-  if (!messageList || typeof messageList !== 'object') return stepNumber;
-  const first = firstStepOf.get(messageList);
-  if (first === undefined) {
-    firstStepOf.set(messageList, stepNumber);
-    return 0;
-  }
-  return stepNumber - first;
-};
-
 /**
- * `prepareStep` for a request of `maxSteps` steps. `notes` are system lines
+ * `prepareStep` carries the request's own notes. `notes` are system lines
  * of this request only (the door's reading of a «Нет», correctness review
  * F9): read on every step of it, never stored in the thread.
  */
-export const lastStepSpeaks =
-  (maxSteps: number, notes: readonly string[] = [], options: { resumed?: boolean } = {}) =>
+export const stepNotes =
+  (notes: readonly string[] = []) =>
   (args: PrepareStepArgs) => {
-    // A resumed stream finishes the paused step first, and Mastra's cap
-    // counts it as one of this stream's steps.
-    const taken = stepsTakenHere(args) + (options.resumed ? 1 : 0);
-    const last = taken + 1 >= maxSteps;
-    if (!last && !notes.length) return undefined;
-    const extra = [...notes, ...(last ? [LAST_STEP_NOTE] : [])];
+    if (!notes.length) return undefined;
     return {
-      ...(last ? { toolChoice: 'none' as const } : {}),
       // Appended to the untagged system messages Mastra passes in, never in
       // their place: without that list nothing is replaced.
       ...(Array.isArray(args.systemMessages)
         ? {
             systemMessages: [
               ...args.systemMessages,
-              ...extra.map((content) => ({ role: 'system' as const, content })),
+              ...notes.map((content) => ({ role: 'system' as const, content })),
             ],
           }
         : {}),
     };
   };
 
+/** Compatibility for existing native callers: notes never disable tools. */
+export const lastStepSpeaks = (
+  _maxSteps: number,
+  notes: readonly string[] = [],
+  _options: { resumed?: boolean } = {}
+) => stepNotes(notes);
+
 /**
  * The door's own closing line, for a stream that still ended with no words
- * and no card after its last tool (a provider that ignored
- * `toolChoice: 'none'`, a model that answered the last step with nothing, or
+ * and no card after its last tool (a model that answered with nothing, or
  * one cut off by its length or reasoning budget): the person never gets
  * silence. Not stored in the thread — the next message reads the steps
  * themselves.
  */
 export const STEP_CAP_CLOSING = {
-  ru: `Сделали шаги выше, но в одно сообщение всё не поместилось. ${CONTINUE_LINE.ru}`,
-  en: `We did the steps above, but not everything fitted into one message. ${CONTINUE_LINE.en}`,
+  ru: 'Задача не завершена. Подтверждённые результаты сохранены; оставшуюся работу нужно продолжить с учётом уже выполненного.',
+  en: 'The task is incomplete. Confirmed results are preserved; remaining work must continue from the existing results.',
 } as const;
 
 const OUTPUT_PARTS = new Set(['tool-output-available', 'tool-output-error']);
@@ -170,4 +131,39 @@ export const closingLineWatch = (legCalls: Iterable<string> = []) => {
       return close;
     },
   };
+};
+
+/**
+ * Ends the turn after a step whose every tool call was refused with
+ * `PROPOSAL_CARD_OPEN` (`kcxz.38`, R5). The person already reads that refusal
+ * under the tool, in their words; a model step after it only restated it
+ * («Повторную проверку сейчас не запустили.») however the reason was worded.
+ * So the loop stops there, natively (Mastra's `stopWhen`, evaluated after a
+ * step with tool results), and no model text follows. A step that also ran
+ * another tool goes on as ever: the rest of the message is answered.
+ */
+type StepLike = {
+  content?: ReadonlyArray<{ type?: string; toolCallId?: string; output?: unknown; result?: unknown }>;
+};
+
+const refusedOpenProposal = (part: { output?: unknown; result?: unknown }): boolean => {
+  const raw = (part.output ?? part.result) as { type?: unknown; value?: unknown } | undefined;
+  // AI SDK v5 model messages wrap a tool's value as `{ type: 'json', value }`.
+  const value = (raw && typeof raw === 'object' && 'value' in raw && (raw.type === 'json' || raw.type === 'text')
+    ? raw.value
+    : raw) as { ok?: unknown; code?: unknown } | undefined;
+  return !!value && typeof value === 'object' && value.ok === false && value.code === 'PROPOSAL_CARD_OPEN';
+};
+
+export const stopAfterOpenProposalRefusal = ({
+  steps,
+}: {
+  steps: ReadonlyArray<StepLike>;
+}): boolean => {
+  const last = steps[steps.length - 1];
+  const content = last?.content ?? [];
+  const calls = content.filter((part) => part.type === 'tool-call');
+  const results = content.filter((part) => part.type === 'tool-result');
+  if (!calls.length || results.length !== calls.length) return false;
+  return results.every(refusedOpenProposal);
 };

@@ -1268,6 +1268,15 @@ const createWorld = (overrides = {}) => {
 
   const servicesFor = ({ usage, outsideTurn }) => ({
     ContentLeadService: leadService(usage, outsideTurn),
+    WebResearchService: {
+      research: async (organizationId, query, options) => {
+        scoped('WebResearchService.research', organizationId);
+        requests.push(['research.search', query, JSON.parse(JSON.stringify(options))]);
+        const result = rows.chatResearch ?? { summary: '', facts: [], sources: [] };
+        if (!result.fromCache) await usage.executeAiOperation(organizationId, 'web_research', async () => 'found');
+        return JSON.parse(JSON.stringify(result));
+      },
+    },
     MediaService: mediaService(usage),
     ContentFactService: factService(),
     // Only `listRelated` is reached; the library's own reads are not.
@@ -1398,7 +1407,7 @@ const createWorld = (overrides = {}) => {
         await usage.executeAiOperation(organizationId, 'intake', async () => 'digest');
         const facts = (rows.coreResearchFacts ?? []).map((fact) => ({ ...fact }));
         const snapshotKey = `core-snap-${Object.keys(rows.coreSnapshots ?? {}).length + 1}`;
-        rows.coreSnapshots = { ...(rows.coreSnapshots ?? {}), [snapshotKey]: { pieceId, facts } };
+        rows.coreSnapshots = { ...(rows.coreSnapshots ?? {}), [snapshotKey]: { pieceId, facts, organizationId, userId } };
         return {
           version: 'piece-research/v1',
           snapshotKey,
@@ -1422,6 +1431,23 @@ const createWorld = (overrides = {}) => {
         replaceCore(piece, `${piece.body} С опорами.`, 'model');
         piece.facts = input.selectedKeys.slice();
         writes.push(['piece.research.accepted', pieceId, input.selectedKeys.slice()]);
+        return {};
+      },
+      acceptCoreResearchForModel: async (organizationId, pieceId, userId, input) => {
+        scoped('PieceService.acceptCoreResearchForModel', organizationId);
+        const piece = pieceOf(pieceId);
+        const saved = rows.coreSnapshots?.[input.snapshotKey];
+        const allowed = new Set((saved?.facts ?? []).filter((fact) => fact.status === 'confirmed').map((fact) => fact.factKey));
+        if (!saved || saved.pieceId !== pieceId || saved.organizationId !== organizationId || saved.userId !== userId ||
+          !input.selectedKeys.length || input.selectedKeys.some((key) => !allowed.has(key))) {
+          throw Object.assign(new Error('Choose confirmed facts from this owned snapshot.'), { code: 'PIECE_RESEARCH_SELECTION' });
+        }
+        requests.push(['piece.research.apply', pieceId, userId, JSON.parse(JSON.stringify(input))]);
+        await usage.executeAiOperation(organizationId, 'intake', async () => 'core');
+        replaceCore(piece, `${piece.body} С опорами.`, 'model');
+        piece.facts = input.selectedKeys.slice();
+        piece.researchSelection = { origin: 'model', selectedKeys: input.selectedKeys.slice() };
+        writes.push(['piece.research.applied', pieceId, input.selectedKeys.slice()]);
         return {};
       },
       // A check (claims, search, review) or a rewrite (review only); the
@@ -1801,6 +1827,21 @@ const createWorld = (overrides = {}) => {
       },
     },
     IntakeService: {
+      selectResearchForModel: async function* (organizationId, userId, snapshotKey, selectedKeys) {
+        scoped('IntakeService.selectResearchForModel', organizationId);
+        const saved = rows.snapshots?.[snapshotKey];
+        const allowed = new Set((saved?.facts ?? []).filter((fact) => fact.status === 'confirmed').map((fact) => fact.factKey));
+        if (!saved || saved.organizationId !== organizationId || saved.userId !== userId ||
+          !selectedKeys.length || selectedKeys.some((key) => !allowed.has(key))) {
+          throw Object.assign(new Error('Choose confirmed facts from this owned snapshot.'), { code: 'INTAKE_RESEARCH_SELECTION' });
+        }
+        requests.push(['intake.from-research', userId, { snapshotKey, selectedKeys: selectedKeys.slice(), origin: 'model' }]);
+        const body = { ...saved.body, researchSelections: selectedKeys.slice(), snapshotKey };
+        for await (const event of servicesFor({ usage }).IntakeService.run(organizationId, { planned: body }, userId)) {
+          if (event.name === 'piece') pieceOf(event.pieceId).researchSelection = { origin: 'model', selectedKeys: selectedKeys.slice() };
+          yield event;
+        }
+      },
       prepare: async (organizationId, body) => {
         scoped('IntakeService.prepare', organizationId);
         requests.push(['intake', JSON.parse(JSON.stringify(body))]);
@@ -1832,7 +1873,7 @@ const createWorld = (overrides = {}) => {
           const facts = (rows.researchFacts ?? []).map((fact) => ({ ...fact }));
           if (!Array.isArray(body.researchSelections)) {
             const snapshotKey = `snap-${Object.keys(rows.snapshots ?? {}).length + 1}`;
-            rows.snapshots = { ...(rows.snapshots ?? {}), [snapshotKey]: { facts, level } };
+            rows.snapshots = { ...(rows.snapshots ?? {}), [snapshotKey]: { facts, level, organizationId, userId, body: JSON.parse(JSON.stringify(body)) } };
             yield { name: 'research-ready', level, facts, snapshotKey, corrections: [] };
             yield {
               name: 'research-selection-required',

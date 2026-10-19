@@ -121,6 +121,8 @@ const inlineAs = async (file: File, mediaType: string) => {
   return comma === -1 ? url : `data:${mediaType}${url.slice(comma)}`;
 };
 
+export type ComposerRecovery = { version: number; kind: 'restore' | 'clear'; text: string };
+
 export function AgentComposer({
   busy,
   queued,
@@ -136,6 +138,8 @@ export function AgentComposer({
   autoFocus,
   draft = null,
   onDraftUsed,
+  draftStorageKey,
+  recovery,
 }: {
   /** The agent is answering. */
   busy: boolean;
@@ -166,14 +170,33 @@ export function AgentComposer({
    */
   draft?: string | null;
   onDraftUsed?: () => void;
+  /** Only unsent text, actor scoped; never a second transcript store. */
+  draftStorageKey?: string;
+  /** A proven pre-start refusal restores only an otherwise empty field. */
+  recovery?: ComposerRecovery | null;
 }) {
   const w = words.composer;
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    try { return draftStorageKey ? window.sessionStorage.getItem(draftStorageKey) ?? '' : ''; } catch { return ''; }
+  });
+  const previousDraftKey = useRef(draftStorageKey);
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    try {
+      if (previousDraftKey.current && previousDraftKey.current !== draftStorageKey) window.sessionStorage.removeItem(previousDraftKey.current);
+      if (text) window.sessionStorage.setItem(draftStorageKey, text); else window.sessionStorage.removeItem(draftStorageKey);
+      previousDraftKey.current = draftStorageKey;
+    } catch { /* Optional browser draft. */ }
+  }, [text, draftStorageKey]);
   useEffect(() => {
     if (draft === null) return;
     setText(draft);
     onDraftUsed?.();
   }, [draft, onDraftUsed]);
+  useEffect(() => {
+    if (!recovery) return;
+    setText((current) => recovery.kind === 'restore' ? current || recovery.text : current === recovery.text ? '' : current);
+  }, [recovery]);
   const [files, setFiles] = useState<File[]>([]);
   /** Pictures of this message already in the library (review W4-25 F5). */
   const savedPictures = useRef<LibrarySaved>(new Map());

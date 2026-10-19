@@ -1,21 +1,23 @@
 import type { RequestContext } from '@mastra/core/request-context';
+import { randomUUID } from 'node:crypto';
 import type { ToolHooks } from '@mastra/core/tools';
 import { validateToolInput } from '@mastra/core/tools';
-import { toStandardSchema } from '@mastra/core/schema';
-import { CONTINUE_LINE, type StepLanguage } from '../conductor/conductor.steps';
+import { standardSchemaToJSONSchema, toStandardSchema } from '@mastra/core/schema';
+import type { JSONSchema7, JSONSchema7Definition } from 'json-schema';
+import { currentConductorExecution } from '../conductor/conductor.execution';
 import { approvalFingerprint } from './approval-fingerprint';
 import { approvalContentDigest, approvalContentFingerprint } from './approval-summary';
 import {
   consumeApproval,
+  CAPABILITY_CONTEXT_KEYS,
   hasApproval,
   markQuestionsOpened,
-  PAID_CALLS_HARD_LIMIT,
-  PAID_CALLS_PER_TURN,
   proposalOpenHere,
   questionsOpenedHere,
   readCapabilityIdentity,
   releasePaidSlot,
   reservePaidSlot,
+  settlePaidSlot,
 } from './capability.context';
 import {
   mayAskApproval,
@@ -54,14 +56,15 @@ import type { CapabilityServices } from './mastra.adapter';
  *    arguments (fingerprint), and — for a capability that declares
  *    `approvalContent` — for what goes out as it is stored now (review W2 F4);
  * 2a. `asksInWebChat`, web chat only (`kcxz.45`): the same fingerprint;
- * 3. `paid`: a free paid slot in this turn — 1, or 2 on an explicit
- *    continuation, never more;
+ * 3. `paid`: one atomic in-flight permit under the task execution policy;
+ *    completed domain operations do not consume a per-message allowance;
  * 4. the door's `@CheckPolicies`, re-evaluated now with `PermissionsService`
  *    (the role may have changed since the tool list was built, and plan limits
  *    are only known now).
  *
- * Steps 1–3 finish before the first `await`, so parallel calls of one step
- * cannot both take the last paid slot.
+ * Steps 1–3 finish before the first `await`, so parallel calls cannot claim
+ * the same in-flight permit. Actual monthly quota is still admitted by each
+ * domain operation's service.
  *
  * A refusal is returned as the tool's result — the model reads the reason and
  * tells the person — which is how Mastra's `beforeToolCall` declines a call
@@ -69,18 +72,29 @@ import type { CapabilityServices } from './mastra.adapter';
  */
 
 /**
- * The words of the paid cap (`kcxz.31`, D11), the same rule the card states:
- * one paid step per message of the person, two when the request carries their
- * «Да» on a card. Their next message runs the next step.
+ * Compatibility export for old callers. A stopped budget reports incomplete
+ * work; it does not require a new message after each paid operation.
  */
-export const paidCapReason = (limit: number, language: StepLanguage = 'ru') =>
-  `Nothing more was spent: one message of the person runs at most ${PAID_CALLS_PER_TURN} paid step (${PAID_CALLS_HARD_LIMIT} right after their «Да» on a card), and this one has used its ${limit}. Say in one line what is done and what is left — quote any questions left to the person in «», word for word as the tool gave them — and end with «${CONTINUE_LINE[language]}»; do not ask whether to continue — their next message runs the next paid step.`;
+export const paidCapReason = () =>
+  'No new paid work started. The execution budget stopped this task, or an admitted domain operation is still in flight. Preserve confirmed results, state what remains, quote any questions left to the person in «», word for word as the tool gave them, and do not retry uncertain work automatically.';
 
 export type CapabilityGate = {
   check(door: CapabilityDoor, identity: CapabilityIdentity): Promise<DoorVerdict>;
 };
 
 type ContextLike = Pick<RequestContext<unknown>, 'get' | 'set'>;
+
+/** Only declaration-owned field names/types, never rejected input or issue text. */
+const inputStructure = (schema: JSONSchema7Definition): unknown => {
+  if (typeof schema === 'boolean') return 'value';
+  if (schema.properties) return Object.fromEntries(Object.entries(schema.properties)
+    .map(([key, value]) => [key, inputStructure(value)]));
+  const variants = schema.anyOf ?? schema.oneOf;
+  if (variants) return inputStructure(variants.find((value) =>
+    typeof value === 'object' && value.type !== 'null') ?? true);
+  if (schema.items) return [inputStructure(Array.isArray(schema.items) ? schema.items[0] ?? true : schema.items)];
+  return schema.enum ?? schema.const ?? schema.type ?? 'value';
+};
 
 export const admitCapabilityCall = async (
   capability: CapabilityDeclaration,
@@ -89,6 +103,7 @@ export const admitCapabilityCall = async (
   gate: CapabilityGate,
   options: {
     countPaid: boolean;
+    paidOwner?: string;
     services?: CapabilityServices;
     capabilities?: readonly CapabilityDeclaration[];
     /** The call carries the person's answer on its own card (a resume). */
@@ -111,6 +126,8 @@ export const admitCapabilityCall = async (
       'The call arrived without a server-built identity; nothing was done.'
     );
   }
+  const stopped = currentConductorExecution()?.snapshot().stopCode;
+  if (stopped) return refusal(stopped, paidCapReason());
 
   // Mastra calls beforeToolCall before its native input validator. An invalid
   // call must not reserve a paid slot or reach declaration callbacks. Check
@@ -127,11 +144,17 @@ export const admitCapabilityCall = async (
     const paths = Object.keys(capability.input.shape).filter((key) =>
       Object.prototype.hasOwnProperty.call(invalidFields, key)
     );
+    const schema = standardSchemaToJSONSchema(toStandardSchema(capability.input), { io: 'input' }) as JSONSchema7;
+    const fields = paths.length && schema.properties
+      ? { type: 'object' as const, properties: Object.fromEntries(paths.map((key) => [key, schema.properties![key]])) }
+      : schema;
     return refusal(
       'CAPABILITY_INPUT_INVALID',
       `The arguments do not match this tool’s input${
         paths.length ? ` (${paths.join(', ')})` : ''
-      }; read its description and call it again with allowed values. Nothing was done.`
+      }; read its description and call it again with allowed values. Nothing was done. ` +
+      `Expected field structure: ${JSON.stringify(inputStructure(fields)).slice(0, 5_000)}. ` +
+      'Keep nested fields in their declared object; omit unused optional fields.'
     );
   }
 
@@ -168,9 +191,9 @@ export const admitCapabilityCall = async (
 
   let slot = false;
   if (capability.risk === 'paid' && options.countPaid) {
-    const reserved = reservePaidSlot(requestContext);
+    const reserved = reservePaidSlot(requestContext, options.paidOwner);
     if (!reserved.ok) {
-      return refusal('PAID_CAP_REACHED', paidCapReason(reserved.limit, identity.language));
+      return refusal(reserved.code ?? 'AGENT_TASK_STOPPED', paidCapReason());
     }
     slot = true;
   }
@@ -196,7 +219,13 @@ export const admitCapabilityCall = async (
     }
   }
 
-  const verdict = await gate.check(capability.door, identity);
+  let verdict: DoorVerdict;
+  try {
+    verdict = await gate.check(capability.door, identity);
+  } catch (error) {
+    if (slot) releasePaidSlot(requestContext);
+    throw error;
+  }
   if (!verdict.allowed) {
     if (slot) releasePaidSlot(requestContext);
     return refusal(
@@ -222,6 +251,15 @@ export const createCapabilityHooks = (
   );
   const contextOf = (context: unknown) =>
     (context as { requestContext?: ContextLike } | undefined)?.requestContext;
+  const ownerIds = new WeakMap<object, string>();
+  const paidOwnerOf = (context: unknown): string | undefined => {
+    if (!context || typeof context !== 'object') return undefined;
+    const id = (context as { toolCallId?: unknown }).toolCallId;
+    if (typeof id === 'string') return id;
+    let owner = ownerIds.get(context);
+    if (!owner) { owner = randomUUID(); ownerIds.set(context, owner); }
+    return owner;
+  };
   /** Mastra resumes a suspended call with the person's answer in `agent`. */
   const resumingIn = (context: unknown) =>
     (context as { agent?: { resumeData?: unknown } } | undefined)?.agent?.resumeData !==
@@ -236,14 +274,26 @@ export const createCapabilityHooks = (
         input,
         contextOf(context),
         gate,
-        { countPaid: true, services, capabilities, resuming: resumingIn(context), webChat: true }
+        { countPaid: true, paidOwner: paidOwnerOf(context), services, capabilities, resuming: resumingIn(context), webChat: true }
       );
       return refused ? { proceed: false, output: refused } : undefined;
     },
-    afterToolCall: async ({ toolName, input, context, output }) => {
+    afterToolCall: async ({ toolName, input, context, output, error }) => {
       const capability = byTool.get(toolName);
       const requestContext = contextOf(context);
+      currentConductorExecution()?.recordToolResult(toolName, input, output);
       if (!capability || !requestContext) return;
+      if (capability.risk === 'paid') {
+        const owner = paidOwnerOf(context);
+        const admitted = requestContext.get(CAPABILITY_CONTEXT_KEYS.paidOwner as never) === owner;
+        const result = output as { ok?: unknown; canReviseInput?: unknown } | undefined;
+        // Pre-spend refusals explicitly release their permit in the adapter.
+        // A started paid failure must not be blindly bought again.
+        if (admitted && (error !== undefined || (result?.ok === false && result.canReviseInput !== true))) {
+          currentConductorExecution()?.stop('AGENT_TASK_OPERATION_FAILED');
+        }
+        settlePaidSlot(requestContext, owner);
+      }
       // The questions a call has just put before the person (kcxz.31, D1):
       // read from the summary the model is given, unwrapped if it is data.
       const opens = capability.personQuestions?.opens;
@@ -262,37 +312,4 @@ export const createCapabilityHooks = (
   };
 };
 
-/**
- * Ends the turn after a step whose every tool call was refused with
- * `PROPOSAL_CARD_OPEN` (`kcxz.38`, R5). The person already reads that refusal
- * under the tool, in their words; a model step after it only restated it
- * («Повторную проверку сейчас не запустили.») however the reason was worded.
- * So the loop stops there, natively (Mastra's `stopWhen`, evaluated after a
- * step with tool results), and no model text follows. A step that also ran
- * another tool goes on as ever: the rest of the message is answered.
- */
-type StepLike = {
-  content?: ReadonlyArray<{ type?: string; toolCallId?: string; output?: unknown; result?: unknown }>;
-};
-
-const refusedOpenProposal = (part: { output?: unknown; result?: unknown }): boolean => {
-  const raw = (part.output ?? part.result) as { type?: unknown; value?: unknown } | undefined;
-  // AI SDK v5 model messages wrap a tool's value as `{ type: 'json', value }`.
-  const value = (raw && typeof raw === 'object' && 'value' in raw && (raw.type === 'json' || raw.type === 'text')
-    ? raw.value
-    : raw) as { ok?: unknown; code?: unknown } | undefined;
-  return !!value && typeof value === 'object' && value.ok === false && value.code === 'PROPOSAL_CARD_OPEN';
-};
-
-export const stopAfterOpenProposalRefusal = ({
-  steps,
-}: {
-  steps: ReadonlyArray<StepLike>;
-}): boolean => {
-  const last = steps[steps.length - 1];
-  const content = last?.content ?? [];
-  const calls = content.filter((part) => part.type === 'tool-call');
-  const results = content.filter((part) => part.type === 'tool-result');
-  if (!calls.length || results.length !== calls.length) return false;
-  return results.every(refusedOpenProposal);
-};
+export { stopAfterOpenProposalRefusal } from '../conductor/conductor.steps';

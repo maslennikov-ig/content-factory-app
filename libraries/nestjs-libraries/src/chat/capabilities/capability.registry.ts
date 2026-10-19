@@ -52,6 +52,7 @@ import {
   pieceCoreRestore,
   pieceMaterialAdd,
   pieceResearch,
+  pieceResearchApply,
   pieceRewrite,
 } from './catalogue/core.capabilities';
 import {
@@ -92,6 +93,8 @@ import {
   factsRetract,
 } from './catalogue/fact.capabilities';
 import { textSlopCheck, textsRelated } from './catalogue/text.capabilities';
+import { pieceRead } from './catalogue/material-read.capabilities';
+import { researchSearch } from './catalogue/research.capabilities';
 import {
   analyticsChannel,
   analyticsProduction,
@@ -112,6 +115,7 @@ import {
   pieceAnswer,
   pieceArchive,
   pieceCreate,
+  pieceCreateFromResearch,
   pieceDelete,
   pieceList,
   pieceOpen,
@@ -133,15 +137,19 @@ export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   channelsList as CapabilityDeclaration,
   pieceList as CapabilityDeclaration,
   pieceOpen as CapabilityDeclaration,
+  pieceRead as CapabilityDeclaration,
+  researchSearch as CapabilityDeclaration,
   pieceRename as CapabilityDeclaration,
   pieceArchive as CapabilityDeclaration,
   pieceCreate as CapabilityDeclaration,
+  pieceCreateFromResearch as CapabilityDeclaration,
   pieceAnswer as CapabilityDeclaration,
   pieceCoreEdit as CapabilityDeclaration,
   pieceMaterialAdd as CapabilityDeclaration,
   pieceCoreRestore as CapabilityDeclaration,
   pieceCoreRebuild as CapabilityDeclaration,
   pieceResearch as CapabilityDeclaration,
+  pieceResearchApply as CapabilityDeclaration,
   pieceCheckFacts as CapabilityDeclaration,
   pieceRewrite as CapabilityDeclaration,
   pieceAdapt as CapabilityDeclaration,

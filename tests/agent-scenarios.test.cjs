@@ -51,6 +51,7 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
   // refuses, review W4-25 vision F5): an `error` part with a code, the stream
   // ended, the operation closed as failed.
   const failedAt = new Set(scenario.failedTurns ?? []);
+  const incompleteAt = new Set(scenario.incompleteTurns ?? []);
   const answeredTurns = (played) =>
     played.turns.filter((_turn, index) => !refusedAt.has(index) && !failedAt.has(index));
 
@@ -88,7 +89,7 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
     const played = run();
     for (const turn of answeredTurns(played)) {
       expect(turn.admissions.filter(([operation]) => operation === 'agent')).toEqual([
-        ['agent', 'agent', 'user-1', 'succeeded'],
+        ['agent', 'agent', 'user-1', incompleteAt.has(played.turns.indexOf(turn)) ? 'failed' : 'succeeded'],
       ]);
     }
     for (const [, , , status] of played.admissions) expect(status).not.toBe('admitted');

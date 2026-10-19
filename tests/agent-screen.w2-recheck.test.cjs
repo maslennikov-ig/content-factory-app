@@ -839,7 +839,7 @@ describe('W3 recheck R-5 — the paid limit is a stop, not a failure', () => {
     expect(ru.error.paidCapNote('Адаптировать под канал')).toBe(
       'Адаптировать под канал — следующим сообщением: за одно сообщение один платный шаг.'
     );
-    expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.next).toBe('Write “next” — we\'ll continue.');
+    expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.next).toBe('Check saved results before continuing.');
   });
 });
 

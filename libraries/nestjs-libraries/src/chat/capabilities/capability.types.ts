@@ -294,6 +294,8 @@ export type CapabilityRefusal = {
   ok: false;
   code: string;
   reason: string;
+  /** Server proof of no artifact write; permits revision, never replay of an uncertain write. */
+  canReviseInput?: true;
 };
 
 export type CapabilityToolOutput =
