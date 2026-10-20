@@ -1,6 +1,46 @@
 # Развёртывание на сервере
 
-## Текущий выпуск19.10.2026:dd89af1b4a29
+## Текущий выпуск 20.10.2026: 41e8e56a56a0
+
+Эпик `content-factory-next-on0i` (`on0i.1`–`on0i.7`, `A1`–`A31`) и задача
+`content-factory-next-rafo`: переход на Mastra `1.78.0` (`@mastra/core` `1.78.0`,
+`@mastra/memory` `1.38.0`, `@mastra/pg` `1.31.2`, `@mastra/observability` `1.7.0`,
+`@mastra/ai-sdk` `1.15.0`), нативные сессии `AgentController`, сжатая подача
+свидетельств `toModelOutput` с чтением полных источников по запросу, фоновое
+исполнение `DurableAgent` с сигналами и переподключением, маршрутизация моделей
+`ModelSelectionProcessor` с цепочкой `ModelWithRetries` и `StreamErrorRetryProcessor`,
+инструменты автономности (`ask_user`, `submit_plan`, `task_*`, `set_objective`,
+субагенты, расписания `defineSchedule`), боковая навигация чатов и дверь
+наблюдаемости `/agent/threads/:id/observability`.
+
+Проверенный приватный источник `5180155733f4311346fdc7cd3f42bcc0d407ee70`,
+публичный коммит `41e8e56a56a0af0b1f3c88b9beac0aadbab747be`, образ
+`ghcr.io/maslennikov-ig/content-factory-next:41e8e56a56a0`.
+Registry digest `sha256:43280fcde3912e3c006270130f7f1ad2fc2c0531cead67c30f85c0b46d53aef7`,
+runtime config `sha256:eedefea94986113c3e87887b20be3b41483a67fabe4e72ed68c960bd9cf4d0a6`.
+Полный архив исходников из production (`/api/public/source/archive`):
+`13 095 346` байт, SHA-256 `33397864bbd3cbd0b9cd345adf0cecbd5b466642db45ae4226d878962eacd1b4`,
+совпал с проверенным образом. Все 9 корневых проверок прошли: Jest 704 набора /
+12 660 тестов / 70 пропусков, Node 126 / 0 ошибок / 4 пропуска окружения, Python 50 OK.
+Проверки `nginx -t` и `apps/commands --help` (код 0, 5 команд) в образе прошли.
+
+По шагам `R1`–`R5` выполнено обновление отдельной базы Mastra `45 → 47` таблиц
+(`@mastra/pg` `1.31.2`): резервная копия `/var/backups/content-factory-next/postgres/20261020T061226Z`,
+невалидных индексов 0, данные сохранены (`threads=34`, `messages=342`),
+отпечаток `a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97` →
+`a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0` (строго
+совпал с эталоном), `check-postgres-role-isolation.sh` прошёл. Предпроверка
+Prisma до и после переключения: `diffExitCode: 0`, `sqlLines: 0`, схема продукта
+(77 таблиц, 0 таблиц `mastra_*`) не применялась. После переключения `cf-next-app`
+`healthy`, перезапусков 0, 3 процесса PM2 `online`; 17 соседних контейнеров и
+21 том сохранены. Штатный `retain-host-artifacts.sh` оставил `41e8e56a56a0` и
+проверенный откат `dd89af1b4a29` (config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`),
+удалив только собственный устаревший тег `88867e1cb4c7` и две копии `.env.bak`/`app.env.bak`
+before-`88867e1cb4c7`; свободно `25 292 267 520` байт. Временный каталог предпроверки удалён.
+Откат: `CF_DEPLOY_HOST=helixa-prod scripts/release/switch-host-image.sh dd89af1b4a29`.
+Квитанция выпуска: [production-delivery.md](../../.codex/stages/content-factory-next-on0i-native-harness-20261019/production-delivery.md).
+
+## Предыдущий выпуск19.10.2026:dd89af1b4a29
 
 Эпик `content-factory-next-j9p5` /HOBA-5841: решения модели и нативные чаты
 Mastra. Проверенный частный источник

@@ -1,35 +1,17 @@
-# Content Factory current handoff — 19 October 2026
+# Content Factory current handoff — 20 October 2026
 Task authority (owner, 2026-10-16): Linear is canonical, Hoba is the intake; linked tasks follow same-team project moves, marked `linear-project:<slug>`; Beads is the agent interface; GitHub is the subordinate mirror. Component: `content-factory`; migration epic: Helixa `helixa-2-lab-2xs0s`. Check bridge status for `preparing` versus `active`. Older Beads-authority wording below is historical. See `AGENTS.md` and managed `docs/runbooks/linear-task-sync.md`; product work/gates stay intact.
 Server task-sync cutover, 2026-10-16 (`helixa-2-lab-03z66`): the sole publisher and native Beads databases are on `helixa-new` (82.26.152.8). Local `bd` uses the protected SSH connection; both Windows sync tasks are disabled. Local bridge checkpoints are diagnostic copies. Use the managed task-sync runbook for the live server status and recovery; never reinitialize the selected databases.
 
 Owner-authorized j9p5 implementation and production acceptance completed19Oct: private sourceadb43f973576/public-productiondd89af1b4a29, verified rollback88867e1cb4c7. All9root and5public CI checks pass (Jest12619/Node126/Python50); natural production model selection -> saved/opened/read draft plus13chat/navigation checks pass, original messages/pending/workspace exact. Six actual usage rows succeeded/no unknown costs, modelopenai/gpt-6-luna/Exa advanced unchanged; actual partial research status preserved. Schema0SQL0/no apply, Mastra45/product77 fingerprints unchanged;17foreign containers/21volumes exact;25040601088free bytes after canonical own-only retention. Helpers/session removed. All9children and epic canonically Done at10:57UTC;2preexisting unrelated global graph conflicts preserved. [Delivery](stages/content-factory-next-j9p5-implementation-20261018/production-delivery.md); exact root verdict: stages/content-factory-next-j9p5-implementation-20261018/evidence/root-acceptance.json. Prior C4A incomplete controls remain historical.
-## Assistant chat sidebar follow-up
+## Native Mastra 1.78 harness & chat sidebar delivered (20 Oct 2026)
 
-Owner19Oct latest steering: local testing only, no source/image publication or
-deployment. Prior release authority is explicitly on hold. Nothing was pushed,
-built as an image or switched; production staysdd89af1b4a29. Audit
-`content-factory-next-2512`: [native harness findings and next implementation](stages/content-factory-next-2512-native-harness-20261019/audit.md).
-Epic `content-factory-next-on0i` and all seven children (`on0i.1`–`on0i.7`) are
-locally implemented and verified on `codex/on0i-native-harness-implementation-20261019`:
-Mastra `1.78.0` upgrade + isolated `AgentController` sessions (`on0i.1`),
-`toModelOutput` compact evidence (`<=12k`/`<=6k` chars) with full UI/DB sources
-and `piece_create_from_research`/`facts_read`/`piece_material_add`/`piece_adapt`
-(`on0i.2`), durable execution + `/stop`/`/signals`/`/stream` reconnect and
-idempotent recovery (`on0i.3`), native `ask_user`/`submit_plan`/`task_*`/goals/
-bounded subagents/`defineSchedule` follow-ups (`on0i.4`), native `ModelWithRetries[]`
-routing/retries/fallbacks and metered accounting (`on0i.5`), product UI controls
-(`on0i.6`), and `/observability` + full `A1`–`A31` acceptance matrix (`on0i.7`).
-[Plan](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [outcome](stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md), [receipt](stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json).
-
-19Oct `content-factory-next-rafo`, `codex/chat-sidebar-20261019`: locally implemented
-the owner-requested collapsible chat list under AI assistant, new-chat plus at
-right, and removed the persistent archive above messages. Shared native list,
-existing routing/drafts/management and mobile drawer retained; no new runtime
-dependency or model/backend change. Focused11suites/142tests and frontend types
-PASS. [Local outcome and browser evidence](stages/content-factory-next-rafo-chat-sidebar-20261019/outcome.md).
-Localbuild/types PASS; Jest12626/Node126 PASS, Python50 PASS after doc-length correction.
-Original combined receipt failed; no new release receipt/publication claimed.
-Original checkout dirty docs and all prior evidence preserved.
+Owner20Oct explicitly authorized `"Push, Merge, Deploy."` Epic `content-factory-next-on0i` (`on0i.1`–`on0i.7`, `A1`–`A31`) and `content-factory-next-rafo` are merged to `main`, published, and deployed to production (`factory.aidevteam.ru`):
+- Private source `5180155733f4311346fdc7cd3f42bcc0d407ee70` (`origin/main`), public commit `41e8e56a56a0af0b1f3c88b9beac0aadbab747be` (`41e8e56a56a0`), image `ghcr.io/maslennikov-ig/content-factory-next:41e8e56a56a0` (registry digest `sha256:43280fcde3912e3c006270130f7f1ad2fc2c0531cead67c30f85c0b46d53aef7`, config `sha256:eedefea94986113c3e87887b20be3b41483a67fabe4e72ed68c960bd9cf4d0a6`).
+- All 9 root checks pass: Jest 704 suites / 12,660 tests / 70 skips, Node 126 / 0 fail / 4 env skips, Python 50 OK; container `nginx -t` and `apps/commands --help` (5 commands, exit 0) pass.
+- Production Mastra DB upgraded `45 -> 47` tables (`R1`–`R5`, backup `20261020T061226Z`, `threads=34`, `messages=342`, invalid indexes `0`, fingerprint `a8cdfd91…` -> `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`, role isolation pass). Product Prisma preflight before/after switch `diffExitCode: 0`, `sqlLines: 0` (77 product tables, 0 `mastra_*` tables).
+- Runtime `healthy`, `0` restarts, 3 PM2 processes `online`; `/auth/login`, `/api/`, `/api/public/source/version` and `/api/public/source/archive` (`13,095,346` bytes, SHA-256 `33397864bbd3cbd0b9cd345adf0cecbd5b466642db45ae4226d878962eacd1b4`) return 200 and match image.
+- All 17 foreign containers and 21 volumes preserved; `retain-host-artifacts.sh` kept `41e8e56a56a0` and verified rollback `dd89af1b4a29` (config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`), removing only old own tag `88867e1cb4c7` and 2 backup env copies (`25,292,267,520` free bytes).
+- [Plan](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [audit](stages/content-factory-next-2512-native-harness-20261019/audit.md), [outcome](stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md), [receipt](stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json), [delivery](stages/content-factory-next-on0i-native-harness-20261019/production-delivery.md), [sidebar outcome](stages/content-factory-next-rafo-chat-sidebar-20261019/outcome.md).
 
 ## AI assistant implementation
 

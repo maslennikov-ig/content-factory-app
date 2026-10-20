@@ -53,8 +53,11 @@ All seven tasks of epic `content-factory-next-on0i` (`on0i.1` through `on0i.7`) 
 
 ## Safety & Delivery Boundaries
 
-- Local implementation and verification only on `codex/on0i-native-harness-implementation-20261019` inside `/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018`.
-- Zero `git push`, zero public-tree refresh, zero Docker image push, zero production deployment, zero production DB mutation, zero paid external provider calls, and zero real-user messaging.
+- Owner explicitly authorized `"Push, Merge, Deploy."` on 2026-10-20.
+- Merged `codex/on0i-native-harness-implementation-20261019` (`5180155733f4311346fdc7cd3f42bcc0d407ee70`) to `main` and pushed to `origin` (`maslennikov-ig/content-factory-next`).
+- Published public tree commit `41e8e56a56a0af0b1f3c88b9beac0aadbab747be` (`41e8e56a56a0`) to `maslennikov-ig/content-factory-app` and pushed `ghcr.io/maslennikov-ig/content-factory-next:41e8e56a56a0` (`sha256:43280fcde3912e3c006270130f7f1ad2fc2c0531cead67c30f85c0b46d53aef7`).
+- Upgraded production Mastra database `45 -> 47` tables (`R1`–`R5`, fingerprint `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`), verified Prisma diff `0` / SQL `0` before and after switching, switched `factory.aidevteam.ru` to `41e8e56a56a0`, and ran `retain-host-artifacts.sh` keeping `dd89af1b4a29` as verified rollback. See [production delivery receipt](production-delivery.md).
+- Zero paid external provider calls and zero real-user messaging.
 
 docs-reviewed: updated — stage outcome, root acceptance receipt, project index, and handoff updated for `content-factory-next-on0i`.
 graph-reviewed: used — existing symbol boundaries and module ownership verified against plan and current worktree source.

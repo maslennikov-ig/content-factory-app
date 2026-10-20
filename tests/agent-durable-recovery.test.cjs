@@ -4,6 +4,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 describe('native Mastra 1.78 DurableAgent execution, signals, reconnect, and crash recovery (on0i.3, A11-A14, A30)', () => {
+  jest.setTimeout(90_000);
   let report;
 
   beforeAll(() => {
@@ -13,7 +14,7 @@ describe('native Mastra 1.78 DurableAgent execution, signals, reconnect, and cra
       {
         cwd: path.join(__dirname, '..'),
         encoding: 'utf8',
-        timeout: 60_000,
+        timeout: 90_000,
       }
     );
     const lines = raw.trim().split('\n');

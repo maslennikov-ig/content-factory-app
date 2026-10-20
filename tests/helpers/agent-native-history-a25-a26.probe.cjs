@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const net = require('node:net');
+const { spawnSync } = require('node:child_process');
 const { InMemoryStore } = require('@mastra/core/storage');
 const { PostgresStore } = require('@mastra/pg');
 const { UnsupportedFileHandler } = require('@mastra/core/processors');
@@ -256,9 +258,108 @@ async function runA25() {
     mocks
   );
   const schemaName = `cf_test_a25_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-  const connectionString =
+  const defaultConnectionString =
     process.env.CF_TEST_PG_URL ||
     'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db';
+  const isTcpPortReachable = (host, port) =>
+    new Promise((resolve) => {
+      const socket = net.createConnection({ host, port }, () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.setTimeout(500);
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
+  const acquireTestPostgres = async () => {
+    const parsed = new URL(defaultConnectionString);
+    const host = parsed.hostname || '127.0.0.1';
+    const port = Number(parsed.port || 5432);
+    if (await isTcpPortReachable(host, port)) {
+      return { url: defaultConnectionString, cleanup: async () => undefined };
+    }
+    const containerName = `cf-on0i-a25-pg-${process.pid}-${Date.now()}`;
+    const run = spawnSync(
+      'docker',
+      [
+        'run',
+        '--detach',
+        '--rm',
+        '--name',
+        containerName,
+        '--publish',
+        '127.0.0.1::5432',
+        '--env',
+        'POSTGRES_USER=postgres',
+        '--env',
+        'POSTGRES_PASSWORD=postgres',
+        '--env',
+        'POSTGRES_DB=postgres',
+        'postgres:17-alpine',
+      ],
+      { encoding: 'utf8', timeout: 60_000 }
+    );
+    if (run.status !== 0) {
+      throw new Error(`Failed to start disposable PostgreSQL: ${run.stderr || run.stdout}`);
+    }
+    const portRes = spawnSync('docker', ['port', containerName, '5432/tcp'], {
+      encoding: 'utf8',
+    });
+    const mappedPort = Number(
+      (portRes.stdout || '').trim().split('\n')[0].split(':').pop()
+    );
+    let ready = false;
+    for (let i = 0; i < 60; i += 1) {
+      const logs = spawnSync('docker', ['logs', containerName], { encoding: 'utf8' });
+      const initialized = `${logs.stdout || ''}${logs.stderr || ''}`.includes(
+        'PostgreSQL init process complete; ready for start up.'
+      );
+      const check =
+        initialized &&
+        (await isTcpPortReachable('127.0.0.1', mappedPort)) &&
+        spawnSync(
+          'docker',
+          [
+            'exec',
+            containerName,
+            'psql',
+            '-h',
+            '127.0.0.1',
+            '-U',
+            'postgres',
+            '-d',
+            'postgres',
+            '-c',
+            'SELECT 1',
+          ],
+          { encoding: 'utf8' }
+        ).status === 0;
+      if (check) {
+        ready = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!ready) {
+      spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+      throw new Error('Disposable PostgreSQL did not become ready');
+    }
+    const url = `postgresql://postgres:postgres@127.0.0.1:${mappedPort}/postgres`;
+    return {
+      url,
+      cleanup: async () => {
+        spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+      },
+    };
+  };
+  const pgHandle = await acquireTestPostgres();
+  const connectionString = pgHandle.url;
   const store = new PostgresStore({
     id: `a25-${schemaName}`,
     connectionString,
@@ -339,8 +440,9 @@ async function runA25() {
       preservedOnEmptyMerge: true,
     };
   } finally {
-    await store.db.none(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
-    await store.close();
+    await store.db.none(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
+    await store.close().catch(() => undefined);
+    await pgHandle.cleanup().catch(() => undefined);
   }
 }
 

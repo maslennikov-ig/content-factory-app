@@ -38,7 +38,7 @@ test('A25: ConductorMemory with real PostgreSQL (@mastra/pg) executes atomic con
   const output = execFileSync(
     process.execPath,
     [path.join(__dirname, 'helpers/agent-native-history-a25-a26.probe.cjs'), 'a25'],
-    { encoding: 'utf8', timeout: 30000 }
+    { encoding: 'utf8', timeout: 90000 }
   );
   expect(JSON.parse(output)).toEqual({
     a25: {

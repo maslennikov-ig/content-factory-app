@@ -4,7 +4,8 @@ require('reflect-metadata');
 require('@nestjs/common').Logger.overrideLogger(false);
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { spawn } = require('node:child_process');
+const net = require('node:net');
+const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { z } = require('zod');
 const { Mastra } = require('@mastra/core/mastra');
@@ -19,9 +20,109 @@ const { loadTypeScriptModule } = require('./load-ts-module.cjs');
 const { loadCapabilityModule } = require('./agent-capabilities.cjs');
 
 const CONDUCTOR = 'libraries/nestjs-libraries/src/chat/conductor';
-const connectionString =
+let connectionString =
   process.env.CF_TEST_PG_URL ||
   'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db';
+
+function isTcpPortReachable(host, port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port }, () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.setTimeout(500);
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function acquireTestPostgres() {
+  const parsed = new URL(connectionString);
+  const host = parsed.hostname || '127.0.0.1';
+  const port = Number(parsed.port || 5432);
+  if (await isTcpPortReachable(host, port)) {
+    return { url: connectionString, cleanup: async () => undefined };
+  }
+  const containerName = `cf-on0i-durable-pg-${process.pid}-${Date.now()}`;
+  const run = spawnSync(
+    'docker',
+    [
+      'run',
+      '--detach',
+      '--rm',
+      '--name',
+      containerName,
+      '--publish',
+      '127.0.0.1::5432',
+      '--env',
+      'POSTGRES_USER=postgres',
+      '--env',
+      'POSTGRES_PASSWORD=postgres',
+      '--env',
+      'POSTGRES_DB=postgres',
+      'postgres:17-alpine',
+    ],
+    { encoding: 'utf8', timeout: 60_000 }
+  );
+  if (run.status !== 0) {
+    throw new Error(`Failed to start disposable PostgreSQL: ${run.stderr || run.stdout}`);
+  }
+  const portRes = spawnSync('docker', ['port', containerName, '5432/tcp'], {
+    encoding: 'utf8',
+  });
+  const mappedPort = Number(
+    (portRes.stdout || '').trim().split('\n')[0].split(':').pop()
+  );
+  let ready = false;
+  for (let i = 0; i < 60; i += 1) {
+    const logs = spawnSync('docker', ['logs', containerName], { encoding: 'utf8' });
+    const initialized = `${logs.stdout || ''}${logs.stderr || ''}`.includes(
+      'PostgreSQL init process complete; ready for start up.'
+    );
+    const check =
+      initialized &&
+      (await isTcpPortReachable('127.0.0.1', mappedPort)) &&
+      spawnSync(
+        'docker',
+        [
+          'exec',
+          containerName,
+          'psql',
+          '-h',
+          '127.0.0.1',
+          '-U',
+          'postgres',
+          '-d',
+          'postgres',
+          '-c',
+          'SELECT 1',
+        ],
+        { encoding: 'utf8' }
+      ).status === 0;
+    if (check) {
+      ready = true;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!ready) {
+    spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+    throw new Error('Disposable PostgreSQL did not become ready');
+  }
+  const url = `postgresql://postgres:postgres@127.0.0.1:${mappedPort}/postgres`;
+  return {
+    url,
+    cleanup: async () => {
+      spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+    },
+  };
+}
 
 const noOp = () => () => undefined;
 const ORG = { id: 'org-1', createdAt: '2026-01-01T00:00:00Z', users: [{ role: 'EDITOR' }] };
@@ -564,6 +665,8 @@ async function runCrashWorker(schemaName, threadId) {
  * duplicate writes, plus two-driver ExecutionFence / run-fencing contention.
  */
 async function verifyPostgresCrashRecoveryAndFencing() {
+  const pgHandle = await acquireTestPostgres();
+  connectionString = pgHandle.url;
   const stack = loadConductorStack();
   const schemaName = `cf_on0i_durable_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const store = new PostgresStore({
@@ -587,7 +690,10 @@ async function verifyPostgresCrashRecoveryAndFencing() {
       const child = spawn(
         process.execPath,
         [__filename, '--worker-crash', schemaName, threadId],
-        { stdio: ['ignore', 'pipe', 'pipe'], env: process.env }
+        {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env, CF_TEST_PG_URL: connectionString },
+        }
       );
       let stderr = '';
       child.stderr.on('data', (d) => {
@@ -864,6 +970,7 @@ async function verifyPostgresCrashRecoveryAndFencing() {
   } finally {
     await store.db.none(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
     await store.close().catch(() => undefined);
+    await pgHandle.cleanup().catch(() => undefined);
   }
 }
 

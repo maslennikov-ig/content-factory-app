@@ -3,8 +3,26 @@
   "title": "Agent Harness: Full Native Mastra Integration & Legacy Wrapper Retirement",
   "branch": "codex/on0i-native-harness-implementation-20261019",
   "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
-  "boundary": "local-implementation-and-verification-only; no-push; no-deploy; no-paid-provider-calls",
-  "status": "ACCEPTED_LOCALLY",
+  "boundary": "owner-authorized-push-merge-deploy-20261020; zero-paid-provider-calls",
+  "status": "DELIVERED_TO_PRODUCTION",
+  "release": {
+    "privateSourceCommit": "5180155733f4311346fdc7cd3f42bcc0d407ee70",
+    "publicTreeCommit": "41e8e56a56a0af0b1f3c88b9beac0aadbab747be",
+    "imageTag": "41e8e56a56a0",
+    "registryDigest": "sha256:43280fcde3912e3c006270130f7f1ad2fc2c0531cead67c30f85c0b46d53aef7",
+    "imageConfig": "sha256:eedefea94986113c3e87887b20be3b41483a67fabe4e72ed68c960bd9cf4d0a6",
+    "sourceArchiveBytes": 13095346,
+    "sourceArchiveSha256": "33397864bbd3cbd0b9cd345adf0cecbd5b466642db45ae4226d878962eacd1b4",
+    "rollbackTag": "dd89af1b4a29",
+    "rollbackConfig": "sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59",
+    "mastraStorageUpgrade": {
+      "backup": "/var/backups/content-factory-next/postgres/20261020T061226Z",
+      "tablesBefore": 45,
+      "tablesAfter": 47,
+      "fingerprintBefore": "a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97",
+      "fingerprintAfter": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0"
+    }
+  },
   "tasks": {
     "content-factory-next-on0i.1": {
       "status": "closed",
@@ -67,11 +85,11 @@
     "gitDiffCheck": "PASS"
   },
   "safety": {
-    "gitPush": false,
-    "publicTreeRefresh": false,
-    "dockerImagePush": false,
-    "productionDeploy": false,
-    "productionDbMutation": false,
+    "gitPush": true,
+    "publicTreeRefresh": true,
+    "dockerImagePush": true,
+    "productionDeploy": true,
+    "productionDbMutation": "Mastra owner-only upgrade 45 -> 47 tables (R1-R5); Product Prisma schema diff 0 / SQL 0",
     "paidProviderCalls": 0,
     "realUserMessaging": false
   }
