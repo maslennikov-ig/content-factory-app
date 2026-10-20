@@ -85,6 +85,30 @@ export const cardPartType = <K extends CardKind>(kind: K): CardPartType<K> =>
 /** The transient progress part of a running capability. */
 export const PROGRESS_PART_TYPE = 'data-progress' as const;
 
+export const BRAND_VOICE_SCORER_ID = 'brand-voice-and-facts' as const;
+export const BRAND_VOICE_VERDICTS = [
+  'pass',
+  'borderline',
+  'drift',
+  'unconfigured',
+] as const;
+export type BrandVoiceVerdict = (typeof BRAND_VOICE_VERDICTS)[number];
+
+export type BrandVoiceFactScoreSummary = {
+  scorerId: string;
+  score: number;
+  rulesMatched: number;
+  rulesTotal: number;
+  factsCount: number;
+  slopCount?: number;
+  verdict?: 'CLOSE' | 'FAR' | 'UNKNOWN';
+  reason?: string;
+  voiceVerdict?: BrandVoiceVerdict;
+  inCorridor?: number;
+  totalMetrics?: number;
+  badgeLabel?: string;
+};
+
 /**
  * Card payloads, by kind. `id` is always there: the card and the panel open
  * the object by it. Anything else is what the capability wrote in this call —
@@ -100,6 +124,7 @@ export type AgentCardPayloads = {
     code?: string | null;
     /** Open questions the person answers on the piece (kcxz.29, D4). */
     questions?: number;
+    voiceScoreSummary?: BrandVoiceFactScoreSummary | null;
   };
   /** `name`: what the person called it on the consent card (kcxz.29, D12). */
   avatar: { kind: 'avatar'; id: string; name?: string | null };
@@ -115,6 +140,7 @@ export type AgentCardPayloads = {
     pieceId: string;
     channel?: { id: string; name: string; provider: string };
     variant?: number;
+    voiceScoreSummary?: BrandVoiceFactScoreSummary | null;
   };
   /**
    * A plan slot (`kcxz.15`, spec §6.2 «Plan slot»): `id` is the adaptation,
@@ -129,6 +155,7 @@ export type AgentCardPayloads = {
     channel?: { id: string; name: string; provider: string };
     at?: string | null;
     state: PlanSlotState;
+    voiceScoreSummary?: BrandVoiceFactScoreSummary | null;
   };
   /**
    * One channel (`kcxz.19`): the panel opens the channel's own screen by id
@@ -586,6 +613,8 @@ export type AgentThreadV1 = {
   title: string;
   createdAt: string;
   updatedAt: string;
+  forkedFromThreadId?: string | null;
+  forkedFromMessageId?: string | null;
 };
 
 /** `GET /agent/threads` — the caller's own threads, newest first. */
@@ -640,3 +669,45 @@ export type AgentThreadHistoryV1 = {
 /** `PATCH /agent/threads/:id`. */
 export type AgentThreadRenameV1 = { title: string };
 export const AGENT_THREAD_TITLE_MAX = 120;
+
+/** Voice dictation in composer (`content-factory-next-bxeb.1`, `@mastra/core/voice`). */
+export const AGENT_VOICE_MEDIA_TYPES = [
+  'audio/webm',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+] as const;
+export type AgentVoiceMediaType = (typeof AGENT_VOICE_MEDIA_TYPES)[number];
+/** Maximum single voice note size: 15 MB. */
+export const AGENT_VOICE_MAX_BYTES = 15728640;
+
+/** Background task and notification statuses (`content-factory-next-bxeb.4`). */
+export const AGENT_NOTIFICATION_STATUSES = [
+  'pending',
+  'dispatched',
+  'seen',
+  'dismissed',
+] as const;
+export type AgentNotificationStatus =
+  (typeof AGENT_NOTIFICATION_STATUSES)[number];
+
+export type AgentNotificationItemV1 = {
+  id: string;
+  threadId: string | null;
+  title: string;
+  message: string;
+  status: AgentNotificationStatus;
+  source: string;
+  createdAt: string;
+};
+
+export type AgentBackgroundTaskItemV1 = {
+  taskId: string;
+  threadId: string | null;
+  description: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'timed_out';
+  startedAt: string;
+  completedAt: string | null;
+  error?: string | null;
+};

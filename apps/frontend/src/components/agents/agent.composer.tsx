@@ -133,6 +133,7 @@ export function AgentComposer({
   samplesAllowed = true,
   uploadMedia,
   mediaAllowed = true,
+  transcribeVoice,
   describeFailure,
   words,
   autoFocus,
@@ -160,6 +161,8 @@ export function AgentComposer({
   uploadMedia?: (files: File[], saved: LibrarySaved) => Promise<LibraryUploadReceipt>;
   /** The role may upload media (the library doors' `Sections.EDITOR`). */
   mediaAllowed?: boolean;
+  /** Sends a recorded voice blob to `POST /agent/voice/transcribe` (`bxeb.1`). */
+  transcribeVoice?: (audio: Blob) => Promise<string>;
   /** The sentence for a refused upload, from the product's error words. */
   describeFailure?: (failure: SamplesFailure) => string;
   words: AgentWords;
@@ -210,6 +213,29 @@ export function AgentComposer({
   const [notice, setNotice] = useState<string | null>(null);
   /** What is being sent before the message: pictures, then samples. */
   const [uploading, setUploading] = useState<'media' | 'samples' | null>(null);
+  /** Voice recording state (`bxeb.1`). */
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState<'text' | 'send' | null>(null);
+  const recorderSession = useRef<{
+    recorder: MediaRecorder;
+    stream: MediaStream;
+    chunks: BlobPart[];
+    action: 'text' | 'send' | 'cancel' | null;
+  } | null>(null);
+  useEffect(
+    () => () => {
+      const current = recorderSession.current;
+      if (!current) return;
+      current.action = 'cancel';
+      try {
+        if (current.recorder.state !== 'inactive') current.recorder.stop();
+      } catch {
+        /* already stopped */
+      }
+      current.stream.getTracks().forEach((track) => track.stop());
+    },
+    []
+  );
   /** A line that is not a refusal: the samples went to the default instead. */
   const [info, setInfo] = useState<string | null>(null);
   /** Sample files wait for the agent's answer to end (F6). */
@@ -223,7 +249,12 @@ export function AgentComposer({
   const viewedPictures = files.filter((file) => isLibraryImage(file) && !goesToLibrary(file));
   const libraryPictures = files.filter(goesToLibrary);
   const canSend =
-    (text.trim().length > 0 || files.length > 0) && !queued && !uploading && !held;
+    (text.trim().length > 0 || files.length > 0) &&
+    !queued &&
+    !uploading &&
+    !held &&
+    !recording &&
+    !transcribing;
 
   const addFiles = useCallback(
     (incoming: readonly File[]) => {
@@ -303,12 +334,13 @@ export function AgentComposer({
     [files, samplesAllowed, uploadSamples, w]
   );
 
-  const send = useCallback(async () => {
+  const send = useCallback(async (overrideText?: string) => {
+    const currentText = overrideText !== undefined ? overrideText : text;
     // A key pasted by mistake never leaves the page (`kcxz.20`, spec §1.5):
     // it is taken out of the field, nothing is sent, and the line says where
     // a key goes. The door redacts one again for any other client.
-    if (containsSecretShape(text)) {
-      setText(withoutSecretShapes(text));
+    if (containsSecretShape(currentText)) {
+      setText(withoutSecretShapes(currentText));
       setInfo(null);
       setNotice(w.keyPasted);
       return;
@@ -408,7 +440,7 @@ export function AgentComposer({
     }
     for (const [file, pictureKey] of shown) keepShownPicture(file, pictureKey);
     onSubmit({
-      text: text.trim(),
+      text: currentText.trim(),
       files: parts,
       ...(samples ? { samples } : {}),
       ...(media?.media.length ? { media } : {}),
@@ -419,6 +451,142 @@ export function AgentComposer({
     savedPictures.current = new Map();
     setToLibrary(new Set());
   }, [describeFailure, files, goesToLibrary, onSubmit, samplesTarget, text, uploadMedia, uploadSamples, w]);
+
+  const startVoice = useCallback(async () => {
+    if (!transcribeVoice || recording || transcribing || uploading || held) return;
+    setNotice(null);
+    setInfo(null);
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === 'undefined'
+    ) {
+      setNotice(w.voiceDenied);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredTypes = ['audio/webm', 'audio/mp4', 'audio/ogg'];
+      const mimeType =
+        typeof MediaRecorder.isTypeSupported === 'function'
+          ? preferredTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate))
+          : undefined;
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+      const session = {
+        recorder,
+        stream,
+        chunks,
+        action: null as 'text' | 'send' | 'cancel' | null,
+      };
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        recorderSession.current = null;
+        const mode = session.action;
+        if (!mode || mode === 'cancel') return;
+        const blob = new Blob(chunks, {
+          type: recorder.mimeType || mimeType || 'audio/webm',
+        });
+        if (blob.size === 0) return;
+        setTranscribing(mode);
+        void (async () => {
+          try {
+            const raw = (await transcribeVoice(blob)).trim();
+            if (!raw) return;
+            if (containsSecretShape(raw)) {
+              const cleaned = withoutSecretShapes(raw);
+              setText((current) =>
+                current.trim() ? `${current.trimEnd()} ${cleaned}` : cleaned
+              );
+              setNotice(w.keyPasted);
+              return;
+            }
+            if (mode === 'text') {
+              setText((current) =>
+                current.trim() ? `${current.trimEnd()} ${raw}` : raw
+              );
+              return;
+            }
+            const combined = text.trim() ? `${text.trimEnd()} ${raw}` : raw;
+            if (busy && hasSamples && uploadSamples) {
+              setText(combined);
+              setHeld(true);
+              return;
+            }
+            await send(combined);
+          } catch (error) {
+            const failure = error as { code?: unknown; message?: unknown };
+            setNotice(
+              describeFailure?.({
+                code: typeof failure?.code === 'string' ? failure.code : null,
+                message: typeof failure?.message === 'string' ? failure.message : null,
+              }) ?? w.voiceFailed
+            );
+          } finally {
+            setTranscribing(null);
+          }
+        })();
+      };
+      recorderSession.current = session;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setNotice(w.voiceDenied);
+    }
+  }, [
+    busy,
+    describeFailure,
+    hasSamples,
+    held,
+    recording,
+    send,
+    text,
+    transcribeVoice,
+    transcribing,
+    uploadSamples,
+    uploading,
+    w,
+  ]);
+
+  const finishVoice = useCallback((mode: 'text' | 'send') => {
+    const current = recorderSession.current;
+    if (!current) return;
+    current.action = mode;
+    setRecording(false);
+    try {
+      if (current.recorder.state !== 'inactive') current.recorder.stop();
+    } catch {
+      current.stream.getTracks().forEach((track) => track.stop());
+      recorderSession.current = null;
+    }
+  }, []);
+
+  const cancelVoice = useCallback(() => {
+    const current = recorderSession.current;
+    if (!current) {
+      setRecording(false);
+      return;
+    }
+    current.action = 'cancel';
+    setRecording(false);
+    try {
+      if (current.recorder.state !== 'inactive') {
+        current.recorder.stop();
+        return;
+      }
+    } catch {
+      /* fallback to stopping tracks directly */
+    }
+    current.stream.getTracks().forEach((track) => track.stop());
+    recorderSession.current = null;
+  }, []);
 
   const submit = useCallback(async () => {
     if (!canSend) return;
@@ -609,6 +777,60 @@ export function AgentComposer({
             {w.attachHint}
           </span>
           <span className="ms-auto inline-flex shrink-0 items-center gap-[8px]">
+            {transcribeVoice ? (
+              recording ? (
+                <span className="inline-flex flex-wrap items-center gap-[8px]">
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    className="inline-flex items-center gap-[4px] cf-caption text-cf-danger"
+                  >
+                    <AgentGlyph name="mic" size={12} />
+                    <span>{w.voiceRecording}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    density="dense"
+                    onClick={() => finishVoice('text')}
+                  >
+                    {w.voiceToText}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    density="dense"
+                    disabled={queued || held || !!uploading}
+                    onClick={() => finishVoice('send')}
+                  >
+                    {w.voiceSendNow}
+                  </Button>
+                  <Button
+                    iconOnly
+                    type="button"
+                    variant="quiet"
+                    density="dense"
+                    aria-label={w.voiceCancel}
+                    onClick={cancelVoice}
+                  >
+                    <AgentGlyph name="close" size={12} />
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  iconOnly
+                  type="button"
+                  variant="quiet"
+                  aria-label={w.voiceRecord}
+                  loading={transcribing !== null}
+                  loadingLabel={w.voiceTranscribing}
+                  disabled={!!uploading || held || queued}
+                  onClick={() => void startVoice()}
+                >
+                  <AgentGlyph name="mic" size={16} />
+                </Button>
+              )
+            ) : null}
             {busy ? (
               <Button type="button" variant="secondary" onClick={onStop}>
                 <AgentGlyph name="stop" size={14} />
@@ -631,6 +853,10 @@ export function AgentComposer({
         {uploading ? (
           <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
             {uploading === 'media' ? w.mediaSending : w.samplesSending}
+          </p>
+        ) : transcribing ? (
+          <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
+            {w.voiceTranscribing}
           </p>
         ) : held ? (
           <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">

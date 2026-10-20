@@ -61,6 +61,14 @@ const MIRRORED = [
   'CHANNEL_CONNECT_FLOWS',
   // Which search key the key card takes (kcxz.20).
   'SECRET_SEARCH_ENGINES',
+  // Voice dictation in composer (bxeb.1).
+  'AGENT_VOICE_MEDIA_TYPES',
+  'AGENT_VOICE_MAX_BYTES',
+  // Deterministic brand voice & facts scorer (bxeb.3).
+  'BRAND_VOICE_SCORER_ID',
+  'BRAND_VOICE_VERDICTS',
+  // Background tasks & notifications inbox (bxeb.4).
+  'AGENT_NOTIFICATION_STATUSES',
 ];
 
 /** Exported constants whose value is a literal, a number or a literal array. */

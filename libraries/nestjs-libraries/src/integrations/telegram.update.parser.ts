@@ -34,15 +34,42 @@ export type TelegramUpdateAction =
       kind: 'support-relay';
       sourceChatId: string;
       sourceMessageId: number;
+    }
+  | {
+      kind: 'agent-callback';
+      callbackQueryId: string;
+      chatId: string;
+      messageId: string;
+      fromUserId: string;
+      data: string;
     };
 
-type TelegramMessageLike = {
+export type TelegramVoiceOrAudioLike = {
+  file_id?: string;
+  mime_type?: string;
+  duration?: number;
+  file_size?: number;
+  file_name?: string;
+};
+
+export type TelegramSenderLike = {
+  id?: string | number;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+export type TelegramMessageLike = {
   chat?: {
     id?: string | number;
     type?: 'private' | 'group' | 'supergroup' | 'channel' | string;
   };
+  from?: TelegramSenderLike;
   message_id?: string | number;
   text?: string;
+  caption?: string;
+  voice?: TelegramVoiceOrAudioLike;
+  audio?: TelegramVoiceOrAudioLike;
   is_automatic_forward?: boolean;
   forward_origin?: {
     type?: string;
@@ -54,15 +81,64 @@ type TelegramMessageLike = {
   reply_to_message?: { message_id?: string | number };
 };
 
+export type TelegramCallbackQueryLike = {
+  id?: string | number;
+  from?: TelegramSenderLike;
+  message?: TelegramMessageLike;
+  data?: string;
+};
+
 export type TelegramUpdateLike = {
   update_id: number;
   message?: TelegramMessageLike;
   channel_post?: TelegramMessageLike;
+  callback_query?: TelegramCallbackQueryLike;
   message_reaction_count?: {
     chat?: { id?: string | number };
     message_id?: string | number;
     reactions?: Array<{ total_count?: number }>;
   };
+};
+
+export type TelegramAgentLinkedMember = {
+  organizationId: string;
+  organizationCreatedAt: string;
+  userId: string;
+  role: 'SUPERADMIN' | 'ADMIN' | 'EDITOR';
+  language: 'ru' | 'en';
+  timeZone: string;
+  chatId: string;
+  telegramUserId: string;
+  userName?: string;
+};
+
+export interface TelegramAgentChannelHandler {
+  resolveLinkedMember(
+    transaction: unknown,
+    message: TelegramMessageLike
+  ): Promise<TelegramAgentLinkedMember | null>;
+  resolveLinkedMemberByTelegramId(
+    transaction: unknown,
+    telegramUserId: string,
+    chatId: string
+  ): Promise<TelegramAgentLinkedMember | null>;
+  handleIncomingMessage(
+    bot: unknown,
+    member: TelegramAgentLinkedMember,
+    message: TelegramMessageLike
+  ): Promise<void>;
+  handleCallbackQuery(
+    bot: unknown,
+    member: TelegramAgentLinkedMember,
+    action: Extract<TelegramUpdateAction, { kind: 'agent-callback' }>
+  ): Promise<void>;
+}
+
+export const isTelegramSupportOrSystemCommand = (text?: string): boolean => {
+  if (typeof text !== 'string') return false;
+  return /^\/(?:support|start|connect)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i.test(
+    text.trim()
+  );
 };
 
 const present = (value: unknown): value is string | number =>
@@ -97,6 +173,26 @@ export function parseTelegramUpdate(
         (sum, item) => sum + Math.max(0, Number(item.total_count) || 0),
         0
       ),
+    });
+  }
+
+  const callback = update.callback_query;
+  if (
+    present(callback?.id) &&
+    present(callback?.message?.chat?.id) &&
+    present(callback?.message?.message_id) &&
+    typeof callback?.data === 'string' &&
+    callback.data.startsWith('cf_agent_')
+  ) {
+    actions.push({
+      kind: 'agent-callback',
+      callbackQueryId: String(callback.id),
+      chatId: String(callback.message.chat.id),
+      messageId: String(callback.message.message_id),
+      fromUserId: present(callback.from?.id)
+        ? String(callback.from.id)
+        : String(callback.message.chat.id),
+      data: callback.data,
     });
   }
 

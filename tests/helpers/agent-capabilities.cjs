@@ -114,6 +114,60 @@ const providerConfig = () =>
     },
   });
 
+const createMastraScorerMock = (config) => {
+  const steps = {};
+  const scorer = {
+    id: config.id,
+    name: config.name ?? config.id,
+    description: config.description ?? '',
+    config,
+    preprocess(fn) {
+      steps.preprocess = fn;
+      return scorer;
+    },
+    analyze(fn) {
+      steps.analyze = fn;
+      return scorer;
+    },
+    generateScore(fn) {
+      steps.generateScore = fn;
+      return scorer;
+    },
+    generateReason(fn) {
+      steps.generateReason = fn;
+      return scorer;
+    },
+    async run(runInput) {
+      const run = {
+        runId: runInput.runId ?? 'score-run-1',
+        input: runInput.input,
+        output: runInput.output,
+      };
+      const results = {};
+      if (steps.preprocess) {
+        results.preprocessStepResult = await steps.preprocess({ run, results });
+      }
+      if (steps.analyze) {
+        results.analyzeStepResult = await steps.analyze({ run, results });
+      }
+      const score = steps.generateScore
+        ? await steps.generateScore({ run, results })
+        : 0;
+      results.generateScoreStepResult = score;
+      const reason = steps.generateReason
+        ? await steps.generateReason({ run, results, score })
+        : undefined;
+      return {
+        ...run,
+        ...results,
+        score,
+        ...(reason !== undefined ? { reason } : {}),
+      };
+    },
+  };
+  return scorer;
+};
+
 /**
  * Loads one file of the capability module. Every call shares nothing with the
  * last, except `aiConfig` when the suite passes one in.
@@ -123,6 +177,9 @@ const loadCapabilityModule = (file, { aiConfig = providerConfig(), mocks = {} } 
     `${CAPABILITIES}/${file}`,
     {
       ...services,
+      '@mastra/core/evals': {
+        createScorer: createMastraScorerMock,
+      },
       '@contentfactory/nestjs-libraries/database/prisma/subscriptions/pricing': {
         pricing: {},
       },

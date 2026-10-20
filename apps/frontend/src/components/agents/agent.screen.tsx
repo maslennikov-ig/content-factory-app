@@ -279,7 +279,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const materialName = resolved ? resolved.kind === 'piece' && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
   const picker = <AgentArtifactPicker artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
 
-  renderedSessions.current.set(session.key, <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} draftStorageKey={`cf-assistant-draft/v1:${user?.orgId ?? ''}:${user?.id ?? ''}:${session.threadId ?? 'new'}`} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />);
+  renderedSessions.current.set(session.key, <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} draftStorageKey={`cf-assistant-draft/v1:${user?.orgId ?? ''}:${user?.id ?? ''}:${session.threadId ?? 'new'}`} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} onForked={openThread} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />);
 
   return (
     <div data-agent-screen="" className={contextual ? 'relative flex min-h-0 min-w-0 flex-1' : 'relative flex h-[calc(100dvh-56px)] min-h-0 min-w-0 flex-none md:h-auto md:flex-1'}>
@@ -325,6 +325,7 @@ function SessionView({
   onArtifacts,
   contextControls,
   onNewConversation,
+  onForked,
   onWorkContext,
   onThreadId,
   onTitle,
@@ -345,6 +346,7 @@ function SessionView({
   onArtifacts: (artifacts: AgentArtifact[]) => void;
   contextControls: ReactNode;
   onNewConversation: () => void;
+  onForked: (id: string) => void;
   onWorkContext: (context: AgentWorkContextV1 | null) => void;
   onThreadId: (id: string) => void;
   onTitle: (title: string | null) => void;
@@ -426,6 +428,7 @@ function SessionView({
       onArtifacts={onArtifacts}
       contextControls={contextControls}
       onNewConversation={onNewConversation}
+      onForked={onForked}
       onWorkContext={onWorkContext}
       onThreadId={onThreadId}
       onTitle={onTitle}

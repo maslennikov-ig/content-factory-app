@@ -102,6 +102,14 @@
 8. **Хранилище**: схема pg 1.27.1 — те же 45 таблиц; `mastra migrate` чистит только таблицы трассировки,
    поэтому миграция остаётся нашим SQL, запускаемым владельцем. `exportSchemas()` — сверка этого SQL.
 
+## Поправка 20.10.2026: полный переход на нативный Mastra 1.78 (`content-factory-next-on0i`)
+
+Эпик `content-factory-next-on0i` (`on0i.1`–`on0i.7`, решение `A1`–`A31`) довёл связку Mastra до **`@mastra/core` 1.78.0**, **`@mastra/memory` 1.38.0**, **`@mastra/pg` 1.31.2**, **`@mastra/ai-sdk` 1.11.1**, **`@mastra/observability` 1.7.0** (при сохранении `@mastra/mcp` 1.18.0) и вывел в бой нативный агентный контур:
+
+1. **Единый `AgentController` с нативными планами, задачами, под-агентами и расписаниями.** Конструктор чата и дирижёра использует нативный `new AgentController(...)` с персистентной моделью задач и сессий в `mastra_agent_controller_*` (схема выросла с 45 до **47 таблиц** за счёт `mastra_agent_controller_sessions` и `mastra_agent_controller_tasks`). Встроены нативные `todo_write` / `todo_read`, `schedule_task` (`PostgresCronStorage`), `submit_plan` и `subagent` (`researcher`, `writer`, `planner`) в тарифицируемой продуктовой обёртке.
+2. **Нативные стражи хода и процессоры Mastra 1.78.** Включены `completion.prompt` (Goal Judge с read-only проверками и `maxAttempts: 2`), `defaultOptions.maxSteps: 14`, `modelSettings.maxRetries: 2`, `contextManagement` (`truncate_results` + `summarize_history`), `TokenLimiterProcessor`, `ToolCallFilter`, `createStreamErrorRetryProcessor` (с классификатором провайдерных и сетевых сбоев), `SkillDynamicSwitchProcessor` и `ToolSearchProcessor`.
+3. **Каноническая карта нативных возможностей, наших продуктовых надстроек и отключённых модулей** (обязательна к проверке при любом обновлении `@mastra/*`): [`docs/architecture/mastra-native-integration.md`](../architecture/mastra-native-integration.md).
+
 ## Последствия
 
 Обязательные требования к боевой сборке, найденные разведкой:

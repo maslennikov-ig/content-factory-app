@@ -12,8 +12,11 @@ import {
   Put,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
 import type { Response } from 'express';
@@ -673,6 +676,47 @@ export class AgentController {
     }
   }
 
+  @Post('/voice/transcribe')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  @UseInterceptors(FileInterceptor('file'))
+  async transcribeVoice(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: unknown,
+    @Headers(AGENT_TIMEZONE_HEADER) timeZone?: string
+  ) {
+    const identity = agentIdentity(organization, user, timeZone);
+    if (file?.buffer) {
+      return this.mastraService.transcribeVoice(identity, {
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+      });
+    }
+    const payload =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as { audio?: unknown; mediaType?: unknown })
+        : {};
+    const rawAudio = typeof payload.audio === 'string' ? payload.audio.trim() : '';
+    if (!rawAudio) {
+      throw new AgentChatRequestError(
+        'AGENT_BAD_REQUEST',
+        400,
+        'Audio recording is required.'
+      );
+    }
+    const dataUrlMatch = /^data:([^;,]+)(?:;[^,]*)?;base64,(.+)$/i.exec(rawAudio);
+    const mimeType =
+      dataUrlMatch?.[1] ??
+      (typeof payload.mediaType === 'string' ? payload.mediaType : 'audio/webm');
+    const base64 = dataUrlMatch ? dataUrlMatch[2] : rawAudio;
+    const buffer = Buffer.from(base64, 'base64');
+    return this.mastraService.transcribeVoice(identity, {
+      buffer,
+      mimeType,
+    });
+  }
+
   @Get('/threads')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async listThreads(
@@ -726,6 +770,30 @@ export class AgentController {
       agentIdentity(organization, user),
       threadIdParam(id),
       title
+    );
+  }
+
+  @Post('/threads/:id/fork')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async forkThread(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body?: unknown
+  ) {
+    const payload =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as { upToMessageId?: unknown; title?: unknown })
+        : {};
+    const upToMessageId =
+      typeof payload.upToMessageId === 'string' && payload.upToMessageId.trim()
+        ? payload.upToMessageId.trim()
+        : null;
+    const title = normaliseThreadTitle(payload.title);
+    return this.threads.fork(
+      agentIdentity(organization, user),
+      threadIdParam(id),
+      { upToMessageId, title }
     );
   }
 
@@ -930,6 +998,82 @@ export class AgentController {
     return this.threads.queryObservability(
       agentIdentity(organization, user),
       threadIdParam(id)
+    );
+  }
+
+  @Get('/notifications')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async listNotifications(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Query() query?: unknown
+  ) {
+    const q =
+      query && typeof query === 'object' && !Array.isArray(query)
+        ? (query as { threadId?: unknown; limit?: unknown })
+        : {};
+    const threadId =
+      typeof q.threadId === 'string' && q.threadId.trim()
+        ? threadIdParam(q.threadId.trim())
+        : undefined;
+    const limit =
+      typeof q.limit === 'string' && /^\d+$/.test(q.limit)
+        ? Number(q.limit)
+        : undefined;
+    return this.threads.listNotifications(
+      agentIdentity(organization, user),
+      { threadId, limit }
+    );
+  }
+
+  @Post('/notifications/read-all')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async markAllNotificationsRead(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Body() body?: unknown
+  ) {
+    const payload =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as { threadId?: unknown })
+        : {};
+    const threadId =
+      typeof payload.threadId === 'string' && payload.threadId.trim()
+        ? threadIdParam(payload.threadId.trim())
+        : undefined;
+    return this.threads.markAllNotificationsRead(
+      agentIdentity(organization, user),
+      threadId
+    );
+  }
+
+  @Post('/notifications/:id/read')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async markNotificationRead(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body?: unknown
+  ) {
+    if (!AGENT_ID_PATTERN.test(id)) {
+      throw new AgentChatRequestError(
+        'AGENT_BAD_REQUEST',
+        400,
+        'The notification id is not valid.'
+      );
+    }
+    const payload =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as { threadId?: unknown })
+        : {};
+    const threadId =
+      typeof payload.threadId === 'string' && payload.threadId.trim()
+        ? threadIdParam(payload.threadId.trim())
+        : undefined;
+    return this.threads.markNotificationRead(
+      agentIdentity(organization, user),
+      id,
+      threadId
     );
   }
 

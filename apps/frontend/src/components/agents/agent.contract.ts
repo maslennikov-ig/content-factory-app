@@ -267,13 +267,82 @@ export type LibraryUploadReceipt = {
   media: Array<{ id: string; name: string; type: ChatPictureType }>;
 };
 
+export const AGENT_VOICE_MEDIA_TYPES = [
+  'audio/webm',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+] as const;
+export type AgentVoiceMediaType = (typeof AGENT_VOICE_MEDIA_TYPES)[number];
+export const AGENT_VOICE_MAX_BYTES = 15728640;
+
+export const BRAND_VOICE_SCORER_ID = 'brand-voice-and-facts' as const;
+export const BRAND_VOICE_VERDICTS = [
+  'pass',
+  'borderline',
+  'drift',
+  'unconfigured',
+] as const;
+export type BrandVoiceVerdict = (typeof BRAND_VOICE_VERDICTS)[number];
+
+export type BrandVoiceFactScoreSummary = {
+  scorerId: string;
+  score: number;
+  rulesMatched: number;
+  rulesTotal: number;
+  factsCount: number;
+  slopCount?: number;
+  verdict?: 'CLOSE' | 'FAR' | 'UNKNOWN';
+  reason?: string;
+  voiceVerdict?: BrandVoiceVerdict;
+  inCorridor?: number;
+  totalMetrics?: number;
+  badgeLabel?: string;
+};
+
+export const AGENT_NOTIFICATION_STATUSES = [
+  'pending',
+  'dispatched',
+  'seen',
+  'dismissed',
+] as const;
+export type AgentNotificationStatus =
+  (typeof AGENT_NOTIFICATION_STATUSES)[number];
+
+export type AgentNotificationItem = {
+  id: string;
+  threadId: string | null;
+  title: string;
+  message: string;
+  status: AgentNotificationStatus;
+  source: string;
+  createdAt: string;
+};
+
+export type AgentBackgroundTaskItem = {
+  taskId: string;
+  threadId: string | null;
+  description: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'timed_out';
+  startedAt: string;
+  completedAt: string | null;
+  error?: string | null;
+};
+
 /* ---- Doors ----------------------------------------------------------------- */
 
 export const AGENT_DOORS = {
   chat: '/agent/chat',
+  voiceTranscribe: '/agent/voice/transcribe',
+  notifications: '/agent/notifications',
+  notificationRead: (id: string) =>
+    `/agent/notifications/${encodeURIComponent(id)}/read`,
+  notificationsReadAll: '/agent/notifications/read-all',
   threads: '/agent/threads',
   workspaceBrowser: '/agent/workspace/browser',
   thread: (id: string) => `/agent/threads/${encodeURIComponent(id)}`,
+  forkThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/fork`,
   threadWorkspace: (id: string) => `/agent/threads/${encodeURIComponent(id)}/workspace`,
   stopThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/stop`,
   observeThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/observe`,
@@ -588,17 +657,136 @@ export type AgentThreadSummary = {
   id: string;
   title: string | null;
   updatedAt: string | null;
+  forkedFromThreadId?: string | null;
+  forkedFromMessageId?: string | null;
 };
 
 const readThread = (row: unknown): AgentThreadSummary | null => {
   const record = recordOf(row);
   const id = stringOf(record.id);
   if (!id) return null;
+  const forkedFromThreadId = stringOf(record.forkedFromThreadId);
+  const forkedFromMessageId = stringOf(record.forkedFromMessageId);
   return {
     id,
     title: stringOf(record.title),
     updatedAt: stringOf(record.updatedAt) ?? stringOf(record.createdAt),
+    ...(forkedFromThreadId ? { forkedFromThreadId } : {}),
+    ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
   };
+};
+
+export const readVoiceScoreSummary = (
+  value: unknown
+): BrandVoiceFactScoreSummary | null => {
+  const row = recordOf(value);
+  if (row.scorerId !== BRAND_VOICE_SCORER_ID) return null;
+  const verdict = row.voiceVerdict;
+  if (
+    verdict !== 'pass' &&
+    verdict !== 'borderline' &&
+    verdict !== 'drift' &&
+    verdict !== 'unconfigured'
+  ) {
+    return null;
+  }
+  const badgeLabel = stringOf(row.badgeLabel);
+  if (!badgeLabel) return null;
+  const inCorridor = typeof row.inCorridor === 'number' ? row.inCorridor : 0;
+  const totalMetrics = typeof row.totalMetrics === 'number' ? row.totalMetrics : 0;
+  return {
+    scorerId: BRAND_VOICE_SCORER_ID,
+    score: typeof row.score === 'number' && Number.isFinite(row.score) ? row.score : 0,
+    rulesMatched: typeof row.rulesMatched === 'number' ? row.rulesMatched : inCorridor,
+    rulesTotal: typeof row.rulesTotal === 'number' ? row.rulesTotal : totalMetrics,
+    voiceVerdict: verdict,
+    inCorridor,
+    totalMetrics,
+    factsCount: typeof row.factsCount === 'number' ? row.factsCount : 0,
+    slopCount: typeof row.slopCount === 'number' ? row.slopCount : 0,
+    badgeLabel,
+  };
+};
+
+export type AgentNotificationFeed = {
+  notifications: AgentNotificationItem[];
+  backgroundTasks: AgentBackgroundTaskItem[];
+  unreadCount: number;
+};
+
+export const readAgentNotifications = (
+  body: unknown
+): AgentNotificationFeed => {
+  const record = recordOf(body);
+  const rawNotifications = Array.isArray(record.notifications)
+    ? record.notifications
+    : [];
+  const notifications: AgentNotificationItem[] = [];
+  for (const item of rawNotifications) {
+    const row = recordOf(item);
+    const id = stringOf(row.id);
+    const title = stringOf(row.title);
+    const message = typeof row.message === 'string' ? row.message : '';
+    const status = row.status;
+    if (
+      !id ||
+      !title ||
+      (status !== 'pending' &&
+        status !== 'dispatched' &&
+        status !== 'seen' &&
+        status !== 'dismissed')
+    ) {
+      continue;
+    }
+    notifications.push({
+      id,
+      threadId: stringOf(row.threadId),
+      title,
+      message,
+      status,
+      source: stringOf(row.source) ?? 'agent',
+      createdAt: stringOf(row.createdAt) ?? '',
+    });
+  }
+  const rawTasks = Array.isArray(record.backgroundTasks)
+    ? record.backgroundTasks
+    : [];
+  const backgroundTasks: AgentBackgroundTaskItem[] = [];
+  for (const item of rawTasks) {
+    const row = recordOf(item);
+    const taskId = stringOf(row.taskId);
+    const description = stringOf(row.description);
+    const status = row.status;
+    if (
+      !taskId ||
+      !description ||
+      (status !== 'running' &&
+        status !== 'completed' &&
+        status !== 'failed' &&
+        status !== 'cancelled' &&
+        status !== 'timed_out')
+    ) {
+      continue;
+    }
+    backgroundTasks.push({
+      taskId,
+      threadId: stringOf(row.threadId),
+      description,
+      status,
+      startedAt: stringOf(row.startedAt) ?? '',
+      completedAt: stringOf(row.completedAt),
+      ...(stringOf(row.error) ? { error: stringOf(row.error) } : {}),
+    });
+  }
+  const unreadCount =
+    typeof record.unreadCount === 'number' &&
+    Number.isFinite(record.unreadCount)
+      ? Math.max(0, Math.trunc(record.unreadCount))
+      : notifications.filter(
+          (n) => n.status === 'pending' || n.status === 'dispatched'
+        ).length +
+        backgroundTasks.filter((t) => t.status === 'running').length;
+  return { notifications, backgroundTasks, unreadCount };
 };
 
 /** `GET /agent/threads` → `{ threads }`, newest first. */

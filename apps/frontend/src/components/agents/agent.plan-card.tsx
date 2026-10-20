@@ -23,7 +23,14 @@ import {
   type AgentArtifact,
   type PlanSlotState,
 } from './agent.contract';
-import { AgentCard, Facts, Note, OpenOnScreen } from './agent.cards';
+import {
+  AgentCard,
+  Facts,
+  Note,
+  OpenOnScreen,
+  VoiceScoreBadge,
+  readVoiceScore,
+} from './agent.cards';
 import type { AgentWords } from './agent.copy';
 import { AgentGlyph } from './agent.icons';
 import { livePlanSlot, useFetchedPiece } from './agent.piece-data';
@@ -198,6 +205,7 @@ export function PlanCard({
     Boolean(slot.pieceId) &&
     !gone &&
     (state !== 'reserve' || Boolean(slot.channelId));
+  const voiceScore = readVoiceScore(artifact.data.voiceScore);
 
   return (
     <AgentCard
@@ -207,9 +215,14 @@ export function PlanCard({
       title={shownMoment ?? undefined}
       label={`${kind}: ${channel}${shownMoment ? `, ${shownMoment}` : ''} — ${stateWords}`}
       aside={
-        <span data-agent-plan-state={gone ? 'gone' : state}>
-          <Status tone={gone ? 'neutral' : TONE[state]}>{stateWords}</Status>
-        </span>
+        <>
+          {voiceScore && !gone ? (
+            <VoiceScoreBadge score={voiceScore} words={words} />
+          ) : null}
+          <span data-agent-plan-state={gone ? 'gone' : state}>
+            <Status tone={gone ? 'neutral' : TONE[state]}>{stateWords}</Status>
+          </span>
+        </>
       }
       // Nothing to do with a post that is not there.
       footer={

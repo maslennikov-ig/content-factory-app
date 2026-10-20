@@ -93,6 +93,26 @@ const PATHS = {
       <path d="M6.3 7.1 9.7 5.4M6.3 8.9l3.4 1.7" />
     </>
   ),
+  mic: (
+    <>
+      <rect x="6" y="2.5" width="4" height="6.5" rx="2" />
+      <path d="M4 7.5a4 4 0 008 0M8 11.5v2.5M6 14h4" />
+    </>
+  ),
+  branch: (
+    <>
+      <circle cx="5" cy="4.5" r="1.5" />
+      <circle cx="5" cy="11.5" r="1.5" />
+      <circle cx="11" cy="7.5" r="1.5" />
+      <path d="M5 6v4M5 6.5c0 2 4.5 1 4.5 1" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M4.5 6.5a3.5 3.5 0 017 0c0 3 1.5 4 1.5 4H3s1.5-1 1.5-4z" />
+      <path d="M6.8 12.5a1.5 1.5 0 002.4 0" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type AgentGlyphName = keyof typeof PATHS;

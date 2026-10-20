@@ -66,6 +66,11 @@ type AgentWords = {
     mediaAdded: (name: string, count: number) => string;
     /** A picture shown to the AI in its message, saved nowhere (28.09). */
     pictureViewed: (name: string) => string;
+    /** Forking a conversation from a message (`bxeb.2`). */
+    forkFromMessage: string;
+    forkThread: string;
+    forking: string;
+    forkFailed: string;
   };
   composer: {
     label: string;
@@ -121,6 +126,15 @@ type AgentWords = {
     mediaFailed: string;
     /** A key pasted into the message: removed, nothing sent (`kcxz.20`). */
     keyPasted: string;
+    /** Voice dictation (`bxeb.1`, `@mastra/core/voice`). */
+    voiceRecord: string;
+    voiceRecording: string;
+    voiceCancel: string;
+    voiceToText: string;
+    voiceSendNow: string;
+    voiceTranscribing: string;
+    voiceFailed: string;
+    voiceDenied: string;
   };
   card: {
     openOnScreen: string;
@@ -134,6 +148,19 @@ type AgentWords = {
     pieceQuestions: (count: number) => string;
     /** «вариант N» of an adaptation line: the piece page's word. */
     variant: (index: number) => string;
+    /** Brand voice and fact grounding score badge (`bxeb.3`). */
+    voiceScoreBadge: (
+      rulesMatched: number,
+      rulesTotal: number,
+      factsCount: number
+    ) => string;
+    /** Brand voice and fact grounding score tooltip (`bxeb.3`). */
+    voiceScoreTitle: (
+      inCorridor: number,
+      total: number,
+      facts: number,
+      slop: number
+    ) => string;
   };
   approval: {
     kind: string;
@@ -375,6 +402,13 @@ type AgentWords = {
      */
     fromEditor: EditorDraftWords;
   };
+  notifications: {
+    label: string;
+    empty: string;
+    markAllRead: string;
+    markRead: string;
+    openThread: string;
+  };
 };
 
 export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
@@ -427,6 +461,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       mediaAdded: (name, count) =>
         `${name} — ${count === 1 ? 'картинка' : `${count} ${ruPlural(count, 'картинка', 'картинки', 'картинок')}`} в медиатеке`,
       pictureViewed: (name) => `${name} — ИИ посмотрел, не сохранили`,
+      forkFromMessage: 'Ответвить отсюда',
+      forkThread: 'Клонировать разговор',
+      forking: 'Создаём ветку…',
+      forkFailed: 'Не удалось создать ветку диалога. Попробуйте ещё раз.',
     },
     composer: {
       label: 'Сообщение ИИ-помощнику',
@@ -478,6 +516,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         'Картинки не дошли до медиатеки. Сообщение не отправили — попробуйте ещё раз.',
       keyPasted:
         'В сообщении был ключ — мы убрали его и ничего не отправили: ключи в чат не пишут. Ключ вводит администратор пространства — в карточке «Ключ» (попросите «введи ключ») или в «Настройки → ИИ».',
+      voiceRecord: 'Надиктовать голосом',
+      voiceRecording: 'Запись голоса',
+      voiceCancel: 'Отмена',
+      voiceToText: 'В текст',
+      voiceSendNow: 'Отправить сразу',
+      voiceTranscribing: 'Расшифровываем запись…',
+      voiceFailed: 'Не удалось расшифровать запись. Попробуйте ещё раз.',
+      voiceDenied: 'Нет доступа к микрофону. Разрешите микрофон в браузере.',
     },
     card: {
       openOnScreen: 'Открыть на экране',
@@ -500,6 +546,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pieceQuestions: (count) =>
         `${count} ${ruPlural(count, 'вопрос ждёт', 'вопроса ждут', 'вопросов ждут')} ответа — откройте заготовку и ответьте, прежде чем делать адаптации.`,
       variant: (index) => lowerFirst(piecesCopy.ru.variant(index)),
+      voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
+        `Голос ${rulesMatched}/${rulesTotal} · Факты ${factsCount}`,
+      voiceScoreTitle: (inCorridor, total, facts, slop) =>
+        `Голос бренда: ${total > 0 ? `${inCorridor} из ${total} в коридоре` : 'не настроен'} · Подтверждённых фактов: ${facts}${slop > 0 ? ` · Анти-слоп: ${slop}` : ''}`,
     },
     approval: {
       kind: 'Нужно ваше «да»',
@@ -1128,6 +1178,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           `Напишем пост${channel ? ` для канала «${channel}»` : ''} из одной мысли: `,
       },
     },
+    notifications: {
+      label: 'Поручения и уведомления',
+      empty: 'Новых уведомлений и фоновых поручений нет.',
+      markAllRead: 'Прочитать все',
+      markRead: 'Прочитано',
+      openThread: 'Открыть разговор',
+    },
   },
   en: {
     locale: 'en',
@@ -1177,6 +1234,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       mediaAdded: (name, count) =>
         `${name} — ${count === 1 ? 'a picture' : `${count} pictures`} in the media library`,
       pictureViewed: (name) => `${name} — shown to the AI, not saved`,
+      forkFromMessage: 'Branch from here',
+      forkThread: 'Clone conversation',
+      forking: 'Branching the conversation…',
+      forkFailed: 'Could not branch the conversation — try again.',
     },
     composer: {
       label: 'Message to the AI assistant',
@@ -1227,6 +1288,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         'The pictures did not reach the media library. The message was not sent — try again.',
       keyPasted:
         'The message held a key — we took it out and sent nothing: keys are never written into the chat. An administrator of the workspace enters it — on the Key card (ask to “enter a key”) or in Settings → AI.',
+      voiceRecord: 'Record voice',
+      voiceRecording: 'Recording…',
+      voiceCancel: 'Cancel recording',
+      voiceToText: 'To text',
+      voiceSendNow: 'Send right away',
+      voiceTranscribing: 'Transcribing voice…',
+      voiceFailed: 'Could not transcribe the recording — try again.',
+      voiceDenied: 'Allow microphone access in your browser to dictate.',
     },
     card: {
       openOnScreen: 'Open on screen',
@@ -1249,6 +1318,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pieceQuestions: (count) =>
         `${count} ${count === 1 ? 'question waits' : 'questions wait'} for an answer — open the piece and answer before adapting it.`,
       variant: (index) => lowerFirst(piecesCopy.en.variant(index)),
+      voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
+        `Voice ${rulesMatched}/${rulesTotal} · Facts ${factsCount}`,
+      voiceScoreTitle: (inCorridor, total, facts, slop) =>
+        `Brand voice: ${total > 0 ? `${inCorridor} of ${total} inside the corridor` : 'not configured'} · Confirmed facts: ${facts}${slop > 0 ? ` · Anti-slop: ${slop}` : ''}`,
     },
     approval: {
       kind: 'We need your yes',
@@ -1872,6 +1945,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         empty: (channel: string | null) =>
           `Let’s write a post${channel ? ` for the channel “${channel}”` : ''} from one thought: `,
       },
+    },
+    notifications: {
+      label: 'Tasks & notifications',
+      empty: 'No new notifications or background tasks.',
+      markAllRead: 'Mark all read',
+      markRead: 'Mark read',
+      openThread: 'Open conversation',
     },
   },
 };

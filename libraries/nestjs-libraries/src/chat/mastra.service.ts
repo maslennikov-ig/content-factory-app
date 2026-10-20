@@ -4,10 +4,16 @@ import {
   type OnApplicationShutdown,
   type Type,
 } from '@nestjs/common';
+import { Readable } from 'stream';
 import { ModuleRef } from '@nestjs/core';
 import { Mastra } from '@mastra/core/mastra';
 import { isDurableAgent } from '@mastra/core/agent/durable';
+import type { BackgroundTask } from '@mastra/core/background-tasks';
 import { ConsoleLogger } from '@mastra/core/logger';
+import {
+  InMemoryNotificationsStorage,
+  type NotificationsStorage,
+} from '@mastra/core/notifications';
 import type { RequestContext } from '@mastra/core/request-context';
 import { pStore } from '@contentfactory/nestjs-libraries/chat/mastra.store';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
@@ -15,6 +21,7 @@ import {
   getAiSdkProvider,
   getClassifyDecisionModel,
   getMastraAgentModelEntries,
+  getMastraVoice,
   getModelForRole,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { PermissionsService } from '@contentfactory/backend/services/auth/permissions/permissions.service';
@@ -45,7 +52,22 @@ import { mediaReceiptInWorkspace } from '@contentfactory/nestjs-libraries/chat/c
 import { createConductorMemory } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.memory';
 import { AgentWorkContextResolver } from '@contentfactory/nestjs-libraries/chat/conductor/work-context.resolver';
 import { AgentWorkObjectBrowser } from '@contentfactory/nestjs-libraries/chat/conductor/work-context.browser';
-import type { AgentArtifactRef, AgentWorkContextV1 } from '@contentfactory/nestjs-libraries/chat/capabilities/agent-parts.contract';
+import {
+  AGENT_VOICE_MAX_BYTES,
+  AGENT_VOICE_MEDIA_TYPES,
+  type AgentArtifactRef,
+  type AgentWorkContextV1,
+  type BrandVoiceFactScoreSummary,
+} from '@contentfactory/nestjs-libraries/chat/capabilities/agent-parts.contract';
+import { AgentChatRequestError } from '@contentfactory/nestjs-libraries/chat/conductor/agent-chat.request';
+import { withoutSecretShapes } from '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes';
+import {
+  BRAND_VOICE_SCORER_ID,
+  brandVoiceAndFactsScorer,
+  scoreBrandVoiceAndFacts,
+  type BrandVoiceScorerInput,
+  type BrandVoiceScorerOutput,
+} from '@contentfactory/nestjs-libraries/chat/scorers/brand-voice-facts.scorer';
 
 /**
  * The one Mastra instance of the backend and its one agent, the conductor
@@ -59,6 +81,7 @@ import type { AgentArtifactRef, AgentWorkContextV1 } from '@contentfactory/nestj
 @Injectable()
 export class MastraService implements OnApplicationBootstrap, OnApplicationShutdown {
   private instance?: Mastra;
+  private readonly fallbackNotifications = new InMemoryNotificationsStorage();
 
   constructor(
     private readonly moduleRef: ModuleRef,
@@ -222,11 +245,52 @@ export class MastraService implements OnApplicationBootstrap, OnApplicationShutd
             );
           },
           schedules: () => this.instance?.schedules,
+          notificationsStore: () => this.notificationsStore(),
         }),
       };
       this.instance = new Mastra({
         storage: pStore,
         agents,
+        scorers: {
+          [BRAND_VOICE_SCORER_ID]: brandVoiceAndFactsScorer,
+        },
+        backgroundTasks: {
+          enabled: true,
+          defaultTimeoutMs: 300_000,
+          onTaskComplete: async (task: BackgroundTask) => {
+            if (!task.threadId || !task.resourceId) return;
+            await this.recordNotification({
+              threadId: task.threadId,
+              resourceId: task.resourceId,
+              title: task.toolName,
+              summary: `Фоновое поручение «${task.toolName}» выполнено.`,
+              source: 'background-task',
+              kind: 'task.completed',
+              payload: {
+                taskId: task.id,
+                toolName: task.toolName,
+                status: 'completed',
+              },
+            }).catch(() => undefined);
+          },
+          onTaskFailed: async (task: BackgroundTask) => {
+            if (!task.threadId || !task.resourceId) return;
+            await this.recordNotification({
+              threadId: task.threadId,
+              resourceId: task.resourceId,
+              title: task.toolName,
+              summary: `Фоновое поручение «${task.toolName}» завершилось ошибкой${task.error?.message ? `: ${task.error.message}` : '.'}`,
+              source: 'background-task',
+              kind: 'task.failed',
+              priority: 'high',
+              payload: {
+                taskId: task.id,
+                toolName: task.toolName,
+                status: 'failed',
+              },
+            }).catch(() => undefined);
+          },
+        },
         agentControllers: {
           [CONDUCTOR_AGENT_ID]: buildConductorController(
             agents[CONDUCTOR_AGENT_ID],
@@ -305,6 +369,50 @@ export class MastraService implements OnApplicationBootstrap, OnApplicationShutd
               };
             }
             return undefined;
+          },
+          onFinish: async ({ schedule, outcome, effective }) => {
+            if (
+              outcome !== 'succeeded' &&
+              outcome !== 'delivered' &&
+              outcome !== 'persisted'
+            ) {
+              return;
+            }
+            const threadId = effective.threadId;
+            const resourceId = effective.resourceId;
+            if (!threadId || !resourceId) return;
+            const title =
+              typeof schedule.name === 'string' && schedule.name
+                ? schedule.name
+                : 'Регулярное поручение';
+            await this.recordNotification({
+              threadId,
+              resourceId,
+              title,
+              summary: `Поручение по расписанию «${title}» выполнено.`,
+              source: 'schedule',
+              kind: 'schedule.finished',
+              payload: { scheduleId: schedule.id, outcome },
+            }).catch(() => undefined);
+          },
+          onError: async ({ schedule, error, effective }) => {
+            const threadId = effective?.threadId;
+            const resourceId = effective?.resourceId;
+            if (!threadId || !resourceId) return;
+            const title =
+              typeof schedule.name === 'string' && schedule.name
+                ? schedule.name
+                : 'Регулярное поручение';
+            await this.recordNotification({
+              threadId,
+              resourceId,
+              title,
+              summary: `Поручение по расписанию «${title}» не выполнилось: ${error?.message ?? 'ошибка'}.`,
+              source: 'schedule',
+              kind: 'schedule.error',
+              priority: 'high',
+              payload: { scheduleId: schedule.id },
+            }).catch(() => undefined);
           },
         },
         recovery: {
@@ -463,8 +571,125 @@ export class MastraService implements OnApplicationBootstrap, OnApplicationShutd
     return capabilityToolTitle(CAPABILITY_CATALOGUE, toolName, identity.language);
   }
 
+  /**
+   * Transcribes a recorded voice note through native `@mastra/core/voice`
+   * (`AISDKTranscription`) inside a metered `AiUsageService` admission
+   * (`content-factory-next-bxeb.1`).
+   */
+  async transcribeVoice(
+    identity: CapabilityIdentity,
+    audio: { buffer: Buffer; mimeType?: string }
+  ): Promise<{ text: string }> {
+    const rawMime = (audio.mimeType ?? 'audio/webm')
+      .split(';')[0]
+      ?.trim()
+      .toLowerCase();
+    if (
+      !rawMime ||
+      !(AGENT_VOICE_MEDIA_TYPES as readonly string[]).includes(rawMime)
+    ) {
+      throw new AgentChatRequestError(
+        'AGENT_BAD_REQUEST',
+        400,
+        'Unsupported audio media type.'
+      );
+    }
+    if (
+      !Buffer.isBuffer(audio.buffer) ||
+      audio.buffer.byteLength <= 0 ||
+      audio.buffer.byteLength > AGENT_VOICE_MAX_BYTES
+    ) {
+      throw new AgentChatRequestError(
+        'AGENT_BAD_REQUEST',
+        400,
+        'Audio recording is empty or exceeds the 15 MB limit.'
+      );
+    }
+    const text = await this.aiUsage.executeAiOperation(
+      identity.organizationId,
+      'agent',
+      async () => {
+        const voice = await getMastraVoice(identity.organizationId, {
+          language: identity.language,
+          mimeType: rawMime,
+        });
+        const raw = await voice.listen(Readable.from(audio.buffer), {
+          filetype: rawMime.split('/')[1] ?? 'webm',
+        } as any);
+        return typeof raw === 'string' ? raw : '';
+      },
+      'extract'
+    );
+    return { text: withoutSecretShapes(text).trim() };
+  }
+
+  /**
+   * Evaluates a piece or adaptation against the deterministic Brand Voice &
+   * Fact Grounding `MastraScorer` (`brand-voice-and-facts`) and persists the
+   * score row into `mastra_scores` (`pStore.getStore('scores')`).
+   */
+  async scorePieceOrAdaptation(
+    identity: CapabilityIdentity,
+    input: BrandVoiceScorerInput,
+    output: BrandVoiceScorerOutput,
+    options?: { threadId?: string }
+  ): Promise<BrandVoiceFactScoreSummary> {
+    await this.mastra();
+    const scoresStore = await pStore.getStore('scores').catch(() => null);
+    return scoreBrandVoiceAndFacts(
+      {
+        ...input,
+        organizationId: identity.organizationId,
+        locale: identity.language,
+      },
+      output,
+      {
+        scoresStore,
+        resourceId: conductorResourceId(identity.organizationId, identity.userId),
+        threadId: options?.threadId,
+      }
+    );
+  }
+
   async conductor() {
     return (await this.mastra()).getAgentById(CONDUCTOR_AGENT_ID);
+  }
+
+  async notificationsStore(): Promise<NotificationsStorage> {
+    const store = await pStore.getStore('notifications').catch(() => null);
+    return (store as NotificationsStorage | null) ?? this.fallbackNotifications;
+  }
+
+  async backgroundTaskManager() {
+    return (await this.mastra()).backgroundTaskManager;
+  }
+
+  async recordNotification(input: {
+    threadId: string;
+    resourceId: string;
+    title: string;
+    summary: string;
+    source: string;
+    kind: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    payload?: unknown;
+    metadata?: Record<string, unknown>;
+  }) {
+    const store = await this.notificationsStore();
+    return store.createNotification({
+      threadId: input.threadId,
+      resourceId: input.resourceId,
+      agentId: CONDUCTOR_AGENT_ID,
+      source: input.source,
+      kind: input.kind,
+      summary: withoutSecretShapes(input.summary),
+      priority: input.priority ?? 'medium',
+      payload: input.payload,
+      metadata: {
+        ...input.metadata,
+        title: withoutSecretShapes(input.title),
+      },
+    });
   }
 
   async controller() {

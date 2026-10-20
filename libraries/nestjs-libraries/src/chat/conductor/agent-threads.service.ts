@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Inject,
@@ -9,6 +10,9 @@ import type { MastraDBMessage } from '@mastra/core/memory';
 import { toAISdkMessages } from '@mastra/ai-sdk/ui';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import type {
+  AgentBackgroundTaskItemV1,
+  AgentNotificationItemV1,
+  AgentNotificationStatus,
   AgentPendingRunV1,
   AgentThreadHistoryV1,
   AgentThreadListV1,
@@ -241,6 +245,23 @@ type ConductorMemory = {
   }): Promise<ThreadRow>;
   deleteThread(threadId: string): Promise<void>;
   recall(args: Record<string, unknown>): Promise<{ messages: MastraDBMessage[] } & Partial<AgentPagination>>;
+  cloneThread?(args: {
+    sourceThreadId: string;
+    newThreadId?: string;
+    resourceId?: string;
+    title?: string;
+    metadata?: Record<string, unknown>;
+    options?: {
+      messageLimit?: number;
+      messageFilter?: {
+        startDate?: Date;
+        endDate?: Date;
+        messageIds?: string[];
+      };
+    };
+  }): Promise<{ thread: ThreadRow; clonedMessages?: MastraDBMessage[] }>;
+  deleteMessages?(messageIds: string[]): Promise<void>;
+  saveMessages?(args: { messages: MastraDBMessage[] }): Promise<unknown>;
 };
 
 type ConductorLike = {
@@ -254,12 +275,32 @@ type ConductorLike = {
 const iso = (value: Date | string) =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
-export const threadView = (row: ThreadRow): AgentThreadV1 => ({
-  id: row.id,
-  title: row.title || '',
-  createdAt: iso(row.createdAt),
-  updatedAt: iso(row.updatedAt),
-});
+export const threadView = (row: ThreadRow): AgentThreadV1 => {
+  const cloneMeta =
+    row.metadata?.clone && typeof row.metadata.clone === 'object'
+      ? (row.metadata.clone as Record<string, unknown>)
+      : null;
+  const forkedFromThreadId =
+    typeof row.metadata?.forkedFromThreadId === 'string' &&
+    row.metadata.forkedFromThreadId
+      ? row.metadata.forkedFromThreadId
+      : typeof cloneMeta?.sourceThreadId === 'string' && cloneMeta.sourceThreadId
+        ? cloneMeta.sourceThreadId
+        : null;
+  const forkedFromMessageId =
+    typeof row.metadata?.forkedFromMessageId === 'string' &&
+    row.metadata.forkedFromMessageId
+      ? row.metadata.forkedFromMessageId
+      : null;
+  return {
+    id: row.id,
+    title: row.title || '',
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+    ...(forkedFromThreadId ? { forkedFromThreadId } : {}),
+    ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
+  };
+};
 
 /**
  * What still waits, as the screen redraws it. An approval carries its
@@ -908,6 +949,169 @@ export class AgentThreadsService {
   }
 
   /**
+   * Forks or clones an owned conversation (`bxeb.2`).
+   * Uses native `Session.thread.clone` / `memory.cloneThread`, preserving
+   * `AgentWorkspaceV1` and optionally truncating history after `upToMessageId`.
+   */
+  async fork(
+    identity: CapabilityIdentity,
+    sourceThreadId: string,
+    options?: { upToMessageId?: string | null; title?: string | null }
+  ): Promise<AgentThreadV1> {
+    const source = await this.requireOwnThread(identity, sourceThreadId);
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const memory = await this.memory();
+    const upToMessageId =
+      typeof options?.upToMessageId === 'string' && options.upToMessageId.trim()
+        ? options.upToMessageId.trim()
+        : null;
+
+    const { messages: sourceMessages } = await this.readMessages(
+      identity,
+      sourceThreadId,
+      { page: 0, perPage: AGENT_HISTORY_MESSAGES }
+    );
+    let keptMessages = sourceMessages;
+    if (upToMessageId) {
+      const index = sourceMessages.findIndex((msg) => msg.id === upToMessageId);
+      if (index === -1) {
+        throw new BadRequestException({
+          code: 'AGENT_BAD_REQUEST',
+          message: 'The message to branch from was not found in this conversation.',
+        });
+      }
+      keptMessages = sourceMessages.slice(0, index + 1);
+    }
+
+    const suffix = identity.language === 'en' ? ' (branch)' : ' (ветка)';
+    const fallbackTitle =
+      identity.language === 'en' ? 'New branch' : 'Новая ветка';
+    const rawCustomTitle =
+      typeof options?.title === 'string' ? options.title.trim() : '';
+    const baseTitle = source.title?.trim()
+      ? `${source.title.trim().slice(0, 120 - suffix.length)}${suffix}`
+      : fallbackTitle;
+    const branchTitle = rawCustomTitle
+      ? rawCustomTitle.slice(0, 120)
+      : baseTitle;
+
+    const workspace = readStoredAgentWorkspace(source.metadata);
+    const forkMetadata: Record<string, unknown> = {
+      [AGENT_WORKSPACE_METADATA_KEY]: workspace,
+      forkedFromThreadId: source.id,
+      ...(upToMessageId ? { forkedFromMessageId: upToMessageId } : {}),
+    };
+
+    const session = await this.sessionFor(identity, sourceThreadId, {
+      bindThread: true,
+    }).catch(() => undefined);
+
+    let clonedRow: ThreadRow | null = null;
+    if (session?.thread?.clone && !upToMessageId) {
+      const cloned = await session.thread.clone({
+        sourceThreadId: source.id,
+        title: branchTitle,
+        resourceId,
+      });
+      clonedRow = await memory.updateThread({
+        id: cloned.id,
+        title: branchTitle,
+        metadata: {
+          ...(cloned.metadata ?? {}),
+          ...forkMetadata,
+        },
+      });
+    } else if (typeof memory.cloneThread === 'function') {
+      const cloned = await memory.cloneThread({
+        sourceThreadId: source.id,
+        resourceId,
+        title: branchTitle,
+        metadata: forkMetadata,
+        ...(upToMessageId
+          ? {
+              options: {
+                messageFilter: {
+                  messageIds: keptMessages.map((msg) => msg.id),
+                },
+              },
+            }
+          : {}),
+      });
+      clonedRow = await memory.updateThread({
+        id: cloned.thread.id,
+        title: branchTitle,
+        metadata: {
+          ...(cloned.thread.metadata ?? {}),
+          ...forkMetadata,
+        },
+      });
+      await this.sessionFor(identity, clonedRow.id, { bindThread: true }).catch(
+        () => undefined
+      );
+    } else if (session?.thread?.clone) {
+      const cloned = await session.thread.clone({
+        sourceThreadId: source.id,
+        title: branchTitle,
+        resourceId,
+      });
+      if (upToMessageId && typeof memory.deleteMessages === 'function') {
+        const recalled = await memory.recall({
+          threadId: cloned.id,
+          resourceId,
+          page: 0,
+          perPage: AGENT_HISTORY_MESSAGES,
+          orderBy: { field: 'createdAt', direction: 'DESC' },
+        });
+        const sorted = [...recalled.messages].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        const extraIds = sorted
+          .slice(keptMessages.length)
+          .map((msg) => msg.id)
+          .filter(Boolean);
+        if (extraIds.length > 0) {
+          await memory.deleteMessages(extraIds);
+        }
+      }
+      clonedRow = await memory.updateThread({
+        id: cloned.id,
+        title: branchTitle,
+        metadata: {
+          ...(cloned.metadata ?? {}),
+          ...forkMetadata,
+        },
+      });
+    } else {
+      const newThreadId = randomUUID();
+      clonedRow = await memory.createThread({
+        threadId: newThreadId,
+        resourceId,
+        title: branchTitle,
+        metadata: forkMetadata,
+      });
+      if (keptMessages.length > 0 && typeof memory.saveMessages === 'function') {
+        await memory.saveMessages({
+          messages: keptMessages.map((msg) => ({
+            ...msg,
+            id: randomUUID(),
+            threadId: newThreadId,
+            resourceId,
+          })),
+        });
+      }
+      await this.sessionFor(identity, clonedRow.id, { bindThread: true }).catch(
+        () => undefined
+      );
+    }
+
+    return threadView(clonedRow);
+  }
+
+  /**
    * Switches the active model for a thread via native `Session.model.switch` (`on0i.1`, `on0i.5`).
    */
   async switchModel(
@@ -1357,6 +1561,355 @@ export class AgentThreadsService {
     };
   }
 
+  private async resolveNotificationsStorage() {
+    if (typeof (this.mastraService as any).notificationsStore === 'function') {
+      const direct = await (this.mastraService as any).notificationsStore();
+      if (direct) return direct;
+    }
+    const mastra = (await this.mastraService.mastra?.()) as any;
+    const store = await mastra?.getStorage?.()?.getStore?.('notifications');
+    return store ?? null;
+  }
+
+  private async resolveBackgroundTaskManager() {
+    if (typeof (this.mastraService as any).backgroundTaskManager === 'function') {
+      const direct = await (this.mastraService as any).backgroundTaskManager();
+      if (direct) return direct;
+    }
+    const mastra = (await this.mastraService.mastra?.()) as any;
+    return mastra?.backgroundTaskManager ?? null;
+  }
+
+  private mapNotificationStatus(rawStatus: unknown): AgentNotificationStatus {
+    if (rawStatus === 'delivered' || rawStatus === 'dispatched') {
+      return 'dispatched';
+    }
+    if (rawStatus === 'seen') {
+      return 'seen';
+    }
+    if (
+      rawStatus === 'dismissed' ||
+      rawStatus === 'archived' ||
+      rawStatus === 'discarded'
+    ) {
+      return 'dismissed';
+    }
+    return 'pending';
+  }
+
+  /**
+   * Lists notifications and active/recent background tasks for the caller's
+   * `resourceId` (`content-factory-next-bxeb.4`).
+   */
+  async listNotifications(
+    identity: CapabilityIdentity,
+    options?: { threadId?: string; limit?: number }
+  ): Promise<{
+    notifications: AgentNotificationItemV1[];
+    backgroundTasks: AgentBackgroundTaskItemV1[];
+    unreadCount: number;
+  }> {
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const limit = Math.min(Math.max(options?.limit ?? 30, 1), 100);
+    let targetThreadIds: string[];
+    if (options?.threadId) {
+      await this.requireOwnThread(identity, options.threadId);
+      targetThreadIds = [options.threadId];
+    } else {
+      const listed = await (await this.memory())
+        .listThreads({
+          filter: { resourceId },
+          page: 0,
+          perPage: 25,
+          orderBy: { field: 'updatedAt', direction: 'DESC' },
+        })
+        .catch(() => ({ threads: [] as ThreadRow[] }));
+      targetThreadIds = listed.threads
+        .filter((row) => row.resourceId === resourceId)
+        .map((row) => row.id);
+    }
+
+    const notificationsStore = await this.resolveNotificationsStorage();
+    const rawNotifications = new Map<string, any>();
+    if (notificationsStore?.listNotifications) {
+      const queryThreadIds = Array.from(
+        new Set([...targetThreadIds, ...(options?.threadId ? [] : [resourceId])])
+      );
+      for (const tid of queryThreadIds) {
+        const items = await notificationsStore
+          .listNotifications({
+            threadId: tid,
+            resourceId,
+            limit,
+          })
+          .catch(() => []);
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            if (
+              item &&
+              typeof item.id === 'string' &&
+              (!item.resourceId || item.resourceId === resourceId)
+            ) {
+              rawNotifications.set(item.id, item);
+            }
+          }
+        }
+      }
+    }
+
+    const notifications: AgentNotificationItemV1[] = [...rawNotifications.values()]
+      .map((item) => {
+        const status = this.mapNotificationStatus(item.status);
+        const rawTitle =
+          typeof item.metadata?.title === 'string' && item.metadata.title
+            ? item.metadata.title
+            : typeof item.title === 'string' && item.title
+              ? item.title
+              : typeof item.kind === 'string' && item.kind
+                ? item.kind
+                : 'Уведомление';
+        const rawMessage =
+          typeof item.summary === 'string'
+            ? item.summary
+            : typeof item.message === 'string'
+              ? item.message
+              : '';
+        return {
+          id: String(item.id),
+          threadId:
+            typeof item.threadId === 'string' &&
+            item.threadId &&
+            item.threadId !== resourceId
+              ? item.threadId
+              : null,
+          title: redactSecretShapes(rawTitle),
+          message: redactSecretShapes(rawMessage),
+          status,
+          source: typeof item.source === 'string' ? item.source : 'agent',
+          createdAt: iso(item.createdAt ?? new Date()),
+        };
+      })
+      .filter((item) => item.status !== 'dismissed')
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .slice(0, limit);
+
+    const taskManager = await this.resolveBackgroundTaskManager();
+    const backgroundTasks: AgentBackgroundTaskItemV1[] = [];
+    if (taskManager?.listTasks) {
+      const taskResult = await taskManager
+        .listTasks({
+          resourceId,
+          ...(options?.threadId ? { threadId: options.threadId } : {}),
+          orderBy: 'createdAt',
+          orderDirection: 'desc',
+          page: 0,
+          perPage: limit,
+        })
+        .catch(() => ({ tasks: [] }));
+      const tasks = Array.isArray(taskResult?.tasks)
+        ? taskResult.tasks
+        : Array.isArray(taskResult)
+          ? taskResult
+          : [];
+      for (const task of tasks) {
+        if (!task || task.resourceId !== resourceId) continue;
+        if (options?.threadId && task.threadId !== options.threadId) continue;
+        const toolLabel =
+          (this.mastraService as any).toolTitle?.(identity, task.toolName) ??
+          task.toolName ??
+          'Поручение';
+        const status: AgentBackgroundTaskItemV1['status'] =
+          task.status === 'pending' ||
+          task.status === 'running' ||
+          task.status === 'suspended'
+            ? 'running'
+            : task.status === 'completed' ||
+                task.status === 'failed' ||
+                task.status === 'cancelled' ||
+                task.status === 'timed_out'
+              ? task.status
+              : 'running';
+        backgroundTasks.push({
+          taskId: String(task.id ?? task.taskId ?? ''),
+          threadId:
+            typeof task.threadId === 'string' && task.threadId
+              ? task.threadId
+              : null,
+          description: redactSecretShapes(String(toolLabel)),
+          status,
+          startedAt: iso(task.startedAt ?? task.createdAt ?? new Date()),
+          completedAt: task.completedAt ? iso(task.completedAt) : null,
+          ...(task.error?.message
+            ? { error: redactSecretShapes(String(task.error.message)) }
+            : {}),
+        });
+      }
+    }
+
+    const unreadNotifications = notifications.filter(
+      (n) => n.status === 'pending' || n.status === 'dispatched'
+    ).length;
+    const runningTasks = backgroundTasks.filter(
+      (t) => t.status === 'running'
+    ).length;
+
+    return {
+      notifications,
+      backgroundTasks,
+      unreadCount: unreadNotifications + runningTasks,
+    };
+  }
+
+  /**
+   * Marks a single notification owned by the caller's `resourceId` as `seen`.
+   */
+  async markNotificationRead(
+    identity: CapabilityIdentity,
+    notificationId: string,
+    threadId?: string
+  ) {
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const store = await this.resolveNotificationsStorage();
+    if (!store?.updateNotification) {
+      throw new NotFoundException({
+        code: 'AGENT_NOTIFICATION_NOT_FOUND',
+        message: 'Notification not found.',
+      });
+    }
+    let candidateThreadIds: string[];
+    if (threadId) {
+      await this.requireOwnThread(identity, threadId);
+      candidateThreadIds = [threadId];
+    } else {
+      const listed = await (await this.memory())
+        .listThreads({
+          filter: { resourceId },
+          page: 0,
+          perPage: 25,
+          orderBy: { field: 'updatedAt', direction: 'DESC' },
+        })
+        .catch(() => ({ threads: [] as ThreadRow[] }));
+      candidateThreadIds = [
+        ...listed.threads
+          .filter((row) => row.resourceId === resourceId)
+          .map((row) => row.id),
+        resourceId,
+      ];
+    }
+
+    for (const tid of candidateThreadIds) {
+      const existing = await store
+        .getNotification?.({ threadId: tid, id: notificationId })
+        .catch(() => null);
+      if (existing) {
+        if (existing.resourceId && existing.resourceId !== resourceId) {
+          throw notYours();
+        }
+        const updated = await store.updateNotification({
+          id: notificationId,
+          threadId: tid,
+          status: 'seen',
+        });
+        return {
+          ok: true,
+          id: updated?.id ?? notificationId,
+          status: 'seen' as const,
+        };
+      }
+    }
+
+    throw new NotFoundException({
+      code: 'AGENT_NOTIFICATION_NOT_FOUND',
+      message: 'Notification not found.',
+    });
+  }
+
+  /**
+   * Marks all unread notifications for the caller's `resourceId` (or a specific
+   * owned thread) as `seen`.
+   */
+  async markAllNotificationsRead(
+    identity: CapabilityIdentity,
+    threadId?: string
+  ) {
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const store = await this.resolveNotificationsStorage();
+    if (!store?.listNotifications) {
+      return { ok: true, markedCount: 0 };
+    }
+    let candidateThreadIds: string[];
+    if (threadId) {
+      await this.requireOwnThread(identity, threadId);
+      candidateThreadIds = [threadId];
+    } else {
+      const listed = await (await this.memory())
+        .listThreads({
+          filter: { resourceId },
+          page: 0,
+          perPage: 25,
+          orderBy: { field: 'updatedAt', direction: 'DESC' },
+        })
+        .catch(() => ({ threads: [] as ThreadRow[] }));
+      candidateThreadIds = [
+        ...listed.threads
+          .filter((row) => row.resourceId === resourceId)
+          .map((row) => row.id),
+        resourceId,
+      ];
+    }
+
+    let markedCount = 0;
+    for (const tid of Array.from(new Set(candidateThreadIds))) {
+      const list = await store
+        .listNotifications({
+          threadId: tid,
+          resourceId,
+          status: ['pending', 'delivered'],
+        })
+        .catch(() => []);
+      const ids = Array.isArray(list)
+        ? list
+            .filter(
+              (item: any) =>
+                item &&
+                typeof item.id === 'string' &&
+                (!item.resourceId || item.resourceId === resourceId)
+            )
+            .map((item: any) => String(item.id))
+        : [];
+      if (ids.length > 0) {
+        if (typeof store.updateNotificationsStatus === 'function') {
+          const updated = await store
+            .updateNotificationsStatus({
+              threadId: tid,
+              ids,
+              status: 'seen',
+            })
+            .catch(() => []);
+          markedCount += Array.isArray(updated) ? updated.length : ids.length;
+        } else if (typeof store.updateNotification === 'function') {
+          for (const id of ids) {
+            await store
+              .updateNotification({ id, threadId: tid, status: 'seen' })
+              .catch(() => null);
+            markedCount += 1;
+          }
+        }
+      }
+    }
+
+    return { ok: true, markedCount };
+  }
+
   /**
    * Deleting a thread deletes what still waits in it too (correctness review
    * W1 F12): a suspended run's snapshot holds the call's arguments, the card's
@@ -1370,12 +1923,34 @@ export class AgentThreadsService {
     await this.forgetThreadSchedules(resourceId, threadId).catch(
       (): undefined => undefined
     );
+    await this.forgetThreadBackgroundTasks(resourceId, threadId).catch(
+      (): undefined => undefined
+    );
     await (await this.mastraService.controller?.())?.deleteSession({
       resourceId,
       scope: threadId,
     }).catch((): undefined => undefined);
     await (await this.memory()).deleteThread(threadId);
     return { deleted: true };
+  }
+
+  private async forgetThreadBackgroundTasks(
+    resourceId: string,
+    threadId: string
+  ) {
+    const taskManager = await this.resolveBackgroundTaskManager();
+    if (!taskManager?.listTasks || !taskManager?.cancel) return;
+    const listed = await taskManager.listTasks({
+      resourceId,
+      threadId,
+      status: ['pending', 'running', 'suspended'],
+    });
+    const tasks = Array.isArray(listed?.tasks) ? listed.tasks : [];
+    for (const task of tasks) {
+      if (task?.id && task.resourceId === resourceId && task.threadId === threadId) {
+        await taskManager.cancel(task.id).catch((): undefined => undefined);
+      }
+    }
   }
 
   private async forgetThreadSchedules(resourceId: string, threadId: string) {

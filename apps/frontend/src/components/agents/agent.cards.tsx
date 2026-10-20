@@ -19,6 +19,7 @@ import {
   type AgentQuestion,
   type AgentSubagentView,
   type AgentTaskItem,
+  type BrandVoiceFactScoreSummary,
 } from './agent.contract';
 import { errorWordsFor, type AgentWords } from './agent.copy';
 import { AgentGlyph, type AgentGlyphName } from './agent.icons';
@@ -230,6 +231,66 @@ export const artifactOwnName = (
   return own && own !== kind ? own : null;
 };
 
+export const readVoiceScore = (raw: unknown): BrandVoiceFactScoreSummary | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.rulesMatched !== 'number' ||
+    typeof r.rulesTotal !== 'number' ||
+    r.rulesTotal <= 0 ||
+    typeof r.factsCount !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    scorerId: typeof r.scorerId === 'string' ? r.scorerId : 'brand-voice-and-facts',
+    score: typeof r.score === 'number' ? r.score : r.rulesMatched / r.rulesTotal,
+    rulesMatched: r.rulesMatched,
+    rulesTotal: r.rulesTotal,
+    factsCount: r.factsCount,
+    ...(typeof r.slopCount === 'number' ? { slopCount: r.slopCount } : {}),
+    ...(r.verdict === 'CLOSE' || r.verdict === 'FAR' || r.verdict === 'UNKNOWN'
+      ? { verdict: r.verdict }
+      : {}),
+    ...(typeof r.reason === 'string' ? { reason: r.reason } : {}),
+  };
+};
+
+export function VoiceScoreBadge({
+  score,
+  words,
+}: {
+  score: BrandVoiceFactScoreSummary;
+  words: AgentWords;
+}) {
+  const title =
+    score.reason ||
+    words.card.voiceScoreTitle(
+      score.rulesMatched,
+      score.rulesTotal,
+      score.factsCount,
+      score.slopCount ?? 0
+    );
+  return (
+    <span
+      data-agent-voice-score={score.scorerId}
+      title={title}
+      className={clsx(
+        'inline-flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[8px] py-[4px] cf-caption',
+        score.verdict === 'FAR'
+          ? 'border-cf-warning bg-cf-warning-soft text-cf-warning'
+          : 'border-cf-border bg-cf-surface-subtle text-cf-ink-muted'
+      )}
+    >
+      {words.card.voiceScoreBadge(
+        score.rulesMatched,
+        score.rulesTotal,
+        score.factsCount
+      )}
+    </span>
+  );
+}
+
 /**
  * A thing the turn produced, as one line (canvas C «свёрнутые строки»): its
  * kind, its name, and either «открыто рядом» or the control that opens it.
@@ -268,6 +329,7 @@ export function ArtifactLine({
     (latest || loaded)
       ? artifact.data.questions
       : 0;
+  const voiceScore = readVoiceScore(artifact.data.voiceScore);
   return (
     <div
       data-agent-artifact={artifact.kind}
@@ -297,6 +359,9 @@ export function ArtifactLine({
         <span className="hidden shrink-0 cf-caption text-cf-ink-muted sm:inline">
           {artifact.code}
         </span>
+      ) : null}
+      {voiceScore && !removed ? (
+        <VoiceScoreBadge score={voiceScore} words={words} />
       ) : null}
       {removed ? (
         <span className="shrink-0 pe-[4px] cf-caption text-cf-ink-muted">

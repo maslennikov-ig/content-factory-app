@@ -10,7 +10,11 @@ import {
   workspaceChannels,
   type PieceWorkspaceV1,
 } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
-import type { AgentArtifact, PlanSlotState } from './agent.contract';
+import type {
+  AgentArtifact,
+  BrandVoiceFactScoreSummary,
+  PlanSlotState,
+} from './agent.contract';
 
 /**
  * What the chat knows of a piece from the piece's own data (`kcxz.31`).
@@ -99,6 +103,61 @@ const POST_SLOT: Record<string, PlanSlotState> = {
   error: 'error',
 };
 
+const derivePieceVoiceScore = (
+  piece: PieceWorkspaceV1,
+  adaptationId?: string
+): BrandVoiceFactScoreSummary | null => {
+  const coreAny = piece.core as Record<string, any> | null | undefined;
+  const facts = Array.isArray(coreAny?.brief?.facts) ? coreAny.brief.facts : [];
+  const factsCount = facts.filter(
+    (f: any) => typeof f === 'string' ? f.trim() : Boolean(f?.statement)
+  ).length;
+
+  if (adaptationId) {
+    const row = (piece.adaptations ?? []).find((one) => one.id === adaptationId) as
+      | Record<string, any>
+      | undefined;
+    const checks = row?.checks as Record<string, any> | undefined;
+    if (!checks) return null;
+    const slopCount = Array.isArray(checks.slop?.findings)
+      ? checks.slop.findings.length
+      : 0;
+    const rulesTotal = 5;
+    const rulesMatched = Math.max(0, rulesTotal - Math.min(rulesTotal, slopCount));
+    const verdict =
+      checks.voice?.verdict === 'CLOSE' ||
+      checks.voice?.verdict === 'FAR' ||
+      checks.voice?.verdict === 'UNKNOWN'
+        ? checks.voice.verdict
+        : 'UNKNOWN';
+    return {
+      scorerId: 'brand-voice-and-facts',
+      score: Number((rulesMatched / rulesTotal).toFixed(4)),
+      rulesMatched,
+      rulesTotal,
+      factsCount,
+      slopCount,
+      verdict,
+    };
+  }
+
+  if (!coreAny?.slop && !facts.length) return null;
+  const slopCount = Array.isArray(coreAny?.slop?.findings)
+    ? coreAny.slop.findings.length
+    : 0;
+  const rulesTotal = 5;
+  const rulesMatched = Math.max(0, rulesTotal - Math.min(rulesTotal, slopCount));
+  return {
+    scorerId: 'brand-voice-and-facts',
+    score: Number((rulesMatched / rulesTotal).toFixed(4)),
+    rulesMatched,
+    rulesTotal,
+    factsCount,
+    slopCount,
+    verdict: 'UNKNOWN',
+  };
+};
+
 /**
  * The artifact with what the loaded piece adds (D8, D12): an adaptation card
  * that named only `{id, pieceId}` gets its channel and «вариант N»; a piece
@@ -111,18 +170,34 @@ export const withPieceData = (
   if (!piece) return artifact;
   if (artifact.kind === 'piece') {
     const questions = piece.core?.questions?.items.length ?? 0;
-    return artifact.data.questions === questions
-      ? artifact
-      : { ...artifact, data: { ...artifact.data, questions } };
+    const voiceScore =
+      artifact.data.voiceScore ?? derivePieceVoiceScore(piece) ?? undefined;
+    if (artifact.data.questions === questions && artifact.data.voiceScore === voiceScore) {
+      return artifact;
+    }
+    return {
+      ...artifact,
+      data: {
+        ...artifact.data,
+        questions,
+        ...(voiceScore ? { voiceScore } : {}),
+      },
+    };
   }
   if (artifact.kind !== 'adaptation') return artifact;
   const place = adaptationPlace(workspaceChannels(piece), artifact.id);
-  if (!place) return artifact;
+  const voiceScore =
+    artifact.data.voiceScore ?? derivePieceVoiceScore(piece, artifact.id) ?? undefined;
+  if (!place) {
+    return voiceScore && !artifact.data.voiceScore
+      ? { ...artifact, data: { ...artifact.data, voiceScore } }
+      : artifact;
+  }
   const channel = artifact.data.channel;
   const hasChannel =
     !!channel && typeof channel === 'object' && !!textOf((channel as { id?: unknown }).id);
   const hasVariant = typeof artifact.data.variant === 'number' && artifact.data.variant > 0;
-  if (hasChannel && hasVariant) return artifact;
+  if (hasChannel && hasVariant && (!voiceScore || artifact.data.voiceScore)) return artifact;
   return {
     ...artifact,
     data: {
@@ -131,6 +206,7 @@ export const withPieceData = (
         ? {}
         : { channel: { id: place.channel.id, name: place.channel.name } }),
       ...(hasVariant ? {} : { variant: place.variant }),
+      ...(voiceScore && !artifact.data.voiceScore ? { voiceScore } : {}),
     },
   };
 };

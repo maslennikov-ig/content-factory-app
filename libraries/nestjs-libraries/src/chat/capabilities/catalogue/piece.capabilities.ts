@@ -41,7 +41,8 @@ import {
   unspentFailure,
 } from './selection';
 import { slotStateOf } from './plan.capabilities';
-import type { PlanSlotState } from '../agent-parts.contract';
+import type { BrandVoiceFactScoreSummary, PlanSlotState } from '../agent-parts.contract';
+import { scoreBrandVoiceAndFacts } from '../../scorers/brand-voice-facts.scorer';
 
 /**
  * Content (spec §5.2 «Контент», `kcxz.6`, `kcxz.12`). Each capability calls
@@ -149,12 +150,19 @@ type PieceCreated = {
   selectionOrigin?: 'person' | 'model';
   reusedResearchId?: string;
   requestBasis?: 'original_request' | 'research_query';
+  voiceScore?: BrandVoiceFactScoreSummary;
 };
 
 type PieceCreateResult = PieceCreated | ResearchReady;
 
 type IntakePass =
-  | { kind: 'piece'; pieceId: string; code: string | null; questions: number }
+  | {
+      kind: 'piece';
+      pieceId: string;
+      code: string | null;
+      questions: number;
+      voiceScore?: BrandVoiceFactScoreSummary;
+    }
   | { kind: 'selection'; selection: FactSelection; research: ResearchReady }
   | { kind: 'research'; research: ResearchReady };
 
@@ -190,7 +198,30 @@ const collectIntakePass = async (
       transient: true,
     });
     if (named.name === 'piece') {
-      created = { kind: 'piece', pieceId: named.pieceId, code: named.code ?? null, questions: 0 };
+      let voiceScore: BrandVoiceFactScoreSummary | undefined = named.voiceScore;
+      if (!voiceScore && named.core && (named.core.slop || named.core.brief?.facts)) {
+        voiceScore = await scoreBrandVoiceAndFacts(
+          {
+            organizationId: ctx.organizationId,
+            locale: ctx.language,
+            platform: 'core',
+            facts: Array.isArray(named.core.brief?.facts) ? named.core.brief.facts : 0,
+            voiceCheck: named.core.voiceCheck ?? null,
+          },
+          {
+            text: String(named.core.text ?? ''),
+            entityId: String(named.pieceId ?? ''),
+            entityType: 'piece',
+          }
+        );
+      }
+      created = {
+        kind: 'piece',
+        pieceId: named.pieceId,
+        code: named.code ?? null,
+        questions: 0,
+        ...(voiceScore ? { voiceScore } : {}),
+      };
     }
     // The service yields `questions` after the piece (`intake.service.ts`);
     // `piece-questions` is the name the wire contract also declares. Either
@@ -306,7 +337,8 @@ export const pieceCreate = defineCapability({
       if (pass.kind !== 'piece') throw intakeFailure('INTAKE_RESEARCH_INCOMPLETE', 'The investigation needs assessment before a piece can be written.');
       return { pieceId: pass.pieceId, code: pass.code, questions: pass.questions,
         research: null, factsKept: factKeys.length, factsCard: 'not_shown',
-        selectionOrigin: 'model', reusedResearchId: snapshotKey };
+        selectionOrigin: 'model', reusedResearchId: snapshotKey,
+        ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}) };
     }
 
     const level: ResearchLevel | null =
@@ -383,6 +415,7 @@ export const pieceCreate = defineCapability({
         ...(snapshotKey ? { reusedResearchId: snapshotKey } : {}),
         ...(storedEvidence ? { requestBasis: input.text || input.sourceLeadId ? 'original_request' as const : 'research_query' as const } : {}),
         ...(input.sourceLeadId ? { fromLead: input.sourceLeadId } : {}),
+        ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}),
       };
     };
     // The second request of the screen: the same body, the rows kept and the
@@ -487,6 +520,7 @@ export const pieceCreate = defineCapability({
     id: output.pieceId,
     code: output.code,
     questions: output.questions,
+    ...(output.voiceScore ? { voiceScore: output.voiceScore } : {}),
   }),
 });
 
@@ -516,11 +550,18 @@ export const pieceCreateFromResearch = defineCapability({
       intake.selectResearchForModel(ctx.organizationId, ctx.userId, input.snapshotKey, input.factKeys), emit);
     if (pass.kind !== 'piece') throw intakeFailure('INTAKE_RESEARCH_INCOMPLETE', 'The investigation needs assessment before a piece can be written.');
     return { pieceId: pass.pieceId, code: pass.code, questions: pass.questions,
-      research: null, factsKept: input.factKeys.length, factsCard: 'not_shown', selectionOrigin: 'model', reusedResearchId: input.snapshotKey };
+      research: null, factsKept: input.factKeys.length, factsCard: 'not_shown', selectionOrigin: 'model', reusedResearchId: input.snapshotKey,
+      ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}) };
   },
   personQuestions: { opens: (summary) => Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null },
   summarize: (output) => ({ ...output, outcome: 'created', note: 'The requested piece is saved with model-origin fact selection. No facts card is waiting; continue other requested steps.' }),
-  cardOf: (output) => ({ kind: 'piece', id: output.pieceId, code: output.code, questions: output.questions }),
+  cardOf: (output) => ({
+    kind: 'piece',
+    id: output.pieceId,
+    code: output.code,
+    questions: output.questions,
+    ...(output.voiceScore ? { voiceScore: output.voiceScore } : {}),
+  }),
 });
 
 /** The id the screen gives a question: its material key, or its brief field. */

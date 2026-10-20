@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import {
+  isTelegramSupportOrSystemCommand,
   parseTelegramUpdate,
+  type TelegramAgentChannelHandler,
+  type TelegramAgentLinkedMember,
+  type TelegramMessageLike,
   TelegramUpdateAction,
   TelegramUpdateLike,
 } from '@contentfactory/nestjs-libraries/integrations/telegram.update.parser';
@@ -89,11 +93,27 @@ const isTelegramConflict = (error: unknown) => {
  * unreachable. The write is the single source of truth; this reply is best-
  * effort UX riding on top of it.
  */
-type PostCommitEffect = {
-  kind: 'send-message';
-  chatId: string;
-  message: string;
-};
+type PostCommitEffect =
+  | {
+      kind: 'send-message';
+      chatId: string;
+      message: string;
+    }
+  | {
+      kind: 'agent-message';
+      member: TelegramAgentLinkedMember;
+      message: TelegramMessageLike;
+    }
+  | {
+      kind: 'agent-callback';
+      member: TelegramAgentLinkedMember;
+      action: Extract<TelegramUpdateAction, { kind: 'agent-callback' }>;
+    }
+  | {
+      kind: 'answer-callback';
+      callbackQueryId: string;
+      text: string;
+    };
 
 const isDuplicateReceipt = (error: unknown) => {
   const failure = error as {
@@ -145,8 +165,18 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
    * outage.
    */
   private telegramConflictWarningLogged = false;
+  private agentChannel?: TelegramAgentChannelHandler;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    agentChannel?: TelegramAgentChannelHandler
+  ) {
+    this.agentChannel = agentChannel;
+  }
+
+  registerAgentChannel(handler: TelegramAgentChannelHandler) {
+    this.agentChannel = handler;
+  }
 
   onModuleInit() {
     if (!process.env.TELEGRAM_TOKEN) {
@@ -299,7 +329,9 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
         ? { offset: cursor._max.updateId + 1 }
         : {}),
       timeout: 20,
-      allowed_updates: ['message', 'channel_post', 'message_reaction_count'],
+      allowed_updates: this.agentChannel
+        ? ['message', 'channel_post', 'message_reaction_count', 'callback_query']
+        : ['message', 'channel_post', 'message_reaction_count'],
     })) as unknown as TelegramUpdateLike[];
 
     // The lease was taken before a long poll that runs for up to 20 seconds,
@@ -618,7 +650,8 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
           const effect = await this.applyAction(
             transaction,
             update.update_id,
-            action
+            action,
+            update
           );
           if (effect) {
             collected.push(effect);
@@ -659,7 +692,25 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
   private async deliverPostCommitEffects(effects: PostCommitEffect[]) {
     for (const effect of effects) {
       try {
-        await this.bot.sendMessage(effect.chatId, effect.message);
+        if (effect.kind === 'send-message') {
+          await this.bot.sendMessage(effect.chatId, effect.message);
+        } else if (effect.kind === 'agent-message') {
+          await this.agentChannel?.handleIncomingMessage(
+            this.bot,
+            effect.member,
+            effect.message
+          );
+        } else if (effect.kind === 'agent-callback') {
+          await this.agentChannel?.handleCallbackQuery(
+            this.bot,
+            effect.member,
+            effect.action
+          );
+        } else if (effect.kind === 'answer-callback') {
+          await this.bot.answerCallbackQuery?.(effect.callbackQueryId, {
+            text: effect.text,
+          });
+        }
       } catch (error) {
         this.logger.warn(
           `Telegram reply to chat could not be delivered`,
@@ -672,8 +723,32 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
   private async applyAction(
     transaction: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
     updateId: number,
-    action: TelegramUpdateAction
+    action: TelegramUpdateAction,
+    update?: TelegramUpdateLike
   ): Promise<PostCommitEffect | void> {
+    if (action.kind === 'agent-callback') {
+      if (!this.agentChannel) {
+        return;
+      }
+      const member = await this.agentChannel.resolveLinkedMemberByTelegramId(
+        transaction,
+        action.fromUserId,
+        action.chatId
+      );
+      if (!member) {
+        return {
+          kind: 'answer-callback',
+          callbackQueryId: action.callbackQueryId,
+          text: 'Аккаунт Telegram не привязан к рабочей области.',
+        };
+      }
+      return {
+        kind: 'agent-callback',
+        member,
+        action,
+      };
+    }
+
     if (action.kind === 'admin-bind') {
       const now = new Date();
       const candidate = await transaction.user.findFirst({
@@ -720,6 +795,26 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (action.kind === 'support-relay') {
+      const incoming = update?.message;
+      const rawText = incoming?.text ?? incoming?.caption ?? '';
+      if (
+        this.agentChannel &&
+        incoming &&
+        !isTelegramSupportOrSystemCommand(rawText)
+      ) {
+        const member = await this.agentChannel.resolveLinkedMember(
+          transaction,
+          incoming
+        );
+        if (member) {
+          return {
+            kind: 'agent-message',
+            member,
+            message: incoming,
+          };
+        }
+      }
+
       if (!this.supportRelayTableAvailable) {
         // Postgres aborts the whole transaction on a failed statement, so this
         // cannot be caught after the fact: the receipt and every other action

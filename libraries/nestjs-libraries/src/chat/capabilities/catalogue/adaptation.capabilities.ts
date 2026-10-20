@@ -4,7 +4,11 @@ import { IntegrationsController } from '@contentfactory/backend/api/routes/integ
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { EMOJI_STOPS } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
-import { AGENT_DECIDE_FOR_PERSON_KEY } from '../agent-parts.contract';
+import {
+  AGENT_DECIDE_FOR_PERSON_KEY,
+  type BrandVoiceFactScoreSummary,
+} from '../agent-parts.contract';
+import { scoreBrandVoiceAndFacts } from '../../scorers/brand-voice-facts.scorer';
 import {
   defineCapability,
   door,
@@ -168,6 +172,7 @@ type Adapted = {
   /** Where the version stands in the channel's plan, and why, when said. */
   plan?: string | null;
   note?: string | null;
+  voiceScore?: BrandVoiceFactScoreSummary;
 };
 
 /** The person said no on the autopilot card: nothing spent, nothing written. */
@@ -264,6 +269,23 @@ const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string,
   const saved = index >= 0 ? rows[index] : null;
   const text = typeof saved?.body === 'string' ? saved.body : '';
   const core = (detail as any).core;
+  let voiceScore: BrandVoiceFactScoreSummary | undefined = (saved as { voiceScore?: BrandVoiceFactScoreSummary } | null)?.voiceScore;
+  if (!voiceScore && saved?.checks) {
+    voiceScore = await scoreBrandVoiceAndFacts(
+      {
+        organizationId: ctx.organizationId,
+        locale: ctx.language,
+        platform: saved?.platform ?? 'core',
+        facts: Array.isArray(core?.brief?.facts) ? core.brief.facts : 0,
+        voiceCheck: saved.checks.voice ?? null,
+      },
+      {
+        text,
+        entityId: written,
+        entityType: 'adaptation',
+      }
+    );
+  }
   return {
     variant: index < 0 ? rows.length : index + 1,
     openQuestions: questions,
@@ -274,6 +296,7 @@ const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string,
       core: typeof core?.text === 'string' ? core.text.slice(0, 16_000) : '',
       goal: typeof core?.brief?.goal === 'string' ? core.brief.goal : '',
     } } : {}),
+    ...(voiceScore ? { voiceScore } : {}),
   };
 };
 
@@ -331,6 +354,7 @@ export const pieceAdapt = defineCapability({
         asked,
         ...(written.savedResult ? { savedResult: written.savedResult } : {}),
         ...(written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
+        ...(written.voiceScore ? { voiceScore: written.voiceScore } : {}),
         plan: pass.plan,
         note: pass.note,
       };
@@ -495,6 +519,7 @@ export const pieceAdapt = defineCapability({
           pieceId: output.pieceId,
           channel: output.channel,
           variant: output.variant,
+          ...(output.voiceScore ? { voiceScore: output.voiceScore } : {}),
         },
 });
 

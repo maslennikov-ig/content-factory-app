@@ -36,6 +36,7 @@ import {
   withReasoningHeadroom,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import type { MastraDecisionModelInterface } from '@mastra/core/classifier';
+import { AISDKTranscription } from '@mastra/core/voice';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -545,6 +546,127 @@ export const getClassifyDecisionModel = async (
   } catch {
     return decisionModel;
   }
+};
+
+const audioFormatFromMime = (mimeType?: string): 'wav' | 'mp3' | 'ogg' | 'webm' | 'mp4' => {
+  const clean = (mimeType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  if (clean === 'audio/wav' || clean === 'audio/x-wav') return 'wav';
+  if (clean === 'audio/mpeg' || clean === 'audio/mp3') return 'mp3';
+  if (clean === 'audio/ogg') return 'ogg';
+  if (clean === 'audio/mp4' || clean === 'audio/m4a') return 'mp4';
+  return 'webm';
+};
+
+/**
+ * Builds the native `@mastra/core/voice` `AISDKTranscription` voice provider
+ * for an organization (`content-factory-next-bxeb.1`).
+ *
+ * Uses the organization's metered transport (`createOpenAI(...).transcription(...)`
+ * when `provider === 'openai'`, with automatic multimodal audio fallback for
+ * OpenRouter or gateways without `/audio/transcriptions`).
+ */
+export const getMastraVoice = async (
+  organizationId: string,
+  options?: { language?: 'ru' | 'en'; mimeType?: string }
+): Promise<AISDKTranscription> => {
+  const config = await requireActiveAiConfig(organizationId);
+  const extractModelId = modelFor('extract', config);
+  const transcriptionModelId =
+    config.provider === 'openai' ? 'gpt-4o-mini-transcribe' : extractModelId;
+  const sdkProvider = await getAiSdkProvider(organizationId);
+  const nativeOpenAiTranscription = sdkProvider.transcription(
+    'gpt-4o-mini-transcribe'
+  );
+
+  const transcribeViaChatAudioFallback = async (callOptions: {
+    audio: Uint8Array | string;
+    mediaType?: string;
+    abortSignal?: AbortSignal;
+  }) => {
+    const client = await getOpenAiClient(organizationId);
+    const base64Audio =
+      typeof callOptions.audio === 'string'
+        ? callOptions.audio
+        : Buffer.from(callOptions.audio).toString('base64');
+    const format = audioFormatFromMime(options?.mimeType ?? callOptions.mediaType);
+    const langHint =
+      options?.language === 'ru'
+        ? 'Russian (or the spoken language if different)'
+        : 'the spoken language';
+    const completion = await client.chat.completions.create(
+      {
+        model: extractModelId,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content: `Transcribe the user's audio recording verbatim in ${langHint}. Return ONLY the transcribed text without quotes, commentary, or markdown fences.`,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_audio',
+                input_audio: {
+                  data: base64Audio,
+                  format: format === 'wav' || format === 'mp3' ? format : 'wav',
+                },
+              } as any,
+            ],
+          },
+        ],
+      },
+      callOptions.abortSignal ? { signal: callOptions.abortSignal } : undefined
+    );
+    const text = (completion.choices?.[0]?.message?.content ?? '').trim();
+    return {
+      text,
+      segments: [],
+      language: options?.language,
+      durationInSeconds: undefined,
+      warnings: [],
+      response: {
+        timestamp: new Date(),
+        modelId: completion.model || extractModelId,
+        headers: {},
+        body: completion,
+      },
+    };
+  };
+
+  const model = {
+    specificationVersion: 'v2' as const,
+    provider: config.provider,
+    modelId: transcriptionModelId,
+    doGenerate: async (callOptions: any) => {
+      if (config.provider === 'openai') {
+        try {
+          return await nativeOpenAiTranscription.doGenerate({
+            ...callOptions,
+            mediaType: options?.mimeType ?? callOptions?.mediaType ?? 'audio/webm',
+            providerOptions: {
+              ...callOptions?.providerOptions,
+              openai: {
+                ...(options?.language ? { language: options.language } : {}),
+                ...callOptions?.providerOptions?.openai,
+              },
+            },
+          });
+        } catch (error) {
+          const status = Number(
+            (error as { statusCode?: unknown; status?: unknown })?.statusCode ??
+              (error as { status?: unknown })?.status
+          );
+          if (status !== 404 && status !== 405 && status !== 501) {
+            throw error;
+          }
+        }
+      }
+      return transcribeViaChatAudioFallback(callOptions);
+    },
+  };
+
+  return new AISDKTranscription(model as any);
 };
 
 export interface WebSearchResponse {

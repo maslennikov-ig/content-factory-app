@@ -16,6 +16,11 @@ import {
 } from '@mastra/core/tools';
 import { ToolSearchProcessor } from '@mastra/core/processors';
 import { MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
+import {
+  InMemoryNotificationsStorage,
+  createNotificationInboxTool,
+  type NotificationsStorage,
+} from '@mastra/core/notifications';
 import { defineSchedule } from '@mastra/core/schedules';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import type { AiRole } from '@contentfactory/nestjs-libraries/openai/ai.roles';
@@ -120,6 +125,7 @@ export const CONDUCTOR_EXTRA_AUTONOMY_TOOL_NAMES = [
   'schedule_followup_create',
   'schedule_followup_list',
   'schedule_followup_cancel',
+  'notification_inbox',
 ] as const;
 
 export const CONDUCTOR_AUTONOMY_TOOL_NAMES = [
@@ -1162,6 +1168,122 @@ export const buildConductorSubmitPlanTool = () => {
   return tool;
 };
 
+const notificationInboxInputSchema = z.object({
+  action: z.enum(['list', 'read', 'markSeen', 'dismiss', 'archive', 'search']),
+  id: z.string().optional(),
+  status: z
+    .enum([
+      'pending',
+      'delivered',
+      'seen',
+      'dismissed',
+      'archived',
+      'discarded',
+      'failed',
+    ])
+    .optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  source: z.string().optional(),
+  query: z.string().optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+const createResourceScopedNotificationsStorage = (
+  base: NotificationsStorage,
+  resourceId: string
+): NotificationsStorage =>
+  ({
+    createNotification: (input: any) =>
+      base.createNotification({ ...input, resourceId }),
+    listNotifications: async (input: any) => {
+      const list = await base.listNotifications({ ...input, resourceId });
+      return list.filter(
+        (item) => !item.resourceId || item.resourceId === resourceId
+      );
+    },
+    listDueNotifications: async (input: any) => {
+      const list = await base.listDueNotifications({ ...input, resourceId });
+      return list.filter(
+        (item) => !item.resourceId || item.resourceId === resourceId
+      );
+    },
+    getNotification: async (input: any) => {
+      const found = await base.getNotification(input);
+      if (!found || (found.resourceId && found.resourceId !== resourceId)) {
+        return null;
+      }
+      return found;
+    },
+    updateNotification: async (input: any) => {
+      const found = await base.getNotification({
+        threadId: input.threadId,
+        id: input.id,
+      });
+      if (!found || (found.resourceId && found.resourceId !== resourceId)) {
+        throw new Error('Notification not found.');
+      }
+      return base.updateNotification(input);
+    },
+    updateNotificationsStatus: async (input: any) =>
+      base.updateNotificationsStatus(input),
+  }) as unknown as NotificationsStorage;
+
+/**
+ * Wraps Mastra's native `createNotificationInboxTool` (`@mastra/core/notifications`)
+ * with server-built identity and `resourceId` scoping (`content-factory-next-bxeb.4`).
+ */
+export const buildNotificationInboxTool = (options?: {
+  getNotificationsStore?: () => Promise<NotificationsStorage | null | undefined> | NotificationsStorage | null | undefined;
+}) => {
+  const fallbackStore = new InMemoryNotificationsStorage();
+  return createTool({
+    id: 'notification_inbox',
+    title: 'Уведомления и фоновые поручения',
+    description:
+      'Inspect and manage the current thread notification inbox (list unread notifications, read details, mark seen, dismiss, archive, or search).',
+    inputSchema: notificationInboxInputSchema,
+    requestContextSchema: capabilityContextSchema,
+    execute: async (input, context: any) => {
+      const identity = readCapabilityIdentity(context?.requestContext);
+      if (!identity) {
+        return refusal(
+          'IDENTITY_MISSING',
+          'The call arrived without a server-built identity; nothing was done.'
+        );
+      }
+      const threadId =
+        context?.agent?.threadId ??
+        context?.requestContext?.get?.(MASTRA_THREAD_ID_KEY);
+      if (typeof threadId !== 'string' || !threadId) {
+        return refusal(
+          'CAPABILITY_INPUT_INVALID',
+          'A thread id is required to read notifications.'
+        );
+      }
+      const resourceId = conductorResourceId(
+        identity.organizationId,
+        identity.userId
+      );
+      const baseStore =
+        (await options?.getNotificationsStore?.()) ?? fallbackStore;
+      const scopedStorage = createResourceScopedNotificationsStorage(
+        baseStore,
+        resourceId
+      );
+      const nativeInboxTool = createNotificationInboxTool({
+        storage: scopedStorage,
+      });
+      return (nativeInboxTool as any).execute(
+        {
+          ...input,
+          threadId,
+        },
+        context
+      );
+    },
+  });
+};
+
 /**
  * Returns the native autonomy tool map for `buildConductorAgent`.
  * When `hasControllerToolset` is true (`AgentController` session execution),
@@ -1173,6 +1295,7 @@ export const buildConductorAutonomyTools = (options: {
   getMemory: () => Promise<any> | any;
   getStorage?: () => Promise<any> | any;
   getSchedulesManager: () => Promise<any> | any;
+  getNotificationsStore?: () => Promise<NotificationsStorage | null | undefined> | NotificationsStorage | null | undefined;
   resolveSubagentModel: (
     identity: CapabilityIdentity,
     agentType: ConductorSubagentType,
@@ -1186,6 +1309,9 @@ export const buildConductorAutonomyTools = (options: {
   });
   const followUpSchedules = buildFollowUpScheduleTools({
     getSchedulesManager: options.getSchedulesManager,
+  });
+  const notificationInbox = buildNotificationInboxTool({
+    getNotificationsStore: options.getNotificationsStore,
   });
   const subagent = buildConductorSubagentTool({
     subagents: options.subagents,
@@ -1210,6 +1336,7 @@ export const buildConductorAutonomyTools = (options: {
     submit_plan: submitPlan,
     subagent,
     set_objective: setObjective,
+    notification_inbox: notificationInbox,
     ...followUpSchedules,
   };
 

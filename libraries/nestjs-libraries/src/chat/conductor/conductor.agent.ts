@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { AgentController } from '@mastra/core/agent-controller';
+import { ChatChannelProcessor } from '@mastra/core/channels';
 import type { MastraMemory } from '@mastra/core/memory';
 import {
   ModelSelectionProcessor,
@@ -66,6 +67,7 @@ import {
   buildConductorAutonomyTools,
   buildConductorGoalConfig,
   buildConductorSubagentDefinitions,
+  buildNotificationInboxTool,
   createConductorTaskStateProcessor,
   createConductorToolSearchProcessor,
   normalizeObjectiveRecord,
@@ -84,6 +86,7 @@ export {
   CONDUCTOR_SUBAGENT_ROLE_MAP,
   buildConductorGoalConfig,
   buildConductorSubagentDefinitions,
+  buildNotificationInboxTool,
   createConductorTaskStateProcessor,
   createConductorToolSearchProcessor,
   normalizeObjectiveRecord,
@@ -303,6 +306,10 @@ export type ConductorDependencies = {
    */
   schedules?: () => Promise<any> | any;
   /**
+   * Optional notifications storage accessor (`pStore.getStore('notifications')`, `bxeb.4`).
+   */
+  notificationsStore?: () => Promise<any> | any;
+  /**
    * Optional tool discovery (`ToolSearchProcessor`, `on0i.4`, `A8`).
    */
   toolSearch?:
@@ -367,6 +374,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         getMemory: () => deps.memory,
         getStorage: () => deps.storage,
         getSchedulesManager: () => deps.schedules?.(),
+        getNotificationsStore: () => deps.notificationsStore?.(),
         resolveSubagentModel,
         createSubagentRunner: (cfg) => new Agent(cfg as any),
       });
@@ -478,6 +486,14 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       'The Content Factory assistant: does what the screens do, from one chat.',
     requestContextSchema: conductorContextSchema as any,
     durable: (deps.durable ?? { cleanupTimeoutMs: 250 }) as any,
+    backgroundTasks: {
+      tools: {
+        research_search: { enabled: true, defaultDisposition: 'foreground' },
+        piece_create_from_research: { enabled: true, defaultDisposition: 'foreground' },
+        piece_adapt: { enabled: true, defaultDisposition: 'foreground' },
+        subagent: { enabled: true, defaultDisposition: 'foreground' },
+      },
+    },
     ...(deps.memory ? { goal: goalConfig } : {}),
     scopes: ({ requestContext }) => {
       const identity = readCapabilityIdentity(requestContext as any);
@@ -540,6 +556,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     // task list progress once per step (on0i.4, A18).
     inputProcessors: [
       ...conductorInputProcessors(),
+      new ChatChannelProcessor() as any,
       ...(dynamicModelSelectionProcessor ? [dynamicModelSelectionProcessor as any] : []),
       ...(toolSearchProcessor ? [toolSearchProcessor as any] : []),
       ...(deps.memory ? [createConductorTaskStateProcessor() as any] : []),

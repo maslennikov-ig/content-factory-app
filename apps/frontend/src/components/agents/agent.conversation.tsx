@@ -162,6 +162,7 @@ export function AgentConversation({
   workContext,
   contextControls,
   onNewConversation,
+  onForked,
   onWorkContext,
   openArtifact,
   onArtifactRemoved,
@@ -187,6 +188,8 @@ export function AgentConversation({
   workContext?: AgentWorkContextV1 | null;
   contextControls?: ReactNode;
   onNewConversation?: () => void;
+  /** Opens a newly branched thread (`bxeb.2`). */
+  onForked?: (id: string) => void;
   onWorkContext?: (context: AgentWorkContextV1 | null) => void;
   openArtifact: AgentArtifact | null;
   /** The open artifact was deleted in this conversation: close it. */
@@ -814,6 +817,65 @@ export function AgentConversation({
     },
     [words]
   );
+  const [forkingMessageId, setForkingMessageId] = useState<string | null>(null);
+  const [forkFailedMessageId, setForkFailedMessageId] = useState<string | null>(null);
+  const forkFromMessage = useCallback(
+    async (messageId: string) => {
+      const id = thread.current;
+      if (!id || !onForked || forkingMessageId) return;
+      setForkingMessageId(messageId);
+      setForkFailedMessageId(null);
+      try {
+        const response = await request(AGENT_DOORS.forkThread(id), {
+          method: 'POST',
+          body: JSON.stringify({ upToMessageId: messageId }),
+        });
+        if (!response.ok) throw new Error(String(response.status));
+        const cloned = (await response.json()) as { id?: unknown };
+        if (typeof cloned?.id !== 'string' || !cloned.id) {
+          throw new Error('fork_failed');
+        }
+        await mutate(THREADS_KEY);
+        onForked(cloned.id);
+      } catch {
+        setForkFailedMessageId(messageId);
+      } finally {
+        setForkingMessageId(null);
+      }
+    },
+    [forkingMessageId, mutate, onForked, request]
+  );
+  const sendVoice = useCallback(
+    async (audio: Blob) => {
+      const form = new FormData();
+      const ext = audio.type.includes('mp4')
+        ? 'm4a'
+        : audio.type.includes('ogg')
+          ? 'ogg'
+          : 'webm';
+      form.append('file', audio, `voice.${ext}`);
+      const response = await request(AGENT_DOORS.voiceTranscribe, {
+        method: 'POST',
+        body: form,
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        const code = errorCodeOf(body) ?? readDoorError(body);
+        const failure = new Error(code ?? 'VOICE_TRANSCRIPTION_FAILED') as Error & {
+          code?: string | null;
+        };
+        failure.code = code;
+        throw failure;
+      }
+      const payload = (await response.json()) as { text?: unknown };
+      if (typeof payload?.text !== 'string') {
+        throw new Error('VOICE_TRANSCRIPTION_FAILED');
+      }
+      void mutate(ALLOWANCE_API);
+      return payload.text;
+    },
+    [mutate, request]
+  );
   const shownKey = useRef<string | null>(null);
   useEffect(() => {
     if (!latest || latestKey === shownKey.current) return;
@@ -1275,6 +1337,27 @@ export function AgentConversation({
                 <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
                   <span className="sr-only">{words.conversation.agent}:</span>
                   {blocks.map((block) => renderBlock(block, message, live, last))}
+                  {onForked && (threadId || thread.current) && !live ? (
+                    <div className="flex flex-wrap items-center gap-[8px]">
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        density="dense"
+                        disabled={busy || forkingMessageId !== null}
+                        loading={forkingMessageId === message.id}
+                        loadingLabel={words.conversation.forking}
+                        onClick={() => void forkFromMessage(message.id)}
+                      >
+                        <AgentGlyph name="branch" size={12} />
+                        <span className="cf-caption">{words.conversation.forkFromMessage}</span>
+                      </Button>
+                      {forkFailedMessageId === message.id ? (
+                        <span role="status" className="cf-caption text-cf-danger">
+                          {words.conversation.forkFailed}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             );
@@ -1335,6 +1418,7 @@ export function AgentConversation({
             samplesAllowed={editor}
             uploadMedia={sendMedia}
             mediaAllowed={editor}
+            transcribeVoice={sendVoice}
             describeFailure={describeSamplesFailure}
             words={words}
             autoFocus={!messages.length}
