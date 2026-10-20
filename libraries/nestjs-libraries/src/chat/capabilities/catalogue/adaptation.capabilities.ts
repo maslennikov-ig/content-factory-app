@@ -20,6 +20,7 @@ import {
 } from './core.capabilities';
 import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion } from './selection';
 import { ConfirmationNeeded } from '../mcp-confirmation';
+import { wrapUntrusted } from '../untrusted-data';
 import { proposalTarget } from '../capability.context';
 
 /**
@@ -154,6 +155,14 @@ type Adapted = {
   state: string;
   /** Interview questions the person was asked — and answered — in this call. */
   asked: number;
+  /** Read back from storage, never the generator's transient event. */
+  savedResult?: {
+    text: string;
+    totalCharacters: number;
+    truncated: boolean;
+    core: string;
+    goal: string;
+  };
   /** Optional questions open under the new post («Материала мало»), as asked (`QUOTED_QUESTION_MAX`). */
   openQuestions?: string[];
   /** Where the version stands in the channel's plan, and why, when said. */
@@ -252,7 +261,20 @@ const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string,
           .map((one: any) => (typeof one?.question === 'string' ? shortQuestion(one.question, QUOTED_QUESTION_MAX) : ''))
           .filter(Boolean)
       : [];
-  return { variant: index < 0 ? rows.length : index + 1, openQuestions: questions };
+  const saved = index >= 0 ? rows[index] : null;
+  const text = typeof saved?.body === 'string' ? saved.body : '';
+  const core = (detail as any).core;
+  return {
+    variant: index < 0 ? rows.length : index + 1,
+    openQuestions: questions,
+    ...(text ? { savedResult: {
+      text: text.slice(0, 16_000),
+      totalCharacters: text.length,
+      truncated: text.length > 16_000,
+      core: typeof core?.text === 'string' ? core.text.slice(0, 16_000) : '',
+      goal: typeof core?.brief?.goal === 'string' ? core.brief.goal : '',
+    } } : {}),
+  };
 };
 
 export const pieceAdapt = defineCapability({
@@ -307,6 +329,7 @@ export const pieceAdapt = defineCapability({
         variant: written.variant,
         state: pass.state,
         asked,
+        ...(written.savedResult ? { savedResult: written.savedResult } : {}),
         ...(written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
         plan: pass.plan,
         note: pass.note,
@@ -438,6 +461,16 @@ export const pieceAdapt = defineCapability({
           channelId: output.channel.id,
           variant: output.variant,
           state: output.state,
+          savedResult: output.savedResult
+            ? {
+                assessmentRequired: true,
+                data: wrapUntrusted(output.savedResult, ['workspace-text']),
+              }
+            : {
+                assessmentRequired: true,
+                unavailable: true,
+                read: { capability: 'piece.read', part: 'adaptation', pieceId: output.pieceId, adaptationId: output.adaptationId },
+              },
           // Answered on the card in this call: none of them is open now
           // (W3 recheck R-4 — the agent read `asked: 1` as «one question
           // waits on the post card»).

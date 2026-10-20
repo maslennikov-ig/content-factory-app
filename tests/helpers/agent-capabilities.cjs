@@ -414,6 +414,12 @@ const fixtures = () => ({
   'research.search': {
     input: { query: 'Какие новые сведения появились по теме?' },
     services: {
+      IntakeService: {
+        storeResearchEvidence: async (_organizationId, _userId, input) => ({
+          ...input,
+          snapshotKey: 'res_fixture',
+        }),
+      },
       WebResearchService: {
         research: async () => ({
           summary: INJECTION,

@@ -411,6 +411,26 @@ if (fs.existsSync(builderPath)) {
     };
   }
 
+  test('explicit supporting quotes survive offset 800 and snapshot readback under the unchanged total budget', async () => {
+    const late = 'The shared calendar launched on 17 October.';
+    const first = evidence('selected', { excerpt: `${'Source preamble. '.repeat(100)}${late}` });
+    const other = evidence('other', { excerpt: 'Other support. '.repeat(120) });
+    const ranked = evidence('ranked', { excerpt: 'Ranked page. '.repeat(150) });
+    const repository = new MemoryRepository([], [first, other, ranked]);
+    const builder = makeBuilder(repository);
+    const built = await builder.build('org-a', request({ userMaterialEvidenceIds: ['selected', 'other'] }));
+    assert.ok(built.evidence.find(item => item.evidenceId === 'selected').excerpt.includes(late));
+    assert.equal(built.evidence.find(item => item.evidenceId === 'ranked').excerpt.length, 800);
+    assert.equal(built.evidence.length, 3);
+    assert.ok(built.renderedCharacterCount <= 12_000);
+    const read = await builder.get('org-a', built.contentContextSnapshotId);
+    assert.deepEqual(read.evidence, built.evidence);
+    const legacy = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+    legacy.selectionAlgorithmVersion = 1;
+    const old = await builder.get('org-a', built.contentContextSnapshotId);
+    assert.equal(old.evidence.find(item => item.evidenceId === 'selected').excerpt.length, 800);
+  });
+
   test('build is deterministic, tenant-scoped and bounded to 8 facts, 8 evidence and 12k chars', async () => {
     const corpus = Array.from({ length: 12 }, (_, index) =>
       fact(String(index + 1).padStart(2, '0'), {

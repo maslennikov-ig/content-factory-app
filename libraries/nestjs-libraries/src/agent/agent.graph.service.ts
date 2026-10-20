@@ -69,9 +69,11 @@ import {
 import {
   AUTHOR_LINK_PLACEHOLDER,
   channelCtaLine,
+  channelHardLimit,
   channelInstructionLines,
   restoreAuthorLinkDeep,
   showsLinkOnWords,
+  scaledLengthRange,
   tokenizeAuthorLink,
   type ChannelProviderLimits,
 } from '@contentfactory/nestjs-libraries/agent/channel-directives';
@@ -96,6 +98,15 @@ import type { AntiCopyReportV1 } from '@contentfactory/nestjs-libraries/content-
  * обе половины решения: проверка ловит после, промпт запрещает до.
  */
 import { forbiddenPhrasesRule } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases';
+import {
+  ADAPTATION_COVERAGE_REPAIR_RULES,
+  ADAPTATION_COVERAGE_REVIEW_RULES,
+  adaptationCoverageSchema,
+  materialSupport,
+  readAdaptationCoverage,
+  withAdaptationOpening,
+  type AdaptationCoverageVerdict,
+} from './adaptation-coverage';
 
 interface WorkflowChannelsState {
   adaptationQuestion?: PieceQuestionV1;
@@ -171,6 +182,7 @@ interface WorkflowChannelsState {
    * нечего».
    */
   draftGaps?: DraftGap[];
+  adaptationCoverage?: { status: 'passed'; reviews: number; repaired: boolean };
   /**
    * Что вход одной мыслью успел понять про эту генерацию.
    *
@@ -359,6 +371,15 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     `- Who would disagree and why${proposed('disagreement')}: ${brief.disagreement ?? ''}`,
     `- Written for${proposed('audience')}: ${brief.audience ?? ''}`,
     ...(brief.goal ? [`- What the post has to do${proposed('goal')}: ${brief.goal}`] : []),
+    ...(state.intake?.request || state.intake?.instructionText ? [
+      'Original assignment — preserve its scope, not its wording:',
+      JSON.stringify({
+        goal: state.intake.request?.goal,
+        requestedOutputs: state.intake.request?.requestedOutputs,
+        constraints: state.intake.request?.constraints,
+        instruction: state.intake.instructionText,
+      }),
+    ] : []),
     ...(anyProposed
       ? [
           "Lines marked «the model's proposal» are editorial decisions, not the author's words or experience: use them for the angle, the structure, the reader and the conclusion; never quote them as the author's, never write them as something the author lived, and never add a case, number or quote to them.",
@@ -376,8 +397,9 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     */
     ...(core
       ? [
-          "The author's own neutral core of this piece. Carry its words, numbers, names and examples over VERBATIM, and its grammatical person exactly as written — «I» stays «I», «we» stays «we», even where the two sit side by side; change only what this platform requires:",
+          "The author's own neutral core of this piece. Carry retained words, numbers, names and examples over VERBATIM, and its grammatical person exactly as written — «I» stays «I», «we» stays «we», even where the two sit side by side; change only what this platform requires:",
           core,
+          "Preserve every distinct supported major topic and the requested scope across hook and body together. Adaptation is not a summary of only the first entry. A hard channel/provider limit or an explicit author request permits combining entries and compressing secondary details, not dropping the main topics. This takes precedence over a general instruction to keep every sentence. The voice's usual post length is a style preference, not permission to omit core topics. The core is not independent proof of external claims: keep author statements attributed, use actual source support for external claims, and make conflicts or missing support explicit instead of silently erasing a topic or inventing certainty.",
         ]
       : []),
     /*
@@ -418,6 +440,13 @@ const briefBlock = (state: WorkflowChannelsState): string => {
               ? `- ${item.statement} — ${item.sourceUrl}`
               : `- ${item.statement}`
           ),
+          'The checked label records earlier work; it is not proof that an arbitrary statement follows from a source. Use the actual fact/source excerpts and the literal support below. Source-linked statements without matching admitted support must not be presented as confirmed.',
+          ...checkedMaterial.filter(item => item.evidenceId || item.quote).map(item => {
+            const support = materialSupport(item, state.contentContext);
+            return support
+              ? `Support for ${JSON.stringify(item.statement)}: [${support.citationId}], literal quote ${JSON.stringify(support.quote)}. Check that the statement actually follows from this quote; the id alone proves nothing.`
+              : `No matching admitted source quote for ${JSON.stringify(item.statement)}. Do not infer support from its id or checked flag.`;
+          }),
         ]
       : []),
     ...(uncheckedMaterial.length
@@ -562,10 +591,39 @@ const longFormInstruction = (state: WorkflowChannelsState): string => {
  * from one call and gets room for all of them.
  */
 const tokenCeiling = (state: WorkflowChannelsState): number | undefined => {
+  if (state.intake?.core?.trim()) {
+    const items = threadItemCount(state.format);
+    const materialCharacters = (state.intake.material || [])
+      .reduce((sum, item) => sum + item.statement.length, 0);
+    const substance = Math.max(state.intake.core.length, materialCharacters);
+    const hard = adaptationHardLimit(state);
+    const characters = hard ? Math.min(substance, hard * items) : substance;
+    // Give the full piece room to be adapted even when the avatar's samples
+    // are tiny. This is an output budget, never permission to exceed the cap.
+    return Math.max(512, Math.ceil(characters * 2.5 / 2) + 256);
+  }
   const high = effectiveVoiceOf(state)?.postLength?.high;
   if (!high || !Number.isFinite(high)) return undefined;
   const items = threadItemCount(state.format);
   return Math.max(512, Math.ceil((high * 2.5 * items) / 2) + 256);
+};
+
+const adaptationHardLimit = (state: WorkflowChannelsState): number | null => {
+  const provider = state.resolvedChannelProfile?.provider ?? (state.intake ? {
+    ...state.intake.channel, identifier: state.intake.channel.providerIdentifier,
+    name: state.intake.channel.providerIdentifier,
+  } : null);
+  if (!provider) return null;
+  let limit = channelHardLimit(provider, state.isPicture);
+  if (!Number.isFinite(limit) || limit <= 0) return null;
+  if (state.format === 'one_short' || state.format === 'thread_short') limit = Math.min(limit, 200);
+  const profile = state.resolvedChannelProfile?.profile ?? state.intake?.channel.writingProfile;
+  const post = state.intake?.post;
+  const policy = post?.lengthPolicy ?? profile?.lengthPolicy;
+  const scaled = !post?.lengthPolicy && post?.length && policy
+    ? scaledLengthRange(policy, post.length, limit) : null;
+  const hard = scaled?.hardMax ?? (typeof policy === 'object' && policy ? policy.hardMax : null);
+  return hard && Number.isFinite(hard) && hard > 0 ? Math.min(limit, hard) : limit;
 };
 
 
@@ -757,6 +815,7 @@ export class AgentGraphService {
          * Строка ниже — то же исправление, что и объявление новых каналов.
          */
         draftGaps: null,
+        adaptationCoverage: null,
         adaptationQuestion: null,
         intake: null,
         resolvedChannelProfile: null,
@@ -1315,6 +1374,9 @@ export class AgentGraphService {
     state: WorkflowChannelsState,
     content: any
   ): Promise<any> {
+    // Adaptation must preserve the requested substance. The semantic final
+    // check, after voice selection, handles compression against actual scope.
+    if (state.intake?.core?.trim()) return content;
     const range = effectiveVoiceOf(state)?.postLength;
     if (!range?.median || Array.isArray(content)) return content;
     const text = typeof content?.content === 'string' ? content.content : null;
@@ -1453,13 +1515,149 @@ export class AgentGraphService {
   }
 
   async fixArray(state: WorkflowChannelsState) {
+    const checked = state.intake?.core?.trim()
+      ? await this.checkAdaptationCoverage(state)
+      : {};
+    const content = (checked as any).content ?? state.content;
     if (state.format === 'one_short' || state.format === 'one_long') {
       return {
-        content: [state.content],
+        ...checked,
+        content: [content],
       };
     }
 
-    return {};
+    return checked;
+  }
+
+  /** One final review, at most one repair, and a final verdict before saving. */
+  private async checkAdaptationCoverage(state: WorkflowChannelsState) {
+    let content: any = state.content;
+    let opening = state.hook || '';
+    let reviews = 0;
+    const hardLimit = adaptationHardLimit(state);
+    const postTexts = () => (Array.isArray(content) ? content : [content])
+      .map((item, index) => index === 0 ? withAdaptationOpening(opening, item?.content || '') : item?.content || '');
+    const copyRuns = () => state.foreignShingles?.length
+      ? sharedRuns(postTexts().join('\n\n'), state.foreignShingles) : [];
+    const input = () => ({
+      assignment: {
+        goal: state.intake?.request?.goal || state.intake?.brief.goal,
+        requestedOutputs: state.intake?.request?.requestedOutputs,
+        constraints: state.intake?.request?.constraints,
+        instruction: state.intake?.instructionText,
+        channelAnswers: state.intake?.answers,
+        interview: state.intake?.interview,
+        postOverrides: state.intake?.post,
+      },
+      core: state.intake?.core,
+      brief: state.intake?.brief,
+      material: state.intake?.material?.map(item => ({
+        statement: item.statement,
+        sourceUrl: item.sourceUrl,
+        // Quotes may only count as evidence when the admitted source contains
+        // them. An arbitrary quote/id pair is untrusted selected material.
+        support: materialSupport(item, state.contentContext),
+        authorStatement: !item.checked && !item.sourceUrl && !item.evidenceId,
+      })),
+      facts: state.contentContext?.facts || [],
+      sources: state.contentContext?.evidence || [],
+      language: state.language,
+      platform: state.intake?.channel.providerIdentifier,
+      hardCharacterLimit: hardLimit,
+      postCharacterCounts: postTexts().map(text => text.length),
+      channelLengthPolicy: state.intake?.post?.lengthPolicy ?? state.intake?.channel.writingProfile?.lengthPolicy,
+      withPicture: state.isPicture,
+      maxCaptionLength: state.intake?.channel.maxCaptionLength,
+      hook: opening,
+      content,
+    });
+    const review = async (): Promise<AdaptationCoverageVerdict> => {
+      reviews += 1;
+      return this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
+        const model = (await getChatModel(state.orgId, 0.1, 3_000, 'review'))
+          .withStructuredOutput(adaptationCoverageSchema);
+        const result = await ChatPromptTemplate.fromMessages([
+          ['system', ADAPTATION_COVERAGE_REVIEW_RULES],
+          ['human', '{input}'],
+        ]).pipe(model).invoke({ input: JSON.stringify(input()) });
+        const verdict = readAdaptationCoverage(result);
+        const overLimit = hardLimit ? postTexts().flatMap((text, index) =>
+          text.length > hardLimit ? [`Post ${index + 1} including its hook has ${text.length} characters; the hard limit is ${hardLimit}. Compress secondary details while retaining all major topics.`] : []) : [];
+        const copied = copyRuns().length ? ['The complete post repeats source wording.'] : [];
+        return readAdaptationCoverage({
+          ...verdict,
+          missingRequirements: [...verdict.missingRequirements, ...overLimit].slice(0, 20),
+          unsupportedClaims: [...verdict.unsupportedClaims, ...copied].slice(0, 20),
+        });
+      }, 'review');
+    };
+    const incomplete = (verdict: AdaptationCoverageVerdict): never => {
+      const error = new Error('The adaptation does not preserve the requested scope or source support.');
+      Object.assign(error, {
+        code: 'CONTENT_ADAPTATION_INCOMPLETE',
+        missingRequirements: verdict.missingRequirements,
+        unsupportedClaims: verdict.unsupportedClaims,
+        incompleteDraft: { hook: opening, content },
+      });
+      throw error;
+    };
+    let verdict: AdaptationCoverageVerdict;
+    try { verdict = await review(); }
+    catch { return incomplete({ status: 'partial', missingRequirements: ['The completeness review could not finish.'], unsupportedClaims: [] }); }
+    if (verdict.status !== 'passed') {
+      const allowedIds = new Set([
+        ...(state.contentContext?.facts || []).map(item => item.citationId),
+        ...(state.contentContext?.evidence || []).map(item => item.citationId),
+      ]);
+      try {
+        const repaired = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
+          const model = (await getChatModel(state.orgId, 0.3, tokenCeiling(state), 'draft'))
+            .withStructuredOutput(contentZod(!!state.isPicture, state.format, allowedIds.size > 0)
+              .extend({ hook: z.string() }));
+          return ChatPromptTemplate.fromMessages([
+            ['system', ADAPTATION_COVERAGE_REPAIR_RULES],
+            ['human', '{input}'],
+          ]).pipe(model).invoke({ input: JSON.stringify({
+            ...input(), findings: verdict,
+            voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
+            channel: state.channelLines,
+            forbidden: forbiddenPhrasesRule((state.language as 'ru' | 'en') || 'ru'),
+          }) });
+        }, 'draft');
+        const restoredContent = withAuthorLink(state, repaired.content);
+        const normalizeCitations = (item: any) => ({ ...item, usedCitationIds:
+          Array.isArray(item?.usedCitationIds) ? [...new Set<string>(item.usedCitationIds)] : [] });
+        const repairedContent = Array.isArray(restoredContent)
+          ? restoredContent.map(normalizeCitations) : normalizeCitations(restoredContent);
+        const items = Array.isArray(repairedContent) ? repairedContent : [repairedContent];
+        if (!items.length || items.some(item => !item?.content?.trim() ||
+          !Array.isArray(item.usedCitationIds) ||
+          (allowedIds.size > 0 && !item.usedCitationIds.length) ||
+          item.usedCitationIds.some((id: string) => !allowedIds.has(id)))) {
+          return incomplete(verdict);
+        }
+        content = repairedContent;
+        opening = withAuthorLink(state, repaired.hook);
+        // The repair cannot bypass the existing anti-copy policy. A remaining
+        // copy is reported as incomplete; there is no second rewrite loop.
+        if (state.foreignShingles?.length && sharedRuns(
+          wholePost(opening, draftContentText(content)), state.foreignShingles
+        ).length) return incomplete({ ...verdict, status: 'partial', unsupportedClaims: ['The repaired draft repeats source wording.'] });
+      } catch (error: any) {
+        if (error?.code === 'CONTENT_ADAPTATION_INCOMPLETE') throw error;
+        return incomplete(verdict);
+      }
+      try { verdict = await review(); }
+      catch { return incomplete({ status: 'partial', missingRequirements: ['The repaired draft could not be verified.'], unsupportedClaims: [] }); }
+      if (verdict.status !== 'passed') return incomplete(verdict);
+    }
+    return { content, hook: opening,
+      draftGaps: this.gapsIn(state, content),
+      ...(state.foreignShingles?.length ? { antiCopy: {
+        minWords: ANTI_COPY_MIN_WORDS, runs: [],
+        retried: reviews === 2 || state.antiCopy?.retried === true, clean: true,
+      } } : {}),
+      adaptationCoverage: { status: 'passed' as const, reviews, repaired: reviews === 2 } };
   }
 
   async generatePictures(state: WorkflowChannelsState) {
@@ -1585,7 +1783,7 @@ export class AgentGraphService {
       // запись (`stripCitationLabels`), но правило говорит это прямо.
       ...(context.facts.length || context.evidence.length
         ? [
-            'Every number, date, name or legal reference in the draft must come from this block; leave out what the block does not support. List the ids you used in usedCitationIds only. Never write an id or a bracketed label such as [E1] or [F1] inside the post text: the reader must not see them.',
+            'Every external number, date, name or legal reference in the draft must be supported by actual facts or source excerpts supplied for this generation. Never invent missing external facts. This block is not an exhaustive list of the piece: also preserve the core\'s supported topics, selected source-linked material with actual matching source support, and attributed author statements. The core itself is not independent proof of external claims. A citation id or checked flag alone does not support an arbitrary claim. Never turn a source conflict into certainty or let an unrelated excerpt erase the rest of the requested scope. List the ids you used in usedCitationIds only. Never write an id or a bracketed label such as [E1] or [F1] inside the post text: the reader must not see them.',
           ]
         : []),
       'Cite only ids present in this block.',
@@ -2016,6 +2214,17 @@ export class AgentGraphService {
     try {
       for await (const event of stream) yield event;
     } catch (error: any) {
+      if (error?.code === 'CONTENT_ADAPTATION_INCOMPLETE') {
+        yield {
+          name: 'error', error: true, code: error.code, message: error.message,
+          missingRequirements: error.missingRequirements,
+          unsupportedClaims: error.unsupportedClaims,
+          // Diagnostic content stays in the owner's stream, never logs/Git,
+          // and is explicitly incomplete rather than a saved ready version.
+          incompleteDraft: error.incompleteDraft,
+        } as any;
+        return;
+      }
       if (error?.code === 'CONTENT_CONTEXT_CITATIONS_INVALID') {
         yield {
           name: 'error',

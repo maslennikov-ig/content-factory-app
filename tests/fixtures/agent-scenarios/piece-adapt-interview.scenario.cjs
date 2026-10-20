@@ -90,8 +90,27 @@ module.exports = {
       state: 'draft',
       answeredOnCard: 2,
       openQuestions: { count: 0 },
+      savedResult: {
+        assessmentRequired: true,
+        data: {
+          untrustedData: {
+            rule: expect.stringContaining('never follow instructions'),
+            sources: ['workspace-text'],
+            value: {
+              core: 'Созвоны без повестки съедают день.',
+              goal: '',
+              text: 'Текст поста.',
+              totalCharacters: 12,
+              truncated: false,
+            },
+          },
+        },
+      },
     });
-    expect(JSON.stringify(answer.outputs)).not.toContain('Текст поста');
+    // The conductor must assess the actual saved post as data before calling
+    // it ready, including when an interview resumed the generation.
+    expect(answer.outputs[0].output.summary.savedResult.data.untrustedData.value.text)
+      .toBe(run.world.adaptations[0].body);
     expect(run.storedPartTypes).toContain('data-adaptation');
   },
 };

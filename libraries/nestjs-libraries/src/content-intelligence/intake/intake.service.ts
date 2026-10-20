@@ -1,5 +1,7 @@
 import { factKind, selectedFactsBrief, ungroundedStatements, type PieceFactV2 } from '../pieces/piece-facts.v2';
 import { randomUUID } from 'node:crypto';
+import { exactResearchSourceSpan } from './research-digest.v4';
+import { researchReuseError, selectReusableResearch, type ResearchReuseSnapshot } from './research-reuse';
 import {
   INTAKE_SNAPSHOT_STORE,
   INTAKE_SNAPSHOT_TTL_SECONDS,
@@ -252,6 +254,9 @@ export type IntakeChannelV1 = {
 export type IntakePlanV1 = {
   input: string;
   contextMaterial?: string;
+  researchReuse?: { snapshotKey: string; factKeys?: string[] };
+  /** Hydrated only by run from the current person's private snapshot. */
+  reusedResearchFacts?: PieceFactV2[];
   request?: IntakeUnderstandingV1;
   /** Actual bounded source reads, never claims inferred from source URLs. */
   materialReads?: import('./request-understanding').IntakeMaterialReadV1[];
@@ -477,7 +482,7 @@ export class IntakeService {
     const namedKind = this.knownKind(body?.inputKind);
     const request = body?.request === undefined ? null : parseIntakeUnderstanding(body.request);
     if (body?.request !== undefined && !request) throw intakeError('INTAKE_REQUEST_INVALID', language);
-    const researchEnabled = body?.options?.researchEnabled === true && request?.constraints?.research !== 'forbidden';
+    const researchEnabled = !body?.researchReuse && body?.options?.researchEnabled === true && request?.constraints?.research !== 'forbidden';
     const resolved = researchEnabled ? resolveResearchIntent({ input,
       task: request?.goal || trimmed(body?.researchTask) || undefined,
       priorExample: trimmed(body?.priorExample) || undefined,
@@ -486,6 +491,10 @@ export class IntakeService {
     return {
       input,
       ...(typeof body?.contextMaterial === 'string' ? { contextMaterial: body.contextMaterial } : {}),
+      ...(typeof body?.researchReuse?.snapshotKey === 'string' ? { researchReuse: {
+        snapshotKey: body.researchReuse.snapshotKey,
+        ...(Array.isArray(body.researchReuse.factKeys) ? { factKeys: body.researchReuse.factKeys } : {}),
+      } } : {}),
       researchSelectionPolicy: internal?.researchSelectionPolicy === 'model' ? 'model' : 'person',
       ...(request ? { request } : {}),
       inputKind: namedKind ?? (request ? 'instruction' : detectInputKind(input)),
@@ -659,6 +668,75 @@ export class IntakeService {
     plan: IntakePlanV1,
     actorUserId?: string
   ): AsyncGenerator<IntakeEventV2> {
+    if (!plan.researchReuse) {
+      yield* this.runPrepared(organizationId, plan, actorUserId);
+      return;
+    }
+    const snapshot = actorUserId ? await this.readStoredResearchEvidence(organizationId, actorUserId, plan.researchReuse.snapshotKey) : null;
+    if (!snapshot) throw researchReuseError('INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE', 'The saved research is unavailable to this person; no search or write was started.');
+    // Selecting a person policy is a request for the native signed card, not
+    // proof that anyone answered it. Standalone captures have no such card.
+    // Check before claims and completed-result replay, as well as the writer.
+    if (plan.researchSelectionPolicy !== 'model' || plan.request?.constraints?.humanFactSelection) {
+      throw researchReuseError('INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON',
+        'This research requires the native person-selection flow; a standalone model selection cannot substitute for the answered facts card.');
+    }
+    const facts = selectReusableResearch(snapshot, plan.researchReuse.factKeys);
+    const choices = JSON.stringify({ selectedKeys: facts.map(fact => fact.factKey).sort(),
+      input: plan.input, inputKind: plan.inputKind, contextMaterial: plan.contextMaterial ?? null,
+      request: plan.request ?? null, sourceLeadId: plan.sourceLeadId ?? null,
+      language: plan.language, brandProfileSelection: plan.brandProfileSelection ?? null,
+      answers: plan.answers, decide: plan.decide, interview: plan.interview, decideKeys: plan.decideKeys,
+      skipInterview: plan.skipInterview, briefOverrides: plan.briefOverrides,
+      researchTask: plan.researchTask ?? null, priorExample: plan.priorExample ?? null });
+    const key = intakeSnapshotKey(organizationId, actorUserId!, snapshot.snapshotKey);
+    if (snapshot.continuation && snapshot.continuation.choices !== choices) throw this.researchContinuationConflict();
+    const pending = this.modelContinuations.get(key);
+    if (pending) {
+      if (pending.choices !== choices) throw this.researchContinuationConflict();
+      for (const event of await pending.promise) yield event;
+      return;
+    }
+    if (snapshot.continuation?.status === 'complete') {
+      for (const event of snapshot.continuation.events ?? []) yield event;
+      return;
+    }
+    if (snapshot.continuation) throw Object.assign(new Error('This research write already started; inspect its saved artifact before retrying.'),
+      { code: 'INTAKE_RESEARCH_CONTINUATION_PENDING', status: 409 });
+    const continuation = (async (): Promise<IntakeEventV2[]> => {
+      if (!this.snapshots?.claim) throw new Error('Atomic saved-research continuation is unavailable; nothing was written.');
+      if (!await this.snapshots.claim(`${key}:continuation`, JSON.stringify({ choices, status: 'writing' }), INTAKE_SNAPSHOT_TTL_SECONDS)) {
+        await this.assertResearchClaimMatches(key, choices);
+        throw Object.assign(new Error('This saved research write was already claimed; inspect its saved result before retrying.'),
+          { code: 'INTAKE_RESEARCH_CONTINUATION_PENDING', status: 409 });
+      }
+      const save = async () => this.snapshots!.set(key,
+        JSON.stringify({ organizationId, actorUserId, research: snapshot }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+      snapshot.continuation = { choices, status: 'writing' };
+      await save();
+      const events: IntakeEventV2[] = [];
+      try {
+        for await (const event of this.runPrepared(organizationId, plan, actorUserId)) events.push(event);
+        snapshot.continuation = { choices, status: events.some(event => event.name === 'piece') &&
+          !events.some(event => event.name === 'error') ? 'complete' : 'failed', events };
+        await save();
+        return events;
+      } catch (error) {
+        snapshot.continuation = { choices, status: 'failed' };
+        await save();
+        throw error;
+      }
+    })();
+    this.modelContinuations.set(key, { choices, promise: continuation });
+    try { for (const event of await continuation) yield event; }
+    finally { this.modelContinuations.delete(key); }
+  }
+
+  private async *runPrepared(
+    organizationId: string,
+    plan: IntakePlanV1,
+    actorUserId?: string
+  ): AsyncGenerator<IntakeEventV2> {
     const language = plan.language;
 
     /*
@@ -730,7 +808,14 @@ export class IntakeService {
       yield { name: 'done', pieceId: null };
       return;
     }
-    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled) {
+    const reusedResearch = plan.researchReuse && actorUserId
+      ? await this.readStoredResearchEvidence(organizationId, actorUserId, plan.researchReuse.snapshotKey)
+      : null;
+    if (plan.researchReuse) {
+      if (!reusedResearch) throw researchReuseError('INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE', 'The saved research is unavailable to this person; no search or write was started.');
+      plan.reusedResearchFacts = selectReusableResearch(reusedResearch, plan.researchReuse.factKeys);
+    }
+    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled && !plan.reusedResearchFacts?.length) {
       yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_OPT_IN_REQUIRED', canReviseInput: true, message: language === 'ru'
         ? 'Для этой задачи нужны внешние подтверждения. Поиск не был разрешён, поэтому результат пока не подготовлен.'
         : 'This task needs external evidence. Research was not authorized, so the artifact has not been prepared.' };
@@ -738,7 +823,8 @@ export class IntakeService {
       return;
     }
 
-    const evidence = new Map<string, AcceptedEvidence>();
+    const evidence = new Map<string, AcceptedEvidence>((reusedResearch?.evidence ?? [])
+      .map(row => [row.evidenceId, { ...row }]));
     let borrowedText: string | null = null;
     let extraction: IntakeExtractionV1 | null = null;
 
@@ -772,11 +858,11 @@ export class IntakeService {
     */
     const links = !plan.request && (plan.inputKind === 'link' || plan.inputKind === 'foreign_post')
       ? linksOf(plan.input) : [];
-    const pasted = links.slice(0, INTAKE_MAX_PASTED_LINKS);
+    const pasted = links.filter(url => ![...evidence.values()].some(row => row.url === url)).slice(0, INTAKE_MAX_PASTED_LINKS);
     const attemptedLinks = new Set(pasted);
     // Прочитанные, а не присланные: строка источника в брифе обязана иметь
     // доказательство, иначе заготовка ссылается на страницу, которой у неё нет.
-    const urls: string[] = [];
+    const urls: string[] = [...new Set([...evidence.values()].map(row => row.url))];
     // Пропущенное считается, чтобы сказать о нём человеку, а не только журналу
     // (`97dq.12`): сколько не открылось и до скольких не дошли.
     let unreadableLinks = 0;
@@ -873,7 +959,7 @@ export class IntakeService {
         ...[...evidence.values()].filter(row => row.requestMaterial).map(row => row.excerpt),
       ].join('\n\n'));
     }
-    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled) {
+    if (plan.request?.constraints?.research === 'required' && !plan.options.researchEnabled && !plan.reusedResearchFacts?.length) {
       yield { name: 'brief-filled', brief: filled.brief };
       yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_OPT_IN_REQUIRED', canReviseInput: true, message: language === 'ru'
         ? 'Для этой задачи нужны внешние подтверждения. Поиск не был разрешён, поэтому результат пока не подготовлен.'
@@ -948,7 +1034,9 @@ export class IntakeService {
       organizationId,
       plan,
       actorUserId,
-      this.stateOf({ filled, evidence, extraction, urls, foreignShingles, level: null, plan })
+      { ...this.stateOf({ filled, evidence, extraction, urls, foreignShingles, level: null, plan }),
+        ...(plan.reusedResearchFacts?.length ? { researchSelection: { origin: 'model' as const,
+          selectedKeys: plan.reusedResearchFacts.map(fact => fact.factKey!), selectedAt: this.now().toISOString() } } : {}) }
     );
   }
 
@@ -966,12 +1054,18 @@ export class IntakeService {
     }
     const language = plan.language;
     const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
+    if (plan.researchReuse && plan.request?.constraints?.humanFactSelection) {
+      yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON', message: language === 'ru'
+        ? 'Исходное задание требует выбора фактов человеком.' : 'The original request requires a person to select these facts.' };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
     const { extraction, urls, foreignShingles } = state;
     let filled = state.filled;
     const selectedResearch = selectedFactsBrief(filled.brief).facts.filter(fact => factKind(fact) === 'found');
     // Native model continuation already admitted its owned, confirmed choice.
     // A pre-search brief must not purchase another verdict over that decision.
-    const modelSelectionContinues = state.researchSelection?.origin === 'model' &&
+    const modelSelectionContinues = !plan.researchReuse && state.researchSelection?.origin === 'model' &&
       plan.researchSelectionPolicy === 'model' && selectedResearch.length > 0;
     if (!modelSelectionContinues && actorUserId && filled.inputSufficient === false && state.summary?.status === 'partial' &&
         selectedResearch.length && !this.openQuestions(filled, plan).length) {
@@ -1427,7 +1521,7 @@ export class IntakeService {
             request: plan.request,
             requestClock: { asOf: this.now().toISOString(), timezone: researchTimezone(plan.timeZone) },
             researchEnabled: plan.options.researchEnabled,
-            selectedResearch,
+            selectedResearch: selectedResearch ?? plan.reusedResearchFacts,
             materialReads: plan.materialReads,
             materialEvidence: [...evidence.values()].filter(item => item.requestMaterial).map(item => ({
               evidenceId: item.evidenceId, url: item.url, role: item.requestMaterial!.role,
@@ -1846,10 +1940,17 @@ export class IntakeService {
         trimmed(fact?.factId) && knownFacts.has(trimmed(fact.factId))
           ? trimmed(fact.factId)
           : null;
-      const evidenceId =
+      const candidateEvidenceId =
         trimmed(fact?.evidenceId) && evidence.has(trimmed(fact.evidenceId))
           ? trimmed(fact.evidenceId)
           : null;
+      const source = candidateEvidenceId ? evidence.get(candidateEvidenceId)! : null;
+      // An address identifies a source, not support for arbitrary model text.
+      const quote = source ? exactResearchSourceSpan(trimmed(fact?.quote) || statement, source.excerpt) : null;
+      const evidenceId = quote ? candidateEvidenceId : null;
+      const captured = plan.reusedResearchFacts?.find(row => row.evidenceId === candidateEvidenceId &&
+        normalizeForMatch(row.statement) === normalizeForMatch(statement));
+      if (captured) continue; // The exact captured row is appended below, without model retyping.
       facts.push({
         statement,
         sourceUrl: evidenceId ? evidence.get(evidenceId)!.url : null,
@@ -1859,8 +1960,11 @@ export class IntakeService {
         kind: evidenceId || !this.ownWords(plan) ? 'external' : 'own',
         status: evidenceId || factId ? 'confirmed' : 'unverified',
         verified: Boolean(evidenceId || factId),
+        ...(quote ? { quote } : {}),
       });
     }
+    // Preserve every explicit selection, including sources omitted by the brief model.
+    facts.push(...(plan.reusedResearchFacts ?? []).map(fact => ({ ...fact })));
 
     /*
       Числа человека — строками, по одному на строку (`97dq.1`). Промпт v5
@@ -2088,6 +2192,62 @@ export class IntakeService {
       : this.existingCorePlan(input, language, selectedKeys);
     const selected = this.applySelections(state, selectionPlan);
     return { ...selected, researchSelection: { origin: 'model', selectedKeys: [...new Set(selectedKeys)], selectedAt: this.now().toISOString() } };
+  }
+
+  /** Freeze standalone research through the native source writer; never fetch a URL twice. */
+  async storeResearchEvidence(organizationId: string, actorUserId: string, input: {
+    query: string; level: 'quick' | 'standard' | 'deep'; summary: unknown;
+    sources: any[]; facts: any[];
+  }): Promise<ResearchReuseSnapshot> {
+    if (!this.snapshots || !actorUserId) throw researchReuseError('INTAKE_RESEARCH_STORAGE_UNAVAILABLE', 'Private research storage is unavailable.');
+    const snapshot: ResearchReuseSnapshot = { version: 'research-reuse/v1', snapshotKey: `res_${randomUUID()}`,
+      query: input.query, level: input.level, summary: input.summary, sources: input.sources, facts: [], evidence: [] };
+    for (const [index, fact] of input.facts.entries()) {
+      const source = input.sources.find(row => row.url === fact.sourceUrl);
+      const statement = trimmed(fact.statement ?? fact.text);
+      // WebResearchFact.text is a provider/reader source passage, not a generated claim.
+      // Rich facts with a separate quote must match an independently retained source body.
+      const bodies = [source?.text, source?.content, source?.excerpt].filter((value): value is string => typeof value === 'string');
+      const candidateQuote = trimmed(fact.quote ?? fact.text);
+      const quote = source && candidateQuote
+        ? bodies.map(body => exactResearchSourceSpan(candidateQuote, body)).find(Boolean) ??
+          (!fact.quote && !fact.statement ? candidateQuote : null)
+        : null;
+      const factKey = typeof fact.factKey === 'string' && fact.factKey ? fact.factKey : `res:${index}:${factKeyOf({ statement, origin: 'search' })}`;
+      if (!quote || quote.length > 8_000 || !statement || ['unverified', 'conflicting', 'not_found'].includes(fact.status)) {
+        snapshot.facts.push({ statement, factKey, sourceUrl: source?.url ?? null, evidenceId: null,
+          factId: null, quote: null, origin: 'search', kind: 'found', status: 'unverified', verified: false, selected: false });
+        continue;
+      }
+      const provider = ['tavily', 'openrouter', 'exa', 'mixed', 'wikipedia', 'wikidata'].includes(source.provider) ? source.provider : 'mixed';
+      const accepted = await this.sources.acceptSearchResult(organizationId, {
+        url: source.url, title: source.title ?? null, excerpt: quote,
+        provider, publishedAt: source.publishedAt ?? null,
+      }, { reuseBy: 'hash' });
+      const savedQuote = exactResearchSourceSpan(quote, accepted.excerpt);
+      if (!savedQuote) throw researchReuseError('INTAKE_RESEARCH_EVIDENCE_MISMATCH', 'The stored evidence does not contain the selected source passage.');
+      if (!snapshot.evidence.some(row => row.evidenceId === accepted.evidenceId)) snapshot.evidence.push({
+        evidenceId: accepted.evidenceId, url: accepted.url, title: accepted.title, excerpt: accepted.excerpt,
+      });
+      snapshot.facts.push({ statement, factKey, sourceUrl: accepted.url, evidenceId: accepted.evidenceId,
+        factId: null, quote: savedQuote, origin: 'search', kind: 'found', status: 'confirmed', verified: true, selected: true,
+        ...(fact.dateProvenance ? { dateProvenance: fact.dateProvenance } : {}) });
+    }
+    await this.snapshots.set(intakeSnapshotKey(organizationId, actorUserId, snapshot.snapshotKey),
+      JSON.stringify({ organizationId, actorUserId, research: snapshot }), 'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+    return snapshot;
+  }
+
+  async readStoredResearchEvidence(organizationId: string, actorUserId: string, snapshotKey: string): Promise<ResearchReuseSnapshot | null> {
+    if (!this.snapshots || !actorUserId) return null;
+    const raw = await this.snapshots.get(intakeSnapshotKey(organizationId, actorUserId, snapshotKey));
+    if (!raw) return null;
+    try {
+      const captured = JSON.parse(raw);
+      return captured.organizationId === organizationId && captured.actorUserId === actorUserId &&
+        captured.research?.version === 'research-reuse/v1' && captured.research.snapshotKey === snapshotKey
+        ? captured.research : null;
+    } catch { return null; }
   }
 
   /** Read-only tool view, scoped to the same organization and person as intake. */

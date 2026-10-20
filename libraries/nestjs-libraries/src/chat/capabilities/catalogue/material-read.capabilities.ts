@@ -68,8 +68,14 @@ export const pieceRead = defineCapability({
           'Provide researchId (or pieceId) to read a saved research source or fact.'
         );
       }
-      let evidence = readResearchEvidence(ctx.organizationId, snapshotKey);
-      if (!evidence) {
+      // Standalone research is private to its requesting person. A process cache
+      // scoped only by organization is a preview, never read authority.
+      let evidence = snapshotKey.startsWith('res_') ? null : readResearchEvidence(ctx.organizationId, snapshotKey);
+      if (snapshotKey.startsWith('res_')) {
+        const snapshot = await ctx.service(IntakeService).readStoredResearchEvidence(ctx.organizationId, ctx.userId, snapshotKey);
+        if (snapshot) evidence = recordResearchEvidence(ctx.organizationId, snapshot);
+      }
+      if (!evidence && !snapshotKey.startsWith('res_')) {
         try {
           const intake = ctx.service(IntakeService) as
             | {

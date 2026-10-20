@@ -1,6 +1,6 @@
 # Развёртывание на сервере
 
-## Текущий выпуск 20.10.2026: aeb7cfe2cf50
+## Текущий выпуск 20.10.2026: 86008cab0c46
 
 Эпик `content-factory-next-on0i` (`on0i.1`–`on0i.7`, `A1`–`A31`) и задача
 `content-factory-next-rafo`: переход на Mastra `1.78.0` (`@mastra/core` `1.78.0`,
@@ -13,19 +13,21 @@
 субагенты, расписания `defineSchedule`), боковая навигация чатов и дверь
 наблюдаемости `/agent/threads/:id/observability`.
 
-Проверенный приватный источник `acfd770aba75600939e727be27d5bafe62020a81`
+Проверенный приватный источник `f4468131c38fb96aa35f232e0fda49925aec5309`
 (после добавления одноразового контейнера `postgres:17-alpine` в тестовые пробы
-`agent-durable-recovery` и `agent-native-history` для раннеров CI без локального
-`127.0.0.1:5433` поверх первого выпуска `5180155733f4`/`41e8e56a56a0`),
-публичный коммит `aeb7cfe2cf5054fcff73a231497efbbbd6c9310c`, образ
-`ghcr.io/maslennikov-ig/content-factory-next:aeb7cfe2cf50`.
-Registry digest `sha256:1c4a9479bce534f1e007390487b96ed5487a94c97907c027d854265a9dec1d10`,
-runtime config `sha256:b3b10ca7c1810ce3dda68f1474ffe680faa0abf344ff3b4cd6531c33a4065f69`.
+`agent-durable-recovery` и `agent-native-history`, привязки `exa-key` в
+`secret-shapes.ts` к `${UUID}` и кэширования TS-транспиляции в `load-ts-module.cjs`
+поверх промежуточных `5180155733f4`/`41e8e56a56a0` и `acfd770aba75`/`aeb7cfe2cf50`),
+публичный коммит `86008cab0c4613906ea5f92f9e479c2d88942198`, образ
+`ghcr.io/maslennikov-ig/content-factory-next:86008cab0c46`.
+Registry digest `sha256:4415ceb23208bda0fcc82e4f85d62842470343d3f5b1137b434f5f1b554c4aa1`,
+runtime config `sha256:cb66d3f063fbbc2b6174bc078c129abec05b0a6b55f7b4bf8a3f111a5592788c`.
 Полный архив исходников из production (`/api/public/source/archive`):
-`13 099 261` байт, SHA-256 `86a45ed9b13af7528b4d2f1a01f3587e7e70fad218c5d71ff473cba90950351d`,
-совпал с проверенным образом. Все 9 корневых проверок прошли: Jest 704 набора /
-12 660 тестов / 70 пропусков, Node 126 / 0 ошибок / 4 пропуска окружения, Python 50 OK.
-Проверки `nginx -t` и `apps/commands --help` (код 0, 5 команд) в образе прошли.
+`13 099 740` байт, SHA-256 `02e904e44e2a629b06e6798dae77db46a00c943f057b2e8eab68f33cc2a34f9e`,
+совпал с проверенным образом. Все 9 корневых проверок и все 5 публичных проверок
+GitHub Actions (`Build` `39393460574` и `Code Quality Analysis` `39393460565`) прошли:
+Jest 704 набора / 12 660 тестов / 70 пропусков, Node 126 / 0 ошибок / 4 пропуска окружения,
+Python 50 OK. Проверки `nginx -t` и `apps/commands --help` (код 0, 5 команд) в образе прошли.
 
 По шагам `R1`–`R5` выполнено обновление отдельной базы Mastra `45 → 47` таблиц
 (`@mastra/pg` `1.31.2`): резервная копия `/var/backups/content-factory-next/postgres/20261020T061226Z`,
@@ -36,10 +38,10 @@ runtime config `sha256:b3b10ca7c1810ce3dda68f1474ffe680faa0abf344ff3b4cd6531c33a
 Prisma до и после переключения: `diffExitCode: 0`, `sqlLines: 0`, схема продукта
 (77 таблиц, 0 таблиц `mastra_*`) не применялась. После переключения `cf-next-app`
 `healthy`, перезапусков 0, 3 процесса PM2 `online`; 17 соседних контейнеров и
-21 том сохранены. Штатный `retain-host-artifacts.sh` оставил `aeb7cfe2cf50` и
+21 том сохранены. Штатный `retain-host-artifacts.sh` оставил `86008cab0c46` и
 проверенный откат `dd89af1b4a29` (config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`),
-удалив промежуточный `41e8e56a56a0`, устаревший `88867e1cb4c7` и старые копии `.env.bak`/`app.env.bak`;
-свободно `25 291 116 544` байта. Временный каталог предпроверки удалён.
+удалив промежуточные `41e8e56a56a0`, `aeb7cfe2cf50`, устаревший `88867e1cb4c7` и старые копии `.env.bak`/`app.env.bak`;
+свободно `24 986 882 048` байт (`69%` занято). Временный каталог предпроверки удалён.
 Откат: `CF_DEPLOY_HOST=helixa-prod scripts/release/switch-host-image.sh dd89af1b4a29`.
 Квитанция выпуска: [production-delivery.md](../../.codex/stages/content-factory-next-on0i-native-harness-20261019/production-delivery.md).
 

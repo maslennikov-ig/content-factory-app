@@ -1,4 +1,12 @@
 # Content Factory current handoff — 20 October 2026
+Telegram repair `content-factory-next-5rgn` in progress: owner requests full
+research -> piece -> Telegram repair, restoration of pre-QA avatar/settings,
+two actual reruns and preserved originals. Historical channel writing profile
+restored via authenticated API/readback, reserve mode retained, private rollback
+and original snapshots saved. No social publication. Source/quality streams and
+release/rerun acceptance are pending; do not call the pipeline fixed yet.
+[Plan](../docs/superpowers/plans/2026-10-20-telegram-adaptation-chain-repair.md),
+[stage](stages/content-factory-next-5rgn-telegram-repair-20261020/outcome.md).
 Task authority (owner, 2026-10-16): Linear is canonical, Hoba is the intake; linked tasks follow same-team project moves, marked `linear-project:<slug>`; Beads is the agent interface; GitHub is the subordinate mirror. Component: `content-factory`; migration epic: Helixa `helixa-2-lab-2xs0s`. Check bridge status for `preparing` versus `active`. Older Beads-authority wording below is historical. See `AGENTS.md` and managed `docs/runbooks/linear-task-sync.md`; product work/gates stay intact.
 Server task-sync cutover, 2026-10-16 (`helixa-2-lab-03z66`): the sole publisher and native Beads databases are on `helixa-new` (82.26.152.8). Local `bd` uses the protected SSH connection; both Windows sync tasks are disabled. Local bridge checkpoints are diagnostic copies. Use the managed task-sync runbook for the live server status and recovery; never reinitialize the selected databases.
 
@@ -6,11 +14,11 @@ Owner-authorized j9p5 implementation and production acceptance completed19Oct: p
 ## Native Mastra 1.78 harness & chat sidebar delivered (20 Oct 2026)
 
 Owner20Oct explicitly authorized `"Push, Merge, Deploy."` Epic `content-factory-next-on0i` (`on0i.1`–`on0i.7`, `A1`–`A31`) and `content-factory-next-rafo` are merged to `main`, published, and deployed to production (`factory.aidevteam.ru`):
-- Private source `acfd770aba75600939e727be27d5bafe62020a81` (`origin/main`), public commit `aeb7cfe2cf5054fcff73a231497efbbbd6c9310c` (`aeb7cfe2cf50`), image `ghcr.io/maslennikov-ig/content-factory-next:aeb7cfe2cf50` (registry digest `sha256:1c4a9479bce534f1e007390487b96ed5487a94c97907c027d854265a9dec1d10`, config `sha256:b3b10ca7c1810ce3dda68f1474ffe680faa0abf344ff3b4cd6531c33a4065f69`).
-- All 9 root checks pass: Jest 704 suites / 12,660 tests / 70 skips, Node 126 / 0 fail / 4 env skips, Python 50 OK; container `nginx -t` and `apps/commands --help` (5 commands, exit 0) pass.
+- Private source `f4468131c38fb96aa35f232e0fda49925aec5309` (`origin/main`), public commit `86008cab0c4613906ea5f92f9e479c2d88942198` (`86008cab0c46`), image `ghcr.io/maslennikov-ig/content-factory-next:86008cab0c46` (registry digest `sha256:4415ceb23208bda0fcc82e4f85d62842470343d3f5b1137b434f5f1b554c4aa1`, config `sha256:cb66d3f063fbbc2b6174bc078c129abec05b0a6b55f7b4bf8a3f111a5592788c`).
+- All 9 root checks and all 5 public GitHub Actions CI checks (`Build` `39393460574` + `Code Quality Analysis` `39393460565`) pass: Jest 704 suites / 12,660 tests / 70 skips, Node 126 / 0 fail / 4 env skips, Python 50 OK; container `nginx -t` and `apps/commands --help` (5 commands, exit 0) pass.
 - Production Mastra DB upgraded `45 -> 47` tables (`R1`–`R5`, backup `20261020T061226Z`, `threads=34`, `messages=342`, invalid indexes `0`, fingerprint `a8cdfd91…` -> `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`, role isolation pass). Product Prisma preflight before/after switch `diffExitCode: 0`, `sqlLines: 0` (77 product tables, 0 `mastra_*` tables).
-- Runtime `healthy`, `0` restarts, 3 PM2 processes `online`; `/auth/login`, `/api/`, `/api/public/source/version` and `/api/public/source/archive` (`13,099,261` bytes, SHA-256 `86a45ed9b13af7528b4d2f1a01f3587e7e70fad218c5d71ff473cba90950351d`) return 200 and match image.
-- All 17 foreign containers and 21 volumes preserved; `retain-host-artifacts.sh` kept `aeb7cfe2cf50` and verified rollback `dd89af1b4a29` (config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`), removing intermediate `41e8e56a56a0`, old own tag `88867e1cb4c7` and allowlisted backup env copies (`25,291,116,544` free bytes).
+- Runtime `healthy`, `0` restarts, 3 PM2 processes `online`; `/auth/login`, `/api/`, `/api/public/source/version` and `/api/public/source/archive` (`13,099,740` bytes, SHA-256 `02e904e44e2a629b06e6798dae77db46a00c943f057b2e8eab68f33cc2a34f9e`) return 200 and match image.
+- All 17 foreign containers and 21 volumes preserved; `retain-host-artifacts.sh` kept `86008cab0c46` and verified rollback `dd89af1b4a29` (config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`), removing intermediate `41e8e56a56a0`/`aeb7cfe2cf50`, old own tag `88867e1cb4c7` and allowlisted backup env copies (`24,986,882,048` free bytes).
 - [Plan](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [audit](stages/content-factory-next-2512-native-harness-20261019/audit.md), [outcome](stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md), [receipt](stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json), [delivery](stages/content-factory-next-on0i-native-harness-20261019/production-delivery.md), [sidebar outcome](stages/content-factory-next-rafo-chat-sidebar-20261019/outcome.md).
 
 ## AI assistant implementation

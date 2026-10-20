@@ -54,9 +54,9 @@ All seven tasks of epic `content-factory-next-on0i` (`on0i.1` through `on0i.7`) 
 ## Safety & Delivery Boundaries
 
 - Owner explicitly authorized `"Push, Merge, Deploy."` on 2026-10-20.
-- Merged `codex/on0i-native-harness-implementation-20261019` (`acfd770aba75600939e727be27d5bafe62020a81` following `5180155733f4311346fdc7cd3f42bcc0d407ee70`) to `main` and pushed to `origin` (`maslennikov-ig/content-factory-next`).
-- Published public tree commit `aeb7cfe2cf5054fcff73a231497efbbbd6c9310c` (`aeb7cfe2cf50`) to `maslennikov-ig/content-factory-app` and pushed `ghcr.io/maslennikov-ig/content-factory-next:aeb7cfe2cf50` (`sha256:1c4a9479bce534f1e007390487b96ed5487a94c97907c027d854265a9dec1d10`).
-- Upgraded production Mastra database `45 -> 47` tables (`R1`–`R5`, fingerprint `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`), verified Prisma diff `0` / SQL `0` before and after switching, switched `factory.aidevteam.ru` to `aeb7cfe2cf50`, and ran `retain-host-artifacts.sh` keeping `dd89af1b4a29` as verified rollback. See [production delivery receipt](production-delivery.md).
+- Merged `codex/on0i-native-harness-implementation-20261019` (`f4468131c38fb96aa35f232e0fda49925aec5309` following `acfd770aba75` and `5180155733f4`) to `main` and pushed to `origin` (`maslennikov-ig/content-factory-next`).
+- Published public tree commit `86008cab0c4613906ea5f92f9e479c2d88942198` (`86008cab0c46`) to `maslennikov-ig/content-factory-app` (all 5 public GitHub Actions CI checks green: `Build` `39393460574` and `Code Quality Analysis` `39393460565`) and pushed `ghcr.io/maslennikov-ig/content-factory-next:86008cab0c46` (`sha256:4415ceb23208bda0fcc82e4f85d62842470343d3f5b1137b434f5f1b554c4aa1`).
+- Upgraded production Mastra database `45 -> 47` tables (`R1`–`R5`, fingerprint `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`), verified Prisma diff `0` / SQL `0` before and after switching, switched `factory.aidevteam.ru` to `86008cab0c46`, and ran `retain-host-artifacts.sh` keeping `dd89af1b4a29` as verified rollback. See [production delivery receipt](production-delivery.md).
 - Zero paid external provider calls and zero real-user messaging.
 
 docs-reviewed: updated — stage outcome, root acceptance receipt, project index, and handoff updated for `content-factory-next-on0i`.

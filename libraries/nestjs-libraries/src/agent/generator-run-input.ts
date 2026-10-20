@@ -21,6 +21,7 @@ import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generat
 import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { StoredEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import type { IntakeUnderstandingV1 } from '../content-intelligence/intake/request-understanding';
 
 /**
  * `v2` (`97dq.75`) carries `authorLink`, the author's link for the post, into
@@ -58,6 +59,9 @@ export type IntakeMaterialHintV1 = {
    * (P2-12).
    */
   checked?: boolean;
+  /** The source identity and literal support, never a claim certified by an id alone. */
+  evidenceId?: string;
+  quote?: string;
 };
 
 /**
@@ -104,6 +108,9 @@ export type IntakeGenerationHintsV1 = {
       Record<'thesis' | 'position' | 'disagreement' | 'audience' | 'goal', string>
     >;
   };
+  /** Original scope stays distinct from reference material and from the core. */
+  request?: IntakeUnderstandingV1;
+  instructionText?: string;
   /** Взятое из чужого текста: тема, угол, строение. Никогда — сам текст. */
   borrowed?: {
     topic: string;

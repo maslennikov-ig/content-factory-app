@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ContentSourceController } from '@contentfactory/backend/api/routes/content-source.controller';
 import { WebResearchService } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { IntakeService } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake.service';
 import { defineCapability, door } from '../capability.types';
 import { redactSecretShapes } from '../../conductor/secret-shapes';
 import {
@@ -31,19 +32,20 @@ export const researchSearch = defineCapability({
       level, language: ctx.language, readerResponse: true,
       ...(input.queries?.length ? { queries: input.queries } : {}),
     });
-    const recorded = recordResearchEvidence(ctx.organizationId, {
+    const captured = await ctx.service(IntakeService).storeResearchEvidence(ctx.organizationId, ctx.userId, {
       query: input.query,
       level,
       summary: found.readerAssessment ?? null,
       sources: found.sources,
       facts: found.facts,
     });
+    const recorded = recordResearchEvidence(ctx.organizationId, captured);
     return {
       query: input.query,
       snapshotKey: recorded.snapshotKey,
       level,
       summary: found.summary,
-      facts: found.facts,
+      facts: captured.facts,
       sources: found.sources,
       assessment: found.readerAssessment ?? null,
       sourceCount: found.sources.length,

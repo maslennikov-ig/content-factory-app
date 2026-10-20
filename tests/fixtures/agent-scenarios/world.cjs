@@ -324,6 +324,9 @@ const createWorld = (overrides = {}) => {
   // What each door body looked like when it reached the service: the record
   // a scenario compares with what the screen sends.
   const requests = [];
+  // Private transient captures are storage, like rows.snapshots below; they
+  // do not create a piece or add another paid/research admission.
+  const researchEvidenceSnapshots = new Map();
 
   const scoped = (method, organizationId) => {
     if (organizationId !== ORGANIZATION_ID) {
@@ -1827,6 +1830,33 @@ const createWorld = (overrides = {}) => {
       },
     },
     IntakeService: {
+      storeResearchEvidence: async (organizationId, userId, input) => {
+        scoped('IntakeService.storeResearchEvidence', organizationId);
+        const snapshotKey = `res_scenario-${researchEvidenceSnapshots.size + 1}`;
+        const evidence = [];
+        const facts = input.facts.map((fact, index) => {
+          const source = input.sources.find((row) => row.url === fact.sourceUrl);
+          const statement = String(fact.statement ?? fact.text ?? '').trim();
+          const quote = String(fact.quote ?? fact.text ?? '').trim();
+          const bodies = [source?.text, source?.content, source?.excerpt].filter((body) => typeof body === 'string');
+          const supported = !!source && !!statement && !!quote && quote.length <= 8_000 &&
+            !['unverified', 'conflicting', 'not_found'].includes(fact.status) &&
+            (bodies.some((body) => body.includes(quote)) || (!fact.quote && !fact.statement));
+          const evidenceId = supported ? `${snapshotKey}-evidence-${index}` : null;
+          if (supported) evidence.push({ evidenceId, url: source.url, title: source.title ?? null, excerpt: quote });
+          return { ...fact, statement, factKey: fact.factKey ?? `${snapshotKey}-fact-${index}`,
+            sourceUrl: source?.url ?? null, quote: supported ? quote : null, evidenceId, factId: null,
+            origin: 'search', kind: 'found', verified: supported, status: supported ? 'confirmed' : 'unverified', selected: supported };
+        });
+        const capture = { ...JSON.parse(JSON.stringify(input)), version: 'research-reuse/v1', snapshotKey, facts, evidence };
+        researchEvidenceSnapshots.set(`${organizationId}:${userId}:${snapshotKey}`, capture);
+        return JSON.parse(JSON.stringify(capture));
+      },
+      readStoredResearchEvidence: async (organizationId, userId, snapshotKey) => {
+        scoped('IntakeService.readStoredResearchEvidence', organizationId);
+        const capture = researchEvidenceSnapshots.get(`${organizationId}:${userId}:${snapshotKey}`);
+        return capture ? JSON.parse(JSON.stringify(capture)) : null;
+      },
       selectResearchForModel: async function* (organizationId, userId, snapshotKey, selectedKeys) {
         scoped('IntakeService.selectResearchForModel', organizationId);
         const saved = rows.snapshots?.[snapshotKey];

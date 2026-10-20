@@ -2,8 +2,23 @@
 const { loadRegistry, requestContextFor, servicesFrom, executeTool } = require('./helpers/agent-capabilities.cjs');
 const registry = loadRegistry();
 const capability = id => registry.CAPABILITY_CATALOGUE.find(row => row.id === id);
+const captures = new Map();
+let captureSequence = 0;
+const researchStorage = {
+  storeResearchEvidence: async (organizationId, userId, input) => {
+    const snapshotKey = `res_adapter-${++captureSequence}`;
+    const facts = input.facts.map((fact, index) => ({ ...fact, statement: fact.statement ?? fact.text,
+      factKey: fact.factKey ?? `row-${index}`, evidenceId: `evidence-${index}`,
+      verified: true, status: 'confirmed', selected: true }));
+    const snapshot = { ...input, snapshotKey, version: 'research-reuse/v1', facts,
+      evidence: facts.map(fact => ({ evidenceId: fact.evidenceId, url: fact.sourceUrl, excerpt: fact.quote ?? fact.statement })) };
+    captures.set(`${organizationId}:${userId}:${snapshotKey}`, snapshot);
+    return snapshot;
+  },
+  readStoredResearchEvidence: async (organizationId, userId, snapshotKey) => captures.get(`${organizationId}:${userId}:${snapshotKey}`) ?? null,
+};
 const tool = (id, services) => registry.buildCapabilityTool(capability(id), {
-  services: servicesFrom(services), language: 'ru', entrance: 'chat',
+  services: servicesFrom({ ...services, IntakeService: { ...researchStorage, ...services.IntakeService } }), language: 'ru', entrance: 'chat',
 });
 const run = (id, input, services) => executeTool(tool(id, services), input,
   { requestContext: requestContextFor(registry) });
@@ -234,7 +249,7 @@ describe('model-led tools keep original goals and actual research outcomes', () 
       'org-1',
       expect.objectContaining({
         researchDepth: 'none',
-        contextMaterial: expect.stringContaining('Mastra 1.78 adds native Session.'),
+        researchReuse: { snapshotKey, factKeys: ['res-f1'] },
       }),
       { researchSelectionPolicy: 'model' },
     );

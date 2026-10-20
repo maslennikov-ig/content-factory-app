@@ -938,6 +938,7 @@ const buildPieces = (options = {}) => {
                 options.generated || 'Пять из шести сроков я сорвал сам себе.'
               ),
               ...(options.antiCopy ? { antiCopy: options.antiCopy } : {}),
+              ...(options.generatedHook ? { hook: options.generatedHook } : {}),
             },
           },
         };
@@ -1279,6 +1280,20 @@ describe('адаптация под канал', () => {
     );
   });
 
+  test.each([false, true])('the complete hook and body reach the post, adaptation and event without duplication (%s)', async alreadyIncluded => {
+    const opening = 'Первое наблюдение: 12 заявок пришли сами.';
+    const body = 'За ними стояли два месяца работы с клиентами.';
+    const generated = alreadyIncluded ? `${opening}\n\n${body}` : body;
+    const { service, calls } = buildPieces({ generated, generatedHook: opening });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, 'ru');
+    const [written] = named(await drain(service.adapt('org-a', plan)), 'adaptation');
+    const complete = `${opening}\n\n${body}`;
+    expect(calls.createAdaptation[0][1].body).toBe(complete);
+    expect(written.adaptation.body).toBe(complete);
+    expect(written.content[0].content).toBe(complete);
+    expect(calls.createDraft[0][1].content).toBe(`<p>${opening}</p><p>${body}</p>`);
+  });
+
   test.each([
     ['ru', 'Первая мысль важна для команды. Этот пост предназначен для руководителей небольших команд. Вторая мысль остаётся частью публикации.'],
     ['en', 'The first idea matters to the team. This post is aimed at small teams. The second idea remains part of the publication.'],
@@ -1383,6 +1398,19 @@ describe('адаптация под канал', () => {
         },
         { statement: 'из шести дедлайнов сдвинулись пять' },
       ]);
+    });
+
+    test('selected source identity and the literal supporting quote reach the generator together', async () => {
+      const material = await adaptWith([{
+        statement: 'Новый общий календарь появился 17 октября', origin: 'search', kind: 'found',
+        verified: true, selected: true, evidenceId: 'quote-evidence-17',
+        sourceUrl: 'https://example.org/calendar', quote: '17 октября запущен общий календарь.',
+      }]);
+      expect(material).toEqual([{
+        statement: 'Новый общий календарь появился 17 октября', checked: true,
+        evidenceId: 'quote-evidence-17', sourceUrl: 'https://example.org/calendar',
+        quote: '17 октября запущен общий календарь.',
+      }]);
     });
 
     /**

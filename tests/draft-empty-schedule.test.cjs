@@ -553,8 +553,15 @@ const channelFixture = ({
   };
   const chatModel = {
     withStructuredOutput(schema) {
-      return RunnableLambda.from(async () => {
+      return RunnableLambda.from(async (prompt) => {
         const shape = schema?.shape ?? {};
+        if (shape.status && shape.missingRequirements && shape.unsupportedClaims) {
+          // Exercise the real final quality node instead of bypassing it.
+          // This scheduler fixture's draft contains its complete tiny core.
+          expect(String(prompt)).toContain('Канбан визуализирует работу.');
+          calls.models.push('review');
+          return { status: 'passed', missingRequirements: [], unsupportedClaims: [] };
+        }
         if (shape.category) {
           calls.models.push('category');
           return { category: 'категория' };
@@ -589,6 +596,11 @@ const channelFixture = ({
       executeAiStreamOperation: (org, operation, factory) => {
         calls.scopes.push([org, operation]);
         return factory();
+      },
+      executeAiOperation: async (org, operation, callback, role) => {
+        expect([org, operation, role]).toEqual(['org-a', 'text_generation', 'review']);
+        calls.scopes.push([org, operation, role]);
+        return callback();
       },
     },
     {
@@ -644,9 +656,12 @@ const adapt = async (fixture, request = {}, afterPrepare) => {
   if (afterPrepare) afterPrepare(fixture.channel, fixture.piece);
   return collect(fixture.service.adapt('org-a', prepared));
 };
-const assertSingleGeneration = (calls) => {
-  expect(calls.models).toEqual(['category', 'topic', 'hook', 'content']);
-  expect(calls.scopes).toEqual([['org-a', 'text_generation']]);
+const assertSingleGeneration = (calls, reviewed = true) => {
+  expect(calls.models).toEqual(['category', 'topic', 'hook', 'content', ...(reviewed ? ['review'] : [])]);
+  expect(calls.scopes).toEqual([
+    ['org-a', 'text_generation'],
+    ...(reviewed ? [['org-a', 'text_generation', 'review']] : []),
+  ]);
   expect(calls.contexts).toHaveLength(1);
 };
 
@@ -933,7 +948,7 @@ describe('actual PieceService -> compiled graph -> owned draft save', () => {
     expect(fixture.scheduler.calls.integrations).toHaveLength(1);
     expect(fixture.scheduler.calls.posts).toHaveLength(0);
     expect(fixture.calls.draft).toHaveLength(0);
-    assertSingleGeneration(fixture.calls);
+    assertSingleGeneration(fixture.calls, false);
   });
 
   test('actual public controller never promotes body/options to a trusted third argument and ends the error stream', async () => {
@@ -966,6 +981,6 @@ describe('actual PieceService -> compiled graph -> owned draft save', () => {
     expect(fixture.scheduler.calls.integrations).toHaveLength(1);
     expect(fixture.scheduler.calls.posts).toHaveLength(0);
     expect(fixture.calls.draft).toHaveLength(0);
-    assertSingleGeneration(fixture.calls);
+    assertSingleGeneration(fixture.calls, false);
   });
 });

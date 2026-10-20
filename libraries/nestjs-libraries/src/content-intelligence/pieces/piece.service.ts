@@ -73,6 +73,7 @@ import type { BriefFilledV2 } from '../brand-voice/intake-v2.contract';
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { AgentGraphService } from '@contentfactory/nestjs-libraries/agent/agent.graph.service';
+import { withAdaptationOpening } from '@contentfactory/nestjs-libraries/agent/adaptation-coverage';
 import type {
   GeneratorRunInput,
   IntakeGenerationHintsV1,
@@ -476,6 +477,8 @@ const materialHints = (
       statement,
       ...(sourceUrl ? { sourceUrl } : {}),
       ...(checked(fact) ? { checked: true } : {}),
+      ...(trimmed(fact.evidenceId) ? { evidenceId: trimmed(fact.evidenceId) } : {}),
+      ...(trimmed(fact.quote) ? { quote: oneLine(trimmed(fact.quote)).slice(0, 8_000) } : {}),
     });
   }
   return lines;
@@ -1604,6 +1607,11 @@ export class PieceService {
             error: true,
             code: trimmed(raw.code) || 'GENERATION_FAILED',
             message: trimmed(raw.message) || 'The adaptation could not be written.',
+            ...(raw.code === 'CONTENT_ADAPTATION_INCOMPLETE' ? {
+              missingRequirements: raw.missingRequirements,
+              unsupportedClaims: raw.unsupportedClaims,
+              incompleteDraft: raw.incompleteDraft,
+            } : {}),
           };
           failed = true;
           break;
@@ -1702,6 +1710,11 @@ export class PieceService {
       }))
       .filter((item) => item.content);
     if (!content.length) return null;
+
+    // The graph intentionally writes a separate hook and body. The saved
+    // version must contain both, including a hook's sole fact or number.
+    const opening = stripCitationLabels(trimmed(output.hook));
+    content[0].content = withAdaptationOpening(opening, content[0].content);
 
     const plain = content.map((item) => item.content).join('\n\n');
     const html = editorHtml(plain, plan.channel.editor);
@@ -6072,6 +6085,8 @@ export class PieceService {
       : null;
     return {
       version: INTAKE_HINTS_VERSION,
+      ...(plan.core?.request ? { request: plan.core.request } : {}),
+      ...(trimmed(plan.core?.instructionText) ? { instructionText: plan.core!.instructionText } : {}),
       brief: {
         thesis: brief?.thesis ?? null,
         position: brief?.position ?? null,

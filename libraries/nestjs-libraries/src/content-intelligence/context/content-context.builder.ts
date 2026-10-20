@@ -27,7 +27,10 @@ import type {
 
 const CONTEXT_TTL_MS = 15 * 60 * 1000;
 const MAX_EXCERPT_CHARACTERS = 800;
-const SELECTION_ALGORITHM_VERSION = 1;
+// Explicitly selected material is already a supporting quote, not a random
+// page prefix. Keep it usable past offset 800, within the unchanged 12k total.
+const MAX_SELECTED_EXCERPT_CHARACTERS = 8_000;
+const SELECTION_ALGORITHM_VERSION = 2;
 
 type RejectionReason = ContentContextEnvelopeV1['rejected'][number]['reason'];
 
@@ -384,6 +387,12 @@ export class ContentContextBuilderV1 {
       CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1
     ).length;
     let renderedCharacters = profileCharacters;
+    const explicitEvidenceIds = new Set(request.userMaterialEvidenceIds || []);
+    const explicitEvidence = (item: EvidenceCandidateV1) =>
+      item.explicit === true || explicitEvidenceIds.has(item.id);
+    const excerptLimit = (item: EvidenceCandidateV1) =>
+      explicitEvidence(item) || evidenceProvenance(item) === 'SEARCH'
+      ? MAX_SELECTED_EXCERPT_CHARACTERS : MAX_EXCERPT_CHARACTERS;
 
     for (const candidate of ranked) {
       if (selectedFacts.length >= CONTENT_CONTEXT_MAX_FACTS_V1) {
@@ -403,7 +412,7 @@ export class ContentContextBuilderV1 {
       const factText = cleanText(candidate.fact.statement, 4_000);
       const evidenceCharacters = newEvidence.reduce(
         (total, item) =>
-          total + cleanText(item.excerpt, MAX_EXCERPT_CHARACTERS).length,
+          total + cleanText(item.excerpt, excerptLimit(item)).length,
         0
       );
       if (
@@ -417,7 +426,7 @@ export class ContentContextBuilderV1 {
       renderedCharacters += factText.length + evidenceCharacters;
       for (const item of newEvidence) {
         evidenceIds.add(item.id);
-        selectedEvidence.push(item);
+        selectedEvidence.push({ ...item, explicit: explicitEvidence(item) });
       }
     }
 
@@ -454,7 +463,7 @@ export class ContentContextBuilderV1 {
         sawStale = true;
         continue;
       }
-      const excerpt = cleanText(item.excerpt, MAX_EXCERPT_CHARACTERS);
+      const excerpt = cleanText(item.excerpt, excerptLimit(item));
       if (
         selectedEvidence.length >= CONTENT_CONTEXT_MAX_EVIDENCE_V1 ||
         renderedCharacters + excerpt.length >
@@ -465,7 +474,7 @@ export class ContentContextBuilderV1 {
       }
       evidenceIds.add(item.id);
       provenanceById.set(item.id, provenance);
-      selectedEvidence.push(item);
+      selectedEvidence.push({ ...item, explicit: explicitEvidence(item) });
       renderedCharacters += excerpt.length;
     }
 
@@ -520,7 +529,7 @@ export class ContentContextBuilderV1 {
         statementHash: null,
         excerptHash:
           item.excerptHash ||
-          sha256(cleanText(item.excerpt, MAX_EXCERPT_CHARACTERS)),
+          sha256(cleanText(item.excerpt, excerptLimit(item))),
         factStatement: null,
         factTemporalKind: null,
         factVerifiedAt: null,
@@ -644,7 +653,11 @@ export class ContentContextBuilderV1 {
           : cleanText(value.snapshot.normalizedTitle || 'Untitled source', 500),
         excerpt: removed
           ? 'SOURCE_REMOVED'
-          : cleanText(value.excerpt, MAX_EXCERPT_CHARACTERS),
+          : cleanText(value.excerpt,
+            snapshot.selectionAlgorithmVersion >= 2 &&
+              (item.inclusionReason === 'EXPLICIT' ||
+                item.inclusionReason === CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1)
+              ? MAX_SELECTED_EXCERPT_CHARACTERS : MAX_EXCERPT_CHARACTERS),
         url:
           removed || internal
             ? null

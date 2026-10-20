@@ -585,7 +585,8 @@ export const buildCapabilityTool = (
         ...(options.entrance === 'mcp' && capability.mcpConfirm ? { destructiveHint: true } : {}),
       },
     },
-    // The model reads the short answer; the long text is on the card by id.
+    // The model reads the capability's summary. A write can include a bounded,
+    // untrusted storage readback so semantic completion is assessed from text.
     toModelOutput: (raw: CapabilityToolOutput | undefined) => {
       if (!raw) return { type: 'json', value: null };
       const output = withoutEchoedInput(raw) as CapabilityToolOutput;

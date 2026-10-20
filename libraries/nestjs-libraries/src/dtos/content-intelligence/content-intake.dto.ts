@@ -152,7 +152,32 @@ export class IntakeOptionsDto {
   isPicture?: boolean;
 }
 
+export class IntakeResearchReuseDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  snapshotKey: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @MaxLength(1_000, { each: true })
+  factKeys?: string[];
+}
+
 export class IntakeDto {
+  /** A private server snapshot reference, never client-supplied facts/evidence. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeResearchReuseDto)
+  researchReuse?: IntakeResearchReuseDto;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(INTAKE_INPUT_MAX_CHARS)
+  contextMaterial?: string;
+
   /** Shape and bounds are validated by the same schema as model/tool input. */
   @IsOptional()
   @IsObject()

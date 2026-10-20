@@ -931,6 +931,38 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Этот повод ещё не взят в работу — заготовку не писали и ничего не потратили.',
           next: 'Скажите «возьми в работу» — возьмём и сразу напишем.',
         },
+        INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE: {
+          what: 'Сохранённое исследование больше недоступно для этого разговора.',
+          next: 'Найдём источники заново или используем доступную заготовку.',
+        },
+        INTAKE_RESEARCH_SELECTION_INVALID: {
+          what: 'Выбранные сведения не совпадают с сохранёнными источниками.',
+          next: 'Проверим цитаты и выберем подтверждённые сведения.',
+        },
+        INTAKE_RESEARCH_STORAGE_UNAVAILABLE: {
+          what: 'Не удалось сохранить исследование для продолжения.',
+          next: 'Попробуйте позже: заготовка ещё не создана.',
+        },
+        INTAKE_RESEARCH_EVIDENCE_MISMATCH: {
+          what: 'В сохранённом источнике нет выбранной цитаты.',
+          next: 'Проверим источник, прежде чем использовать это утверждение.',
+        },
+        INTAKE_RESEARCH_INCOMPLETE: {
+          what: 'Найденных сведений пока недостаточно для заготовки.',
+          next: 'Уточним поиск или обозначим недостающие сведения.',
+        },
+        INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON: {
+          what: 'Для этого исследования нужен ваш выбор фактов.',
+          next: 'Продолжим после вашего явного выбора фактов.',
+        },
+        INTAKE_RESEARCH_CONTINUATION_PENDING: {
+          what: 'Создание по этому исследованию уже началось, результат пока не подтверждён.',
+          next: 'Проверим сохранённую заготовку, чтобы не создать её повторно.',
+        },
+        CONTENT_ADAPTATION_INCOMPLETE: {
+          what: 'Адаптация пока не готова: не удалось сохранить весь нужный смысл с опорой на источники и в пределах длины.',
+          next: 'Покажем, чего не хватает, и уточним материал перед следующей попыткой.',
+        },
         INTAKE_TEXT_MISSING: {
           what: 'Писать заготовку не из чего: нет ни слов, ни повода.',
           next: 'Напишите мысль или назовите повод.',
@@ -1645,6 +1677,38 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         IDEAS_LEAD_NOT_TAKEN: {
           what: 'This lead was not taken to work yet — no piece was written, nothing spent.',
           next: 'Say “take it to work” — we take it and write at once.',
+        },
+        INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE: {
+          what: 'The saved research is no longer available to this conversation.',
+          next: 'Research the sources again or use the available piece.',
+        },
+        INTAKE_RESEARCH_SELECTION_INVALID: {
+          what: 'The selected findings do not match their saved sources.',
+          next: 'Check the quotes and select supported findings.',
+        },
+        INTAKE_RESEARCH_STORAGE_UNAVAILABLE: {
+          what: 'The research could not be saved for continuation.',
+          next: 'Try later; no piece has been created.',
+        },
+        INTAKE_RESEARCH_EVIDENCE_MISMATCH: {
+          what: 'The saved source does not contain the selected quote.',
+          next: 'Check the source before using this claim.',
+        },
+        INTAKE_RESEARCH_INCOMPLETE: {
+          what: 'The findings are not sufficient to write the piece yet.',
+          next: 'Refine the research or identify the missing evidence.',
+        },
+        INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON: {
+          what: 'This research requires your choice of facts.',
+          next: 'Continue after your explicit choice of facts.',
+        },
+        INTAKE_RESEARCH_CONTINUATION_PENDING: {
+          what: 'Writing from this research has already started; its result is not confirmed yet.',
+          next: 'Check the saved piece before trying to create it again.',
+        },
+        CONTENT_ADAPTATION_INCOMPLETE: {
+          what: 'The adaptation is not ready: its required scope, source support or length could not be verified.',
+          next: 'Identify the missing material before another attempt.',
         },
         INTAKE_TEXT_MISSING: {
           what: 'There is nothing to write the piece from: no words and no lead.',
