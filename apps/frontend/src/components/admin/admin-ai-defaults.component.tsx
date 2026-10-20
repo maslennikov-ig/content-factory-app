@@ -77,9 +77,16 @@ export interface AdminAiDefaults {
    */
   textFlexEnabled?: boolean | null;
   textFallbackModel?: string | null;
+  textFallbackModels?: string[];
+  textFallbackDisabled?: boolean;
+  textMaxRetries?: number;
   textChain?: {
     flex: boolean;
     fallbackModel: string;
+    fallbackModels?: string[];
+    configuredFallbackModels?: string[];
+    fallbackDisabled?: boolean;
+    maxRetries?: number;
     defaultFallbackModel: string;
   };
   hasKey: boolean;
@@ -279,7 +286,7 @@ const ValueState = ({
  *
  * Подсказка стоит в заголовке секции, а не отдельной строкой под ним: у
  * `SettingsSection` заголовок принимает узел именно затем, и второй заголовок
- * внутри карточки повторял бы её собственный.
+ * внутри карточки повторял бы её собственное.
  */
 const SectionTitle = ({
   title,
@@ -310,6 +317,9 @@ export interface AdminAiDefaultsForm {
   /** Необязательные: форма, собранная до цепочки, её не трогает. */
   textFlexEnabled?: boolean;
   textFallbackModel?: string;
+  textFallbackModels?: string[];
+  textFallbackDisabled?: boolean;
+  textMaxRetries?: number | string;
 }
 
 /**
@@ -332,6 +342,10 @@ export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
     ]).filter(([, key]) => key)
   );
   const operations = form.monthlyOperations.trim();
+  const maxRetriesRaw =
+    form.textMaxRetries !== undefined && form.textMaxRetries !== null
+      ? String(form.textMaxRetries).trim()
+      : '';
   return {
     provider: form.provider,
     ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
@@ -359,6 +373,24 @@ export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
     // Пустое — «вернуть запасную модель по умолчанию», как у полей моделей.
     ...(form.textFallbackModel !== undefined
       ? { textFallbackModel: form.textFallbackModel.trim() }
+      : {}),
+    ...(Array.isArray(form.textFallbackModels)
+      ? {
+          textFallbackModels: form.textFallbackModels
+            .map((model) => model.trim())
+            .filter(Boolean),
+        }
+      : {}),
+    ...(typeof form.textFallbackDisabled === 'boolean'
+      ? { textFallbackDisabled: form.textFallbackDisabled }
+      : {}),
+    ...(maxRetriesRaw !== '' && Number.isFinite(Number(maxRetriesRaw))
+      ? {
+          textMaxRetries: Math.min(
+            5,
+            Math.max(0, Math.floor(Number(maxRetriesRaw)))
+          ),
+        }
       : {}),
   };
 };
@@ -436,6 +468,7 @@ export function AdminAiDefaultsView({
 }) {
   const t = useT();
   const words = adminAiDefaultsCopy[locale];
+  const [newFallbackDraft, setNewFallbackDraft] = useState('');
 
   /**
    * Отказ ровно такой же, как у соседних админских экранов: одна рамка, одно
@@ -452,6 +485,54 @@ export function AdminAiDefaultsView({
       </section>
     );
   }
+
+  const orderedFallbacks = Array.isArray(form.textFallbackModels)
+    ? form.textFallbackModels
+    : form.textFallbackModel?.trim()
+    ? [form.textFallbackModel.trim()]
+    : [];
+
+  const commitFallbackList = (nextModels: string[], disabled = false) => {
+    const cleaned = nextModels.map((m) => m.trim()).filter(Boolean);
+    onCommit({
+      textFallbackModel: cleaned[0] ?? '',
+      textFallbackModels: cleaned,
+      textFallbackDisabled: disabled,
+    });
+  };
+
+  const addFallbackModel = () => {
+    const candidate = newFallbackDraft.trim();
+    if (!candidate) return;
+    setNewFallbackDraft('');
+    const nextModels = [
+      ...orderedFallbacks.filter((m) => m !== candidate),
+      candidate,
+    ];
+    commitFallbackList(nextModels, false);
+  };
+
+  const moveFallbackModel = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= orderedFallbacks.length) return;
+    const nextModels = [...orderedFallbacks];
+    const [picked] = nextModels.splice(index, 1);
+    nextModels.splice(target, 0, picked);
+    commitFallbackList(nextModels, Boolean(form.textFallbackDisabled));
+  };
+
+  const removeFallbackModel = (index: number) => {
+    const nextModels = orderedFallbacks.filter((_, i) => i !== index);
+    commitFallbackList(nextModels, Boolean(form.textFallbackDisabled));
+  };
+
+  const effectiveFallbacks =
+    form.textFallbackDisabled || data?.textChain?.fallbackDisabled
+      ? []
+      : data?.textChain?.fallbackModels ??
+        (orderedFallbacks.length
+          ? orderedFallbacks
+          : [data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3']);
 
   const searchKeyField = (engine: KeyedSearchProvider) => {
     const field = words.keys[engine];
@@ -752,11 +833,171 @@ export function AdminAiDefaultsView({
               placeholder={
                 data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3'
               }
-              onBlur={() => onCommit()}
+              onBlur={() => {
+                const trimmed = (form.textFallbackModel ?? '').trim();
+                if (trimmed) {
+                  const rest = orderedFallbacks
+                    .slice(1)
+                    .filter((m) => m !== trimmed);
+                  onCommit({
+                    textFallbackModel: trimmed,
+                    textFallbackModels: [trimmed, ...rest],
+                    textFallbackDisabled: false,
+                  });
+                } else if (orderedFallbacks.length > 1) {
+                  const remaining = orderedFallbacks.slice(1);
+                  onCommit({
+                    textFallbackModel: remaining[0] ?? '',
+                    textFallbackModels: remaining,
+                  });
+                } else {
+                  onCommit({
+                    textFallbackModel: '',
+                    textFallbackModels: undefined,
+                  });
+                }
+              }}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                 onChange({ textFallbackModel: event.target.value })
               }
             />
+            <div
+              data-admin-ai-fallback-controls="true"
+              className="mt-[8px] flex flex-col gap-[8px]"
+            >
+              {orderedFallbacks.length > 0 ? (
+                <ul
+                  data-admin-ai-fallback-list="true"
+                  className="flex flex-col gap-[4px]"
+                >
+                  {orderedFallbacks.map((model, index) => (
+                    <li
+                      key={`${model}-${index}`}
+                      data-admin-ai-fallback-item={model}
+                      className="flex flex-wrap items-center justify-between gap-[8px] rounded-[4px] border border-cf-border bg-cf-surface-subtle px-[8px] py-[4px]"
+                    >
+                      <span className="cf-label-sm text-cf-ink">
+                        {index + 1}. {model}
+                      </span>
+                      <span className="flex items-center gap-[4px]">
+                        <Button
+                          density="dense"
+                          variant="quiet"
+                          data-admin-ai-fallback-move-up={String(index)}
+                          disabled={index === 0}
+                          onClick={() => moveFallbackModel(index, -1)}
+                        >
+                          {words.models.fallbackMoveUp}
+                        </Button>
+                        <Button
+                          density="dense"
+                          variant="quiet"
+                          data-admin-ai-fallback-move-down={String(index)}
+                          disabled={index === orderedFallbacks.length - 1}
+                          onClick={() => moveFallbackModel(index, 1)}
+                        >
+                          {words.models.fallbackMoveDown}
+                        </Button>
+                        <Button
+                          density="dense"
+                          variant="quiet"
+                          data-admin-ai-fallback-remove={String(index)}
+                          onClick={() => removeFallbackModel(index)}
+                        >
+                          {words.models.fallbackRemove}
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-[8px]">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    id="admin-ai-text-fallback-add"
+                    label=""
+                    name="admin-ai-text-fallback-add"
+                    disableForm={true}
+                    value={newFallbackDraft}
+                    placeholder={words.models.fallbackAddPlaceholder}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                      setNewFallbackDraft(event.target.value)
+                    }
+                  />
+                </div>
+                <Button
+                  density="dense"
+                  variant="secondary"
+                  data-admin-ai-fallback-add-btn="true"
+                  disabled={!newFallbackDraft.trim()}
+                  onClick={addFallbackModel}
+                >
+                  {words.models.fallbackAddAction}
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                <CheckboxField
+                  name="admin-ai-text-fallback-disabled"
+                  label={words.models.fallbackDisabledLabel}
+                  checked={Boolean(form.textFallbackDisabled)}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    const disabled = event.target.checked;
+                    onCommit(
+                      disabled
+                        ? {
+                            textFallbackDisabled: true,
+                            textFallbackModels: [],
+                            textFallbackModel: '',
+                          }
+                        : {
+                            textFallbackDisabled: false,
+                            textFallbackModels: undefined,
+                          }
+                    );
+                  }}
+                />
+                <div className="flex items-center gap-[8px]">
+                  <label
+                    htmlFor="admin-ai-text-max-retries"
+                    className="cf-body-sm text-cf-ink-muted"
+                  >
+                    {words.models.maxRetriesLabel}
+                  </label>
+                  <Input
+                    id="admin-ai-text-max-retries"
+                    label=""
+                    name="admin-ai-text-max-retries"
+                    type="number"
+                    min={0}
+                    max={5}
+                    step={1}
+                    inputMode="numeric"
+                    disableForm={true}
+                    fieldClassName="w-[88px]"
+                    value={String(
+                      form.textMaxRetries ??
+                        data?.textChain?.maxRetries ??
+                        data?.textMaxRetries ??
+                        2
+                    )}
+                    onBlur={() => onCommit()}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                      onChange({ textMaxRetries: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <p
+                data-admin-ai-effective-fallbacks="true"
+                className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              >
+                {effectiveFallbacks.length === 0
+                  ? words.models.fallbackEffectiveEmpty
+                  : words.models.fallbackEffectiveLabel(
+                      effectiveFallbacks.join(' → ')
+                    )}
+              </p>
+            </div>
           </LabelledField>
         </div>
       </SettingsSection>
@@ -923,6 +1164,9 @@ export const AdminAiDefaultsComponent = () => {
     searchApiKeys: {},
     textFlexEnabled: true,
     textFallbackModel: '',
+    textFallbackModels: undefined,
+    textFallbackDisabled: false,
+    textMaxRetries: undefined,
   });
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState<'model' | KeyedSearchProvider | null>(
@@ -943,6 +1187,13 @@ export const AdminAiDefaultsComponent = () => {
   useEffect(() => {
     if (!data) return;
     const effective = data.effective;
+    const configuredModels = Array.isArray(data.textFallbackModels)
+      ? data.textFallbackModels
+      : Array.isArray(data.textChain?.configuredFallbackModels)
+      ? data.textChain.configuredFallbackModels
+      : data.textFallbackModel
+      ? [data.textFallbackModel]
+      : undefined;
     setForm((current) => ({
       ...current,
       provider: effective?.provider || data.provider || 'openai',
@@ -958,7 +1209,13 @@ export const AdminAiDefaultsComponent = () => {
       textFlexEnabled: data.textChain?.flex ?? data.textFlexEnabled ?? true,
       // Пустое поле показывает значение по умолчанию подсказкой, а не
       // вписывает его: иначе следующее сохранение закрепило бы его здесь.
-      textFallbackModel: data.textFallbackModel ?? '',
+      textFallbackModel:
+        configuredModels?.[0] ?? data.textFallbackModel ?? '',
+      textFallbackModels: configuredModels,
+      textFallbackDisabled:
+        data.textFallbackDisabled ?? data.textChain?.fallbackDisabled ?? false,
+      textMaxRetries:
+        data.textMaxRetries ?? data.textChain?.maxRetries ?? undefined,
     }));
   }, [data]);
 

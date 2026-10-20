@@ -1,5 +1,6 @@
 import type { Type } from '@nestjs/common';
-import { createTool } from '@mastra/core/tools';
+import { createTool, validateToolInput } from '@mastra/core/tools';
+import { toStandardSchema } from '@mastra/core/schema';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   admitCapabilityCall,
@@ -9,9 +10,11 @@ import {
   capabilityContextSchema,
   readCapabilityIdentity,
   releasePaidSlot,
+  settlePaidSlot,
 } from './capability.context';
 import {
   isProductErrorCode,
+  mayAskApproval,
   refusal,
   toolNameOf,
   type CapabilityDeclaration,
@@ -28,7 +31,11 @@ import { runPaidCapability } from './paid-adapter';
 import { questionCardView } from './question-card';
 import { modelSummary, wrapUntrusted } from './untrusted-data';
 import { redactSecretLeaves } from '../conductor/secret-shapes';
-import { trackAgentTurnWork } from '../conductor/agent-turn-lifecycle';
+import {
+  readCommittedToolReceipt,
+  recordCommittedToolReceipt,
+  trackAgentTurnWork,
+} from '../conductor/agent-turn-lifecycle';
 import { approvalContentDigest, cleanApprovalSummary } from './approval-summary';
 import {
   isConfirmationNeeded,
@@ -56,8 +63,15 @@ export type CapabilityToolOptions = {
   services: CapabilityServices;
   language: 'ru' | 'en';
   entrance: CapabilityEntrance;
-  /** Required for MCP, where there are no agent hooks to run it. */
+  /** Required for MCP or subagent tools, where there are no parent agent hooks. */
   gate?: CapabilityGate;
+  /**
+   * When true, runs `admitCapabilityCall` and paid-slot settlement inside
+   * `execute` for web-chat subagents whose child `Agent` instance does not
+   * inherit the parent conductor's `hooks` (`on0i.4`, `A18`).
+   */
+  admitInExecute?: boolean;
+  capabilities?: readonly CapabilityDeclaration[];
 };
 
 /** MCP hints per risk class (spec §5.1). */
@@ -237,10 +251,18 @@ const inputSchemaFor = (capability: CapabilityDeclaration, entrance: CapabilityE
     : capability.input;
 
 type ToolContextLike = {
+  runId?: string;
+  memory?: {
+    getThreadById?: (input: { threadId: string }) => Promise<{ metadata?: Record<string, unknown> } | null>;
+    updateThread?: (input: { id: string; metadata?: Record<string, unknown> }) => Promise<unknown>;
+  };
   requestContext?: any;
   abortSignal?: AbortSignal;
   writer?: { custom: (chunk: any) => Promise<void> };
   agent?: {
+    toolCallId?: string;
+    threadId?: string;
+    resourceId?: string;
     resumeData?: unknown;
     suspendPayload?: unknown;
     suspend?: (payload: unknown) => Promise<unknown>;
@@ -267,7 +289,7 @@ export const buildCapabilityTool = (
     const noCard = options.entrance === 'mcp' && capability.mcpConfirm !== undefined;
     let code: string | undefined;
     if (asksByCode) ({ args: input, code } = withoutConfirmation(input));
-    if (options.entrance === 'mcp') {
+    if (options.entrance === 'mcp' || options.admitInExecute) {
       // The chat door redacts keys from everything a person sends before the
       // model or Mastra holds it; an MCP client's arguments reach the
       // services and the generation models the same way, so their free text
@@ -278,7 +300,14 @@ export const buildCapabilityTool = (
         input,
         context?.requestContext,
         options.gate!,
-        { countPaid: false, confirmsByCode: noCard }
+        {
+          countPaid: options.entrance === 'chat',
+          paidOwner: context?.agent?.toolCallId,
+          services: options.services,
+          capabilities: options.capabilities,
+          webChat: options.entrance === 'chat',
+          confirmsByCode: noCard,
+        }
       );
       if (refused) return refused;
     }
@@ -361,6 +390,40 @@ export const buildCapabilityTool = (
         ...(part.transient ? { transient: true } : {}),
       });
     };
+    const durableExecutions = context?.requestContext?.get?.('mastra__durableExecutions');
+    const isDurableRun =
+      options.entrance === 'chat' &&
+      capability.risk !== 'read' &&
+      !!durableExecutions &&
+      typeof durableExecutions === 'object' &&
+      Object.keys(durableExecutions).length > 0 &&
+      typeof context?.agent?.toolCallId === 'string' &&
+      !!context.agent.toolCallId;
+    const receiptScope = isDurableRun
+      ? {
+          runId:
+            typeof context?.runId === 'string' && context.runId
+              ? context.runId
+              : Object.keys(durableExecutions)[0],
+          threadId: context?.agent?.threadId,
+          toolName: name,
+          toolCallId: context!.agent!.toolCallId!,
+          resumed: context?.agent?.resumeData !== undefined,
+          memory: context?.memory,
+        }
+      : null;
+    if (receiptScope) {
+      const committed = await readCommittedToolReceipt<CapabilityToolOutput>(receiptScope);
+      if (committed) {
+        if (capability.risk === 'paid' && context?.requestContext) {
+          releasePaidSlot(context.requestContext);
+        }
+        if (committed.card) {
+          await emit({ kind: committed.card.kind as any, data: committed.card });
+        }
+        return committed.result;
+      }
+    }
     const suspend = context?.agent?.suspend;
     const runContext: CapabilityRunContext = {
       ...identity,
@@ -404,6 +467,15 @@ export const buildCapabilityTool = (
         return refused;
       }
       throw error;
+    } finally {
+      if (
+        options.admitInExecute &&
+        options.entrance === 'chat' &&
+        capability.risk === 'paid' &&
+        context?.requestContext
+      ) {
+        settlePaidSlot(context.requestContext, context?.agent?.toolCallId);
+      }
     }
     // Suspended for the person's answer: Mastra resumes the same call.
     if (output === undefined) return undefined;
@@ -419,16 +491,23 @@ export const buildCapabilityTool = (
     }
 
     const card = capability.cardOf?.(output) ?? null;
-    if (card) await emit({ kind: card.kind, data: card });
-    return {
+    const result: CapabilityToolOutput = {
       ok: true,
       capability: capability.id,
       summary: modelSummary(capability.summarize(output), capability.untrusted),
       ...(card ? { card: { kind: card.kind, id: card.id } } : {}),
     };
+    if (receiptScope && !context?.abortSignal?.aborted) {
+      await recordCommittedToolReceipt({
+        ...receiptScope,
+        receipt: { result, card },
+      });
+    }
+    if (card) await emit({ kind: card.kind, data: card });
+    return result;
   };
 
-  return createTool({
+  const tool = createTool({
     id: name,
     title: capability.label[options.language],
     description: capability.description,
@@ -439,13 +518,61 @@ export const buildCapabilityTool = (
     // kcxz.45: in the web chat a lead action always asks (a lead's title is
     // outside text); over MCP the client's own tool approval stays.
     ...(options.entrance === 'chat' && capability.asksInWebChat ? { requireApproval: true } : {}),
+    ...(options.entrance === 'chat' && mayAskApproval(capability)
+      ? {
+          beforeApproval: (async (
+            input: any,
+            context?: { requestContext?: Record<string, unknown> }
+          ) => {
+            try {
+              if (options.gate) {
+                const refused = await admitCapabilityCall(
+                  capability,
+                  input,
+                  context?.requestContext,
+                  options.gate,
+                  {
+                    countPaid: false,
+                    beforeApprovalOnly: true,
+                    webChat: true,
+                  }
+                );
+                if (refused) return { proceed: false, output: refused };
+              }
+              const identity = readCapabilityIdentity(context?.requestContext);
+              if (!identity) {
+                return {
+                  proceed: false,
+                  output: refusal(
+                    'IDENTITY_MISSING',
+                    'The call arrived without a server-built identity; nothing was done.'
+                  ),
+                };
+              }
+              if (capability.beforeApproval) {
+                const refused = await capability.beforeApproval(
+                  { ...identity, entrance: 'chat', service: options.services },
+                  input
+                );
+                if (refused) return { proceed: false, output: refused };
+              }
+              return { proceed: true };
+            } catch (error) {
+              return {
+                proceed: false,
+                output: codedRefusal(error) ?? refusal('CAPABILITY_FAILED', UNKNOWN_FAILURE),
+              };
+            }
+          }) as any,
+        }
+      : {}),
     // MCP has no question card: a capability that can decide for the person
     // runs on without asking there (`ctx.suspend` absent).
     ...(options.entrance === 'chat' &&
     capability.suspendSchema &&
     capability.resumeSchema
       ? {
-          suspendSchema: capability.suspendSchema,
+           suspendSchema: capability.suspendSchema,
           resumeSchema: capability.resumeSchema,
         }
       : {}),
@@ -489,6 +616,13 @@ export const buildCapabilityTool = (
         ? trackAgentTurnWork(context?.requestContext, () => execute(input, context))
         : execute(input, context)) as any,
   });
+  if (options.entrance === 'chat' && mayAskApproval(capability)) {
+    // Schema-invalid calls skip the approval gate so `beforeToolCall`
+    // returns `CAPABILITY_INPUT_INVALID` without parking a card.
+    (tool as any).needsApprovalFn = (input: unknown) =>
+      !validateToolInput(toStandardSchema(capability.input), input).error;
+  }
+  return tool;
 };
 
 export type CapabilityTools = Record<

@@ -63,9 +63,15 @@ export const capabilityContextSchema = z
   .passthrough();
 
 type AnyRequestContext = Pick<RequestContext<unknown>, 'get' | 'set'>;
+type ReadableRequestContext = AnyRequestContext | Readonly<Record<string, unknown>>;
 
-const read = (context: AnyRequestContext | undefined, key: string) =>
-  context?.get(key as never) as unknown;
+const read = (context: ReadableRequestContext | undefined, key: string) => {
+  if (!context) return undefined;
+  if (typeof (context as AnyRequestContext).get === 'function') {
+    return (context as AnyRequestContext).get(key as never) as unknown;
+  }
+  return (context as Readonly<Record<string, unknown>>)[key];
+};
 
 /** Writes the identity; the caller owns the rest of the context. */
 export const seedCapabilityContext = (
@@ -85,7 +91,7 @@ export const seedCapabilityContext = (
 
 /** The identity, or `null` when the server did not build one. */
 export const readCapabilityIdentity = (
-  context: AnyRequestContext | undefined
+  context: ReadableRequestContext | undefined
 ): CapabilityIdentity | null => {
   const parsed = capabilityContextSchema.safeParse({
     [K.organizationId]: read(context, K.organizationId),
@@ -145,7 +151,7 @@ export const releasePaidSlot = (context: AnyRequestContext) => {
   context.set(K.paidCalls as never, Math.max(0, used - 1) as never);
 };
 
-const approvalsOf = (context: AnyRequestContext | undefined) =>
+const approvalsOf = (context: ReadableRequestContext | undefined) =>
   String(read(context, K.approvals) ?? '')
     .split(',')
     .filter(Boolean);
@@ -161,7 +167,7 @@ export const grantApproval = (
 };
 
 export const hasApproval = (
-  context: AnyRequestContext | undefined,
+  context: ReadableRequestContext | undefined,
   fingerprint: string
 ) => approvalsOf(context).includes(fingerprint);
 
@@ -182,7 +188,7 @@ export const consumeApproval = (
 };
 
 /** A JSON array in one string: an id is the model's text and may hold a comma. */
-const openedOf = (context: AnyRequestContext | undefined): string[] => {
+const openedOf = (context: ReadableRequestContext | undefined): string[] => {
   try {
     const value = JSON.parse(String(read(context, K.questionsOpened) ?? '[]'));
     return Array.isArray(value) ? value.filter((one) => typeof one === 'string') : [];
@@ -200,7 +206,7 @@ export const markQuestionsOpened = (context: AnyRequestContext, id: string) => {
 
 /** The person was asked this object's questions in this very request. */
 export const questionsOpenedHere = (
-  context: AnyRequestContext | undefined,
+  context: ReadableRequestContext | undefined,
   id: string
 ) => openedOf(context).includes(id);
 
@@ -226,7 +232,7 @@ export const setOpenProposals = (
 
 /** A card of proposed changes to this text waits for the person. */
 export const proposalOpenHere = (
-  context: AnyRequestContext | undefined,
+  context: ReadableRequestContext | undefined,
   target: string
 ): boolean => {
   try {

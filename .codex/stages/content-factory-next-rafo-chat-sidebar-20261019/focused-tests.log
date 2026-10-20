@@ -1,0 +1,52 @@
+PASS tests/design.guard.test.cjs
+PASS tests/assistant-sidebar.chats.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/design.coherence.guard.test.cjs
+PASS tests/agent-prestart-draft.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-screen.start-draft.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/sidebar.profile-row.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-chats-pagination.test.cjs
+PASS tests/menu-item.current.test.cjs
+PASS tests/sidebar.collapsed-footer.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/design.contrast.test.cjs
+PASS tests/foundation.test.cjs
+
+Test Suites: 11 passed, 11 total
+Tests:       142 passed, 142 total
+Snapshots:   0 total
+Time:        15.456 s
+Ran all test suites matching /tests\/assistant-sidebar.chats.test.cjs|tests\/foundation.test.cjs|tests\/design.guard.test.cjs|tests\/design.contrast.test.cjs|tests\/design.coherence.guard.test.cjs|tests\/agent-prestart-draft.test.cjs|tests\/agent-chats-pagination.test.cjs|tests\/agent-screen.start-draft.test.cjs|tests\/sidebar.profile-row.test.cjs|tests\/sidebar.collapsed-footer.test.cjs|tests\/menu-item.current.test.cjs/i.

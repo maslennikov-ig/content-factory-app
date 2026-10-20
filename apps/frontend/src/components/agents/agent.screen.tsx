@@ -419,6 +419,7 @@ function SessionView({
       threadId={session.threadId}
       initialMessages={loaded.messages}
       initialPagination={loaded.pagination}
+      initialExecution={loaded.execution}
       draftStorageKey={draftStorageKey}
       pending={loaded.pending}
       workContext={workContext}

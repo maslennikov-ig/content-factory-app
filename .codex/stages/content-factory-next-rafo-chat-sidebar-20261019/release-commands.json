@@ -1,0 +1,11 @@
+[
+  "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+  "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+  "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+  "pnpm run build",
+  "bash scripts/release/record-suite-receipt.sh",
+  "node scripts/branding/brand-scan.cjs",
+  "pnpm run docs:check",
+  "bash scripts/orchestration/run_process_verification.sh",
+  "git diff --check"
+]

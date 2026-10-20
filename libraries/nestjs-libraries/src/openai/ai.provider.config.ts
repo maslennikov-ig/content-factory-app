@@ -19,6 +19,7 @@ import {
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import {
   TextChainSettings,
+  readWorkspaceTextChainColumn,
   resolveTextChainSettings,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
@@ -307,6 +308,10 @@ export interface StoredAiProviderSetting {
   imageModel?: string | null;
   /** A JSON column, so its shape is whatever was written into it. */
   roleModels?: unknown;
+  textFallbackModel?: string | null;
+  textFallbackModels?: readonly string[] | null;
+  textFallbackDisabled?: boolean | null;
+  textMaxRetries?: number | null;
   searchEnabled: boolean;
   searchProvider?: string | null;
   searchApiKey?: string | null;
@@ -338,6 +343,9 @@ export interface StoredInstanceAiDefaults {
   textFlexEnabled?: boolean | null;
   /** NULL or empty — `DEFAULT_TEXT_FALLBACK_MODEL`. */
   textFallbackModel?: string | null;
+  textFallbackModels?: readonly string[] | null;
+  textFallbackDisabled?: boolean | null;
+  textMaxRetries?: number | null;
 }
 
 /** The single row's primary key. A constant, so the table cannot hold two. */
@@ -600,6 +608,13 @@ export const loadAiConfig = async (
         };
       } else {
         const provider = (stored.provider as AiProvider) || defaults.provider;
+        const workspaceTextChainRaw =
+          stored.textFallbackModel ?? readWorkspaceTextChainColumn(stored.roleModels);
+        const hasWorkspaceTextChain =
+          workspaceTextChainRaw !== null ||
+          Array.isArray(stored.textFallbackModels) ||
+          typeof stored.textFallbackDisabled === 'boolean' ||
+          typeof stored.textMaxRetries === 'number';
         config = {
           provider,
           usageMode,
@@ -622,6 +637,17 @@ export const loadAiConfig = async (
           workspaceProvider: provider,
           includedAvailable: !!includedKey,
           search,
+          ...(hasWorkspaceTextChain
+            ? {
+                textChain: resolveTextChainSettings({
+                  textFlexEnabled: false,
+                  textFallbackModel: workspaceTextChainRaw,
+                  textFallbackModels: stored.textFallbackModels,
+                  textFallbackDisabled: stored.textFallbackDisabled,
+                  textMaxRetries: stored.textMaxRetries,
+                }),
+              }
+            : {}),
         };
       }
     }

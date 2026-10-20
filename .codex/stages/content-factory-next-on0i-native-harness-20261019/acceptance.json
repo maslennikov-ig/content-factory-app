@@ -1,0 +1,66 @@
+{
+  "epic": "content-factory-next-on0i",
+  "boundary": "preparation-only; implement in new chat; local-only no deploy",
+  "implementationBaseline": "29d98372f4650e7d42bbcb1bb014741351d95cd7",
+  "planningBranch": "codex/on0i-native-harness-plan-20261019",
+  "prepared": true,
+  "children": 7,
+  "blockingDependencies": 12,
+  "acyclic": true,
+  "criteria": 22,
+  "nativePublicExportsAvailable": true,
+  "taskStates": "all8OPEN; implementation not started",
+  "checks": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "docs",
+        "command": [
+          "python3",
+          "scripts/docs/check_docs.py"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "doc-tests",
+        "command": [
+          "python3",
+          "-m",
+          "unittest",
+          "tests/test_docs_links.py"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "process",
+        "command": [
+          "bash",
+          "scripts/orchestration/run_process_verification.sh"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "diff",
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exitCode": 0
+      }
+    ]
+  },
+  "applicationFilesChanged": false,
+  "providerCalls": 0,
+  "productionChanged": false,
+  "sourcePushed": false,
+  "sourceArtifacts": {
+    "docs/superpowers/plans/2026-10-19-native-mastra-harness.md": "9e162c85fa297703f2ae33c7143f8a3cce9d7d5f3441f1f6befd2597ae0d7e67",
+    "docs/README.md": "f65f885cb8288abe975656070f2320892b67907039012c7ea18ae101b327e262",
+    ".codex/handoff.md": "1c1a2c1f90666d795590f1adc44177afd634f1e677274110ecb92246ed633ff5",
+    ".codex/project-index.md": "27870d0b4d881722e0a56c1bf269237c69417516129b1a85f3fe351d841ba908",
+    ".codex/stages/content-factory-next-on0i-native-harness-20261019/epic.md": "ce53d72f404ac7b721cf4b7e86954b5fce0086a90b1035664b9dd2c7bf74ce47",
+    ".codex/stages/content-factory-next-on0i-native-harness-20261019/new-chat-prompt.md": "a2040e6d144e67b727b19f799bd0443a4281ee8e99b1a44f91ab2590111b06d2",
+    ".codex/stages/content-factory-next-on0i-native-harness-20261019/launcher.md": "fb6d33a7f2a5184800d9174821d3de96e3467fccd73bf4e8eb1855c04ec1e3dd"
+  }
+}

@@ -270,7 +270,7 @@ export const pieceResearch = defineCapability({
       { researchSelectionPolicy: input.selection === 'person' ? 'person' : 'model' }
     );
     const summary = preview.summary;
-    const evidence = { ...researchReady(preview.snapshotKey, preview.level, preview.facts, summary), pieceId: input.pieceId };
+    const evidence = { ...researchReady(preview.snapshotKey, preview.level, preview.facts, summary, { organizationId: ctx.organizationId }), pieceId: input.pieceId };
     const human = input.selection === 'person';
     if (!human || !ctx.suspend || summary?.periodStatus === 'empty' || summary?.periodStatus === 'needs_clarification' || ['empty', 'failed', 'needs_clarification'].includes(summary?.status ?? '')) return evidence;
     // Only keyed rows can be accepted (the accept door refuses the rest).
@@ -331,7 +331,7 @@ export const pieceResearchApply = defineCapability({
   label: { ru: 'Применить найденные факты', en: 'Apply researched facts' },
   description: 'Apply your selected relevant confirmed factKeys from piece.research to that same piece. Paid native writer retains original/history and records model-origin editorial selection, never human approval. Call only after assessing sufficient evidence and when the original request calls for an update. It checks scope/current version/expiry, blocks uncertain replay and returns a confirmed saved result. Requested human fact review uses the existing card instead.',
   input: z.object({ pieceId, snapshotKey: z.string().min(1).max(128),
-    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(50) }),
+    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(200) }),
   risk: 'paid',
   card: 'piece',
   door: door(ContentPieceController, 'acceptCoreResearch'),

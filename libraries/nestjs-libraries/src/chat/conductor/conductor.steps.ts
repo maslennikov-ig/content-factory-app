@@ -142,16 +142,51 @@ export const closingLineWatch = (legCalls: Iterable<string> = []) => {
  * step with tool results), and no model text follows. A step that also ran
  * another tool goes on as ever: the rest of the message is answered.
  */
-type StepLike = {
-  content?: ReadonlyArray<{ type?: string; toolCallId?: string; output?: unknown; result?: unknown }>;
+type StepToolResultLike = {
+  type?: string;
+  toolCallId?: string;
+  output?: unknown;
+  result?: unknown;
+  payload?: { output?: unknown; result?: unknown };
 };
 
-const refusedOpenProposal = (part: { output?: unknown; result?: unknown }): boolean => {
-  const raw = (part.output ?? part.result) as { type?: unknown; value?: unknown } | undefined;
-  // AI SDK v5 model messages wrap a tool's value as `{ type: 'json', value }`.
-  const value = (raw && typeof raw === 'object' && 'value' in raw && (raw.type === 'json' || raw.type === 'text')
-    ? raw.value
-    : raw) as { ok?: unknown; code?: unknown } | undefined;
+type StepLike = {
+  content?: ReadonlyArray<StepToolResultLike>;
+  toolCalls?: ReadonlyArray<unknown>;
+  toolResults?: ReadonlyArray<StepToolResultLike>;
+};
+
+const unwrapToolResultValue = (raw: unknown): unknown => {
+  let current: any = raw;
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth += 1) {
+    if ('payload' in current && current.payload && typeof current.payload === 'object') {
+      current = current.payload.output ?? current.payload.result ?? current.payload;
+      continue;
+    }
+    if (
+      'value' in current &&
+      (current.type === 'json' || current.type === 'text' || current.type === 'tool-result')
+    ) {
+      current = current.value;
+      continue;
+    }
+    if ('output' in current && current.output !== undefined && !('ok' in current)) {
+      current = current.output;
+      continue;
+    }
+    if ('result' in current && current.result !== undefined && !('ok' in current)) {
+      current = current.result;
+      continue;
+    }
+    break;
+  }
+  return current;
+};
+
+const refusedOpenProposal = (part: StepToolResultLike): boolean => {
+  const value = unwrapToolResultValue(
+    part.output ?? part.result ?? part.payload
+  ) as { ok?: unknown; code?: unknown } | undefined;
   return !!value && typeof value === 'object' && value.ok === false && value.code === 'PROPOSAL_CARD_OPEN';
 };
 
@@ -162,8 +197,12 @@ export const stopAfterOpenProposalRefusal = ({
 }): boolean => {
   const last = steps[steps.length - 1];
   const content = last?.content ?? [];
-  const calls = content.filter((part) => part.type === 'tool-call');
-  const results = content.filter((part) => part.type === 'tool-result');
+  const calls = content.length
+    ? content.filter((part) => part.type === 'tool-call')
+    : (last?.toolCalls ?? []);
+  const results = content.length
+    ? content.filter((part) => part.type === 'tool-result')
+    : (last?.toolResults ?? []);
   if (!calls.length || results.length !== calls.length) return false;
   return results.every(refusedOpenProposal);
 };

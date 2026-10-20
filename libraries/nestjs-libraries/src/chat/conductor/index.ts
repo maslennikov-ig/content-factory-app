@@ -11,6 +11,7 @@ export * from './conductor.memory';
 export * from './conductor.secrets';
 export * from './conductor.errors';
 export * from './conductor.agent';
+export * from './conductor.autonomy';
 export * from './conductor.steps';
 export * from './agent-chat.request';
 export * from './conductor.pictures';

@@ -1,0 +1,59 @@
+{
+  "task": "content-factory-next-2512",
+  "installedMastraCore": "1.71.0",
+  "result": "passed-local-native-api-probes",
+  "probes": {
+    "session": {
+      "passed": true,
+      "nativeSessionReuse": true,
+      "nativeThreadCreateAndSwitch": true,
+      "resourceScopedList": true,
+      "modelSelectionAvailable": true,
+      "durableAgentAvailable": true,
+      "modelCalls": 0,
+      "networkCalls": 0
+    },
+    "routing-deadline": {
+      "passed": true,
+      "nativeRouting": {
+        "scriptedSimple": "scripted/economical",
+        "scriptedComplex": "scripted/capable",
+        "qualityEvaluated": false
+      },
+      "deadline": {
+        "configuredMs": 540000,
+        "elapsedMs": 540001,
+        "reportedStop": "AGENT_TASK_UNCERTAIN",
+        "confirmedUsagePreserved": true
+      },
+      "networkCalls": 0,
+      "realModelCalls": 0
+    },
+    "durable": {
+      "passed": true,
+      "observerDisconnectPreservesRun": true,
+      "reconnectReplaysAndFinishes": true,
+      "modelExecutions": 1,
+      "realProviderCalls": 0,
+      "networkCalls": 0,
+      "scope": "single-process synthetic stream; restart recovery not tested"
+    },
+    "tool-output": {
+      "passed": true,
+      "all100SourceReferencesVisible": true,
+      "fullToolResultPreservedInNativeMemory": true,
+      "fullContentExcludedFromNextModelPrompt": true,
+      "rawChars": 408250,
+      "nextPromptChars": 17811,
+      "scriptedModelCalls": 2,
+      "realProviderCalls": 0,
+      "networkCalls": 0,
+      "readOnDemandIntegrationImplemented": false
+    }
+  },
+  "productMigrationImplemented": false,
+  "productionChanged": false,
+  "sourcePushed": false,
+  "realProviderCalls": 0,
+  "qualityEvaluated": false
+}

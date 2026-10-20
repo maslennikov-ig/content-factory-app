@@ -1,0 +1,40 @@
+{
+  "epic": "content-factory-next-on0i",
+  "children": [
+    {
+      "number": 1,
+      "id": "content-factory-next-on0i.1",
+      "title": "Нативный AgentController и изолированные сессии в продукте"
+    },
+    {
+      "number": 2,
+      "id": "content-factory-next-on0i.2",
+      "title": "Компактный контекст, полные источники и составные инструменты"
+    },
+    {
+      "number": 3,
+      "id": "content-factory-next-on0i.3",
+      "title": "Durable и background: продолжение, перезапуск и защита от повторов"
+    },
+    {
+      "number": 4,
+      "id": "content-factory-next-on0i.4",
+      "title": "Нативная автономность: цели, планы, вопросы, задачи и субагенты"
+    },
+    {
+      "number": 5,
+      "id": "content-factory-next-on0i.5",
+      "title": "Нативный выбор моделей и полный учёт вызовов"
+    },
+    {
+      "number": 6,
+      "id": "content-factory-next-on0i.6",
+      "title": "Чаты и управление выполнением через нативные события Mastra"
+    },
+    {
+      "number": 7,
+      "id": "content-factory-next-on0i.7",
+      "title": "Единый нативный путь продукта и удаление заменённого runtime"
+    }
+  ]
+}

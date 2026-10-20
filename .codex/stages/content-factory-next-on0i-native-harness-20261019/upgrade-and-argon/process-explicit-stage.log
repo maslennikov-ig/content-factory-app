@@ -1,0 +1,120 @@
+orchestration contract OK (balanced-v2.20 via orchestration-setup)
+git diff --check OK
+git status --short
+ M .codex/handoff.md
+ M .codex/project-index.md
+ M .codex/stages/content-factory-next-on0i-native-harness-20261019/epic.md
+ M .codex/stages/content-factory-next-on0i-native-harness-20261019/launcher.md
+ M docs/README.md
+ M docs/superpowers/plans/2026-10-19-native-mastra-harness.md
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/backend-native-sdk-deadline-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/backend-native-sdk-deadline.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/backend-shared-native-deadline.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/backend-snapshot-recovery.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/beads-implementation-closure.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/beads-live-acceptance-regression.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/beads-pre-close-current.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/beads-release-progress.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/calendar-independent-confirmation.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/canonical-implementation-accepted.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/core-snapshot-recovery.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/current-intake-contracts-all.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/current-intake-contracts-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/current-intent-service-fixtures.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/delivery-source-ancestry.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/final-public-tree-preparation.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/frozen-varied-controls.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/frozen-writing-controls.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/git-published.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/historical-guarded-gateway.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/image-command-help.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/image-pre-push-checks.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/image-published.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/image-pull-host.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/image-push.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/local-build-capacity.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/current-source-semantic-review.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/multi-step-reference-review.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T06-51-08-992Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T06-55-14-338Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T07-07-39-408Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T07-08-08-788Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T07-21-30-961Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T07-21-30-966Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T07-37-36-929Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T09-00-26-388Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T09-07-08-913Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T09-07-08-935Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/receipt-2026-10-19T09-37-38-683Z.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-qa/varied-controls-review.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-selection-authority-expanded.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-selection-authority-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-selection-authority-green.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-selection-authority-red.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/model-selection-historical.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-endpoint-and-accounting-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-gateway-varied-controls.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-image-no-start-red.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-nonchat-cancellation-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-nonchat-cancellation-green.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/native-nonchat-cancellation-red.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/owned-schema-helper-cleanup.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/pre-delivery-git.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-image-pull-verified.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-public-source.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-runtime-after.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-runtime-before.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-schema-after.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-schema-before.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/production-switch.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-build-ci.current.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-candidate-331df7f4a.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-candidate-3fcf4c787.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-candidate-a0d00a42b.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-ci.current.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-image-build.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-output-parity.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-prepared-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-scope-scan-final.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-scope-scan.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/public-source-archive-prepared.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-date-role-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-date-role.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-final-v2.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-model-selection.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-native-endpoints.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-scope-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/release-shared-deadline.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/runtime-before-delivery.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/beads-closure.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/browser-progress.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/image-pull-host.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/image-push.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/post-delivery-docs-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/post-delivery-process-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/pre-delivery-git.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/previous-root-acceptance.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/production-runtime-before.json
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/production-switch.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/public-candidate-preparation.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/public-ci-watch.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/public-image-build.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/public-output-preparation.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/retention-dry-run.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/second-release/retention-executed.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-deadline-historical.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-deadline-varied.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-native-deadline-clients.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-native-deadline-final.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-native-deadline-green.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/shared-native-deadline-red.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/snapshot-recovery-docs.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/snapshot-recovery-process.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/snapshot-selection-recovery-green.log
+?? .codex/stages/content-factory-next-j9p5-implementation-20261018/evidence/snapshot-selection-recovery-red.log
+?? .codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/
+?? .codex/stages/content-factory-next-rafo-chat-sidebar-20261019/release/
+new balanced-v2.20 stage 'content-factory-next-on0i-native-harness-20261019' requires .codex/stages/content-factory-next-on0i-native-harness-20261019/stage-manifest.json; only stage_sizing.legacy_active_stage_id may finish under the pre-upgrade contract
+missing stage summary: /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-native-harness-20261019/summary.md
+workspace.current_stage_id must equal 'content-factory-next-on0i-native-harness-20261019'; found 'content-factory-next-j9p5-implementation-20261018'
+handoff does not declare exact stage id content-factory-next-on0i-native-harness-20261019

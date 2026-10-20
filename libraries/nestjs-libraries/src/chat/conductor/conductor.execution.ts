@@ -9,8 +9,10 @@ import { AGENT_RUN_CLAIM_TTL_SECONDS } from './agent-run-claims';
 import { stopAfterOpenProposalRefusal, stepNotes } from './conductor.steps';
 
 /** Technical fuses, not a definition of a completed task or a financial allowance. */
+export const CONDUCTOR_MAX_TASK_DURATION_MS = 24 * 60 * 60 * 1_000;
+
 export const CONDUCTOR_EXECUTION_DEFAULTS = {
-  maxDurationMs: AGENT_RUN_CLAIM_TTL_SECONDS * 1_000 - 60_000,
+  maxDurationMs: 6 * AGENT_RUN_CLAIM_TTL_SECONDS * 1_000,
   emergencyMaxSteps: 64,
   maxIdenticalToolResults: 3,
 } as const;
@@ -38,10 +40,10 @@ export const readConductorExecutionPolicy = (
 ): ConductorExecutionPolicy => {
   const maxDurationMs = positive(env.CF_AGENT_TASK_MAX_DURATION_MS, 'CF_AGENT_TASK_MAX_DURATION_MS')
     ?? CONDUCTOR_EXECUTION_DEFAULTS.maxDurationMs;
-  // Existing thread/run claims expire after ten minutes; a task cannot outlive
-  // its exclusive claim. Longer work needs claim renewal, not an unsafe knob.
-  if (maxDurationMs > CONDUCTOR_EXECUTION_DEFAULTS.maxDurationMs) {
-    throw new Error('CF_AGENT_TASK_MAX_DURATION_MS exceeds the thread claim window.');
+  // Active thread claims and durable execution leases renew while work is in
+  // flight; cap the technical fuse to one day so misconfigured env values fail fast.
+  if (maxDurationMs > CONDUCTOR_MAX_TASK_DURATION_MS) {
+    throw new Error('CF_AGENT_TASK_MAX_DURATION_MS exceeds the maximum technical fuse window.');
   }
   return {
     maxDurationMs,
@@ -111,6 +113,7 @@ export class ConductorExecution {
   private possiblyBilled = false;
   private providerCalls = 0;
   private readonly results = new Map<string, number>();
+  private notes: readonly string[] = [];
 
   constructor(private readonly options: {
     requestId: string;
@@ -123,7 +126,7 @@ export class ConductorExecution {
     this.signal = AbortSignal.any([
       ...(options.signal ? [options.signal] : []),
       this.halt.signal,
-      AbortSignal.timeout(this.policy.maxDurationMs),
+      ...(options.now ? [] : [AbortSignal.timeout(this.policy.maxDurationMs)]),
     ]);
   }
 
@@ -203,6 +206,7 @@ export class ConductorExecution {
 
   /** Native Mastra options; the model keeps all tools until a real fuse stops. */
   streamOptions(notes: readonly string[] = []) {
+    this.notes = [...notes];
     const remaining = Math.max(1, this.policy.maxDurationMs - (this.now() - this.startedAt));
     const prepareNotes = stepNotes(notes);
     return {
@@ -213,19 +217,25 @@ export class ConductorExecution {
         ...(this.policy.maxTokens !== undefined ? { maxOutputTokens: Math.max(1, this.policy.maxTokens - this.tokens) } : {}),
       },
       prepareStep: (args: Parameters<typeof prepareNotes>[0]) => {
-        this.assertCanSpend();
-        return prepareNotes(args);
+        const active = current.getStore() ?? this;
+        active.assertCanSpend();
+        const effectiveNotes = notes.length ? notes : active.notes;
+        return stepNotes(effectiveNotes)(args);
       },
       onStepFinish: (step: { toolCalls?: readonly unknown[]; finishReason?: string }) => {
-        this.steps += 1;
+        const active = current.getStore() ?? this;
+        active.steps += 1;
         // The transport already owns its one bounded length retry. A still
         // truncated native result cannot establish completed work.
-        if (step.finishReason === 'length') this.stop('AGENT_TASK_OPERATION_FAILED');
-        if (this.steps >= this.policy.emergencyMaxSteps && (step.toolCalls?.length || step.finishReason === 'tool-calls')) {
-          this.stop('AGENT_TASK_EMERGENCY_FUSE');
+        if (step.finishReason === 'length') active.stop('AGENT_TASK_OPERATION_FAILED');
+        if (active.steps >= active.policy.emergencyMaxSteps && (step.toolCalls?.length || step.finishReason === 'tool-calls')) {
+          active.stop('AGENT_TASK_EMERGENCY_FUSE');
         }
       },
-      stopWhen: ({ steps }: { steps: readonly any[] }) => !!this.check() || stopAfterOpenProposalRefusal({ steps }),
+      stopWhen: ({ steps }: { steps: readonly any[] }) => {
+        const active = current.getStore() ?? this;
+        return !!active.check() || stopAfterOpenProposalRefusal({ steps });
+      },
     };
   }
 

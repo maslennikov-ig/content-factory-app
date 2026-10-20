@@ -1,0 +1,259 @@
+[
+  {
+    "id": "content-factory-next-on0i",
+    "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение",
+    "status": "open",
+    "issue_type": "epic",
+    "priority": 1,
+    "parent": null,
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1122",
+    "dependencies": [],
+    "description_sha256": "874f87cee059c22d622971e95c741fcf79c23d4c0a0913504c8c52c4984d826e",
+    "acceptance_criteria_sha256": "3615446b8c52be137b01492f045fdf241453b1543b3f06f5e35e5f7ca7ef8b98",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.1",
+    "title": "Обновление Mastra и нативные изолированные сессии",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1127",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      }
+    ],
+    "description_sha256": "809c2254d33b794886c1ae0f25f31b7b7069190e0f7865885b837de01ccbf5a7",
+    "acceptance_criteria_sha256": "26317ab66394d2af04dcb7511cacfdab19f255749057040ec8c657fa515c6290",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.2",
+    "title": "Компактный контекст, полные источники и составные инструменты",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1125",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Обновление Mastra и нативные изолированные сессии"
+      }
+    ],
+    "description_sha256": "2cb7039760de4429a8230efa305ce76ce421f1c5f3a5074f2b41536f4b3b9097",
+    "acceptance_criteria_sha256": "6331cd55a7ac2c3ff712816f6cb3cdf0cc3f4c062027c97f3323e7dcdd3d46ce",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.3",
+    "title": "Durable и background: продолжение, перезапуск и защита от повторов",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1128",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Обновление Mastra и нативные изолированные сессии"
+      },
+      {
+        "id": "content-factory-next-on0i.2",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Компактный контекст, полные источники и составные инструменты"
+      }
+    ],
+    "description_sha256": "375d180c4646c92479e8f9beb3860402cae9658e545d31d654fde196d4c14266",
+    "acceptance_criteria_sha256": "a0be37cde86840cce5d3cc5af56c642477a712798a9c45ab7246a720d13531c6",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.4",
+    "title": "Нативная автономность: цели, планы, вопросы, задачи и субагенты",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1126",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Обновление Mastra и нативные изолированные сессии"
+      },
+      {
+        "id": "content-factory-next-on0i.2",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Компактный контекст, полные источники и составные инструменты"
+      },
+      {
+        "id": "content-factory-next-on0i.3",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Durable и background: продолжение, перезапуск и защита от повторов"
+      },
+      {
+        "id": "content-factory-next-on0i.5",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Нативный выбор моделей и полный учёт вызовов"
+      }
+    ],
+    "description_sha256": "8199e92464162361db856bb5815e4d6eefb17fbe68a4e01eafa16591356f8c45",
+    "acceptance_criteria_sha256": "6dfdf5dfa28f58132990b1600489ddbb0986cb638caf1d9053d8d383df5613d6",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.5",
+    "title": "Нативный выбор моделей и полный учёт вызовов",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1124",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Обновление Mastra и нативные изолированные сессии"
+      }
+    ],
+    "description_sha256": "63147b49b64fa9b81703c90acf62314ec690351834ddaa3a56392a8eb8d49eea",
+    "acceptance_criteria_sha256": "2c3cec129995a8b9bb9b86b425d2c1310aee95e19c1f5948821f8f1d740b0563",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.6",
+    "title": "Чаты и управление выполнением через нативные события Mastra",
+    "status": "open",
+    "issue_type": "feature",
+    "priority": 2,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1129",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Обновление Mastra и нативные изолированные сессии"
+      },
+      {
+        "id": "content-factory-next-on0i.3",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Durable и background: продолжение, перезапуск и защита от повторов"
+      },
+      {
+        "id": "content-factory-next-on0i.4",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Нативная автономность: цели, планы, вопросы, задачи и субагенты"
+      }
+    ],
+    "description_sha256": "a3427fd79dda839e10ba8a906f6ed856b98a730d7a3a92966f20dd62e78ac777",
+    "acceptance_criteria_sha256": "c15bdf23bc2fdd9d6598af02fbf76d241a6c97d318782a3f71c7f3c587c2abd8",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  },
+  {
+    "id": "content-factory-next-on0i.7",
+    "title": "Единый нативный путь продукта и удаление заменённого runtime",
+    "status": "open",
+    "issue_type": "task",
+    "priority": 1,
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1123",
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child",
+        "status": "open",
+        "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение"
+      },
+      {
+        "id": "content-factory-next-on0i.6",
+        "dependency_type": "blocks",
+        "status": "open",
+        "title": "Чаты и управление выполнением через нативные события Mastra"
+      }
+    ],
+    "description_sha256": "1623a298011d55e52506165ef96ea0f1c181264ddb483c555344838021d39088",
+    "acceptance_criteria_sha256": "9e3ce6ba9fbc4001dc3085df1c772ee79ce53118fc97e2b470da4627a20eba54",
+    "checks": {
+      "mentions_upgrade": true,
+      "mentions_argon": true,
+      "mentions_a28": true
+    }
+  }
+]

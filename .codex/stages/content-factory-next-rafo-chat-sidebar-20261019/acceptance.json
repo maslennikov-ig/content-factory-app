@@ -1,0 +1,69 @@
+{
+  "schema": "focused-ui-acceptance/v1",
+  "task": "content-factory-next-rafo",
+  "baseline": "f1317989536c24576fd7d604c2086e4992f38e58",
+  "verdict": "passed-local-production-deferred-by-owner",
+  "jest": {
+    "suites": 11,
+    "passed": 142,
+    "failed": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "checks": 23,
+    "passed": 23,
+    "modelCalls": 0,
+    "messagePosts": 0,
+    "boundary": "synthetic-local"
+  },
+  "frontendTypes": {
+    "exitCode": 0
+  },
+  "docs": {
+    "checked": 202,
+    "exitCode": 0
+  },
+  "process": {
+    "exitCode": 0
+  },
+  "diffCheck": {
+    "exitCode": 0
+  },
+  "sourceInputs": {
+    "apps/frontend/src/components/agents/agent.threads.tsx": "0f707493a1d082713ed57c3b05d20555523d20bc439f955c20626e0c9a7e54d4",
+    "apps/frontend/src/components/agents/agent.chats.review-scene.tsx": "2cbcfe6410e229a5b0f1673204cd3c26f2a72605b9ba4fd8371d94ecea7184ac",
+    "apps/frontend/src/components/new-layout/assistant-menu.tsx": "3bb87847140c147c3faadc813608be7764e03a8c5de09ba706b96d52dd085db9",
+    "apps/frontend/src/components/new-layout/sidebar.tsx": "5da42bfbbbe105470e39d08a0d5be69ed41ef2d9452089ff97c316fdcd980390",
+    "tests/assistant-sidebar.chats.test.cjs": "e69e899997fde4c87e07f8a8d362f180e3ccd30686f348828e789400df2e93b2"
+  },
+  "releaseVerified": false,
+  "productionChanged": false,
+  "deliveryBoundary": "Owner19Oct: local testing only, no source/image publication or deployment; supersedes prior release approval.",
+  "localBuild": {
+    "exitCode": 0,
+    "sourceCommit": "f36abd662c8aa4b4e5611cf6e67a4a681c2ab453"
+  },
+  "localSuite": {
+    "jest": {
+      "passed": 12626,
+      "skipped": 70,
+      "suitesPassed": 699,
+      "suitesSkipped": 7
+    },
+    "node": {
+      "passed": 126,
+      "failed": 0,
+      "skipped": 4
+    },
+    "python": {
+      "passed": 50,
+      "failed": 0,
+      "scope": "rerun after documentation-only handoff/index length correction"
+    },
+    "originalCombinedCommandExit": 1,
+    "originalFailure": "Python process test: handoff exceeded200lines; first correction also exposed index over150. Both documentation length checks corrected without changing guards.",
+    "freshCombinedReleaseReceipt": false,
+    "appSourceInputsUnchanged": true
+  },
+  "publication": "on hold by latest owner instruction; production remains dd89af1b4a29"
+}

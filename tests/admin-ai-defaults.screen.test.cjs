@@ -727,4 +727,112 @@ describe('ключи и ИИ по умолчанию: поля парами, у 
       'admin-ai-text-fallback-model'
     );
   });
+
+  it('управляет упорядоченной цепочкой запасных моделей, отключением запаса и числом повторов (A29)', async () => {
+    response = defaults({
+      provider: 'openrouter',
+      textFallbackModel: 'openai/gpt-5.4-backup-1',
+      textFallbackModels: [
+        'openai/gpt-5.4-backup-1',
+        'anthropic/claude-4-sonnet',
+      ],
+      textFallbackDisabled: false,
+      textMaxRetries: 2,
+      textChain: {
+        preferFlex: true,
+        primaryModel: 'openai/gpt-5.4',
+        fallbackModel: 'openai/gpt-5.4-backup-1',
+        fallbackModels: [
+          'openai/gpt-5.4-backup-1',
+          'anthropic/claude-4-sonnet',
+        ],
+        fallbackDisabled: false,
+        maxRetries: 2,
+      },
+    });
+    draw();
+
+    const items = () =>
+      Array.from(
+        document.querySelectorAll('[data-admin-ai-fallback-item]')
+      ).map((el) => el.getAttribute('data-admin-ai-fallback-item'));
+    expect(items()).toEqual([
+      'openai/gpt-5.4-backup-1',
+      'anthropic/claude-4-sonnet',
+    ]);
+
+    // Move second item up
+    const moveUp = document.querySelector(
+      '[data-admin-ai-fallback-move-up="1"]'
+    );
+    await act(async () => {
+      fireEvent.click(moveUp);
+    });
+    expect(items()).toEqual([
+      'anthropic/claude-4-sonnet',
+      'openai/gpt-5.4-backup-1',
+    ]);
+    expect(JSON.parse(fetchCalls[0].body)).toMatchObject({
+      textFallbackModels: [
+        'anthropic/claude-4-sonnet',
+        'openai/gpt-5.4-backup-1',
+      ],
+      textFallbackDisabled: false,
+    });
+
+    // Add a third fallback model
+    const addInput = document.querySelector(
+      '#admin-ai-text-fallback-add'
+    );
+    const addButton = document.querySelector(
+      '[data-admin-ai-fallback-add-btn="true"]'
+    );
+    await act(async () => {
+      fireEvent.change(addInput, {
+        target: { value: 'google/gemini-2.5-pro' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(addButton);
+    });
+    expect(items()).toEqual([
+      'anthropic/claude-4-sonnet',
+      'openai/gpt-5.4-backup-1',
+      'google/gemini-2.5-pro',
+    ]);
+    expect(JSON.parse(fetchCalls[1].body)).toMatchObject({
+      textFallbackModels: [
+        'anthropic/claude-4-sonnet',
+        'openai/gpt-5.4-backup-1',
+        'google/gemini-2.5-pro',
+      ],
+    });
+
+    // Toggle explicit empty fallback («Без запасных моделей»)
+    const disableCheckbox = document.querySelector(
+      'input[name="admin-ai-text-fallback-disabled"]'
+    );
+    await act(async () => {
+      fireEvent.click(disableCheckbox);
+    });
+    expect(JSON.parse(fetchCalls[2].body)).toMatchObject({
+      textFallbackDisabled: true,
+      textFallbackModels: [],
+      textFallbackModel: '',
+    });
+
+    // Change per-model retry count
+    const retriesInput = document.querySelector(
+      '#admin-ai-text-max-retries'
+    );
+    await act(async () => {
+      fireEvent.change(retriesInput, { target: { value: '4' } });
+    });
+    await act(async () => {
+      fireEvent.blur(retriesInput);
+    });
+    expect(JSON.parse(fetchCalls[3].body)).toMatchObject({
+      textMaxRetries: 4,
+    });
+  });
 });

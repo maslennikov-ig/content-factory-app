@@ -5,25 +5,28 @@ umask 077
 
 # Owner-only, in-place upgrade of the separate Mastra database from the
 # `@mastra/pg` 1.8.5 schema (the 29-table contract of migrate-mastra-storage.sh)
-# to the `@mastra/pg` 1.27.1 schema (45 tables).
+# or the `@mastra/pg` 1.27.1 schema (45 tables) to the `@mastra/pg` 1.31.2
+# schema (47 tables).
 #
 # migrate-mastra-storage.sh is the one-time split and cannot do this: it refuses
 # any existing target table and any CONCURRENTLY index by design. This script
 # applies the committed, reviewed SQL next to it, as POSTGRES_USER, inside one
 # `psql --single-transaction`, and proves the change it made before COMMIT:
 #
-#   * the target is exactly the 29 names (upgrade) or empty with --from-empty
-#     (fresh install: committed base schema, then the same upgrade SQL);
-#     exactly the 45 names is a no-op; anything else is refused untouched;
+#   * the target is exactly the 29 names (1.8.5 upgrade), the 45 names (1.27.1
+#     upgrade), or empty with --from-empty (fresh install: committed base
+#     schema, then the same upgrade SQL);
+#     exactly the 47 names is a no-op; anything else is refused untouched;
 #   * a TEXT `mastra_workflow_snapshot.snapshot` (production's legacy shape)
 #     is converted to jsonb first, in the same transaction, by the reviewed
 #     mastra-storage-snapshot-jsonb.sql; a row that is not valid jsonb refuses
 #     the whole run, and the only schema change that step may make is that one
 #     column type;
-#   * after the upgrade the table set is exactly the 45 names, no index is
+#   * after the upgrade the table set is exactly the 47 names, no index is
 #     INVALID, and the schema delta (columns, indexes, constraints, column
-#     order ignored) equals mastra-storage-upgrade-1.27.1.delta line for line.
-#     Any mismatch raises inside the transaction, so the database stays at 29.
+#     order ignored) equals mastra-storage-upgrade-1.31.2.delta (from 29) or
+#     mastra-storage-upgrade-1.31.2.delta minus mastra-storage-upgrade-1.27.1.delta
+#     (from 45) line for line. Any mismatch raises inside the transaction.
 #
 # Never replace this with Mastra's own init (`disableInit: false`) or with
 # `prisma db push` in production. The runbook step is R3 in
@@ -32,16 +35,20 @@ umask 077
 readonly postgres_container="${CF_POSTGRES_CONTAINER:-cf-next-postgres}"
 readonly script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly base_sql="$script_dir/mastra-storage-base-1.8.5.sql"
-readonly upgrade_sql="$script_dir/mastra-storage-upgrade-1.27.1.sql"
+readonly previous_upgrade_sql="$script_dir/mastra-storage-upgrade-1.27.1.sql"
+readonly upgrade_sql="$script_dir/mastra-storage-upgrade-1.31.2.sql"
 readonly snapshot_sql="$script_dir/mastra-storage-snapshot-jsonb.sql"
-readonly expected_delta="$script_dir/mastra-storage-upgrade-1.27.1.delta"
-# The four files above are reviewed artifacts. An edited copy is refused
+readonly previous_expected_delta="$script_dir/mastra-storage-upgrade-1.27.1.delta"
+readonly expected_delta="$script_dir/mastra-storage-upgrade-1.31.2.delta"
+# The six files above are reviewed artifacts. An edited copy is refused
 # rather than applied; tests/mastra-upgrade.execution.test.cjs keeps these
 # constants equal to the committed files.
 readonly base_sql_sha256='58e12875d7e3bd64f18471f5c85c094680264225e8b29be71c7c3f204de4b4ac'
-readonly upgrade_sql_sha256='b7254fb6cd3f6630a1ba60b1667e630cfdd3f32e79b2a00ac1c969d53e2fedf5'
+readonly previous_upgrade_sql_sha256='b7254fb6cd3f6630a1ba60b1667e630cfdd3f32e79b2a00ac1c969d53e2fedf5'
+readonly upgrade_sql_sha256='c911698b9fdec8dc6b8b451e55d3cae73619af05a0b722b8ac9dbca4adcb4c73'
 readonly snapshot_sql_sha256='d2293dfa92d6c84e6f23f3d28874f779f70fbf9d3b157ada2e044f3b70a3d713'
-readonly expected_delta_sha256='e6bf59581c9f893061538bf1e6af84ad8e65b2a50e5a8edbc05a8a9c92133485'
+readonly previous_expected_delta_sha256='e6bf59581c9f893061538bf1e6af84ad8e65b2a50e5a8edbc05a8a9c92133485'
+readonly expected_delta_sha256='f3e26ba508328e63cc27a0de23f27e60f380789bddc847ad40212d819e753413'
 
 from_empty=0
 
@@ -70,8 +77,10 @@ done
 
 for pair in \
   "$base_sql=$base_sql_sha256" \
+  "$previous_upgrade_sql=$previous_upgrade_sql_sha256" \
   "$upgrade_sql=$upgrade_sql_sha256" \
   "$snapshot_sql=$snapshot_sql_sha256" \
+  "$previous_expected_delta=$previous_expected_delta_sha256" \
   "$expected_delta=$expected_delta_sha256"; do
   file="${pair%=*}"
   want="${pair##*=}"
@@ -86,11 +95,12 @@ for pair in \
   }
 done
 
-# Where the 45 names come from: the `public.mastra_*` tables of a database
-# created by `@mastra/pg` 1.8.5 (plus the legacy `mastra_evals`/`mastra_traces`)
-# and upgraded in place by the version pinned in `package.json` as
-# `"@mastra/pg": "^1.27.1"` (resolved to 1.27.1 in `pnpm-lock.yaml`). The same
-# list is kept in `scripts/operations/verify-mastra-storage-upgrade.sh` and
+# Where the 47 names come from: the `public.mastra_*` tables of a database
+# created by `@mastra/pg` 1.8.5 (plus the legacy `mastra_evals`/`mastra_traces`
+# and the 1.27.1 `mastra_knowledge_*` tables) and upgraded in place by the
+# version pinned in `package.json` as `"@mastra/pg": "1.31.2"` (resolved to
+# 1.31.2 in `pnpm-lock.yaml`). The same list is kept in
+# `scripts/operations/verify-mastra-storage-upgrade.sh` and
 # `tests/mastra-upgrade.execution.test.cjs`; the test fails when they drift.
 # When `@mastra/pg` moves: capture the new DDL log on the stand, write a new
 # upgrade SQL file (never edit the reviewed one), re-read this list from the
@@ -120,6 +130,7 @@ mastra_mcp_client_versions
 mastra_mcp_clients
 mastra_mcp_server_versions
 mastra_mcp_servers
+mastra_memory_run_fences
 mastra_messages
 mastra_notifications
 mastra_observational_memory
@@ -139,22 +150,29 @@ mastra_threads
 mastra_tool_provider_connections
 mastra_traces
 mastra_workflow_definitions
+mastra_workflow_run_owners
 mastra_workflow_snapshot
 mastra_workspace_versions
 mastra_workspaces
 TABLES
 )"
 
-# The 29-name source contract is not a fourth hand-written list: it is the 45
-# names minus the tables the upgrade SQL creates.
+# The 29-name source contract is not a fourth hand-written list: it is the 47
+# names minus the 18 tables the 1.31.2 upgrade SQL creates, and the 45-name
+# 1.27.1 contract is the 29 names plus the 16 tables 1.27.1 created.
 readonly new_tables="$(grep -oE '^CREATE TABLE IF NOT EXISTS "public"\."mastra_[a-z_]+"' "$upgrade_sql" |
   sed -E 's/.*"(mastra_[a-z_]+)"$/\1/' | LC_ALL=C sort)"
 readonly previous_tables="$(LC_ALL=C comm -23 \
   <(printf '%s\n' "$expected_tables") <(printf '%s\n' "$new_tables"))"
-[[ "$(printf '%s\n' "$expected_tables" | wc -l)" -eq 45 &&
-  "$(printf '%s\n' "$new_tables" | wc -l)" -eq 16 &&
+readonly previous_1271_new_tables="$(grep -oE '^CREATE TABLE IF NOT EXISTS "public"\."mastra_[a-z_]+"' "$previous_upgrade_sql" |
+  sed -E 's/.*"(mastra_[a-z_]+)"$/\1/' | LC_ALL=C sort)"
+readonly previous_45_tables="$(printf '%s\n%s\n' "$previous_tables" "$previous_1271_new_tables" | LC_ALL=C sort)"
+[[ "$(printf '%s\n' "$expected_tables" | wc -l)" -eq 47 &&
+  "$(printf '%s\n' "$new_tables" | wc -l)" -eq 18 &&
+  "$(printf '%s\n' "$previous_1271_new_tables" | wc -l)" -eq 16 &&
+  "$(printf '%s\n' "$previous_45_tables" | wc -l)" -eq 45 &&
   "$(printf '%s\n' "$previous_tables" | wc -l)" -eq 29 ]] || {
-  printf 'Upgrade contract is inconsistent: expected 45 = 29 + 16 table names.\n' >&2
+  printf 'Upgrade contract is inconsistent: expected 47 = 29 + 18 (and 45 = 29 + 16) table names.\n' >&2
   exit 1
 }
 
@@ -205,15 +223,16 @@ print_state() {
 }
 
 current_tables="$(query "$table_sql")"
+source_table_count=29
 
 if [[ "$current_tables" == "$expected_tables" ]]; then
   invalid="$(query "$invalid_index_sql")"
   [[ "$invalid" == '0' ]] || {
-    printf 'Mastra target %s has the 45 names but %s invalid indexes; refusing to call it upgraded.\n' \
+    printf 'Mastra target %s has the 47 names but %s invalid indexes; refusing to call it upgraded.\n' \
       "$MASTRA_DATABASE_NAME" "$invalid" >&2
     exit 1
   }
-  printf 'Mastra target %s already has the exact 45-table contract; nothing applied.\n' \
+  printf 'Mastra target %s already has the exact 47-table contract; nothing applied.\n' \
     "$MASTRA_DATABASE_NAME"
   print_state
   exit 0
@@ -229,8 +248,10 @@ elif [[ -z "$current_tables" ]]; then
   printf 'Mastra target %s has no Mastra tables. For a fresh install re-run with --from-empty; otherwise the wrong database is configured.\n' \
     "$MASTRA_DATABASE_NAME" >&2
   exit 1
+elif [[ "$current_tables" == "$previous_45_tables" ]]; then
+  source_table_count=45
 elif [[ "$current_tables" != "$previous_tables" ]]; then
-  printf 'Mastra target %s is neither the 29-table (@mastra/pg 1.8.5) nor the 45-table (@mastra/pg 1.27.1) contract; refusing before any change.\n' \
+  printf 'Mastra target %s is neither the 29-table (@mastra/pg 1.8.5), the 45-table (@mastra/pg 1.27.1), nor the 47-table (@mastra/pg 1.31.2) contract; refusing before any change.\n' \
     "$MASTRA_DATABASE_NAME" >&2
   diff -u <(printf '%s\n' "$previous_tables") <(printf '%s\n' "$current_tables") >&2 || true
   exit 1
@@ -331,6 +352,12 @@ readonly normalized_sql="SELECT definition FROM (
   WHERE n.nspname='public' AND c.relname LIKE 'mastra\\_%' ESCAPE '\\'
 ) AS definitions"
 
+if [[ "$source_table_count" -eq 45 ]]; then
+  readonly active_delta="$(LC_ALL=C comm -13 "$previous_expected_delta" "$expected_delta")"
+else
+  readonly active_delta="$(cat "$expected_delta")"
+fi
+
 {
   printf '\\set ON_ERROR_STOP on\n'
   # The app keeps running during the upgrade; do not queue behind a long
@@ -357,7 +384,7 @@ SQL
   printf 'CREATE TEMP TABLE cf_mastra_expected_delta ON COMMIT DROP AS\n'
   printf '  SELECT line FROM unnest(string_to_array($cf_delta$'
   # Drop the final newline so the array has no empty trailing element.
-  printf '%s' "$(cat "$expected_delta")"
+  printf '%s' "$active_delta"
   printf '$cf_delta$, E%s)) AS line;\n' "'\\n'"
   printf 'CREATE TEMP TABLE cf_mastra_expected_tables ON COMMIT DROP AS\n'
   printf '  SELECT name FROM unnest(string_to_array($cf_tables$%s$cf_tables$, E%s)) AS name;\n' \
@@ -398,7 +425,7 @@ BEGIN
         WHERE schemaname = 'public' AND tablename LIKE 'mastra\_%' ESCAPE '\'
         EXCEPT SELECT name FROM cf_mastra_expected_tables) AS extra;
   IF missing_tables IS NOT NULL OR extra_tables IS NOT NULL THEN
-    RAISE EXCEPTION 'Mastra upgrade did not reach the 45-table contract; rolled back.'
+    RAISE EXCEPTION 'Mastra upgrade did not reach the 47-table contract; rolled back.'
       USING DETAIL = format('missing: %s; extra: %s', missing_tables, extra_tables);
   END IF;
 
@@ -452,15 +479,15 @@ docker exec -i --env CF_MASTRA_DATABASE="$MASTRA_DATABASE_NAME" \
 
 after_tables="$(query "$table_sql")"
 [[ "$after_tables" == "$expected_tables" ]] || {
-  printf 'Mastra target %s does not have the 45-table contract after COMMIT; follow the recovery in docs/operations/production-deploy.md.\n' \
+  printf 'Mastra target %s does not have the 47-table contract after COMMIT; follow the recovery in docs/operations/production-deploy.md.\n' \
     "$MASTRA_DATABASE_NAME" >&2
   exit 1
 }
 
 if [[ "$from_empty" -eq 1 ]]; then
-  printf 'Mastra storage created from empty: 0 -> 45 tables.\n'
+  printf 'Mastra storage created from empty: 0 -> 47 tables.\n'
 else
-  printf 'Mastra storage upgrade applied: 29 -> 45 tables.\n'
+  printf 'Mastra storage upgrade applied: %s -> 47 tables.\n' "$source_table_count"
 fi
 printf 'after:\n'
 print_state

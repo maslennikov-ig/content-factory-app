@@ -1,0 +1,100 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "new-chat plus is to the right of assistant disclosure",
+      "passed": true
+    },
+    {
+      "name": "disclosure hides history",
+      "passed": true
+    },
+    {
+      "name": "expanding history costs no conversation height",
+      "passed": true,
+      "conversationHeight": 612.15625
+    },
+    {
+      "name": "all105 native threads remain available",
+      "passed": true
+    },
+    {
+      "name": "switching chats restores each unsent draft",
+      "passed": true
+    },
+    {
+      "name": "selected chat is marked in the sidebar",
+      "passed": true
+    },
+    {
+      "name": "message column contains no permanent chat list",
+      "passed": true
+    },
+    {
+      "name": "plus opens the unsent new chat",
+      "passed": true
+    },
+    {
+      "name": "collapsed rail keeps the assistant entry",
+      "passed": true
+    },
+    {
+      "name": "compact rail keeps the chat dialog available",
+      "passed": true
+    },
+    {
+      "name": "dark-theme navigation is visible",
+      "passed": true
+    },
+    {
+      "name": "tablet retains the assistant icon",
+      "passed": true
+    },
+    {
+      "name": "tablet compact rail does not overflow",
+      "passed": true
+    },
+    {
+      "name": "mobile drawer uses the same disclosure and plus",
+      "passed": true
+    },
+    {
+      "name": "mobile thread selection closes the drawer",
+      "passed": true
+    },
+    {
+      "name": "mobile plus creates an unsent new chat",
+      "passed": true
+    },
+    {
+      "name": "Escape closes mobile navigation",
+      "passed": true
+    },
+    {
+      "name": "phone layout has no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "navigation makes no model or message calls",
+      "passed": true,
+      "modelCalls": 0,
+      "sends": 0
+    },
+    {
+      "name": "empty history keeps the new-chat action available",
+      "passed": true
+    },
+    {
+      "name": "failed history recovers through the existing retry",
+      "passed": true
+    },
+    {
+      "name": "loading history has an accessible skeleton",
+      "passed": true
+    },
+    {
+      "name": "long thread names keep a full tooltip without horizontal overflow",
+      "passed": true
+    }
+  ]
+}

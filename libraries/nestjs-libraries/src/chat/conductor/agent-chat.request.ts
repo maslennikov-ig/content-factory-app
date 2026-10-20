@@ -22,6 +22,7 @@ import { approvalFingerprint } from '../capabilities/approval-fingerprint';
 import {
   QUESTION_CARD_ID_PATTERN,
   answerFitsCard,
+  normalizeAskUserAnswer,
   questionCardId,
 } from '../capabilities/question-card';
 import { wrapUntrusted } from '../capabilities/untrusted-data';
@@ -164,8 +165,15 @@ export type AgentChatInput =
       toolCallId?: string;
       /** The card answered (`AGENT_CARD_ID_KEY` of the card shown). */
       cardId: string;
-      resumeData: Record<string, unknown>;
+      resumeData: Record<string, unknown> | string | string[];
     };
+
+const isResumePayloadShape = (
+  value: unknown
+): value is Record<string, unknown> | string | string[] =>
+  isRecord(value) ||
+  typeof value === 'string' ||
+  (Array.isArray(value) && value.every((one) => typeof one === 'string'));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
@@ -585,7 +593,7 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
 
   if (body.runId !== undefined || body.resumeData !== undefined) {
     const runId = idOrNull(body.runId);
-    if (!runId || !isRecord(body.resumeData)) {
+    if (!runId || !isResumePayloadShape(body.resumeData)) {
       throw badRequest('A resume needs a run id and the answer.');
     }
     if (JSON.stringify(body.resumeData).length > AGENT_RESUME_MAX_BYTES) {
@@ -609,7 +617,7 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
       runId,
       ...(toolCallId ? { toolCallId } : {}),
       cardId: body.cardId,
-      resumeData: redactSecretLeaves(body.resumeData) as Record<string, unknown>,
+      resumeData: redactSecretLeaves(body.resumeData) as Record<string, unknown> | string | string[],
     };
   }
 
@@ -741,7 +749,7 @@ export const verifyPendingAnswer = (
     // older card redrawn — is not an answer to this one (review W2 F3).
     const card = questionCardId(call.suspendPayload);
     if (card !== input.cardId) throw notPending();
-    if (!answerFitsCard(call.suspendPayload, input.resumeData)) {
+    if (!answerFitsCard(call.suspendPayload, input.resumeData, call.toolName)) {
       throw badRequest('The answer does not fit the card it names.');
     }
     return {
@@ -853,4 +861,25 @@ export const openProposalTargets = (
     }
   }
   return [...targets];
+};
+
+/**
+ * Normalizes a verified resume payload for Mastra's native tool resume schema:
+ * for `ask_user`, converts question-card objects (`{ answer, decideForPerson }`)
+ * into `string | string[]` expected by `askUserTool`.
+ */
+export const normalizeResumeDataForPendingCall = (
+  runs: readonly PendingRun[],
+  runId: string,
+  toolCallId: string,
+  resumeData: unknown
+): unknown => {
+  const run = runs.find((candidate) => candidate.runId === runId);
+  const call = run?.toolCalls.find(
+    (candidate) => !candidate.requiresApproval && candidate.toolCallId === toolCallId
+  );
+  if (call?.toolName === 'ask_user') {
+    return normalizeAskUserAnswer(resumeData) ?? resumeData;
+  }
+  return resumeData;
 };

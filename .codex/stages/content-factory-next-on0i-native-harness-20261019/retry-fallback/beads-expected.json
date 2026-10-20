@@ -1,0 +1,42 @@
+[
+  {
+    "id": "content-factory-next-on0i",
+    "description_stripped_sha256": "16776f5b2a5ac2db756a3758b3dba2c2ee3932b839fc8a42569d48115bfbf11e",
+    "acceptance_criteria": "A1-A31 and the entire integrated native product behavior pass locally; stable coordinated SDK upgrade/old-data compatibility is included in Task1; Gemini Argon executes. Native scopes, memory, recovery, source/media reads, approvals, UI events and model routing have consumers. Preserve working MCP clients and domain authority/receipts. No deploy. Native retries and ordered configured fallback models, settings save/reload, failed-stream and all-provider recovery, durable restart and Stop prove A29-A31 without duplicated work or multiplied retries."
+  },
+  {
+    "id": "content-factory-next-on0i.1",
+    "description_stripped_sha256": "ba6c6ee6365f21c50e3e5d5c6e730af14ff23e8c8e6d51e89016168896d8f3a7",
+    "acceptance_criteria": "coherent stable bundle/build/types and pre-upgrade native data fixtures pass; actual used server and MCP contracts are compatible; no scopes injection or widening. Two users/two orgs/two simultaneous chats cannot mix state, messages, model overrides or approvals; existing thread IDs and pending native parts remain readable. Real product route uses Session, not a probe-only host."
+  },
+  {
+    "id": "content-factory-next-on0i.2",
+    "description_stripped_sha256": "36abd1b3a3e9b2afae2d392ce937cbb86cb87942e4a189910528faba80d66adf",
+    "acceptance_criteria": "all evidence retrievable, original input exact, no hidden semantic top-N, no repeated completed research for an unchanged task, retained sources do not flood each model call, saved draft/adaptation usable on screens."
+  },
+  {
+    "id": "content-factory-next-on0i.3",
+    "description_stripped_sha256": "d047094bcc306dd6c70d7bd58a3a9037ad4465feb251aa7d7714c54f7e20a916",
+    "acceptance_criteria": "complete a task beyond the old nine-minute window (bounded injected-clock/local-delay test); observer reconnect and actual child-process restart pass separately; duplicate drivers/late results/replayed tool or subagent cannot repeat an accepted artifact/publication; receipts remain terminal/accurate."
+  },
+  {
+    "id": "content-factory-next-on0i.4",
+    "description_stripped_sha256": "83c826bf0cca8a5727d8e08bce59eb5b75975d6cab3f26f2c87fd067d619c760",
+    "acceptance_criteria": "self-contained requests do not need an artificial intake/plan; ambiguous business facts trigger a useful question; delegated “decide for me” is honored; multi-step goal cannot mark complete from self-written prose alone; queued/steering input and background result refer to the right task. Cross-role subagents cannot gain write/publication rights or leak other histories."
+  },
+  {
+    "id": "content-factory-next-on0i.5",
+    "description_stripped_sha256": "3239c383197fdb3cb2914c2da104183b909da29fb2145abce5f84a4ade99dcbd",
+    "acceptance_criteria": "scripted routing/abstention/provider failure pass; actual configured provider compatibility and end-to-end quality/cost are measured before claiming routing works or saves money. An unavailable classifier keeps the configured fallback running and produces a visible diagnostic; it does not silently choose an unconfigured provider. No price, model ID or complexity phrase is hardcoded. Settings survive reload; transient faults and failed streams recover with counted attempts, the same saved work and no duplicate writes. All-model outages retain resumable state; Stop cancels backoff and future recovery. A29–A31 prove these paths."
+  },
+  {
+    "id": "content-factory-next-on0i.6",
+    "description_stripped_sha256": "c74a8e087f74c1db9769073a22bc48136eaefb6a0d40554d97fc0d4d4963cbcc",
+    "acceptance_criteria": "two browser tabs/chats and reload/reconnect preserve state, controlled Stop cancels, pending approvals show actual content, partial/failed runs show a useful retained result;0 overflow or conversation-height regression."
+  },
+  {
+    "id": "content-factory-next-on0i.7",
+    "description_stripped_sha256": "cd8bf7004b3ca00dce59455d1e655738a1279c6ec6c68554a6289f07b7cc8231",
+    "acceptance_criteria": "every integrated row in section4 has a consumer and evidence; all criteria below have a passing result or explicitly owner-approved external gate. No green claim from a probe-only composition. Remove obsolete fixtures that merely pin old hardcodes; keep behavior regressions. Update navigation, component inventory, runtime/operator docs and handoff; no hidden debt."
+  }
+]

@@ -2162,7 +2162,7 @@ export class IntakeService {
   }
 
   private researchContinuationChoices(origin: 'person' | 'model', selectedKeys: string[]): string {
-    if (!Array.isArray(selectedKeys) || selectedKeys.length > 50 || selectedKeys.some(key => typeof key !== 'string')) {
+    if (!Array.isArray(selectedKeys) || selectedKeys.length > 200 || selectedKeys.some(key => typeof key !== 'string')) {
       throw new Error('Invalid research selection keys');
     }
     return JSON.stringify({ origin, selectedKeys: [...new Set(selectedKeys)].sort() });
@@ -2194,7 +2194,7 @@ export class IntakeService {
         state.summary?.periodStatus === 'empty' || state.summary?.periodStatus === 'needs_clarification') {
       throw new Error('Research has no selectable verified outcome; resolve its gaps first');
     }
-    if (selectedKeys.length > 50 || new Set(selectedKeys).size !== selectedKeys.length) throw invalid('Invalid research selection keys; copy each factKey once from this saved research result.');
+    if (selectedKeys.length > 200 || new Set(selectedKeys).size !== selectedKeys.length) throw invalid('Invalid research selection keys; copy each factKey once from this saved research result.');
     const facts = new Map(state.filled.brief.facts.map(fact => [fact.factKey, fact]));
     for (const key of selectedKeys) {
       const fact = facts.get(key);

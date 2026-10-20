@@ -12,8 +12,10 @@ import {
   IsAiRoleModels,
   IsSearchApiKeys,
   IsSearchTaskProviders,
+  IsTextFallbackModels,
 } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
 import type { AiProvider } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import { MAX_TEXT_MODEL_RETRIES } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
  * What the instance's superadmin may set, reusing the workspace validators
@@ -86,4 +88,18 @@ export class InstanceAiDefaultsDto {
   @IsOptional()
   @MaxLength(200)
   textFallbackModel?: string;
+
+  @IsOptional()
+  @IsTextFallbackModels()
+  textFallbackModels?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  textFallbackDisabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TEXT_MODEL_RETRIES)
+  textMaxRetries?: number;
 }

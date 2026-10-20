@@ -1,0 +1,51 @@
+{
+  "source_commit": "cb4e406edd0c78007c0a545f08ccf7886c047022",
+  "evidence_boundary": "current source inspection only; no browser/provider acceptance",
+  "claims_verified": {
+    "existing_single_model_input": true,
+    "existing_single_nullable_field": true,
+    "legacy_chain_restricted": true,
+    "empty_value_restores_legacy_default": true
+  },
+  "source_files": {
+    "settings_menu": {
+      "path": "apps/frontend/src/components/admin/admin-ai-defaults.component.tsx",
+      "sha256": "7827b98f950704dff79843c26d8b4a2664ed0b67e04f52a31f10375c008d6468"
+    },
+    "settings_dto": {
+      "path": "libraries/nestjs-libraries/src/dtos/settings/instance-ai-defaults.dto.ts",
+      "sha256": "b3ac73d3b32eb85beb0a23d5b8c645ad8660ffcf4568e93444b687360188ac85"
+    },
+    "settings_service": {
+      "path": "libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts",
+      "sha256": "c6a88317d2538655730f75f9f75769317f2b4715a923c72ec5180869413262e4"
+    },
+    "settings_schema": {
+      "path": "libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+      "sha256": "7363de6abb27fd0b33d9b136af886a6fcbfcd88e866c474264c2c698d178d9f3"
+    },
+    "provider_config": {
+      "path": "libraries/nestjs-libraries/src/openai/ai.provider.config.ts",
+      "sha256": "85a49cb428df4b5f3b89785e5c13807d09ff9029e720d990220f23a2a1870a5a"
+    },
+    "legacy_transport": {
+      "path": "libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "sha256": "5e29845aa2a3c19f62ba463ddc3039793c851410765bd2a3bc2f35aa999c3878"
+    },
+    "clients": {
+      "path": "libraries/nestjs-libraries/src/openai/ai.clients.ts",
+      "sha256": "c030cb7979e8c3353f34170522f475361a6909dc23a5902292fa53692817301d"
+    },
+    "native_entry": {
+      "path": "libraries/nestjs-libraries/src/chat/mastra.service.ts",
+      "sha256": "c857fe075ecd97d872054ded77f4d48df794637d615557402b79bdbb058287d2"
+    }
+  },
+  "borrowed_graph": {
+    "path": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "baseline": "dd67538d524417749bc46935ffb84431bc3da42f",
+    "symbol": "createTextChainFetch",
+    "status": "one match, six neighbors, both returned source files changed and verified directly",
+    "read_only": true
+  }
+}

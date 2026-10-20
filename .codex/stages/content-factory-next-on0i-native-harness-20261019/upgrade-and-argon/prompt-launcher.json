@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "runtime": "gemini",
+  "profile": "gemini-4-argon",
+  "kind": "handoff",
+  "char_count": 1439,
+  "budget": 1500,
+  "errors": [],
+  "warnings": []
+}

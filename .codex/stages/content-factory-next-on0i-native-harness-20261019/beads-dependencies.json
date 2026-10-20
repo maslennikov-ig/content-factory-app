@@ -1,0 +1,50 @@
+[
+  {
+    "task": "content-factory-next-on0i.2",
+    "dependsOn": "content-factory-next-on0i.1"
+  },
+  {
+    "task": "content-factory-next-on0i.3",
+    "dependsOn": "content-factory-next-on0i.1"
+  },
+  {
+    "task": "content-factory-next-on0i.3",
+    "dependsOn": "content-factory-next-on0i.2"
+  },
+  {
+    "task": "content-factory-next-on0i.4",
+    "dependsOn": "content-factory-next-on0i.1"
+  },
+  {
+    "task": "content-factory-next-on0i.4",
+    "dependsOn": "content-factory-next-on0i.2"
+  },
+  {
+    "task": "content-factory-next-on0i.4",
+    "dependsOn": "content-factory-next-on0i.3"
+  },
+  {
+    "task": "content-factory-next-on0i.4",
+    "dependsOn": "content-factory-next-on0i.5"
+  },
+  {
+    "task": "content-factory-next-on0i.5",
+    "dependsOn": "content-factory-next-on0i.1"
+  },
+  {
+    "task": "content-factory-next-on0i.6",
+    "dependsOn": "content-factory-next-on0i.1"
+  },
+  {
+    "task": "content-factory-next-on0i.6",
+    "dependsOn": "content-factory-next-on0i.3"
+  },
+  {
+    "task": "content-factory-next-on0i.6",
+    "dependsOn": "content-factory-next-on0i.4"
+  },
+  {
+    "task": "content-factory-next-on0i.7",
+    "dependsOn": "content-factory-next-on0i.6"
+  }
+]

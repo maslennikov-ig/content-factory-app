@@ -66,11 +66,11 @@ readonly snapshot_sql="$repo_root/deploy/production/mastra-storage-snapshot-json
 # the upgrade script proves the delta instead, and the `production` case below
 # pins both ends of that path on a schema-only copy of production.
 readonly expected_base_fingerprint='541482bda91b5e6cc2e70b1f7ea928d80b45772471aa87a75bb3e40e8dcb0c53'
-readonly expected_upgraded_fingerprint='38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d'
+readonly expected_upgraded_fingerprint='13d611f1bcb547fe3dd331e9c9f4b30e5534e6b3805cc2ab8cd520af63f2e0b5'
 readonly expected_production_fingerprint='310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7'
-readonly expected_production_upgraded_fingerprint='a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97'
+readonly expected_production_upgraded_fingerprint='a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0'
 
-# One of three hand-written copies of the 45-name upgrade contract; the
+# One of three hand-written copies of the 47-name upgrade contract; the
 # provenance and the pinned `@mastra/pg` version are recorded once, at the list
 # in `deploy/production/upgrade-mastra-storage.sh`.
 # `tests/mastra-upgrade.execution.test.cjs` fails if the copies drift apart.
@@ -98,6 +98,7 @@ mastra_mcp_client_versions
 mastra_mcp_clients
 mastra_mcp_server_versions
 mastra_mcp_servers
+mastra_memory_run_fences
 mastra_messages
 mastra_notifications
 mastra_observational_memory
@@ -117,6 +118,7 @@ mastra_threads
 mastra_tool_provider_connections
 mastra_traces
 mastra_workflow_definitions
+mastra_workflow_run_owners
 mastra_workflow_snapshot
 mastra_workspace_versions
 mastra_workspaces
@@ -349,10 +351,10 @@ if [[ -n "$from_dump" ]]; then
     show_log "$work_dir/dump-first.log"
     fail 'Mastra upgrade failed on the production archive.'
   }
-  grep -Fq 'Mastra storage upgrade applied: 29 -> 45 tables.' "$work_dir/dump-first.log" ||
-    fail 'Upgrade of the production archive did not report 29 -> 45.'
+  grep -Fq 'Mastra storage upgrade applied: 29 -> 47 tables.' "$work_dir/dump-first.log" ||
+    fail 'Upgrade of the production archive did not report 29 -> 47.'
   [[ "$(owner_query "$mastra_database" "$table_sql")" == "$expected_tables" ]] ||
-    fail 'Upgraded production archive does not hold the exact 45-table contract.'
+    fail 'Upgraded production archive does not hold the exact 47-table contract.'
   [[ "$(owner_query "$mastra_database" "$invalid_index_sql")" == '0' ]] ||
     fail 'Upgrade of the production archive left invalid indexes.'
   [[ "$(owner_query "$mastra_database" "$seeded_digest_sql")" == "$dump_before" ]] ||
@@ -376,7 +378,7 @@ if [[ -n "$from_dump" ]]; then
     fail 'Second upgrade run on the production archive did not report a no-op.'
   sed 's/^/production archive run 1 | /' "$work_dir/dump-first.log"
   sed 's/^/production archive run 2 | /' "$work_dir/dump-second.log"
-  printf 'Production archive: 29 -> 45, rows unchanged, 0 invalid indexes, second run no-op.\n'
+  printf 'Production archive: 29 -> 47, rows unchanged, 0 invalid indexes, second run no-op.\n'
   exit 0
 fi
 
@@ -394,10 +396,10 @@ run_upgrade "$work_dir/upgrade-first.log" || {
   show_log "$work_dir/upgrade-first.log"
   fail 'Mastra upgrade failed on the 29-table reference schema.'
 }
-grep -Fq 'Mastra storage upgrade applied: 29 -> 45 tables.' "$work_dir/upgrade-first.log" ||
-  fail 'Upgrade did not report 29 -> 45.'
+grep -Fq 'Mastra storage upgrade applied: 29 -> 47 tables.' "$work_dir/upgrade-first.log" ||
+  fail 'Upgrade did not report 29 -> 47.'
 [[ "$(owner_query "$mastra_database" "$table_sql")" == "$expected_tables" ]] ||
-  fail 'Upgraded target does not contain the exact 45-table contract.'
+  fail 'Upgraded target does not contain the exact 47-table contract.'
 upgraded_fingerprint="$(fingerprint)"
 [[ "$upgraded_fingerprint" == "$expected_upgraded_fingerprint" ]] ||
   fail "Upgraded fingerprint differs from the committed one: $upgraded_fingerprint"
@@ -427,9 +429,9 @@ grep -Fq 'permission denied' "$work_dir/runtime-create.log" ||
 
 run_upgrade "$work_dir/upgrade-second.log" || {
   show_log "$work_dir/upgrade-second.log"
-  fail 'Second upgrade run over the 45-table target failed.'
+  fail 'Second upgrade run over the 47-table target failed.'
 }
-grep -Fq 'already has the exact 45-table contract; nothing applied.' "$work_dir/upgrade-second.log" ||
+grep -Fq 'already has the exact 47-table contract; nothing applied.' "$work_dir/upgrade-second.log" ||
   fail 'Second upgrade run did not report a no-op.'
 [[ "$(fingerprint)" == "$expected_upgraded_fingerprint" ]] ||
   fail 'Second upgrade run changed the schema.'
@@ -479,7 +481,7 @@ load_base
 owner_sql "$mastra_database" <<<'CREATE TABLE public.mastra_unexpected (id text PRIMARY KEY);'
 extra_before="$(fingerprint)"
 if run_upgrade "$work_dir/extra.log"; then
-  fail 'Upgrade accepted a table set that is neither 29 nor 45 names.'
+  fail 'Upgrade accepted a table set that is neither 29, 45, nor 47 names.'
 fi
 grep -Fq 'neither the 29-table' "$work_dir/extra.log" ||
   fail 'Extra-table refusal did not name the contract.'
@@ -510,10 +512,10 @@ run_upgrade "$work_dir/production-first.log" || {
 }
 grep -Fq 'snapshot column: text, 2 rows, all valid jsonb' "$work_dir/production-first.log" ||
   fail 'Production-shape upgrade did not report the snapshot conversion.'
-grep -Fq 'Mastra storage upgrade applied: 29 -> 45 tables.' "$work_dir/production-first.log" ||
-  fail 'Production-shape upgrade did not report 29 -> 45.'
+grep -Fq 'Mastra storage upgrade applied: 29 -> 47 tables.' "$work_dir/production-first.log" ||
+  fail 'Production-shape upgrade did not report 29 -> 47.'
 [[ "$(owner_query "$mastra_database" "$table_sql")" == "$expected_tables" ]] ||
-  fail 'Upgraded production shape does not hold the exact 45-table contract.'
+  fail 'Upgraded production shape does not hold the exact 47-table contract.'
 [[ "$(snapshot_type)" == 'jsonb' ]] || fail 'Production-shape snapshot column is not jsonb after the upgrade.'
 [[ "$(owner_query "$mastra_database" "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('mastra_workflow_snapshot_name_status_createdat_idx', 'mastra_workflow_snapshot_threadid_idx');")" == '2' ]] ||
   fail 'Production-shape upgrade did not build the two jsonb snapshot indexes.'
@@ -583,8 +585,8 @@ run_upgrade "$work_dir/fresh.log" --from-empty || {
   show_log "$work_dir/fresh.log"
   fail 'Fresh install (--from-empty) failed.'
 }
-grep -Fq 'Mastra storage created from empty: 0 -> 45 tables.' "$work_dir/fresh.log" ||
-  fail 'Fresh install did not report 0 -> 45.'
+grep -Fq 'Mastra storage created from empty: 0 -> 47 tables.' "$work_dir/fresh.log" ||
+  fail 'Fresh install did not report 0 -> 47.'
 [[ "$(fingerprint)" == "$expected_upgraded_fingerprint" ]] ||
   fail 'Fresh install fingerprint differs from the upgraded one.'
 "$isolation_script" >"$work_dir/isolation-fresh.log" 2>&1 || {
@@ -593,14 +595,14 @@ grep -Fq 'Mastra storage created from empty: 0 -> 45 tables.' "$work_dir/fresh.l
 }
 if run_upgrade "$work_dir/fresh-again.log" --from-empty; then
   grep -Fq 'nothing applied' "$work_dir/fresh-again.log" ||
-    fail 'Repeated --from-empty over 45 tables did something.'
+    fail 'Repeated --from-empty over 47 tables did something.'
 else
-  fail 'Repeated --from-empty over the 45-table target failed instead of a no-op.'
+  fail 'Repeated --from-empty over the 47-table target failed instead of a no-op.'
 fi
 
 sed 's/^/upgrade run 1 | /' "$work_dir/upgrade-first.log"
 sed 's/^/upgrade run 2 | /' "$work_dir/upgrade-second.log"
 postgres_version="$(docker exec "$container" postgres --version)"
-printf 'Real Mastra upgrade proof passed. Image: %s. Version: %s. Upgrade: 29 -> 45 tables, fingerprint %s, invalid indexes 0, seeded rows identical, runtime DML ok, runtime CREATE refused, role isolation green, second run no-op. Interrupted: stayed at 29, rerun reached 45. Drift: rolled back at 29. Extra table: refused untouched. Production shape: %s -> %s, snapshot text -> jsonb, rows identical by value, isolation green, second run no-op; invalid-jsonb snapshot refused untouched (preflight and in-transaction). Fresh: refused without flag, --from-empty reached the same fingerprint, isolation green.\n' \
+printf 'Real Mastra upgrade proof passed. Image: %s. Version: %s. Upgrade: 29 -> 47 tables, fingerprint %s, invalid indexes 0, seeded rows identical, runtime DML ok, runtime CREATE refused, role isolation green, second run no-op. Interrupted: stayed at 29, rerun reached 47. Drift: rolled back at 29. Extra table: refused untouched. Production shape: %s -> %s, snapshot text -> jsonb, rows identical by value, isolation green, second run no-op; invalid-jsonb snapshot refused untouched (preflight and in-transaction). Fresh: refused without flag, --from-empty reached the same fingerprint, isolation green.\n' \
   "$image" "$postgres_version" "$expected_upgraded_fingerprint" \
   "$expected_production_fingerprint" "$expected_production_upgraded_fingerprint"

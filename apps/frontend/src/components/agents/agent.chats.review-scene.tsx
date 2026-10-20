@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ContextType } from 'react';
+import { useRouter } from 'next/navigation';
+import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { NavigationPromisesContext, PathnameContext, PathParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { SWRConfig } from 'swr';
 import { FetchProvider } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
@@ -8,6 +11,7 @@ import { UserContext } from '@contentfactory/frontend/components/layout/user.con
 import { InterfaceReviewFrame, defineInterfaceReviewScene, type InterfaceReviewContext } from '../interface-review/fixture-contract';
 import { ReviewLocaleProvider } from '../interface-review/review-i18n';
 import { AgentScreen } from './agent.screen';
+import { Sidebar } from '../new-layout/sidebar';
 import { AGENT_NOT_STARTED_HEADER, AGENT_THREAD_HEADER, type AgentMessage, type AgentWorkspaceV1 } from './agent.contract';
 
 /** Development-only product components, synthetic responses and zero network. */
@@ -20,6 +24,12 @@ const json = (body: unknown, status = 200, headers?: HeadersInit) => Response.js
 const transcript = (thread: string, count: number): AgentMessage[] => Array.from({ length: count }, (_, i) => ({ id: `${thread}-m-${i}`, role: i % 2 ? 'assistant' : 'user', parts: [{ type: 'text', text: `${thread} · ${i + 1}: Synthetic saved message / Сохранённое сообщение.` }] }));
 
 export function Scene({ context }: { context: InterfaceReviewContext }) {
+  const router = useRouter();
+  const [route, setRoute] = useState('/agents/new');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Development-only routing keeps real sidebar actions inside the synthetic
+  // scene. No navigation to an authenticated route or live API is possible.
+  const reviewRouter = useMemo(() => ({ ...router, push: setRoute, replace: setRoute, prefetch: () => {} }), [router]);
   const [contextual, setContextual] = useState(false);
   const [recovered, setRecovered] = useState(false);
   const [refuseFirstSend, setRefuseFirstSend] = useState(false);
@@ -88,16 +98,19 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
   useEffect(() => { (window as unknown as { __chatReview: unknown }).__chatReview = { calls: database.calls, modelCalls: 0, get nativeThreadCount() { return database.threads.length; } }; }, [database]);
   const user = { id: 'synthetic-user', orgId: 'synthetic-org', role: 'ADMIN' } as NonNullable<ContextType<typeof UserContext>>;
   return <InterfaceReviewFrame scene={scene} context={context}>
+    <AppRouterContext.Provider value={reviewRouter}><NavigationPromisesContext.Provider value={null}><PathnameContext.Provider value={route}><PathParamsContext.Provider value={{ id: route.split('/')[2] }}>
     <ReviewLocaleProvider locale={context.locale}><UserContext.Provider value={user}><FetchProvider.Provider value={request}><SWRConfig value={{ provider: () => new Map(), shouldRetryOnError: false, revalidateOnFocus: false }}>
       <div data-chat-review="synthetic" className="flex h-[100dvh] min-h-0 flex-col bg-cf-surface text-cf-ink">
         <div className="flex shrink-0 flex-wrap items-center gap-[8px] border-b border-cf-border p-[8px]">
           <p className="cf-caption">Synthetic only · HTTP blocked · {stats.reads} reads · {stats.sends} synthetic sends</p>
           <Button type="button" density="dense" variant="quiet" onClick={() => setContextual((value) => !value)}>{contextual ? 'Full host' : 'Contextual host'}</Button>
+          <Button type="button" density="dense" variant="quiet" className="md:hidden" onClick={() => setMobileOpen(true)}>Open navigation</Button>
           <Button type="button" density="dense" variant="quiet" onClick={() => setRefuseFirstSend((value) => !value)} aria-pressed={refuseFirstSend}>First send fails</Button>
           {context.state === 'error' || context.state === 'loading' ? <Button type="button" density="dense" variant="quiet" onClick={() => setRecovered(true)}>Recover synthetic API, then retry</Button> : null}
         </div>
-        <div className="relative flex min-h-0 flex-1 [&_[data-agent-screen]]:h-auto [&_[data-agent-screen]]:flex-1"><AgentScreen contextual={contextual} /></div>
+        <div className="relative flex min-h-0 flex-1"><Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} /><div className="flex min-h-0 min-w-0 flex-1 [&_[data-agent-screen]]:h-auto [&_[data-agent-screen]]:flex-1"><AgentScreen contextual={contextual} /></div></div>
       </div>
     </SWRConfig></FetchProvider.Provider></UserContext.Provider></ReviewLocaleProvider>
+    </PathParamsContext.Provider></PathnameContext.Provider></NavigationPromisesContext.Provider></AppRouterContext.Provider>
   </InterfaceReviewFrame>;
 }

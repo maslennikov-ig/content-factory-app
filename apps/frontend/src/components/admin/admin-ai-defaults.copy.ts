@@ -100,6 +100,16 @@ type Words = {
     fallbackLabel: string;
     /** Когда её зовут и что значит пустое поле. */
     fallbackWhat: string;
+    /** Добавить модель в цепочку запасных (`on0i.5`, `A29`). */
+    fallbackAddPlaceholder: string;
+    fallbackAddAction: string;
+    fallbackMoveUp: string;
+    fallbackMoveDown: string;
+    fallbackRemove: string;
+    fallbackDisabledLabel: string;
+    fallbackEffectiveLabel: (models: string) => string;
+    fallbackEffectiveEmpty: string;
+    maxRetriesLabel: string;
     /** Одна строка в «?» у полей текста и картинок (`97dq.62`). */
     textHint: string;
     imageHint: string;
@@ -229,6 +239,15 @@ const ru: Words = {
     imageHint: 'Какой ИИ рисует картинки у пространств на «Ключах системы».',
     fallbackWhat:
       'Последняя попытка, когда текстовая модель не ответила. Пустое поле — модель по умолчанию, указанная в подсказке.',
+    fallbackAddPlaceholder: 'Добавить модель в очередь запасных',
+    fallbackAddAction: 'Добавить',
+    fallbackMoveUp: 'Выше',
+    fallbackMoveDown: 'Ниже',
+    fallbackRemove: 'Убрать',
+    fallbackDisabledLabel: 'Без запасных моделей',
+    fallbackEffectiveLabel: (models) => `Действующая цепочка запасных: ${models}`,
+    fallbackEffectiveEmpty: 'Запасные модели отключены',
+    maxRetriesLabel: 'Повторов на модель',
   },
   allowance: {
     title: 'Включённый режим',
@@ -341,6 +360,15 @@ const en: Words = {
     imageHint: 'Which AI draws the images of workspaces on «System keys».',
     fallbackWhat:
       'The last attempt, when the text model did not answer. An empty field uses the default shown as the placeholder.',
+    fallbackAddPlaceholder: 'Add a model to the fallback queue',
+    fallbackAddAction: 'Add',
+    fallbackMoveUp: 'Move up',
+    fallbackMoveDown: 'Move down',
+    fallbackRemove: 'Remove',
+    fallbackDisabledLabel: 'Disable fallback models',
+    fallbackEffectiveLabel: (models) => `Effective fallback chain: ${models}`,
+    fallbackEffectiveEmpty: 'Fallback models disabled',
+    maxRetriesLabel: 'Retries per model',
   },
   allowance: {
     title: 'Included mode',

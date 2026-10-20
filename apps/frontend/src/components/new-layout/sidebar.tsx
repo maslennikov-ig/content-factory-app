@@ -13,6 +13,7 @@ import {
   useMenuItem,
 } from '@contentfactory/frontend/components/layout/top.menu';
 import { MenuItem } from '@contentfactory/frontend/components/new-layout/menu-item';
+import { AssistantMenuItem } from './assistant-menu';
 import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
 import { displayName } from '@contentfactory/react/helpers/display-name';
@@ -194,7 +195,13 @@ export const Sidebar: FC<{
               collapsed={isCollapsed}
             >
               {group.items.map((item) => (
-                <MenuItem
+                item.path === '/agents' ? <AssistantMenuItem
+                  key={item.path}
+                  label={item.name}
+                  icon={item.icon}
+                  collapsed={isCollapsed}
+                  onNavigate={isDrawer ? onCloseMobile : undefined}
+                /> : <MenuItem
                   key={item.name}
                   path={item.path}
                   label={item.name}

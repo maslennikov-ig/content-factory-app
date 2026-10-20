@@ -167,12 +167,45 @@ describe('task execution uses real accounting and technical fuses', () => {
     });
   });
 
-  test('no invented task dollar or token allowance; unsafe duration cannot outlive native claims', () => {
+  test('no invented task dollar or token allowance; active claims renew so tasks can run beyond the old nine-minute window', async () => {
     expect(execution.readConductorExecutionPolicy({})).toEqual({
-      maxDurationMs: 540_000, emergencyMaxSteps: 64, maxIdenticalToolResults: 3,
+      maxDurationMs: 3_600_000, emergencyMaxSteps: 64, maxIdenticalToolResults: 3,
     });
-    expect(() => execution.readConductorExecutionPolicy({ CF_AGENT_TASK_MAX_DURATION_MS: '600001' })).toThrow('claim');
+    expect(execution.readConductorExecutionPolicy({ CF_AGENT_TASK_MAX_DURATION_MS: '600001' })).toMatchObject({
+      maxDurationMs: 600_001,
+    });
+    expect(() => execution.readConductorExecutionPolicy({ CF_AGENT_TASK_MAX_DURATION_MS: String(86_400_001) })).toThrow('fuse');
     expect(() => execution.readConductorExecutionPolicy({ CF_AGENT_TASK_MAX_COST_USD: 'Infinity' })).toThrow();
+
+    const claims = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-run-claims.ts');
+    const store = claims.inProcessRunClaimStore();
+    let currentTime = 1_000_000;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+    try {
+      const release = await claims.claimAgentRun(store, 'thread:org-1:user-1:t-long');
+      expect(release).toEqual(expect.any(Function));
+      const scope = task({
+        now: () => currentTime,
+        policy: execution.readConductorExecutionPolicy({ CF_AGENT_TASK_MAX_DURATION_MS: '1200000' }),
+      });
+      await scope.run(async () => {
+        for (const elapsedMs of [180_000, 360_000, 540_000, 720_000]) {
+          currentTime = 1_000_000 + elapsedMs;
+          expect(await claims.renewAgentRunClaim(store, 'thread:org-1:user-1:t-long')).toBe(true);
+          expect(await claims.claimAgentRun(store, 'thread:org-1:user-1:t-long')).toBeNull();
+          scope.assertCanSpend();
+          scope.streamOptions().onStepFinish({ finishReason: elapsedMs === 720_000 ? 'stop' : 'tool-calls' });
+        }
+      });
+      expect(scope.snapshot()).toMatchObject({
+        elapsedMs: 720_000,
+        steps: 4,
+        stopCode: undefined,
+      });
+      await release();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   test('many settled paid steps continue without a message or approval increasing a numeric allowance', () => {

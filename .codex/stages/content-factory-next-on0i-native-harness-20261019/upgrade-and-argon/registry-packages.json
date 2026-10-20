@@ -1,0 +1,150 @@
+{
+  "checkedDate": "2026-10-19",
+  "source": "npm registry latest metadata; no package installation",
+  "packages": [
+    {
+      "package": "@mastra/core",
+      "installed": "1.71.0",
+      "latest": "1.78.0",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "zod": "^3.25.0 || ^4.0.0"
+      },
+      "relatedDependencies": {
+        "@mastra/schema-compat": "1.3.15"
+      },
+      "source": "https://registry.npmjs.org/%40mastra%2Fcore/latest"
+    },
+    {
+      "package": "@mastra/memory",
+      "installed": "1.32.1",
+      "latest": "1.38.0",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "@mastra/core": ">=1.4.1-0 <2.0.0-0"
+      },
+      "relatedDependencies": {
+        "zod": "^4.6.4",
+        "@mastra/schema-compat": "1.3.15"
+      },
+      "source": "https://registry.npmjs.org/%40mastra%2Fmemory/latest"
+    },
+    {
+      "package": "@mastra/pg",
+      "installed": "1.27.1",
+      "latest": "1.31.2",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "@mastra/core": ">=1.76.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fpg/latest"
+    },
+    {
+      "package": "@mastra/ai-sdk",
+      "installed": "1.10.5",
+      "latest": "1.11.1",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "zod": "^3.25.0 || ^4.0.0",
+        "@mastra/core": ">=1.5.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fai-sdk/latest"
+    },
+    {
+      "package": "@mastra/mcp",
+      "installed": "1.18.0",
+      "latest": "2.4.1",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "@mastra/core": ">=1.76.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fmcp/latest"
+    },
+    {
+      "package": "mastra",
+      "installed": "1.3.19",
+      "latest": "1.34.2",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "@mastra/core": ">=1.58.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {
+        "@mastra/loggers": "^1.3.8",
+        "@mastra/deployer": "^1.78.0"
+      },
+      "source": "https://registry.npmjs.org/mastra/latest"
+    },
+    {
+      "package": "@mastra/server",
+      "installed": "1.21.0",
+      "latest": "1.78.0",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "zod": "^3.25.0 || ^4.0.0",
+        "@mastra/core": ">=1.58.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fserver/latest"
+    },
+    {
+      "package": "@mastra/client-js",
+      "installed": null,
+      "latest": "1.55.0",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "zod": "^3.25.0 || ^4.0.0"
+      },
+      "relatedDependencies": {
+        "@mastra/core": "1.78.0",
+        "@mastra/schema-compat": "1.3.15"
+      },
+      "source": "https://registry.npmjs.org/%40mastra%2Fclient-js/latest"
+    },
+    {
+      "package": "@mastra/observability",
+      "installed": null,
+      "latest": "1.20.1",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "zod": "^3.25.0 || ^4.0.0",
+        "@mastra/core": ">=1.16.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fobservability/latest"
+    },
+    {
+      "package": "@mastra/redis",
+      "installed": null,
+      "latest": "1.4.10",
+      "engines": {
+        "node": ">=22.13.0"
+      },
+      "peers": {
+        "@mastra/core": ">=1.76.0-0 <2.0.0-0"
+      },
+      "relatedDependencies": {},
+      "source": "https://registry.npmjs.org/%40mastra%2Fredis/latest"
+    }
+  ]
+}

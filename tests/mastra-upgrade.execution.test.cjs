@@ -16,6 +16,10 @@ const upgradeScript = path.join(
 );
 const upgradeSql = path.join(
   root,
+  'deploy/production/mastra-storage-upgrade-1.31.2.sql'
+);
+const previousUpgradeSql = path.join(
+  root,
   'deploy/production/mastra-storage-upgrade-1.27.1.sql'
 );
 const baseSql = path.join(root, 'deploy/production/mastra-storage-base-1.8.5.sql');
@@ -28,6 +32,10 @@ const productionShapeSql = path.join(
   'deploy/production/mastra-storage-production-shape.sql'
 );
 const expectedDelta = path.join(
+  root,
+  'deploy/production/mastra-storage-upgrade-1.31.2.delta'
+);
+const previousExpectedDelta = path.join(
   root,
   'deploy/production/mastra-storage-upgrade-1.27.1.delta'
 );
@@ -62,6 +70,7 @@ const EXPECTED_TABLES = [
   'mastra_mcp_clients',
   'mastra_mcp_server_versions',
   'mastra_mcp_servers',
+  'mastra_memory_run_fences',
   'mastra_messages',
   'mastra_notifications',
   'mastra_observational_memory',
@@ -81,6 +90,7 @@ const EXPECTED_TABLES = [
   'mastra_tool_provider_connections',
   'mastra_traces',
   'mastra_workflow_definitions',
+  'mastra_workflow_run_owners',
   'mastra_workflow_snapshot',
   'mastra_workspace_versions',
   'mastra_workspaces',
@@ -221,7 +231,7 @@ describe('Mastra storage upgrade SQL (premortem M1)', () => {
 
     expect(body).not.toMatch(/CONCURRENTLY/i);
     const addColumns = body.match(/\bADD COLUMN\b.*$/gim) ?? [];
-    expect(addColumns).toHaveLength(44);
+    expect(addColumns).toHaveLength(51);
     expect(addColumns.filter((line) => !/ADD COLUMN IF NOT EXISTS /.test(line))).toEqual([]);
     const indexes = body.match(/^CREATE (UNIQUE )?INDEX\b.*$/gim) ?? [];
     expect(indexes).toHaveLength(34);
@@ -229,7 +239,7 @@ describe('Mastra storage upgrade SQL (premortem M1)', () => {
       indexes.filter((line) => !/^CREATE (UNIQUE )?INDEX IF NOT EXISTS /.test(line))
     ).toEqual([]);
     const tables = body.match(/^CREATE TABLE\b.*$/gim) ?? [];
-    expect(tables).toHaveLength(16);
+    expect(tables).toHaveLength(18);
     expect(tables.filter((line) => !/^CREATE TABLE IF NOT EXISTS /.test(line))).toEqual([]);
 
     // The script owns the transaction; the file must not end it early.
@@ -277,22 +287,30 @@ describe('Mastra storage upgrade SQL (premortem M1)', () => {
 
     expect(source).toContain(`readonly base_sql_sha256='${sha(baseSql)}'`);
     expect(source).toContain(`readonly upgrade_sql_sha256='${sha(upgradeSql)}'`);
+    expect(source).toContain(
+      `readonly previous_upgrade_sql_sha256='${sha(previousUpgradeSql)}'`
+    );
     expect(source).toContain(`readonly snapshot_sql_sha256='${sha(snapshotSql)}'`);
     expect(source).toContain(
       `readonly expected_delta_sha256='${sha(expectedDelta)}'`
     );
+    expect(source).toContain(
+      `readonly previous_expected_delta_sha256='${sha(previousExpectedDelta)}'`
+    );
   });
 
-  test('the reviewed delta removes one index and only adds otherwise', () => {
+  test('the reviewed delta removes one index, relaxes targetId/targetType nullability on mastra_experiments, and only adds otherwise', () => {
     const lines = read(expectedDelta).trimEnd().split('\n');
     expect(lines.filter((line) => line.startsWith('-'))).toEqual([
+      '-column:mastra_experiments:targetId:text:text:NO:',
+      '-column:mastra_experiments:targetType:text:text:NO:',
       '-index:mastra_experiment_results:idx_experiment_results_exp_item:CREATE UNIQUE INDEX idx_experiment_results_exp_item ON public.mastra_experiment_results USING btree ("experimentId", "itemId")',
     ]);
     expect(lines.every((line) => /^[+-](column|index|constraint):/.test(line))).toBe(
       true
     );
     // No added column is NOT NULL on a table that existed before (M7/M6):
-    // every NOT NULL addition belongs to one of the 16 new tables.
+    // every NOT NULL addition belongs to one of the 18 new tables.
     const created = new Set(newTables());
     const notNullOnOldTables = lines
       .filter((line) => line.startsWith('+column:') && line.includes(':NO:'))
@@ -306,6 +324,11 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
   const previousTables = EXPECTED_TABLES.filter(
     (table) => !newTables().includes(table)
   );
+  const previous45Tables = EXPECTED_TABLES.filter(
+    (table) =>
+      table !== 'mastra_memory_run_fences' &&
+      table !== 'mastra_workflow_run_owners'
+  );
 
   test('applies once, as POSTGRES_USER, in one transaction, over the exact 29 names', () => {
     const { result, calls, payload } = runUpgrade({ tables: previousTables });
@@ -313,13 +336,13 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
     expect(calls.filter((call) => call === 'apply')).toHaveLength(1);
-    expect(result.stdout).toContain('Mastra storage upgrade applied: 29 -> 45 tables.');
+    expect(result.stdout).toContain('Mastra storage upgrade applied: 29 -> 47 tables.');
     expect(payload).toContain('\\set ON_ERROR_STOP on');
     expect(payload).toContain(read(upgradeSql));
     expect(payload).not.toContain(read(baseSql));
     // Postconditions run inside the same transaction, before COMMIT.
     expect(payload).toContain('Mastra upgrade changed the schema differently from the reviewed delta; rolled back.');
-    expect(payload).toContain('did not reach the 45-table contract; rolled back.');
+    expect(payload).toContain('did not reach the 47-table contract; rolled back.');
     expect(payload).toContain('invalid indexes; rolled back.');
     expect(payload.indexOf(read(upgradeSql))).toBeLessThan(
       payload.indexOf('$cf_postcondition$')
@@ -349,11 +372,21 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
     expect(source).toContain('Never replace this with Mastra\'s own init');
   });
 
-  test('is a no-op with exit 0 over the exact 45 names', () => {
+  test('applies once, as POSTGRES_USER, in one transaction, over the exact 45 names (@mastra/pg 1.27.1)', () => {
+    const { result, calls, payload } = runUpgrade({ tables: previous45Tables });
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(calls.filter((call) => call === 'apply')).toHaveLength(1);
+    expect(result.stdout).toContain('Mastra storage upgrade applied: 45 -> 47 tables.');
+    expect(payload).toContain(read(upgradeSql));
+  });
+
+  test('is a no-op with exit 0 over the exact 47 names', () => {
     const { result, calls, payload } = runUpgrade({ tables: EXPECTED_TABLES });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('already has the exact 45-table contract; nothing applied.');
+    expect(result.stdout).toContain('already has the exact 47-table contract; nothing applied.');
     expect(calls).not.toContain('apply');
     expect(payload).toBeNull();
   });
@@ -362,13 +395,13 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
     ['one table short of 29', () => previousTables.slice(1)],
     ['29 plus an unknown table', () => [...previousTables, 'mastra_unexpected'].sort()],
     ['halfway between 29 and 45', () => [...previousTables, 'mastra_thread_state'].sort()],
-    ['45 minus one table', () => EXPECTED_TABLES.slice(1)],
+    ['47 minus one table', () => EXPECTED_TABLES.slice(1)],
   ])('refuses %s before any change', (_name, tables) => {
     const { result, calls } = runUpgrade({ tables: tables() });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'is neither the 29-table (@mastra/pg 1.8.5) nor the 45-table (@mastra/pg 1.27.1) contract'
+      'is neither the 29-table (@mastra/pg 1.8.5), the 45-table (@mastra/pg 1.27.1), nor the 47-table (@mastra/pg 1.31.2) contract'
     );
     expect(calls).not.toContain('apply');
   });
@@ -389,7 +422,7 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
     const { result, payload } = runUpgrade({ tables: [], args: ['--from-empty'] });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('Mastra storage created from empty: 0 -> 45 tables.');
+    expect(result.stdout).toContain('Mastra storage created from empty: 0 -> 47 tables.');
     expect(payload.indexOf(read(baseSql))).toBeGreaterThan(-1);
     expect(payload.indexOf(read(baseSql))).toBeLessThan(
       payload.indexOf(read(upgradeSql))
@@ -435,11 +468,11 @@ describe('Mastra owner-run upgrade script (premortem P2)', () => {
   });
 });
 
-describe('Mastra 45-name upgrade contract (premortem M2)', () => {
-  test('keeps the hand-written copies of the 45-name upgrade contract identical and documents the pinned @mastra/pg', () => {
+describe('Mastra 47-name upgrade contract (premortem M2)', () => {
+  test('keeps the hand-written copies of the 47-name upgrade contract identical and documents the pinned @mastra/pg', () => {
     expect(shellTableList(upgradeScript)).toEqual(EXPECTED_TABLES);
     expect(shellTableList(proofScript)).toEqual(EXPECTED_TABLES);
-    expect(EXPECTED_TABLES).toHaveLength(45);
+    expect(EXPECTED_TABLES).toHaveLength(47);
 
     const source = read(upgradeScript);
     const pinned = JSON.parse(read(path.join(root, 'package.json'))).dependencies[
@@ -449,9 +482,9 @@ describe('Mastra 45-name upgrade contract (premortem M2)', () => {
     expect(source).toContain('When `@mastra/pg` moves');
   });
 
-  test('45 = the frozen 29-name split contract + the 16 tables the SQL creates', () => {
+  test('47 = the frozen 29-name split contract + the 18 tables the SQL creates', () => {
     const created = newTables();
-    expect(created).toHaveLength(16);
+    expect(created).toHaveLength(18);
     expect([...shellTableList(splitScript), ...created].sort()).toEqual(
       EXPECTED_TABLES
     );
@@ -484,7 +517,7 @@ describe('Mastra 45-name upgrade contract (premortem M2)', () => {
       "expected_production_fingerprint='310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7'"
     );
     expect(proof).toContain(
-      "expected_production_upgraded_fingerprint='a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97'"
+      "expected_production_upgraded_fingerprint='a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0'"
     );
   });
 });
@@ -503,7 +536,7 @@ describe('Mastra upgrade proof and runbook (premortem P4/P7/M3/M9)', () => {
       'Second upgrade run did not report a no-op.',
       'Interrupted upgrade left a partial schema behind.',
       'Upgrade accepted a target whose change differs from the reviewed delta.',
-      'Upgrade accepted a table set that is neither 29 nor 45 names.',
+      'Upgrade accepted a table set that is neither 29, 45, nor 47 names.',
       'Upgrade converted a snapshot column holding rows that are not valid jsonb.',
       'The in-transaction snapshot guard converted rows that are not valid jsonb.',
       'Production-shape rows changed during the upgrade.',
@@ -524,9 +557,9 @@ describe('Mastra upgrade proof and runbook (premortem P4/P7/M3/M9)', () => {
     expect(scriptSyntax.status).toBe(0);
   });
 
-  test('the runbook carries R1-R6, the ban on db push and init, and 45 in the fingerprint section', () => {
+  test('the runbook carries R1-R6, the ban on db push and init, and 47 in the fingerprint section', () => {
     const doc = read(runbook);
-    const start = doc.indexOf('### Обновление хранилища Mastra: 29 → 45 таблиц');
+    const start = doc.indexOf('### Обновление хранилища Mastra: 29 → 45 → 47 таблиц');
     expect(start).toBeGreaterThan(-1);
     const section = doc.slice(start, doc.indexOf('\n### ', start + 1));
 
@@ -538,29 +571,31 @@ describe('Mastra upgrade proof and runbook (premortem P4/P7/M3/M9)', () => {
     );
     expect(section).toContain('./deploy/production/upgrade-mastra-storage.sh');
     expect(section).toContain('check-postgres-role-isolation.sh');
-    expect(section).toContain('Mastra 29 → 45');
+    expect(section).toContain('Mastra 45 → 47');
 
     const fingerprint = doc.slice(
       doc.indexOf('Для повторяемой проверки отдельной схемы Mastra'),
       doc.indexOf('Сырой `pg_dump` для этого сравнения')
     );
-    expect(fingerprint).toContain('45');
+    expect(fingerprint).toContain('47');
     expect(fingerprint).toContain(
-      '38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d'
+      '13d611f1bcb547fe3dd331e9c9f4b30e5534e6b3805cc2ab8cd520af63f2e0b5'
     );
     expect(read(proofScript)).toContain(
-      "expected_upgraded_fingerprint='38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d'"
+      "expected_upgraded_fingerprint='13d611f1bcb547fe3dd331e9c9f4b30e5534e6b3805cc2ab8cd520af63f2e0b5'"
     );
 
     // Fresh install creates the same schema as the upgraded production.
     expect(doc).toContain('./deploy/production/upgrade-mastra-storage.sh --from-empty');
-    // The five files travel to the host together.
+    // The reviewed files travel to the host together.
     for (const artifact of [
       'deploy/production/upgrade-mastra-storage.sh',
       'deploy/production/mastra-storage-base-1.8.5.sql',
       'deploy/production/mastra-storage-upgrade-1.27.1.sql',
+      'deploy/production/mastra-storage-upgrade-1.31.2.sql',
       'deploy/production/mastra-storage-snapshot-jsonb.sql',
       'deploy/production/mastra-storage-upgrade-1.27.1.delta',
+      'deploy/production/mastra-storage-upgrade-1.31.2.delta',
     ]) {
       expect(doc).toContain(`/tmp/cf-ops/${artifact}`);
     }

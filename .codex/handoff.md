@@ -1,8 +1,36 @@
-# Content Factory current handoff — 18 October 2026
+# Content Factory current handoff — 19 October 2026
 Task authority (owner, 2026-10-16): Linear is canonical, Hoba is the intake; linked tasks follow same-team project moves, marked `linear-project:<slug>`; Beads is the agent interface; GitHub is the subordinate mirror. Component: `content-factory`; migration epic: Helixa `helixa-2-lab-2xs0s`. Check bridge status for `preparing` versus `active`. Older Beads-authority wording below is historical. See `AGENTS.md` and managed `docs/runbooks/linear-task-sync.md`; product work/gates stay intact.
 Server task-sync cutover, 2026-10-16 (`helixa-2-lab-03z66`): the sole publisher and native Beads databases are on `helixa-new` (82.26.152.8). Local `bd` uses the protected SSH connection; both Windows sync tasks are disabled. Local bridge checkpoints are diagnostic copies. Use the managed task-sync runbook for the live server status and recovery; never reinitialize the selected databases.
 
-Owner authorized full implementation including chats and necessary model costs; isolated `codex/j9p5-model-led-20261018` from4305609a6. Root acceptance and provider outcomes live in `stages/content-factory-next-j9p5-implementation-20261018/evidence/root-acceptance.json`; read its actual verdict. Owner approved publication and production on19Oct; first public-production c4a57b488e92 is healthy but its natural acceptance exposed redundant research/date-scope restrictions. Versioned generic correction is under verification; rollback88867e1cb4c7 and foreign workloads remain preserved. Contract `docs/product/model-led-assistant.md`; integration notes `stages/content-factory-next-j9p5-implementation-20261018/implementation.md`.
+Owner-authorized j9p5 implementation and production acceptance completed19Oct: private sourceadb43f973576/public-productiondd89af1b4a29, verified rollback88867e1cb4c7. All9root and5public CI checks pass (Jest12619/Node126/Python50); natural production model selection -> saved/opened/read draft plus13chat/navigation checks pass, original messages/pending/workspace exact. Six actual usage rows succeeded/no unknown costs, modelopenai/gpt-6-luna/Exa advanced unchanged; actual partial research status preserved. Schema0SQL0/no apply, Mastra45/product77 fingerprints unchanged;17foreign containers/21volumes exact;25040601088free bytes after canonical own-only retention. Helpers/session removed. All9children and epic canonically Done at10:57UTC;2preexisting unrelated global graph conflicts preserved. [Delivery](stages/content-factory-next-j9p5-implementation-20261018/production-delivery.md); exact root verdict: stages/content-factory-next-j9p5-implementation-20261018/evidence/root-acceptance.json. Prior C4A incomplete controls remain historical.
+## Assistant chat sidebar follow-up
+
+Owner19Oct latest steering: local testing only, no source/image publication or
+deployment. Prior release authority is explicitly on hold. Nothing was pushed,
+built as an image or switched; production staysdd89af1b4a29. Audit
+`content-factory-next-2512`: [native harness findings and next implementation](stages/content-factory-next-2512-native-harness-20261019/audit.md).
+Epic `content-factory-next-on0i` and all seven children (`on0i.1`–`on0i.7`) are
+locally implemented and verified on `codex/on0i-native-harness-implementation-20261019`:
+Mastra `1.78.0` upgrade + isolated `AgentController` sessions (`on0i.1`),
+`toModelOutput` compact evidence (`<=12k`/`<=6k` chars) with full UI/DB sources
+and `piece_create_from_research`/`facts_read`/`piece_material_add`/`piece_adapt`
+(`on0i.2`), durable execution + `/stop`/`/signals`/`/stream` reconnect and
+idempotent recovery (`on0i.3`), native `ask_user`/`submit_plan`/`task_*`/goals/
+bounded subagents/`defineSchedule` follow-ups (`on0i.4`), native `ModelWithRetries[]`
+routing/retries/fallbacks and metered accounting (`on0i.5`), product UI controls
+(`on0i.6`), and `/observability` + full `A1`–`A31` acceptance matrix (`on0i.7`).
+[Plan](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [outcome](stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md), [receipt](stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json).
+
+19Oct `content-factory-next-rafo`, `codex/chat-sidebar-20261019`: locally implemented
+the owner-requested collapsible chat list under AI assistant, new-chat plus at
+right, and removed the persistent archive above messages. Shared native list,
+existing routing/drafts/management and mobile drawer retained; no new runtime
+dependency or model/backend change. Focused11suites/142tests and frontend types
+PASS. [Local outcome and browser evidence](stages/content-factory-next-rafo-chat-sidebar-20261019/outcome.md).
+Localbuild/types PASS; Jest12626/Node126 PASS, Python50 PASS after doc-length correction.
+Original combined receipt failed; no new release receipt/publication claimed.
+Original checkout dirty docs and all prior evidence preserved.
+
 ## AI assistant implementation
 
 Manual-width follow-up `content-factory-next-tgeq` /HOBA-5835 canonically CLOSED: testedce4a5895ccc5/public-production 88867e1cb4c7, accepted18Oct17:20UTC. All9root/5CI/3suite halves PASS (Jest12492/70existing skips,Node126/0fail,Python50);42actual2221/390px width cases PASS incl manual avatar/channel/material/adaptation and shared assistant editor. Core783→1517px/input761→1925/settingsfields560→1393; no overflow,0model/0domainwrites, original/QA/history exact and workspace restored. Actual facts collection empty; row styling source/suite only. Registry80e5/config06a4/archive12867752bytes SHA1e972 exact; schema0SQL0/no apply, healthy0/3online0/Mastra45same/21foreign containers+21volumes. Canonical retention kept888+rollbackda82/config4797, removedonlyownebdd/2old4fcopies; hashedhelpers/session removed, browser/cookies closed;25,223,315,456free bytes. [Delivery/receipts](stages/content-factory-next-tgeq-width-20261018/production-delivery.md). Prior assistant-only widthnds6/HOBA-5834 acceptedda82 remains [historical](stages/content-factory-next-nds6-width-20261018/production-delivery.md); prior paid epic evidence below unchanged.
@@ -33,37 +61,9 @@ Outcome/runtime/CI/status proof: stages/content-factory-next-dbxe-completion-sta
 Unrelated epics/defers open; no paid/provider/mail/social/restore QA or metadata full rerun.
 Accepted stage id: content-factory-next-dbxe-completion-stage
 
-## Previous accepted publishing stage
+Historical publishing/dependency acceptance is preserved in
+[the archived handoff excerpt](stages/content-factory-next-2512-native-harness-20261019/historical-operations-handoff.md).
 
-Beads dbxe.6 CLOSED locally. Pre-send failure permits correction/requeue;
-confirmed receipts return before billing checks. Root PASS:14 suites/265 tests,
-zero skip,9 actual PostgreSQL; types/bundle/additive SQL/docs/process/diff PASS.
-V106 claims before send, confirms before streak. Pending never expires or
-permits resend; guarded receipt recovery never sends; comments share guarantees.
-Old workflow/activity bodies stay. New starts/recovery/repeat use successors;
-Release inspection found no old recovery writer; existing mail runs stay intact.
-Nullable Post journal applied in the latest release. Guide: docs/operations/publication-recovery-v106.md.
-Latest proof: stages/content-factory-next-dbxe-publishing-stage/review/; initial retained.
-Task8 CLOSED after delivered34;33/35 source-bound audits retained. Other unselected criteria remain.
-## Previous accepted dependency stage
-
-Accepted stage id: content-factory-next-dbxe-dependencies-stage
-Historical dependency-stage acceptance follows; current Beads dbxe.8 CLOSED after delivered global34/full-release acceptance.
-Baseline exact lock:12 critical /131 high;120 baseline records eliminated.
-Bounded fresh walk includes optional aliases and all shipped dev/build tools;
-production retains2 critical /21 high and all shipped5 critical /21 high.
-Every retained critical/high has an actual-caller/platform exception and a
-reevaluation trigger, not a removed finding. Docs:
-docs/operations/dependency-security-remediation.md; exact source/range/caller
-records: stages/content-factory-next-dbxe-dependencies-stage/applicability.json.
-Historical dependency acceptance:42 scoped package names, no peer-wide major force;
-XML4/AWS XML5 and jayson ws7 boundaries retained. Native/multipart/mail transitions,
-seven counterexamples and14 diagnostics retained in dependency-stage/.
-Frozen Node22.23.2/pnpm10.6.1 install,39 suites/607 Jest +47 Node/zero skips,
-four builds/extension ZIP/browser/docs/process/diff passed at that boundary.
-Review48330283b: all30 criteria,2943 installed copies and four-entry ZIP accepted;
-dependency-stage/review/review.md retains exact local proof and exclusions.
-Later92f/2a/global34 release completes8; unrelated gates and untracked proof preserved.
 ## Previous accepted access stage
 
 Previous stage id: content-factory-next-dbxe-access-stage

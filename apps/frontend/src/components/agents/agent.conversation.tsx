@@ -53,6 +53,7 @@ import {
   type AgentMessage,
   type AgentPagination,
   type AgentPendingRun,
+  type AgentThreadExecution,
   type AgentWorkContextV1,
 } from './agent.contract';
 import { errorWordsFor, stageWordFor, type AgentWords } from './agent.copy';
@@ -73,9 +74,12 @@ import {
   DoneLine,
   ErrorCard,
   Note,
+  ObjectiveCard,
   ProgressCard,
   QuestionCard,
   QuestionClosedLine,
+  SubagentCard,
+  TaskChecklistCard,
 } from './agent.cards';
 import { SecretCard } from './agent.secret-card';
 import { ChannelConnectCard } from './agent.channel-card';
@@ -132,7 +136,9 @@ const closedLineOf = (
       ? words.selection.kind
       : block.question.kind === 'interview'
         ? words.interview.badge
-        : words.question.kind,
+        : block.question.kind === 'plan'
+          ? words.question.planKind
+          : words.question.kind,
   text:
     block.question.kind === 'interview'
       ? words.interview.title(block.question.questions.length)
@@ -146,6 +152,7 @@ export function AgentConversation({
   threadId,
   initialMessages,
   initialPagination,
+  initialExecution,
   draftStorageKey,
   pending,
   onThreadId,
@@ -168,6 +175,7 @@ export function AgentConversation({
   threadId: string | null;
   initialMessages: AgentMessage[];
   initialPagination?: AgentPagination;
+  initialExecution?: AgentThreadExecution;
   draftStorageKey?: string;
   pending: AgentPendingRun[];
   /** The server named the thread a first message opened. */
@@ -239,6 +247,7 @@ export function AgentConversation({
     the last message stand on what the stream said.
   */
   const [serverPending, setServerPending] = useState(pending);
+  const [serverExecution, setServerExecution] = useState<AgentThreadExecution | undefined>(initialExecution);
   const [pendingKnown, setPendingKnown] = useState(true);
   /*
     Every question card the server listed while this conversation was open
@@ -275,6 +284,7 @@ export function AgentConversation({
           announceContext.current?.(history.workspace.workContext);
         }
         setServerPending(history.pending);
+        if (history.execution) setServerExecution(history.execution);
         setSeenQuestions((seen) => [
           ...seen,
           ...history.pending.filter(
@@ -407,6 +417,18 @@ export function AgentConversation({
   replaceMessages.current = setMessages;
 
   const busy = status === 'submitted' || status === 'streaming';
+  const attachedRunning =
+    initialExecution?.state === 'running' &&
+    serverExecution?.state === 'running' &&
+    !interrupted &&
+    !busy;
+  useEffect(() => {
+    if (!attachedRunning) return;
+    const timer = setInterval(() => {
+      void refreshPending(true);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [attachedRunning, refreshPending]);
   const refreshOnReturn = useCallback(() => {
     if (openArtifact) revalidateArtifact(openArtifact);
     // Refresh the revision separately from the editor cache. This never
@@ -425,7 +447,17 @@ export function AgentConversation({
     interrupt();
     setQueued(null);
     void stop();
-  }, [interrupt, stop]);
+    if (attachedRunning && thread.current) {
+      setServerExecution({
+        requestId: serverExecution?.requestId ?? null,
+        state: 'settled',
+        outcome: 'interrupted',
+      });
+      void request(AGENT_DOORS.stopThread(thread.current), {
+        method: 'POST',
+      }).catch(() => undefined);
+    }
+  }, [attachedRunning, interrupt, request, serverExecution?.requestId, stop]);
   const reconcile = useCallback(async () => {
     setChecking(true);
     try {
@@ -1033,7 +1065,9 @@ export function AgentConversation({
       }
       case 'working': {
         if (!live) return null;
-        const seen = stages[block.toolName] ?? [];
+        const toolSeen = stages[block.toolName] ?? [];
+        const agentSeen = stages.agent ?? [];
+        const seen = [...toolSeen, ...agentSeen.filter((word) => !toolSeen.includes(word))];
         return (
           <ProgressCard
             key={block.key}
@@ -1045,6 +1079,30 @@ export function AgentConversation({
           />
         );
       }
+      case 'tasks':
+        return (
+          <TaskChecklistCard
+            key={block.key}
+            tasks={block.tasks}
+            words={words}
+          />
+        );
+      case 'objective':
+        return (
+          <ObjectiveCard
+            key={block.key}
+            objective={block.objective}
+            words={words}
+          />
+        );
+      case 'subagent':
+        return (
+          <SubagentCard
+            key={block.key}
+            subagent={block.subagent}
+            words={words}
+          />
+        );
       case 'done':
         return (
           <DoneLine
@@ -1162,6 +1220,9 @@ export function AgentConversation({
       return assistant.map((message, index) => [message.id, read[index]] as const);
     })()
   );
+  const lastBlocks = lastAssistant ? (blocksOf.get(lastAssistant.id) ?? []) : [];
+  const hasWorkingBlock = lastBlocks.some((block) => block.type === 'working');
+  const agentStages = stages.agent ?? [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -1218,8 +1279,17 @@ export function AgentConversation({
               </article>
             );
           })}
-          {status === 'submitted' ? (
+          {status === 'submitted' && !agentStages.length ? (
             <WorkingLine label={words.conversation.thinking} />
+          ) : null}
+          {!hasWorkingBlock && (attachedRunning || (busy && agentStages.length > 0)) ? (
+            <ProgressCard
+              title={null}
+              current={agentStages[agentStages.length - 1] ?? words.progress.working}
+              steps={agentStages.slice(0, -1)}
+              onStop={stopAndReconcile}
+              words={words}
+            />
           ) : null}
           {chatError ? (
             <ErrorCard

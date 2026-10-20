@@ -1,0 +1,78 @@
+{
+  "epic": "content-factory-next-on0i",
+  "title": "Agent Harness: Full Native Mastra Integration & Legacy Wrapper Retirement",
+  "branch": "codex/on0i-native-harness-implementation-20261019",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "boundary": "local-implementation-and-verification-only; no-push; no-deploy; no-paid-provider-calls",
+  "status": "ACCEPTED_LOCALLY",
+  "tasks": {
+    "content-factory-next-on0i.1": {
+      "status": "closed",
+      "commit": "8fca65069",
+      "criteria": ["A9", "A23", "A24", "A27"],
+      "verification": "tests/agent-native-sessions.test.cjs"
+    },
+    "content-factory-next-on0i.2": {
+      "status": "closed",
+      "commit": "c5c2b2659",
+      "criteria": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A26"],
+      "verification": "tests/agent-compact-evidence.test.cjs"
+    },
+    "content-factory-next-on0i.3": {
+      "status": "closed",
+      "commit": "f50e6e8ea",
+      "criteria": ["A11", "A12", "A13", "A14", "A30", "A31"],
+      "verification": "tests/agent-durable-recovery.test.cjs"
+    },
+    "content-factory-next-on0i.4": {
+      "status": "closed",
+      "commit": "10138adb0",
+      "criteria": ["A5", "A8", "A18", "A19", "A20"],
+      "verification": "tests/agent-native-autonomy.test.cjs"
+    },
+    "content-factory-next-on0i.5": {
+      "status": "closed",
+      "commit": "e1ff81ccf",
+      "criteria": ["A16", "A17", "A29", "A30", "A31"],
+      "verification": "tests/agent-native-model-routing.test.cjs"
+    },
+    "content-factory-next-on0i.6": {
+      "status": "closed",
+      "commit": "9d89238de",
+      "criteria": ["A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20", "A28", "A29", "A30", "A31"],
+      "verification": "tests/agent-native-ui-controls.test.cjs"
+    },
+    "content-factory-next-on0i.7": {
+      "status": "closed",
+      "criteria": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20", "A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30", "A31"],
+      "verification": "tests/agent-native-acceptance-matrix.test.cjs"
+    }
+  },
+  "packages": {
+    "@mastra/core": "1.78.0",
+    "@mastra/ai-sdk": "1.11.1",
+    "@mastra/memory": "1.38.0",
+    "@mastra/pg": "1.31.2",
+    "@mastra/mcp": "1.18.0"
+  },
+  "verificationSummary": {
+    "build": "PASS (frontend, backend, orchestrator, commands)",
+    "typecheck": "PASS (backend, frontend, orchestrator)",
+    "jest": "PASS (704 suites passed, 7 skipped, 0 failed; 12660 tests passed, 70 skipped, 0 failed)",
+    "nodeTest": "PASS (126 passed, 4 skipped, 0 failed)",
+    "pythonUnittest": "PASS (50 passed, 0 failed)",
+    "docsCheck": "PASS",
+    "brandScan": "PASS",
+    "processVerification": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "safety": {
+    "gitPush": false,
+    "publicTreeRefresh": false,
+    "dockerImagePush": false,
+    "productionDeploy": false,
+    "productionDbMutation": false,
+    "paidProviderCalls": 0,
+    "realUserMessaging": false
+  }
+}

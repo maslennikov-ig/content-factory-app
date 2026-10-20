@@ -117,8 +117,11 @@ asking the person to paste an accessible object again.
 
 ## Native chat navigation
 
-The assistant shows visible «Чаты» and «Новый чат» controls, a desktop list and
-an accessible compact dialog. Native thread and message pages use existing
+The primary sidebar's «ИИ-помощник» disclosure reveals the personal chat list,
+with a new-chat plus at the right. The mobile navigation drawer uses the same
+list; the collapsed icon rail links to the assistant. The conversation keeps
+compact «Чаты» and «Новый чат» actions and its accessible management dialog,
+without a persistent list above messages. Native thread and message pages use existing
 Mastra Memory APIs, with ownership checked before reading. Limits of 100 threads
 or 200 messages apply to one page, not the whole conversation.
 

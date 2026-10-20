@@ -11,13 +11,18 @@ import {
   choiceAnswer,
   consentAnswer,
   DECIDE_FOR_PERSON_ANSWER,
+  planAnswer,
   type AgentApprovalState,
   type AgentArtifact,
   type AgentArtifactKind,
+  type AgentObjectiveView,
   type AgentQuestion,
+  type AgentSubagentView,
+  type AgentTaskItem,
 } from './agent.contract';
 import { errorWordsFor, type AgentWords } from './agent.copy';
 import { AgentGlyph, type AgentGlyphName } from './agent.icons';
+import { AgentMarkdown } from './agent.markdown';
 import { pictureAvailable } from './agent.media';
 import { usePieceArtifact } from './agent.piece-data';
 
@@ -620,7 +625,13 @@ export function QuestionCard({
   if (answered) {
     return (
       <QuestionClosedLine
-        kind={question.kind === 'selection' ? words.selection.kind : w.kind}
+        kind={
+          question.kind === 'selection'
+            ? words.selection.kind
+            : question.kind === 'plan'
+              ? w.planKind
+              : w.kind
+        }
         text={question.text || title || ''}
         state={stale ? 'stale' : 'answered'}
         words={words}
@@ -811,6 +822,62 @@ export function QuestionCard({
     );
   }
 
+  if (question.kind === 'plan') {
+    return (
+      <AgentCard
+        cardKind="question"
+        glyph="list"
+        kind={w.planKind}
+        title={question.title || title}
+        label={`${w.planKind}: ${question.title}`}
+        footer={
+          <>
+            <Button
+              type="button"
+              density="dense"
+              disabled={locked}
+              loading={sent === 'approve'}
+              loadingLabel={w.sending}
+              data-agent-plan="approve"
+              onClick={() => send('approve', planAnswer(true, own))}
+            >
+              {w.planApprove}
+            </Button>
+            <Button
+              type="button"
+              density="dense"
+              variant="secondary"
+              disabled={locked}
+              loading={sent === 'reject'}
+              loadingLabel={w.sending}
+              data-agent-plan="reject"
+              onClick={() => send('reject', planAnswer(false, own))}
+            >
+              {w.planReject}
+            </Button>
+          </>
+        }
+      >
+        <div
+          data-agent-plan-body=""
+          className="rounded-cf-sm border border-cf-border-subtle bg-cf-bg-inset p-[12px]"
+        >
+          <AgentMarkdown text={question.plan} />
+        </div>
+        <Input
+          standalone
+          id={ownId}
+          density="dense"
+          label={w.planFeedbackLabel}
+          placeholder={w.planFeedbackPlaceholder}
+          value={own}
+          disabled={locked}
+          onChange={(event) => setOwn(event.target.value)}
+        />
+      </AgentCard>
+    );
+  }
+
   // An open selection or interview is the conversation's own card
   // (`SelectionCard`, `InterviewCard`); answered, it folded into the line above.
   if (question.kind === 'selection' || question.kind === 'interview') return null;
@@ -843,18 +910,24 @@ export function QuestionCard({
       {question.options.length ? (
         <div className="flex flex-wrap gap-[8px]">
           {question.options.map((option) => (
-            <Button
-              key={option.id}
-              type="button"
-              density="dense"
-              variant="secondary"
-              disabled={locked}
-              loading={sent === option.id}
-              loadingLabel={w.sending}
-              onClick={() => send(option.id, choiceAnswer(question, option.id))}
-            >
-              {option.label}
-            </Button>
+            <div key={option.id} className="flex flex-col items-start gap-[4px]">
+              <Button
+                type="button"
+                density="dense"
+                variant="secondary"
+                disabled={locked}
+                loading={sent === option.id}
+                loadingLabel={w.sending}
+                onClick={() => send(option.id, choiceAnswer(question, option.id))}
+              >
+                {option.label}
+              </Button>
+              {option.description ? (
+                <span className="cf-caption text-cf-ink-muted">
+                  {option.description}
+                </span>
+              ) : null}
+            </div>
           ))}
         </div>
       ) : null}
@@ -948,6 +1021,137 @@ export function ProgressCard({
           {current}
         </li>
       </ol>
+    </AgentCard>
+  );
+}
+
+/* ---- Native task checklist, objective, and subagent cards ------------------- */
+
+/**
+ * Native harness task checklist (`task_write`, `task_update`, `task_complete`,
+ * `data-task_updated` — `A5`, `A18`).
+ */
+export function TaskChecklistCard({
+  tasks,
+  words,
+}: {
+  tasks: readonly AgentTaskItem[];
+  words: AgentWords;
+}) {
+  const w = words.tasks;
+  const doneCount = tasks.filter((item) => item.status === 'completed').length;
+  const summary = w.completed(doneCount, tasks.length);
+  return (
+    <AgentCard
+      cardKind="tasks"
+      glyph="list"
+      kind={w.kind}
+      title={summary}
+      label={`${w.kind}: ${summary}`}
+    >
+      <ol className="flex flex-col gap-[8px]">
+        {tasks.map((task, index) => {
+          const text =
+            task.status === 'in_progress' && task.activeForm
+              ? task.activeForm
+              : task.content;
+          return (
+            <li
+              key={`${task.content}-${index}`}
+              data-agent-task-status={task.status}
+              className="flex items-center gap-[8px] cf-body-sm text-cf-ink"
+            >
+              <span
+                className={
+                  task.status === 'completed'
+                    ? 'text-cf-success'
+                    : task.status === 'in_progress'
+                      ? 'text-cf-accent'
+                      : 'text-cf-ink-muted'
+                }
+              >
+                <AgentGlyph
+                  name={
+                    task.status === 'completed'
+                      ? 'check'
+                      : task.status === 'in_progress'
+                        ? 'bolt'
+                        : 'calendar'
+                  }
+                  size={12}
+                />
+              </span>
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{text}</span>
+              <span className="cf-caption text-cf-ink-muted">
+                {w.statuses[task.status]}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </AgentCard>
+  );
+}
+
+/**
+ * Native harness goal / objective card (`set_objective` / `data-goal` — `A8`, `A18`).
+ */
+export function ObjectiveCard({
+  objective,
+  words,
+}: {
+  objective: AgentObjectiveView;
+  words: AgentWords;
+}) {
+  const w = words.objective;
+  const normalizedStatus =
+    objective.status === 'done' ? 'achieved' : objective.status;
+  const stateLabel = w.statuses[normalizedStatus] ?? w.statuses.active;
+  return (
+    <AgentCard
+      cardKind="objective"
+      glyph="spark"
+      kind={w.kind}
+      title={stateLabel}
+      label={`${w.kind}: ${objective.text}`}
+    >
+      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{objective.text}</p>
+      {objective.feedback ? (
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          {objective.feedback}
+        </p>
+      ) : null}
+    </AgentCard>
+  );
+}
+
+/**
+ * Native harness delegated subagent progress/summary card (`subagent` — `A8`, `A19`).
+ */
+export function SubagentCard({
+  subagent,
+  words,
+}: {
+  subagent: AgentSubagentView;
+  words: AgentWords;
+}) {
+  const w = words.subagent;
+  const agentLabel = w.agents[subagent.agentType] ?? subagent.agentType;
+  const statusLabel = w.statuses[subagent.status] ?? w.statuses.working;
+  return (
+    <AgentCard
+      cardKind="subagent"
+      glyph="spark"
+      kind={w.kind}
+      title={`${agentLabel} · ${statusLabel}`}
+      label={`${w.kind}: ${subagent.task}`}
+    >
+      <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">{subagent.task}</p>
+      {subagent.content ? (
+        <div className="rounded-cf-sm border border-cf-border-subtle bg-cf-bg-inset p-[12px]">
+          <AgentMarkdown text={subagent.content} />
+        </div>
+      ) : null}
     </AgentCard>
   );
 }

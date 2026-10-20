@@ -706,6 +706,21 @@ export const adaptationDelete = defineCapability({
   risk: 'confirm',
   door: door(ContentPieceController, 'deleteAdaptation'),
   untrusted: [],
+  // Before parking an approval card, verify the adaptation exists in this workspace (A27).
+  beforeApproval: async (ctx, input) => {
+    const detail = await ctx
+      .service(PieceService)
+      .detail(ctx.organizationId, input.pieceId, ctx.language)
+      .catch(() => null);
+    const row = detail?.adaptations?.find((one: any) => one.id === input.adaptationId) as any;
+    if (!detail || !row) {
+      throw codedFailure(
+        'ADAPTATION_NOT_FOUND',
+        `That adaptation (${input.adaptationId}) is not in this workspace; check the id before trying again.`
+      );
+    }
+    return null;
+  },
   // What and where from the stored rows, in the caller's workspace.
   describeApproval: async (ctx, input) => {
     const ru = ctx.language === 'ru';

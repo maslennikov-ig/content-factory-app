@@ -46,11 +46,32 @@ export const questionCardId = (payload: unknown): string =>
 /** What an answer's `cardId` may look like; anything else is not a card id. */
 export const QUESTION_CARD_ID_PATTERN = /^[0-9a-f]{32}$/;
 
+const isAskUserPayload = (
+  payload: Record<string, unknown>,
+  toolName?: string | null
+) => {
+  if (toolName !== undefined && toolName !== null) {
+    return toolName === 'ask_user';
+  }
+  return (
+    payload.kind === undefined &&
+    payload.toolId !== 'submit_plan' &&
+    typeof payload.question === 'string' &&
+    !('avatarId' in payload) &&
+    ('options' in payload ||
+      'selectionMode' in payload ||
+      payload.canDecideForPerson === true)
+  );
+};
+
 /**
  * The card as the browser, the transcript and the `pending` list show it:
  * the server-only keys removed, the card's id added.
  */
-export const questionCardView = (payload: unknown): unknown => {
+export const questionCardView = (
+  payload: unknown,
+  toolName?: string | null
+): unknown => {
   if (!isRecord(payload)) return payload ?? null;
   const shown = Object.fromEntries(
     Object.entries(payload).filter(([key]) => !SERVER_ONLY_CARD_KEYS.includes(key))
@@ -66,6 +87,12 @@ export const questionCardView = (payload: unknown): unknown => {
         ...(preview.target === 'title' || preview.target === 'text' ? { target: preview.target } : {}) } };
     });
   }
+  if (
+    isAskUserPayload(shown, toolName) &&
+    shown.canDecideForPerson === undefined
+  ) {
+    shown.canDecideForPerson = true;
+  }
   return { ...shown, [AGENT_CARD_ID_KEY]: questionCardId(payload) };
 };
 
@@ -79,14 +106,54 @@ const isStringList = (value: unknown) =>
   Array.isArray(value) && value.every((one) => typeof one === 'string');
 
 /**
+ * Normalizes an `ask_user` answer from either a direct string/string[] or a
+ * question-card object (`{ answer, decideForPerson }`) into Mastra's native
+ * `askUserTool` `resumeSchema` (`string | string[]`).
+ */
+export const normalizeAskUserAnswer = (answer: unknown): string | string[] | null => {
+  if (typeof answer === 'string') {
+    const trimmed = answer.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (isStringList(answer)) {
+    const cleaned = (answer as string[]).map((item) => item.trim()).filter(Boolean);
+    return cleaned.length > 0 ? cleaned : null;
+  }
+  if (!isRecord(answer)) return null;
+  if (!onlyKeys(answer, ['answer', AGENT_DECIDE_FOR_PERSON_KEY])) return null;
+  if (answer[AGENT_DECIDE_FOR_PERSON_KEY] === true) {
+    return 'Решите за меня';
+  }
+  if (answer.answer !== undefined) {
+    return normalizeAskUserAnswer(answer.answer);
+  }
+  return null;
+};
+
+/**
  * Whether an answer has the shape of the card it names (review W2 F3): a
  * consent answer never parses as an interview answer, nor rows as a consent.
  * Cards the product names by `kind` are checked here, strictly; a card
  * without a known kind (the avatar consent) is left to its capability's own
  * `resumeSchema`, which Mastra checks before the call runs.
  */
-export const answerFitsCard = (payload: unknown, answer: Record<string, unknown>): boolean => {
-  if (!isRecord(payload)) return true;
+export const answerFitsCard = (
+  payload: unknown,
+  answer: unknown,
+  toolName?: string | null
+): boolean => {
+  if (!isRecord(payload)) return isRecord(answer);
+  if (payload.toolId === 'submit_plan' || toolName === 'submit_plan') {
+    if (!isRecord(answer) || !onlyKeys(answer, ['action', 'feedback'])) return false;
+    return (
+      (answer.action === 'approved' || answer.action === 'rejected') &&
+      (answer.feedback === undefined || typeof answer.feedback === 'string')
+    );
+  }
+  if (isAskUserPayload(payload, toolName)) {
+    return normalizeAskUserAnswer(answer) !== null;
+  }
+  if (!isRecord(answer)) return false;
   const decide = answer[AGENT_DECIDE_FOR_PERSON_KEY];
   if (decide !== undefined && typeof decide !== 'boolean') return false;
   switch (payload.kind) {

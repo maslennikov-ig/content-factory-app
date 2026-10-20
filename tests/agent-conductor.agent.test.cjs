@@ -185,7 +185,9 @@ describe('the /agent/chat pipeline with a scripted model', () => {
   test('S1: a suspended run keeps only the whitelisted request context, as primitives', () => {
     const { door } = report;
     expect(door.snapshotCount).toBeGreaterThan(0);
-    const ours = door.snapshotContextKeys.filter((key) => key !== 'MastraMemory');
+    const ours = door.snapshotContextKeys.filter(
+      (key) => key !== 'MastraMemory' && key !== 'mastra__durableExecutions'
+    );
     // This native pipeline probe bypasses the HTTP controller and its tracked
     // execution scope. The managed request's complete whitelist is covered by
     // agent-conductor.unit; this legacy path must not claim an execution id.
@@ -216,5 +218,45 @@ describe('the /agent/chat pipeline with a scripted model', () => {
     expect(door.secretShapeCount).toBeGreaterThanOrEqual(6);
     expect(door.secretShapeHits).toEqual([]);
     expect(door.storedText).toContain('[KEY]');
+  });
+
+  test('A9/A24: AgentController and Session isolate users, organizations, threads, models and modes without pre-creating empty threads', () => {
+    const { sessionIsolation } = report;
+    expect(sessionIsolation.preSessionThreadId).toBeNull();
+    expect(sessionIsolation.threadsBeforeCreateCount).toBe(0);
+    expect(sessionIsolation.s1aModel).toBe('openai/gpt-5.4');
+    expect(sessionIsolation.s1aMode).toBe('plan');
+    expect(sessionIsolation.s1bModel).toBe('anthropic/claude-sonnet-4-6');
+    expect(sessionIsolation.s1bMode).toBe('assistant');
+    expect(sessionIsolation.s2aModel).toBe('');
+    expect(sessionIsolation.s2aResource).toBe('org-1:user-2');
+    expect(sessionIsolation.sOrg2Resource).toBe('org-2:user-1');
+    expect(sessionIsolation.crossTenantSwitchBlocked).toBe(true);
+    expect(sessionIsolation.deleted).toBe(true);
+  });
+
+  test('A27: beforeApproval and needsApprovalFn refuse unauthorized, missing-target, invalid-input and errored confirm calls before parking an approval card', () => {
+    const { beforeApproval } = report;
+    for (const key of ['permissionDenied', 'notFound', 'invalidInput', 'hookError']) {
+      expect(beforeApproval[key].hasApprovalRequest).toBe(false);
+      expect(beforeApproval[key].pendingCount).toBe(0);
+      expect(beforeApproval[key].deletedCount).toBe(0);
+    }
+    expect(beforeApproval.permissionDenied.output).toMatchObject({
+      ok: false,
+      code: 'PERMISSION_DENIED',
+    });
+    expect(beforeApproval.notFound.output).toMatchObject({
+      ok: false,
+      code: 'PIECE_NOT_FOUND',
+    });
+    expect(beforeApproval.invalidInput.output).toMatchObject({
+      ok: false,
+      code: 'CAPABILITY_INPUT_INVALID',
+    });
+    expect(beforeApproval.hookError.output).toMatchObject({
+      ok: false,
+      code: 'CAPABILITY_FAILED',
+    });
   });
 });

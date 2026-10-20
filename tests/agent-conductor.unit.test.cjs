@@ -255,19 +255,34 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
   });
   const entries = [...built.entries()];
 
-  test('keys are the whitelist and values are primitives', () => {
+  test('keys are the whitelist and values are primitives (plus native scopes and messageAuthor)', () => {
     for (const [key] of entries) expect(context.CONDUCTOR_CONTEXT_KEYS).toContain(key);
     for (const [key, value] of entries) {
-      expect({ key, type: typeof value }).toEqual({
-        key,
-        type: expect.stringMatching(/^(string|number)$/),
-      });
+      if (key === 'mastra__scopes') {
+        expect(Array.isArray(value)).toBe(true);
+        for (const item of value) expect(typeof item).toBe('string');
+      } else if (key === 'mastra__messageAuthor') {
+        expect(value).toEqual({ id: IDENTITY.userId });
+      } else {
+        expect({ key, type: typeof value }).toEqual({
+          key,
+          type: expect.stringMatching(/^(string|number)$/),
+        });
+      }
     }
   });
 
   test('the memory resource is the person inside the workspace, the thread the server’s', () => {
     expect(built.get('mastra__resourceId')).toBe('org-1:user-1');
     expect(built.get('mastra__threadId')).toBe('thread-1');
+    expect(built.get('mastra__scopes')).toEqual([
+      'org:org-1',
+      'user:user-1',
+      'role:EDITOR',
+      'resource:org-1:user-1',
+      'thread:thread-1',
+    ]);
+    expect(built.get('mastra__messageAuthor')).toEqual({ id: 'user-1' });
     expect(built.get('cf.approvals')).toBe('print-1');
     expect(built.get('cf.paidCalls')).toBe(0);
     expect(built.get('cf.executionId')).toBe('request-1');
@@ -280,9 +295,13 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
     expect(context.conductorContextSchema.safeParse(Object.fromEntries(legacy.entries())).success).toBe(true);
   });
 
-  test('a resource that is not the caller’s own fails the agent’s schema', () => {
+  test('a resource, scope or messageAuthor that is not the caller’s own fails the agent’s schema', () => {
     const forged = { ...Object.fromEntries(entries), mastra__resourceId: 'org-1:user-2' };
     expect(context.conductorContextSchema.safeParse(forged).success).toBe(false);
+    const forgedScopes = { ...Object.fromEntries(entries), mastra__scopes: ['org:org-2', 'user:user-2'] };
+    expect(context.conductorContextSchema.safeParse(forgedScopes).success).toBe(false);
+    const forgedAuthor = { ...Object.fromEntries(entries), mastra__messageAuthor: { id: 'user-2' } };
+    expect(context.conductorContextSchema.safeParse(forgedAuthor).success).toBe(false);
     const legacy = { ...Object.fromEntries(entries), mastra__resourceId: 'org-1' };
     expect(context.conductorContextSchema.safeParse(legacy).success).toBe(false);
     expect(context.conductorContextSchema.safeParse({}).success).toBe(false);

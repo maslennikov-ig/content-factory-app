@@ -1,0 +1,114 @@
+[
+  {
+    "name": "prompt-full",
+    "command": [
+      "orch-prompts",
+      "prompt-check",
+      "--runtime",
+      "gemini",
+      "--profile",
+      "gemini-4-argon",
+      "--kind",
+      "fallback",
+      "--file",
+      ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/new-chat-prompt.md",
+      "--json"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/prompt-full.json",
+    "result": {
+      "ok": true,
+      "runtime": "gemini",
+      "profile": "gemini-4-argon",
+      "kind": "fallback",
+      "char_count": 5673,
+      "budget": 6000,
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "name": "prompt-launcher",
+    "command": [
+      "orch-prompts",
+      "prompt-check",
+      "--runtime",
+      "gemini",
+      "--profile",
+      "gemini-4-argon",
+      "--kind",
+      "handoff",
+      "--file",
+      ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/launcher.md",
+      "--json"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/prompt-launcher.json",
+    "result": {
+      "ok": true,
+      "runtime": "gemini",
+      "profile": "gemini-4-argon",
+      "kind": "handoff",
+      "char_count": 1439,
+      "budget": 1500,
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "name": "docs",
+    "command": [
+      "python3",
+      "scripts/docs/check_docs.py"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/docs.log"
+  },
+  {
+    "name": "docs-tests",
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_docs_links.py"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/docs-tests.log"
+  },
+  {
+    "name": "process-explicit-stage",
+    "command": [
+      "bash",
+      "scripts/orchestration/run_process_verification.sh",
+      "--stage",
+      "content-factory-next-on0i-native-harness-20261019"
+    ],
+    "exit_code": 1,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/process-explicit-stage.log",
+    "disposition": "Not a product failure; this planning revision does not activate a new implementation stage. No new manifest/config/stage summary was invented and accepted historical artifacts were preserved."
+  },
+  {
+    "name": "diff",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/diff.log"
+  },
+  {
+    "name": "process-baseline",
+    "command": [
+      "bash",
+      "scripts/orchestration/run_process_verification.sh"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/upgrade-and-argon/process-baseline.log",
+    "limit": "Checks the existing configured orchestration baseline, not readiness of the future on0i implementation."
+  }
+]

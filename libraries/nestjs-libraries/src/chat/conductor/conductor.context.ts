@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
+  MASTRA_MESSAGE_AUTHOR_KEY,
   MASTRA_RESOURCE_ID_KEY,
+  MASTRA_SCOPES_KEY,
   MASTRA_THREAD_ID_KEY,
   RequestContext,
 } from '@mastra/core/request-context';
@@ -15,6 +17,8 @@ import {
 import type { CapabilityIdentity } from '../capabilities/capability.types';
 import { CONDUCTOR_EXECUTION_DEFAULTS, type ConductorExecutionPolicy } from './conductor.execution';
 import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext } from './work-context';
+
+export { MASTRA_MESSAGE_AUTHOR_KEY, MASTRA_SCOPES_KEY };
 
 /**
  * The agent's one id in the Mastra registry. Kept from the inherited agent:
@@ -41,10 +45,35 @@ export const conductorResourceId = (organizationId: string, userId: string) =>
   `${organizationId}:${userId}`;
 
 /**
+ * Native Mastra 1.78 run scopes (`A24`) derived from the server-built identity.
+ * Never accepted from client input.
+ */
+export const conductorScopes = (
+  identity: Pick<CapabilityIdentity, 'organizationId' | 'userId' | 'role'>,
+  threadId?: string
+): string[] => [
+  `org:${identity.organizationId}`,
+  `user:${identity.userId}`,
+  `role:${identity.role}`,
+  `resource:${conductorResourceId(identity.organizationId, identity.userId)}`,
+  ...(threadId ? [`thread:${threadId}`] : []),
+];
+
+/**
+ * Native Mastra 1.78 message author (`A24`) derived from the server-built identity.
+ */
+export const conductorMessageAuthor = (
+  identity: Pick<CapabilityIdentity, 'userId'>
+): { id: string } => ({
+  id: identity.userId,
+});
+
+/**
  * Every key the server may put into the agent's `RequestContext`
  * (premortem S1): the capability identity, the per-turn paid counter and
  * limit, the approvals given for this request, and Mastra's own memory keys.
- * Values are primitives only — Mastra persists the context in a suspended
+ * Values are primitives (plus Mastra 1.78's native string-array scopes and
+ * `{ id }` messageAuthor) — Mastra persists the context in a suspended
  * run's snapshot.
  */
 /**
@@ -63,7 +92,17 @@ export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   AGENT_WORK_CONTEXT_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
+  MASTRA_SCOPES_KEY,
+  MASTRA_MESSAGE_AUTHOR_KEY,
 ];
+
+const messageAuthorSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1).max(200).optional(),
+    avatarUrl: z.string().min(1).max(500).optional(),
+  })
+  .strict();
 
 /**
  * `requestContextSchema` of the agent: Mastra validates it at the start of
@@ -75,6 +114,8 @@ export const conductorContextSchema = capabilityContextSchema
     [MASTRA_RESOURCE_ID_KEY]: z.string().min(3),
     [MASTRA_THREAD_ID_KEY]: z.string().min(1),
     [AGENT_WORK_CONTEXT_KEY]: z.string().max(AGENT_WORK_CONTENT_MAX_CHARS + 2_000).optional(),
+    [MASTRA_SCOPES_KEY]: z.array(z.string().min(3)).optional(),
+    [MASTRA_MESSAGE_AUTHOR_KEY]: messageAuthorSchema.optional(),
   })
   .refine(
     (value: Record<string, unknown>) =>
@@ -84,6 +125,35 @@ export const conductorContextSchema = capabilityContextSchema
         String(value[CAPABILITY_CONTEXT_KEYS.userId])
       ),
     { message: 'The memory resource is not the caller’s own.' }
+  )
+  .refine(
+    (value: Record<string, unknown>) => {
+      const author = value[MASTRA_MESSAGE_AUTHOR_KEY] as { id?: string } | undefined;
+      return !author || author.id === String(value[CAPABILITY_CONTEXT_KEYS.userId]);
+    },
+    { message: 'The message author does not match the caller.' }
+  )
+  .refine(
+    (value: Record<string, unknown>) => {
+      const scopes = value[MASTRA_SCOPES_KEY] as string[] | undefined;
+      if (!scopes) return true;
+      const expected = new Set(
+        conductorScopes(
+          {
+            organizationId: String(value[CAPABILITY_CONTEXT_KEYS.organizationId]),
+            userId: String(value[CAPABILITY_CONTEXT_KEYS.userId]),
+            role: value[CAPABILITY_CONTEXT_KEYS.role] as CapabilityIdentity['role'],
+          },
+          String(value[MASTRA_THREAD_ID_KEY])
+        )
+      );
+      return (
+        scopes.includes(`org:${String(value[CAPABILITY_CONTEXT_KEYS.organizationId])}`) &&
+        scopes.includes(`user:${String(value[CAPABILITY_CONTEXT_KEYS.userId])}`) &&
+        scopes.every((scope) => expected.has(scope))
+      );
+    },
+    { message: 'The run scopes do not match the caller.' }
   );
 
 export type ConductorTurn = {
@@ -114,13 +184,21 @@ export type ConductorTurn = {
  * `MASTRA_THREAD_ID_KEY` take precedence over anything passed as `memory`.
  */
 export const buildConductorContext = (turn: ConductorTurn) => {
-  const context = new RequestContext<Record<string, string | number>>();
+  const context = new RequestContext<Record<string, unknown>>();
   seedCapabilityContext(context, turn.identity);
   context.set(
     MASTRA_RESOURCE_ID_KEY,
     conductorResourceId(turn.identity.organizationId, turn.identity.userId)
   );
   context.set(MASTRA_THREAD_ID_KEY, turn.threadId);
+  context.set(
+    MASTRA_SCOPES_KEY,
+    conductorScopes(turn.identity, turn.threadId)
+  );
+  context.set(
+    MASTRA_MESSAGE_AUTHOR_KEY,
+    conductorMessageAuthor(turn.identity)
+  );
   context.set(CAPABILITY_CONTEXT_KEYS.paidCalls, 0);
   context.set(CAPABILITY_CONTEXT_KEYS.paidInFlight, 0);
   if (turn.executionPolicy) context.set(CAPABILITY_CONTEXT_KEYS.executionPolicy, JSON.stringify(turn.executionPolicy));

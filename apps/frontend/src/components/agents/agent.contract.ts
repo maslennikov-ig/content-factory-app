@@ -275,6 +275,15 @@ export const AGENT_DOORS = {
   workspaceBrowser: '/agent/workspace/browser',
   thread: (id: string) => `/agent/threads/${encodeURIComponent(id)}`,
   threadWorkspace: (id: string) => `/agent/threads/${encodeURIComponent(id)}/workspace`,
+  stopThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/stop`,
+  observeThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/observe`,
+  threadModel: (id: string) => `/agent/threads/${encodeURIComponent(id)}/model`,
+  threadMode: (id: string) => `/agent/threads/${encodeURIComponent(id)}/mode`,
+  threadObjective: (id: string) => `/agent/threads/${encodeURIComponent(id)}/objective`,
+  threadSchedules: (id: string) => `/agent/threads/${encodeURIComponent(id)}/schedules`,
+  threadSchedule: (id: string, scheduleId: string) =>
+    `/agent/threads/${encodeURIComponent(id)}/schedules/${encodeURIComponent(scheduleId)}`,
+  threadObservability: (id: string) => `/agent/threads/${encodeURIComponent(id)}/observability`,
 } as const;
 
 export type AgentMessage = UIMessage;
@@ -1006,7 +1015,7 @@ export const linksIn = (text: string): string[] =>
 
 /* ---- Questions -------------------------------------------------------------- */
 
-export type AgentQuestionOption = { id: string; label: string };
+export type AgentQuestionOption = { id: string; label: string; description?: string };
 
 export type AgentQuestion = (
   | {
@@ -1074,6 +1083,13 @@ export type AgentQuestion = (
       questions: AgentInterviewQuestionPayload['questions'];
       canDecideForPerson: boolean;
       channel: AgentInterviewQuestionPayload['channel'];
+    }
+  | {
+      /** Native `submit_plan` card (`content-factory-next-on0i.6`, `A18`). */
+      kind: 'plan';
+      text: string;
+      title: string | null;
+      plan: string;
     }
 ) & {
   /**
@@ -1148,6 +1164,21 @@ const readQuestionShape = (
   resumeSchema: unknown
 ): DistributiveOmit<AgentQuestion, 'cardId'> => {
   const text = stringOf(record.question) ?? '';
+  if (
+    toolName === 'submit_plan' ||
+    record.toolId === 'submit_plan' ||
+    record.kind === 'plan' ||
+    typeof record.plan === 'string'
+  ) {
+    const title = stringOf(record.title);
+    const plan = stringOf(record.plan) ?? text;
+    return {
+      kind: 'plan',
+      text: title ?? text,
+      title,
+      plan,
+    };
+  }
   // A consent the payload names its own key for (`kcxz.14`: writing into an
   // autopilot channel) — read the same live and after a reload.
   if (record.kind === 'consent' && stringOf(record.answerKey)) {
@@ -1249,12 +1280,15 @@ const readQuestionShape = (
     };
   }
   const options = (Array.isArray(record.options) ? record.options : [])
-    .map((option) => {
+    .map((option): AgentQuestionOption | null => {
       const value = recordOf(option);
-      const id = stringOf(value.id) ?? stringOf(value.value);
       const label =
         stringOf(value.label) ?? stringOf(value.name) ?? stringOf(value.title);
-      return id && label ? { id, label } : null;
+      const id = stringOf(value.id) ?? stringOf(value.value) ?? label;
+      const description = stringOf(value.description);
+      return id && label
+        ? { id, label, ...(description ? { description } : {}) }
+        : null;
     })
     .filter((option): option is AgentQuestionOption => option !== null);
   const answerKey =
@@ -1292,6 +1326,23 @@ export const choiceAnswer = (
   value: string
 ): Record<string, unknown> => ({ [question.answerKey]: value });
 
+export const planAnswer = (
+  decision: 'approved' | 'rejected' | boolean,
+  feedback?: string
+): Record<string, unknown> => {
+  const action =
+    typeof decision === 'boolean'
+      ? decision
+        ? 'approved'
+        : 'rejected'
+      : decision;
+  return {
+    action,
+    approved: action === 'approved',
+    ...(feedback && feedback.trim() ? { feedback: feedback.trim() } : {}),
+  };
+};
+
 /* ---- Secret ----------------------------------------------------------------- */
 
 /**
@@ -1324,18 +1375,38 @@ const readSecret = (data: unknown): AgentSecretField | null => {
 
 /* ---- Progress --------------------------------------------------------------- */
 
-/** `data-progress` (`AgentProgressPayload`): transient, reaches `onData` only. */
+/** `data-progress` (`AgentProgressPayload`) and native transient run events. */
 export type AgentProgress = { capability: string; stage: string };
 
 export const readProgressPart = (part: {
   type: string;
   data?: unknown;
 }): AgentProgress | null => {
-  if (part.type !== PROGRESS_PART_TYPE) return null;
   const record = recordOf(part.data);
-  const capability = stringOf(record.capability);
-  const stage = stringOf(record.stage);
-  return capability && stage ? { capability, stage } : null;
+  if (part.type === PROGRESS_PART_TYPE) {
+    const capability = stringOf(record.capability);
+    const stage = stringOf(record.stage);
+    return capability && stage ? { capability, stage } : null;
+  }
+  if (part.type === 'data-stream_retry') {
+    return {
+      capability: stringOf(record.capability) ?? 'agent',
+      stage: 'stream-retry',
+    };
+  }
+  if (part.type === 'data-model_fallback') {
+    return {
+      capability: stringOf(record.capability) ?? 'agent',
+      stage: 'model-fallback',
+    };
+  }
+  if (part.type === 'data-subagent_start' || part.type === 'data-subagent_tool_start') {
+    return {
+      capability: stringOf(record.agentType) ?? 'subagent',
+      stage: stringOf(record.stage) ?? part.type.slice('data-'.length),
+    };
+  }
+  return null;
 };
 
 /** `toolNameOf` of the registry: the tool a capability id became. */
@@ -1351,6 +1422,25 @@ export type AgentApprovalState =
   | 'declined'
   /** No longer waiting: answered elsewhere or finished (review W1 F6). */
   | 'closed';
+
+export type AgentTaskItem = {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  activeForm?: string;
+};
+
+export type AgentObjectiveView = {
+  text: string;
+  status: 'active' | 'done' | 'achieved' | 'failed' | 'stopped' | 'cleared';
+  feedback?: string | null;
+};
+
+export type AgentSubagentView = {
+  agentType: 'research' | 'writing' | 'review';
+  task: string;
+  status: 'working' | 'done' | 'error';
+  content: string | null;
+};
 
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
@@ -1409,7 +1499,26 @@ export type AgentBlock =
     }
   | { type: 'secret'; key: string; secret: AgentSecretField }
   /** Connecting a channel (`kcxz.19`): the card the person acts on. */
-  | { type: 'connect'; key: string; connect: AgentChannelConnect };
+  | { type: 'connect'; key: string; connect: AgentChannelConnect }
+  /** Native task checklist (`task_write`, `task_update`, `task_complete`, `A18`). */
+  | {
+      type: 'tasks';
+      key: string;
+      title: string | null;
+      tasks: AgentTaskItem[];
+    }
+  /** Native thread objective (`set_objective`, `data-goal`, `A18`). */
+  | {
+      type: 'objective';
+      key: string;
+      objective: AgentObjectiveView;
+    }
+  /** Native subagent delegation (`subagent`, `A18`). */
+  | {
+      type: 'subagent';
+      key: string;
+      subagent: AgentSubagentView;
+    };
 
 type Part = Record<string, unknown> & { type: string };
 
@@ -1734,6 +1843,117 @@ const ANSWERED_SELECTION: AgentQuestion = {
   cardId: null,
 };
 
+const readTaskItems = (source: unknown): AgentTaskItem[] | null => {
+  const record = recordOf(source);
+  const list = Array.isArray(record.tasks)
+    ? record.tasks
+    : Array.isArray(source)
+      ? source
+      : null;
+  if (!list) return null;
+  const items = list
+    .map((item): AgentTaskItem | null => {
+      const row = recordOf(item);
+      const content = stringOf(row.content);
+      if (!content) return null;
+      const status: AgentTaskItem['status'] =
+        row.status === 'in_progress' || row.status === 'completed'
+          ? row.status
+          : 'pending';
+      const activeForm = stringOf(row.activeForm);
+      return {
+        content,
+        status,
+        ...(activeForm ? { activeForm } : {}),
+      };
+    })
+    .filter((item): item is AgentTaskItem => item !== null);
+  return items.length ? items : null;
+};
+
+const readObjectiveView = (
+  source: unknown,
+  inputFallback?: unknown
+): AgentObjectiveView | null => {
+  const record = recordOf(source);
+  const input = recordOf(inputFallback);
+  const action = stringOf(record.action) ?? stringOf(input.action);
+  if (action === 'get') return null;
+  const nested = recordOf(record.objective);
+  const text =
+    stringOf(nested.objective) ??
+    stringOf(nested.text) ??
+    stringOf(record.objective) ??
+    stringOf(record.goal) ??
+    stringOf(record.text) ??
+    stringOf(input.objective);
+  const feedback =
+    stringOf(nested.progressFeedback) ??
+    stringOf(nested.feedback) ??
+    stringOf(record.feedback) ??
+    stringOf(input.feedback);
+  if (action === 'clear' || record.status === 'cleared') {
+    return {
+      text: text ?? '',
+      status: 'cleared',
+      ...(feedback ? { feedback } : {}),
+    };
+  }
+  if (!text) return null;
+  const rawStatus =
+    stringOf(nested.status) ??
+    stringOf(record.status) ??
+    (action === 'complete' ? 'achieved' : 'active');
+  const status: AgentObjectiveView['status'] =
+    rawStatus === 'done' ||
+    rawStatus === 'achieved' ||
+    rawStatus === 'completed'
+      ? 'achieved'
+      : rawStatus === 'failed'
+        ? 'failed'
+        : rawStatus === 'stopped'
+          ? 'stopped'
+          : rawStatus === 'cleared'
+            ? 'cleared'
+            : 'active';
+  return {
+    text,
+    status,
+    ...(feedback ? { feedback } : {}),
+  };
+};
+
+const readSubagentView = (
+  output: unknown,
+  input: unknown,
+  state: 'working' | 'done' | 'error'
+): AgentSubagentView | null => {
+  const out = recordOf(output);
+  const inp = recordOf(input);
+  const rawType = stringOf(out.agentType) ?? stringOf(inp.agentType) ?? 'research';
+  const agentType: AgentSubagentView['agentType'] =
+    rawType === 'writing' || rawType === 'review' ? rawType : 'research';
+  const task = stringOf(out.task) ?? stringOf(inp.task) ?? '';
+  const content = stringOf(out.content) ?? stringOf(out.result) ?? stringOf(out.text);
+  if (!task && !content) return null;
+  return {
+    agentType,
+    task,
+    status: state,
+    content,
+  };
+};
+
+const NATIVE_AUTONOMY_TOOLS: ReadonlySet<string> = new Set([
+  'ask_user',
+  'submit_plan',
+  'task_write',
+  'task_update',
+  'task_complete',
+  'set_objective',
+  'subagent',
+]);
+
 /**
  * One message, read into the blocks the screen draws. `pending` comes from
  * the thread door after a reload; during a turn the same question arrives as a
@@ -1755,17 +1975,27 @@ export const readMessageBlocks = (
   const parts = message.parts as unknown as Part[];
   const blocks: AgentBlock[] = [];
 
+  const resumedCalls = new Set<string>();
+  for (const part of parts) {
+    if (part.type !== 'data-tool-call-resumed') continue;
+    const data = recordOf(part.data);
+    const id = stringOf(data.toolCallId) ?? stringOf(part.id);
+    if (id) resumedCalls.add(id);
+  }
+
   // The card a stored or streamed part names, unless Mastra marked it
-  // answered (`resumed`); then the server's `pending` list, which wins: it is
-  // the card that waits now, read from the run itself, and a stored part may
-  // be an older card of the same call (review W2 F3). The conversation drops
-  // a pending entry once it is answered, so a card streamed after that shows.
+  // answered (`resumed` or `data-tool-call-resumed`); then the server's
+  // `pending` list, which wins: it is the card that waits now, read from the
+  // run itself, and a stored part may be an older card of the same call
+  // (review W2 F3). The conversation drops a pending entry once it is
+  // answered, so a card streamed after that shows.
   const questions = new Map<string, LiveQuestion>();
   for (const part of parts) {
     if (part.type !== 'data-tool-call-suspended') continue;
     const data = recordOf(part.data);
     if (data.resumed === true) continue;
     const toolCallId = stringOf(data.toolCallId);
+    if (toolCallId && resumedCalls.has(toolCallId)) continue;
     const runId = stringOf(data.runId);
     const toolName = stringOf(data.toolName);
     if (toolCallId && runId && toolName) {
@@ -1846,6 +2076,37 @@ export const readMessageBlocks = (
     return true;
   };
 
+  const pushTasks = (tasks: AgentTaskItem[] | null, title: string | null, key: string) => {
+    if (!tasks) return false;
+    const existing = blocks.findIndex((block) => block.type === 'tasks');
+    if (existing >= 0) {
+      const previous = blocks[existing] as Extract<AgentBlock, { type: 'tasks' }>;
+      blocks[existing] = {
+        ...previous,
+        title: title ?? previous.title,
+        tasks,
+      };
+      return true;
+    }
+    blocks.push({ type: 'tasks', key, title, tasks });
+    return true;
+  };
+
+  const pushObjective = (objective: AgentObjectiveView | null, key: string) => {
+    if (!objective) return false;
+    const existing = blocks.findIndex((block) => block.type === 'objective');
+    if (existing >= 0) {
+      blocks[existing] = {
+        type: 'objective',
+        key: blocks[existing].key,
+        objective,
+      };
+      return true;
+    }
+    blocks.push({ type: 'objective', key, objective });
+    return true;
+  };
+
   parts.forEach((part, index) => {
     const key = `${message.id}:${index}`;
 
@@ -1881,6 +2142,25 @@ export const readMessageBlocks = (
       return;
     }
 
+    if (part.type === 'data-task_updated' || part.type === 'data-tasks') {
+      pushTasks(readTaskItems(part.data), stringOf(recordOf(part.data).title), key);
+      return;
+    }
+
+    if (part.type === 'data-goal' || part.type === 'data-objective') {
+      pushObjective(readObjectiveView(part.data), key);
+      return;
+    }
+
+    if (part.type === 'data-subagent_start' || part.type === 'data-subagent_end') {
+      const data = recordOf(part.data);
+      const status: AgentSubagentView['status'] =
+        part.type === 'data-subagent_end' ? (data.error ? 'error' : 'done') : 'working';
+      const subagent = readSubagentView(data, data, status);
+      if (subagent) blocks.push({ type: 'subagent', key, subagent });
+      return;
+    }
+
     if (part.type.startsWith('data-')) {
       // `data-piece`, `data-avatar`, … — the persisted card, by id. Mastra's
       // own `data-tool-call-*` parts are read above with their tool part.
@@ -1893,6 +2173,52 @@ export const readMessageBlocks = (
     const toolCallId = stringOf(part.toolCallId) ?? key;
     const title = stringOf(part.title);
     const state = part.state;
+
+    if (
+      toolName === 'task_write' ||
+      toolName === 'task_update' ||
+      toolName === 'task_complete'
+    ) {
+      const items = readTaskItems(part.output) ?? readTaskItems(part.input);
+      if (items) {
+        pushTasks(items, title, key);
+        return;
+      }
+      if (toolName === 'task_complete' && recordOf(part.output).allCompleted === true) {
+        const existing = blocks.findIndex((block) => block.type === 'tasks');
+        if (existing >= 0) {
+          const previous = blocks[existing] as Extract<AgentBlock, { type: 'tasks' }>;
+          blocks[existing] = {
+            ...previous,
+            tasks: previous.tasks.map((task) => ({ ...task, status: 'completed' })),
+          };
+          return;
+        }
+      }
+    }
+
+    if (toolName === 'set_objective') {
+      const objective = readObjectiveView(part.output, part.input);
+      if (objective) {
+        pushObjective(objective, key);
+        return;
+      }
+    }
+
+    if (toolName === 'subagent') {
+      const failed = state === 'output-error' || (state === 'output-available' && !!refusalCode(part.output));
+      const subagentState: AgentSubagentView['status'] = failed
+        ? 'error'
+        : state === 'output-available'
+          ? 'done'
+          : 'working';
+      const subagent = readSubagentView(part.output, part.input, subagentState);
+      if (subagent) {
+        blocks.push({ type: 'subagent', key, subagent });
+        return;
+      }
+    }
+
     // A product action always carries its label (the server adds it to the
     // live stream too). A part without one is Mastra's own housekeeping —
     // loading a skill, writing working memory — and the person never sees
@@ -1901,6 +2227,7 @@ export const readMessageBlocks = (
     if (
       !title &&
       !questions.has(toolCallId) &&
+      !NATIVE_AUTONOMY_TOOLS.has(toolName) &&
       state !== 'approval-requested' &&
       state !== 'approval-responded' &&
       state !== 'output-denied'
@@ -1990,12 +2317,16 @@ export const readMessageBlocks = (
       // The stored history keeps no question part (Mastra drops it once the
       // run resumes): a selection card answered before a reload is known by
       // the counts its call answered with, and folds into the same line
-      // (`kcxz.34`, F4).
+      // (`kcxz.34`, F4). Native `ask_user` and `submit_plan` also fold into
+      // their answered line from their input when `data-tool-call-suspended`
+      // was resumed or dropped (`content-factory-next-on0i.6`).
       const folded = question
         ? readQuestion(toolName, question.payload, question.resumeSchema)
-        : answeredSelectionOf(part.output)
-          ? ANSWERED_SELECTION
-          : null;
+        : toolName === 'ask_user' || toolName === 'submit_plan'
+          ? readQuestion(toolName, part.input ?? part.output, null)
+          : answeredSelectionOf(part.output)
+            ? ANSWERED_SELECTION
+            : null;
       if (folded) {
         blocks.push({
           type: 'question',
@@ -2027,6 +2358,7 @@ export const readMessageBlocks = (
         return;
       }
       if (!pushArtifact(artifactOf(card.kind, card), key) && !folded) {
+        if (!title && NATIVE_AUTONOMY_TOOLS.has(toolName)) return;
         blocks.push({ type: 'done', key, toolName, title, ...(stale ? { stale: true } : {}) });
       }
     }

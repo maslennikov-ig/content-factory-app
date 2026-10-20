@@ -42,10 +42,14 @@ module.exports = {
     expect(first.approvals).toHaveLength(1);
     expect(first.approvals[0].toolName).toBe('facts_retract');
     expect(first.approvals[0].reason).toMatch(/^Снять факт «Тариф «Команда» стоит 990 ₽/);
-    // Mastra hands both results over in the last answer: f1 ran on its «Да»;
+    // Mastra hands each leg's result over when its «Да» runs: f1 ran on its «Да»;
     // f2's «Да» is bound to what its card showed — had the door not recorded
     // it, «Да» would bind to the fact as it is now and pass this check.
-    expect(second.outputs.map((one) => one.output.ok === true || one.output.code)).toEqual([
+    expect(
+      [...first.outputs, ...second.outputs].map(
+        (one) => one.output.ok === true || one.output.code
+      )
+    ).toEqual([
       true,
       'APPROVAL_CONTENT_CHANGED',
     ]);

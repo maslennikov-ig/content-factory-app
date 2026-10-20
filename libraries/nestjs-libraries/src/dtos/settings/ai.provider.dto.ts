@@ -1,9 +1,12 @@
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidationArguments,
   ValidationOptions,
   registerDecorator,
@@ -20,6 +23,37 @@ import {
   isSearchProvider,
   isSearchTask,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
+import {
+  MAX_TEXT_FALLBACK_MODELS,
+  MAX_TEXT_MODEL_RETRIES,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+
+export const IsTextFallbackModels = (options?: ValidationOptions) =>
+  function decorate(object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isTextFallbackModels',
+      target: object.constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown) {
+          if (value === undefined || value === null) return true;
+          if (!Array.isArray(value)) return false;
+          if (value.length > MAX_TEXT_FALLBACK_MODELS) return false;
+          return value.every(
+            (model) =>
+              typeof model === 'string' &&
+              model.length > 0 &&
+              model.length <= 200 &&
+              model.trim() === model
+          );
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must be an array of at most ${MAX_TEXT_FALLBACK_MODELS} model ids of 1–200 characters with no surrounding spaces`;
+        },
+      },
+    });
+  };
 
 /**
  * The role map, checked as a whole rather than key by key.
@@ -176,6 +210,25 @@ export class AiProviderDto {
   @IsOptional()
   @IsAiRoleModels()
   roleModels?: Record<string, string>;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  textFallbackModel?: string;
+
+  @IsOptional()
+  @IsTextFallbackModels()
+  textFallbackModels?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  textFallbackDisabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TEXT_MODEL_RETRIES)
+  textMaxRetries?: number;
 
   @IsOptional()
   @IsBoolean()

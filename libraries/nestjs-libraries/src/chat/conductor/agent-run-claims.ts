@@ -114,6 +114,19 @@ export const boundedRunClaimStore = (
 
 export const agentRunClaimKey = (runId: string) => `agent-run-claim:${runId}`;
 
+export const AGENT_RUN_CLAIM_RENEW_INTERVAL_MS = Math.floor(
+  (AGENT_RUN_CLAIM_TTL_SECONDS * 1_000) / 3
+);
+
+export const renewAgentRunClaim = async (
+  store: AgentRunClaimStore,
+  runId: string,
+  ttlSeconds = AGENT_RUN_CLAIM_TTL_SECONDS
+): Promise<boolean> => {
+  const updated = await store.expire(agentRunClaimKey(runId), ttlSeconds);
+  return updated === 1;
+};
+
 /**
  * Claims `runId`. Resolves to the release function when this request is the
  * one that answers, `null` when another request holds the run. Rejects when
@@ -123,22 +136,33 @@ export const agentRunClaimKey = (runId: string) => `agent-run-claim:${runId}`;
  */
 export const claimAgentRun = async (
   store: AgentRunClaimStore,
-  runId: string
+  runId: string,
+  options?: { renewIntervalMs?: number; ttlSeconds?: number }
 ): Promise<(() => Promise<void>) | null> => {
   const key = agentRunClaimKey(runId);
+  const ttlSeconds = options?.ttlSeconds ?? AGENT_RUN_CLAIM_TTL_SECONDS;
   let count: number;
   try {
     count = await store.incr(key);
-    if (count === 1) await store.expire(key, AGENT_RUN_CLAIM_TTL_SECONDS);
+    if (count === 1) await store.expire(key, ttlSeconds);
   } catch (error) {
     void store.del(key).catch(() => undefined);
     throw error;
   }
   if (count !== 1) return null;
   let released = false;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  if (options?.renewIntervalMs && options.renewIntervalMs > 0) {
+    heartbeat = setInterval(() => {
+      if (released) return;
+      void renewAgentRunClaim(store, runId, ttlSeconds).catch(() => undefined);
+    }, options.renewIntervalMs);
+    heartbeat.unref?.();
+  }
   return async () => {
     if (released) return;
     released = true;
+    if (heartbeat) clearInterval(heartbeat);
     await store.del(key).catch(() => undefined);
   };
 };

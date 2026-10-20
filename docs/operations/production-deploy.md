@@ -1,6 +1,38 @@
 # Развёртывание на сервере
 
-## Текущий выпуск18.10.2026,17:20UTC:88867e1cb4c7
+## Текущий выпуск19.10.2026:dd89af1b4a29
+
+Эпик `content-factory-next-j9p5` /HOBA-5841: решения модели и нативные чаты
+Mastra. Проверенный частный источник
+`adb43f97357654d3ab513cc08390949d5938a668`, публичный
+`dd89af1b4a297474466c5c57377c71b7fcdd81ac`. Все9корневых проверок прошли:
+Jest698наборов/12619тестов,Node126/0fail,Python50;70+4существующих пропуска.
+На production13проверок чатов/черновика,0ошибок браузера/API. Реальный поиск
+и выбор моделью4фактов завершились сохранением/чтением1заготовки за95.751с;
+статус partial сохранён, личных вопросов0,6записей учёта succeeded,
+неопределённых списаний0. Маршрут OpenRouter/openai/gpt-6-luna и поиск Exa не менялись.
+Исходные сообщения/pending/workspace сохранены; публикаций не было.
+
+Registry `sha256:caffe4749fe34c9e6ca1f7009a48baf17dd9c16d7df84028537b57a7b5419ce1`,
+config `sha256:b69ad9e702c4572d25ad209ea796ea5b715381aba8a3ff0fd2934051cd2afc59`.
+Полный production-архив12968149байт, SHA256
+`71eec43810070f5b100fd1a618254c6fc81c3708ba8912dee2d1668eab5f1cac`,
+совпал с образом. Prisma diff0/SQL0 до/после, без применения. Свежие схемы
+Mastra45/838defs SHAa8cdfd91 иproduct77/1432defs SHA6c1b394c неизменны;
+это другая каноническая выборка, чем исторический отпечаток4739.
+Healthy/0restarts/3online0;17чужих контейнеров/21том совпали с начальными
+снимками. Штатный retain оставил DD+проверенный888, удалил только свои
+C4A/da82 и4старые копии конфигурации. Финально25040601088свободных байт.
+3проверенных временных файла/каталог и тестовая сессия удалены.
+
+Откат: `CF_DEPLOY_HOST=helixa-prod scripts/release/switch-host-image.sh 88867e1cb4c7`.
+Все5публичных CI прошли, включая полный набор и сдвиг календаря;
+актуальная квитанция — в
+[итоге выпуска](../../.codex/stages/content-factory-next-j9p5-implementation-20261018/production-delivery.md).
+Первый C4A-контроль остался незавершённым; его результат не заменён
+положительным. Исправленная DD-версия принята отдельно.
+
+## Предыдущий выпуск18.10.2026,17:20UTC:88867e1cb4c7
 
 Полная ширина ручных разделов, `content-factory-next-tgeq` /HOBA-5835.
 Проверенный частный источник `ce4a5895ccc5395ab4f4a65199f10213ac2acb38`, публичный `88867e1cb4c7e433e62bcdc1ad18d73939624031`.
@@ -2165,11 +2197,11 @@ docker exec cf-next-postgres psql -X -v ON_ERROR_STOP=1 \
 sha256sum "$tmp_dir/mastra.schema"
 ```
 
-До обновления хранилища Mastra ожидаются 29 таблиц и отпечаток выше. После
-шага R3 раздела «Обновление хранилища Mastra: 29 → 45 таблиц» ожидаются 45
+До обновления хранилища Mastra ожидаются 29 или 45 таблиц и отпечаток выше. После
+шага R3 раздела «Обновление хранилища Mastra: 29 / 45 → 47 таблиц» ожидаются 47
 таблиц и отпечаток, записанный в выпуске этого обновления (блок `after:`
 скрипта); эталон одноразовой проверки и чистой установки —
-`38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d`. Сырой `pg_dump` для этого сравнения не
+`13d611f1bcb547fe3dd331e9c9f4b30e5534e6b3805cc2ab8cd520af63f2e0b5` (исторический эталон 1.27.1 на 45 таблицах — `38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d`). Сырой `pg_dump` для этого сравнения не
 подходит: PostgreSQL 17 добавляет в него случайный `\restrict`-токен, поэтому
 его SHA меняется между одинаковыми запусками. Ни одна из команд не использует
 `prisma db push` и не меняет базу.
@@ -2875,8 +2907,10 @@ tar -cf - scripts/operations/postgres-backup.sh \
           deploy/production/upgrade-mastra-storage.sh \
           deploy/production/mastra-storage-base-1.8.5.sql \
           deploy/production/mastra-storage-upgrade-1.27.1.sql \
+          deploy/production/mastra-storage-upgrade-1.31.2.sql \
           deploy/production/mastra-storage-snapshot-jsonb.sql \
           deploy/production/mastra-storage-upgrade-1.27.1.delta \
+          deploy/production/mastra-storage-upgrade-1.31.2.delta \
           deploy/production/bootstrap-listmonk-db.sh \
   | ssh root@<хост> 'rm -rf /tmp/cf-ops && mkdir -p /tmp/cf-ops && tar -xf - -C /tmp/cf-ops'
 
@@ -2897,8 +2931,10 @@ install -m 700 /tmp/cf-ops/deploy/production/bootstrap-app-db.sh \
                /srv/content-factory-next/deploy/production/
 install -m 600 /tmp/cf-ops/deploy/production/mastra-storage-base-1.8.5.sql \
                /tmp/cf-ops/deploy/production/mastra-storage-upgrade-1.27.1.sql \
+               /tmp/cf-ops/deploy/production/mastra-storage-upgrade-1.31.2.sql \
                /tmp/cf-ops/deploy/production/mastra-storage-snapshot-jsonb.sql \
                /tmp/cf-ops/deploy/production/mastra-storage-upgrade-1.27.1.delta \
+               /tmp/cf-ops/deploy/production/mastra-storage-upgrade-1.31.2.delta \
                /srv/content-factory-next/deploy/production/
 rm -rf /tmp/cf-ops
 ```
@@ -3782,14 +3818,16 @@ preflight упали, `app.env` не менять и приложение не �
 проще, с возврата `MASTRA_DATABASE_URL` на отдельную базу, которая никуда не
 делась.
 
-### Обновление хранилища Mastra: 29 → 45 таблиц (`@mastra/pg` 1.27.1)
+### Обновление хранилища Mastra: 29 → 45 → 47 таблиц (`@mastra/pg` 1.27.1 / 1.31.2)
 
 Разовый шаг владельца для выпуска, который поднимает Mastra до 1.7x
-(`@mastra/core` 1.71, `@mastra/memory` 1.32, `@mastra/pg` 1.27; задача
-`content-factory-next-kcxz.5`, премортем
-`.codex/stages/content-factory-next-kcxz/evidence/premortem-w1.md`). Новая
-версия ждёт 16 новых таблиц и 44 новых столбца; все столбцы допускают `NULL`,
-все таблицы новые. Приложение работает с `disableInit`, поэтому само схему не
+(`@mastra/core` 1.71 / 1.78.0, `@mastra/memory` 1.32 / 1.38.0, `@mastra/pg` 1.27.1 / 1.31.2; задачи
+`content-factory-next-kcxz.5` и `content-factory-next-on0i.1`, премортем
+`.codex/stages/content-factory-next-kcxz/evidence/premortem-w1.md`). Версия
+1.27.1 добавила 16 новых таблиц и 44 новых столбца (29 → 45); версия 1.31.2
+добавляет ещё 2 таблицы (`mastra_memory_run_fences`, `mastra_workflow_run_owners`)
+и 7 столбцов (45 → 47; все столбцы на существующих таблицах допускают `NULL`).
+Приложение работает с `disableInit`, поэтому само схему не
 меняет, а новый образ проверен на старой схеме — порядок «сначала код» или
 «сначала схема» не важен.
 
@@ -3799,14 +3837,17 @@ owner-пароля внутри контейнера приложения. Сх�
 `upgrade-mastra-storage.sh`, владельцем, внутри `cf-next-postgres`.
 
 Скрипт применяет рядом лежащий проверенный SQL
-`deploy/production/mastra-storage-upgrade-1.27.1.sql` одной транзакцией
+`deploy/production/mastra-storage-upgrade-1.31.2.sql` (не меняя исторический
+`deploy/production/mastra-storage-upgrade-1.27.1.sql`) одной транзакцией
 (`psql --single-transaction`, под `POSTGRES_USER`). В нём нет
 `CREATE INDEX CONCURRENTLY`, и каждый `ADD COLUMN`/`CREATE INDEX` защищён
 `IF NOT EXISTS`, поэтому прерванный прогон откатывается целиком, а повторный
-безопасен. Перед `COMMIT` скрипт сам проверяет: ровно 45 имён, ни одного
+безопасен. Перед `COMMIT` скрипт сам проверяет: ровно 47 имён, ни одного
 `INVALID`-индекса и изменение схемы строка в строку совпадает с
-`mastra-storage-upgrade-1.27.1.delta`. Любое расхождение — `ROLLBACK`, база
-остаётся на 29. Ровно 45 таблиц — ничего не делает и выходит с `0`. Любой
+`mastra-storage-upgrade-1.31.2.delta` (при переходе с 29 таблиц) или с разницей
+между `mastra-storage-upgrade-1.31.2.delta` и `mastra-storage-upgrade-1.27.1.delta`
+(при переходе с 45 таблиц). Любое расхождение — `ROLLBACK`, база
+остаётся без изменений. Ровно 47 таблиц — ничего не делает и выходит с `0`. Любой
 другой набор — отказ до изменений. Изменённый после ревью SQL — отказ.
 
 **У боевой базы колонка `mastra_workflow_snapshot.snapshot` типа `text`, а не
@@ -3829,11 +3870,11 @@ owner-пароля внутри контейнера приложения. Сх�
 `jsonb` (эталон, чистая установка), шаг ничего не делает.
 
 Прочие отличия боевой схемы от эталона скрипт оставляет как есть, потому что
-1.27.1 с ними работает (разбор `node_modules/@mastra/pg` 1.27.1, полный список —
+1.27.1 и 1.31.2 с ними работают (разбор `node_modules/@mastra/pg` 1.27.1, полный список —
 `.codex/stages/content-factory-next-kcxz/evidence/w1-mastra-upgrade/schema-diff-reference-vs-production.txt`):
-`mastra_threads.metadata` типа `text` (1.27.1 фильтрует через
+`mastra_threads.metadata` типа `text` (фильтруется через
 `metadata::jsonb` и разбирает строки при чтении); лишняя колонка
-`mastra_scorers."runtimeContext"` (1.27.1 её не трогает); семь старых
+`mastra_scorers."runtimeContext"` (не трогается); семь старых
 индексов-дублей с префиксом `public_`; умолчания `CURRENT_TIMESTAMP` вместо
 `now()` в `mastra_evals`/`mastra_traces`; другой порядок колонок
 `mastra_ai_spans` и `mastra_scorers`.
@@ -3841,7 +3882,8 @@ owner-пароля внутри контейнера приложения. Сх�
 Доставить на сервер вместе с остальными owner-скриптами (раздел «Доставка
 операционных скриптов»): `upgrade-mastra-storage.sh`,
 `mastra-storage-base-1.8.5.sql`, `mastra-storage-upgrade-1.27.1.sql`,
-`mastra-storage-snapshot-jsonb.sql`, `mastra-storage-upgrade-1.27.1.delta` —
+`mastra-storage-upgrade-1.31.2.sql`, `mastra-storage-snapshot-jsonb.sql`,
+`mastra-storage-upgrade-1.27.1.delta`, `mastra-storage-upgrade-1.31.2.delta` —
 в `deploy/production/`, рядом друг с другом. Файл
 `mastra-storage-production-shape.sql` только для проверки, на сервер не
 доставляется.
@@ -3849,15 +3891,15 @@ owner-пароля внутри контейнера приложения. Сх�
 - **R1.** Снять и проверить резервную копию по [postgres-backup.md](postgres-backup.md)
   (`run-postgres-backup.sh`, артефакт с `mastra.dump` и контрольной суммой).
   Это точка отката.
-- **R2.** Предпроверка, только чтение: в `MASTRA_DATABASE_NAME` ровно 29 таблиц
-  `mastra_*` и ровно тот набор, что в `migrate-mastra-storage.sh`;
+- **R2.** Предпроверка, только чтение: в `MASTRA_DATABASE_NAME` ровно 29 или 45 таблиц
+  `mastra_*`;
   `INVALID`-индексов 0; записать канонический отпечаток (раздел с
   `fingerprint_sql` выше) и число строк `mastra_experiments`,
   `mastra_experiment_results`, `mastra_datasets`, `mastra_dataset_items`.
-  Ожидаемый отпечаток боевой — `310d75fc…acac8f7`; иной означает, что схему
-  меняли после 27.09.2026, и тогда сначала прогнать
+  Ожидаемый отпечаток боевой — `310d75fc…acac8f7` (29 таблиц) или `a8cdfd91…b007d47d97` (45 таблиц); иной означает, что схему
+  меняли иначе, и тогда сначала прогнать
   `verify-mastra-storage-upgrade.sh --from-dump` на свежем `mastra.dump` из R1.
-  Тип `mastra_workflow_snapshot.snapshot` на боевой — `text`: скрипт печатает
+  Тип `mastra_workflow_snapshot.snapshot` на старой боевой — `text`: скрипт печатает
   `snapshot column: text, N rows, all valid jsonb; converted to jsonb inside
   the upgrade transaction.` или отказывает, если хоть одна строка не `jsonb`.
   Скрипт печатает всё это в блоке `before:` перед изменением.
@@ -3869,35 +3911,35 @@ owner-пароля внутри контейнера приложения. Сх�
   ./deploy/production/upgrade-mastra-storage.sh
   ```
 
-  Ожидаемый конец вывода: `Mastra storage upgrade applied: 29 -> 45 tables.`
-  и блок `after:`; колонка `snapshot` в той же транзакции стала `jsonb`.
+  Ожидаемый конец вывода: `Mastra storage upgrade applied: 29 -> 47 tables.`
+  (или `45 -> 47 tables.`) и блок `after:`; колонка `snapshot` в той же транзакции стала `jsonb`.
   Отказ `rows whose snapshot is not valid jsonb` называет ключи
   `(workflow_name, run_id)`: эти прогоны разобрать по копии R1, исправить или
   удалить владельцем и повторить. Ошибка выводит строки `ERROR`/`DETAIL` и
   `the transaction was rolled back`: база не изменилась, причину устранить и
   повторить. Ошибка по `lock_timeout` означает, что таблицу держал долгий
   запрос приложения, — просто повторить.
-- **R4.** Проверить: ровно 45 таблиц, `INVALID`-индексов 0, канонический
+- **R4.** Проверить: ровно 47 таблиц, `INVALID`-индексов 0, канонический
   отпечаток из блока `after:` записать в запись выпуска как новый эталон.
   Абсолютный отпечаток боевой базы не равен эталонному
-  `38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d`: боевая
+  `13d611f1bcb547fe3dd331e9c9f4b30e5534e6b3805cc2ab8cd520af63f2e0b5` (на 45 таблицах — `38dd03cc29b0958c09426a531e72dcfd70d9ddb3aa8186666d6ea1c5aa26322d`): боевая
   схема несёт историю, которой нет в эталоне (до обновления у неё
   `310d75fc…acac8f7`, у эталона `541482bd…dcb0c53`). Доказательство на
   боевой — совпадение изменения с `.delta`, которое скрипт проверил до
-  `COMMIT`. При неизменённой с 27.09.2026 боевой схеме ожидаемый отпечаток
-  после — `a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97`:
+  `COMMIT`. При неизменённой боевой схеме ожидаемый отпечаток
+  после — `a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0` (на 45 таблицах — `a8cdfd9101f62ed7316e5744611007ba055adc50be740cba23fe71b007d47d97`):
   к нему пришли и копия R1, и её схемная копия в проверке.
 - **R5.** `./scripts/operations/check-postgres-role-isolation.sh` — зелёный.
   Новые таблицы получают DML runtime-роли через default privileges владельца
   и явный `GRANT` в той же транзакции; `CREATE` у runtime-роли по-прежнему нет.
 - **R6.** Выкатить образ с Mastra 1.7x (порядок свободный), в записи выпуска
-  написать `Mastra 29 → 45`. Режим бюджета токенов истории сообщений
+  написать `Mastra 29 → 45` или `Mastra 45 → 47`. Режим бюджета токенов истории сообщений
   (`messageHistory`) включать только после R4.
 
 Откат:
 
 - кода — прежний `CF_IMAGE` в `.env` и `docker compose up -d cf-app`; схема
-  остаётся, она только добавляет (прежняя версия на 45 таблицах должна быть
+  остаётся, она только добавляет (прежняя версия на 45/47 таблицах должна быть
   подтверждена на копии боевой базы до выпуска — проверка P5 премортема);
 - неудачного применения — ничего делать не нужно, транзакция откатилась;
 - проблемы с данными после R4 — остановить `cf-app`, пересоздать пустую
@@ -3909,17 +3951,17 @@ owner-пароля внутри контейнера приложения. Сх�
 Чистая установка идёт тем же путём: `upgrade-mastra-storage.sh --from-empty`
 на пустой базе Mastra применяет `mastra-storage-base-1.8.5.sql` и тот же SQL
 обновления одной транзакцией и приходит ровно к эталонному отпечатку
-`38dd03cc…6322d`. Без флага пустая база — отказ, чтобы не создать схему в
+`13d611f1…2e0b5`. Без флага пустая база — отказ, чтобы не создать схему в
 случайно указанной базе.
 
 Стенд без `MASTRA_DATABASE_URL` по-прежнему включает init Mastra и
-выращивает 43 таблицы `mastra_*` прямо в базе продукта; это ожидаемо, на
+выращивает таблицы `mastra_*` прямо в базе продукта; это ожидаемо, на
 production не переносится, и у стенда своя база Mastra.
 
 Прогонять обновление на production вслепую не нужно: скрипт целиком
 проверяется на одноразовом контейнере
 [verify-mastra-storage-upgrade.sh](../../scripts/operations/verify-mastra-storage-upgrade.sh)
-— 29 таблиц с данными → 45, эталонный отпечаток, 0 `INVALID`-индексов,
+— 29 таблиц с данными → 47, эталонный отпечаток, 0 `INVALID`-индексов,
 неизменённые строки, DML runtime-роли на новой таблице и отказ ей в
 `CREATE TABLE`, зелёная проверка изоляции ролей, повторный прогон без
 изменений, прерванный прогон остаётся на 29, расхождение с `.delta`

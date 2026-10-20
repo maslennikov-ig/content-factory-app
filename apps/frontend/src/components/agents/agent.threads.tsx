@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import useSWRInfinite, { unstable_serialize } from 'swr/infinite';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
@@ -21,10 +21,8 @@ import type { AgentWords } from './agent.copy';
 import { AgentGlyph } from './agent.icons';
 
 /**
- * The person's own conversations (spec §1.6, §6.1; canvas C): the current
- * one's name stays visible beside explicit Chats and New chat actions.
- * The native list pages on demand; rename and delete stay in its dialog. Threads are personal: the doors answer only the
- * caller's own.
+ * Personal native threads, shared by the primary navigation and the compact
+ * chat toolbar. The list pages on demand; rename/delete stay in its dialog.
  */
 
 /** SWR key of the list, shared with the screen that refreshes it. */
@@ -65,6 +63,37 @@ const formatWhen = (iso: string | null, language: string) => {
   }
 };
 
+/** The same native, paginated list in the rail and in the toolbar's dialog. */
+export function AgentThreadList({ threadId, language, words, onOpen, sidebar = false }: {
+  threadId: string | null;
+  language: string;
+  words: AgentWords['threads'];
+  onOpen?: (id: string) => void;
+  sidebar?: boolean;
+}) {
+  const threads = useAgentThreads();
+  const list = threads.data ?? [];
+  const quiet = sidebar ? 'navigation' : 'quiet';
+  return <div className="flex min-h-0 min-w-0 flex-col gap-[8px]">
+    {threads.isLoading ? <SkeletonRows rows={3} label={words.loading} /> : null}
+    {threads.error ? <div role="status" className="flex flex-wrap items-center gap-[8px] cf-body-sm">
+      {words.failed}<Button type="button" variant={quiet} density="dense" onClick={() => void threads.mutate()}>{words.retry}</Button>
+    </div> : null}
+    {!list.length && !threads.isLoading && !threads.error ? <p className="cf-body-sm">{words.empty}</p> : null}
+    <ul className={`flex min-w-0 flex-col gap-[4px] overflow-y-auto ${sidebar ? 'max-h-[40dvh]' : 'max-h-[min(50dvh,360px)]'}`}>
+      {list.map((thread) => <li key={thread.id} className="min-w-0">
+        <ButtonLink prefetch={false} href={`/agents/${encodeURIComponent(thread.id)}`} variant={thread.id === threadId ? sidebar ? 'navigation-current' : 'secondary' : quiet} density="dense" aria-current={thread.id === threadId ? 'page' : undefined}
+          title={thread.title ?? words.untitled}
+          onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !onOpen) return; event.preventDefault(); onOpen(thread.id); }} className="w-full justify-between gap-[12px]">
+          <span className="min-w-0 truncate">{thread.title ?? words.untitled}</span>
+          {!sidebar ? <span className="shrink-0 cf-caption text-cf-ink-muted">{formatWhen(thread.updatedAt, language)}</span> : null}
+        </ButtonLink>
+      </li>)}
+    </ul>
+    {threads.hasMore ? <Button type="button" variant={quiet} density="dense" loading={threads.loadingMore} loadingLabel={words.loading} onClick={() => void threads.loadMore()}>{words.more}</Button> : null}
+  </div>;
+}
+
 export function ThreadSwitcher({
   threadId,
   title,
@@ -74,7 +103,6 @@ export function ThreadSwitcher({
   onRemoved,
   words,
   actions,
-  contextual = false,
 }: {
   /** The thread open now; `null` before its first message. */
   threadId: string | null;
@@ -93,7 +121,6 @@ export function ThreadSwitcher({
   const request = useFetch();
   const threads = useAgentThreads();
   const [open, setOpen] = useState(false);
-  const listId = useId();
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<'rename' | 'remove' | null>(null);
@@ -138,26 +165,6 @@ export function ThreadSwitcher({
     }
   }, [onRemoved, request, setOpen, threadId, threads]);
 
-  const list = threads.data ?? [];
-
-  const navigation = <nav aria-label={w.label} id={listId} className="flex min-h-0 flex-col gap-[8px]">
-    {threads.isLoading ? <SkeletonRows rows={3} label={w.loading} /> : null}
-    {threads.error ? <div role="status" className="flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
-      {w.failed}<Button type="button" variant="quiet" density="dense" onClick={() => void threads.mutate()}>{w.retry}</Button>
-    </div> : null}
-    {!list.length && !threads.isLoading && !threads.error ? <p className="cf-body-sm text-cf-ink-muted">{w.empty}</p> : null}
-    <ul className="flex max-h-[min(50dvh,360px)] flex-col gap-[4px] overflow-y-auto">
-      {list.map((thread) => <li key={thread.id}>
-        <ButtonLink prefetch={false} href={`/agents/${encodeURIComponent(thread.id)}`} variant={thread.id === threadId ? 'secondary' : 'quiet'} density="dense" aria-current={thread.id === threadId ? 'page' : undefined}
-          onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); setOpen(false); onOpen(thread.id); }} className="w-full justify-between gap-[12px]">
-          <span className="min-w-0 truncate">{thread.title ?? w.untitled}</span>
-          <span className="shrink-0 cf-caption text-cf-ink-muted">{formatWhen(thread.updatedAt, language)}</span>
-        </ButtonLink>
-      </li>)}
-    </ul>
-    {threads.hasMore ? <Button type="button" variant="quiet" density="dense" loading={threads.loadingMore} loadingLabel={w.loading} onClick={() => void threads.loadMore()}>{w.more}</Button> : null}
-  </nav>;
-
   return <>
     <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]" wrap>
       <Button type="button" variant="secondary" density="dense" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen(true); setRenaming(false); setFailed(false); }}>
@@ -167,9 +174,8 @@ export function ThreadSwitcher({
       <Button type="button" variant="secondary" density="dense" onClick={onNew}><AgentGlyph name="plus" />{w.newThread}</Button>
       {actions}
     </OpeningBand>
-    {!contextual ? <div className="hidden shrink-0 border-b border-cf-border bg-cf-surface-subtle px-[16px] py-[8px] xl:block [&_ul]:max-h-[144px]">{!open ? navigation : null}</div> : null}
     <Dialog open={open} onClose={() => setOpen(false)} title={w.label} footer={<Button type="button" variant="quiet" onClick={() => setOpen(false)}>{w.close}</Button>}>
-      {navigation}
+      <nav aria-label={w.label}><AgentThreadList threadId={threadId} language={language} words={w} onOpen={(id) => { setOpen(false); onOpen(id); }} /></nav>
             {threadId ? (
               <div className="flex flex-col gap-[8px] border-t border-cf-border px-[4px] pt-[8px]">
                 {renaming ? (

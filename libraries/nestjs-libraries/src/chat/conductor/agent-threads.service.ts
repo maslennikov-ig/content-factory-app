@@ -20,7 +20,14 @@ import type { CapabilityIdentity } from '../capabilities/capability.types';
 import { questionCardId, questionCardView } from '../capabilities/question-card';
 import { claimUnavailable, notPending, notYours, type PendingRun } from './agent-chat.request';
 import { AGENT_STREAM_VERSION } from '../capabilities/agent-parts.contract';
-import { conductorResourceId } from './conductor.context';
+import {
+  clearObjective,
+  readObjective,
+  resolveGoalStore,
+  writeObjective,
+} from '@mastra/core/tools';
+import { defineSchedule } from '@mastra/core/schedules';
+import { CONDUCTOR_AGENT_ID, conductorResourceId } from './conductor.context';
 import { threadTitleFromMessage } from './conductor.memory';
 import {
   AGENT_WORKSPACE_METADATA_KEY,
@@ -35,6 +42,7 @@ import {
   type ResolvedAgentWorkContext,
 } from './work-context';
 import {
+  AGENT_RUN_CLAIM_RENEW_INTERVAL_MS,
   AGENT_RUN_CLAIM_STORE,
   AgentRunClaimUnavailable,
   boundedRunClaimStore,
@@ -53,6 +61,130 @@ import {
   readAgentThreadExecution,
   writeAgentThreadExecution,
 } from './agent-turn-lifecycle';
+import { redactSecretShapes } from './secret-shapes';
+
+const redactObservabilityValue = (value: unknown, depth = 0): unknown => {
+  if (depth > 4) return '[truncated]';
+  if (typeof value === 'string') return redactSecretShapes(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => redactObservabilityValue(item, depth + 1));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        redactObservabilityValue(item, depth + 1),
+      ])
+    );
+  }
+  return value;
+};
+
+const isNamedIanaTimeZone = (tz: string | undefined): tz is string => {
+  if (!tz || typeof tz !== 'string') return false;
+  const trimmed = tz.trim();
+  if (
+    !trimmed ||
+    trimmed.toUpperCase() === 'UTC' ||
+    /^[+-]\d{2}:\d{2}$/.test(trimmed)
+  ) {
+    return false;
+  }
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const resolveFollowUpScheduleTimeZone = (
+  requestedTimeZone: string | undefined,
+  identityTimeZone: string | undefined
+): {
+  timeZone: string;
+  timezoneAssumed: boolean;
+  timezoneNote?: string;
+} => {
+  if (isNamedIanaTimeZone(requestedTimeZone)) {
+    return { timeZone: requestedTimeZone.trim(), timezoneAssumed: false };
+  }
+  if (isNamedIanaTimeZone(identityTimeZone)) {
+    return { timeZone: identityTimeZone.trim(), timezoneAssumed: false };
+  }
+  return {
+    timeZone: 'Europe/Moscow',
+    timezoneAssumed: true,
+    timezoneNote:
+      'Часовой пояс не был явно указан в профиле — расписание создано по времени Москвы (Europe/Moscow).',
+  };
+};
+
+const resolveConductorGoalStore = async (sources: {
+  mastra?: any;
+  storage?: any;
+  memory?: any;
+}) => {
+  if (sources.mastra) {
+    const fromMastra = await resolveGoalStore(sources.mastra);
+    if (fromMastra) return fromMastra;
+  }
+  const rawStorage =
+    sources.storage ??
+    sources.memory?.storage ??
+    (typeof sources.memory?.getStorage === 'function'
+      ? sources.memory.getStorage()
+      : undefined);
+  if (rawStorage) {
+    const fromStorage = await resolveGoalStore({
+      getStorage: () => rawStorage,
+    } as any);
+    if (fromStorage) return fromStorage;
+    if (typeof rawStorage.getStore === 'function') {
+      const store = await rawStorage.getStore('threadState');
+      if (store) return store;
+    }
+  }
+  return undefined;
+};
+
+const normalizeObjectiveRecord = (
+  record: Record<string, any> | null | undefined
+) => {
+  if (!record || typeof record !== 'object') return null;
+  const text =
+    typeof record.objective === 'string'
+      ? record.objective
+      : typeof record.text === 'string'
+        ? record.text
+        : '';
+  return {
+    ...record,
+    objective: text,
+    text,
+  };
+};
+
+export type ActiveThreadTurnHandle = {
+  requestId: string;
+  threadId: string;
+  resourceId: string;
+  emitPart: (part: unknown) => void;
+  finishStream: () => void;
+  subscribe: (
+    listener: (event: { part?: unknown; done?: boolean }) => void
+  ) => () => void;
+  stop: () => Promise<void>;
+};
+
+const isDurableConductorLike = (agent: unknown): boolean =>
+  Boolean(
+    agent &&
+      typeof agent === 'object' &&
+      'runRegistry' in agent &&
+      typeof (agent as { recover?: unknown }).recover === 'function' &&
+      typeof (agent as { observe?: unknown }).observe === 'function'
+  );
 
 /**
  * Personal threads (`content-factory-next-kcxz.8`, spec §1.6, §4.7; premortem
@@ -152,7 +284,12 @@ export const pendingView = async (
               args: call.args ?? {},
               summary: await describe(call.toolName, call.args ?? {}),
             }
-          : { suspendPayload: questionCardView(call.suspendPayload ?? null) }),
+          : {
+              suspendPayload: questionCardView(
+                call.suspendPayload ?? null,
+                call.toolName
+              ),
+            }),
       }))
     )
   );
@@ -170,6 +307,7 @@ const AGENT_RUN_WORKFLOWS = ['agentic-loop', 'durable-agentic-loop'] as const;
 export class AgentThreadsService {
   private readonly claims: AgentRunClaimStore;
   private readonly workspaceWrites = new Map<string, Promise<void>>();
+  private readonly activeTurns = new Map<string, ActiveThreadTurnHandle>();
 
   constructor(
     private readonly mastraService: MastraService,
@@ -181,13 +319,133 @@ export class AgentThreadsService {
     this.claims = boundedRunClaimStore(claims ?? inProcessRunClaimStore());
   }
 
+  async isDurableConductor(): Promise<boolean> {
+    try {
+      const conductor = await this.conductor();
+      return isDurableConductorLike(conductor);
+    } catch {
+      return false;
+    }
+  }
+
+  registerActiveTurn(args: {
+    identity: CapabilityIdentity;
+    threadId: string;
+    requestId: string;
+    onStop: () => void | Promise<void>;
+  }): ActiveThreadTurnHandle {
+    const resourceId = conductorResourceId(
+      args.identity.organizationId,
+      args.identity.userId
+    );
+    const key = `${resourceId}:${args.threadId}`;
+    const bufferedParts: unknown[] = [];
+    const listeners = new Set<(event: { part?: unknown; done?: boolean }) => void>();
+    let finished = false;
+    const handle: ActiveThreadTurnHandle = {
+      requestId: args.requestId,
+      threadId: args.threadId,
+      resourceId,
+      emitPart: (part) => {
+        if (finished) return;
+        bufferedParts.push(part);
+        for (const listener of listeners) {
+          listener({ part });
+        }
+      },
+      finishStream: () => {
+        if (finished) return;
+        finished = true;
+        if (this.activeTurns.get(key) === handle) {
+          this.activeTurns.delete(key);
+        }
+        for (const listener of listeners) {
+          listener({ done: true });
+        }
+        listeners.clear();
+      },
+      subscribe: (listener) => {
+        for (const part of bufferedParts) {
+          listener({ part });
+        }
+        if (finished) {
+          listener({ done: true });
+          return () => undefined;
+        }
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      stop: async () => {
+        await args.onStop();
+      },
+    };
+    this.activeTurns.set(key, handle);
+    return handle;
+  }
+
+  async activeTurnFor(identity: CapabilityIdentity, threadId: string) {
+    await this.requireOwnThread(identity, threadId);
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    return this.activeTurns.get(`${resourceId}:${threadId}`) ?? null;
+  }
+
+  /**
+   * Explicitly stops an in-flight turn on the caller's thread (`on0i.3`, `A13`).
+   */
+  async stopTurn(identity: CapabilityIdentity, threadId: string) {
+    await this.requireOwnThread(identity, threadId);
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const key = `${resourceId}:${threadId}`;
+    const active = this.activeTurns.get(key);
+    if (active) {
+      await active.stop();
+    }
+    const conductor = (await this.conductor().catch(() => null)) as
+      | (ConductorLike & {
+          abortThreadStream?: (opts: {
+            resourceId: string;
+            threadId: string;
+            clearPendingSignals?: boolean;
+          }) => boolean;
+        })
+      | null;
+    const abortedNative =
+      conductor?.abortThreadStream?.({
+        resourceId,
+        threadId,
+        clearPendingSignals: true,
+      }) ?? false;
+    const session = await this.sessionFor(identity, threadId).catch((): undefined => undefined);
+    try {
+      await session?.abort?.();
+    } catch {
+      // Best-effort session abort.
+    }
+    return {
+      stopped: Boolean(active || abortedNative),
+      threadId,
+      requestId: active?.requestId ?? null,
+    };
+  }
+
   /**
    * Claims a suspended run for one answer (correctness review W1 F5): the
    * release function, or `null` while another request answers it.
    */
-  async claimRun(runId: string) {
+  async claimRun(
+    runId: string,
+    options?: { renewIntervalMs?: number; ttlSeconds?: number }
+  ) {
     try {
-      return await claimAgentRun(this.claims, runId);
+      return await claimAgentRun(this.claims, runId, options);
     } catch (error) {
       return refusedWhenUnavailable(error);
     }
@@ -197,7 +455,9 @@ export class AgentThreadsService {
   async claimThreadTurn(identity: CapabilityIdentity, threadId: string) {
     await this.ownThread(identity, threadId);
     const resourceId = conductorResourceId(identity.organizationId, identity.userId);
-    const release = await this.claimRun(`thread:${resourceId}:${threadId}`);
+    const release = await this.claimRun(`thread:${resourceId}:${threadId}`, {
+      renewIntervalMs: AGENT_RUN_CLAIM_RENEW_INTERVAL_MS,
+    });
     if (!release) throw notPending();
     try {
       const thread = await this.ownThread(identity, threadId);
@@ -315,6 +575,12 @@ export class AgentThreadsService {
   ): Promise<ThreadRow | null> {
     const thread = await (await this.memory()).getThreadById({ threadId });
     if (!thread) return null;
+    if (
+      thread.metadata?.forkedSubagent === true ||
+      thread.metadata?.goalJudge === true
+    ) {
+      return null;
+    }
     if (
       thread.resourceId !==
       conductorResourceId(identity.organizationId, identity.userId)
@@ -443,6 +709,18 @@ export class AgentThreadsService {
   }
 
   /**
+   * Resolves the isolated native `Session` for `(organizationId:userId, threadId)`
+   * when `MastraService` provides an `AgentController` (`on0i.1`).
+   */
+  async sessionFor(
+    identity: CapabilityIdentity,
+    threadId: string,
+    options?: { bindThread?: boolean; requestContext?: any }
+  ) {
+    return this.mastraService.sessionFor?.(identity, threadId, options);
+  }
+
+  /**
    * The thread a message is written to: the caller's own, or a new one named
    * after the message. Created before the turn so the first write can never
    * land in a thread somebody else created with the same id.
@@ -454,7 +732,10 @@ export class AgentThreadsService {
     selected?: ResolvedAgentWorkContext | null
   ): Promise<ThreadRow> {
     const existing = await this.ownThread(identity, threadId);
-    if (existing) return existing;
+    if (existing) {
+      await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
+      return existing;
+    }
     const ref = selected ? artifactForWorkContext(selected.context) : null;
     const workspace = selected === undefined ? undefined : {
       ...emptyAgentWorkspace(),
@@ -462,18 +743,21 @@ export class AgentThreadsService {
       artifacts: ref ? [ref] : [],
       activeArtifact: ref,
     };
-    return (await this.memory()).createThread({
+    const created = await (await this.memory()).createThread({
       threadId,
       resourceId: conductorResourceId(identity.organizationId, identity.userId),
       title: threadTitleFromMessage(text, identity.language),
       ...(workspace ? { metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace } } : {}),
     });
+    await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
+    return created;
   }
 
   /** The thread an answer on a card continues: it must exist and be the caller's. */
   async threadForAnswer(identity: CapabilityIdentity, threadId: string) {
     const thread = await this.ownThread(identity, threadId);
     if (!thread) throw notYours();
+    await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
     return thread;
   }
 
@@ -484,7 +768,12 @@ export class AgentThreadsService {
       ...paging,
       orderBy: { field: 'updatedAt', direction: 'DESC' },
     });
-    return { threads: result.threads.map(threadView), pagination: pageView(result, paging, result.threads.length) };
+    const visibleThreads = result.threads.filter(
+      (row) =>
+        row.metadata?.forkedSubagent !== true &&
+        row.metadata?.goalJudge !== true
+    );
+    return { threads: visibleThreads.map(threadView), pagination: pageView(result, paging, visibleThreads.length) };
   }
 
   /** Authorized bounded native read shared by human history and model history tools. */
@@ -559,13 +848,44 @@ export class AgentThreadsService {
         }
       }
     }
+    const uiMessages = (
+      toAISdkMessages(messages as any, {
+        version: AGENT_STREAM_VERSION,
+      }) as unknown[]
+    ).map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const msg = item as Record<string, any>;
+      const parts = Array.isArray(msg.parts)
+        ? msg.parts.filter(
+            (part: any) =>
+              part?.type !== 'data-tool-call-suspended' &&
+              part?.type !== 'data-tool-call-approval'
+          )
+        : msg.parts;
+      if (
+        msg.metadata &&
+        typeof msg.metadata === 'object' &&
+        'suspendedTools' in msg.metadata
+      ) {
+        const { suspendedTools: _ignored, ...restMeta } = msg.metadata as Record<
+          string,
+          unknown
+        >;
+        const next: Record<string, unknown> = { ...msg, parts };
+        if (Object.keys(restMeta).length > 0) {
+          next.metadata = restMeta;
+        } else {
+          delete next.metadata;
+        }
+        return next;
+      }
+      return parts === msg.parts ? msg : { ...msg, parts };
+    });
     return {
       thread: threadView(thread),
       pagination,
       workspace: await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata)),
-      messages: toAISdkMessages(messages as any, {
-        version: AGENT_STREAM_VERSION,
-      }) as unknown[],
+      messages: uiMessages,
       pending: await pendingView(runs, (toolName, args) =>
         this.describeApproval(identity, toolName, args)
       ),
@@ -588,6 +908,456 @@ export class AgentThreadsService {
   }
 
   /**
+   * Switches the active model for a thread via native `Session.model.switch` (`on0i.1`, `on0i.5`).
+   */
+  async switchModel(
+    identity: CapabilityIdentity,
+    threadId: string,
+    modelId: string,
+    options?: { thinkingLevel?: string }
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    if (typeof modelId !== 'string' || !modelId.trim() || modelId.length > 200) {
+      throw new BadRequestException({ code: 'AGENT_BAD_REQUEST', message: 'Invalid model id.' });
+    }
+    const cleanModelId = modelId.trim();
+    const session = await this.sessionFor(identity, threadId, { bindThread: true });
+    if (session) {
+      await session.model.switch(cleanModelId, options as any);
+      return {
+        threadId,
+        modelId: session.model.get(),
+        modeId: session.mode.get(),
+      };
+    }
+    await (await this.memory()).updateThread({
+      id: threadId,
+      metadata: { currentModelId: cleanModelId, modelPersistenceVersion: 2 },
+    });
+    return { threadId, modelId: cleanModelId, modeId: 'assistant' };
+  }
+
+  /**
+   * Switches the active mode for a thread via native `Session.mode.switch` (`on0i.1`, `on0i.3`).
+   */
+  async switchMode(
+    identity: CapabilityIdentity,
+    threadId: string,
+    modeId: string
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    if (modeId !== 'assistant' && modeId !== 'plan') {
+      throw new BadRequestException({ code: 'AGENT_BAD_REQUEST', message: 'Invalid mode id.' });
+    }
+    const session = await this.sessionFor(identity, threadId, { bindThread: true });
+    if (session) {
+      await session.mode.switch({ modeId });
+      return {
+        threadId,
+        modeId: session.mode.get(),
+        modelId: session.model.get(),
+      };
+    }
+    await (await this.memory()).updateThread({
+      id: threadId,
+      metadata: { currentModeId: modeId },
+    });
+    return { threadId, modeId, modelId: '' };
+  }
+
+  private async goalStore() {
+    const mastra = await this.mastraService.mastra().catch(() => null);
+    const memory = await this.memory().catch(() => null);
+    return resolveConductorGoalStore({ mastra, memory });
+  }
+
+  /**
+   * Reads the active objective for a thread (`on0i.4`).
+   */
+  async getObjective(identity: CapabilityIdentity, threadId: string) {
+    await this.requireOwnThread(identity, threadId);
+    const store = await this.goalStore();
+    if (!store) return { objective: null };
+    const objective = await readObjective(store, threadId);
+    return { objective: normalizeObjectiveRecord(objective as any) };
+  }
+
+  /**
+   * Sets or updates the active objective for a thread (`on0i.4`).
+   */
+  async setObjective(
+    identity: CapabilityIdentity,
+    threadId: string,
+    body: { text?: string; maxRuns?: number }
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    const text = typeof body?.text === 'string' ? body.text.trim() : '';
+    if (!text || text.length > 2000) {
+      throw new BadRequestException({
+        code: 'AGENT_BAD_REQUEST',
+        message: 'Objective text must be between 1 and 2000 characters.',
+      });
+    }
+    const maxRuns =
+      typeof body?.maxRuns === 'number' &&
+      Number.isSafeInteger(body.maxRuns) &&
+      body.maxRuns >= 1 &&
+      body.maxRuns <= 15
+        ? body.maxRuns
+        : 6;
+    const store = await this.goalStore();
+    if (!store) {
+      throw new BadRequestException({
+        code: 'AGENT_BAD_REQUEST',
+        message: 'Goal storage is unavailable.',
+      });
+    }
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const objective = {
+      id: `goal-${threadId}-${now}`,
+      objective: text,
+      text,
+      status: 'active' as const,
+      runsUsed: 0,
+      activeDurationMs: 0,
+      startedAt: now,
+      updatedAt: now,
+      createdAt: nowIso,
+      maxRuns,
+    };
+    await writeObjective(store, threadId, objective as any);
+    return { objective: normalizeObjectiveRecord(objective) };
+  }
+
+  /**
+   * Clears the active objective for a thread (`on0i.4`).
+   */
+  async clearObjective(identity: CapabilityIdentity, threadId: string) {
+    await this.requireOwnThread(identity, threadId);
+    const store = await this.goalStore();
+    if (store) {
+      await clearObjective(store, threadId);
+    }
+    return {
+      objective: null as ReturnType<typeof normalizeObjectiveRecord>,
+      cleared: true,
+    };
+  }
+
+  /**
+   * Lists recurring agent follow-up schedules bound to a thread (`on0i.4`).
+   */
+  async listFollowUpSchedules(identity: CapabilityIdentity, threadId: string) {
+    await this.requireOwnThread(identity, threadId);
+    const mastra = (await this.mastraService.mastra()) as any;
+    const schedules = mastra?.schedules;
+    if (!schedules?.list) return { schedules: [] };
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    const result = await schedules.list({
+      agentId: CONDUCTOR_AGENT_ID,
+      resourceId,
+      threadId,
+    });
+    const rawList = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.schedules)
+      ? result.schedules
+      : [];
+    const list = rawList.filter(
+      (item: any) =>
+        item?.agentId === CONDUCTOR_AGENT_ID &&
+        item?.resourceId === resourceId &&
+        item?.threadId === threadId
+    );
+    return {
+      schedules: list.map((item: any) => ({
+        id: item.id,
+        title: item.name ?? item.metadata?.title ?? '',
+        prompt: typeof item.prompt === 'string' ? item.prompt : '',
+        cron: item.cron ?? '',
+        timeZone: item.timezone ?? item.metadata?.timeZone ?? 'Europe/Moscow',
+        timezoneAssumed: Boolean(item.metadata?.timezoneAssumed),
+        threadId: item.threadId ?? threadId,
+        enabled: item.status === 'active',
+        nextRunAt:
+          typeof item.nextFireAt === 'number'
+            ? new Date(item.nextFireAt).toISOString()
+            : null,
+        lastRunAt:
+          typeof item.lastFireAt === 'number'
+            ? new Date(item.lastFireAt).toISOString()
+            : null,
+      })),
+    };
+  }
+
+  /**
+   * Creates a recurring agent follow-up schedule bound to a thread (`on0i.4`).
+   */
+  async createFollowUpSchedule(
+    identity: CapabilityIdentity,
+    threadId: string,
+    body: { title?: string; prompt?: string; cron?: string; timeZone?: string }
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    const title = typeof body?.title === 'string' ? body.title.trim() : '';
+    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
+    const cron = typeof body?.cron === 'string' ? body.cron.trim() : '';
+    if (!title || title.length > 200 || !prompt || prompt.length > 4000 || cron.split(/\s+/).length !== 5) {
+      throw new BadRequestException({
+        code: 'AGENT_BAD_REQUEST',
+        message: 'Invalid follow-up schedule parameters.',
+      });
+    }
+    const mastra = (await this.mastraService.mastra()) as any;
+    const schedules = mastra?.schedules;
+    if (!schedules?.create) {
+      throw new BadRequestException({
+        code: 'AGENT_BAD_REQUEST',
+        message: 'Schedule manager is unavailable.',
+      });
+    }
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    const tzInfo = resolveFollowUpScheduleTimeZone(body?.timeZone, identity.timeZone);
+    const definition = defineSchedule({
+      name: title,
+      cron,
+      timezone: tzInfo.timeZone,
+      prompt,
+      threadId,
+      resourceId,
+      status: 'active',
+      metadata: {
+        kind: 'agent-followup',
+        title,
+        organizationId: identity.organizationId,
+        organizationCreatedAt: identity.organizationCreatedAt,
+        userId: identity.userId,
+        role: identity.role,
+        language: identity.language,
+        timeZone: tzInfo.timeZone,
+        timezoneAssumed: tzInfo.timezoneAssumed,
+      },
+    });
+    const created = await schedules.create({
+      ...definition,
+      agentId: CONDUCTOR_AGENT_ID,
+    });
+    return {
+      schedule: {
+        id: created.id,
+        title: created.name ?? title,
+        prompt: created.prompt ?? prompt,
+        cron: created.cron ?? cron,
+        timeZone: created.timezone ?? tzInfo.timeZone,
+        timezoneAssumed: tzInfo.timezoneAssumed,
+        ...(tzInfo.timezoneNote ? { timezoneNote: tzInfo.timezoneNote } : {}),
+        threadId: created.threadId ?? threadId,
+        enabled: created.status === 'active',
+        nextRunAt:
+          typeof created.nextFireAt === 'number'
+            ? new Date(created.nextFireAt).toISOString()
+            : null,
+      },
+    };
+  }
+
+  /**
+   * Cancels a recurring agent follow-up schedule bound to a thread (`on0i.4`).
+   */
+  async cancelFollowUpSchedule(
+    identity: CapabilityIdentity,
+    threadId: string,
+    scheduleId: string
+  ) {
+    await this.requireOwnThread(identity, threadId);
+    const mastra = (await this.mastraService.mastra()) as any;
+    const schedules = mastra?.schedules;
+    if (!schedules?.get || !schedules?.delete) {
+      throw new NotFoundException({
+        code: 'AGENT_SCHEDULE_NOT_FOUND',
+        message: 'Schedule not found.',
+      });
+    }
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    const existing = await schedules.get(scheduleId);
+    if (
+      !existing ||
+      existing.agentId !== CONDUCTOR_AGENT_ID ||
+      existing.resourceId !== resourceId ||
+      existing.threadId !== threadId
+    ) {
+      throw new NotFoundException({
+        code: 'AGENT_SCHEDULE_NOT_FOUND',
+        message: 'Schedule not found.',
+      });
+    }
+    await schedules.delete(scheduleId);
+    return { deleted: true, scheduleId };
+  }
+
+  /**
+   * Native Mastra 1.78 observability query (`querySpans`, `aggregateTraces`,
+   * `listTraces`) scoped to an owned thread (`on0i.7`, Section 4 row 25).
+   * Redacts secret shapes across span names, previews, attributes, and errors,
+   * and returns coverage-aware usage metrics (`isInvoice: false`).
+   */
+  async queryObservability(
+    identity: CapabilityIdentity,
+    threadId: string,
+    usageSummary?: {
+      knownCostUsd: number | null;
+      unknownCostCount: number;
+      possiblyBilledCount: number;
+      coverage: string;
+      isInvoice: false;
+    }
+  ) {
+    const thread = await this.requireOwnThread(identity, threadId);
+    const resourceId = conductorResourceId(
+      identity.organizationId,
+      identity.userId
+    );
+    const mastra = (await this.mastraService.mastra()) as unknown as {
+      getStorage?: () =>
+        | { getStore?: (name: string) => Promise<unknown> | unknown }
+        | undefined;
+    };
+    const observability = (await mastra
+      .getStorage?.()
+      ?.getStore?.('observability')) as
+      | {
+          querySpans?: (args: Record<string, unknown>) => Promise<unknown>;
+          aggregateTraces?: (args: Record<string, unknown>) => Promise<unknown>;
+          listTraces?: (args: Record<string, unknown>) => Promise<unknown>;
+        }
+      | undefined;
+
+    let rawSpans: any[] = [];
+    let rawAggregate: Record<string, unknown> | null = null;
+    if (observability?.querySpans) {
+      const queried = (await observability.querySpans({
+        filters: { threadId, resourceId },
+      })) as any;
+      rawSpans = Array.isArray(queried)
+        ? queried
+        : Array.isArray(queried?.spans)
+          ? queried.spans
+          : Array.isArray(queried?.items)
+            ? queried.items
+            : [];
+    } else if (observability?.listTraces) {
+      const listed = (await observability.listTraces({
+        filters: { threadId, resourceId },
+        pagination: { page: 0, perPage: 50 },
+      })) as any;
+      const traces = Array.isArray(listed)
+        ? listed
+        : Array.isArray(listed?.traces)
+          ? listed.traces
+          : [];
+      for (const trace of traces) {
+        if (Array.isArray(trace?.spans)) {
+          rawSpans.push(...trace.spans);
+        } else if (trace && typeof trace === 'object') {
+          rawSpans.push(trace);
+        }
+      }
+    }
+
+    if (observability?.aggregateTraces) {
+      const agg = await observability.aggregateTraces({
+        filters: { threadId, resourceId },
+      });
+      if (agg && typeof agg === 'object') {
+        rawAggregate = redactObservabilityValue(agg) as Record<string, unknown>;
+      }
+    }
+
+    const scopedSpans = rawSpans.filter((span) => {
+      const spanThread =
+        span?.threadId ??
+        span?.attributes?.threadId ??
+        span?.metadata?.threadId;
+      const spanResource =
+        span?.resourceId ??
+        span?.attributes?.resourceId ??
+        span?.metadata?.resourceId;
+      if (spanThread && spanThread !== threadId) return false;
+      if (spanResource && spanResource !== resourceId) return false;
+      return true;
+    });
+
+    const spans = scopedSpans.map((span) => {
+      const spanId = String(span?.spanId ?? span?.id ?? '');
+      const parentSpanId =
+        typeof span?.parentSpanId === 'string' && span.parentSpanId
+          ? span.parentSpanId
+          : null;
+      const traceId = String(span?.traceId ?? '');
+      const name = redactSecretShapes(String(span?.name ?? 'span'));
+      const status = String(span?.status ?? 'ok');
+      const previewRaw =
+        typeof span?.preview === 'string'
+          ? span.preview
+          : typeof span?.output === 'string'
+            ? span.output.slice(0, 240)
+            : null;
+      const preview = previewRaw ? redactSecretShapes(previewRaw) : null;
+      const errorRaw =
+        typeof span?.error === 'string'
+          ? span.error
+          : typeof span?.error?.message === 'string'
+            ? span.error.message
+            : null;
+      const error = errorRaw ? redactSecretShapes(errorRaw) : null;
+      return {
+        spanId,
+        parentSpanId,
+        traceId,
+        name,
+        status,
+        preview,
+        error,
+        startedAt: span?.startedAt ?? span?.startTime ?? null,
+        endedAt: span?.endedAt ?? span?.endTime ?? null,
+        attributes: redactObservabilityValue(span?.attributes ?? {}),
+      };
+    });
+
+    const traceIds = new Set(spans.map((s) => s.traceId).filter(Boolean));
+    const linkedSpans = spans
+      .filter((s) => s.parentSpanId !== null)
+      .map((s) => ({ spanId: s.spanId, parentSpanId: s.parentSpanId! }));
+    const errorCount = spans.filter(
+      (s) => s.status === 'error' || Boolean(s.error)
+    ).length;
+
+    return {
+      threadId,
+      spans,
+      linkedSpans,
+      aggregate: rawAggregate ?? {
+        totalTraces: traceIds.size,
+        totalSpans: spans.length,
+        errorCount,
+      },
+      execution: await readAgentThreadExecution(
+        this.claims,
+        thread.metadata
+      ).catch(() => null),
+      usage: usageSummary ?? {
+        knownCostUsd: null,
+        unknownCostCount: 0,
+        possiblyBilledCount: 0,
+        coverage: 'none',
+        isInvoice: false as const,
+      },
+    };
+  }
+
+  /**
    * Deleting a thread deletes what still waits in it too (correctness review
    * W1 F12): a suspended run's snapshot holds the call's arguments, the card's
    * payload and the request context, and could otherwise be resumed by id.
@@ -596,8 +1366,42 @@ export class AgentThreadsService {
     await this.requireOwnThread(identity, threadId);
     const runs = await this.pendingRuns(identity, threadId);
     await this.forgetRuns(runs.map((run) => run.runId));
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    await this.forgetThreadSchedules(resourceId, threadId).catch(
+      (): undefined => undefined
+    );
+    await (await this.mastraService.controller?.())?.deleteSession({
+      resourceId,
+      scope: threadId,
+    }).catch((): undefined => undefined);
     await (await this.memory()).deleteThread(threadId);
     return { deleted: true };
+  }
+
+  private async forgetThreadSchedules(resourceId: string, threadId: string) {
+    const mastra = (await this.mastraService.mastra()) as any;
+    const schedules = mastra?.schedules;
+    if (!schedules?.list || !schedules?.delete) return;
+    const result = await schedules.list({
+      agentId: CONDUCTOR_AGENT_ID,
+      resourceId,
+      threadId,
+    });
+    const list = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.schedules)
+      ? result.schedules
+      : [];
+    for (const item of list) {
+      if (
+        item?.agentId === CONDUCTOR_AGENT_ID &&
+        item?.resourceId === resourceId &&
+        item?.threadId === threadId &&
+        typeof item.id === 'string'
+      ) {
+        await schedules.delete(item.id).catch((): undefined => undefined);
+      }
+    }
   }
 
   private async forgetRuns(runIds: readonly string[]) {
@@ -623,4 +1427,3 @@ export class AgentThreadsService {
     }
   }
 }
-

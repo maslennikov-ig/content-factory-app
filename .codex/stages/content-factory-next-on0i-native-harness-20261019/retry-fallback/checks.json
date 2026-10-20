@@ -1,0 +1,102 @@
+[
+  {
+    "name": "prompt-full",
+    "command": [
+      "orch-prompts",
+      "prompt-check",
+      "--runtime",
+      "gemini",
+      "--profile",
+      "gemini-4-argon",
+      "--kind",
+      "fallback",
+      "--file",
+      ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/new-chat-prompt.md",
+      "--json"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/prompt-full.json",
+    "result": {
+      "ok": true,
+      "runtime": "gemini",
+      "profile": "gemini-4-argon",
+      "kind": "fallback",
+      "char_count": 5845,
+      "budget": 6000,
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "name": "prompt-launcher",
+    "command": [
+      "orch-prompts",
+      "prompt-check",
+      "--runtime",
+      "gemini",
+      "--profile",
+      "gemini-4-argon",
+      "--kind",
+      "handoff",
+      "--file",
+      ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/launcher.md",
+      "--json"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/prompt-launcher.json",
+    "result": {
+      "ok": true,
+      "runtime": "gemini",
+      "profile": "gemini-4-argon",
+      "kind": "handoff",
+      "char_count": 1471,
+      "budget": 1500,
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "name": "docs",
+    "command": [
+      "python3",
+      "scripts/docs/check_docs.py"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/docs.log"
+  },
+  {
+    "name": "docs-tests",
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_docs_links.py"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/docs-tests.log"
+  },
+  {
+    "name": "process-baseline",
+    "command": [
+      "bash",
+      "scripts/orchestration/run_process_verification.sh"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/process-baseline.log",
+    "limit": "Existing configured orchestration baseline only; implementation must activate its own on0i stage and receipts."
+  },
+  {
+    "name": "diff",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "log": ".codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/diff.log"
+  }
+]

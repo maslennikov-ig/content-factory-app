@@ -20,6 +20,7 @@ import {
 import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
 import {
   assertAiExecutionBudget,
+  currentUsageLedger,
   TextUsageLedger,
   runWithUsageLedger,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
@@ -392,12 +393,16 @@ export class AiUsageService {
   private continueAdmittedOperation<T>(
     organizationId: string,
     config: AiConfig,
-    callback: () => T
+    callback: () => T,
+    ledger?: TextUsageLedger
   ): T {
     this.assertTenant(organizationId);
     // No role argument: the operation is already admitted under one, and
     // `withActiveAiConfig` keeps whichever is in flight.
-    return withActiveAiConfig(organizationId, config, callback);
+    const run = () => withActiveAiConfig(organizationId, config, callback);
+    return ledger && !currentUsageLedger?.()
+      ? runWithUsageLedger(ledger, run)
+      : run();
   }
 
   private async createAdmission(
@@ -841,7 +846,8 @@ export class AiUsageService {
     operation: AiOperation,
     model: T,
     preparedConfig?: AiConfig,
-    admittedConfig?: AiConfig
+    admittedConfig?: AiConfig,
+    admittedLedger?: TextUsageLedger
   ): T {
     const doGenerate = model.doGenerate.bind(model);
     const doStream = model.doStream.bind(model);
@@ -854,7 +860,8 @@ export class AiUsageService {
               ? this.continueAdmittedOperation(
                   organizationId,
                   admittedConfig,
-                  execute
+                  execute,
+                  admittedLedger
                 )
               : this.executeOperationWithConfig(
                   organizationId,
@@ -871,7 +878,8 @@ export class AiUsageService {
               ? this.continueAdmittedOperation(
                   organizationId,
                   admittedConfig,
-                  execute
+                  execute,
+                  admittedLedger
                 )
               : this.executeModelStream(
                   organizationId,
@@ -891,21 +899,41 @@ export class AiUsageService {
    * Resolve a dynamic Mastra model with the selected tenant configuration, but
    * defer admission until Mastra invokes the returned model's execution API.
    */
-  async prepareModelExecution<T extends ExecutableAiModel>(
+  async prepareModelExecution<
+    T extends
+      | ExecutableAiModel
+      | ReadonlyArray<{ model: ExecutableAiModel; [key: string]: unknown }>,
+  >(
     organizationId: string,
     operation: AiOperation,
     factory: () => Promise<T>
   ): Promise<T> {
     this.assertTenant(organizationId);
     const activeConfig = getActiveAiConfig(organizationId);
+    const activeLedger = currentUsageLedger?.();
     if (activeConfig) {
+      const resolved = await factory();
+      if (Array.isArray(resolved)) {
+        return resolved.map((entry) => ({
+          ...entry,
+          model: this.wrapModelExecution(
+            organizationId,
+            operation,
+            entry.model,
+            undefined,
+            activeConfig,
+            activeLedger
+          ),
+        })) as unknown as T;
+      }
       return this.wrapModelExecution(
         organizationId,
         operation,
-        await factory(),
+        resolved as ExecutableAiModel,
         undefined,
-        activeConfig
-      );
+        activeConfig,
+        activeLedger
+      ) as T;
     }
     const config = await loadAiConfig(organizationId);
     if (!config.apiKey) {
@@ -917,7 +945,27 @@ export class AiUsageService {
       factory,
       roleOf(operation)
     );
-    return this.wrapModelExecution(organizationId, operation, model, config);
+    if (Array.isArray(model)) {
+      return model.map((entry) => ({
+        ...entry,
+        model: this.wrapModelExecution(
+          organizationId,
+          operation,
+          entry.model,
+          config,
+          undefined,
+          activeLedger
+        ),
+      })) as unknown as T;
+    }
+    return this.wrapModelExecution(
+      organizationId,
+      operation,
+      model as ExecutableAiModel,
+      config,
+      undefined,
+      activeLedger
+    ) as T;
   }
 
   private async executeModelStream<T extends { stream: ReadableStream<any> }>(

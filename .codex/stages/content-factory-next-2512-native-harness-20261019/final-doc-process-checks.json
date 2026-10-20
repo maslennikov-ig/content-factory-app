@@ -1,0 +1,27 @@
+[
+  {
+    "command": [
+      "python3",
+      "scripts/docs/check_docs.py"
+    ],
+    "exitCode": 0,
+    "output": "Documentation links OK (202 files checked)\n"
+  },
+  {
+    "command": [
+      "bash",
+      "scripts/orchestration/run_process_verification.sh"
+    ],
+    "exitCode": 0,
+    "output": "?? .codex/stages/content-factory-next-rafo-chat-sidebar-20261019/release/\nstage readiness: content-factory-next-j9p5-implementation-20261018 (from orchestrator.toml)\nartifact validation OK\nstage content-factory-next-j9p5-implementation-20261018 ready\nprocess verification OK\n"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exitCode": 0,
+    "output": ""
+  }
+]

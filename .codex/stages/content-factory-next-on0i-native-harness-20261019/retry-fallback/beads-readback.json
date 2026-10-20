@@ -1,0 +1,189 @@
+[
+  {
+    "id": "content-factory-next-on0i",
+    "title": "Нативный Mastra harness: автономный помощник, чаты и надёжное выполнение",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "parent": null,
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1122",
+    "description_sha256": "019d22e522ac9727947ab302f8f29a2efe054f6198e9c01caf5ddebb68b59c48",
+    "acceptance_sha256": "43568cf9de58191d0513e0843c7c3d57b8458614bd068ab6afedb3bea41f7118",
+    "scope_verified": true,
+    "dependencies": []
+  },
+  {
+    "id": "content-factory-next-on0i.1",
+    "title": "Обновление Mastra и нативные изолированные сессии",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1127",
+    "description_sha256": "7fdc05fca97b30ec71c68a882bd5a179336ad5dba76ac1fa3783c408c287af74",
+    "acceptance_sha256": "670666fe1d1bacabfb51acef03a64ed5a9f4d1bd353d727737c7908bf1e075cd",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.2",
+    "title": "Компактный контекст, полные источники и составные инструменты",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1125",
+    "description_sha256": "8136783fbc2fe920158e983f552ebe27181100d738fb9fbdf6113209abde804f",
+    "acceptance_sha256": "206de7875db12bbd9465adec9202816d16c37b1c43f7c3a6d44ead273b704a29",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.3",
+    "title": "Durable и background: продолжение, перезапуск и защита от повторов",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1128",
+    "description_sha256": "45a99af0d42c16d9577c3cfc7c37181c149e81c5b47bdd79e8025a5ba4d71e5c",
+    "acceptance_sha256": "418467a6a74ac4d6a8d1da3bbc52bdef2c8ba9f0da49cc21919db7a19793b1de",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.2",
+        "dependency_type": "blocks"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.4",
+    "title": "Нативная автономность: цели, планы, вопросы, задачи и субагенты",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1126",
+    "description_sha256": "8cd6ed44ac70bafcc0f972e0e57874458387a0e378740611cffe44555bb9b177",
+    "acceptance_sha256": "6c2a453567cd255e41f1b6878691778ebedf23fdb00ee393eb666a2520509894",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.2",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.3",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.5",
+        "dependency_type": "blocks"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.5",
+    "title": "Нативный выбор моделей, ретраи, фолбеки и полный учёт",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1124",
+    "description_sha256": "45974811906a509a29054e539f707711b7b74112cc4f4fbe19d08945c27c17ae",
+    "acceptance_sha256": "3b90590284d261208ca7a149510e92ec8a5e96795a3133e74473162dc934ca53",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.6",
+    "title": "Чаты и управление выполнением через нативные события Mastra",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "feature",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1129",
+    "description_sha256": "7a6ce95b35da64c14f3bcea5819c437dcccfe190e522afddff5d4fcba546ad2a",
+    "acceptance_sha256": "2797b4fa10ed565d931ac6da50eab181dfe5174866b87e207dd686c270454348",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.1",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.3",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "content-factory-next-on0i.4",
+        "dependency_type": "blocks"
+      }
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.7",
+    "title": "Единый нативный путь продукта и удаление заменённого runtime",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "parent": "content-factory-next-on0i",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1123",
+    "description_sha256": "e39da007ef165c91480ad49b0306ff9d557150d1e7f4f9777c161b6845637de4",
+    "acceptance_sha256": "b0913db96e4defee2bc25bd202fc96fe970c2c9b088f334faaea8cff0d42dd7f",
+    "scope_verified": true,
+    "dependencies": [
+      {
+        "id": "content-factory-next-on0i",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "content-factory-next-on0i.6",
+        "dependency_type": "blocks"
+      }
+    ]
+  }
+]

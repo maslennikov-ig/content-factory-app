@@ -21,17 +21,21 @@ import {
   searchRouteFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import {
+  OrderedTextChainPolicy,
   STANDARD_ATTEMPT_TIMEOUT_MS,
   TextChainSource,
   createTextChainFetch,
   currentAiExecutionTimeoutMs,
   generationTimeoutMs,
   registerChainClient,
+  resolveOrderedTextChainPolicy,
   textChainApplies,
   textChainBudgetMs,
+  textChainFingerprint,
   maxTextChainBudgetMs,
   withReasoningHeadroom,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+import type { MastraDecisionModelInterface } from '@mastra/core/classifier';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -111,9 +115,7 @@ const identity = (
     config.search.provider
   }|${config.search.apiKey}|${searchRouteFingerprint(config.search)}|${
     config.search.topic
-  }|${config.search.depth}|${config.textChain?.flex ?? ''}|${
-    config.textChain?.fallbackModel ?? ''
-  }|${extra}`;
+  }|${config.search.depth}|${textChainFingerprint(config.textChain)}|${extra}`;
 
 /**
  * One entry per distinct configuration rather than a single slot. With one
@@ -311,6 +313,238 @@ export const getAiSdkProvider = async (organizationId: string) => {
       }),
     })
   );
+};
+
+export interface MastraModelEntry {
+  [key: string]: unknown;
+  id: string;
+  model: ReturnType<ReturnType<typeof createOpenAI>['chat']>;
+  maxRetries: number;
+  enabled?: boolean;
+}
+
+const mastraPrimarySdkMemo = memo<ReturnType<typeof createOpenAI>>();
+const mastraFallbackSdkMemo = memo<ReturnType<typeof createOpenAI>>();
+
+/**
+ * Resolves the effective ordered fallback and retry policy for an organization
+ * and role (`on0i.5`, `A16`, `A29`).
+ */
+export const getOrderedTextChainPolicy = async (
+  organizationId: string,
+  role?: AiRole
+): Promise<OrderedTextChainPolicy & { provider: 'openai' | 'openrouter'; primaryModel: string }> => {
+  const config = await requireActiveAiConfig(organizationId);
+  const chosen = activeRole(role);
+  const primaryModel = modelFor(chosen, config);
+  const policy = resolveOrderedTextChainPolicy(config.textChain, {
+    provider: config.provider,
+    usageMode: config.usageMode,
+    primaryModel,
+    hasKey: Boolean(config.apiKey),
+  });
+  return {
+    ...policy,
+    provider: config.provider,
+    primaryModel,
+  };
+};
+
+/**
+ * Builds the native Mastra `ModelWithRetries[]` array for the conductor agent
+ * (`on0i.5`, `A16`, `A29`, `A30`). Each entry in the ordered chain uses the
+ * organization's metered single-attempt transport so Mastra's native model
+ * fallback loop and `StreamErrorRetryProcessor` own retries and model failover
+ * without duplicating attempts inside `fetch`.
+ */
+export const getMastraAgentModelEntries = async (
+  organizationId: string,
+  role?: AiRole
+): Promise<{
+  entries: MastraModelEntry[];
+  policy: OrderedTextChainPolicy;
+  provider: 'openai' | 'openrouter';
+  primaryModel: string;
+}> => {
+  const config = await requireActiveAiConfig(organizationId);
+  const chosen = activeRole(role);
+  const primaryModel = modelFor(chosen, config);
+  const policy = resolveOrderedTextChainPolicy(config.textChain, {
+    provider: config.provider,
+    usageMode: config.usageMode,
+    primaryModel,
+    hasKey: Boolean(config.apiKey),
+  });
+  const primaryProvider = mastraPrimarySdkMemo(
+    identity(organizationId, config, 'mastra-primary'),
+    () =>
+      createOpenAI({
+        apiKey: config.apiKey,
+        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+        fetch: createTextChainFetch({
+          ...chainSourceOf(config),
+          profile: 'interactive',
+          singleModelAttempt: true,
+        }),
+      })
+  );
+  const fallbackProvider = mastraFallbackSdkMemo(
+    identity(organizationId, config, 'mastra-fallback'),
+    () =>
+      createOpenAI({
+        apiKey: config.apiKey,
+        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+        fetch: createTextChainFetch({
+          ...chainSourceOf(config),
+          textChain: config.textChain
+            ? { ...config.textChain, flex: false }
+            : { flex: false, fallbackModel: '', fallbackModels: [], fallbackDisabled: true },
+          profile: 'interactive',
+          singleModelAttempt: true,
+        }),
+      })
+  );
+  const chainModels =
+    policy.effectiveChain.length > 0
+      ? policy.effectiveChain.map((entry) => entry.model)
+      : [primaryModel];
+  const entries: MastraModelEntry[] = chainModels.map((modelId, index) => ({
+    id: `${config.provider}/${modelId}`,
+    model: (index === 0 ? primaryProvider : fallbackProvider).chat(modelId),
+    maxRetries: 0,
+    enabled: true,
+  }));
+  return {
+    entries,
+    policy,
+    provider: config.provider,
+    primaryModel,
+  };
+};
+
+/**
+ * Builds a metered `MastraDecisionModel` V4 adapter backed by the `classify`
+ * role for `ModelSelectionProcessor` (`on0i.5`, `A16`, `A17`). Calls flow
+ * through `getOpenAiClient(organizationId)` so token usage, cost, and failed
+ * or possibly-billed attempts are recorded in the active operation ledger.
+ */
+export const getClassifyDecisionModel = async (
+  organizationId: string
+): Promise<MastraDecisionModelInterface> => {
+  const config = await requireActiveAiConfig(organizationId);
+  const classifyModelId = modelFor('classify', config);
+  const decisionModel: MastraDecisionModelInterface = {
+    specificationVersion: 'v4',
+    provider: config.provider,
+    modelId: classifyModelId,
+    supportedQuestionTypes: ['choice', 'score', 'boolean'],
+    doEvaluate(options) {
+      return this.doDecide(options);
+    },
+    doDecide: async (options) => {
+      const client = await getOpenAiClient(organizationId);
+      const completion = await client.chat.completions.create(
+        {
+          model: classifyModelId,
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a deterministic routing classifier. Return JSON with top-level key "answers" mapping each questionId to its decision object.',
+            },
+            {
+              role: 'user',
+              content: JSON.stringify({
+                state: options.state,
+                questions: options.questions,
+              }),
+            },
+          ],
+        },
+        options.abortSignal ? { signal: options.abortSignal } : undefined
+      );
+      const rawText = completion.choices?.[0]?.message?.content ?? '{}';
+      const parsed = JSON.parse(rawText) as {
+        answers?: Record<string, Record<string, unknown>>;
+      };
+      const rawAnswers = parsed.answers ?? (parsed as Record<string, Record<string, unknown>>);
+      const answers: Record<string, any> = {};
+      for (const [questionId, question] of Object.entries(options.questions)) {
+        const candidate = rawAnswers?.[questionId] ?? {};
+        if (question.type === 'choice') {
+          const criteriaKeys = Object.keys(question.criteria ?? {});
+          const chosen =
+            typeof candidate.choice === 'string' && criteriaKeys.includes(candidate.choice)
+              ? candidate.choice
+              : criteriaKeys[0];
+          const rawProbs =
+            candidate.probabilities && typeof candidate.probabilities === 'object'
+              ? (candidate.probabilities as Record<string, unknown>)
+              : undefined;
+          let probabilities: Record<string, number> | undefined;
+          if (rawProbs && criteriaKeys.length > 0) {
+            const nums = criteriaKeys.map((key) => {
+              const val = Number(rawProbs[key]);
+              return Number.isFinite(val) && val >= 0 ? val : 0;
+            });
+            const total = nums.reduce((a, b) => a + b, 0);
+            if (total > 0) {
+              probabilities = {};
+              let running = 0;
+              criteriaKeys.forEach((key, idx) => {
+                if (idx === criteriaKeys.length - 1) {
+                  probabilities![key] = Math.max(0, Number((1 - running).toFixed(6)));
+                } else {
+                  const norm = Number((nums[idx] / total).toFixed(6));
+                  probabilities![key] = norm;
+                  running += norm;
+                }
+              });
+            }
+          }
+          answers[questionId] = {
+            type: 'choice',
+            choice: chosen,
+            ...(probabilities ? { probabilities } : {}),
+          };
+        } else if (question.type === 'boolean') {
+          const prob = Number(candidate.probability);
+          answers[questionId] = {
+            type: 'boolean',
+            probability: Number.isFinite(prob) ? Math.min(Math.max(prob, 0), 1) : 0.5,
+          };
+        } else if (question.type === 'score') {
+          const score = Number(candidate.score);
+          answers[questionId] = {
+            type: 'score',
+            score: Number.isFinite(score) ? score : 0,
+          };
+        }
+      }
+      return {
+        answers: answers as any,
+        usage: {
+          inputTokens: completion.usage?.prompt_tokens ?? 0,
+          outputTokens: completion.usage?.completion_tokens ?? 0,
+        },
+        warnings: [],
+        response: {
+          id: completion.id,
+          timestamp: new Date(),
+          modelId: completion.model || classifyModelId,
+        },
+      };
+    },
+  };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { MastraDecisionModel } = require('@mastra/core/classifier');
+    return new MastraDecisionModel(decisionModel);
+  } catch {
+    return decisionModel;
+  }
 };
 
 export interface WebSearchResponse {

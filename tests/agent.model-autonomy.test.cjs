@@ -109,4 +109,148 @@ describe('model-led tools keep original goals and actual research outcomes', () 
     expect(result.output.card).toBeUndefined();
     expect(research).toHaveBeenCalledTimes(1);
   });
+
+  test('A7: 100-source 476k-char research.search stays compact in toModelOutput while piece.read inspects full source #99 on demand', async () => {
+    const sources = Array.from({ length: 100 }, (_, i) => ({
+      url: `https://example.test/source-${i}`,
+      title: `Source #${i}`,
+      content: `Header for source #${i}. ` + `body-${i}-`.repeat(580) + ` TAIL_MARKER_SOURCE_${i}`,
+    }));
+    const facts = Array.from({ length: 100 }, (_, i) => ({
+      factKey: `fact-${i}`,
+      text: `Statement for fact #${i}: ` + `detail-${i}-`.repeat(30),
+      sourceUrl: `https://example.test/source-${i}`,
+      quote: `Quote from source #${i}: ` + `quote-${i}-`.repeat(25),
+      status: 'confirmed',
+      verified: true,
+    }));
+    const totalRawChars = sources.reduce((sum, s) => sum + s.content.length, 0);
+    expect(totalRawChars).toBeGreaterThan(450_000);
+
+    const research = jest.fn(async () => ({
+      summary: '100-source synthesis.',
+      facts,
+      sources,
+      readerAssessment: { status: 'sufficient' },
+    }));
+    const searchTool = tool('research.search', { WebResearchService: { research } });
+    const searchResult = await executeTool(searchTool, { query: '100-source investigation', depth: 'deep' }, {
+      requestContext: requestContextFor(registry),
+    });
+    expect(searchResult.output.ok).toBe(true);
+    const modelOutput = searchTool.toModelOutput(searchResult.output);
+    const serializedModelOutput = JSON.stringify(modelOutput);
+    expect(serializedModelOutput.length).toBeLessThan(95_000);
+
+    const value = summary(searchResult.output);
+    expect(value.sourceCount).toBe(100);
+    expect(value.sources).toHaveLength(100);
+    expect(value.facts).toHaveLength(100);
+    expect(value.sources[99]).toMatchObject({
+      sourceIndex: 99,
+      url: 'https://example.test/source-99',
+      truncated: true,
+      readWith: 'piece.read',
+    });
+    expect(value.sources[99].excerpt).not.toContain('TAIL_MARKER_SOURCE_99');
+
+    const firstChunk = summary((await run('piece.read', {
+      researchId: value.snapshotKey,
+      part: 'research_source',
+      sourceIndex: 99,
+      length: 3_000,
+    }, {})).output);
+    expect(firstChunk).toMatchObject({
+      part: 'research_source',
+      sourceIndex: 99,
+      sourceUrl: 'https://example.test/source-99',
+      truncated: true,
+      nextOffset: 3_000,
+    });
+    const secondChunk = summary((await run('piece.read', {
+      researchId: value.snapshotKey,
+      part: 'research_source',
+      sourceIndex: 99,
+      offset: firstChunk.nextOffset,
+      revision: firstChunk.revision,
+    }, {})).output);
+    expect(secondChunk.text).toContain('TAIL_MARKER_SOURCE_99');
+    expect(secondChunk.truncated).toBe(false);
+
+    const foreignContext = requestContextFor(registry, {
+      organizationId: 'org-foreign',
+      organizationCreatedAt: '2026-01-01T00:00:00.000Z',
+      userId: 'user-foreign',
+      role: 'EDITOR',
+      language: 'ru',
+      timeZone: 'Europe/Moscow',
+    });
+    const foreignAttempt = await executeTool(tool('piece.read', {}), {
+      researchId: value.snapshotKey,
+      part: 'research_source',
+      sourceIndex: 99,
+    }, { requestContext: foreignContext });
+    expect(foreignAttempt.output.ok).toBe(false);
+  });
+
+  test('A4: completed research.search is reused by piece.create and piece.create.from-research without running a second search', async () => {
+    const research = jest.fn(async () => ({
+      summary: 'Verified release notes.',
+      facts: [
+        { factKey: 'res-f1', text: 'Mastra 1.78 adds native Session.', sourceUrl: 'https://example.test/mastra-1-78', quote: 'Mastra 1.78 adds native Session.' },
+        { factKey: 'res-f2', text: 'StreamErrorRetryProcessor retries mid-stream errors.', sourceUrl: 'https://example.test/retry', quote: 'StreamErrorRetryProcessor retries mid-stream errors.' },
+      ],
+      sources: [
+        { url: 'https://example.test/mastra-1-78', title: 'Mastra 1.78 Release', content: 'Full release notes for Mastra 1.78.' },
+      ],
+      readerAssessment: { status: 'sufficient' },
+    }));
+    const searchResult = await run('research.search', { query: 'Mastra 1.78 changes' }, { WebResearchService: { research } });
+    const snapshotKey = summary(searchResult.output).snapshotKey;
+    expect(snapshotKey).toMatch(/^res_/);
+    expect(research).toHaveBeenCalledTimes(1);
+
+    const prepare = jest.fn(async (_org, body) => ({ body }));
+    const intakeRun = jest.fn(async function* (orgId, userId, prepared) {
+      yield { name: 'piece', pieceId: 'piece-from-research', code: 'cnt-42' };
+      yield { name: 'done', pieceId: 'piece-from-research' };
+    });
+    const services = {
+      WebResearchService: { research },
+      IntakeService: { prepare, run: intakeRun },
+    };
+
+    const createdViaPieceCreate = await run('piece.create', {
+      text: 'Write an overview of Mastra 1.78 from the completed research.',
+      researchId: snapshotKey,
+      factId: ['res-f1'],
+    }, services);
+    expect(summary(createdViaPieceCreate.output)).toMatchObject({
+      outcome: 'created',
+      pieceId: 'piece-from-research',
+      reusedResearchId: snapshotKey,
+    });
+    expect(prepare).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        researchDepth: 'none',
+        contextMaterial: expect.stringContaining('Mastra 1.78 adds native Session.'),
+      }),
+      { researchSelectionPolicy: 'model' },
+    );
+    expect(research).toHaveBeenCalledTimes(1);
+
+    const createdViaFromResearch = await run('piece.create.from-research', {
+      snapshotKey,
+      factKeys: ['res-f2'],
+      text: 'Focus on StreamErrorRetryProcessor.',
+    }, services);
+    expect(summary(createdViaFromResearch.output)).toMatchObject({
+      outcome: 'created',
+      pieceId: 'piece-from-research',
+      reusedResearchId: snapshotKey,
+      selectionOrigin: 'model',
+    });
+    expect(research).toHaveBeenCalledTimes(1);
+  });
 });

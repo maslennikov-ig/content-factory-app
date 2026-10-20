@@ -166,3 +166,24 @@ resolved intent before digest; requestless legacy is unchanged. The positive
 case retains three admitted facts without inventing a reporting interval.
 All52 affected suites and1070 tests pass. The final exact-source nine-command
 release acceptance and corrected production browser control remain required.
+
+
+## Corrected production acceptance
+
+Exact source adb43f973576 passed all nine release checks:698 Jest suites,
+12619 tests;126 Node passes/zero failures;50 Python tests. Existing74 skipped
+cases remain enumerated in the receipt. Public dd89af1b4a29 is built and
+deployed from that verified tree. The actual own-account natural request
+completed in95.751seconds after admission, naturally selecting four admitted
+facts through piece_create_from-research, saving one piece and opening/reading
+it. Actual partial coverage is preserved; no private questions were asked. All
+six usage rows succeeded with known costs and no possibly-billed flag. The
+second independent chat answered without tools. All13browser checks pass and
+the original messages/pending/workspace remain exact. The saved four changes
+and date were independently checked against official SQLite release notes.
+Schema preflights before/after are empty and never applied; fresh database and
+foreign-workload fingerprints are unchanged. Canonical retention keeps DD and
+verified888, removes only our old C4A/da82 tags and four old config copies. Three
+hash-verified owned schema helper files and the disposable session were removed.
+The earlier incomplete controls remain diagnostics; see production-delivery.md
+and evidence/root-acceptance.json for current proof and canonical task readback.

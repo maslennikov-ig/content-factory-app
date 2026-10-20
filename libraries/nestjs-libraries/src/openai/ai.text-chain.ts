@@ -77,21 +77,232 @@ const CHAIN_BUDGET_MARGIN_MS = 5_000;
 
 export const DEFAULT_TEXT_FALLBACK_MODEL = 'z-ai/glm-5.3';
 export const DEFAULT_TEXT_FLEX_ENABLED = true;
+export const DEFAULT_TEXT_MAX_RETRIES = 0;
+export const MAX_TEXT_FALLBACK_MODELS = 8;
+export const MAX_TEXT_MODEL_RETRIES = 5;
 
-/** What the operator set on the instance row; absent reads as the defaults. */
+/** What the operator or workspace set on the row; absent reads as the defaults. */
 export interface TextChainSettings {
   flex: boolean;
   /**
    * Empty here means «no fallback model». The stored column cannot express
-   * that: an empty column reads as the default (`resolveTextChainSettings`).
+   * that by a plain empty string: an empty column reads as the default
+   * (`resolveTextChainSettings`), while an explicit empty `fallbackModels: []`
+   * or JSON envelope with `disabled: true` switches fallback off (`on0i.5`).
    */
   fallbackModel: string;
+  /** Ordered list of configured fallback models (`on0i.5`, `A29`). */
+  fallbackModels?: readonly string[];
+  /** Explicit empty fallback chain (`[]`), distinct from inheriting the default. */
+  fallbackDisabled?: boolean;
+  /** Per-model retry count before advancing to the next fallback model (`0..5`). */
+  maxRetries?: number;
+}
+
+export type FallbackUnavailableReason =
+  | 'missing_key'
+  | 'incompatible_provider'
+  | 'duplicate_of_primary'
+  | 'duplicate_in_chain';
+
+export interface OrderedTextChainPolicy {
+  flex: boolean;
+  fallbackModel: string;
+  fallbackModels: string[];
+  configuredFallbackModels: string[];
+  fallbackDisabled: boolean;
+  inheritedDefault: boolean;
+  maxRetries: number;
+  effectiveChain: Array<{
+    model: string;
+    role: 'primary' | 'fallback';
+    flex: boolean;
+    maxRetries: number;
+  }>;
+  unavailableModels: Array<{
+    model: string;
+    reason: FallbackUnavailableReason;
+  }>;
 }
 
 export const defaultTextChainSettings = (): TextChainSettings => ({
   flex: DEFAULT_TEXT_FLEX_ENABLED,
   fallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
 });
+
+const normalizeModelList = (raw: unknown): string[] => {
+  if (!Array.isArray(raw)) return [];
+  const models: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (!trimmed || trimmed.length > 200) continue;
+    models.push(trimmed);
+    if (models.length >= MAX_TEXT_FALLBACK_MODELS) break;
+  }
+  return models;
+};
+
+const clampMaxRetries = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.min(MAX_TEXT_MODEL_RETRIES, Math.max(0, Math.floor(value)));
+};
+
+interface StoredFallbackEnvelopeV1 {
+  version: 1;
+  models: string[];
+  disabled?: boolean;
+  maxRetries?: number;
+}
+
+export const parseStoredTextFallback = (
+  raw?: string | null
+): {
+  models: string[];
+  disabled: boolean;
+  inheritedDefault: boolean;
+  maxRetries?: number;
+  structured: boolean;
+} => {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) {
+    return {
+      models: [DEFAULT_TEXT_FALLBACK_MODEL],
+      disabled: false,
+      inheritedDefault: true,
+      structured: false,
+    };
+  }
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as Partial<StoredFallbackEnvelopeV1>;
+      if (parsed && typeof parsed === 'object' && parsed.version === 1) {
+        const models = normalizeModelList(parsed.models);
+        const disabled = parsed.disabled === true || models.length === 0;
+        const maxRetries = clampMaxRetries(parsed.maxRetries);
+        return {
+          models: disabled ? [] : models,
+          disabled,
+          inheritedDefault: false,
+          ...(maxRetries !== undefined ? { maxRetries } : {}),
+          structured: true,
+        };
+      }
+    } catch {
+      /* Fall back to treating non-envelope strings as a single model id. */
+    }
+  }
+  return {
+    models: [trimmed],
+    disabled: false,
+    inheritedDefault: false,
+    structured: false,
+  };
+};
+
+/**
+ * Serializes ordered fallback settings into the existing nullable
+ * `textFallbackModel` column without requiring a database schema migration.
+ * Single-model configurations with default retry settings stay plain strings
+ * so legacy readers and tests see the exact model id.
+ */
+export const serializeTextFallbackColumn = (input: {
+  textFallbackModel?: string | null;
+  textFallbackModels?: readonly string[] | null;
+  textFallbackDisabled?: boolean | null;
+  textMaxRetries?: number | null;
+  currentColumn?: string | null;
+}): string | null | undefined => {
+  const hasModelsArray = Array.isArray(input.textFallbackModels);
+  const hasSingleString = input.textFallbackModel !== undefined;
+  const hasDisabledFlag = typeof input.textFallbackDisabled === 'boolean';
+  const hasMaxRetries = input.textMaxRetries !== undefined && input.textMaxRetries !== null;
+  if (!hasModelsArray && !hasSingleString && !hasDisabledFlag && !hasMaxRetries) {
+    return undefined;
+  }
+
+  const existing = parseStoredTextFallback(input.currentColumn);
+  const maxRetries = hasMaxRetries
+    ? clampMaxRetries(input.textMaxRetries)
+    : existing.maxRetries;
+
+  if (input.textFallbackDisabled === true || (hasModelsArray && normalizeModelList(input.textFallbackModels).length === 0)) {
+    const envelope: StoredFallbackEnvelopeV1 = {
+      version: 1,
+      models: [],
+      disabled: true,
+      ...(maxRetries !== undefined && maxRetries > 0 ? { maxRetries } : {}),
+    };
+    return JSON.stringify(envelope);
+  }
+
+  if (hasModelsArray) {
+    const models = normalizeModelList(input.textFallbackModels);
+    if (models.length === 1 && (!maxRetries || maxRetries === 0)) {
+      return models[0];
+    }
+    const envelope: StoredFallbackEnvelopeV1 = {
+      version: 1,
+      models,
+      disabled: false,
+      ...(maxRetries !== undefined && maxRetries > 0 ? { maxRetries } : {}),
+    };
+    return JSON.stringify(envelope);
+  }
+
+  if (hasSingleString) {
+    const single = (input.textFallbackModel || '').trim();
+    if (!single) {
+      if (hasMaxRetries && maxRetries !== undefined && maxRetries > 0) {
+        return JSON.stringify({
+          version: 1,
+          models: [DEFAULT_TEXT_FALLBACK_MODEL],
+          disabled: false,
+          maxRetries,
+        } satisfies StoredFallbackEnvelopeV1);
+      }
+      return null;
+    }
+    const parsedSingle = parseStoredTextFallback(single);
+    if (parsedSingle.structured) {
+      return single;
+    }
+    if (maxRetries !== undefined && maxRetries > 0) {
+      return JSON.stringify({
+        version: 1,
+        models: [single],
+        disabled: false,
+        maxRetries,
+      } satisfies StoredFallbackEnvelopeV1);
+    }
+    return single;
+  }
+
+  // Only `textMaxRetries` changed: preserve existing models.
+  if (existing.inheritedDefault && (!maxRetries || maxRetries === 0)) {
+    return null;
+  }
+  if (!existing.disabled && existing.models.length === 1 && (!maxRetries || maxRetries === 0) && !existing.structured) {
+    return existing.models[0];
+  }
+  return JSON.stringify({
+    version: 1,
+    models: existing.disabled ? [] : existing.models,
+    disabled: existing.disabled,
+    ...(maxRetries !== undefined && maxRetries > 0 ? { maxRetries } : {}),
+  } satisfies StoredFallbackEnvelopeV1);
+};
+
+export const readWorkspaceTextChainColumn = (
+  roleModelsJson: unknown
+): string | null => {
+  if (!roleModelsJson || typeof roleModelsJson !== 'object' || Array.isArray(roleModelsJson)) {
+    return null;
+  }
+  const raw = (roleModelsJson as Record<string, unknown>).__textChain;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+};
+
 
 /**
  * The instance row's two nullable columns resolved to settings. `null` means
@@ -102,14 +313,228 @@ export const defaultTextChainSettings = (): TextChainSettings => ({
 export const resolveTextChainSettings = (row?: {
   textFlexEnabled?: boolean | null;
   textFallbackModel?: string | null;
-} | null): TextChainSettings => ({
-  flex:
+  textFallbackModels?: readonly string[] | null;
+  textFallbackDisabled?: boolean | null;
+  textMaxRetries?: number | null;
+} | null): TextChainSettings => {
+  const flex =
     typeof row?.textFlexEnabled === 'boolean'
       ? row.textFlexEnabled
-      : DEFAULT_TEXT_FLEX_ENABLED,
-  fallbackModel:
-    (row?.textFallbackModel || '').trim() || DEFAULT_TEXT_FALLBACK_MODEL,
-});
+      : DEFAULT_TEXT_FLEX_ENABLED;
+  const hasExplicitArray = Array.isArray(row?.textFallbackModels);
+  const hasExplicitDisabled = typeof row?.textFallbackDisabled === 'boolean';
+  const explicitMaxRetries = clampMaxRetries(row?.textMaxRetries);
+  const parsed = parseStoredTextFallback(row?.textFallbackModel);
+
+  if (!hasExplicitArray && !hasExplicitDisabled && explicitMaxRetries === undefined && !parsed.structured) {
+    return {
+      flex,
+      fallbackModel: parsed.models[0] || DEFAULT_TEXT_FALLBACK_MODEL,
+    };
+  }
+
+  const fallbackModels = hasExplicitArray
+    ? normalizeModelList(row?.textFallbackModels)
+    : parsed.models;
+  const fallbackDisabled =
+    row?.textFallbackDisabled === true ||
+    (hasExplicitArray ? fallbackModels.length === 0 : parsed.disabled);
+  const effectiveModels = fallbackDisabled ? [] : fallbackModels;
+  const maxRetries = explicitMaxRetries ?? parsed.maxRetries;
+
+  return {
+    flex,
+    fallbackModel: effectiveModels[0] ?? '',
+    fallbackModels: effectiveModels,
+    fallbackDisabled,
+    ...(maxRetries !== undefined ? { maxRetries } : {}),
+  };
+};
+
+/**
+ * Checks whether a model identifier is compatible with the selected provider.
+ * Direct OpenAI API (`provider === 'openai'`) rejects vendor-namespaced
+ * OpenRouter model ids containing `/` (such as `z-ai/glm-5.3` or
+ * `anthropic/claude-sonnet-4`).
+ */
+export const isModelCompatibleWithProvider = (
+  model: string,
+  provider: 'openai' | 'openrouter'
+): boolean => {
+  const trimmed = model.trim();
+  if (!trimmed) return false;
+  if (provider === 'openai') {
+    return !trimmed.includes('/');
+  }
+  return true;
+};
+
+/**
+ * Resolves the full ordered fallback & retry policy (`on0i.5`, `A29`),
+ * including provider/key eligibility filtering and unavailable reasons.
+ */
+export const resolveOrderedTextChainPolicy = (
+  rowOrSettings?:
+    | TextChainSettings
+    | {
+        textFlexEnabled?: boolean | null;
+        textFallbackModel?: string | null;
+        textFallbackModels?: readonly string[] | null;
+        textFallbackDisabled?: boolean | null;
+        textMaxRetries?: number | null;
+      }
+    | null,
+  options?: {
+    provider?: 'openai' | 'openrouter';
+    usageMode?: 'included' | 'workspace_key';
+    primaryModel?: string | null;
+    hasKey?: boolean;
+  }
+): OrderedTextChainPolicy => {
+  const provider = options?.provider ?? 'openrouter';
+  const usageMode = options?.usageMode ?? 'included';
+  const primaryModel = (options?.primaryModel || '').trim();
+  const hasKey = options?.hasKey ?? true;
+
+  let flex = DEFAULT_TEXT_FLEX_ENABLED;
+  let configuredFallbackModels: string[] = [];
+  let fallbackDisabled = false;
+  let inheritedDefault = true;
+  let maxRetries = DEFAULT_TEXT_MAX_RETRIES;
+
+  if (rowOrSettings && ('flex' in rowOrSettings || 'fallbackModel' in rowOrSettings)) {
+    const settings = rowOrSettings as TextChainSettings;
+    flex = typeof settings.flex === 'boolean' ? settings.flex : DEFAULT_TEXT_FLEX_ENABLED;
+    maxRetries = clampMaxRetries(settings.maxRetries) ?? DEFAULT_TEXT_MAX_RETRIES;
+    if (settings.fallbackDisabled === true) {
+      fallbackDisabled = true;
+      inheritedDefault = false;
+      configuredFallbackModels = [];
+    } else if (Array.isArray(settings.fallbackModels)) {
+      configuredFallbackModels = normalizeModelList(settings.fallbackModels);
+      fallbackDisabled = configuredFallbackModels.length === 0;
+      inheritedDefault = false;
+    } else {
+      const single = (settings.fallbackModel || '').trim();
+      if (!single) {
+        fallbackDisabled = true;
+        inheritedDefault = false;
+        configuredFallbackModels = [];
+      } else {
+        configuredFallbackModels = [single];
+        fallbackDisabled = false;
+        inheritedDefault = single === DEFAULT_TEXT_FALLBACK_MODEL;
+      }
+    }
+  } else {
+    const resolved = resolveTextChainSettings(
+      (rowOrSettings as {
+        textFlexEnabled?: boolean | null;
+        textFallbackModel?: string | null;
+        textFallbackModels?: readonly string[] | null;
+        textFallbackDisabled?: boolean | null;
+        textMaxRetries?: number | null;
+      } | null) ?? null
+    );
+    const parsed = parseStoredTextFallback(
+      (rowOrSettings as { textFallbackModel?: string | null } | null)?.textFallbackModel
+    );
+    const hasExplicitModels = Array.isArray(
+      (rowOrSettings as { textFallbackModels?: readonly string[] | null } | null)?.textFallbackModels
+    );
+    const hasExplicitDisabled =
+      typeof (rowOrSettings as { textFallbackDisabled?: boolean | null } | null)?.textFallbackDisabled ===
+      'boolean';
+    flex = resolved.flex;
+    maxRetries = clampMaxRetries(resolved.maxRetries) ?? DEFAULT_TEXT_MAX_RETRIES;
+    fallbackDisabled = resolved.fallbackDisabled === true;
+    inheritedDefault =
+      !hasExplicitModels && !hasExplicitDisabled && !parsed.structured && parsed.inheritedDefault;
+    configuredFallbackModels = fallbackDisabled
+      ? []
+      : resolved.fallbackModels
+      ? [...resolved.fallbackModels]
+      : resolved.fallbackModel
+      ? [resolved.fallbackModel]
+      : [];
+  }
+
+  // Inherited operator default applies only on `included` + `openrouter`;
+  // explicit fallback chains apply in both modes after provider/key validation.
+  const candidateModels =
+    inheritedDefault && (usageMode !== 'included' || provider !== 'openrouter')
+      ? []
+      : configuredFallbackModels;
+
+  const eligibleFallbacks: string[] = [];
+  const unavailableModels: Array<{ model: string; reason: FallbackUnavailableReason }> = [];
+  const seen = new Set<string>();
+
+  for (const candidate of candidateModels) {
+    if (!hasKey) {
+      unavailableModels.push({ model: candidate, reason: 'missing_key' });
+      continue;
+    }
+    if (!isModelCompatibleWithProvider(candidate, provider)) {
+      unavailableModels.push({ model: candidate, reason: 'incompatible_provider' });
+      continue;
+    }
+    if (primaryModel && candidate === primaryModel) {
+      unavailableModels.push({ model: candidate, reason: 'duplicate_of_primary' });
+      continue;
+    }
+    if (seen.has(candidate)) {
+      unavailableModels.push({ model: candidate, reason: 'duplicate_in_chain' });
+      continue;
+    }
+    seen.add(candidate);
+    eligibleFallbacks.push(candidate);
+  }
+
+  const effectiveChain: OrderedTextChainPolicy['effectiveChain'] = [];
+  if (primaryModel && hasKey && isModelCompatibleWithProvider(primaryModel, provider)) {
+    effectiveChain.push({
+      model: primaryModel,
+      role: 'primary',
+      flex:
+        flex &&
+        usageMode === 'included' &&
+        provider === 'openrouter' &&
+        primaryModel.startsWith('openai/'),
+      maxRetries,
+    });
+  }
+  for (const fallback of eligibleFallbacks) {
+    effectiveChain.push({
+      model: fallback,
+      role: 'fallback',
+      flex: false,
+      maxRetries,
+    });
+  }
+
+  return {
+    flex,
+    fallbackModel: eligibleFallbacks[0] ?? '',
+    fallbackModels: eligibleFallbacks,
+    configuredFallbackModels,
+    fallbackDisabled,
+    inheritedDefault,
+    maxRetries,
+    effectiveChain,
+    unavailableModels,
+  };
+};
+
+export const textChainFingerprint = (settings?: TextChainSettings): string => {
+  if (!settings) return '';
+  const models = Array.isArray(settings.fallbackModels)
+    ? settings.fallbackModels.join(',')
+    : settings.fallbackModel ?? '';
+  return `${settings.flex}|${models}|${settings.fallbackDisabled ? 'disabled' : 'enabled'}|${
+    settings.maxRetries ?? ''
+  }`;
+};
 
 /** The part of a resolved configuration the transport reads. */
 export interface TextChainSource {
@@ -136,6 +561,13 @@ export interface TextChainSource {
    * within twice the caller's cap (`lengthRetryCap`).
    */
   outputLimits?: Readonly<Record<string, number>>;
+  /**
+   * When true, Mastra's native `ModelWithRetries[]` and `StreamErrorRetryProcessor`
+   * own model retries and fallback transitions (`on0i.5`), while this transport
+   * still owns per-attempt metering, deadlines, abort propagation, and (for a
+   * flex-capable primary model on included OpenRouter) the single initial flex try.
+   */
+  singleModelAttempt?: boolean;
 }
 
 export interface TextAttempt {
@@ -147,16 +579,29 @@ export interface TextAttempt {
 }
 
 /**
- * The chain runs only where the bill is ours and the provider is OpenRouter.
- *
- * On `workspace_key` the key and the model belong to the workspace. Tier
- * choice, a second model and an effort level would each change what the
- * workspace pays for, so its calls leave as they did — except a capped
- * text call, whose ceiling gets the reasoning headroom (`withHeadroomInit`). The
- * `openai` provider has no GLM and no OpenRouter routing either.
+ * The default operator chain runs where the bill is ours and the provider is
+ * OpenRouter. When a workspace or operator explicitly configures an ordered
+ * fallback list (`fallbackModels`) or per-model `maxRetries`, the chain also
+ * applies to compatible models for that provider (`on0i.5`, `A29`).
  */
-export const textChainApplies = (source: TextChainSource): boolean =>
-  source.usageMode === 'included' && source.provider === 'openrouter';
+export const textChainApplies = (source: TextChainSource): boolean => {
+  if (source.singleModelAttempt) {
+    return true;
+  }
+  if (source.usageMode === 'included' && source.provider === 'openrouter') {
+    return true;
+  }
+  const settings = source.textChain;
+  if (!settings) return false;
+  const hasExplicitFallbacks =
+    Array.isArray(settings.fallbackModels) &&
+    settings.fallbackModels.some((model) =>
+      isModelCompatibleWithProvider(model, source.provider)
+    );
+  const hasExplicitRetries =
+    typeof settings.maxRetries === 'number' && settings.maxRetries > 0;
+  return hasExplicitFallbacks || hasExplicitRetries;
+};
 
 /**
  * Luna-family ids take `reasoning.effort`. GLM gets nothing: OpenRouter's
@@ -184,8 +629,43 @@ export const planTextAttempts = (
     ];
   }
   const settings = source.textChain ?? defaultTextChainSettings();
+  if (source.singleModelAttempt) {
+    const singleSteps: Array<Omit<TextAttempt, 'number'>> = [];
+    if (
+      settings.flex &&
+      source.usageMode === 'included' &&
+      source.provider === 'openrouter' &&
+      flexCapable(model)
+    ) {
+      singleSteps.push({
+        model,
+        flex: true,
+        timeoutMs:
+          source.profile === 'interactive'
+            ? INTERACTIVE_FLEX_TIMEOUT_MS
+            : FLEX_ATTEMPT_TIMEOUT_MS,
+      });
+    }
+    singleSteps.push({
+      model,
+      flex: false,
+      timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
+    });
+    return singleSteps.map((step, index) => ({ ...step, number: index + 1 }));
+  }
+  const policy = resolveOrderedTextChainPolicy(settings, {
+    provider: source.provider,
+    usageMode: source.usageMode,
+    primaryModel: model,
+    hasKey: true,
+  });
   const steps: Array<Omit<TextAttempt, 'number'>> = [];
-  if (settings.flex && flexCapable(model)) {
+  if (
+    settings.flex &&
+    source.usageMode === 'included' &&
+    source.provider === 'openrouter' &&
+    flexCapable(model)
+  ) {
     // One flex attempt (`97dq.94`): the interactive chat keeps its shorter
     // time to first token.
     steps.push({
@@ -197,14 +677,18 @@ export const planTextAttempts = (
           : FLEX_ATTEMPT_TIMEOUT_MS,
     });
   }
-  steps.push({ model, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS });
-  const fallback = settings.fallbackModel.trim();
-  if (fallback && fallback !== model) {
-    steps.push({
-      model: fallback,
-      flex: false,
-      timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
-    });
+  const standardTriesPerModel = 1 + policy.maxRetries;
+  for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
+    steps.push({ model, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS });
+  }
+  for (const fallback of policy.fallbackModels) {
+    for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
+      steps.push({
+        model: fallback,
+        flex: false,
+        timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
+      });
+    }
   }
   return steps.map((step, index) => ({ ...step, number: index + 1 }));
 };
@@ -261,8 +745,18 @@ export const textChainBudgetMs = (
 export const maxTextChainBudgetMs = (source: TextChainSource): number => {
   if (!textChainApplies(source)) return STANDARD_ATTEMPT_TIMEOUT_MS;
   const settings = source.textChain ?? defaultTextChainSettings();
+  const policy = resolveOrderedTextChainPolicy(settings, {
+    provider: source.provider,
+    usageMode: source.usageMode,
+    hasKey: true,
+  });
+  const standardTriesPerModel = 1 + policy.maxRetries;
+  const flexAttempts =
+    settings.flex && source.usageMode === 'included' && source.provider === 'openrouter'
+      ? 1
+      : 0;
   const attempts =
-    (settings.flex ? 1 : 0) + 1 + (settings.fallbackModel.trim() ? 1 : 0);
+    flexAttempts + standardTriesPerModel * (1 + policy.fallbackModels.length);
   // Every attempt window is at least the generation maximum for an unknown cap.
   return CHAIN_BUDGET_MARGIN_MS + 2 * attempts * MAX_GENERATION_TIMEOUT_MS;
 };
@@ -453,6 +947,8 @@ export const currentAiExecutionTimeoutMs = () => {
   const execution = executionUsage.getStore();
   return execution?.signal && execution.beforeProviderCall ? execution.maxDurationMs : undefined;
 };
+
+export const currentAiExecutionSignal = () => executionUsage.getStore()?.signal;
 
 export const usesAiOperationResearchAdmission = () => {
   const observer = executionUsage.getStore();
@@ -1207,6 +1703,10 @@ const sendText = (
       // A tier refusal will not change on the second flex attempt (F18).
       if (flexRefused && attempt.flex) continue;
       assertAiExecutionBudget();
+      const recordedAttempt =
+        source.singleModelAttempt && ledger
+          ? { ...attempt, number: ledger.calls.length + 1 }
+          : attempt;
       const startedAt = Date.now();
       try {
         return await runAttempt(
@@ -1215,23 +1715,24 @@ const sendText = (
           init,
           buildAttemptBody(
             original,
-            attempt,
-            source.outputLimits?.[attempt.model]
+            recordedAttempt,
+            source.outputLimits?.[recordedAttempt.model]
           ),
-          attempt,
+          recordedAttempt,
           attempt.number === attempts.length,
           streaming,
-          ledger
+          ledger,
+          source.singleModelAttempt === true
         );
       } catch (error) {
         // Only a retryable failure of a non-final attempt is caught here.
         if (error instanceof RetryableAttempt) {
           console.warn(
-            textChainSkipLine(attempt, attempts.length, error.reason, Date.now() - startedAt)
+            textChainSkipLine(recordedAttempt, attempts.length, error.reason, Date.now() - startedAt)
           );
-          ledger?.record(failedCall(attempt, !!error.reason.possiblyBilled));
+          ledger?.record(failedCall(recordedAttempt, !!error.reason.possiblyBilled));
           if (
-            isFlexRefusal(error.reason.status, error.reason.message, attempt)
+            isFlexRefusal(error.reason.status, error.reason.message, recordedAttempt)
           ) {
             flexRefused = true;
           }
@@ -1326,7 +1827,8 @@ const runAttempt = async (
   attempt: TextAttempt,
   last: boolean,
   streaming: boolean,
-  ledger: TextUsageLedger | undefined
+  ledger: TextUsageLedger | undefined,
+  singleModelAttempt = false
 ): Promise<Response> => {
   const execution = executionUsage.getStore();
   const sharedDeadline = execution?.signal && execution.remainingMs && execution.beforeProviderCall;
@@ -1356,6 +1858,9 @@ const runAttempt = async (
       // The caller (the SDK's deadline or a person) ended an attempt that
       // was already sent: it may be billed (review F4 of the fifteenth walk).
       ledger?.record(failedCall(attempt, true));
+      if (singleModelAttempt && error instanceof Error && error.name !== 'AbortError') {
+        error.name = 'AbortError';
+      }
       throw error;
     }
     const surfaced = deadline.state.timedOut ? new AttemptTimeout() : error;

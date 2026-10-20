@@ -25,7 +25,10 @@ import {
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import {
   DEFAULT_TEXT_FALLBACK_MODEL,
+  parseStoredTextFallback,
+  resolveOrderedTextChainPolicy,
   resolveTextChainSettings,
+  serializeTextFallbackColumn,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
@@ -143,6 +146,17 @@ export class InstanceAiDefaultsService {
       monthlyOperationsUnlimited: unlimited,
     };
 
+    const parsedFallback = parseStoredTextFallback(row?.textFallbackModel);
+    const defaultPrimaryModel =
+      effective.textModel ??
+      (provider === 'openrouter' ? 'openai/gpt-6-luna' : 'gpt-4.1');
+    const orderedPolicy = resolveOrderedTextChainPolicy(row, {
+      provider,
+      usageMode: 'included',
+      primaryModel: defaultPrimaryModel,
+      hasKey: !!(row?.apiKey || fromEnvironment.apiKey),
+    });
+
     return {
       provider: (row?.provider as AiProvider) ?? null,
       textModel: row?.textModel ?? null,
@@ -152,15 +166,32 @@ export class InstanceAiDefaultsService {
       monthlyOperations: unlimited ? null : row?.monthlyOperations ?? null,
       monthlyOperationsUnlimited: unlimited,
       /**
-       * The text chain (`content-factory-next-97dq.55`). The stored values,
-       * NULL where nothing was saved, and beside them what the chain actually
-       * uses, so the screen can print the default instead of an empty field.
+       * The text chain (`content-factory-next-97dq.55`, `on0i.5`). The stored
+       * values, NULL where nothing was saved, and beside them what the chain
+       * actually uses, so the screen can print the default instead of an empty
+       * field and show the effective ordered chain + unavailable reasons.
        */
       textFlexEnabled: row?.textFlexEnabled ?? null,
-      textFallbackModel: row?.textFallbackModel ?? null,
+      textFallbackModel: parsedFallback.structured
+        ? parsedFallback.disabled
+          ? ''
+          : parsedFallback.models[0] ?? null
+        : row?.textFallbackModel ?? null,
+      textFallbackModels: parsedFallback.inheritedDefault
+        ? null
+        : parsedFallback.models,
+      textFallbackDisabled: parsedFallback.disabled,
+      textMaxRetries: parsedFallback.maxRetries ?? null,
       textChain: {
         ...resolveTextChainSettings(row),
         defaultFallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
+        fallbackModels: orderedPolicy.fallbackModels,
+        configuredFallbackModels: orderedPolicy.configuredFallbackModels,
+        fallbackDisabled: orderedPolicy.fallbackDisabled,
+        inheritedDefault: orderedPolicy.inheritedDefault,
+        maxRetries: orderedPolicy.maxRetries,
+        effectiveChain: orderedPolicy.effectiveChain,
+        unavailableModels: orderedPolicy.unavailableModels,
       },
       hasKey: !!row?.apiKey,
       searchKeys: Object.fromEntries(
@@ -199,11 +230,18 @@ export class InstanceAiDefaultsService {
       monthlyOperationsUnlimited?: boolean;
       textFlexEnabled?: boolean;
       textFallbackModel?: string;
+      textFallbackModels?: string[];
+      textFallbackDisabled?: boolean;
+      textMaxRetries?: number;
     }
   ) {
     const current = await this._prisma.instanceAiDefaults?.findUnique({
       where: { id: INSTANCE_AI_DEFAULTS_ID },
-      select: { searchApiKeys: true, monthlyOperations: true },
+      select: {
+        searchApiKeys: true,
+        monthlyOperations: true,
+        textFallbackModel: true,
+      },
     });
 
     const searchApiKeys: SearchProviderKeys = parseSearchKeys(
@@ -213,6 +251,14 @@ export class InstanceAiDefaultsService {
       const typed = body.searchApiKeys?.[engine];
       if (typed) searchApiKeys[engine] = AuthService.fixedEncryption(typed);
     }
+
+    const serializedFallback = serializeTextFallbackColumn({
+      textFallbackModel: body.textFallbackModel,
+      textFallbackModels: body.textFallbackModels,
+      textFallbackDisabled: body.textFallbackDisabled,
+      textMaxRetries: body.textMaxRetries,
+      currentColumn: current?.textFallbackModel,
+    });
 
     const data = {
       ...(body.provider ? { provider: body.provider } : {}),
@@ -249,9 +295,10 @@ export class InstanceAiDefaultsService {
       ...(typeof body.textFlexEnabled === 'boolean'
         ? { textFlexEnabled: body.textFlexEnabled }
         : {}),
-      // Emptied means «back to the default», on the same terms as the models.
-      ...(body.textFallbackModel !== undefined
-        ? { textFallbackModel: body.textFallbackModel.trim() || null }
+      // Emptied means «back to the default», on the same terms as the models;
+      // ordered fallback arrays and retry counts serialize into the same column.
+      ...(serializedFallback !== undefined
+        ? { textFallbackModel: serializedFallback }
         : {}),
       updatedByUserId: userId,
     };

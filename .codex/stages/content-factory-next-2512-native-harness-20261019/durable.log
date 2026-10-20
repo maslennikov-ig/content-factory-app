@@ -1,0 +1,1 @@
+{"passed":true,"observerDisconnectPreservesRun":true,"reconnectReplaysAndFinishes":true,"modelExecutions":1,"realProviderCalls":0,"networkCalls":0,"scope":"single-process synthetic stream; restart recovery not tested"}

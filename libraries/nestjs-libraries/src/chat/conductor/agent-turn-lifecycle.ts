@@ -13,6 +13,122 @@ export type AgentTurnOutcome = 'completed' | 'failed' | 'interrupted';
 
 const outcomes: readonly string[] = ['completed', 'failed', 'interrupted'];
 const executionScope = new AsyncLocalStorage<AgentTurnLifecycle>();
+const stoppedExecutionIds = new Set<string>();
+
+export const markAgentTurnStopped = (requestId: string) => {
+  if (requestId) stoppedExecutionIds.add(requestId);
+};
+
+export const isAgentTurnStopped = (requestId: string) =>
+  stoppedExecutionIds.has(requestId);
+
+export type CommittedToolReceipt<T = unknown> = {
+  result: T;
+  card?: { kind: string; id: string; [key: string]: unknown } | null;
+};
+
+const inProcessToolReceipts = new Map<string, CommittedToolReceipt>();
+
+export const agentOperationReceiptMetadataKey = (
+  toolName: string,
+  toolCallId: string,
+  resumed = false,
+  runId?: string
+) =>
+  `assistantReceipt:${runId ? `${runId}:` : ''}${toolName}:${toolCallId}${resumed ? ':resumed' : ''}`;
+
+const inProcessReceiptKey = (
+  scopeId: string,
+  toolName: string,
+  toolCallId: string,
+  resumed = false,
+  runId?: string
+) =>
+  `${scopeId}:${agentOperationReceiptMetadataKey(toolName, toolCallId, resumed, runId)}`;
+
+export const readCommittedToolReceipt = async <T = unknown>(args: {
+  runId?: string;
+  threadId?: string;
+  toolName: string;
+  toolCallId: string;
+  resumed?: boolean;
+  memory?: {
+    getThreadById?: (input: {
+      threadId: string;
+    }) => Promise<{ metadata?: Record<string, unknown> } | null>;
+  };
+}): Promise<CommittedToolReceipt<T> | null> => {
+  const scopeId = args.runId || args.threadId || 'default';
+  const memKey = inProcessReceiptKey(
+    scopeId,
+    args.toolName,
+    args.toolCallId,
+    args.resumed,
+    args.runId
+  );
+  const cached = inProcessToolReceipts.get(memKey);
+  if (cached) return cached as CommittedToolReceipt<T>;
+  const metadataKey = agentOperationReceiptMetadataKey(
+    args.toolName,
+    args.toolCallId,
+    args.resumed,
+    args.runId
+  );
+  if (!args.threadId || !args.memory?.getThreadById) return null;
+  try {
+    const thread = await args.memory.getThreadById({ threadId: args.threadId });
+    const stored = thread?.metadata?.[metadataKey] as
+      | CommittedToolReceipt<T>
+      | undefined;
+    if (stored && typeof stored === 'object' && 'result' in stored) {
+      inProcessToolReceipts.set(memKey, stored);
+      return stored;
+    }
+  } catch {
+    /* Fall through when metadata read is unavailable. */
+  }
+  return null;
+};
+
+export const recordCommittedToolReceipt = async <T = unknown>(args: {
+  runId?: string;
+  threadId?: string;
+  toolName: string;
+  toolCallId: string;
+  resumed?: boolean;
+  receipt: CommittedToolReceipt<T>;
+  memory?: {
+    updateThread?: (input: {
+      id: string;
+      metadata?: Record<string, unknown>;
+    }) => Promise<unknown>;
+  };
+}): Promise<void> => {
+  const scopeId = args.runId || args.threadId || 'default';
+  const memKey = inProcessReceiptKey(
+    scopeId,
+    args.toolName,
+    args.toolCallId,
+    args.resumed,
+    args.runId
+  );
+  inProcessToolReceipts.set(memKey, args.receipt);
+  const metadataKey = agentOperationReceiptMetadataKey(
+    args.toolName,
+    args.toolCallId,
+    args.resumed,
+    args.runId
+  );
+  if (!args.threadId || !args.memory?.updateThread) return;
+  try {
+    await args.memory.updateThread({
+      id: args.threadId,
+      metadata: { [metadataKey]: args.receipt },
+    });
+  } catch {
+    /* In-process receipt still protects same-process retries. */
+  }
+};
 
 export const readAgentThreadExecution = async (
   store: AgentRunClaimStore,
@@ -21,7 +137,7 @@ export const readAgentThreadExecution = async (
   // Old histories keep their contract. They cannot prove a stopped new turn
   // settled, but they remain usable for ordinary history and new messages.
   if (!metadata || !(AGENT_EXECUTION_METADATA_KEY in metadata)) return undefined;
-  const marker = metadata[AGENT_EXECUTION_METADATA_KEY] as { requestId?: unknown } | null;
+  const marker = metadata[AGENT_EXECUTION_METADATA_KEY] as { requestId?: unknown; runId?: unknown } | null;
   const requestId = typeof marker?.requestId === 'string' && marker.requestId ? marker.requestId : null;
   const unknown: AgentThreadExecutionV1 = { requestId, state: 'unknown' };
   if (!requestId) return unknown;
@@ -72,7 +188,10 @@ export class AgentTurnLifecycle {
   /** Native resumed tool context can still contain its first request's id. */
   run<T>(work: () => T): T { return executionScope.run(this, work); }
 
-  stop() { this.accepting = false; }
+  stop() {
+    this.accepting = false;
+    markAgentTurnStopped(this.requestId);
+  }
 
   async track<T>(work: () => Promise<T>): Promise<T> {
     if (!this.accepting) throw new Error('The agent request has stopped.');
@@ -87,7 +206,11 @@ export class AgentTurnLifecycle {
         (!('canReviseInput' in result) || result.canReviseInput !== true)) this.failed = true;
       return result;
     } catch (error) {
-      this.failed = true;
+      const isStoppedAbort =
+        !this.accepting &&
+        ((error as { name?: unknown })?.name === 'AbortError' ||
+          /request has stopped|aborted/i.test(String((error as { message?: unknown })?.message ?? '')));
+      if (!isStoppedAbort) this.failed = true;
       throw error;
     } finally { this.pending.delete(pending); }
   }
@@ -111,6 +234,23 @@ export const trackAgentTurnWork = <T>(
   const requestId = context?.get?.(CONDUCTOR_EXECUTION_ID_KEY);
   // Direct/legacy native callers and MCP retain their existing behavior.
   if (typeof requestId !== 'string' || !requestId) return work();
+  const durable = context?.get?.('mastra__durableExecutions') as
+    | Record<string, { abortController?: { signal?: { aborted?: boolean } } }>
+    | undefined;
+  if (
+    !stoppedExecutionIds.has(requestId) &&
+    durable &&
+    typeof durable === 'object' &&
+    Object.keys(durable).length > 0 &&
+    !Object.values(durable).some((entry) => entry?.abortController?.signal?.aborted)
+  ) {
+    return Promise.resolve().then(() => {
+      if (stoppedExecutionIds.has(requestId)) {
+        throw new Error('The agent request has stopped.');
+      }
+      return work();
+    });
+  }
   // A tracked web call without its live invocation scope cannot run safely.
   return Promise.reject(new Error('The agent request has stopped.'));
 };

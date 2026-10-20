@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "runtime": "gemini",
+  "profile": "gemini-4-argon",
+  "kind": "fallback",
+  "char_count": 5845,
+  "budget": 6000,
+  "errors": [],
+  "warnings": []
+}

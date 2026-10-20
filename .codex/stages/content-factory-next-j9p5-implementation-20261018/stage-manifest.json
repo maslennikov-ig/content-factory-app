@@ -3,7 +3,7 @@
   "stage_id": "content-factory-next-j9p5-implementation-20261018",
   "goal_id": "content-factory-next-j9p5",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "accepted",
   "sequence": 1,
   "acceptance_boundary_id": "j9p5-model-led-assistant-and-native-chats",
   "acceptance_owner": "root",

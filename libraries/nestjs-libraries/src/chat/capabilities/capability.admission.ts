@@ -83,6 +83,7 @@ export type CapabilityGate = {
 };
 
 type ContextLike = Pick<RequestContext<unknown>, 'get' | 'set'>;
+type ReadableContextLike = ContextLike | Readonly<Record<string, unknown>>;
 
 /** Only declaration-owned field names/types, never rejected input or issue text. */
 const inputStructure = (schema: JSONSchema7Definition): unknown => {
@@ -99,7 +100,7 @@ const inputStructure = (schema: JSONSchema7Definition): unknown => {
 export const admitCapabilityCall = async (
   capability: CapabilityDeclaration,
   input: unknown,
-  requestContext: ContextLike | undefined,
+  requestContext: ReadableContextLike | undefined,
   gate: CapabilityGate,
   options: {
     countPaid: boolean;
@@ -110,6 +111,12 @@ export const admitCapabilityCall = async (
     resuming?: boolean;
     /** The web chat's hooks: `asksInWebChat` applies (never over MCP). */
     webChat?: boolean;
+    /**
+     * Pre-approval check (`A27`): checks identity, stop state, input schema,
+     * open questions/proposals, and door permissions before parking an approval
+     * card, without requiring the approval fingerprint yet.
+     */
+    beforeApprovalOnly?: boolean;
     /**
      * MCP (`kcxz.49`, `kcxz.52`): a `confirm` call's «Да» is its one-time
      * code, which the adapter checks after admission (`mcp-confirmation.ts`),
@@ -175,8 +182,8 @@ export const admitCapabilityCall = async (
   }
 
   const toolName = toolNameOf(capability.id);
-  const confirm = capability.risk === 'confirm' && !options.confirmsByCode;
-  const asksHere = !!options.webChat && !!capability.asksInWebChat;
+  const confirm = capability.risk === 'confirm' && !options.confirmsByCode && !options.beforeApprovalOnly;
+  const asksHere = !!options.webChat && !!capability.asksInWebChat && !options.beforeApprovalOnly;
   if (confirm || asksHere) {
     const print = approvalFingerprint(toolName, input);
     if (!hasApproval(requestContext, print)) {
@@ -190,8 +197,8 @@ export const admitCapabilityCall = async (
   }
 
   let slot = false;
-  if (capability.risk === 'paid' && options.countPaid) {
-    const reserved = reservePaidSlot(requestContext, options.paidOwner);
+  if (capability.risk === 'paid' && options.countPaid && !options.beforeApprovalOnly) {
+    const reserved = reservePaidSlot(requestContext as ContextLike, options.paidOwner);
     if (!reserved.ok) {
       return refusal(reserved.code ?? 'AGENT_TASK_STOPPED', paidCapReason());
     }
@@ -223,11 +230,11 @@ export const admitCapabilityCall = async (
   try {
     verdict = await gate.check(capability.door, identity);
   } catch (error) {
-    if (slot) releasePaidSlot(requestContext);
+    if (slot) releasePaidSlot(requestContext as ContextLike);
     throw error;
   }
   if (!verdict.allowed) {
-    if (slot) releasePaidSlot(requestContext);
+    if (slot) releasePaidSlot(requestContext as ContextLike);
     return refusal(
       'PERMISSION_DENIED',
       `The person's role or plan does not allow this action (${verdict.refused}). Say so; do not try another way around it.`
@@ -267,12 +274,92 @@ export const createCapabilityHooks = (
 
   return {
     beforeToolCall: async ({ toolName, input, context }) => {
+      const requestContext = contextOf(context);
+      if (toolName === 'subagent') {
+        const identity = readCapabilityIdentity(requestContext);
+        if (!identity) {
+          return {
+            proceed: false,
+            output: refusal(
+              'IDENTITY_MISSING',
+              'The call arrived without a server-built identity; nothing was done.'
+            ),
+          };
+        }
+        const subagentInput = (input ?? {}) as {
+          agentType?: unknown;
+          forked?: unknown;
+          prompt?: unknown;
+        };
+        if (subagentInput.forked === true) {
+          return {
+            proceed: false,
+            output: refusal(
+              'PERMISSION_DENIED',
+              'Forked subagent execution is disabled: subagents must use a bounded specialist definition and never bypass parent tool approvals.'
+            ),
+          };
+        }
+        const agentType =
+          typeof subagentInput.agentType === 'string'
+            ? subagentInput.agentType
+            : '';
+        if (!['research', 'writing', 'review'].includes(agentType)) {
+          return {
+            proceed: false,
+            output: refusal(
+              'CAPABILITY_INPUT_INVALID',
+              'Unknown subagent specialist; allowed specialists are research, writing, and review.'
+            ),
+          };
+        }
+        if (identity.role === 'USER' && agentType !== 'research') {
+          return {
+            proceed: false,
+            output: refusal(
+              'PERMISSION_DENIED',
+              "The person's role or plan does not allow this action (Edit Posts). Say so; do not try another way around it."
+            ),
+          };
+        }
+        return undefined;
+      }
+      if (
+        toolName === 'set_objective' ||
+        toolName === 'schedule_followup_create' ||
+        toolName === 'schedule_followup_cancel'
+      ) {
+        const identity = readCapabilityIdentity(requestContext);
+        if (!identity) {
+          return {
+            proceed: false,
+            output: refusal(
+              'IDENTITY_MISSING',
+              'The call arrived without a server-built identity; nothing was done.'
+            ),
+          };
+        }
+        const action = (input as { action?: unknown } | undefined)?.action;
+        if (
+          identity.role === 'USER' &&
+          !(toolName === 'set_objective' && action === 'get')
+        ) {
+          return {
+            proceed: false,
+            output: refusal(
+              'PERMISSION_DENIED',
+              "The person's role or plan does not allow this action (Edit Posts). Say so; do not try another way around it."
+            ),
+          };
+        }
+        return undefined;
+      }
       const capability = byTool.get(toolName);
       if (!capability) return undefined;
       const refused = await admitCapabilityCall(
         capability,
         input,
-        contextOf(context),
+        requestContext,
         gate,
         { countPaid: true, paidOwner: paidOwnerOf(context), services, capabilities, resuming: resumingIn(context), webChat: true }
       );

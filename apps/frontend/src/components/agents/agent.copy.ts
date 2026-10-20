@@ -210,6 +210,25 @@ type AgentWords = {
     keepPictureGoneAnswer: string;
     keepPictureFailed: string;
     sending: string;
+    planKind: string;
+    planApprove: string;
+    planReject: string;
+    planFeedbackLabel: string;
+    planFeedbackPlaceholder: string;
+  };
+  tasks: {
+    kind: string;
+    completed: (done: number, total: number) => string;
+    statuses: Readonly<Record<'pending' | 'in_progress' | 'completed', string>>;
+  };
+  objective: {
+    kind: string;
+    statuses: Readonly<Record<'active' | 'achieved' | 'failed' | 'stopped' | 'cleared', string>>;
+  };
+  subagent: {
+    kind: string;
+    agents: Readonly<Record<'research' | 'writing' | 'review', string>>;
+    statuses: Readonly<Record<'working' | 'done' | 'error', string>>;
   };
   /**
    * The adaptation interview (`kcxz.16`): the channel tab's own words, so
@@ -269,6 +288,8 @@ type AgentWords = {
       /** The avatar's analysis (`kcxz.18`): the counting, then the AI's proposal. */
       measuring: string;
       proposing: string;
+      retrying: string;
+      fallback: string;
     };
   };
   error: {
@@ -534,6 +555,43 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       keepPictureGoneAnswer: 'Понятно',
       keepPictureFailed: 'Картинка не дошла до медиатеки. Попробуйте ещё раз.',
       sending: 'Отправляем ответ',
+      planKind: 'План',
+      planApprove: 'Согласовать план',
+      planReject: 'Поправить план',
+      planFeedbackLabel: 'Комментарий или правки к плану',
+      planFeedbackPlaceholder: 'Что изменить или уточнить…',
+    },
+    tasks: {
+      kind: 'Задачи',
+      completed: (done, total) => `${done} из ${total}`,
+      statuses: {
+        pending: 'ожидает',
+        in_progress: 'в работе',
+        completed: 'готово',
+      },
+    },
+    objective: {
+      kind: 'Цель',
+      statuses: {
+        active: 'в работе',
+        achieved: 'выполнено',
+        failed: 'не получилось',
+        stopped: 'остановлено',
+        cleared: 'снято',
+      },
+    },
+    subagent: {
+      kind: 'Специалист',
+      agents: {
+        research: 'Поиск и разбор фактов',
+        writing: 'Написание и переработка текста',
+        review: 'Проверка и редактура',
+      },
+      statuses: {
+        working: 'в работе',
+        done: 'готово',
+        error: 'не получилось',
+      },
     },
     selection: {
       kind: 'Выбор',
@@ -574,6 +632,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         done: 'Готово',
         measuring: 'Считаем длину фраз, пунктуацию и повторы…',
         proposing: 'Составляем предложение голоса…',
+        retrying: 'Связь мигнула — повторяем шаг…',
+        fallback: 'Переключаемся на резервный ИИ…',
       },
     },
     error: {
@@ -1210,6 +1270,43 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       keepPictureGoneAnswer: 'OK',
       keepPictureFailed: 'The picture did not reach the media library. Try again.',
       sending: 'Sending the answer',
+      planKind: 'Plan',
+      planApprove: 'Approve plan',
+      planReject: 'Revise plan',
+      planFeedbackLabel: 'Notes or changes to the plan',
+      planFeedbackPlaceholder: 'What to change or clarify…',
+    },
+    tasks: {
+      kind: 'Tasks',
+      completed: (done, total) => `${done} of ${total}`,
+      statuses: {
+        pending: 'pending',
+        in_progress: 'in progress',
+        completed: 'done',
+      },
+    },
+    objective: {
+      kind: 'Goal',
+      statuses: {
+        active: 'in progress',
+        achieved: 'done',
+        failed: 'did not work',
+        stopped: 'stopped',
+        cleared: 'cleared',
+      },
+    },
+    subagent: {
+      kind: 'Specialist',
+      agents: {
+        research: 'Research and fact analysis',
+        writing: 'Drafting and rewriting',
+        review: 'Review and editing',
+      },
+      statuses: {
+        working: 'working',
+        done: 'done',
+        error: 'did not work',
+      },
     },
     selection: {
       kind: 'Choice',
@@ -1250,6 +1347,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         done: 'Done',
         measuring: 'Counting sentence length, punctuation and repeats…',
         proposing: 'Writing the voice proposal…',
+        retrying: 'Connection hiccup — retrying the step…',
+        fallback: 'Switching to the backup AI…',
       },
     },
     error: {
@@ -1861,6 +1960,8 @@ export const stageWordFor = (words: AgentWords, stage: string | null) => {
     case 'research-started':
     case 'research-ready':
     case 'research-selection-required':
+    case 'subagent_start':
+    case 'subagent_tool_start':
       return stages.search;
     case 'piece':
     case 'questions':
@@ -1872,6 +1973,10 @@ export const stageWordFor = (words: AgentWords, stage: string | null) => {
       return stages.measuring;
     case 'voice-call':
       return stages.proposing;
+    case 'stream-retry':
+      return stages.retrying;
+    case 'model-fallback':
+      return stages.fallback;
     default:
       return words.progress.working;
   }

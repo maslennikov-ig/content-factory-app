@@ -1,0 +1,1 @@
+{"passed":true,"nativeRouting":{"scriptedSimple":"scripted/economical","scriptedComplex":"scripted/capable","qualityEvaluated":false},"deadline":{"configuredMs":540000,"elapsedMs":540001,"reportedStop":"AGENT_TASK_UNCERTAIN","confirmedUsagePreserved":true},"networkCalls":0,"realModelCalls":0}

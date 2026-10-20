@@ -32,6 +32,12 @@ import {
   parseSearchTaskProviders,
   readSearchProvider,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
+import {
+  DEFAULT_TEXT_FALLBACK_MODEL,
+  readWorkspaceTextChainColumn,
+  resolveOrderedTextChainPolicy,
+  serializeTextFallbackColumn,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 interface OpenRouterModel {
   id: string;
@@ -182,6 +188,13 @@ export class AiProviderService {
       ? 'quota_exhausted'
       : null;
 
+    const orderedPolicy = resolveOrderedTextChainPolicy(config.textChain, {
+      provider: config.provider,
+      usageMode: config.usageMode,
+      primaryModel: config.textModel,
+      hasKey: !!config.apiKey,
+    });
+
     return {
       usageMode: config.usageMode,
       provider: config.provider,
@@ -194,6 +207,21 @@ export class AiProviderService {
       textModel: config.textModel,
       imageModel: config.imageModel,
       roleModels: config.roleModels,
+      textFallbackModel: orderedPolicy.fallbackModel || null,
+      textFallbackModels: orderedPolicy.configuredFallbackModels,
+      textFallbackDisabled: orderedPolicy.fallbackDisabled,
+      textMaxRetries: orderedPolicy.maxRetries,
+      textChain: {
+        ...(config.textChain ?? { flex: false, fallbackModel: '' }),
+        defaultFallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
+        fallbackModels: orderedPolicy.fallbackModels,
+        configuredFallbackModels: orderedPolicy.configuredFallbackModels,
+        fallbackDisabled: orderedPolicy.fallbackDisabled,
+        inheritedDefault: orderedPolicy.inheritedDefault,
+        maxRetries: orderedPolicy.maxRetries,
+        effectiveChain: orderedPolicy.effectiveChain,
+        unavailableModels: orderedPolicy.unavailableModels,
+      },
       hasKey: config.workspaceKeyConfigured ?? !!config.apiKey,
       workspaceKeyConfigured: config.workspaceKeyConfigured,
       includedAvailable: config.includedAvailable,
@@ -259,6 +287,10 @@ export class AiProviderService {
       textModel?: string;
       imageModel?: string;
       roleModels?: Record<string, string>;
+      textFallbackModel?: string;
+      textFallbackModels?: string[];
+      textFallbackDisabled?: boolean;
+      textMaxRetries?: number;
       searchEnabled?: boolean;
       searchProvider?: SearchProvider;
       searchApiKey?: string;
@@ -274,6 +306,7 @@ export class AiProviderService {
       select: {
         provider: true,
         apiKey: true,
+        roleModels: true,
         searchProvider: true,
         searchApiKeys: true,
         searchApiKey: true,
@@ -373,6 +406,34 @@ export class AiProviderService {
         body.searchApiKey
       );
     }
+    const existingTextChainCol = clearsModels
+      ? null
+      : readWorkspaceTextChainColumn(current?.roleModels);
+    const nextTextChainCol = modelsApply
+      ? serializeTextFallbackColumn({
+          textFallbackModel: body.textFallbackModel,
+          textFallbackModels: body.textFallbackModels,
+          textFallbackDisabled: body.textFallbackDisabled,
+          textMaxRetries: body.textMaxRetries,
+          currentColumn: existingTextChainCol,
+        })
+      : undefined;
+    const effectiveTextChainCol =
+      nextTextChainCol !== undefined ? nextTextChainCol : existingTextChainCol;
+    const shouldWriteRoleModels =
+      (modelsApply && body.roleModels !== undefined) ||
+      nextTextChainCol !== undefined;
+    const nextRoleModels = shouldWriteRoleModels
+      ? ({
+          ...(body.roleModels !== undefined
+            ? parseRoleModels(body.roleModels)
+            : clearsModels
+            ? {}
+            : parseRoleModels(current?.roleModels)),
+          ...(effectiveTextChainCol ? { __textChain: effectiveTextChainCol } : {}),
+        } as AiRoleModels)
+      : undefined;
+
     // Every field below the provider is optional in the request, and the screen
     // saves sections independently. An absent field means "leave it"; an
     // explicitly emptied one means "clear it".
@@ -394,9 +455,7 @@ export class AiProviderService {
        * null check anywhere above it. Parsed on the way in as well as on the
        * way out, so a role this build does not know cannot be written at all.
        */
-      ...(modelsApply && body.roleModels !== undefined
-        ? { roleModels: parseRoleModels(body.roleModels) as AiRoleModels }
-        : {}),
+      ...(nextRoleModels !== undefined ? { roleModels: nextRoleModels } : {}),
       ...(workspaceSettings && body.apiKey
         ? { apiKey: AuthService.fixedEncryption(body.apiKey) }
         : {}),

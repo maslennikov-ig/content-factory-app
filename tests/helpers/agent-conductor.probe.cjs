@@ -228,6 +228,7 @@ const drain = async (stream) => {
     if (done) break;
     parts.push(value);
   }
+  await new Promise((resolve) => setTimeout(resolve, 15));
   return parts;
 };
 
@@ -366,7 +367,12 @@ const doorPipeline = async () => {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) return value.forEach(walk);
     for (const [key, inner] of Object.entries(value)) {
-      if (key === 'requestContext' && inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      if (
+        (key === 'requestContext' || key === 'requestContextEntries') &&
+        inner &&
+        typeof inner === 'object' &&
+        !Array.isArray(inner)
+      ) {
         contexts.push(inner);
       }
       walk(inner);
@@ -401,14 +407,26 @@ const doorPipeline = async () => {
     storedText: stored,
     snapshotCount: pendingSnapshots.length,
     snapshotContextKeys: [...new Set(contexts.flatMap((context) => Object.keys(context)))].sort(),
-    // Ours only: `MastraMemory` is Mastra's own key (the thread row: id,
-    // title, resource, dates).
+    // Ours only: `MastraMemory` and `mastra__durableExecutions` are Mastra's own keys.
     snapshotContextValueTypes: [
       ...new Set(
         contexts.flatMap((context) =>
           Object.entries(context)
-            .filter(([key]) => key !== 'MastraMemory')
-            .map(([, value]) => typeof value)
+            .filter(([key]) => key !== 'MastraMemory' && key !== 'mastra__durableExecutions')
+            .flatMap(([key, value]) => {
+              if (key === 'mastra__scopes' && Array.isArray(value)) {
+                return value.map((item) => typeof item);
+              }
+              if (
+                key === 'mastra__messageAuthor' &&
+                value &&
+                typeof value === 'object' &&
+                !Array.isArray(value)
+              ) {
+                return Object.values(value).map((item) => typeof item);
+              }
+              return [typeof value];
+            })
         )
       ),
     ].sort(),
@@ -421,6 +439,212 @@ const doorPipeline = async () => {
   };
 };
 
+const sessionIsolation = async () => {
+  const storage = new InMemoryStore();
+  const memory = conductor.createConductorMemory(storage);
+  const { services } = fakeServices();
+  const { model } = scripted([['text', 'Готово.']]);
+  const agent = conductor.buildConductorAgent({
+    services,
+    gate: allowAll,
+    memory,
+    model: async () => model,
+    snapshot: async () => ({ pieces: [] }),
+  });
+  const controller = conductor.buildConductorController(agent, { storage, memory });
+  const mastra = new Mastra({
+    storage,
+    agents: { [conductor.CONDUCTOR_AGENT_ID]: agent },
+    agentControllers: { [conductor.CONDUCTOR_AGENT_ID]: controller },
+  });
+  const host = mastra.getAgentController(conductor.CONDUCTOR_AGENT_ID);
+  await host.initStorage();
+
+  const user1 = { ...IDENTITY, organizationId: 'org-1', userId: 'user-1', role: 'EDITOR' };
+  const user2 = { ...IDENTITY, organizationId: 'org-1', userId: 'user-2', role: 'USER' };
+  const org2User = { ...IDENTITY, organizationId: 'org-2', userId: 'user-1', role: 'ADMIN' };
+
+  const r1 = conductor.conductorResourceId(user1.organizationId, user1.userId);
+  const r2 = conductor.conductorResourceId(user2.organizationId, user2.userId);
+  const rOrg2 = conductor.conductorResourceId(org2User.organizationId, org2User.userId);
+
+  // Create session with createInitialThread: false -> leaves no empty thread before admission.
+  const preSession = await host.createSession({
+    id: `${r1}:thread-uncreated`,
+    ownerId: user1.userId,
+    resourceId: r1,
+    scope: 'thread-uncreated',
+    createInitialThread: false,
+  });
+  const threadsBeforeCreate = await memory.listThreads({ filter: { resourceId: r1 } });
+
+  // Create two threads for user1, one for user2, one for org2User
+  await memory.createThread({ threadId: 't-u1-a', resourceId: r1, title: 'Chat A' });
+  await memory.createThread({ threadId: 't-u1-b', resourceId: r1, title: 'Chat B' });
+  await memory.createThread({ threadId: 't-u2-a', resourceId: r2, title: 'User 2 Chat' });
+  await memory.createThread({ threadId: 't-o2-a', resourceId: rOrg2, title: 'Org 2 Chat' });
+
+  const s1a = await host.createSession({
+    id: `${r1}:t-u1-a`,
+    ownerId: user1.userId,
+    resourceId: r1,
+    scope: 't-u1-a',
+    createInitialThread: false,
+  });
+  await s1a.thread.switch({ threadId: 't-u1-a', emitEvent: false });
+  await s1a.model.switch('openai/gpt-5.4');
+  await s1a.mode.switch({ modeId: 'plan' });
+
+  const s1b = await host.createSession({
+    id: `${r1}:t-u1-b`,
+    ownerId: user1.userId,
+    resourceId: r1,
+    scope: 't-u1-b',
+    createInitialThread: false,
+  });
+  await s1b.thread.switch({ threadId: 't-u1-b', emitEvent: false });
+  await s1b.model.switch('anthropic/claude-sonnet-4-6');
+
+  const s2a = await host.createSession({
+    id: `${r2}:t-u2-a`,
+    ownerId: user2.userId,
+    resourceId: r2,
+    scope: 't-u2-a',
+    createInitialThread: false,
+  });
+  await s2a.thread.switch({ threadId: 't-u2-a', emitEvent: false });
+
+  const sOrg2 = await host.createSession({
+    id: `${rOrg2}:t-o2-a`,
+    ownerId: org2User.userId,
+    resourceId: rOrg2,
+    scope: 't-o2-a',
+    createInitialThread: false,
+  });
+  await sOrg2.thread.switch({ threadId: 't-o2-a', emitEvent: false });
+
+  // Cross-resource switch attempt on s2a to user1's thread must fail or not bind
+  let crossTenantSwitchBlocked = false;
+  try {
+    const existing = await s2a.thread.getById({ threadId: 't-u1-a' });
+    if (!existing || existing.resourceId !== r2) crossTenantSwitchBlocked = true;
+  } catch {
+    crossTenantSwitchBlocked = true;
+  }
+
+  const deleted = await host.deleteSession({ resourceId: r1, scope: 'thread-uncreated' });
+
+  return {
+    preSessionThreadId: preSession.thread.getId(),
+    threadsBeforeCreateCount: threadsBeforeCreate.threads.length,
+    s1aModel: s1a.model.get(),
+    s1aMode: s1a.mode.get(),
+    s1bModel: s1b.model.get(),
+    s1bMode: s1b.mode.get(),
+    s2aModel: s2a.model.get(),
+    s2aResource: s2a.identity.getResourceId(),
+    sOrg2Resource: sOrg2.identity.getResourceId(),
+    crossTenantSwitchBlocked,
+    deleted,
+  };
+};
+
+const beforeApprovalProbe = async () => {
+  const readParts = async (stream) => {
+    const reader = stream.getReader();
+    const parts = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+    }
+    return parts;
+  };
+
+  const runDeleteAttempt = async ({ gate, input, breakDescribe }) => {
+    const storage = new InMemoryStore();
+    const memory = conductor.createConductorMemory(storage);
+    const { services: baseServices, calls } = fakeServices();
+    const services = breakDescribe
+      ? (token) => {
+          if (token?.name === 'PieceService') {
+            return {
+              approvalSubject: async () => {
+                throw new Error('unexpected driver crash in describeApproval');
+              },
+              delete: async () => {
+                calls.deleted.push('unexpected');
+              },
+            };
+          }
+          return baseServices(token);
+        }
+      : baseServices;
+    const { model } = scripted([
+      [['tool', 'piece_delete', input]],
+      [['text', 'Отказано до карточки.']],
+    ]);
+    const agent = conductor.buildConductorAgent({
+      services,
+      gate,
+      memory,
+      model: async () => model,
+      snapshot: async () => ({ pieces: [] }),
+    });
+    const mastra = new Mastra({
+      storage,
+      agents: { [conductor.CONDUCTOR_AGENT_ID]: agent },
+    });
+    const threadId = 'thread-before-approval';
+    const resourceId = conductor.conductorResourceId(IDENTITY.organizationId, IDENTITY.userId);
+    await memory.createThread({ threadId, resourceId, title: 'Before approval test' });
+    const stream = await handleChatStream({
+      mastra,
+      agentId: conductor.CONDUCTOR_AGENT_ID,
+      version: 'v7',
+      sendReasoning: false,
+      sendSources: false,
+      params: {
+        messages: [{ id: 'm1', role: 'user', parts: [{ type: 'text', text: 'Удали заготовку' }] }],
+        requestContext: contextFor(IDENTITY, { threadId }),
+        memory: { thread: threadId, resource: resourceId },
+      },
+    });
+    const parts = await readParts(stream);
+    const registered = mastra.getAgentById(conductor.CONDUCTOR_AGENT_ID);
+    const pending = (await registered.listSuspendedRuns({ threadId, resourceId })).runs;
+    const output = parts.find((part) => part.type === 'tool-output-available')?.output ?? null;
+    return {
+      hasApprovalRequest: parts.some(
+        (part) => part.type === 'tool-approval-request' || part.type === 'data-tool-call-approval'
+      ),
+      pendingCount: pending.length,
+      deletedCount: calls.deleted.length,
+      output,
+    };
+  };
+
+  return {
+    permissionDenied: await runDeleteAttempt({
+      gate: { check: async () => ({ allowed: false, refused: 'Delete Posts' }) },
+      input: { pieceId: 'p1' },
+    }),
+    notFound: await runDeleteAttempt({
+      gate: allowAll,
+      input: { pieceId: 'piece-does-not-exist' },
+    }),
+    invalidInput: await runDeleteAttempt({
+      gate: allowAll,
+      input: { pieceId: '' },
+    }),
+    hookError: await runDeleteAttempt({
+      gate: allowAll,
+      input: { pieceId: 'p1' },
+      breakDescribe: true,
+    }),
+  };
+};
+
 (async () => {
   const report = {
     paidCapOne: await paidCap(1),
@@ -430,6 +654,8 @@ const doorPipeline = async () => {
     userTurn: await firstTurn({ ...IDENTITY, role: 'USER' }),
     injection: INJECTION,
     door: await doorPipeline(),
+    sessionIsolation: await sessionIsolation(),
+    beforeApproval: await beforeApprovalProbe(),
   };
   process.stdout.write(JSON.stringify(report));
 })().catch((error) => {

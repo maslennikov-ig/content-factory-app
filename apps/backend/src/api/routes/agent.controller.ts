@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
@@ -49,6 +50,7 @@ import {
   AGENT_ID_PATTERN,
   AgentChatRequestError,
   notPending,
+  normalizeResumeDataForPendingCall,
   openProposalTargets,
   parseAgentChatBody,
   samplesReceiptRefused,
@@ -215,17 +217,32 @@ export class AgentController {
     // still being admitted is not billed a finished turn (review W1 F15).
     const abort = new AbortController();
     let finished = false;
+    let detached = false;
+    let explicitlyStopped = false;
+    let durableTurn = false;
     let reader: ReadableStreamDefaultReader<any> | undefined;
     let turn: AgentTurnLifecycle | undefined;
     let execution: ConductorExecution | undefined;
-    // `res` closes when the person leaves (and after the end, when `finished`
-    // is already set); `req` closes as soon as the body was read.
-    const onClose = () => {
-      if (finished) return;
+    const forceAbort = () => {
+      explicitlyStopped = true;
       execution?.stop('AGENT_TASK_STOPPED');
       turn?.stop();
       abort.abort();
       void reader?.cancel().catch(() => undefined);
+    };
+    // `res` closes when the person leaves (and after the end, when `finished`
+    // is already set); `req` closes as soon as the body was read. When the
+    // turn is backed by a native DurableAgent (`on0i.3`, `A11`), an observer
+    // disconnect after the turn started detaches the HTTP stream while the
+    // durable execution continues in the background; explicit Stop (`A13`)
+    // calls `forceAbort()`.
+    const onClose = () => {
+      if (finished) return;
+      if (turn && durableTurn && !explicitlyStopped) {
+        detached = true;
+        return;
+      }
+      forceAbort();
     };
     res.on?.('close', onClose);
     let release: (() => Promise<void>) | null = null;
@@ -322,7 +339,12 @@ export class AgentController {
             runId: input.runId,
             // Pinned: Mastra does not choose the question (review W1 F7).
             toolCallId: verified.toolCallId as string,
-            resumeData: input.resumeData,
+            resumeData: normalizeResumeDataForPendingCall(
+              runs,
+              input.runId,
+              verified.toolCallId as string,
+              input.resumeData
+            ) as any,
           };
         }
       }
@@ -361,6 +383,10 @@ export class AgentController {
           } else if (input.mode === 'message' && (input.workContext !== undefined || workContext)) {
             await this.threads.rememberWorkContext(identity, threadId, workContext);
           }
+          await this.threads.sessionFor(identity, threadId, {
+            bindThread: true,
+            requestContext,
+          });
         } catch (error) {
           await admission.finish(false, error);
           throw error;
@@ -389,6 +415,13 @@ export class AgentController {
       );
       // A provider refusal of the step that carried them is about the picture.
       const errorScope = { picturesInStep: pictures.lastStepShown };
+      durableTurn = (await this.threads.isDurableConductor?.()) ?? false;
+      const activeTurn = this.threads.registerActiveTurn?.({
+        identity,
+        threadId,
+        requestId,
+        onStop: forceAbort,
+      });
       try {
         turn = await this.threads.startTurn(identity, threadId, requestId, releaseThread);
         if (abort.signal.aborted) return;
@@ -418,14 +451,16 @@ export class AgentController {
             throw new HttpException({ code }, code === 'AGENT_RUN_NOT_PENDING' ? 409 : 502);
           }
 
-          res.status(200);
-          res.setHeader('content-type', 'text/event-stream');
-          res.setHeader('cache-control', 'no-cache, no-transform');
-          res.setHeader('connection', 'keep-alive');
-          res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
-          res.setHeader('x-accel-buffering', 'no');
-          res.setHeader(AGENT_THREAD_HEADER, threadId);
-          res.flushHeaders?.();
+          if (!detached) {
+            res.status(200);
+            res.setHeader('content-type', 'text/event-stream');
+            res.setHeader('cache-control', 'no-cache, no-transform');
+            res.setHeader('connection', 'keep-alive');
+            res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
+            res.setHeader('x-accel-buffering', 'no');
+            res.setHeader(AGENT_THREAD_HEADER, threadId);
+            res.flushHeaders?.();
+          }
           // From here the answer is delivered: a cut stream or a retry must
           // not run the same card again (kcxz.29, D2).
           if (answered) {
@@ -437,7 +472,13 @@ export class AgentController {
           // P2-B; review F1, F10 — each approval leg judged on its own): the
           // door's own closing line, before the part that ends it.
           const silence = closingLineWatch(answered?.calls.map((call) => call.toolCallId));
-          const write = (part: unknown) => res.write(`data: ${JSON.stringify(sanitisedPart(part))}\n\n`);
+          const write = (part: unknown) => {
+            const clean = sanitisedPart(part);
+            activeTurn?.emitPart(clean);
+            if (!detached && !res.writableEnded) {
+              res.write(`data: ${JSON.stringify(clean)}\n\n`);
+            }
+          };
           /**
            * An approval request whose call this stream never showed — the
            * second card of a step, streamed in the answer to the first — waits
@@ -461,6 +502,13 @@ export class AgentController {
               if (typeof data.toolCallId === 'string' && !calls.has(data.toolCallId)) {
                 calls.set(data.toolCallId, { toolName: String(data.toolName ?? ''), input: data.args ?? {} });
               }
+            }
+            if (
+              (value?.type === 'data-tool-call-approval' ||
+                value?.type === 'data-tool-call-suspended') &&
+              (value.data as { resumed?: unknown } | undefined)?.resumed === true
+            ) {
+              continue;
             }
             await flushHeld();
             if (silence.before(value)) {
@@ -488,18 +536,27 @@ export class AgentController {
         if (failedExecution()) failed = true;
       } catch (error) {
         if (!abort.signal.aborted || failedExecution()) failed = true;
-        if (!res.headersSent) throw error;
+        if (!res.headersSent && !detached) throw error;
         logConductorError(error, errorScope);
         const stopped = execution?.snapshot().stopCode;
         if (stopped && execution) {
           for (const part of closingLine(identity.language, execution.closing(identity.language))) {
-            res.write(`data: ${JSON.stringify(sanitisedPart(part))}\n\n`);
+            const clean = sanitisedPart(part);
+            activeTurn?.emitPart(clean);
+            if (!detached && !res.writableEnded) {
+              res.write(`data: ${JSON.stringify(clean)}\n\n`);
+            }
           }
         }
         const code = conductorErrorCode(error, errorScope);
         this.logger.warn(`Agent turn failed after the stream opened: ${stopped ?? code}`);
-        res.write(`data: ${JSON.stringify({ type: 'error', errorText: code })}\n\n`);
+        const errorPart = { type: 'error', errorText: code };
+        activeTurn?.emitPart(errorPart);
+        if (!detached && !res.writableEnded) {
+          res.write(`data: ${JSON.stringify(errorPart)}\n\n`);
+        }
       } finally {
+        activeTurn?.finishStream();
         if (failedExecution()) failed = true;
         finished = true;
         // UI cancellation can finish before a non-cancellable service write.
@@ -518,7 +575,7 @@ export class AgentController {
         // A turn with an `error` part, or one the person left, is not a
         // success (premortem U2, U3); its tokens are recorded either way.
         await admission.finish(!failed && !abort.signal.aborted);
-        if (res.headersSent && !res.writableEnded) {
+        if (!detached && res.headersSent && !res.writableEnded) {
           res.write('data: [DONE]\n\n');
           res.end();
         }
@@ -681,6 +738,199 @@ export class AgentController {
     @Body() body: unknown
   ) {
     return this.threads.patchWorkspace(agentIdentity(organization, user), threadIdParam(id), body);
+  }
+
+  @Patch('/threads/:id/model')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async switchThreadModel(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const modelId = (body as { modelId?: unknown })?.modelId;
+    const thinkingLevel = (body as { thinkingLevel?: unknown })?.thinkingLevel;
+    return this.threads.switchModel(
+      agentIdentity(organization, user),
+      threadIdParam(id),
+      typeof modelId === 'string' ? modelId : '',
+      typeof thinkingLevel === 'string' ? { thinkingLevel } : undefined
+    );
+  }
+
+  @Patch('/threads/:id/mode')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async switchThreadMode(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const modeId = (body as { modeId?: unknown })?.modeId;
+    return this.threads.switchMode(
+      agentIdentity(organization, user),
+      threadIdParam(id),
+      typeof modeId === 'string' ? modeId : ''
+    );
+  }
+
+  @Post('/threads/:id/stop')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async stopThread(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    return this.threads.stopTurn(
+      agentIdentity(organization, user),
+      threadIdParam(id)
+    );
+  }
+
+  @Get('/threads/:id/observe')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async observeThread(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Res() res: Response
+  ) {
+    const identity = agentIdentity(organization, user);
+    const threadId = threadIdParam(id);
+    const active = await this.threads.activeTurnFor(identity, threadId);
+    res.status(200);
+    res.setHeader('content-type', 'text/event-stream');
+    res.setHeader('cache-control', 'no-cache, no-transform');
+    res.setHeader('connection', 'keep-alive');
+    res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
+    res.setHeader('x-accel-buffering', 'no');
+    res.setHeader(AGENT_THREAD_HEADER, threadId);
+    res.flushHeaders?.();
+    if (!active) {
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      let unsubscribe: () => void = () => undefined;
+      const done = () => {
+        unsubscribe();
+        res.off?.('close', done);
+        if (!res.writableEnded) {
+          res.write('data: [DONE]\n\n');
+          res.end();
+        }
+        resolve();
+      };
+      res.on?.('close', done);
+      unsubscribe = active.subscribe((event) => {
+        if (event.done) {
+          done();
+          return;
+        }
+        if (event.part !== undefined && !res.writableEnded) {
+          res.write(`data: ${JSON.stringify(event.part)}\n\n`);
+        }
+      });
+    });
+  }
+
+  @Get('/threads/:id/objective')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async getThreadObjective(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    return this.threads.getObjective(
+      agentIdentity(organization, user),
+      threadIdParam(id)
+    );
+  }
+
+  @Put('/threads/:id/objective')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async setThreadObjective(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    return this.threads.setObjective(
+      agentIdentity(organization, user),
+      threadIdParam(id),
+      (body as { text?: string; maxRuns?: number }) ?? {}
+    );
+  }
+
+  @Delete('/threads/:id/objective')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async clearThreadObjective(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    return this.threads.clearObjective(
+      agentIdentity(organization, user),
+      threadIdParam(id)
+    );
+  }
+
+  @Get('/threads/:id/schedules')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async listThreadSchedules(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    return this.threads.listFollowUpSchedules(
+      agentIdentity(organization, user),
+      threadIdParam(id)
+    );
+  }
+
+  @Post('/threads/:id/schedules')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async createThreadSchedule(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers(AGENT_TIMEZONE_HEADER) timeZone?: string
+  ) {
+    return this.threads.createFollowUpSchedule(
+      agentIdentity(organization, user, timeZone),
+      threadIdParam(id),
+      (body as { title?: string; prompt?: string; cron?: string; timeZone?: string }) ?? {}
+    );
+  }
+
+  @Delete('/threads/:id/schedules/:scheduleId')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async deleteThreadSchedule(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Param('scheduleId') scheduleId: string
+  ) {
+    return this.threads.cancelFollowUpSchedule(
+      agentIdentity(organization, user),
+      threadIdParam(id),
+      scheduleId
+    );
+  }
+
+  @Get('/threads/:id/observability')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async getThreadObservability(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    return this.threads.queryObservability(
+      agentIdentity(organization, user),
+      threadIdParam(id)
+    );
   }
 
   @Delete('/threads/:id')

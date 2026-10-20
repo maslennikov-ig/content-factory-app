@@ -226,6 +226,15 @@ export type CapabilityDeclaration<
     input: z.infer<TInput>
   ) => Promise<unknown>;
   /**
+   * Pre-approval check (`A27`, Mastra 1.78 `beforeApproval`): runs before the
+   * approval card is parked. Returns a refusal to short-circuit with a tool
+   * result instead of showing an approval prompt for an impossible action.
+   */
+  beforeApproval?: (
+    ctx: ApprovalDescribeContext,
+    input: z.infer<TInput>
+  ) => Promise<CapabilityRefusal | null | void>;
+  /**
    * Questions only the person answers (`kcxz.31`, D1). `opens` names the
    * object whose open questions a successful call has just put before the
    * person (from the call's summary), `answers` the object a call would

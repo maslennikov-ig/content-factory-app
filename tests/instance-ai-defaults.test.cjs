@@ -612,3 +612,58 @@ test('every admin mutation proves the request came from our own screen', () => {
    */
   expect(unchecked).toEqual([]);
 });
+
+describe('ordered fallback chain, explicit empty fallback, and maxRetries (A29)', () => {
+  test('persists ordered textFallbackModels, textFallbackDisabled, and textMaxRetries and resolves effective policy', async () => {
+    const { service, state } = loadService({
+      row: {
+        provider: 'openrouter',
+        apiKey: 'enc:sk-1',
+        textModel: 'openai/gpt-5.4-primary',
+      },
+    });
+
+    await service.update('user-1', {
+      textFallbackModels: [
+        'openai/gpt-5.4-backup-1',
+        'anthropic/claude-4-sonnet',
+      ],
+      textMaxRetries: 3,
+      textPreferFlex: true,
+    });
+
+    const viewAfterList = await service.read();
+    expect(viewAfterList.textFallbackModel).toBe('openai/gpt-5.4-backup-1');
+    expect(viewAfterList.textFallbackModels).toEqual([
+      'openai/gpt-5.4-backup-1',
+      'anthropic/claude-4-sonnet',
+    ]);
+    expect(viewAfterList.textFallbackDisabled).toBe(false);
+    expect(viewAfterList.textMaxRetries).toBe(3);
+    expect(viewAfterList.textChain.fallbackModels).toEqual([
+      'openai/gpt-5.4-backup-1',
+      'anthropic/claude-4-sonnet',
+    ]);
+    expect(viewAfterList.textChain.maxRetries).toBe(3);
+
+    // Explicit empty fallback disables default/env fallback rather than reverting to defaults.
+    await service.update('user-1', {
+      textFallbackDisabled: true,
+    });
+
+    const viewDisabled = await service.read();
+    expect(viewDisabled.textFallbackDisabled).toBe(true);
+    expect(viewDisabled.textFallbackModels).toEqual([]);
+    expect(viewDisabled.textFallbackModel).toBe('');
+    expect(viewDisabled.textChain.fallbackDisabled).toBe(true);
+    expect(viewDisabled.textChain.fallbackModels).toEqual([]);
+    expect(viewDisabled.textChain.fallbackModel).toBe('');
+
+    // Verify loadAiConfig reads the stored policy into workspace config.
+    const { loadAiConfig } = loadConfig(includedRow, state.row);
+    const config = await loadAiConfig('organization-a');
+    expect(config.textChain.fallbackDisabled).toBe(true);
+    expect(config.textChain.fallbackModels).toEqual([]);
+    expect(config.textChain.maxRetries).toBe(3);
+  });
+});
