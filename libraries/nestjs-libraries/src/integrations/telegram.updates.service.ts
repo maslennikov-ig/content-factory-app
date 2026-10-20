@@ -167,12 +167,7 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
   private telegramConflictWarningLogged = false;
   private agentChannel?: TelegramAgentChannelHandler;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    agentChannel?: TelegramAgentChannelHandler
-  ) {
-    this.agentChannel = agentChannel;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   registerAgentChannel(handler: TelegramAgentChannelHandler) {
     this.agentChannel = handler;

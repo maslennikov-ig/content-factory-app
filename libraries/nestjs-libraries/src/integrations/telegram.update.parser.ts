@@ -104,7 +104,7 @@ export type TelegramAgentLinkedMember = {
   organizationId: string;
   organizationCreatedAt: string;
   userId: string;
-  role: 'SUPERADMIN' | 'ADMIN' | 'EDITOR';
+  role: 'ADMIN' | 'EDITOR' | 'SUPERADMIN';
   language: 'ru' | 'en';
   timeZone: string;
   chatId: string;
