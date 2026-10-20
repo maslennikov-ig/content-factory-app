@@ -108,7 +108,7 @@ export const SECRET_SHAPES: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   {
     name: 'exa-key',
     pattern: new RegExp(
-      `(?<=${KEY_WORDS}${NEAR})(?<![0-9A-Za-z-])${UUID}(?![0-9A-Za-z-])|(?<![0-9A-Za-z-])${UUID}(?![0-9A-Za-z-])(?=${NEAR}${KEY_WORDS})`,
+      `(?<![0-9A-Za-z-])${UUID}(?![0-9A-Za-z-])(?:(?<=${KEY_WORDS}${NEAR}${UUID})|(?=${NEAR}${KEY_WORDS}))`,
       'giu'
     ),
   },

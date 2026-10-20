@@ -3,6 +3,50 @@ const path = require('node:path');
 const ts = require('typescript');
 
 const repositoryRoot = path.resolve(__dirname, '..', '..');
+const compiledCache = new Map();
+const existingFiles = new Set();
+
+const fileExists = (fullPath) => {
+  if (existingFiles.has(fullPath)) return true;
+  if (fs.existsSync(fullPath)) {
+    existingFiles.add(fullPath);
+    return true;
+  }
+  return false;
+};
+
+const compileFile = (filename) => {
+  const stat = fs.statSync(filename);
+  const cached = compiledCache.get(filename);
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.fn;
+  }
+  const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    fileName: filename,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2021,
+      esModuleInterop: true,
+      experimentalDecorators: true,
+      // Nest resolves constructor parameters from `design:paramtypes`; without
+      // it a test can construct a provider the running application cannot.
+      emitDecoratorMetadata: true,
+      // A `.tsx` source loaded through here — a hook that opens a modal,
+      // say — would otherwise reach `new Function` with its JSX intact.
+      jsx: ts.JsxEmit.ReactJSX,
+    },
+  }).outputText;
+  const fn = new Function(
+    'exports',
+    'require',
+    'module',
+    '__filename',
+    '__dirname',
+    compiled
+  );
+  compiledCache.set(filename, { mtimeMs: stat.mtimeMs, size: stat.size, fn });
+  return fn;
+};
 
 /**
  * Compiles one repository `.ts` file and runs it with `mocks` standing in for
@@ -35,21 +79,7 @@ function loadTypeScriptModule(relativePath, mocks = {}, options = {}) {
     }
 
     const filename = path.join(repositoryRoot, fileRelativePath);
-    const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-      fileName: filename,
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2021,
-        esModuleInterop: true,
-        experimentalDecorators: true,
-        // Nest resolves constructor parameters from `design:paramtypes`; without
-        // it a test can construct a provider the running application cannot.
-        emitDecoratorMetadata: true,
-        // A `.tsx` source loaded through here — a hook that opens a modal,
-        // say — would otherwise reach `new Function` with its JSX intact.
-        jsx: ts.JsxEmit.ReactJSX,
-      },
-    }).outputText;
+    const fn = compileFile(filename);
 
     const loadedModule = { exports: {} };
     loaded.set(fileRelativePath, loadedModule);
@@ -72,7 +102,7 @@ function loadTypeScriptModule(relativePath, mocks = {}, options = {}) {
           repositoryRoot,
           path.resolve(path.dirname(filename), `${request}.ts`)
         );
-        if (fs.existsSync(path.join(repositoryRoot, relativeSource))) {
+        if (fileExists(path.join(repositoryRoot, relativeSource))) {
           return loadFile(relativeSource);
         }
       }
@@ -90,21 +120,14 @@ function loadTypeScriptModule(relativePath, mocks = {}, options = {}) {
           root,
           `${request.slice(prefix.length)}.ts`
         );
-        if (fs.existsSync(path.join(repositoryRoot, relativeSource))) {
+        if (fileExists(path.join(repositoryRoot, relativeSource))) {
           return loadFile(relativeSource);
         }
       }
       return require(request);
     };
 
-    new Function(
-      'exports',
-      'require',
-      'module',
-      '__filename',
-      '__dirname',
-      compiled
-    )(
+    fn(
       loadedModule.exports,
       localRequire,
       loadedModule,
