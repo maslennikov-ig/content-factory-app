@@ -682,13 +682,19 @@ async function scenario(kind) {
     workers.push(initial);
     const gap = await event(initial, 'gap', 25000);
     const workflows = await runtime.storage.getStore('workflows');
-    await waitFor(
-      () =>
-        workflows.getWorkflowRunById({
+    // Native settlement deletes its snapshot before releasing run ownership.
+    // Kill only after both complete so this models a gap without a live driver.
+    const predecessor = await waitFor(
+      async () => ({
+        snapshot: await workflows.getWorkflowRunById({
           workflowName: 'durable-agentic-loop',
           runId: gap.pointer.previousRunId,
         }),
-      (value) => value === null,
+        owner: await workflows.getRunOwnership({
+          runId: gap.pointer.previousRunId,
+        }),
+      }),
+      (value) => value.snapshot === null && !value.owner?.live,
       5000
     );
     await kill(initial);
@@ -872,6 +878,8 @@ async function scenario(kind) {
       audit().filter((entry) => entry.type === 'model').length,
       beforeCount
     );
+    if (kind === 'stop-gap-final')
+      assert.equal(audit().filter((entry) => entry.type === 'tool').length, 1);
     if (kind === 'revoked')
       assert.equal(thread.metadata.assistantNativeRun.state, 'blocked');
     if (kind === 'stop' || kind === 'stop-gap-final')
@@ -896,6 +904,8 @@ async function scenario(kind) {
       ...(kind === 'stop-gap-final'
         ? {
             settledAtStop: true,
+            predecessorOwnerLive: predecessor.owner?.live === true,
+            additionalToolCalls: 0,
             outcome: thread.metadata.assistantExecution.outcome,
           }
         : {}),
