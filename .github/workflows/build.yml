@@ -75,6 +75,32 @@ jobs:
     # Hosted Jest runs can approach 30 minutes; all three halves must finish.
     timeout-minutes: 45
 
+
+    # Native Mastra proofs use disposable schemas in a real local PG/Redis pair.
+    # Each hosted job owns these services; no development or production URL is used.
+    services:
+      native-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cf-dev
+          POSTGRES_PASSWORD: cf-dev-pwd
+          POSTGRES_DB: cf-dev-db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cf-dev -d cf-dev-db"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      native-redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      CF_TEST_PG_URL: postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db
+      CF_TEST_REDIS_URL: redis://127.0.0.1:6380
+
     steps:
       - uses: actions/checkout@v4
 
@@ -132,6 +158,32 @@ jobs:
     name: The suite, one year on
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+
+    # Native Mastra proofs use disposable schemas in a real local PG/Redis pair.
+    # Each hosted job owns these services; no development or production URL is used.
+    services:
+      native-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cf-dev
+          POSTGRES_PASSWORD: cf-dev-pwd
+          POSTGRES_DB: cf-dev-db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cf-dev -d cf-dev-db"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      native-redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      CF_TEST_PG_URL: postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db
+      CF_TEST_REDIS_URL: redis://127.0.0.1:6380
 
     steps:
       - uses: actions/checkout@v4
