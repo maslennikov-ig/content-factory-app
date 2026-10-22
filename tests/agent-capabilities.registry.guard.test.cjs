@@ -104,9 +104,11 @@ describe('agent capability registry', () => {
       'piece.create.from-research': [['references','[]','snapshotKey'], ['references','[]','factKeys'], ['snapshotKey'], ['factKeys']],
       'piece.research.apply': [['snapshotKey'], ['factKeys']],
     };
+    // Privacy depends on the exact allowed paths, not object property order.
+    const sortedPaths = (paths) => [...paths].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
     for (const capability of catalogue) {
       const found = keysOf(capability.input).filter((path) => SELECTION_KEY.test(path.at(-1)));
-      expect({ id: capability.id, found }).toEqual({ id: capability.id, found: modelInputs[capability.id] ?? [] });
+      expect({ id: capability.id, found: sortedPaths(found) }).toEqual({ id: capability.id, found: sortedPaths(modelInputs[capability.id] ?? []) });
     }
     for (const id of ['piece.create.from-research', 'piece.research.apply']) {
       const capability = catalogue.find(entry => entry.id === id);

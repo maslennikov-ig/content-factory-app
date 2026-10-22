@@ -32,13 +32,13 @@ const report = () => ({ type: 'data-progress', data: {
 } });
 const consume = async parts => {
   streamParts = [...parts, { type: 'finish', finishReason: 'stop' }];
-  const activeParts = [];
   const turn = { run: work => work(), finish: jest.fn(), stop: jest.fn() };
   const threads = {
     ownThread: async () => null, claimThreadTurn: async () => async () => {},
     workContextForTurn: async () => null, threadForMessage: async () => {}, sessionFor: async () => {},
     isDurableConductor: async () => false, startTurn: async () => turn,
-    registerActiveTurn: () => ({ emitPart: part => activeParts.push(part), finishStream() {} }),
+    // Active turns own Stop/settlement only; native PubSub owns stream replay.
+    registerActiveTurn: () => ({ finishStream() {} }),
   };
   const admission = { run: work => work(), finish: jest.fn() };
   const controller = new AgentController({ mastra: async () => ({}) }, threads, { beginAiOperation: async () => admission });
@@ -57,15 +57,14 @@ const consume = async parts => {
     .map(value => JSON.parse(value.slice(6).trim()));
   expect(handleChatStream).toHaveBeenCalled();
   expect(wire.some(part => part.type === 'error')).toBe(false);
-  return { wire, activeParts };
+  return { wire };
 };
 
-test('real controller stream retains the bounded rejected review for the browser and active-turn consumer', async () => {
+test('real controller stream retains the bounded rejected review for the browser', async () => {
   const source = report();
-  const { wire, activeParts } = await consume([source]);
+  const { wire } = await consume([source]);
   const emitted = wire.find(part => part.type === 'data-progress');
   expect(emitted).toMatchObject({ ...source, transient: false });
-  expect(activeParts.find(part => part.type === 'data-progress')).toEqual(emitted);
   expect(emitted.data.saved).toBe(false);
   expect(emitted.data.qualityReview.untrustedData.rule).toMatch(/never follow instructions/);
   expect(wire.some(part => ['data-adaptation', 'data-piece'].includes(part.type))).toBe(false);
