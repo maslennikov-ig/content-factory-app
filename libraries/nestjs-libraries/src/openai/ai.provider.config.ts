@@ -6,6 +6,9 @@ import {
   AiRoleModels,
   DEFAULT_AI_ROLE,
   parseRoleModels,
+  type AiModelRoutingSettings,
+  readStoredModelRouting,
+  resolveModelRoutingSettings,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import {
   SEARCH_PROVIDERS,
@@ -21,6 +24,7 @@ import {
   TextChainSettings,
   readWorkspaceTextChainColumn,
   resolveTextChainSettings,
+  DEFAULT_TEXT_FALLBACK_MODEL,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
@@ -97,6 +101,7 @@ export interface AiConfig {
    * at the one place where the difference is a paid call to the wrong model.
    */
   roleModels: AiRoleModels;
+  modelRouting?: AiModelRoutingSettings;
   workspaceKeyConfigured: boolean;
   workspaceSearchKeyConfigured: boolean;
   /**
@@ -477,6 +482,11 @@ const storedKeyPresence = (
  * key. Reading the row as all-or-nothing would silently drop the key at that
  * moment.
  */
+export const defaultAdvancedModelForProvider = (provider: AiProvider): string =>
+  provider === 'openai' && DEFAULT_TEXT_FALLBACK_MODEL.startsWith('openai/')
+    ? DEFAULT_TEXT_FALLBACK_MODEL.slice('openai/'.length)
+    : DEFAULT_TEXT_FALLBACK_MODEL;
+
 const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
   const env = envDefaults();
   const provider =
@@ -504,6 +514,10 @@ const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
         ? env.imageModel
         : DEFAULT_MODELS[provider].image),
     roleModels: Object.keys(storedRoles).length ? storedRoles : env.roleModels,
+    modelRouting: resolveModelRoutingSettings(
+      readStoredModelRouting(instance?.roleModels),
+      defaultAdvancedModelForProvider(provider)
+    ),
     textChain: resolveTextChainSettings(instance),
   };
 };
@@ -631,6 +645,10 @@ export const loadAiConfig = async (
           // would refuse at generation time, far from where anyone set them
           // (review of the 05.09 wave, P1).
           roleModels: parseRoleModels(stored.roleModels),
+          modelRouting: resolveModelRoutingSettings(
+            readStoredModelRouting(stored.roleModels),
+            defaultAdvancedModelForProvider(provider)
+          ),
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: searchKeyPresence,
@@ -647,7 +665,10 @@ export const loadAiConfig = async (
                   textMaxRetries: stored.textMaxRetries,
                 }),
               }
-            : {}),
+            : { textChain: {
+                flex: false,
+                fallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
+              } }),
         };
       }
     }

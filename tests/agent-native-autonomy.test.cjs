@@ -177,6 +177,11 @@ describe('Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up 
       { agentType: 'review', billingRole: 'review' },
     ]);
     expect(subagents.createdPiecesByWritingSubagent).toBe(1);
+    expect(subagents.subagentRoutingInputs).toEqual([
+      { agentType: 'research', task: 'Проверь заготовку p1 в пространстве', isolatedFromParentThread: true },
+      { agentType: 'writing', task: 'Создай черновик заготовки по итогам исследования', modelId: 'sub-writing', isolatedFromParentThread: true },
+      { agentType: 'review', task: 'Проверь текст на штампы', isolatedFromParentThread: true },
+    ]);
     expect(subagents.authorRequestPreserved).toBe(true);
     expect(subagents.toolResults).toHaveLength(4);
     expect(subagents.toolResults[0]).toMatchObject({

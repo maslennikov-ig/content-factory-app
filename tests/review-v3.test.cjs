@@ -1,6 +1,7 @@
 'use strict';
 require('reflect-metadata');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { reviewChatModelMock } = require('./helpers/review-chat-model.cjs');
 const root = 'libraries/nestjs-libraries/src/content-intelligence/pieces';
 
 let responses = [];
@@ -20,6 +21,7 @@ const clients = {
     },
   }),
 };
+clients.getChatModel = jest.fn(reviewChatModelMock(clients));
 const { reviewPromptV3, reviewOnceV3, readReview } = loadWithMocks(`${root}/review.v3.ts`, {
   '@contentfactory/nestjs-libraries/openai/ai.clients': clients,
 });
@@ -162,6 +164,12 @@ test('unparseable output is retried once with a repair explanation and logs code
   );
   expect(result.verdict).toBe('clean');
   expect(calls).toHaveLength(2);
+  expect(clients.getChatModel).toHaveBeenCalledTimes(1);
+  expect(clients.getChatModel).toHaveBeenCalledWith('org', undefined, 16384, 'review');
+  expect(calls[0][0]).toMatchObject({
+    model: 'review-model', max_tokens: 16384,
+    response_format: { type: 'json_object' },
+  });
   expect(calls[1][0].messages.at(-1).content).toContain('REVIEW_OUTPUT_JSON');
   expect(warnings).toEqual([
     'Review validation rejected model output: REVIEW_OUTPUT_JSON; retry=1',

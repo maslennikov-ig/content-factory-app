@@ -25,7 +25,7 @@ describe('R2 combined native routing and provider outage', () => {
     expect(policy.effectiveChain.map(entry => entry.model)).toEqual(['openai/gpt-6-luna', 'z-ai/glm-5.3']);
     const inherited = chain.resolveTextChainSettings({ textFlexEnabled: false, textFallbackModel: null });
     expect(chain.resolveOrderedTextChainPolicy(inherited, options).effectiveChain.map(entry => entry.model))
-      .toEqual(['openai/gpt-6-luna']);
+      .toEqual(['openai/gpt-6-luna', chain.DEFAULT_TEXT_FALLBACK_MODEL]);
     expect(chain.textChainFingerprint(settings)).not.toBe(chain.textChainFingerprint(inherited));
   });
 

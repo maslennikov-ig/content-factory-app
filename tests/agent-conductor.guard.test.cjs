@@ -57,6 +57,7 @@ describe('the web agent is the conductor, with the hooks', () => {
       agentFile,
       `${CHAT}/conductor/conductor.autonomy.ts`,
       'libraries/nestjs-libraries/src/openai/ai.clients.ts',
+      'libraries/nestjs-libraries/src/openai/ai.stage-model.ts',
     ].sort());
 
     const service = withoutComments(read(`${CHAT}/mastra.service.ts`));
@@ -66,7 +67,7 @@ describe('the web agent is the conductor, with the hooks', () => {
     expect(service).toMatch(/buildConductorController\(\s*agents\[CONDUCTOR_AGENT_ID\]/);
     expect(service).toMatch(/gate:\s*this\.gate\(\)/);
     expect(service).toMatch(/prepareModelExecution\(\s*organizationId,\s*'agent'/);
-    expect(service).toMatch(/getModelForRole\(organizationId, 'agent'\)/);
+    expect(service).toMatch(/getRoutedMastraModelEntries\(\s*organizationId,\s*'agent'/);
   });
 
   test('the doors run the conductor through handleChatStream pinned to v7 with onError', () => {

@@ -53,8 +53,10 @@ import {
   CONDUCTOR_AGENT_ID,
   conductorResourceId,
 } from './conductor.context';
+import { withoutSecretShapes } from './secret-shapes';
 
 export type ConductorSubagentType = 'research' | 'writing' | 'review';
+export type ConductorSubagentModelOptions = { task: string; modelId?: string };
 
 export const CONDUCTOR_SUBAGENT_ROLE_MAP: Readonly<
   Record<ConductorSubagentType, AiRole>
@@ -367,13 +369,15 @@ export const buildConductorGoalConfig = (options: {
       if (!identity || !(requestContext instanceof RequestContext)) {
         throw new Error('Goal judge requires a server-built capability identity.');
       }
-      const model = await options.judgeModel(identity, requestContext);
+      // Review routing/retry metadata belongs to the judge, not its parent turn.
+      const judgeContext = new RequestContext(Array.from(requestContext.entries()) as any);
+      const model = await options.judgeModel(identity, judgeContext);
       const key = keyOf(requestContext.get(MASTRA_RESOURCE_ID_KEY), requestContext.get(MASTRA_THREAD_ID_KEY));
       if (!evaluations.has(key) && evaluations.size >= 128) {
         throw new Error('Goal judge evaluation capacity reached.');
       }
       const controller = requestContext.get('controller') as { abortSignal?: AbortSignal } | undefined;
-      evaluations.set(key, { requestContext, identity, model, mastra, abortSignal: controller?.abortSignal });
+      evaluations.set(key, { requestContext: judgeContext, identity, model, mastra, abortSignal: controller?.abortSignal });
       // The native goal config requires one judge model as its activation
       // marker; the custom native scorer executes the full configured array.
       return Array.isArray(model) ? model[0]?.model : model;
@@ -964,7 +968,8 @@ export const buildConductorSubagentTool = (options: {
   resolveSubagentModel: (
     identity: CapabilityIdentity,
     agentType: ConductorSubagentType,
-    requestContext?: object
+    requestContext?: object,
+    options?: ConductorSubagentModelOptions
   ) => Promise<unknown>;
   createSubagentRunner: (config: Record<string, unknown>) => any;
 }) =>
@@ -995,6 +1000,9 @@ export const buildConductorSubagentTool = (options: {
         .describe('Must not be true; forked subagent execution is disabled.'),
       modelId: z
         .string()
+        .trim()
+        .min(1)
+        .max(100)
         .optional()
         .describe('Optional model ID override; defaults to the workspace role model for the specialist.'),
     }),
@@ -1020,7 +1028,7 @@ export const buildConductorSubagentTool = (options: {
           "The person's role or plan does not allow this action (Edit Posts). Say so; do not try another way around it."
         );
       }
-      const taskText = (input.task ?? input.prompt ?? '').trim();
+      const taskText = withoutSecretShapes(input.task ?? input.prompt ?? '').trim();
       if (!taskText) {
         return refusal(
           'CAPABILITY_INPUT_INVALID',
@@ -1036,11 +1044,6 @@ export const buildConductorSubagentTool = (options: {
           `Unknown subagent specialist: ${agentType}.`
         );
       }
-      const resolvedModel = await options.resolveSubagentModel(
-        identity,
-        agentType,
-        context?.requestContext as object | undefined
-      );
       const controllerCtx = context?.requestContext?.get?.('controller') as
         | {
             emitEvent?: (ev: Record<string, unknown>) => void;
@@ -1062,6 +1065,12 @@ export const buildConductorSubagentTool = (options: {
           resourceId: '',
         });
       }
+      const resolvedModel = await options.resolveSubagentModel(
+        identity,
+        agentType,
+        subagentRequestContext,
+        { task: taskText, ...(input.modelId ? { modelId: input.modelId } : {}) }
+      );
 
       const subagentToRun = options.createSubagentRunner({
         id: `subagent-${definition.id}`,
@@ -1072,7 +1081,11 @@ export const buildConductorSubagentTool = (options: {
         ...(context?.mastra ? { mastra: context.mastra } : {}),
       });
 
+      const primaryModel = Array.isArray(resolvedModel)
+        ? resolvedModel[0]?.model
+        : resolvedModel;
       const resolvedModelId =
+        (primaryModel as { modelId?: string } | undefined)?.modelId ??
         input.modelId ??
         definition.defaultModelId ??
         CONDUCTOR_SUBAGENT_ROLE_MAP[agentType];
@@ -1368,7 +1381,8 @@ export const buildConductorAutonomyTools = (options: {
   resolveSubagentModel: (
     identity: CapabilityIdentity,
     agentType: ConductorSubagentType,
-    requestContext?: object
+    requestContext?: object,
+    options?: ConductorSubagentModelOptions
   ) => Promise<unknown>;
   createSubagentRunner?: (config: Record<string, unknown>) => any;
 }) => {

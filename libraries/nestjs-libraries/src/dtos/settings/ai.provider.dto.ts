@@ -16,6 +16,7 @@ import {
   AI_ROLES,
   MAX_ROLE_MODEL_LENGTH,
   isAiRole,
+  type AiModelRoutingSettings,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import {
   SEARCH_PROVIDERS,
@@ -27,6 +28,22 @@ import {
   MAX_TEXT_FALLBACK_MODELS,
   MAX_TEXT_MODEL_RETRIES,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+
+export const IsAiModelRouting = (options?: ValidationOptions) =>
+  (object: object, propertyName: string) => registerDecorator({
+    name: 'isAiModelRouting', target: object.constructor, propertyName, options,
+    validator: {
+      validate(value: unknown) {
+        if (value == null) return true;
+        if (typeof value !== 'object' || Array.isArray(value)) return false;
+        return Object.entries(value).every(([key, item]) =>
+          key === 'advancedModel'
+            ? typeof item === 'string' && item.length <= MAX_ROLE_MODEL_LENGTH && item.trim() === item
+            : ['enabled', 'advancedFlex'].includes(key) && typeof item === 'boolean');
+      },
+      defaultMessage: () => 'modelRouting accepts enabled, advancedModel and advancedFlex only',
+    },
+  });
 
 export const IsTextFallbackModels = (options?: ValidationOptions) =>
   function decorate(object: object, propertyName: string) {
@@ -210,6 +227,10 @@ export class AiProviderDto {
   @IsOptional()
   @IsAiRoleModels()
   roleModels?: Record<string, string>;
+
+  @IsOptional()
+  @IsAiModelRouting()
+  modelRouting?: Partial<AiModelRoutingSettings>;
 
   @IsString()
   @IsOptional()

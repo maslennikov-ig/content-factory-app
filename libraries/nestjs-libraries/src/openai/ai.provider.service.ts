@@ -23,6 +23,9 @@ import {
 import {
   AiRoleModels,
   parseRoleModels,
+  type AiModelRoutingSettings,
+  readStoredModelRouting,
+  AI_MODEL_ROUTING_METADATA_KEY,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import {
   SEARCH_PROVIDERS,
@@ -36,6 +39,7 @@ import {
   DEFAULT_TEXT_FALLBACK_MODEL,
   readWorkspaceTextChainColumn,
   resolveOrderedTextChainPolicy,
+  withModelRoutingTextChain,
   serializeTextFallbackColumn,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
@@ -188,7 +192,7 @@ export class AiProviderService {
       ? 'quota_exhausted'
       : null;
 
-    const orderedPolicy = resolveOrderedTextChainPolicy(config.textChain, {
+    const orderedPolicy = resolveOrderedTextChainPolicy(withModelRoutingTextChain(config), {
       provider: config.provider,
       usageMode: config.usageMode,
       primaryModel: config.textModel,
@@ -207,6 +211,7 @@ export class AiProviderService {
       textModel: config.textModel,
       imageModel: config.imageModel,
       roleModels: config.roleModels,
+      modelRouting: config.modelRouting,
       textFallbackModel: orderedPolicy.fallbackModel || null,
       textFallbackModels: orderedPolicy.configuredFallbackModels,
       textFallbackDisabled: orderedPolicy.fallbackDisabled,
@@ -287,6 +292,7 @@ export class AiProviderService {
       textModel?: string;
       imageModel?: string;
       roleModels?: Record<string, string>;
+      modelRouting?: Partial<AiModelRoutingSettings>;
       textFallbackModel?: string;
       textFallbackModels?: string[];
       textFallbackDisabled?: boolean;
@@ -422,7 +428,11 @@ export class AiProviderService {
       nextTextChainCol !== undefined ? nextTextChainCol : existingTextChainCol;
     const shouldWriteRoleModels =
       (modelsApply && body.roleModels !== undefined) ||
+      (modelsApply && body.modelRouting !== undefined) ||
       nextTextChainCol !== undefined;
+    const currentRouting = clearsModels ? undefined : readStoredModelRouting(current?.roleModels);
+    const nextRouting = modelsApply && body.modelRouting !== undefined
+      ? { ...currentRouting, ...body.modelRouting } : currentRouting;
     const nextRoleModels = shouldWriteRoleModels
       ? ({
           ...(body.roleModels !== undefined
@@ -431,6 +441,7 @@ export class AiProviderService {
             ? {}
             : parseRoleModels(current?.roleModels)),
           ...(effectiveTextChainCol ? { __textChain: effectiveTextChainCol } : {}),
+          ...(nextRouting ? { [AI_MODEL_ROUTING_METADATA_KEY]: nextRouting } : {}),
         } as AiRoleModels)
       : undefined;
 

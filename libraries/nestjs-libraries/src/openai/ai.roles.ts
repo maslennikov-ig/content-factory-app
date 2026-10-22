@@ -49,6 +49,7 @@ export const AI_ROLES = [
   'extract',
   'research',
   'draft',
+  'adapt',
   'judge',
   'review',
   'image',
@@ -56,6 +57,46 @@ export const AI_ROLES = [
 ] as const;
 
 export type AiRole = (typeof AI_ROLES)[number];
+
+export const AI_ROUTING_STAGES = ['agent', 'draft', 'adapt', 'review'] as const;
+export type AiRoutingStage = (typeof AI_ROUTING_STAGES)[number];
+export type AiModelRoutingSettings = {
+  enabled: boolean;
+  advancedModel: string;
+  advancedFlex: boolean;
+};
+export const AI_MODEL_ROUTING_METADATA_KEY = '__modelRouting';
+
+/** A persisted profile, independent of the model pinned to a particular role. */
+export const readStoredModelRouting = (roles: unknown): Partial<AiModelRoutingSettings> | undefined => {
+  if (!roles || typeof roles !== 'object' || Array.isArray(roles)) return undefined;
+  const raw = (roles as Record<string, unknown>)[AI_MODEL_ROUTING_METADATA_KEY];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const value = raw as Record<string, unknown>;
+  return {
+    ...(typeof value.enabled === 'boolean' ? { enabled: value.enabled } : {}),
+    ...(typeof value.advancedModel === 'string' && value.advancedModel.trim().length <= MAX_ROLE_MODEL_LENGTH
+      ? { advancedModel: value.advancedModel.trim() } : {}),
+    ...(typeof value.advancedFlex === 'boolean' ? { advancedFlex: value.advancedFlex } : {}),
+  };
+};
+
+export const resolveModelRoutingSettings = (
+  stored: Partial<AiModelRoutingSettings> | undefined,
+  defaultAdvancedModel: string
+): AiModelRoutingSettings => ({
+  enabled: stored?.enabled ?? true,
+  advancedModel: stored?.advancedModel?.trim() || defaultAdvancedModel,
+  advancedFlex: stored?.advancedFlex ?? true,
+});
+
+export const routingStageFor = (role: AiRole): AiRoutingStage | undefined =>
+  role === 'judge' ? 'review' :
+  (AI_ROUTING_STAGES as readonly string[]).includes(role) ? role as AiRoutingStage : undefined;
+
+export const isRoleModelPinned = (role: AiRole, source: { roleModels?: AiRoleModels }) =>
+  Boolean(source.roleModels?.[role] ||
+    (role === 'judge' && source.roleModels?.review));
 
 /**
  * What a call gets when nothing says otherwise. The most capable text role, on
@@ -108,6 +149,7 @@ export interface RoleModelSource {
   textModel: string;
   imageModel: string;
   roleModels?: AiRoleModels;
+  modelRouting?: AiModelRoutingSettings;
 }
 
 /**
@@ -119,6 +161,7 @@ export interface RoleModelSource {
  */
 export const modelFor = (role: AiRole, source: RoleModelSource): string =>
   source.roleModels?.[role] ||
+  (role === 'judge' ? source.roleModels?.review : undefined) ||
   (IMAGE_ROLES.has(role) ? source.imageModel : source.textModel);
 
 /**
@@ -162,6 +205,7 @@ export const roleModelFingerprint = (source: RoleModelSource): string =>
   [
     source.textModel,
     source.imageModel,
+    JSON.stringify(source.modelRouting ?? null),
     AI_ROLES.map((role) => `${role}=${source.roleModels?.[role] ?? ''}`).join(
       ','
     ),

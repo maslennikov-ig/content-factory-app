@@ -8,10 +8,9 @@ const nextConfig = {
     turbopackFileSystemCacheForBuild: false,
   },
   reactStrictMode: false,
-  // Значок разработки Next по умолчанию стоит в левом нижнем углу — ровно
-  // поверх «Выйти» в левом меню (`content-factory-next-fn33.47`). Только для
-  // разработки: в собранном приложении этого значка нет.
-  devIndicators: { position: 'bottom-right' },
+  // Floating dev tools cover either Logout or the chat Send button.
+  // Keep local previews usable; runtime errors still show their error overlay.
+  devIndicators: false,
   transpilePackages: ['crypto-hash'],
   // No build plugin wraps this config. The error-reporting one that used to
   // uploaded the frontend's source maps — its sources — to a third party on

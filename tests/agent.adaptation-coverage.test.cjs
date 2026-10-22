@@ -149,7 +149,7 @@ describe('final adaptation coverage uses the actual complete post and bounded re
       repaired: true,
     });
     expect(calls).toHaveLength(4);
-    expect(usage.map((one) => one.role)).toEqual(['review', 'draft', 'review']);
+    expect(usage.map((one) => one.role)).toEqual(['review', 'adapt', 'review']);
     expect(
       usage.every(
         (one) => one.org === 'org-a' && one.operation === 'text_generation'
@@ -374,8 +374,8 @@ describe('final adaptation coverage uses the actual complete post and bounded re
     expect(modelBudgets.map((one) => one.tokens)).toEqual([
       2131, 3000, 2131, 3000,
     ]);
-    expect(modelBudgets[2].role).toBe('draft');
-    expect(usage).toEqual(['review', 'draft', 'review']);
+    expect(modelBudgets[2].role).toBe('adapt');
+    expect(usage).toEqual(['review', 'adapt', 'review']);
   });
 
   test('ordinary generator without a core makes no coverage calls', async () => {
@@ -460,7 +460,7 @@ describe('final adaptation coverage uses the actual complete post and bounded re
         events.push(event);
 
       expect(reviews).toHaveLength(2);
-      expect(usage).toEqual(['review', 'draft', 'review']);
+      expect(usage).toEqual(['review', 'adapt', 'review']);
       if (passes) {
         const outputs = events
           .map((event) => event.data?.output)

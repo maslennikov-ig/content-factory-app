@@ -356,7 +356,7 @@ export class AiUsageService {
 
   private hasActiveAdmission(organizationId: string) {
     const ledger = currentUsageLedger();
-    return Boolean(getActiveAiConfig(organizationId)) && !(ledger && this.closedLedgers.has(ledger));
+    return Boolean(getActiveAiConfig(organizationId)) && Boolean(ledger) && !this.closedLedgers.has(ledger!);
   }
   constructor(private readonly prisma: PrismaService) {
     // Credential resolution runs before every AI operation and used to open a
@@ -838,7 +838,7 @@ export class AiUsageService {
       iterator = iterable[Symbol.asyncIterator]();
       while (true) {
         const item = await runWithUsageLedger(ledger, () =>
-          withActiveAiConfig(organizationId, config, () => iterator!.next())
+          withActiveAiConfig(organizationId, config, () => iterator!.next(), chosen)
         );
         if (item.done) break;
         yield item.value;
@@ -848,7 +848,7 @@ export class AiUsageService {
       try {
         const close = iterator?.return?.bind(iterator);
         if (!succeeded && close) {
-          await withActiveAiConfig(organizationId, config, () => close());
+          await withActiveAiConfig(organizationId, config, () => close(), chosen);
         }
       } finally {
         await this.finishAdmission(admission.id, succeeded, ledger);

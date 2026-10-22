@@ -13,9 +13,11 @@ import {
   IsSearchApiKeys,
   IsSearchTaskProviders,
   IsTextFallbackModels,
+  IsAiModelRouting,
 } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
 import type { AiProvider } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import { MAX_TEXT_MODEL_RETRIES } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+import type { AiModelRoutingSettings } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 
 /**
  * What the instance's superadmin may set, reusing the workspace validators
@@ -47,6 +49,10 @@ export class InstanceAiDefaultsDto {
   @IsOptional()
   @IsAiRoleModels()
   roleModels?: Record<string, string>;
+
+  @IsOptional()
+  @IsAiModelRouting()
+  modelRouting?: Partial<AiModelRoutingSettings>;
 
   @IsOptional()
   @IsSearchApiKeys()

@@ -13,6 +13,7 @@
  * Модели здесь нет: её ответ задан строкой.
  */
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { reviewChatModelMock } = require('./helpers/review-chat-model.cjs');
 const {
   IDENTITY,
   loadRegistry,
@@ -41,6 +42,8 @@ const mocks = {
     getModelForRole: async (_org, role) => `${role}-model`,
   },
 };
+mocks['@contentfactory/nestjs-libraries/openai/ai.clients'].getChatModel =
+  reviewChatModelMock(mocks['@contentfactory/nestjs-libraries/openai/ai.clients']);
 
 const { repeatedElsewhere, isWholeSentences } = loadWithMocks(
   `${QUALITY}/repeated-wording.ts`,

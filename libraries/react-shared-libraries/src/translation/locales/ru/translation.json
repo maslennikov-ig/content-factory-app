@@ -825,6 +825,7 @@
   "ai_role_extract": "Разбор текста",
   "ai_role_research": "Веб-исследование",
   "ai_role_draft": "Черновик",
+  "ai_role_adapt": "Адаптация",
   "ai_role_judge": "Проверка голоса",
   "ai_role_review": "Проверка адаптации",
   "ai_role_image": "Картинки",

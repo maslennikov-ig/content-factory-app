@@ -22,7 +22,12 @@ import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 import { Progress } from '../ui/progress';
-import { Disclosure } from '../ui/disclosure';
+import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import {
+  ModelField,
+  ModelRoutingFields,
+  type ModelRouting,
+} from './model-routing-fields';
 import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 import {
   aiProviderCopy,
@@ -57,6 +62,7 @@ const AI_ROLES = [
   'extract',
   'research',
   'draft',
+  'adapt',
   'judge',
   'review',
   'image',
@@ -160,6 +166,18 @@ interface AiSettings {
   textModel: string;
   imageModel: string;
   roleModels: RoleModels;
+  modelRouting?: ModelRouting;
+  textFallbackModel?: string;
+  textFallbackModels?: string[];
+  textFallbackDisabled?: boolean;
+  textMaxRetries?: number;
+  textChain?: {
+    inheritedDefault?: boolean;
+    configuredFallbackModels?: string[];
+    fallbackModels?: string[];
+    fallbackDisabled?: boolean;
+    maxRetries?: number;
+  };
   hasKey: boolean;
   /**
    * The provider the workspace's own key is filed under, in either mode
@@ -228,6 +246,11 @@ interface AiSettingsPayloadInput {
   textModel: string;
   imageModel: string;
   roleModels: RoleModels;
+  modelRouting?: ModelRouting;
+  textFallbackModel?: string;
+  textFallbackModels?: string[];
+  textFallbackDisabled?: boolean;
+  textMaxRetries?: number | string;
   searchEnabled: boolean;
   /** Only the engines a person actually typed into during this visit. */
   searchApiKeys?: SearchKeyDrafts;
@@ -272,6 +295,11 @@ export const buildAiSettingsPayload = ({
   textModel,
   imageModel,
   roleModels,
+  modelRouting,
+  textFallbackModel,
+  textFallbackModels,
+  textFallbackDisabled,
+  textMaxRetries,
   searchEnabled,
   searchApiKeys = {},
   searchTopic,
@@ -283,7 +311,42 @@ export const buildAiSettingsPayload = ({
     provider,
     ...(usageMode === 'workspace_key' && apiKey ? { apiKey } : {}),
     ...(usageMode === 'workspace_key'
-      ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
+      ? {
+          textModel,
+          imageModel,
+          roleModels: submittedRoleModels(roleModels),
+          ...(modelRouting
+            ? {
+                modelRouting: {
+                  ...modelRouting,
+                  advancedModel: modelRouting.advancedModel.trim(),
+                },
+              }
+            : {}),
+          ...(textFallbackModel !== undefined
+            ? { textFallbackModel: textFallbackModel.trim() }
+            : {}),
+          ...(Array.isArray(textFallbackModels)
+            ? {
+                textFallbackModels: textFallbackModels
+                  .map((model) => model.trim())
+                  .filter(Boolean),
+              }
+            : {}),
+          ...(typeof textFallbackDisabled === 'boolean'
+            ? { textFallbackDisabled }
+            : {}),
+          ...(textMaxRetries !== undefined &&
+          String(textMaxRetries).trim() !== '' &&
+          Number.isFinite(Number(textMaxRetries))
+            ? {
+                textMaxRetries: Math.min(
+                  5,
+                  Math.max(0, Math.floor(Number(textMaxRetries)))
+                ),
+              }
+            : {}),
+        }
       : {}),
     // Search credentials and tuning are independent of generation mode.
     searchEnabled,
@@ -469,65 +532,6 @@ const BlockHeading = ({
   />
 );
 
-/**
- * A free-text field with a datalist rather than a plain select: OpenRouter
- * publishes hundreds of models, and a new one must be usable the day it
- * appears without waiting for this list to refresh.
- *
- * The sentence under the field moved into the «?» beside its name
- * (`97dq.62`, variant B): with the fields in pairs, a helper line under one
- * of them pushed its neighbour's row out of line.
- */
-const ModelField = ({
-  id,
-  label,
-  hint,
-  hintLabel,
-  placeholder,
-  value,
-  options,
-  listId,
-  onChange,
-  onCommit,
-}: {
-  id: string;
-  label: string;
-  hint: string;
-  hintLabel: string;
-  placeholder: string;
-  value: string;
-  options: ModelOption[];
-  listId: string;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-}) => (
-  <LabelledField id={id} label={label} hint={hint} hintLabel={hintLabel}>
-    <Input
-      id={id}
-      label=""
-      name={listId}
-      value={value}
-      placeholder={placeholder}
-      disableForm={true}
-      list={listId}
-      // A model id is typed a character at a time and none of the intermediate
-      // ones is a model, so this field is saved when it is left rather than as
-      // it is written. A key field has no such handler at all.
-      onBlur={() => onCommit()}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-        onChange(e.target.value)
-      }
-    />
-    <datalist id={listId}>
-      {options.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </datalist>
-  </LabelledField>
-);
-
 const AiProviderComponent = () => {
   const t = useT();
   const { language } = useVariables();
@@ -553,6 +557,12 @@ const AiProviderComponent = () => {
   const [textModel, setTextModel] = useState('');
   const [imageModel, setImageModel] = useState('');
   const [roleModels, setRoleModels] = useState<RoleModels>({});
+  const [modelRouting, setModelRouting] = useState<ModelRouting>();
+  const [textFallbackModel, setTextFallbackModel] = useState<string>();
+  const [textFallbackModels, setTextFallbackModels] = useState<string[]>();
+  const [textFallbackDisabled, setTextFallbackDisabled] = useState<boolean>();
+  const [textMaxRetries, setTextMaxRetries] = useState<number | string>();
+  const [newFallbackDraft, setNewFallbackDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
@@ -572,6 +582,19 @@ const AiProviderComponent = () => {
     setTextModel(data.textModel);
     setImageModel(data.imageModel);
     setRoleModels(data.roleModels || {});
+    setModelRouting(data.modelRouting);
+    setTextFallbackModel(undefined);
+    // Older response fields may contain the effective default list. The
+    // explicit inheritance marker wins, so unrelated edits do not pin it.
+    setTextFallbackModels(
+      data.textChain?.inheritedDefault === true
+        ? undefined
+        : data.textFallbackModels ?? data.textChain?.configuredFallbackModels
+    );
+    setTextFallbackDisabled(data.textFallbackDisabled);
+    // The response includes effective retries. Keep it as a placeholder until
+    // edited, so an unrelated autosave does not turn inheritance into a pin.
+    setTextMaxRetries(undefined);
     setSearchEnabled(data.searchEnabled);
     setSearchTopic(data.searchTopic);
     setSearchDepth(data.searchDepth);
@@ -587,12 +610,19 @@ const AiProviderComponent = () => {
    * a model id; `email-notifications.component.tsx` solved the same problem
    * the same way.
    */
+  const loadedSettingsRef = useRef(data);
+  loadedSettingsRef.current = data;
   const formRef = useRef({
     usageMode,
     provider,
     textModel,
     imageModel,
     roleModels,
+    modelRouting,
+    textFallbackModel,
+    textFallbackModels,
+    textFallbackDisabled,
+    textMaxRetries,
     searchEnabled,
     searchTopic,
     searchDepth,
@@ -603,6 +633,11 @@ const AiProviderComponent = () => {
     textModel,
     imageModel,
     roleModels,
+    modelRouting,
+    textFallbackModel,
+    textFallbackModels,
+    textFallbackDisabled,
+    textMaxRetries,
     searchEnabled,
     searchTopic,
     searchDepth,
@@ -626,6 +661,10 @@ const AiProviderComponent = () => {
    */
   const autosave = useCallback(
     async (patch: Partial<typeof formRef.current> = {}) => {
+      // While the usage mode changes, the form still holds the previous
+      // mode's settings. Wait for GET before those values can be written.
+      if (formRef.current.usageMode !== loadedSettingsRef.current?.usageMode)
+        return;
       const next = { ...formRef.current, ...patch };
       try {
         const response = await fetch('/settings/ai', {
@@ -670,6 +709,7 @@ const AiProviderComponent = () => {
       await mutate();
       toaster.show(t('settings_updated', 'Settings updated'), 'success');
     } catch {
+      setUsageMode(loadedSettingsRef.current?.usageMode ?? next);
       toaster.show(
         t('ai_provider_save_failed', 'Could not save the provider settings'),
         'warning'
@@ -695,7 +735,9 @@ const AiProviderComponent = () => {
       // with it. So the switch waits for «Сохранить» with the new key, and
       // the key field says so, instead of an autosave the door would ignore.
       const waitsForKey =
-        !returning && !!data?.hasKey && formRef.current.usageMode === 'workspace_key';
+        !returning &&
+        !!data?.hasKey &&
+        formRef.current.usageMode === 'workspace_key';
       const nextText = returning ? data?.textModel || '' : '';
       const nextImage = returning ? data?.imageModel || '' : '';
       // Role ids belong to their provider for exactly the same reason, and a
@@ -705,15 +747,32 @@ const AiProviderComponent = () => {
       setTextModel(nextText);
       setImageModel(nextImage);
       setRoleModels(nextRoles);
+      const nextRouting = returning
+        ? data?.modelRouting
+        : modelRouting
+        ? { ...modelRouting, advancedModel: '' }
+        : undefined;
+      const nextFallbackModels =
+        returning && data?.textChain?.inheritedDefault !== true
+          ? data?.textFallbackModels ?? data?.textChain?.configuredFallbackModels
+          : undefined;
+      setModelRouting(nextRouting);
+      setTextFallbackModels(nextFallbackModels);
+      setTextFallbackModel(returning ? undefined : '');
+      setTextFallbackDisabled(returning ? data?.textFallbackDisabled : false);
       if (waitsForKey) return;
       autosave({
         provider: next,
         textModel: nextText,
         imageModel: nextImage,
         roleModels: nextRoles,
+        modelRouting: nextRouting,
+        textFallbackModel: returning ? undefined : '',
+        textFallbackModels: nextFallbackModels,
+        textFallbackDisabled: returning ? data?.textFallbackDisabled : false,
       });
     },
-    [data, autosave]
+    [data, modelRouting, autosave]
   );
 
   /**
@@ -793,10 +852,33 @@ const AiProviderComponent = () => {
   const textOptions = useMemo(() => models?.text || [], [models]);
   const imageOptions = useMemo(() => models?.image || [], [models]);
 
-  /** Сколько ролей идут не на ИИ для текста — строка свёрнутой таблицы. */
-  const routedRoles = AI_ROLES.filter((role) =>
-    (roleModels[role] || '').trim()
-  ).length;
+  const orderedFallbacks =
+    textFallbackModels ??
+    (provider === data?.provider
+      ? data?.textChain?.fallbackModels
+      : undefined) ??
+    [];
+  const fallbackDisabled =
+    textFallbackDisabled ?? data?.textChain?.fallbackDisabled ?? false;
+  const commitFallback = (models: string[] | undefined, disabled: boolean) => {
+    // Undefined plus the legacy empty field means reset; [] is an explicit opt-out.
+    const legacyReset = models === undefined ? '' : undefined;
+    setTextFallbackModel(legacyReset);
+    setTextFallbackModels(models);
+    setTextFallbackDisabled(disabled);
+    void autosave({
+      textFallbackModel: legacyReset,
+      textFallbackModels: models,
+      textFallbackDisabled: disabled,
+    });
+  };
+  const moveFallback = (index: number, delta: -1 | 1) => {
+    const next = [...orderedFallbacks];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    commitFallback(next, fallbackDisabled);
+  };
 
   /**
    * The explicit save, which exists for exactly one reason: it is the only
@@ -817,6 +899,11 @@ const AiProviderComponent = () => {
             textModel,
             imageModel,
             roleModels,
+            modelRouting,
+            textFallbackModel,
+            textFallbackModels,
+            textFallbackDisabled,
+            textMaxRetries,
             searchEnabled,
             searchApiKeys,
             searchTopic,
@@ -847,6 +934,11 @@ const AiProviderComponent = () => {
     textModel,
     imageModel,
     roleModels,
+    modelRouting,
+    textFallbackModel,
+    textFallbackModels,
+    textFallbackDisabled,
+    textMaxRetries,
     searchEnabled,
     searchApiKeys,
     searchTopic,
@@ -932,7 +1024,8 @@ const AiProviderComponent = () => {
    * to be one. On their own key, everything is theirs to set. So the fields
    * are absent rather than disabled, and the one line above says so.
    */
-  const ownKeys = usageMode === 'workspace_key';
+  const ownKeys =
+    usageMode === 'workspace_key' && data?.usageMode === 'workspace_key';
 
   const allowanceLine =
     usageMode === 'included'
@@ -986,6 +1079,7 @@ const AiProviderComponent = () => {
           <div className="w-full sm:w-[280px]">
             <Select
               id="ai-usage-mode"
+              disabled={!data || usageMode !== data.usageMode}
               label=""
               name="usageMode"
               value={usageMode}
@@ -1055,7 +1149,9 @@ const AiProviderComponent = () => {
                   >
                     <span
                       className="truncate"
-                      title={member.name ? member.email ?? undefined : undefined}
+                      title={
+                        member.name ? member.email ?? undefined : undefined
+                      }
                     >
                       {member.name ||
                         member.email ||
@@ -1266,92 +1362,197 @@ const AiProviderComponent = () => {
               />
             </div>
 
-            {/*
-            One model for everything was the whole cost problem
-            (`content-factory-next-x63z`): classifying a research subject — one
-            sentence in, five short fields out — was billed at the price of
-            writing a draft. Seven rows, each a plain model id, each empty by
-            default and empty meaning «the text model above», so the screen
-            adds a lever without adding a decision anybody has to make.
+            <ModelRoutingFields
+              idPrefix="ai"
+              value={modelRouting}
+              roleModels={roleModels}
+              primaryModel={textModel}
+              textOptions={textOptions}
+              imageOptions={imageOptions}
+              words={words}
+              onRoutingChange={setModelRouting}
+              onRoutingCommit={(next) => {
+                setModelRouting(next);
+                void autosave({ modelRouting: next });
+              }}
+              onRoleChange={(role, model) =>
+                setRoleModels((current) => ({ ...current, [role]: model }))
+              }
+              onRoleCommit={autosave}
+            />
 
-            Свёрнуто по умолчанию (`97dq.62`, вариант B): строка-открывашка
-            говорит, что внутри, — «у всех тот же, что для текста» или «свой у
-            N», — и таблица «роль · поле» раскрывается по нажатию. Что такое
-            роль, уехало в подсказку заголовка, что делает каждая — в «?» у
-            её строки.
-          */}
             <div
-              data-ai-roles-hint="true"
-              className="flex flex-col gap-[8px] border-t border-cf-border pt-[16px]"
+              data-ai-fallback-settings="true"
+              className="flex flex-col gap-[12px] border-t border-cf-border pt-[16px]"
             >
               <BlockHeading
-                title={t('ai_role_models', 'Usage and call roles')}
-                hintLabel={words.hintFor(
-                  t('ai_role_models', 'Usage and call roles')
-                )}
-                hint={words.rolesHint}
+                title={words.routing.fallbackTitle}
+                hintLabel={words.hintFor(words.routing.fallbackTitle)}
+                hint={words.routing.fallbackHint}
               />
-              <Disclosure
-                className="flex flex-col"
-                triggerClassName="px-[8px]"
-                summary={
-                  <span data-ai-roles-summary="true" className="cf-body-sm">
-                    {routedRoles
-                      ? words.rolesSummarySome(routedRoles, AI_ROLES.length)
-                      : words.rolesSummaryAll}
-                  </span>
-                }
-                contentClassName="flex flex-col gap-[12px] pt-[8px]"
+              <p
+                data-ai-fallback-state="true"
+                className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
               >
-                <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                  {words.rolesEmpty}
-                </p>
-                <div className="grid grid-cols-1 items-center gap-x-[16px] gap-y-[8px] sm:grid-cols-[200px_minmax(0,1fr)]">
-                  {AI_ROLES.map((role) => (
-                    <React.Fragment key={role}>
-                      <span className="flex min-w-0 flex-wrap items-center gap-[4px]">
-                        <label
-                          htmlFor={`ai-role-model-${role}`}
-                          className="cf-body-sm text-cf-ink"
-                        >
-                          {t(`ai_role_${role}`, role)}
-                        </label>
-                        {/* Одна строка про саму роль — в «?» рядом с её
-                            названием: «Разбор текста» ничего не объясняет
-                            тому, кто видит список впервые. */}
-                        <Hint label={words.hintFor(t(`ai_role_${role}`, role))}>
-                          {words.roles[role].what}
-                        </Hint>
-                      </span>
-                      <Input
-                        id={`ai-role-model-${role}`}
-                        label=""
-                        name={`ai-role-model-${role}`}
-                        value={roleModels[role] || ''}
-                        placeholder={t(
-                          'provider_default_model',
-                          'Provider default'
-                        )}
-                        disableForm={true}
-                        list={
-                          role === 'image'
-                            ? 'ai-image-models'
-                            : 'ai-text-models'
-                        }
-                        onBlur={() => autosave()}
-                        onChange={(
-                          event: React.ChangeEvent<HTMLInputElement>
-                        ) =>
-                          setRoleModels((current) => ({
-                            ...current,
-                            [role]: event.target.value,
-                          }))
-                        }
-                      />
-                    </React.Fragment>
-                  ))}
+                {fallbackDisabled || textFallbackModels?.length === 0
+                  ? words.routing.fallbackExplicitEmpty
+                  : textFallbackModels === undefined
+                  ? words.routing.fallbackInherited
+                  : words.routing.fallbackEffective(
+                      orderedFallbacks.join(' → ')
+                    )}
+              </p>
+              {textFallbackModels === undefined &&
+                !fallbackDisabled &&
+                orderedFallbacks.length > 0 && (
+                  <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                    {words.routing.fallbackEffective(
+                      orderedFallbacks.join(' → ')
+                    )}
+                  </p>
+                )}
+              <ol className="flex flex-col gap-[8px]">
+                {orderedFallbacks.map((model, index) => (
+                  <li
+                    key={model}
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-[8px]"
+                  >
+                    <span className="cf-body-sm min-w-0 break-all text-cf-ink">
+                      {index + 1}. {model}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-[4px]">
+                      <Button
+                        density="dense"
+                        variant="quiet"
+                        aria-label={`${words.routing.moveUp}: ${model}`}
+                        disabled={index === 0}
+                        onClick={() => moveFallback(index, -1)}
+                      >
+                        {words.routing.moveUp}
+                      </Button>
+                      <Button
+                        density="dense"
+                        variant="quiet"
+                        aria-label={`${words.routing.moveDown}: ${model}`}
+                        disabled={index === orderedFallbacks.length - 1}
+                        onClick={() => moveFallback(index, 1)}
+                      >
+                        {words.routing.moveDown}
+                      </Button>
+                      <Button
+                        density="dense"
+                        variant="quiet"
+                        aria-label={`${words.routing.remove}: ${model}`}
+                        onClick={() => {
+                          commitFallback(
+                            orderedFallbacks.filter((_, i) => i !== index),
+                            fallbackDisabled
+                          );
+                          document.getElementById('ai-fallback-add')?.focus();
+                        }}
+                      >
+                        {words.routing.remove}
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex flex-wrap items-end gap-[8px]">
+                <div className="min-w-0 flex-1">
+                  <LabelledField
+                    id="ai-fallback-add"
+                    label={words.routing.fallbackModel}
+                  >
+                    <Input
+                      id="ai-fallback-add"
+                      name="ai-fallback-add"
+                      label=""
+                      disableForm={true}
+                      value={newFallbackDraft}
+                      list="ai-text-models"
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                        setNewFallbackDraft(event.target.value)
+                      }
+                    />
+                  </LabelledField>
                 </div>
-              </Disclosure>
+                <Button
+                  variant="secondary"
+                  disabled={!newFallbackDraft.trim()}
+                  onClick={() => {
+                    const candidate = newFallbackDraft.trim();
+                    if (!candidate) return;
+                    commitFallback(
+                      [
+                        ...orderedFallbacks.filter(
+                          (model) => model !== candidate
+                        ),
+                        candidate,
+                      ],
+                      false
+                    );
+                    setNewFallbackDraft('');
+                  }}
+                >
+                  {words.routing.fallbackAdd}
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                <CheckboxField
+                  name="ai-fallback-disabled"
+                  label={words.routing.fallbackDisabled}
+                  checked={fallbackDisabled}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    const disabled = event.target.checked;
+                    commitFallback(
+                      disabled
+                        ? textFallbackModels
+                        : orderedFallbacks.length
+                        ? textFallbackModels
+                        : undefined,
+                      disabled
+                    );
+                  }}
+                />
+                <Button
+                  variant="quiet"
+                  onClick={() => commitFallback(undefined, false)}
+                >
+                  {words.routing.fallbackReset}
+                </Button>
+              </div>
+              <LabelledField
+                id="ai-text-max-retries"
+                label={words.routing.retries}
+              >
+                <Input
+                  id="ai-text-max-retries"
+                  name="ai-text-max-retries"
+                  label=""
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={1}
+                  inputMode="numeric"
+                  disableForm={true}
+                  value={
+                    textMaxRetries === undefined ? '' : String(textMaxRetries)
+                  }
+                  placeholder={
+                    data?.textMaxRetries === undefined &&
+                    data?.textChain?.maxRetries === undefined
+                      ? words.routing.defaultValue
+                      : String(
+                          data?.textMaxRetries ?? data?.textChain?.maxRetries
+                        )
+                  }
+                  fieldClassName="w-[88px]"
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setTextMaxRetries(event.target.value)
+                  }
+                  onBlur={() => autosave()}
+                />
+              </LabelledField>
             </div>
 
             {provider === 'openrouter' && models?.error && (
@@ -1519,6 +1720,7 @@ const AiProviderComponent = () => {
           >
             <Select
               id="ai-search-topic"
+              disabled={usageMode !== data?.usageMode}
               label=""
               name="searchTopic"
               value={searchTopic}
@@ -1548,6 +1750,7 @@ const AiProviderComponent = () => {
           >
             <Select
               id="ai-search-depth"
+              disabled={usageMode !== data?.usageMode}
               label=""
               name="searchDepth"
               value={searchDepth}
@@ -1575,7 +1778,10 @@ const AiProviderComponent = () => {
         ни у кого другого: ключи уходят только отсюда.
       */}
         <div className="flex flex-wrap items-center gap-[8px]">
-          <Button onClick={save} disabled={saving || !data}>
+          <Button
+            onClick={save}
+            disabled={saving || !data || usageMode !== data.usageMode}
+          >
             {t('save', 'Save')}
           </Button>
           <span className="cf-body-sm text-cf-ink-muted">

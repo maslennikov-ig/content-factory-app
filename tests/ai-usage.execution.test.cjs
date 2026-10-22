@@ -999,6 +999,24 @@ describe('AI operation usage seam', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
+  test('a routing model executed inside another model factory opens its own real admission', async () => {
+    const create = jest.fn(async ({ data }) => ({ id: `usage-${create.mock.calls.length}`, ...data }));
+    const update = jest.fn(async () => ({}));
+    const usage = loadUsage({ transaction: jest.fn(), create, update,
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    const provider = () => ({ doGenerate: async () => ({ content: [] }), doStream: jest.fn() });
+    const main = await usage.prepareModelExecution('organization-a', 'agent', async () => {
+      const selector = await usage.prepareModelExecution('organization-a', 'agent', async () => provider());
+      await selector.doGenerate({ prompt: [] });
+      return provider();
+    });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    await main.doGenerate({ prompt: [] });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
   test('a deferred model executed after its admission closes gets a new usage row', async () => {
     const create = jest.fn(async ({ data }) => ({
       id: `usage-${create.mock.calls.length}`,

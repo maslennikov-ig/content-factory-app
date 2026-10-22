@@ -307,6 +307,15 @@ export async function proxy(request: NextRequest) {
 
   const homeNeedsSessionRouting =
     nextUrl.pathname === '/' && (looksLikeInviteToken || Boolean(authCookie));
+  let localLoginPauseCookie: string | undefined;
+  if (process.env.NODE_ENV === 'development' && process.env.CF_LOCAL_AUTH_TOKEN) {
+    const local = await import('./local-auto-login');
+    if (local.localLoginConfigured(request)) {
+      localLoginPauseCookie = local.LOCAL_LOGIN_PAUSED_COOKIE;
+    }
+    const localLogin = await local.localAutoLogin(request);
+    if (localLogin) return localLogin;
+  }
   if (PUBLIC_PATHS.includes(nextUrl.pathname) && !homeNeedsSessionRouting) {
     return topResponse;
   }
@@ -328,6 +337,11 @@ export async function proxy(request: NextRequest) {
       maxAge: -1,
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
     });
+    if (localLoginPauseCookie) {
+      response.cookies.set(localLoginPauseCookie, '1', {
+        path: '/', httpOnly: true, sameSite: 'lax',
+      });
+    }
     return response;
   }
 

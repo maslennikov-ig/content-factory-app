@@ -64,11 +64,8 @@ import { RequestContext } from '@mastra/core/request-context';
 import { closeMastraStore, pStore } from '@contentfactory/nestjs-libraries/chat/mastra.store';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
-  getMastraAiSdkProvider,
-  getClassifyDecisionModel,
-  getMastraAgentModelEntries,
+  getRoutedMastraModelEntries,
   getMastraVoice,
-  getModelForRole,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { PermissionsService } from '@contentfactory/backend/services/auth/permissions/permissions.service';
 import { DoorPolicyGate } from '@contentfactory/nestjs-libraries/chat/capabilities/door-policy';
@@ -77,7 +74,8 @@ import {
   CONDUCTOR_SUBAGENT_ROLE_MAP,
   buildConductorAgent,
   buildConductorController,
-  createConductorModelSelectionProcessor,
+  readConductorModelTask,
+  seedConductorModelTask,
   setConductorModelMaxRetries,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.agent';
 import {
@@ -554,6 +552,7 @@ export class MastraService
                   .context
               )
             : null,
+          continuationModelTask: readConductorModelTask(nextContext) ?? null,
           state: 'queued',
           retryAt: null,
         }),
@@ -853,6 +852,7 @@ export class MastraService
       input.requestId,
       input.workContext
     );
+    seedConductorModelTask(requestContext, input.signal.contents);
     const resourceId = conductorResourceId(
       identity.organizationId,
       identity.userId
@@ -1249,6 +1249,12 @@ export class MastraService
           pointer.logicalRequestId,
           selected
         );
+        seedConductorModelTask(
+          requestContext,
+          typeof pointer.continuationModelTask === 'string'
+            ? pointer.continuationModelTask
+            : undefined
+        );
         if (typeof pointer.continuationQueuedInputChildRunId === 'string')
           requestContext.set(
             NATIVE_QUEUED_INPUT_CHILD_CONTEXT_KEY,
@@ -1361,10 +1367,17 @@ export class MastraService
             organizationId,
             'agent',
             async () => {
-              const { entries, policy } = await getMastraAgentModelEntries(
+              const { entries, policy } = await getRoutedMastraModelEntries(
                 organizationId,
                 'agent',
-                { modelId: this.sessionModelId(requestContext) }
+                readConductorModelTask(requestContext),
+                {
+                  modelId: this.sessionModelId(requestContext),
+                  requestContext,
+                  prepareModels: (factory) => this.aiUsage.prepareModelExecution(
+                    organizationId, 'agent', factory, { userId }
+                  ),
+                }
               );
               if (requestContext) {
                 setConductorModelMaxRetries(
@@ -1373,78 +1386,25 @@ export class MastraService
                   entries.map((entry) => entry.model.modelId)
                 );
               }
-              if (entries.length > 0) {
-                return entries;
-              }
-              return (await getMastraAiSdkProvider(organizationId)).chat(
-                await getModelForRole(organizationId, 'agent')
-              );
+              return entries;
             },
             { userId }
           ),
-        modelSelection: async ({ organizationId, userId }, requestContext) => {
-          if (this.sessionModelId(requestContext)) return null;
-          let decisionModel:
-            | Awaited<ReturnType<typeof getClassifyDecisionModel>>
-            | undefined;
-          const prepared = await this.aiUsage.prepareModelExecution(
-            organizationId,
-            'agent',
-            async () => {
-              const [agentModelId, classifyModelId] = await Promise.all([
-                getModelForRole(organizationId, 'agent'),
-                getModelForRole(organizationId, 'classify'),
-              ]);
-              if (!classifyModelId || classifyModelId === agentModelId)
-                return [];
-              const [decision, provider] = await Promise.all([
-                getClassifyDecisionModel(organizationId, {
-                  prepareModels: (factory) =>
-                    this.aiUsage.prepareModelExecution(
-                      organizationId,
-                      'agent',
-                      factory,
-                      { userId }
-                    ),
-                }),
-                getMastraAiSdkProvider(organizationId),
-              ]);
-              decisionModel = decision;
-              return [
-                { model: provider.chat(classifyModelId), maxRetries: 0 },
-                { model: provider.chat(agentModelId), maxRetries: 0 },
-              ];
-            },
-            { userId }
-          );
-          if (!decisionModel || prepared.length !== 2) return null;
-          return createConductorModelSelectionProcessor({
-            model: decisionModel as any,
-            minProbability: 0.85,
-            choices: [
-              {
-                name: 'classify',
-                model: prepared[0].model as any,
-                criteria:
-                  'Short status lookup, greeting, or direct factual question that requires no multi-step research, planning, or content writing.',
-              },
-              {
-                name: 'agent',
-                model: prepared[1].model as any,
-                criteria:
-                  'Any request involving content creation, editing, research, planning, scheduling, or multi-step tool orchestration.',
-              },
-            ],
-          });
-        },
         goalJudge: ({ organizationId, userId }, requestContext) =>
           this.aiUsage.prepareModelExecution(
             organizationId,
             'agent',
             async () => {
-              const { entries, policy } = await getMastraAgentModelEntries(
+              const { entries, policy } = await getRoutedMastraModelEntries(
                 organizationId,
-                'review'
+                'review',
+                readConductorModelTask(requestContext),
+                {
+                  requestContext,
+                  prepareModels: (factory) => this.aiUsage.prepareModelExecution(
+                    organizationId, 'agent', factory, { userId }
+                  ),
+                }
               );
               if (requestContext) {
                 setConductorModelMaxRetries(
@@ -1453,19 +1413,15 @@ export class MastraService
                   entries.map((entry) => entry.model.modelId)
                 );
               }
-              if (entries.length > 0) {
-                return entries;
-              }
-              return (await getMastraAiSdkProvider(organizationId)).chat(
-                await getModelForRole(organizationId, 'review')
-              );
+              return entries;
             },
             { userId }
           ),
         subagentModel: (
           { organizationId, userId },
           agentType,
-          requestContext
+          requestContext,
+          options
         ) => {
           const role = CONDUCTOR_SUBAGENT_ROLE_MAP[agentType] ?? 'agent';
           const operation = role === 'research' ? 'web_research' : 'agent';
@@ -1473,9 +1429,17 @@ export class MastraService
             organizationId,
             operation,
             async () => {
-              const { entries, policy } = await getMastraAgentModelEntries(
+              const { entries, policy } = await getRoutedMastraModelEntries(
                 organizationId,
-                role
+                role,
+                options?.task,
+                {
+                  modelId: options?.modelId,
+                  requestContext,
+                  prepareModels: (factory) => this.aiUsage.prepareModelExecution(
+                    organizationId, operation, factory, { userId }
+                  ),
+                }
               );
               if (requestContext) {
                 setConductorModelMaxRetries(
@@ -1484,12 +1448,7 @@ export class MastraService
                   entries.map((entry) => entry.model.modelId)
                 );
               }
-              if (entries.length > 0) {
-                return entries;
-              }
-              return (await getMastraAiSdkProvider(organizationId)).chat(
-                await getModelForRole(organizationId, role)
-              );
+              return entries;
             },
             { userId }
           );
@@ -1650,6 +1609,7 @@ export class MastraService
                 identity: current,
                 threadId,
               });
+              seedConductorModelTask(requestContext, s.prompt);
               return {
                 threadId,
                 resourceId,

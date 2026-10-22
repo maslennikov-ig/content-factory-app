@@ -1,12 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import {
-  getOpenAiClient,
-  getModelForRole,
-} from '@contentfactory/nestjs-libraries/openai/ai.clients';
-// SDK retries stay off. The deadline is the text chain's when this client
-// walks one, and 60 s otherwise (`content-factory-next-97dq.55`).
-import { textRequestOptions } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+import { getChatModel } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import type { AiUsageService } from '../../openai/ai.usage.service';
 import { slopCheck } from '../text-quality/slop-check';
 import {
@@ -741,29 +735,23 @@ export async function reviewOnceV3(
     org,
     'text_generation',
     async () => {
-      const client = await getOpenAiClient(org);
-      const model = await getModelForRole(org, 'review');
+      const model = await getChatModel(org, undefined, 16384, 'review');
       let repairCode: string | undefined;
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await client.chat.completions.create(
-          {
-            model,
-            messages: [
-              { role: 'system', content: prompt.system },
-              { role: 'user', content: prompt.user },
-              ...(repairCode
-                ? [{
-                    role: 'system' as const,
-                    content: `The previous response failed ${repairCode}. Return one complete JSON object matching the contract; do not add prose or markdown.`,
-                  }]
-                : []),
-            ],
-            response_format: { type: 'json_object' },
-            max_tokens: 16384,
-          },
-          textRequestOptions(client)
+        const response = await model.invoke(
+          [
+            { role: 'system', content: prompt.system },
+            { role: 'user', content: prompt.user },
+            ...(repairCode
+              ? [{
+                  role: 'system' as const,
+                  content: `The previous response failed ${repairCode}. Return one complete JSON object matching the contract; do not add prose or markdown.`,
+                }]
+              : []),
+          ],
+          { response_format: { type: 'json_object' } }
         );
-        const parsed = parseOutput(response.choices[0]?.message.content ?? '');
+        const parsed = parseOutput(typeof response.content === 'string' ? response.content : '');
         if (!parsed.parsed) {
           repairCode = parsed.code!;
           warn(`Review validation rejected model output: ${repairCode}; retry=${attempt + 1}`);

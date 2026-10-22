@@ -51,6 +51,7 @@ import {
   conductorScopes,
 } from './conductor.context';
 import { AGENT_WORK_CONTEXT_KEY, type ResolvedAgentWorkContext } from './work-context';
+export { readConductorModelTask, seedConductorModelTask } from './conductor.model-task';
 import { conductorInstructions } from './conductor.instructions';
 import { ViewedPicturesProcessor } from './conductor.pictures';
 import { stepNotes } from './conductor.steps';
@@ -78,6 +79,7 @@ import {
   resolveConductorGoalStore,
   resolveFollowUpScheduleTimeZone,
   type ConductorSubagentType,
+  type ConductorSubagentModelOptions,
 } from './conductor.autonomy';
 
 export {
@@ -181,7 +183,8 @@ export type ConductorDependencies = {
   subagentModel?: (
     identity: CapabilityIdentity,
     agentType: ConductorSubagentType,
-    requestContext?: object
+    requestContext?: object,
+    options?: ConductorSubagentModelOptions
   ) => Promise<unknown>;
   /**
    * Optional schedules manager accessor (`mastra.schedules`, `on0i.4`, `A20`).
@@ -233,10 +236,11 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
   const resolveSubagentModel = async (
     identity: CapabilityIdentity,
     agentType: ConductorSubagentType,
-    requestContext?: object
+    requestContext?: object,
+    options?: ConductorSubagentModelOptions
   ) => {
     if (deps.subagentModel) {
-      return deps.subagentModel(identity, agentType, requestContext);
+      return deps.subagentModel(identity, agentType, requestContext, options);
     }
     return deps.model(identity, requestContext);
   };

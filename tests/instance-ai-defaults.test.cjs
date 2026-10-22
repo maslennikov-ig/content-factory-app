@@ -123,6 +123,7 @@ const loadService = (rows) => {
     '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
       INSTANCE_AI_DEFAULTS_ID: 'instance',
       resetAiConfigCache: () => undefined,
+      defaultAdvancedModelForProvider: provider => loadConfig(null,null).defaultAdvancedModelForProvider(provider),
     },
     '@contentfactory/nestjs-libraries/openai/ai.roles': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/openai/ai.roles.ts'
@@ -192,7 +193,7 @@ describe('service-managed model defaults preserve own-model choices (8o2z)', () 
     ['custom model', () => 'custom/workspace', () => ['custom/workspace']],
     ['ordered models', () => JSON.stringify({ version: 1, models: ['custom/first', 'custom/second'] }), () => ['custom/first', 'custom/second']],
     ['disabled fallback', () => JSON.stringify({ version: 1, models: [], disabled: true }), () => []],
-    ['no personal fallback', () => null, () => []],
+    ['inherited own-key default', () => null, () => [chain.DEFAULT_TEXT_FALLBACK_MODEL]],
   ])('%s stays authoritative on the workspace key', async (_label, storedFallback, expectedFallbacks) => {
     const stored = {
       ...includedRow, usageMode: 'workspace_key', provider: 'openrouter',

@@ -8,6 +8,7 @@
 require('reflect-metadata');
 const fs = require('node:fs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { reviewChatModelMock } = require('./helpers/review-chat-model.cjs');
 const root = 'libraries/nestjs-libraries/src/content-intelligence/pieces';
 
 let calls = [];
@@ -44,6 +45,7 @@ const clients = {
   }),
   getModelForRole: async (_org, role) => `${role}-model`,
 };
+clients.getChatModel = reviewChatModelMock(clients);
 
 const mocks = {
   '@contentfactory/nestjs-libraries/openai/ai.clients': clients,

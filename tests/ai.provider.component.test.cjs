@@ -2,34 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const ts = require('typescript');
-
-function loadTypeScriptModule(relativePath, mocks = {}) {
-  const filename = path.resolve(__dirname, '..', relativePath);
-  const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-  new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports;
-}
+const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 
 let settings;
 const fetchMock = jest.fn();
@@ -54,7 +27,7 @@ const Field = ({ label, children, disableForm: _disableForm, ...props }) =>
     React.createElement('select', props, children)
   );
 
-const component = loadTypeScriptModule(
+const component = loadWithMocks(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
     // Import-free (`secret-shapes.ts`), loaded as it is.
@@ -74,6 +47,8 @@ const component = loadTypeScriptModule(
       Input: ({
         label,
         disableForm: _disableForm,
+        hideErrors: _hideErrors,
+        fieldClassName: _fieldClassName,
         // Рисуется, а не выбрасывается: с 07.09.2026 под каждым полем роли
         // стоит строка о том, что эта роль делает, и проглоченная подсказка
         // сделала бы набор слепым ровно к тому, что он проверяет.
@@ -150,7 +125,7 @@ const component = loadTypeScriptModule(
     ),
     // The shared field name and «?» (`97dq.76`): the real file, with the
     // same inline `Hint` stand-in the rest of this suite reads.
-    '../ui/field-label': loadTypeScriptModule(
+    '../ui/field-label': loadWithMocks(
       'apps/frontend/src/components/ui/field-label.tsx',
       {
         '@contentfactory/react/layout/hint': {
@@ -242,7 +217,7 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('data-ai-usage="role"');
       expect(markup).toContain('AI usage by member, this period');
       expect(markup).toContain('AI usage by role, this period');
-      expect(markup).toContain('Usage and call roles');
+      expect(markup).toContain('data-ai-stage-models="true"');
       // Ноль — это ответ. Он напечатан, а не выражен отсутствием раздела.
       expect(markup).toContain('Nothing yet');
       // Почему таблица пуста — теперь в подсказке рядом с её заголовком, а не
@@ -307,20 +282,17 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('>nameless@example.com<');
     });
 
-    test('роли вызова объяснены словами, а не одним заголовком', () => {
+    test('этапы и служебные роли объяснены рядом с их полями', () => {
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
 
-      // Что это такое, что значит пусто, зачем менять — три разных вопроса.
-      expect(markup).toContain('data-ai-roles-hint="true"');
-      expect(markup).toContain('A call role is the job');
-      // Пустое поле — это нормально: «?» у поля текста говорит, что тогда
-      // работает умолчание провайдера (`97dq.62`: объяснения ушли в «?»).
+      expect(markup).toContain('data-ai-model-routing="true"');
+      expect(markup).toContain('data-hint="Hint: Assistant"');
+      expect(markup).toContain('data-hint="Hint: classify"');
+      // Пустое поле использует умолчание, а подсказки описывают отдельные задачи.
       expect(markup).toContain('Empty means the provider’s default');
-      expect(markup).toContain('money');
-      // И одна строка про каждую роль рядом с её полем.
-      expect(markup).toContain('one sentence in');
+      expect(markup).toContain('Classification — one sentence in');
       expect(markup).toContain(
         'the one role that needs a model which can draw'
       );
@@ -339,7 +311,7 @@ describe('AI provider search settings component', () => {
     test('провайдер, ключ, текст и картинки — в одной сетке, две колонки от lg', () => {
       const markup = markupOf();
       const grid = markup.match(
-        /<div data-ai-main-fields="true" class="([^"]*)">([\s\S]*?)<div data-ai-roles-hint/
+        /<div data-ai-main-fields="true" class="([^"]*)">([\s\S]*?)<div data-ai-model-routing/
       );
       expect(grid).not.toBeNull();
       expect(grid[1]).toContain('grid-cols-1');
@@ -356,10 +328,10 @@ describe('AI provider search settings component', () => {
       const markup = markupOf();
       const toggle = markup.match(/<button[^>]*aria-expanded="(true|false)"[^>]*>[\s\S]*?data-ai-roles-summary="true"[^>]*>([^<]*)</);
       expect(toggle[1]).toBe('false');
-      expect(toggle[2]).toBe('A separate AI per task · all use the text one');
+      expect(toggle[2]).toBe('Utility and additional roles');
       expect(markup).toMatch(/role="region"[^>]*hidden=""/);
       // Поля ролей на месте и сохраняются как раньше — просто за открывашкой.
-      expect(markup).toContain('name="ai-role-model-draft"');
+      expect(markup).toContain('id="ai-role-model-draft"');
     });
 
     test('открывашка считает роли со своим ИИ — на обоих языках', () => {
@@ -385,12 +357,15 @@ describe('AI provider search settings component', () => {
         'AI for text',
         'AI for images',
         'Translated AI usage mode',
+        'Assistant',
+        'Material core',
+        'Channel adaptation',
+        'Editorial review',
         'Tavily key',
         'Exa key',
         'Search topic',
         'Search depth',
         'classify',
-        'draft',
         'image',
       ])
         expect(markup).toContain(`data-hint="Hint: ${name}"`);
@@ -989,9 +964,9 @@ describe('AI provider search settings component', () => {
       expect(heading).not.toContain('uppercase');
       expect(heading).not.toContain('data-hint');
     }
-    // И при этом подсказки заголовков на экране есть — обе.
+    // И при этом подсказки заголовков на экране есть у обоих разделов.
     expect(markup).toContain('data-hint="Hint: Web research"');
-    expect(markup).toContain('data-hint="Hint: Usage and call roles"');
+    expect(markup).toContain('data-hint="Hint: Fallback models"');
   });
 
   test('the page action row carries saving alone', () => {

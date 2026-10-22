@@ -122,10 +122,10 @@ describe('text chain plan', () => {
     ).toEqual([['z-ai/glm-5.3', false], ['openai/gpt-6.1-sol', true]]);
   });
 
-  test('workspace_key and the openai provider get a single attempt', () => {
+  test('an explicitly empty chain preserves a single attempt for either key provider', () => {
     for (const source of [
-      { ...included, usageMode: 'workspace_key' },
-      { ...included, provider: 'openai' },
+      { ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } },
+      { ...included, provider: 'openai', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } },
     ]) {
       expect(chain.planTextAttempts(LUNA, source)).toHaveLength(1);
       expect(chain.textChainApplies(source)).toBe(false);
@@ -211,7 +211,7 @@ describe('text chain transport', () => {
   });
 
   test('workspace_key leaves the request byte-for-byte and never retries', async () => {
-    const source = { ...included, usageMode: 'workspace_key' };
+    const source = { ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } };
     const { fetch, calls } = scripted(json(503, { error: { code: 503, message: 'down' } }));
     const init = post(request);
     const response = await chain.createTextChainFetch(source, fetch)(URL_, init);
@@ -570,7 +570,7 @@ describe('usage capture', () => {
     const { fetch } = scripted(json(200, completion({ service_tier: 'default' })));
     const ledger = new chain.TextUsageLedger();
     await chain.runWithUsageLedger(ledger, () =>
-      chain.createTextChainFetch({ ...included, usageMode: 'workspace_key' }, fetch)(
+      chain.createTextChainFetch({ ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } }, fetch)(
         URL_,
         post(request)
       )
@@ -746,7 +746,7 @@ describe('direct client budget (review F14)', () => {
       chain.maxTextChainBudgetMs({ ...included, textChain: { flex: false, fallbackModel: '' } })
     ).toBe(chain.textChainBudgetMs(LUNA, { ...included, textChain: { flex: false, fallbackModel: '' } }));
     expect(
-      chain.maxTextChainBudgetMs({ ...included, usageMode: 'workspace_key' })
+      chain.maxTextChainBudgetMs({ ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } })
     ).toBe(60_000);
   });
 
@@ -918,8 +918,8 @@ describe('an answer cut at the ceiling is asked for once more, with a larger one
 
   test('workspace_key and the openai provider: no retry at all, only the ceiling is raised (fifteenth F1, 97dq.95)', async () => {
     for (const source of [
-      { ...included, usageMode: 'workspace_key' },
-      { ...included, provider: 'openai' },
+      { ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } },
+      { ...included, provider: 'openai', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } },
     ]) {
       const { fetch, calls } = scripted(json(200, cut('{"a":"')), json(200, whole('{"a":1}')));
       const init = post(jsonRequest);
@@ -935,14 +935,14 @@ describe('an answer cut at the ceiling is asked for once more, with a larger one
   });
 
   test('97dq.95: on the own key the draft ceiling leaves room for reasoning (25.09.2026: 2 085 of 2 247)', async () => {
-    const source = { ...included, usageMode: 'workspace_key' };
+    const source = { ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } };
     const { fetch, calls } = scripted(json(200, whole('{"a":1}')));
     await chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, max_tokens: 2247 }));
     expect(calls[0].body).toEqual({ ...request, max_tokens: 2247 + chain.REASONING_HEADROOM_TOKENS });
   });
 
   test('97dq.95: a raised ceiling the model refuses is sent once more as the SDK built it', async () => {
-    const source = { ...included, usageMode: 'workspace_key' };
+    const source = { ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } };
     const { fetch, calls } = scripted(
       json(400, { error: { code: 400, message: 'max_tokens is too large' } }),
       json(200, whole('{"a":1}'))
@@ -1267,7 +1267,7 @@ describe('copilot chat through the chain (@ai-sdk/openai chat model)', () => {
     const provider = createOpenAI({
       apiKey: 'workspace-key',
       baseURL: 'https://openrouter.ai/api/v1',
-      fetch: chain.createTextChainFetch({ ...included, usageMode: 'workspace_key' }, fetch),
+      fetch: chain.createTextChainFetch({ ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } }, fetch),
     });
     const ledger = new chain.TextUsageLedger();
     const result = await chain.runWithUsageLedger(ledger, () =>
@@ -1519,7 +1519,7 @@ describe('an attempt the caller aborts in flight may be billed (fifteenth F4)', 
     const ledger = new chain.TextUsageLedger();
     await expect(
       chain.runWithUsageLedger(ledger, () =>
-        chain.createTextChainFetch({ ...included, usageMode: 'workspace_key' }, fetch)(
+        chain.createTextChainFetch({ ...included, usageMode: 'workspace_key', textChain: { flex:false, fallbackModel:'', fallbackModels:[], fallbackDisabled:true } }, fetch)(
           URL_,
           post(request, { signal: controller.signal })
         )

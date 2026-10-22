@@ -44,6 +44,11 @@ import {
 } from '@contentfactory/frontend/components/admin/admin-ai-defaults.copy';
 // The shared pair (`97dq.76`, audit §4.3) instead of a private copy.
 import { LabelledField } from '@contentfactory/frontend/components/ui/field-label';
+import {
+  ModelRoutingFields,
+  type ModelRouting,
+} from '../settings/model-routing-fields';
+import { aiProviderCopy } from '../settings/ai-provider.copy';
 
 type Provider = 'openai' | 'openrouter';
 
@@ -66,6 +71,7 @@ export interface AdminAiDefaults {
   textModel: string | null;
   imageModel: string | null;
   roleModels: Record<string, string>;
+  modelRouting?: ModelRouting;
   searchTaskProviders: Record<string, string>;
   monthlyOperations: number | null;
   /** «Без предела» (`97dq.27`): тогда `monthlyOperations` — `null`. */
@@ -77,9 +83,9 @@ export interface AdminAiDefaults {
    */
   textFlexEnabled?: boolean | null;
   textFallbackModel?: string | null;
-  textFallbackModels?: string[];
+  textFallbackModels?: string[] | null;
   textFallbackDisabled?: boolean;
-  textMaxRetries?: number;
+  textMaxRetries?: number | null;
   textChain?: {
     flex: boolean;
     fallbackModel: string;
@@ -303,13 +309,14 @@ const SectionTitle = ({
   </span>
 );
 
-
 /** Значения полей формы. Ключи здесь только те, что набраны в этот заход. */
 export interface AdminAiDefaultsForm {
   provider: Provider;
   apiKey: string;
   textModel: string;
   imageModel: string;
+  roleModels?: Record<string, string>;
+  modelRouting?: ModelRouting;
   monthlyOperations: string;
   /** Переключатель «без предела»; необязательный, как поля цепочки. */
   monthlyOperationsUnlimited?: boolean;
@@ -351,6 +358,23 @@ export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
     ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
     textModel: form.textModel.trim(),
     imageModel: form.imageModel.trim(),
+    ...(form.roleModels
+      ? {
+          roleModels: Object.fromEntries(
+            Object.entries(form.roleModels)
+              .map(([role, model]) => [role, model.trim()])
+              .filter(([, model]) => model)
+          ),
+        }
+      : {}),
+    ...(form.modelRouting
+      ? {
+          modelRouting: {
+            ...form.modelRouting,
+            advancedModel: form.modelRouting.advancedModel.trim(),
+          },
+        }
+      : {}),
     ...(Object.keys(searchApiKeys).length ? { searchApiKeys } : {}),
     // «Без предела» — состояние, а не число (`97dq.27`): включённый
     // переключатель уходит один, без числа из поля. Выключенный уходит только
@@ -527,12 +551,16 @@ export function AdminAiDefaultsView({
   };
 
   const effectiveFallbacks =
-    form.textFallbackDisabled || data?.textChain?.fallbackDisabled
+    form.textFallbackDisabled ?? data?.textChain?.fallbackDisabled ?? false
       ? []
+      : Array.isArray(form.textFallbackModels)
+      ? form.textFallbackModels
+      : form.textFallbackModel?.trim()
+      ? [form.textFallbackModel.trim()]
       : data?.textChain?.fallbackModels ??
-        (orderedFallbacks.length
-          ? orderedFallbacks
-          : [data?.textChain?.defaultFallbackModel ?? 'openai/gpt-6.1-sol']);
+        (data?.textChain?.defaultFallbackModel
+          ? [data.textChain.defaultFallbackModel]
+          : []);
 
   const searchKeyField = (engine: KeyedSearchProvider) => {
     const field = words.keys[engine];
@@ -831,7 +859,7 @@ export function AdminAiDefaultsView({
               disableForm={true}
               value={form.textFallbackModel ?? ''}
               placeholder={
-                data?.textChain?.defaultFallbackModel ?? 'openai/gpt-6.1-sol'
+                data?.textChain?.defaultFallbackModel ?? aiProviderCopy[locale].routing.defaultValue
               }
               onBlur={() => {
                 const trimmed = (form.textFallbackModel ?? '').trim();
@@ -883,6 +911,7 @@ export function AdminAiDefaultsView({
                         <Button
                           density="dense"
                           variant="quiet"
+                          aria-label={`${words.models.fallbackMoveUp}: ${model}`}
                           data-admin-ai-fallback-move-up={String(index)}
                           disabled={index === 0}
                           onClick={() => moveFallbackModel(index, -1)}
@@ -892,6 +921,7 @@ export function AdminAiDefaultsView({
                         <Button
                           density="dense"
                           variant="quiet"
+                          aria-label={`${words.models.fallbackMoveDown}: ${model}`}
                           data-admin-ai-fallback-move-down={String(index)}
                           disabled={index === orderedFallbacks.length - 1}
                           onClick={() => moveFallbackModel(index, 1)}
@@ -901,6 +931,7 @@ export function AdminAiDefaultsView({
                         <Button
                           density="dense"
                           variant="quiet"
+                          aria-label={`${words.models.fallbackRemove}: ${model}`}
                           data-admin-ai-fallback-remove={String(index)}
                           onClick={() => removeFallbackModel(index)}
                         >
@@ -915,6 +946,7 @@ export function AdminAiDefaultsView({
                 <div className="min-w-0 flex-1">
                   <Input
                     id="admin-ai-text-fallback-add"
+                    aria-label={words.models.fallbackAddPlaceholder}
                     label=""
                     name="admin-ai-text-fallback-add"
                     disableForm={true}
@@ -952,6 +984,7 @@ export function AdminAiDefaultsView({
                         : {
                             textFallbackDisabled: false,
                             textFallbackModels: undefined,
+                            textFallbackModel: '',
                           }
                     );
                   }}
@@ -987,6 +1020,31 @@ export function AdminAiDefaultsView({
                   />
                 </div>
               </div>
+              <div className="flex flex-wrap items-center justify-between gap-[8px]">
+                <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                  {form.textFallbackDisabled ||
+                  form.textFallbackModels?.length === 0
+                    ? aiProviderCopy[locale].routing.fallbackExplicitEmpty
+                    : form.textFallbackModels === undefined &&
+                      !form.textFallbackModel?.trim()
+                    ? aiProviderCopy[locale].routing.fallbackInherited
+                    : aiProviderCopy[locale].routing.fallbackEffective(
+                        effectiveFallbacks.join(' → ')
+                      )}
+                </p>
+                <Button
+                  variant="quiet"
+                  onClick={() =>
+                    onCommit({
+                      textFallbackModel: '',
+                      textFallbackModels: undefined,
+                      textFallbackDisabled: false,
+                    })
+                  }
+                >
+                  {aiProviderCopy[locale].routing.fallbackReset}
+                </Button>
+              </div>
               <p
                 data-admin-ai-effective-fallbacks="true"
                 className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
@@ -1000,6 +1058,19 @@ export function AdminAiDefaultsView({
             </div>
           </LabelledField>
         </div>
+        <ModelRoutingFields
+          idPrefix="admin-ai"
+          value={form.modelRouting}
+          roleModels={form.roleModels ?? {}}
+          primaryModel={form.textModel}
+          words={aiProviderCopy[locale]}
+          onRoutingChange={(modelRouting) => onChange({ modelRouting })}
+          onRoutingCommit={(modelRouting) => onCommit({ modelRouting })}
+          onRoleChange={(role, model) =>
+            onChange({ roleModels: { ...form.roleModels, [role]: model } })
+          }
+          onRoleCommit={() => onCommit()}
+        />
       </SettingsSection>
 
       <SettingsSection
@@ -1169,9 +1240,9 @@ export const AdminAiDefaultsComponent = () => {
     textMaxRetries: undefined,
   });
   const [saving, setSaving] = useState(false);
-  const [clearing, setClearing] = useState<'model' | KeyedSearchProvider | null>(
-    null
-  );
+  const [clearing, setClearing] = useState<
+    'model' | KeyedSearchProvider | null
+  >(null);
 
   /**
    * Поля ключей не заполняются из ответа никогда — их там и нет. Остальное
@@ -1199,6 +1270,8 @@ export const AdminAiDefaultsComponent = () => {
       provider: effective?.provider || data.provider || 'openai',
       textModel: effective?.textModel ?? data.textModel ?? '',
       imageModel: effective?.imageModel ?? data.imageModel ?? '',
+      roleModels: data.roleModels ?? {},
+      modelRouting: data.modelRouting,
       // При «без предела» сервер числа не отдаёт; число, набранное или
       // прочитанное раньше, остаётся в поле, чтобы снятый флажок мог
       // вернуться к нему, а не к пустоте (P3-7).
@@ -1209,13 +1282,11 @@ export const AdminAiDefaultsComponent = () => {
       textFlexEnabled: data.textChain?.flex ?? data.textFlexEnabled ?? true,
       // Пустое поле показывает значение по умолчанию подсказкой, а не
       // вписывает его: иначе следующее сохранение закрепило бы его здесь.
-      textFallbackModel:
-        configuredModels?.[0] ?? data.textFallbackModel ?? '',
+      textFallbackModel: configuredModels?.[0] ?? data.textFallbackModel ?? '',
       textFallbackModels: configuredModels,
       textFallbackDisabled:
         data.textFallbackDisabled ?? data.textChain?.fallbackDisabled ?? false,
-      textMaxRetries:
-        data.textMaxRetries ?? data.textChain?.maxRetries ?? undefined,
+      textMaxRetries: data.textMaxRetries ?? undefined,
     }));
   }, [data]);
 
@@ -1286,6 +1357,20 @@ export const AdminAiDefaultsComponent = () => {
               imageModel: returning
                 ? data?.effective?.imageModel ?? data?.imageModel ?? ''
                 : '',
+              roleModels: returning ? data?.roleModels ?? {} : {},
+              modelRouting: returning
+                ? data?.modelRouting
+                : formRef.current.modelRouting
+                ? { ...formRef.current.modelRouting, advancedModel: '' }
+                : undefined,
+              textFallbackModel: returning ? data?.textFallbackModel ?? '' : '',
+              textFallbackModels: returning
+                ? data?.textFallbackModels ??
+                  data?.textChain?.configuredFallbackModels
+                : undefined,
+              textFallbackDisabled: returning
+                ? data?.textFallbackDisabled ?? false
+                : false,
             }
           : patch;
       change(full);

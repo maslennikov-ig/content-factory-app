@@ -52,6 +52,7 @@ suite checks rather than something to remember.
 
 ## Development
 
+- Local previews sign in automatically with the configured local test profile by default. Preserve this on every local launch; keep the normal session in private `CF_LOCAL_AUTH_TOKEN` (never `NEXT_PUBLIC_*` or Git), reuse the existing account, and verify a fresh browser reaches `/agents` without typing credentials. Do not select an arbitrary first user. `CF_LOCAL_AUTO_LOGIN=false` enables ordinary authentication testing. Production authentication is unchanged; automatic sign-in requires development mode and loopback frontend, backend and database addresses.
 - Use Node `22.23.2` through `.nvmrc` and pnpm `10.6.1`. Use pnpm only.
 - Follow the existing monorepo boundaries: `apps/frontend`, `apps/backend`, `apps/orchestrator`, and shared `libraries/`.
 - Backend flow is DTO -> Controller -> Service or Manager -> Repository. Use Prisma; do not add raw SQL.

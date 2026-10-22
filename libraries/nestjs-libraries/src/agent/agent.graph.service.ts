@@ -963,7 +963,7 @@ export class AgentGraphService {
       state.language
     );
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7, 512)
+      await getChatModel(state.orgId, 0.7, 512, 'classify')
     ).withStructuredOutput(category);
     const { category: outputCategory } = await ChatPromptTemplate.fromTemplate(
       `
@@ -994,7 +994,7 @@ export class AgentGraphService {
     );
 
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7, 512)
+      await getChatModel(state.orgId, 0.7, 512, 'classify')
     ).withStructuredOutput(topic);
     const { topic: outputTopic } = await ChatPromptTemplate.fromTemplate(
       `
@@ -1024,7 +1024,7 @@ export class AgentGraphService {
 
   async generateHook(state: WorkflowChannelsState) {
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7, 2_048)
+      await getChatModel(state.orgId, 0.7, 2_048, 'adapt')
     ).withStructuredOutput(hook);
     const { hook: outputHook } = await ChatPromptTemplate.fromTemplate(
       `
@@ -1076,7 +1076,7 @@ export class AgentGraphService {
           state.contentContext.evidence.length)
     );
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7, tokenCeiling(state))
+      await getChatModel(state.orgId, 0.7, tokenCeiling(state), 'adapt')
     ).withStructuredOutput(
       allowQuestion ? contentZod(!!state.isPicture, state.format, hasMaterial).extend({ content: contentZod(!!state.isPicture, state.format, hasMaterial).shape.content.nullable().optional(), unavoidableQuestion: unavoidableQuestionSchemaV2 }) : contentZod(!!state.isPicture, state.format, hasMaterial)
     );
@@ -1403,7 +1403,7 @@ export class AgentGraphService {
 
     try {
       const keep = protectedFragments(text);
-      const model = await getChatModel(state.orgId, 0.2);
+      const model = await getChatModel(state.orgId, 0.2, undefined, 'adapt');
       const answer = await model.invoke(
         buildLengthTrimPrompt({
           text,
@@ -1613,7 +1613,7 @@ export class AgentGraphService {
       ]);
       try {
         const repaired = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
-          const model = (await getChatModel(state.orgId, 0.3, tokenCeiling(state), 'draft'))
+          const model = (await getChatModel(state.orgId, 0.3, tokenCeiling(state), 'adapt'))
             .withStructuredOutput(contentZod(!!state.isPicture, state.format, allowedIds.size > 0)
               .extend({ hook: z.string() }));
           return ChatPromptTemplate.fromMessages([
@@ -1625,7 +1625,7 @@ export class AgentGraphService {
             channel: state.channelLines,
             forbidden: forbiddenPhrasesRule((state.language as 'ru' | 'en') || 'ru'),
           }) });
-        }, 'draft');
+        }, 'adapt');
         const restoredContent = withAuthorLink(state, repaired.content);
         const normalizeCitations = (item: any) => ({ ...item, usedCitationIds:
           Array.isArray(item?.usedCitationIds) ? [...new Set<string>(item.usedCitationIds)] : [] });
@@ -2232,7 +2232,8 @@ export class AgentGraphService {
           streamMode: 'values',
           version: 'v2',
         }
-      )
+      ),
+      'adapt'
     );
     try {
       for await (const event of stream) yield event;

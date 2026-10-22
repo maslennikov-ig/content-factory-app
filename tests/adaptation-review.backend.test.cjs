@@ -1,6 +1,7 @@
 'use strict';
 require('reflect-metadata');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { reviewChatModelMock } = require('./helpers/review-chat-model.cjs');
 const root = 'libraries/nestjs-libraries/src/content-intelligence/pieces';
 let calls = [],
   output,
@@ -44,6 +45,7 @@ const clients = {
     return `${role}-model`;
   },
 };
+clients.getChatModel = jest.fn(reviewChatModelMock(clients));
 const mocks = {
   '@contentfactory/nestjs-libraries/openai/ai.clients': clients,
   '@contentfactory/nestjs-libraries/agent/agent.graph.service': {

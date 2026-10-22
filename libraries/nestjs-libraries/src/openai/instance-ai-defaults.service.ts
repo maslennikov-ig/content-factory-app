@@ -5,6 +5,7 @@ import {
   AiProvider,
   INSTANCE_AI_DEFAULTS_ID,
   resetAiConfigCache,
+  defaultAdvancedModelForProvider,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
   includedQuotaFallback,
@@ -14,6 +15,10 @@ import {
 import {
   AiRoleModels,
   parseRoleModels,
+  type AiModelRoutingSettings,
+  readStoredModelRouting,
+  resolveModelRoutingSettings,
+  AI_MODEL_ROUTING_METADATA_KEY,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import {
   SEARCH_PROVIDERS,
@@ -29,6 +34,7 @@ import {
   resolveOrderedTextChainPolicy,
   resolveTextChainSettings,
   serializeTextFallbackColumn,
+  withModelRoutingTextChain,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
@@ -150,7 +156,12 @@ export class InstanceAiDefaultsService {
     const defaultPrimaryModel =
       effective.textModel ??
       (provider === 'openrouter' ? 'openai/gpt-6-luna' : 'gpt-4.1');
-    const orderedPolicy = resolveOrderedTextChainPolicy(row, {
+    const modelRouting = resolveModelRoutingSettings(
+      readStoredModelRouting(row?.roleModels), defaultAdvancedModelForProvider(provider)
+    );
+    const orderedPolicy = resolveOrderedTextChainPolicy(withModelRoutingTextChain({
+      provider, modelRouting, textChain: resolveTextChainSettings(row),
+    }), {
       provider,
       usageMode: 'included',
       primaryModel: defaultPrimaryModel,
@@ -162,6 +173,7 @@ export class InstanceAiDefaultsService {
       textModel: row?.textModel ?? null,
       imageModel: row?.imageModel ?? null,
       roleModels: parseRoleModels(row?.roleModels),
+      modelRouting,
       searchTaskProviders: parseSearchTaskProviders(row?.searchTaskProviders),
       monthlyOperations: unlimited ? null : row?.monthlyOperations ?? null,
       monthlyOperationsUnlimited: unlimited,
@@ -184,7 +196,7 @@ export class InstanceAiDefaultsService {
       textMaxRetries: parsedFallback.maxRetries ?? null,
       textChain: {
         ...resolveTextChainSettings(row),
-        defaultFallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
+        defaultFallbackModel: defaultAdvancedModelForProvider(provider),
         fallbackModels: orderedPolicy.fallbackModels,
         configuredFallbackModels: orderedPolicy.configuredFallbackModels,
         fallbackDisabled: orderedPolicy.fallbackDisabled,
@@ -224,6 +236,7 @@ export class InstanceAiDefaultsService {
       textModel?: string;
       imageModel?: string;
       roleModels?: Record<string, string>;
+      modelRouting?: Partial<AiModelRoutingSettings>;
       searchApiKeys?: Record<string, string>;
       searchTaskProviders?: Record<string, string>;
       monthlyOperations?: number;
@@ -241,6 +254,7 @@ export class InstanceAiDefaultsService {
         searchApiKeys: true,
         monthlyOperations: true,
         textFallbackModel: true,
+        roleModels: true,
       },
     });
 
@@ -271,8 +285,14 @@ export class InstanceAiDefaultsService {
       ...(body.imageModel !== undefined
         ? { imageModel: body.imageModel || null }
         : {}),
-      ...(body.roleModels !== undefined
-        ? { roleModels: parseRoleModels(body.roleModels) as AiRoleModels }
+      ...(body.roleModels !== undefined || body.modelRouting !== undefined
+        ? { roleModels: {
+            ...parseRoleModels(body.roleModels ?? current?.roleModels),
+            ...(body.modelRouting !== undefined || readStoredModelRouting(current?.roleModels)
+              ? { [AI_MODEL_ROUTING_METADATA_KEY]: {
+                  ...readStoredModelRouting(current?.roleModels), ...body.modelRouting,
+                } } : {}),
+          } as AiRoleModels }
         : {}),
       ...(body.searchApiKeys ? { searchApiKeys } : {}),
       ...(body.searchTaskProviders !== undefined

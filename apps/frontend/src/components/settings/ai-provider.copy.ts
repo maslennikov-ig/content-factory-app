@@ -108,11 +108,41 @@ type Words = {
     imageModel: string;
     searchTopic: string;
   };
+  routing: {
+    title: string;
+    enabledLabel: string;
+    explanation: string;
+    advancedLabel: string;
+    advancedHint: string;
+    advancedFlexLabel: string;
+    advancedFlexHint: string;
+    stageTitle: string;
+    stageAutoEmpty: string;
+    stagePrimaryEmpty: string;
+    autoPlaceholder: string;
+    utilityTitle: string;
+    stages: Record<'agent' | 'draft' | 'adapt' | 'review', string>;
+    fallbackTitle: string;
+    fallbackHint: string;
+    fallbackInherited: string;
+    fallbackReset: string;
+    fallbackExplicitEmpty: string;
+    fallbackEffective: (models: string) => string;
+    fallbackDisabled: string;
+    fallbackAdd: string;
+    fallbackModel: string;
+    moveUp: string;
+    moveDown: string;
+    remove: string;
+    retries: string;
+    defaultValue: string;
+  };
   roles: {
     classify: RoleWords;
     extract: RoleWords;
     research: RoleWords;
     draft: RoleWords;
+    adapt: RoleWords;
     judge: RoleWords;
     review: RoleWords;
     image: RoleWords;
@@ -189,7 +219,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     usageModeHint:
       'Переключатель выбирает, на чьих ключах работает всё: и генерация, и поиск. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, а ваши сохранённые поисковые ключи ждут и возвращаются в работу, как только вы выберете «Свой ключ».',
     rolesEmpty:
-      'Пустое поле означает «брать ИИ для текста, указанный выше». Заполнять здесь ничего не обязательно.',
+      'Пустые служебные роли используют настройки по умолчанию. Проверка голоса настраивается отдельно от редакторской проверки.',
     rolesSummaryAll: 'Отдельный ИИ на задачу · у всех тот же, что для текста',
     rolesSummarySome: (routed, total) =>
       `Отдельный ИИ на задачу · свой у ${routed} из ${total}`,
@@ -202,7 +232,49 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         'Какой ИИ пишет тексты. Пусто — берём то, что провайдер ставит по умолчанию.',
       imageModel:
         'Какой ИИ рисует картинки. Пусто — берём то, что провайдер ставит по умолчанию.',
-      searchTopic: 'Где искать: во всём интернете или только в свежих новостях.',
+      searchTopic:
+        'Где искать: во всём интернете или только в свежих новостях.',
+    },
+    routing: {
+      title: 'Выбор модели',
+      enabledLabel: 'Выбирать модель автоматически',
+      explanation:
+        'Модели выбирают между основной и усиленной по задаче и материалу. Сложная суть или переработка могут потребовать усиленную модель; обычная задача может остаться на основной. Фиксированная модель этапа имеет приоритет.',
+      advancedLabel: 'Усиленная модель',
+      advancedHint:
+        'Модель для задач, которым нужно более глубокое рассуждение. Используется при автоматическом выборе; не назначается всем материалам подряд.',
+      advancedFlexLabel: 'Усиленная модель — только Flex',
+      advancedFlexHint:
+        'Запрашивать только обработку Flex для выбранной усиленной модели. При недоступности Flex обычный тариф не включается автоматически.',
+      stageTitle: 'Модели по этапам',
+      stageAutoEmpty:
+        'Пустое поле — «Авто»: модель выбирается по задаче. Укажите модель, чтобы закрепить её за этапом.',
+      stagePrimaryEmpty:
+        'Пустое поле — основная модель для текста. Укажите модель, чтобы закрепить её за этапом.',
+      autoPlaceholder: 'Авто',
+      utilityTitle: 'Служебные и дополнительные роли',
+      stages: {
+        agent: 'Ассистент',
+        draft: 'Суть материала',
+        adapt: 'Адаптация для канала',
+        review: 'Редакторская проверка',
+      },
+      fallbackTitle: 'Резервные модели',
+      fallbackHint:
+        'При ошибке основной попытки модели вызываются по порядку. Это восстановление после ошибки; автоматический выбор модели работает отдельно. Используется только ваш ключ выбранного провайдера.',
+      fallbackInherited: 'Используется цепочка по умолчанию провайдера.',
+      fallbackReset: 'Вернуть по умолчанию',
+      fallbackExplicitEmpty:
+        'Сохранена пустая цепочка: резервные модели не вызываются.',
+      fallbackEffective: (models) => `Действующая цепочка: ${models}`,
+      fallbackDisabled: 'Отключить резервные модели',
+      fallbackAdd: 'Добавить',
+      fallbackModel: 'Модель для добавления в резерв',
+      moveUp: 'Выше',
+      moveDown: 'Ниже',
+      remove: 'Убрать',
+      retries: 'Повторы на модель',
+      defaultValue: 'По умолчанию',
     },
     roles: {
       classify: {
@@ -215,7 +287,10 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Веб-исследование — собрать и свести найденное в сети, когда включён поиск.',
       },
       draft: {
-        what: 'Черновик — собственно написание поста по заготовке и брифу. Самая дорогая роль, и здесь экономия видна сразу.',
+        what: 'Суть материала — собрать факты, угол и структуру, на которые затем опираются тексты для каналов.',
+      },
+      adapt: {
+        what: 'Адаптация — написать текст для конкретного канала по сути материала и его манере.',
       },
       judge: {
         what: 'Проверка голоса — сверить готовый текст с вашей манерой и сказать, где он на неё не похож.',
@@ -303,18 +378,62 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     usageModeHint:
       'This switch chooses whose keys everything runs on — generation and search alike. On the system keys, search runs on them and spends the included allowance, while your own saved search keys wait and come back into use the moment you choose your own key.',
     rolesEmpty:
-      'An empty field means "use the text model above". Filling these in is optional.',
+      'Empty utility roles use the default settings. Voice checking can be pinned separately from editorial review.',
     rolesSummaryAll: 'A separate AI per task · all use the text one',
     rolesSummarySome: (routed, total) =>
       `A separate AI per task · ${routed} of ${total} set`,
     keyForProvider: (stored, next) =>
       `The saved key is a ${stored} key and does not go to ${next}. Paste a ${next} key and press Save — then the workspace moves to ${next}.`,
     fields: {
-      provider: 'Whose AI writes the texts and draws the images: OpenAI or OpenRouter.',
+      provider:
+        'Whose AI writes the texts and draws the images: OpenAI or OpenRouter.',
       key: 'Your account key at the provider. Kept for this workspace only and never shown again.',
-      textModel: 'Which AI writes the texts. Empty means the provider’s default.',
-      imageModel: 'Which AI draws the images. Empty means the provider’s default.',
+      textModel:
+        'Which AI writes the texts. Empty means the provider’s default.',
+      imageModel:
+        'Which AI draws the images. Empty means the provider’s default.',
       searchTopic: 'Where to search: the whole web or fresh news only.',
+    },
+    routing: {
+      title: 'Model selection',
+      enabledLabel: 'Choose the model automatically',
+      explanation:
+        'Models choose between the primary and stronger model based on the task and material. A difficult core or reframing may need the stronger model; routine work may use the primary. A fixed stage model takes priority.',
+      advancedLabel: 'Stronger model',
+      advancedHint:
+        'A model for tasks that need deeper reasoning. Automatic selection can use it; it is not assigned to every material.',
+      advancedFlexLabel: 'Stronger model — Flex only',
+      advancedFlexHint:
+        'Request Flex processing only for the configured stronger model. Unavailable Flex does not silently switch to the standard tier.',
+      stageTitle: 'Models by stage',
+      stageAutoEmpty:
+        'An empty field means Auto: the model is chosen for the task. Enter a model to pin it to the stage.',
+      stagePrimaryEmpty:
+        'An empty field uses the primary text model. Enter a model to pin it to the stage.',
+      autoPlaceholder: 'Auto',
+      utilityTitle: 'Utility and additional roles',
+      stages: {
+        agent: 'Assistant',
+        draft: 'Material core',
+        adapt: 'Channel adaptation',
+        review: 'Editorial review',
+      },
+      fallbackTitle: 'Fallback models',
+      fallbackHint:
+        'After an attempt fails, models are tried in order. Error recovery is separate from automatic model selection. Only your key for the selected provider is used.',
+      fallbackInherited: 'Using the provider’s default fallback chain.',
+      fallbackReset: 'Restore defaults',
+      fallbackExplicitEmpty:
+        'An empty chain is saved: no fallback models are called.',
+      fallbackEffective: (models) => `Effective chain: ${models}`,
+      fallbackDisabled: 'Disable fallback models',
+      fallbackAdd: 'Add',
+      fallbackModel: 'Model to add as fallback',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
+      remove: 'Remove',
+      retries: 'Retries per model',
+      defaultValue: 'Default',
     },
     roles: {
       classify: {
@@ -327,7 +446,10 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Web research — gathering and summarising what search found, when search is on.',
       },
       draft: {
-        what: 'Draft — actually writing the post from the piece and the brief. The most expensive role, and where a change shows first.',
+        what: 'Material core — establish the facts, angle and structure that channel texts use.',
+      },
+      adapt: {
+        what: 'Write for a specific channel from the material core and its voice.',
       },
       judge: {
         what: 'Voice check — comparing the finished text against your own way of writing and saying where it drifts.',

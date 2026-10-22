@@ -18,6 +18,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -45,7 +46,7 @@ const screen = read(
  * заглушено — от этого модуля нужна одна экспортированная функция.
  */
 const stub = () => null;
-const screenModule = loadTypeScriptModule(
+const screenModule = loadWithMocks(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
     react: require('react'),
@@ -60,7 +61,12 @@ const screenModule = loadTypeScriptModule(
     '@contentfactory/react/form/select': { Select: stub },
     '@contentfactory/react/form/input': { Input: stub },
     '@contentfactory/react/form/button': { Button: stub },
+    '@contentfactory/react/form/checkbox.field': { CheckboxField: stub },
     '@contentfactory/react/choice/control.button': { ControlButton: stub },
+    './model-routing-fields': {
+      ModelField: stub,
+      ModelRoutingFields: stub,
+    },
     '@contentfactory/react/layout/hint': { Hint: stub },
     '@contentfactory/react/translation/get.transation.service.client': {
       useT: () => (key, fallback) => fallback ?? key,

@@ -267,7 +267,7 @@ async function createRuntime(options = {}) {
   };
   const catalogue = { ...registry, CAPABILITY_CATALOGUE: [capability] };
   const clients = {
-    getMastraAgentModelEntries: async (_organizationId, _role, options) => ({
+    getRoutedMastraModelEntries: async (_organizationId, _role, _task, options) => ({
       entries: [options?.modelId || 'primary', 'fallback-1', 'fallback-2'].map(
         (modelId) => ({ model: modelFor(modelId), maxRetries: 0 })
       ),

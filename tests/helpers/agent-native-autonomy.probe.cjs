@@ -9,6 +9,7 @@
  */
 
 const { Mastra } = require('@mastra/core/mastra');
+const assert = require('node:assert/strict');
 const { InMemoryStore } = require('@mastra/core/storage');
 const { handleChatStream } = require('@mastra/ai-sdk');
 const {
@@ -631,6 +632,7 @@ const probeSubagentDelegation = async () => {
   const memory = conductor.createConductorMemory(storage);
 
   const subagentRolesCalled = [];
+  const subagentRoutingInputs = [];
   const { model: mainModel } = scriptedModel(
     [
       [
@@ -650,6 +652,7 @@ const probeSubagentDelegation = async () => {
           {
             task: 'Создай черновик заготовки по итогам исследования',
             agentType: 'writing',
+            modelId: 'sub-writing',
           },
         ],
       ],
@@ -707,13 +710,22 @@ const probeSubagentDelegation = async () => {
     memory,
     storage,
     model: async () => mainModel,
-    subagentModel: async (_identity, agentType) => {
+    subagentModel: async (_identity, agentType, requestContext, options) => {
+      subagentRoutingInputs.push({
+        agentType,
+        task: options?.task,
+        modelId: options?.modelId,
+        isolatedFromParentThread: !requestContext?.get('mastra__threadId'),
+      });
       subagentRolesCalled.push({
         agentType,
         billingRole: conductor.CONDUCTOR_SUBAGENT_ROLE_MAP[agentType],
       });
       if (agentType === 'research') return researchModel.model;
-      if (agentType === 'writing') return writingModel.model;
+      if (agentType === 'writing') {
+        assert.equal(options?.modelId, 'sub-writing', 'Explicit model override must reach the provider resolver.');
+        return writingModel.model;
+      }
       return reviewModel.model;
     },
     durable: false,
@@ -755,6 +767,7 @@ const probeSubagentDelegation = async () => {
 
   return {
     subagentRolesCalled,
+    subagentRoutingInputs,
     createdPiecesByWritingSubagent: createdPieces.length,
     authorRequestPreserved: createdPieces[0]?.[1]?.input === authorRequest,
     stepSummaries: (result.steps || []).map((s) => ({

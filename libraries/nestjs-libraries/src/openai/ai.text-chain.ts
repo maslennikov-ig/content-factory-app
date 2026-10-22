@@ -82,13 +82,12 @@ export const MAX_TEXT_FALLBACK_MODELS = 8;
 export const MAX_TEXT_MODEL_RETRIES = 5;
 
 /** Owner21Oct: our Sol6.1 route is discounted-only; own-key choices stay authoritative. */
-const discountedSolOnly = (
+const usesFlexOnlyTier = (
   model: string,
-  source: { provider: string; usageMode: string }
-): boolean =>
-  model === 'openai/gpt-6.1-sol' &&
-  source.provider === 'openrouter' &&
-  source.usageMode === 'included';
+  source: { provider: string; usageMode: string; textChain?: TextChainSettings }
+): boolean => typeof source.textChain?.modelTiers?.[model] === 'boolean'
+  ? source.textChain.modelTiers[model]
+  : model === 'openai/gpt-6.1-sol' && source.provider === 'openrouter' && source.usageMode === 'included';
 
 /** What the operator or workspace set on the row; absent reads as the defaults. */
 export interface TextChainSettings {
@@ -106,7 +105,19 @@ export interface TextChainSettings {
   fallbackDisabled?: boolean;
   /** Per-model retry count before advancing to the next fallback model (`0..5`). */
   maxRetries?: number;
+  /** Configured profile tiers, independent of key ownership or fallback order. */
+  modelTiers?: Readonly<Record<string, boolean>>;
 }
+
+/** Apply the configured model tier consistently to settings previews and actual transports. */
+export const withModelRoutingTextChain = (source: {
+  provider: 'openai' | 'openrouter';
+  textChain?: TextChainSettings;
+  modelRouting?: { advancedModel: string; advancedFlex: boolean };
+}): TextChainSettings | undefined => source.modelRouting ? {
+  ...(source.textChain ?? { flex: false, fallbackModel: '' }),
+  modelTiers: { [source.modelRouting.advancedModel]: source.modelRouting.advancedFlex },
+} : source.textChain;
 
 export type FallbackUnavailableReason =
   | 'missing_key'
@@ -159,6 +170,7 @@ const clampMaxRetries = (value: unknown): number | undefined => {
 
 interface StoredFallbackEnvelopeV1 {
   version: 1;
+  inherited?: boolean;
   models: string[];
   disabled?: boolean;
   maxRetries?: number;
@@ -186,13 +198,14 @@ export const parseStoredTextFallback = (
     try {
       const parsed = JSON.parse(trimmed) as Partial<StoredFallbackEnvelopeV1>;
       if (parsed && typeof parsed === 'object' && parsed.version === 1) {
-        const models = normalizeModelList(parsed.models);
+        const inherited = parsed.inherited === true && parsed.disabled !== true;
+        const models = inherited ? [DEFAULT_TEXT_FALLBACK_MODEL] : normalizeModelList(parsed.models);
         const disabled = parsed.disabled === true || models.length === 0;
         const maxRetries = clampMaxRetries(parsed.maxRetries);
         return {
           models: disabled ? [] : models,
           disabled,
-          inheritedDefault: false,
+          inheritedDefault: inherited,
           ...(maxRetries !== undefined ? { maxRetries } : {}),
           structured: true,
         };
@@ -265,7 +278,8 @@ export const serializeTextFallbackColumn = (input: {
       if (hasMaxRetries && maxRetries !== undefined && maxRetries > 0) {
         return JSON.stringify({
           version: 1,
-          models: [DEFAULT_TEXT_FALLBACK_MODEL],
+          models: [],
+          inherited: true,
           disabled: false,
           maxRetries,
         } satisfies StoredFallbackEnvelopeV1);
@@ -296,7 +310,8 @@ export const serializeTextFallbackColumn = (input: {
   }
   return JSON.stringify({
     version: 1,
-    models: existing.disabled ? [] : existing.models,
+    models: existing.inheritedDefault ? [] : existing.disabled ? [] : existing.models,
+    ...(existing.inheritedDefault ? { inherited: true } : {}),
     disabled: existing.disabled,
     ...(maxRetries !== undefined && maxRetries > 0 ? { maxRetries } : {}),
   } satisfies StoredFallbackEnvelopeV1);
@@ -335,18 +350,14 @@ export const resolveTextChainSettings = (row?: {
   const explicitMaxRetries = clampMaxRetries(row?.textMaxRetries);
   const parsed = parseStoredTextFallback(row?.textFallbackModel);
 
-  // A plain model id is still an explicit operator choice, including when it
-  // equals the built-in default. Preserve that provenance in fallbackModels
-  // so resolving these settings again does not drop an own-key fallback.
+  // Preserve inherited provenance, including a retry-only envelope. Explicit
+  // lists stay explicit even when their model equals the current default.
   if (!hasExplicitArray && !hasExplicitDisabled && explicitMaxRetries === undefined &&
-    !parsed.structured && parsed.inheritedDefault) {
+    parsed.inheritedDefault) {
     return {
       flex,
       fallbackModel: parsed.models[0] || DEFAULT_TEXT_FALLBACK_MODEL,
-      // A stored single model is an explicit choice even when it matches the
-      // built-in default. Preserve it as an explicit list so the resolved
-      // settings do not suppress it in workspace-key mode as an inherited one.
-      ...(!parsed.inheritedDefault ? { fallbackModels: parsed.models } : {}),
+      ...(parsed.maxRetries !== undefined ? { maxRetries: parsed.maxRetries } : {}),
     };
   }
 
@@ -418,9 +429,11 @@ export const resolveOrderedTextChainPolicy = (
   let fallbackDisabled = false;
   let inheritedDefault = true;
   let maxRetries = DEFAULT_TEXT_MAX_RETRIES;
+  let modelTiers: Readonly<Record<string, boolean>> | undefined;
 
   if (rowOrSettings && ('flex' in rowOrSettings || 'fallbackModel' in rowOrSettings)) {
     const settings = rowOrSettings as TextChainSettings;
+    modelTiers = settings.modelTiers;
     flex = typeof settings.flex === 'boolean' ? settings.flex : DEFAULT_TEXT_FLEX_ENABLED;
     maxRetries = clampMaxRetries(settings.maxRetries) ?? DEFAULT_TEXT_MAX_RETRIES;
     if (settings.fallbackDisabled === true) {
@@ -466,7 +479,7 @@ export const resolveOrderedTextChainPolicy = (
     maxRetries = clampMaxRetries(resolved.maxRetries) ?? DEFAULT_TEXT_MAX_RETRIES;
     fallbackDisabled = resolved.fallbackDisabled === true;
     inheritedDefault =
-      !hasExplicitModels && !hasExplicitDisabled && !parsed.structured && parsed.inheritedDefault;
+      !hasExplicitModels && !hasExplicitDisabled && parsed.inheritedDefault;
     configuredFallbackModels = fallbackDisabled
       ? []
       : resolved.fallbackModels
@@ -476,12 +489,12 @@ export const resolveOrderedTextChainPolicy = (
       : [];
   }
 
-  // Inherited operator default applies only on `included` + `openrouter`;
-  // explicit fallback chains apply in both modes after provider/key validation.
-  const candidateModels =
-    inheritedDefault && (usageMode !== 'included' || provider !== 'openrouter')
-      ? []
-      : configuredFallbackModels;
+  // Inherited defaults use the selected provider's id format on either key
+  // source. Explicit ids remain untouched and must pass compatibility checks.
+  const candidateModels = configuredFallbackModels.map(model =>
+    inheritedDefault && provider === 'openai' && model.startsWith('openai/')
+      ? model.slice('openai/'.length) : model);
+  const tierSource = { provider, usageMode, textChain: { flex, fallbackModel: '', modelTiers } };
 
   const eligibleFallbacks: string[] = [];
   const unavailableModels: Array<{ model: string; reason: FallbackUnavailableReason }> = [];
@@ -514,7 +527,7 @@ export const resolveOrderedTextChainPolicy = (
       model: primaryModel,
       role: 'primary',
       flex:
-        discountedSolOnly(primaryModel, { provider, usageMode }) ||
+        usesFlexOnlyTier(primaryModel, tierSource) ||
         (flex &&
           usageMode === 'included' &&
           provider === 'openrouter' &&
@@ -526,7 +539,7 @@ export const resolveOrderedTextChainPolicy = (
     effectiveChain.push({
       model: fallback,
       role: 'fallback',
-      flex: discountedSolOnly(fallback, { provider, usageMode }),
+      flex: usesFlexOnlyTier(fallback, tierSource),
       maxRetries,
     });
   }
@@ -551,7 +564,7 @@ export const textChainFingerprint = (settings?: TextChainSettings): string => {
     : settings.fallbackModel ?? '';
   return `${settings.flex}|${models}|${settings.fallbackDisabled ? 'disabled' : 'enabled'}|${
     settings.maxRetries ?? ''
-  }|${Array.isArray(settings.fallbackModels) ? 'explicit' : 'legacy'}`;
+  }|${Array.isArray(settings.fallbackModels) ? 'explicit' : 'legacy'}|${JSON.stringify(settings.modelTiers ?? null)}`;
 };
 
 /** The part of a resolved configuration the transport reads. */
@@ -611,6 +624,7 @@ export const textChainApplies = (source: TextChainSource): boolean => {
   }
   const settings = source.textChain;
   if (!settings) return false;
+  if (Object.values(settings.modelTiers ?? {}).some(Boolean)) return true;
   const hasExplicitFallbacks =
     Array.isArray(settings.fallbackModels) &&
     settings.fallbackModels.some((model) =>
@@ -618,7 +632,8 @@ export const textChainApplies = (source: TextChainSource): boolean => {
     );
   const hasExplicitRetries =
     typeof settings.maxRetries === 'number' && settings.maxRetries > 0;
-  return hasExplicitFallbacks || hasExplicitRetries;
+  const inheritedFallback = !settings.fallbackDisabled && Boolean(settings.fallbackModel?.trim());
+  return hasExplicitFallbacks || hasExplicitRetries || inheritedFallback;
 };
 
 /**
@@ -646,7 +661,7 @@ export const planTextAttempts = (
     ];
   }
   const settings = source.textChain ?? defaultTextChainSettings();
-  const primaryDiscountedOnly = discountedSolOnly(model, source);
+  const primaryDiscountedOnly = usesFlexOnlyTier(model, source);
   if (source.singleModelAttempt) {
     const flex = primaryDiscountedOnly || Boolean(
       settings.flex &&
@@ -706,8 +721,8 @@ export const planTextAttempts = (
     for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
       steps.push({
         model: fallback,
-        flex: discountedSolOnly(fallback, source),
-        timeoutMs: discountedSolOnly(fallback, source) && source.profile === 'interactive'
+        flex: usesFlexOnlyTier(fallback, source),
+        timeoutMs: usesFlexOnlyTier(fallback, source) && source.profile === 'interactive'
           ? INTERACTIVE_FLEX_TIMEOUT_MS
           : STANDARD_ATTEMPT_TIMEOUT_MS,
       });
@@ -794,17 +809,21 @@ export const buildAttemptBody = (
   original: Record<string, unknown>,
   attempt: Pick<TextAttempt, 'model' | 'flex'>,
   /** The attempt model's known output ceiling, when there is one (F12). */
-  outputLimit?: number
+  outputLimit?: number,
+  provider: 'openai' | 'openrouter' = 'openrouter'
 ): Record<string, unknown> => {
   const body: Record<string, unknown> = { ...original, model: attempt.model };
   delete body.service_tier;
   if (attempt.flex) {
+    if (provider === 'openrouter' && !attempt.model.startsWith('openai/')) {
+      throw new Error('The selected model has no supported Flex route. Disable Flex for that profile or choose a compatible model.');
+    }
     body.service_tier = 'flex';
-    if (attempt.model === 'openai/gpt-6.1-sol') {
-      const provider = original.provider && typeof original.provider === 'object'
+    if (provider === 'openrouter' && attempt.model.startsWith('openai/')) {
+      const providerOptions = original.provider && typeof original.provider === 'object'
         ? original.provider as Record<string, unknown>
         : {};
-      body.provider = { ...provider, only: ['openai/flex'], allow_fallbacks: false };
+      body.provider = { ...providerOptions, only: ['openai/flex'], allow_fallbacks: false };
     }
   }
   const usage =
@@ -813,11 +832,12 @@ export const buildAttemptBody = (
       : {};
   body.usage = { ...usage, include: true };
   if (
-    (isLunaModel(attempt.model) || attempt.model === 'openai/gpt-6.1-sol') &&
+    (isLunaModel(attempt.model) || ['openai/gpt-6.1-sol', 'gpt-6.1-sol'].includes(attempt.model)) &&
     original.reasoning === undefined &&
     original.reasoning_effort === undefined
   ) {
-    body.reasoning = { effort: 'medium' };
+    if (provider === 'openai') body.reasoning_effort = 'medium';
+    else body.reasoning = { effort: 'medium' };
   }
   // Reasoning tokens are spent out of the same output ceiling. A caller's cap
   // is the visible budget — sized for the answer alone — so every capped
@@ -1155,10 +1175,10 @@ export const readUsage = (
     ...(typeof payload?.service_tier === 'string'
       ? { serviceTier: payload.service_tier }
       : {}),
-    promptTokens: num(usage.prompt_tokens),
-    completionTokens: num(usage.completion_tokens),
-    reasoningTokens: num(usage.completion_tokens_details?.reasoning_tokens),
-    cachedTokens: num(usage.prompt_tokens_details?.cached_tokens),
+    promptTokens: num(usage.prompt_tokens ?? usage.input_tokens),
+    completionTokens: num(usage.completion_tokens ?? usage.output_tokens),
+    reasoningTokens: num(usage.completion_tokens_details?.reasoning_tokens ?? usage.output_tokens_details?.reasoning_tokens),
+    cachedTokens: num(usage.prompt_tokens_details?.cached_tokens ?? usage.input_tokens_details?.cached_tokens),
     costUsd: num(usage.cost),
   };
 };
@@ -1349,6 +1369,7 @@ class SseObserver {
     }
     if (this.first === undefined) this.first = payload;
     if (!payload) return;
+    if (payload.type === 'response.completed' && payload.response) payload = payload.response;
     if (typeof payload.model === 'string') this.model = payload.model;
     if (typeof payload.service_tier === 'string') {
       this.serviceTier = payload.service_tier;
@@ -1714,13 +1735,29 @@ const sendText = (
       }
     }
     const url = urlOf(input);
-    if (!isChatCompletions(url, init)) return baseFetch(input, init);
+    const nativeResponses = source.provider === 'openai' && source.singleModelAttempt === true &&
+      init?.method?.toUpperCase() === 'POST' && /\/responses(\?|$)/.test(url);
+    if (!isChatCompletions(url, init) && !nativeResponses) return baseFetch(input, init);
     const original = parseBody(init);
     if (!original || typeof original.model !== 'string') {
       return baseFetch(input, init);
     }
     const ledger = currentUsageLedger();
     const streaming = original.stream === true;
+    if (nativeResponses) {
+      // Direct OpenAI uses its native Responses API, including tools. The
+      // native Mastra array owns failover; this transport owns one deadline,
+      // tier, cancellation and the same durable usage ledger as chat calls.
+      const attempt = planTextAttempts(original.model, source)[0];
+      const body = { ...original };
+      if (attempt.flex) body.service_tier = 'flex';
+      if (typeof body.max_output_tokens === 'number')
+        body.max_output_tokens = clampToOutputLimit(withReasoningHeadroom(body.max_output_tokens), source.outputLimits?.[attempt.model]);
+      if ((isLunaModel(attempt.model) || attempt.model === 'gpt-6.1-sol') && body.reasoning === undefined)
+        body.reasoning = { effort: 'medium' };
+      const recorded = ledger ? { ...attempt, number: ledger.calls.length + 1 } : attempt;
+      return runAttempt(baseFetch, input, init, body, recorded, true, streaming, ledger, true);
+    }
     // An image is decided by the model or the modalities only (review F17):
     // a text call that carries the web plugin is text, and it is metered.
     const imageRequest =
@@ -1737,7 +1774,7 @@ const sendText = (
     // discounted-only Sol policy. Own-key and real image models keep passthrough.
     if (
       (!textChainApplies(source) || imageRequest || pluginCall) &&
-      !discountedSolOnly(original.model, source)
+      !usesFlexOnlyTier(original.model, source)
     ) {
       const attempt: TextAttempt = {
         number: 1,
@@ -1790,7 +1827,8 @@ const sendText = (
           buildAttemptBody(
             original,
             recordedAttempt,
-            source.outputLimits?.[recordedAttempt.model]
+            source.outputLimits?.[recordedAttempt.model],
+            source.provider
           ),
           recordedAttempt,
           attempt.number === attempts.length,

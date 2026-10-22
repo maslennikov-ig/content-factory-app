@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { CONDUCTOR_MODEL_TASK_KEY } from './conductor.model-task';
 import { z } from 'zod';
 import {
   MASTRA_MESSAGE_AUTHOR_KEY,
@@ -91,6 +92,7 @@ export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   CONDUCTOR_REQUEST_ID_KEY,
   CONDUCTOR_EXECUTION_ID_KEY,
   AGENT_WORK_CONTEXT_KEY,
+  CONDUCTOR_MODEL_TASK_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
   MASTRA_SCOPES_KEY,

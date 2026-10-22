@@ -17,6 +17,7 @@
  * Модели здесь нет: ответ проверяющей модели задан строкой.
  */
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { reviewChatModelMock } = require('./helpers/review-chat-model.cjs');
 
 const QUALITY = 'libraries/nestjs-libraries/src/content-intelligence/text-quality';
 const PIECES = 'libraries/nestjs-libraries/src/content-intelligence/pieces';
@@ -40,6 +41,8 @@ const mocks = {
     getModelForRole: async (_org, role) => `${role}-model`,
   },
 };
+mocks['@contentfactory/nestjs-libraries/openai/ai.clients'].getChatModel =
+  reviewChatModelMock(mocks['@contentfactory/nestjs-libraries/openai/ai.clients']);
 
 const { slopCheck } = loadWithMocks(`${QUALITY}/slop-check.ts`, mocks);
 const { restatesSupported, supportedWordingOf } = loadWithMocks(

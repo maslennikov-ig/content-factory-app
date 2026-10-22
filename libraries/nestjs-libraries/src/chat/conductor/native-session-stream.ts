@@ -4,6 +4,7 @@ import type { AgentSignalContents } from '@mastra/core/agent';
 import { AGENT_STREAM_TOPIC, type DurableAgent } from '@mastra/core/agent/durable';
 import type { RequestContext } from '@mastra/core/request-context';
 import { observeConductorRun } from './native-run-observer';
+import { seedConductorModelTask } from './conductor.model-task';
 
 export const AGENT_NATIVE_RUN_METADATA_KEY = 'assistantNativeRun';
 export const AGENT_NATIVE_CONTINUATION_PART = 'data-native-run-continuation';
@@ -93,6 +94,10 @@ export async function streamNativeSession(input: {
   let offset: number | undefined;
   let drive: (() => Promise<void>) | undefined;
   if (input.message) {
+    seedConductorModelTask(requestContext, input.message.parts
+      .filter((part) => part.type === 'text' && typeof part.text === 'string')
+      .map((part) => part.text)
+      .join('\n'));
     const contents = input.message.parts.flatMap<Exclude<AgentSignalContents, string>[number]>((part) => {
       if (part.type === 'text') return [{ type: 'text' as const, text: part.text }];
       if (part.type === 'file') return [{

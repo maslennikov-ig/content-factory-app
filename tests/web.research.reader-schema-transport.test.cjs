@@ -367,9 +367,8 @@ describe('scoped reader deadline through the installed SDK and usage transport',
       depth: 'advanced',
     },
   };
-  const response = (output) =>
-    new Response(
-      JSON.stringify({
+  const response = (output, bodyDelayMs = 0) => {
+    const payload = JSON.stringify({
         id: 'offline',
         object: 'chat.completion',
         created: 0,
@@ -382,9 +381,22 @@ describe('scoped reader deadline through the installed SDK and usage transport',
           },
         ],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } }
-    );
+      });
+    const body = bodyDelayMs
+      ? new ReadableStream({
+          start(controller) {
+            setTimeout(() => {
+              controller.enqueue(new TextEncoder().encode(payload));
+              controller.close();
+            }, bodyDelayMs);
+          },
+        })
+      : payload;
+    return new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
 
   const setup = ({
     classifierDelay = 0,
@@ -409,9 +421,7 @@ describe('scoped reader deadline through the installed SDK and usage transport',
       const index = reader ? ++readerCalls : ++classifierCalls;
       calls.push({ reader, index, body, signal: init.signal });
       if (!reader && stopAt !== 'classifier') {
-        if (classifierDelay)
-          await new Promise((resolve) => setTimeout(resolve, classifierDelay));
-        return response(classification);
+        return response(classification, classifierDelay);
       }
       if (reader && readerFallback && index === 1) {
         await new Promise((resolve) => setTimeout(resolve, 30_000));

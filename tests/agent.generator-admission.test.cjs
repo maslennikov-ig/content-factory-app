@@ -21,7 +21,8 @@ const CONFIG = {
   imageModel: 'fallback-image',
   roleModels: {
     agent: 'conductor-model',
-    draft: 'writer-model',
+    draft: 'core-writer-model',
+    adapt: 'writer-model',
     extract: 'extract-model',
   },
   search: { enabled: false, apiKey: '' },
@@ -191,9 +192,9 @@ test('ordinary generation admits one text operation and selects the writer model
   const h = harness();
   try {
     await h.acting.runAsActingUser(USER, h.drain);
-    h.assertRows([['text_generation', 'draft']], ['succeeded']);
+    h.assertRows([['text_generation', 'adapt']], ['succeeded']);
     expect(h.seen).toEqual([
-      { role: 'draft', model: 'writer-model', user: USER },
+      { role: 'adapt', model: 'writer-model', user: USER },
     ]);
   } finally {
     h.restore();
@@ -223,7 +224,7 @@ test.each([false, true])(
       const pairs = [
         ['agent', 'agent'],
         ...(interview ? [['intake', 'extract']] : []),
-        ['text_generation', 'draft'],
+        ['text_generation', 'adapt'],
       ];
       h.assertRows(
         pairs,
@@ -232,7 +233,7 @@ test.each([false, true])(
       expect(h.rows.filter((row) => row.operation === 'agent')).toHaveLength(1);
       expect(h.rows.length).toBeLessThanOrEqual(3);
       expect(h.seen).toEqual([
-        { role: 'draft', model: 'writer-model', user: USER },
+        { role: 'adapt', model: 'writer-model', user: USER },
       ]);
     } finally {
       h.restore();
@@ -249,7 +250,7 @@ test('generation failure closes both admissions once and makes no retry', async 
     h.assertRows(
       [
         ['agent', 'agent'],
-        ['text_generation', 'draft'],
+        ['text_generation', 'adapt'],
       ],
       ['failed', 'failed']
     );
@@ -272,7 +273,7 @@ test('returning the ordinary generation stream finalizes its single admission as
       expect(event.done).toBe(false);
       await iterator.return();
     });
-    h.assertRows([['text_generation', 'draft']], ['failed']);
+    h.assertRows([['text_generation', 'adapt']], ['failed']);
     expect(h.graphClosed()).toBe(true);
   } finally {
     h.restore();
