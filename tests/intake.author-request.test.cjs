@@ -5,6 +5,7 @@ const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { loadRegistry, loadCapabilityModule, requestContextFor, servicesFrom, executeTool, IDENTITY } = require('./helpers/agent-capabilities.cjs');
 const registry = loadRegistry({ mocks: {
   '@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service': { AgentThreadsService: class AgentThreadsService {} },
+  '../conductor/agent-threads.service': { AgentThreadsService: class AgentThreadsService {} },
 } });
 const { buildConductorContext, conductorContextSchema } = loadCapabilityModule('../conductor/conductor.context.ts');
 const { parseAgentChatBody } = loadCapabilityModule('../conductor/agent-chat.request.ts');

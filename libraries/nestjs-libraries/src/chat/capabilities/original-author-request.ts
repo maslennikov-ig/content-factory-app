@@ -42,7 +42,8 @@ export const authorRequestResolver = (
       try {
         // Lazy to avoid the MastraService/registry dependency cycle. The owned
         // service validates the thread before reading exactly one bounded page.
-        const { AgentThreadsService } = await import('@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service');
+        const { AgentThreadsService } = require('../conductor/agent-threads.service') as
+          typeof import('../conductor/agent-threads.service');
         const { messages } = await services(AgentThreadsService).readMessages(identity, threadId, { page: 0, perPage: 200 });
         return messages.flatMap(message => {
           if (message.role !== 'user' || message.threadId !== threadId || message.resourceId !== resourceId) return [];
