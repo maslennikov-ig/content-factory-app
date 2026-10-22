@@ -78,7 +78,12 @@ export const isTransientNativeTextError = (error: unknown): boolean => {
     (!inFlightBudget && terminalBillingMessage.test(String(value.message ?? ''))))) return false;
   return chain.some(value => transientStatus.has(Number(value.statusCode ?? value.status)) ||
     value.isRetryable === true || value.name === 'AttemptTimeout' ||
-    (value.isRetryable !== false && transientMessage.test(String(value.message ?? ''))));
+    (value.isRetryable !== false && (
+      // Mastra emits this only for an `other` finish with no step content.
+      // Keep its native retry/fallback path open after a usage-only stream.
+      (value.id === 'AGENT_STREAM_ERROR' &&
+        value.message === 'Agent stream finished with finishReason "other" without producing any output') ||
+      transientMessage.test(String(value.message ?? '')))));
 };
 
 /**

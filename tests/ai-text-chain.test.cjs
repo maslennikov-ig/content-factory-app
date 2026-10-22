@@ -459,7 +459,7 @@ describe('OpenRouter in-flight credit reservation', () => {
   );
 });
 
-describe('native OpenRouter HTTP 200 error envelopes', () => {
+describe('native OpenRouter HTTP 200 error envelopes and empty streams', () => {
   const source = { ...included, singleModelAttempt: true };
   const refusal = (code) => ({ error: { code,
     message: code === 502 ? 'Flex processing is temporarily unavailable.' : 'Provider refused the request.',
@@ -530,8 +530,28 @@ describe('native OpenRouter HTTP 200 error envelopes', () => {
     expect(canceled).toBe(true);
   });
 
-  test.each([[502, 0], [502, 1], [401, 0], [402, 0]])(
+  test('empty stream recovery requires the native identity and retains terminal guards', () => {
+    const { execFileSync } = require('node:child_process');
+    const output = execFileSync(process.execPath, ['-e', `
+      const { loadTypeScriptModule } = require('./tests/helpers/load-ts-module.cjs');
+      const retry = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.native-retries.ts');
+      const empty = { id: 'AGENT_STREAM_ERROR', message: 'Agent stream finished with finishReason "other" without producing any output' };
+      const errors = [empty, new Error(empty.message), { ...empty, id: 'UNKNOWN' },
+        { ...empty, message: 'Agent stream finished with finishReason "error" but no error payload was provided' },
+        { ...empty, message: empty.message + ' unexpected detail' }, { ...empty, isRetryable: false },
+        { name: 'AbortError', cause: empty }, { executionBudgetStop: true, cause: empty },
+        { statusCode: 401, cause: empty }, { statusCode: 402, cause: empty },
+        { message: 'insufficient_quota', cause: empty }, { message: 'permission_denied', cause: empty }];
+      console.log(JSON.stringify(errors.map(retry.isTransientNativeTextError)));
+    `], { cwd: require('node:path').join(__dirname, '..'), encoding: 'utf8', timeout: 10_000 });
+    expect(JSON.parse(output.trim())).toEqual([true, ...Array(11).fill(false)]);
+  });
+
+  test.each([[502, 0], [502, 1], [401, 0], [402, 0], ['empty', 0], ['empty', 1], ['empty-stop', 1]])(
     'the durable native SDK handles envelope %s with maxRetries=%s after one committed tool', (code, maxRetries) => {
+      const emptyStream = String(code).startsWith('empty');
+      const stopping = code === 'empty-stop';
+      const recovers = code === 502 || code === 'empty';
       const { execFileSync } = require('node:child_process');
       const output = execFileSync(process.execPath, ['-e', `
         const { loadTypeScriptModule } = require('./tests/helpers/load-ts-module.cjs');
@@ -545,13 +565,17 @@ describe('native OpenRouter HTTP 200 error envelopes', () => {
         const { createTool } = require('@mastra/core/tools');
         const { createOpenAI } = require('@ai-sdk/openai');
         const { z } = require('zod');
-        const calls = [], errors = [];
+        const calls = [], errors = [], emptyErrors = [];
+        const stopped = new AbortController();
         let toolCalls = 0;
         const models = ['fixture-envelope-primary', 'fixture-envelope-backup'];
-        const config = retry.createNativeTextRetryConfig({ defaultMaxRetries: ${maxRetries}, delayMs: 0 });
+        const config = retry.createNativeTextRetryConfig({ defaultMaxRetries: ${maxRetries}, delayMs: ${stopping ? 1000 : 0} });
         const handleError = config.errorProcessors[0].processAPIError;
         config.errorProcessors[0].processAPIError = args => {
           errors.push(args.error.statusCode ?? null);
+          emptyErrors.push(args.error.id === 'AGENT_STREAM_ERROR' &&
+            args.error.message === 'Agent stream finished with finishReason "other" without producing any output');
+          if (${stopping}) setTimeout(() => stopped.abort(new Error('fixture-stop-empty-retry')), 10);
           return handleError(args);
         };
         const stream = (model, tool) => {
@@ -571,6 +595,13 @@ describe('native OpenRouter HTTP 200 error envelopes', () => {
             const body = JSON.parse(init.body);
             calls.push(body.model);
             if (toolCalls === 0) return stream(body.model, true);
+            if (${emptyStream} && body.model === models[0]) {
+              const event = { id: 'fixture-empty', object: 'chat.completion.chunk', created: 0, model: body.model,
+                choices: [{ index: 0, delta: {}, finish_reason: null }],
+                usage: { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4, cost: 0.0001 } };
+              return new Response('data: ' + JSON.stringify(event) + '\\n\\ndata: [DONE]\\n\\n',
+                { headers: { 'content-type': 'text/event-stream' } });
+            }
             if (body.model === models[0]) return new Response(${JSON.stringify(JSON.stringify(refusal(code)))},
               { headers: { 'content-type': 'application/json' } });
             return stream(body.model, false);
@@ -590,7 +621,7 @@ describe('native OpenRouter HTTP 200 error envelopes', () => {
           let text = '', failure = false;
           try {
             const output = await mastra.getAgent('fixture').stream('Run the fixture.', {
-              maxSteps: 3, maxRetries: 0, requestContext: context,
+              maxSteps: 3, maxRetries: 0, requestContext: context, abortSignal: stopped.signal,
               memory: { thread: 'fixture-envelope-thread', resource: 'fixture-envelope-resource' },
             });
             for await (const chunk of output.fullStream) {
@@ -599,22 +630,25 @@ describe('native OpenRouter HTTP 200 error envelopes', () => {
             }
           } catch { failure = true; }
           await mastra.shutdown();
-          console.log('RESULT=' + JSON.stringify({ text, failure, calls, toolCalls, errors,
-            ledger: ledger.calls.map(call => ({ failed: call.failed === true, possiblyBilled: call.possiblyBilled === true })) }));
+          console.log('RESULT=' + JSON.stringify({ text, failure, calls, toolCalls, errors, emptyErrors,
+            ledger: ledger.calls.map(call => ({ failed: call.failed === true, possiblyBilled: call.possiblyBilled === true, costUsd: call.costUsd })) }));
         }).catch(() => { process.exitCode = 1; });
       `], { cwd: require('node:path').join(__dirname, '..'), encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] });
       const result = JSON.parse(output.split('\n').find(line => line.startsWith('RESULT=')).slice(7));
-      const expected = code === 502
+      const expected = recovers
         ? ['fixture-envelope-primary', ...Array(maxRetries + 1).fill('fixture-envelope-primary'), 'fixture-envelope-backup']
         : ['fixture-envelope-primary', 'fixture-envelope-primary'];
+      const expectedErrors = recovers ? maxRetries + 1 : 1;
       expect(result.calls).toEqual(expected);
       expect(result.toolCalls).toBe(1);
-      expect(result.errors).toEqual(Array(code === 502 ? maxRetries + 1 : 1).fill(code));
-      expect(result.text).toBe(code === 502 ? 'recovered' : '');
-      if (code === 502) expect(result.failure).toBe(false);
+      expect(result.errors).toEqual(Array(expectedErrors).fill(emptyStream ? null : code));
+      expect(result.emptyErrors).toEqual(Array(expectedErrors).fill(emptyStream));
+      expect(result.text).toBe(recovers ? 'recovered' : '');
+      if (recovers) expect(result.failure).toBe(false);
       expect(result.ledger).toHaveLength(expected.length);
-      expect(result.ledger.filter(call => call.failed)).toEqual(Array(code === 502 ? maxRetries + 1 : 1)
+      expect(result.ledger.filter(call => call.failed)).toEqual(Array(emptyStream ? 0 : expectedErrors)
         .fill({ failed: true, possiblyBilled: false }));
+      if (emptyStream) expect(result.ledger.map(call => call.costUsd)).toEqual(Array(expected.length).fill(0.0001));
     }, 20_000
   );
 });
