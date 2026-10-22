@@ -821,7 +821,7 @@ describe('reasoning headroom (production 23.09: intake parse cut on «length»)'
   });
 
   it('gives the fallback the headroom too: it reasons by its own default (97dq.91); an uncapped call stays uncapped', () => {
-    const glm = chain.buildAttemptBody({ model: LUNA, max_tokens: 2048 }, attempt('z-ai/glm-5.3'));
+    const glm = chain.buildAttemptBody({ model: LUNA, max_tokens: 2048 }, { model: 'z-ai/glm-5.3', flex: false });
     expect(glm.reasoning).toBeUndefined();
     expect(glm.max_tokens).toBe(2048 + chain.REASONING_HEADROOM_TOKENS);
     const open = chain.buildAttemptBody({ model: LUNA }, attempt(LUNA));
