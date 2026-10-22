@@ -40,7 +40,7 @@ const { act, cleanup, fireEvent, render } = require('@testing-library/react');
  * this suite has to own `useFetch`, or «the key never leaves» is a claim about
  * a request nobody watched.
  */
-const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 
 const fetchMock = jest.fn();
 let settings;
@@ -59,7 +59,7 @@ const Passthrough = ({
     React.createElement('select', props, children)
   );
 
-const component = loadTypeScriptModule(
+const component = loadWithMocks(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
     swr: {
@@ -78,6 +78,7 @@ const component = loadTypeScriptModule(
         action,
         secret: _secret,
         disableForm: _disableForm,
+        fieldClassName: _fieldClassName,
         ...props
       }) =>
         React.createElement(
@@ -270,7 +271,7 @@ describe('автосохранение раздела ИИ', () => {
 
   test('поле модели сохраняется по уходу из него, а не по каждой букве', async () => {
     const { container } = await mount();
-    const field = container.querySelector('[name="ai-role-model-draft"]');
+    const field = container.querySelector('#ai-role-model-draft');
 
     await act(async () => {
       fireEvent.change(field, { target: { value: 'openai/gpt-5' } });

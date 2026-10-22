@@ -821,6 +821,7 @@
   "ai_role_extract": "Extraction",
   "ai_role_research": "Web research",
   "ai_role_draft": "Drafting",
+  "ai_role_adapt": "文章の調整",
   "ai_role_judge": "Voice check",
   "ai_role_review": "調整済みテキストの確認",
   "ai_role_image": "Images",

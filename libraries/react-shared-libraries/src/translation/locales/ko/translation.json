@@ -821,6 +821,7 @@
   "ai_role_extract": "Extraction",
   "ai_role_research": "Web research",
   "ai_role_draft": "Drafting",
+  "ai_role_adapt": "글 변환",
   "ai_role_judge": "Voice check",
   "ai_role_review": "변환된 글 검토",
   "ai_role_image": "Images",

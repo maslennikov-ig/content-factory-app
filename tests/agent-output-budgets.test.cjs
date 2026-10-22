@@ -42,15 +42,15 @@ const state = () => ({
 
 describe('graph service operations request explicit output budgets at the actual model factory', () => {
   test.each([
-    ['findCategories', { category: 'Technology' }, 512],
-    ['findTopic', { topic: 'Updates' }, 512],
-    ['generateHook', { hook: 'What changed this week' }, 2048],
-  ])('%s does not inherit the provider default output reservation', async (method, response, expectedTokens) => {
+    ['findCategories', { category: 'Technology' }, 512, 'classify'],
+    ['findTopic', { topic: 'Updates' }, 512, 'classify'],
+    ['generateHook', { hook: 'What changed this week' }, 2048, 'adapt'],
+  ])('%s requests its semantic model role and explicit output budget', async (method, response, expectedTokens, expectedRole) => {
     const { service, requests } = graphFor(response);
     expect(await service[method](state())).toEqual(response);
     expect(requests).toEqual([{
       organizationId: 'organization-a', temperature: 0.7,
-      maxOutputTokens: expectedTokens, role: undefined,
+      maxOutputTokens: expectedTokens, role: expectedRole,
     }]);
   });
 

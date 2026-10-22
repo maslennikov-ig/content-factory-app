@@ -632,6 +632,7 @@
   "ai_role_extract": "Extraction",
   "ai_role_research": "Web research",
   "ai_role_draft": "Drafting",
+  "ai_role_adapt": "ადაპტაცია",
   "ai_role_judge": "Voice check",
   "ai_role_review": "ადაპტირებული ტექსტის შემოწმება",
   "ai_role_image": "Images",
