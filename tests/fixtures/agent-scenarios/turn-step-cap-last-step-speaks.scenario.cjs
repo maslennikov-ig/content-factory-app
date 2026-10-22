@@ -1,35 +1,32 @@
 'use strict';
 
-const { loadCapabilityModule } = require('../../helpers/agent-capabilities.cjs');
-
-const { STEP_CAP_CLOSING } = loadCapabilityModule('../conductor/conductor.steps.ts');
-
-/** Repeated identical reads stop as incomplete; no forced tool-none step manufactures completion. */
+/** Native runs retain all tools until the model itself returns its final answer. */
 const LIST = ['tool', 'channels_list', {}];
+const ANSWER = 'Каналы проверены семь раз. Доступен «Канал про работу». Проверка завершена.';
 
 module.exports = {
   id: 'turn-step-cap-last-step-speaks',
-  incompleteTurns: [0],
-  title: 'Предел шагов — последний шаг без инструментов и со словами «что сделано и что осталось»',
+  title: 'Без настроенного предела модель завершает проверку после семи вызовов и сохраняет все инструменты',
   covers: ['channels.list'],
   turns: [
     {
       say: 'Проверь каналы по одному, сколько получится',
       model: [
-        ...Array.from({ length: 6 }, () => [LIST]),
-        // The model would go on; on the last step it cannot.
-        [LIST, ['text', 'Проверили каналы шесть раз, дальше не успели. Напишите «дальше» — продолжим.']],
+        ...Array.from({ length: 7 }, () => [LIST]),
+        [['text', ANSWER]],
       ],
     },
   ],
   check: (run) => {
     const [turn] = run.turns;
-    expect(turn.modelCalls).toBe(3);
+    expect(turn.modelCalls).toBe(8);
     expect(turn.steps.every((step) => step.toolChoice !== 'none' && !step.lastStepNote)).toBe(true);
-    expect(turn.toolCalls).toHaveLength(3);
-    expect(turn.text).toContain('Одинаковые действия');
-    expect(turn.text).toContain('Задача не завершена');
+    expect(turn.toolCalls).toHaveLength(7);
+    expect(turn.text).toBe(ANSWER);
+    expect(turn.outputs.every(({ output }) => output.ok === true)).toBe(true);
+    expect(turn.admissions).toEqual([['agent', 'agent', 'user-1', 'succeeded']]);
+    expect(run.history.execution).toMatchObject({ state: 'settled', outcome: 'completed' });
     expect(turn.types.at(-1)).toBe('finish');
-    expect(turn.client.messages.at(-1).parts.some((part) => part.type === 'text' && part.text.includes('Задача не завершена'))).toBe(true);
+    expect(turn.client.messages.at(-1).parts.some((part) => part.type === 'text' && part.text === ANSWER)).toBe(true);
   },
 };

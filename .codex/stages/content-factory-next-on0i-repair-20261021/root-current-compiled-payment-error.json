@@ -1,0 +1,43 @@
+{
+  "schema": "on0i-compiled-payment-error/1",
+  "status": "PASS",
+  "localOnly": true,
+  "buildId": "tmvBVorjTll4eVz0CthsG",
+  "frontendPid": 59308,
+  "result": {
+    "status": "PASS",
+    "localOnly": true,
+    "boundary": "Controlled before-start HTTP402 with x-agent-not-started proof at browser transport, real compiled frontend. Backend/provider not called for this synthetic submission.",
+    "injectedResponses": 1,
+    "actionableWhatVisible": true,
+    "actionableNextVisible": true,
+    "composerEnabled": true,
+    "rawDiagnosticVisible": false,
+    "rawCodeVisible": false,
+    "pageErrors": [],
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/agent/threads"
+      },
+      {
+        "method": "GET",
+        "path": "/agent/notifications"
+      },
+      {
+        "method": "POST",
+        "path": "/agent/chat"
+      },
+      {
+        "method": "GET",
+        "path": "/agent/threads"
+      }
+    ],
+    "refusedDraftPreserved": true,
+    "newChatReadyAfterError": true
+  },
+  "cliExitCode": 0,
+  "probeSha256": "ecc02cd67a103a2ec404f6e26eb9ae0eae7acfeb96836237c378a4386cabce17",
+  "log": "evidence/root-current-compiled-payment-error-cli.log",
+  "logSha256": "e2d831c2c2e697fc9d38195ea7ed80f17b98bd9a94631641f9a114333ec077b1"
+}

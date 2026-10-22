@@ -1,0 +1,36 @@
+{"kind":"approval","phase":"create","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"accepted","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"pending","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"answer-dispatch","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"answer-finished","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"complete","schemaName":"cf_service_native_1792571918728_66736"}
+{"kind":"approval","phase":"cleanup","schemaName":"cf_service_native_1792571918728_66736"}
+Mastra shutdown completed
+{"kind":"question","phase":"create","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"accepted","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"pending","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"answer-dispatch","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"answer-finished","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"complete","schemaName":"cf_service_native_1792571921418_66736"}
+{"kind":"question","phase":"cleanup","schemaName":"cf_service_native_1792571921418_66736"}
+Mastra shutdown completed
+{"kind":"stop","phase":"create","schemaName":"cf_service_native_1792571923823_66736"}
+{"kind":"stop","phase":"accepted","schemaName":"cf_service_native_1792571923823_66736"}
+{"kind":"stop","phase":"pending","schemaName":"cf_service_native_1792571923823_66736"}
+{"kind":"stop","phase":"stop-dispatch","schemaName":"cf_service_native_1792571923823_66736"}
+[WORKFLOW] Error executing step workflow.content-factory-queued-input-v1.step.run-queued-turn: AbortError: Queued input was stopped.
+    at abortError (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:59:40)
+    at stop (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:232:23)
+    at eval (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:380:32)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async eval (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:616:36)
+    at async engine.executeStepWithRetry.retries.retries (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5038:18)
+    at async DefaultExecutionEngine.executeStepWithRetry (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5458:14)
+    at async executeStep (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:4921:26)
+    at async executeEntry (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:3889:50)
+    at async DefaultExecutionEngine.execute (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5791:17)
+{"kind":"stop","phase":"stop-returned","schemaName":"cf_service_native_1792571923823_66736"}
+{"kind":"stop","phase":"complete","schemaName":"cf_service_native_1792571923823_66736"}
+{"kind":"stop","phase":"cleanup","schemaName":"cf_service_native_1792571923823_66736"}
+Mastra shutdown completed
+[{"kind":"approval","nativeAdmissions":1,"httpAdmissions":0,"domainCalls":1,"repeatedAnswerRefused":true},{"kind":"question","nativeAdmissions":1,"httpAdmissions":0,"domainCalls":1,"repeatedAnswerRefused":true},{"kind":"stop","nativeAdmissions":1,"httpAdmissions":0,"domainCalls":0,"repeatedAnswerRefused":true}]

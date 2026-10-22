@@ -31,7 +31,7 @@ export const intakeRequestSchemaV1 = z.object({
     research: z.enum(['allowed', 'required', 'forbidden']).optional(),
     temporal: intakeTemporalConstraintSchemaV1.nullable().optional(),
     requirements: z.array(z.string().max(1_000)).max(20).optional(),
-    humanFactSelection: z.boolean().optional(),
+    humanFactSelection: z.boolean().describe('True only if the request explicitly requires a human (the user or their designated reviewer) to choose or approve the research facts before writing. The assistant researching or verifying sources, choosing supported passages, or reading/checking its saved result does not require human selection. This describes an outstanding human action, never evidence of approval.').optional(),
     title: z.string().max(500).optional(),
   }).strict().optional(),
   unresolvedChoices: z.array(z.string().max(1_000)).max(20).optional(),

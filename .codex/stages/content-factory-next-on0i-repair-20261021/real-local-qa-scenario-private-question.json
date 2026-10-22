@@ -1,0 +1,161 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "private-question",
+  "at": "2026-10-21T07:59:38.818Z",
+  "elapsedMs": 8128,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "44974ca05fdb8d7eb4791dc1d17574dbcc858b63fd860ea944eae935e4a71313",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "backendLaunch": {
+    "at": "2026-10-21T07:56:36.159Z",
+    "result": "STARTED",
+    "pid": 26082,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "paidCallsByBootstrap": 0
+  },
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "6432112d-a0dc-4ef8-a739-8236431ef9f4",
+  "threadId": "fbea0cdd-663a-47f4-8403-7298b65d988c",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamTransportError": null,
+  "streamErrors": [],
+  "assistantText": [],
+  "pending": [
+    {
+      "runId": "4a17dcb6-9e5e-4836-8a54-586e7f6f7090",
+      "toolCallId": "call_WECQYJCJdmWJV1RW5WXxfPDW",
+      "toolName": "ask_user",
+      "kind": "question",
+      "suspendPayload": {
+        "options": [
+          {
+            "label": "Рассказать причину",
+            "description": "Опишите, с чем вы не согласились и почему отказались."
+          },
+          {
+            "label": "Решите за меня",
+            "description": "Сделайте шаблон с пропусками, чтобы я сам добавил факты."
+          }
+        ],
+        "question": "В чём именно было разногласие с заказчиком и что стало настоящей причиной отказа? Можно коротко, своими словами. Если выберете «Решите за меня», я подготовлю нейтральный шаблон с пропусками, не придумывая обстоятельств.",
+        "selectionMode": "single_select",
+        "canDecideForPerson": true,
+        "cardId": "748fd005132175acd7502779527e06e8"
+      }
+    }
+  ],
+  "execution": {
+    "requestId": "aebfdaf4-6de1-496d-a3de-3d24263f957e",
+    "state": "running",
+    "runId": "4a17dcb6-9e5e-4836-8a54-586e7f6f7090"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "d0fd07ae-bef8-4d82-ac4e-44dc3c16e656",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "admitted",
+      "promptTokens": null,
+      "completionTokens": null,
+      "reasoningTokens": null,
+      "cachedTokens": null,
+      "costUsd": null,
+      "possiblyBilled": null,
+      "attempt": null
+    }
+  ],
+  "usageTotals": {
+    "operations": 1,
+    "knownCostUsd": 0,
+    "unknownCostOperations": 1,
+    "pendingOperations": 1,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": false,
+  "providerReceipts": [
+    {
+      "id": "dc2bddb9-aacc-4bf8-ac87-453ef2a328c3",
+      "at": "2026-10-21T07:59:39.137Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "dc2bddb9-aacc-4bf8-ac87-453ef2a328c3",
+      "at": "2026-10-21T07:59:39.137Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569579-qqHT1pOOpEwErfmrTcCC",
+      "usage": {
+        "promptTokens": 28529,
+        "completionTokens": 403,
+        "totalTokens": 28932,
+        "reasoningTokens": 261,
+        "cachedTokens": 28447,
+        "costUsd": 0.00049118355
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 6994
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Asks for the missing private cause",
+    "Does not invent an autobiographical experience",
+    "No external research"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-private-question-2026-10-21T07-59-38-818Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "PASS"
+}

@@ -1,0 +1,87 @@
+{
+  "schema": "native-stop-tail-evidence/1",
+  "at": "2026-10-21T13:03:18.556Z",
+  "status": "SOURCE_NATIVE_FOCUSED_GREEN_ROOT_COMPILED_GATE_PENDING",
+  "finding": "CONFIRMED: original HTTP native owner reader was cancelled and terminal domain metadata settled before durable native Memory tail commit; actual gate5 histories contain settled/interrupted metadata with only the old pair.",
+  "publicContract": "Installed Mastra1.78 Session.abort is void. Session.onBeforeAgentEnd is not a persistence barrier: actual5500ms heldsave exceeds SDK consumer grace while original public native view stays open until flush and FINISH/EOF. PrivateSession.waitForStreamIdle and internalRun.watch APIs are unused.",
+  "change": "Only explicit durable active.onStop latches reader drain. It stops execution/domain admission and HTTP display, requests native cancellation, and consumes the same original native reader through real FINISH/EOF before the existing turn.finish/active.settled. Parked native gates and internal abort keep their reader cancellation. Stop then reads same-request/same-captured-run response proof once and requires its exact assistantID in authoritative Memory; swallowed failed saves or acceptednative-with-failedpointer-store reject503.",
+  "cases": [
+    "delayed-tail: actual PG memory-store save held5500ms; no positiveStop during hold; after release nativeEOF then domainsettlement then exactACK with4messages",
+    "failed-tail: native error-swallow path leaves old2messages and Stop503",
+    "early-response-failed: Stop captured run before responsepointer; latest sameownedrun proof is required, cannot skip it",
+    "accepted-run-pointer-failed: actual Session accepted before public PG metadataupdate fault; captured/latestpointer absent, abortedNativetrue; priorpositiveACK RED becomes503GREEN",
+    "pre-start: Stop before any native producer is finite and calls no model",
+    "approval/question: persisted parked native gates stop withpending0, no extra model call",
+    "internal-close: controlledlegacyHTTPreader cancellation executescancel1 and settlesactualPG/domain/admission in18ms withoutSession.abort; avoids enteringdurabledrain",
+    "existing domainwrite/failure/naturalfinalization, requestidentity and actualuseChat20modes staygreen"
+  ],
+  "preserved": [
+    "Frontend exact proof predicates unchanged from prior freeze.",
+    "No new native observer, custom runtime, polling, fixed delay, SDK patch or private/internal SDK call.",
+    "No billing reset, automatic retry, unknown-write bypass or successor adoption."
+  ],
+  "manifest": "evidence/stop-native-tail-source-freeze.json",
+  "checks": [
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-tail.test.cjs tests/agent-native-stop-settlement.test.cjs tests/agent-native-stop-identity.test.cjs tests/agent-native-stop-flow.test.cjs",
+      "exit": 0,
+      "result": {
+        "suites": 4,
+        "tests": 16,
+        "seconds": 54.372
+      },
+      "log": "evidence/stop-native-tail-focused.final.log",
+      "coveredNativeCases": {
+        "tailAndBoundaries": 8,
+        "domainSettlement": 3,
+        "actualInstalledUseChat": 20,
+        "identityTests": 13
+      }
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exit": 0,
+      "log": "evidence/stop-native-tail-backend-types.final.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-mastra-service-native-integration.test.cjs --testNamePattern='cold native Stop|Stop settles the accepted'",
+      "exit": 0,
+      "result": {
+        "suites": 1,
+        "tests": 4,
+        "skipped": 13,
+        "seconds": 40.949
+      },
+      "log": "evidence/stop-native-tail-cold-checks.log",
+      "scope": "Existing service-native cold cancellation checks; no app delta in MastraService"
+    }
+  ],
+  "rejectedFixtureAttempts": [
+    {
+      "log": "evidence/stop-native-tail-focused.first-attempt.log",
+      "reason": "Pre-start fixture released its gate before activeStop dispatch, allowing a native producer; fixed fixture ordering, final matching source rerun green."
+    },
+    {
+      "log": "evidence/stop-native-tail-accepted-run-pointer.fixture-unhandled.log",
+      "reason": "Expected chat rejection was not attached early; corrected fixture immediately observes rejection."
+    },
+    {
+      "log": "evidence/stop-native-tail-accepted-run-pointer.fixture-independent-pointer.log",
+      "reason": "Only onRunId callback was held; independent MastraService pointer writer committed. Report correctly showedpointerexists; final RED faults common public store boundary."
+    },
+    {
+      "logs": [
+        "evidence/stop-native-tail-internal-close.log",
+        "evidence/stop-native-tail-internal-close.teardown.log"
+      ],
+      "reason": "Artificial legacy classification of a hanging durable fixture completed HTTP correctly but left its native fixture task alive; owned helper processes65014/67972 terminated. Final precise controlledlegacytransport has no native task and exits0."
+    }
+  ],
+  "remaining": [
+    "Root compiled Gate6 actual Stop and root-owned final build/suite acceptance."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "stop-native-tail-proposal/1",
+  "at": "2026-10-21T12:42:45.307448+00:00",
+  "status": "PROPOSAL_WAITING_ROOT_GO_NO_APP_TEST_EDITS",
+  "confirmed": [
+    "actual gate5 all initial Stop reads preceded native tail persistence; late free focus with four messages unlocks existing strict frontend guard",
+    "native/PostgreSQL RED holds actual public memory-store saveMessages; positive Stop and settled interrupted metadata still accompany only two prior messages",
+    "holding actual tail save5500ms proves Session.onBeforeAgentEnd may fire before persistence due native consumer abort grace; existing original-producer native view remains open until tail commit then receives abort/finish/EOF"
+  ],
+  "rejectedApis": {
+    "Session.waitForStreamIdle": "private",
+    "Run.watch/watchAsync": "explicit @internal declarations",
+    "Session.onBeforeAgentEnd alone": "public but disproved as persistence barrier after5sec abort grace"
+  },
+  "publicBoundary": "Existing createDurableAgentStream/toAISdkStream native view FINISH/EOF; SDK durable finalization awaits memory flush before publishing FINISH",
+  "proposal": "Keep the existing native controller reader alive after explicit durable Stop and drain it to native completion instead of canceling that observer/escaping on abort. Then existing actual turn.finish and active.settled cover native tail completion. Add one exact saved response-ID read before positive receipt to detect swallowed native persistence failures. No new observer, custom runtime, polling/delay, or frontend guard change.",
+  "verificationRequired": [
+    "controlled actual store save held longer than SDK5sec consumer bailout",
+    "failed native tail write does not acknowledge known result",
+    "Stop before/during natural finalization",
+    "approval/question parked cancellation and cold native routes remain finite and fail closed",
+    "exact saved response nativeID and all four messages",
+    "existing stopped tool uncertainty and A-to-B generation guards"
+  ],
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "66b13557fe1dc2e27ebb191e1ea648a10fbda9a00b01faee7140fe9295cc933b",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "8c1f8052b4daf6aa79326481fa732ccb2282ce8831755b82d892ea4aeb1f98fd",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9",
+    "node_modules/@mastra/core/package.json": "69df237dfc36bceb2f4ea4dd1b272e755a0aa69ae9fba499f0ecc75cf0ca8fce",
+    "node_modules/@mastra/core/dist/agent-controller/session.d.ts": "45a2545c0e936ddc6d591335b82dd4ae2bb1cd3c6bbc999cab9c439062d23489",
+    "node_modules/@mastra/core/dist/agent-controller-DRiP9C5v.js": "89187a550440d68c7a5f914c60aeba5a20a8d9316e4d0540e25ab99fb5e2e673",
+    "node_modules/@mastra/core/dist/create-durable-agent-CdL_GpVq.js": "406101e51c83eb077a0595f932247fef4ea7e72fc6433c1906bea99e34387b71",
+    "node_modules/@mastra/core/dist/workflows/workflow.d.ts": "1d79d41c02496ef591c23b3fe252cd792a46f114835613b95b17ba4f77ff50ec"
+  },
+  "evidence": {
+    "evidence/stop-native-tail.red.log": "9e94799a8842cc4de0c7a238aaae8e149457fa90ce64c878798434fa09b43060",
+    "evidence/stop-native-tail-public-completion.red.log": "705d479956300f4981b04e94626ecf26155e982366bd3c8940dae589268b44f2"
+  },
+  "limits": "Stage-only synthetic provider and isolated PostgreSQL/Redis fixture. No app/test source edit, paid call, browser action, live restart, full suite or deployment."
+}

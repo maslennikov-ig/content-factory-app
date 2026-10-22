@@ -1,0 +1,8 @@
+PASS tests/agent-native-session-observe.test.cjs (6.353 s)
+  ✓ native HTTP observers replay complete deltas without stealing model output or clearing shared history on detach (6275 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        6.513 s
+Ran all test suites matching /tests\/agent-native-session-observe.test.cjs/i.

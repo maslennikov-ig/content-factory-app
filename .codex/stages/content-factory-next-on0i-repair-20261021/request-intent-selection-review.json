@@ -1,0 +1,214 @@
+{
+  "schema": "request-intent-selection-independent-review/1",
+  "at": "2026-10-21T13:20:43.220485+00:00",
+  "status": "APPROVED_SCOPED_SOURCE_CHANGE_REAL_SEMANTICS_PENDING",
+  "openSourceFindings": [],
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "baseline": "e74e059ea104593d2fac831eb989714a5b151263",
+  "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-final-freeze.json",
+  "manifestSha256": "9a25a315d86725d988042d2b0943562fe08f0e9123ce8e9f06d3ceed1498e74d",
+  "entriesCompared": 32,
+  "mismatches": [],
+  "appSha256": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "8ed1cfdefae0fe9953b86984a952479fd7d16b525081431c6dee4a57c95c8c1b",
+    "libraries/nestjs-libraries/src/content-intelligence/research/retained-source.ts": "33a954574bfcb164b480db586cf297a40f9b0b0173cd31b0c1dca8eba0ad1cd9",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "98bd4772671e133ed96e5906e888cab81122f9f2353e91984bf62ab672bd4c90",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "202cdb21249d0ae1aee6af85cc04d591fb88d324d7603dead08afd986ad93de4",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "1799e202dd04e8b7697489bb833699dc4ab266b60e0c08db0cfcd46f8950d1ca",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "863de27b578898f75ae620f778a26bff783998d97529c8459e80c8808addf3b1",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "58a66004f5f8c4c04aa34f68bb0e4c74678081bfbf48c30ac59d724227245579",
+    "libraries/nestjs-libraries/src/chat/capabilities/capability.types.ts": "0759daec00bb3f1e37557a88065be3138510d27b97706f602ca1c89eac56d942",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "745fac15558ef53c38548cc53203cfc1de65ed1b24d5e3c2014108908cca4870",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts": "ec3e0928c8ebbda6bdbd7f091108b75ab91887f8560f7e0025e4006f10b0dccc",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "4abf4bdaf2bc02b1ef9c0effe8f256811249c83605e3803a029254f06ea56ca2"
+  },
+  "testSha256": {
+    "tests/intake.research-reuse.test.cjs": "920136747d5b77f0fbf71c6a97c77e29be7b8dec5794f4e66f44fc2eecb9ed44",
+    "tests/web.research.service.test.cjs": "fff27ac0010c94d1d554a550ae90f223890954f10d041089ad23c5b06325d376",
+    "tests/agent-capabilities.adapters.test.cjs": "032432052b96691729a27834e4be4acea4065a56470a2887c17ea2e5690ac3bb",
+    "tests/intake.provider-schema.test.cjs": "7417725262444eef4e4bd8635920ecfd6232ae89e11c856b1406b8395997a453"
+  },
+  "readOnlyIntegratedSha256": {
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts": "3d838c65c4dc934195676decfe18b8bcd4c4463fe1cd338946eededa8b2a4690",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+    "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78",
+    "tests/agent.model-autonomy.test.cjs": "97ba44f2e15a10977edec171759d1306a60fd9439ee16843971e5cf44337155a",
+    "tests/agent-capabilities.mcp-redaction.test.cjs": "1d6cc29d85feb4d12e0d0fb3634650430a856fbffc190ec8bb09d6e1889445ca",
+    "tests/agent-conductor.unit.test.cjs": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+    "tests/agent-conductor.guard.test.cjs": "270e31db489a1874bf16c38356c2899b8f098fe87f98e44ea0dac55f6b2e31c1",
+    "tests/intake.model-led.test.cjs": "9bd3e8132634edc742605a2305ae1712837e3e0aceaaed5ca9fe9cf9f1338328",
+    "tests/intake.manual-research-semantics.test.cjs": "3cc3fcf935b74e9c6483df3487acc279877c84bd195a6d3c227c5f67e25de864",
+    "tests/intake.date-role.test.cjs": "a6bdbdc68ffa32699e111fc0c67f7272c6fe38643c92cec47e67ffb0e380d398"
+  },
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-diagnosis.json": "3d1f8874c646b0588a9288429f42b73f91eada1ad84c4a5d74ca7b58adfc98f9",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-controlled-red.log": "37137bf118123519b7b68b186806eeb40e13810fd7edbbcbf4baa11a1aa2cfa2",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-regressions.log": "ed8bcaf409739a40fc1750f406cb7fe06eee48cebecd1d0702cdb544bae5146d",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-final-outcome.md": "aaa92c37a79929d37a53aae3abc22f4ed9d832ec1b1206b340db576bbec82603",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-freeze.json": "a277c9afe5c1cd5b78f11aa3c66924e579694a4da703dcfcec89428bb3ef5042"
+  },
+  "deltaAppBeforeSha256": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "baed8cf07230092c4dd07cd3d50daadfe34b6c8a23058d33deb9a08898118d91",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "334660f8228e2c6c6cbf8ab5f9e2d77ed8fecaafdaa160f592ec2205565ef803"
+  },
+  "deltaAppSha256": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "4abf4bdaf2bc02b1ef9c0effe8f256811249c83605e3803a029254f06ea56ca2",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "58a66004f5f8c4c04aa34f68bb0e4c74678081bfbf48c30ac59d724227245579"
+  },
+  "independentBeforeReconstruction": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": {
+      "reversedLineCount": 1,
+      "sha256": "baed8cf07230092c4dd07cd3d50daadfe34b6c8a23058d33deb9a08898118d91",
+      "matches": true
+    },
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": {
+      "reversedLineCount": 1,
+      "sha256": "334660f8228e2c6c6cbf8ab5f9e2d77ed8fecaafdaa160f592ec2205565ef803",
+      "matches": true
+    }
+  },
+  "observedDefect": {
+    "id": "R3",
+    "priority": "P2",
+    "classification": "must-fix",
+    "confidence": "high",
+    "status": "BOUNDED_SOURCE_CLARIFICATION_APPROVED_REAL_SEMANTIC_RESOLUTION_PENDING",
+    "title": "Fresh model understanding misclassifies assistant verification as a required human fact-selection step",
+    "affectedPaths": [
+      "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts:34",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts:51"
+    ],
+    "consumerPaths": [
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts:190",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts:434",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:485",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:690",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:1119",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:1625"
+    ],
+    "impact": "Requested artifact was not saved, no pending card or final explanation; existing consent guard safely refused the falsely classified task.",
+    "suggestedFix": "Define the human user/designated reviewer actor and before-writing stage in schema and brief instruction; preserve all values, trusted requirements and consent guards.",
+    "expectedValue": "Both actual model consumption boundaries receive the missing meaning.",
+    "tradeoff": "Probabilistic semantic interpretation still requires real evaluation; no deterministic success or approval proof is introduced.",
+    "evidence": {
+      "actualReceipt": ".codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-scenario-recovery-postgresql-skip-locked.json",
+      "actualReceiptSha256": "a0ca4875c58bb43eafa1d2fcad453787ce9f28f6de659476fec4c4f010109daa",
+      "actualOutcome": {
+        "elapsedMs": 187652,
+        "rootSemanticVerdict": "FAIL_NO_REQUESTED_SAVED_ARTIFACT",
+        "changedPieces": 0,
+        "pending": 0,
+        "assistantText": 0,
+        "lifecycle": "failed"
+      },
+      "diagnosis": ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-diagnosis.json",
+      "privateCaptures": {
+        "privateEvidenceFile": {
+          "path": "/tmp/on0i-real-local-qa-s2nihQ/scenario-recovery-postgresql-skip-locked-2026-10-21T13-02-13-094Z.json",
+          "sha256": "3b12ef42b6fdaa0e8effb8eb0ddf9ae7e3cd3dba13991182d1034d0c2e7f07da",
+          "inspectedReadOnly": true,
+          "copied": false
+        },
+        "privateSnapshotCapture": {
+          "path": "/tmp/on0i-real-local-qa-s2nihQ/research-human-policy-snapshots.json",
+          "sha256": "99987f46040e06b4912e3a24783dcf099f77ac3b53255213ed68d4f1ec7ee795",
+          "inspectedReadOnly": true,
+          "copied": false
+        }
+      }
+    },
+    "independentProvenance": {
+      "bothToolTextsExactlyMatchOriginalPrompt": true,
+      "initialSelection": "model",
+      "finalStandalonePassageCount": 3,
+      "finalRequestArgumentPresent": false,
+      "finalSelectionArgumentPresent": false,
+      "nativeSnapshot": {
+        "internalPolicy": "model",
+        "humanFactSelection": false,
+        "inputMatchesOriginal": true,
+        "modelContinuation": null
+      },
+      "standaloneSnapshot": {
+        "hasRequest": false,
+        "hasNativeAncestry": false,
+        "hasParent": false,
+        "continuation": null
+      },
+      "inference": "Unique exact Russian finish refusal, model-policy preguard passed, and sole late setter establishes fresh model-derived true.",
+      "directLateProviderBodyCaptured": false,
+      "latePlanPersisted": false,
+      "limit": "Exact branch proves the consumed value; it does not reveal model reasoning or prove deterministic causation by the absent description."
+    }
+  },
+  "sourceConclusions": [
+    "Exactly one description-line replacement and one instruction-line addition; independently reversed hashes match both pre-change files.",
+    "Definition includes user and designated editor/client/reviewer; requester-only wording is superseded.",
+    "Assistant source research, exact evidence selection and saved-result readback are not by themselves human selection.",
+    "No new field/default/coercion/parser/guard/policy/card/claim/writer change, phrase routing, automatic retry or consent downgrade.",
+    "Current v13 reuses the v12 prompt/schema so the definition reaches the active consumer."
+  ],
+  "verification": {
+    "controlledRed": {
+      "failed": 2,
+      "passed": 4,
+      "meaning": "Missing definition after exact provider schema conversion; actual boolean consumer cases already preserve authority"
+    },
+    "affected": {
+      "command": "/home/me/.nvm/versions/node/v22.23.2/bin/node node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/intake.research-reuse.test.cjs tests/intake.provider-schema.test.cjs tests/intake.model-led.test.cjs tests/agent.model-autonomy.test.cjs",
+      "suites": 4,
+      "passed": 89,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    "backendTypes": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0
+    },
+    "scopedDiffCheck": {
+      "exitCode": 0
+    }
+  },
+  "verificationLimits": [
+    "Provider-schema RED proves metadata was absent, not real-model behavior.",
+    "Mocked consumer false/user-true/reviewer-true fixtures prove wiring and refusal/write boundaries; model output is injected.",
+    "Native-context false remains authoritative across later model true; explicit human policy tests remain covered."
+  ],
+  "previousStopFreeze": {
+    "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-native-tail-source-freeze.json",
+    "sha256": "3092b2778d7e5a568a5b3eaf5ee460ca14cad98856a159183580d02347eaf814",
+    "entriesCompared": 32,
+    "mismatches": []
+  },
+  "preservedHistoricalArtifactsSha256": {
+    "research-final-review.md": "39faac11c8d418039c5870b72f58915de2454df66312affa2bff64792e87eb60",
+    "research-final-review.json": "261547cd8f7322d3860b6426c8990342dfd8c46f7251a2a3e68910c189043fa6",
+    "final-native-tail-recovery-review.md": "445f994da618a56e36fcce55f12d232a059797236f54f747b7de531c4eacfe03",
+    "final-native-tail-recovery-review.json": "cf816b9a1b45679f737d24a324b389b30f0ea3741dfe094f17f50b2fedb60149"
+  },
+  "reviewerActions": {
+    "sourceEdits": 0,
+    "tests": 0,
+    "acceptanceRuns": 0,
+    "modelCalls": 0,
+    "providerCalls": 0,
+    "browserActions": 0,
+    "runtimeActions": 0,
+    "storeCommands": 0,
+    "restart": 0,
+    "commit": 0,
+    "push": 0,
+    "deploy": 0
+  },
+  "remainingBounds": [
+    "Root same-natural-prompt real model evaluation on newly loaded exact bytes",
+    "Root explicit human-selection real model evaluation including consent/card semantics",
+    "Root semantic saved CORE/source readback",
+    "Root compiled/UI/final full three-part suite acceptance; no production or client approval"
+  ],
+  "completionEvent": "Final bounded source review delivered against 9a25 final wording; no open source findings; semantic failure receipt remains failed until root obtains fresh acceptance."
+}

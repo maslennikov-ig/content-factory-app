@@ -1,0 +1,128 @@
+[
+  {
+    "id": "content-factory-next-on0i.1",
+    "title": "Обновление Mastra и нативные изолированные сессии",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task1 — Stable SDK upgrade and native isolated sessions (`on0i.1`)\n\n**Boundary:** Nest/SDK public contract and identity isolation. Separate because\nall later runtime work consumes its session and context contract.\n**Files:** root `package.json` / `pnpm-lock.yaml`, actual used Mastra CLI/server\nadapters, `libraries/nestjs-libraries/src/chat/mastra.service.ts`,\n`chat/conductor/conductor.agent.ts`, `conductor.context.ts`,\n`agent-threads.service.ts`, `apps/backend/src/api/routes/agent.controller.ts`;\nnew small `chat/conductor/native-controller.ts` only if a facade is needed.\n**Consumes/produces:** original message + server context -\u003e native Session/run,\nstream and thread binding; preserve existing HTTP client compatibility.\n**Dependencies:** none; use the existing provider admission until Task5 adopts\nselection. Do not wait for a new provider to prove native control.\n\nFirst select/pin the latest stable compatible bundle (reviewed core1.78.0),\nreview the full1.71-to-target changelog and adapt used imports/contracts. Align\nall actual server adapters; custom Nest does not get scopes compatibility merely\nby updating core. Migrate/read old native-history/pending-call fixtures on an\nowned local PostgreSQL DB and record schema/API differences. Handle MCP major\nprotocol compatibility explicitly within this epic. Then prove\ncontroller registration/durable composition, one host lifecycle and\nper-chat scope with the real installed library and scripted model. Then wire\nactual product send/thread/control entrances, ownership and native events.\nKeep dynamic context/model resolution and existing usage admission. Use trusted\nAgent scopes/authors; prevent conflicting bindings and wider scopes at resume.\nAdopt createInitialThread:false and ensureId on actual send to avoid empty chats.\nUse the target per-thread model switching signature. Reconstruct\nSessions from persisted owned threads; do not assume JS objects survive restart.\n**Acceptance:** coherent stable bundle/build/types and pre-upgrade native data\nfixtures pass; actual used server and MCP contracts are compatible; no scopes\ninjection or widening. Two users/two orgs/two simultaneous chats cannot mix state,\nmessages, model overrides or approvals; existing thread IDs and pending native\nparts remain readable. Real product route uses Session, not a probe-only host.\n**Focused checks:** existing `agent-conductor.*`, `agent-native-history`,\n`agent-chats-pagination`, `agent-work-context`; add actual two-session/two-chat\nAPI behavior to the existing native harness fixture infrastructure.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "coherent stable bundle/build/types and pre-upgrade native data fixtures pass; actual used server and MCP contracts are compatible; no scopes injection or widening. Two users/two orgs/two simultaneous chats cannot mix state, messages, model overrides or approvals; existing thread IDs and pending native parts remain readable. Real product route uses Session, not a probe-only host.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:54:08Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:20Z",
+    "started_at": "2026-10-19T14:27:13Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1127",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.2",
+    "title": "Компактный контекст, полные источники и составные инструменты",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task2 — Compact evidence and composable domain tools (`on0i.2`)\n\n**Boundary:** research/intake/writing and persisted provenance. Independent of\nHTTP/UI; can be implemented once Task1's identity contract is settled.\n**Files:** `chat/capabilities/catalogue/research.capabilities.ts`,\n`piece.capabilities.ts`, `material-read.capabilities.ts`, `mastra.adapter.ts`,\n`capability.types.ts`, `chat/conductor/conversation-history.ts`,\n`conductor.memory.ts`, `conductor.instructions.ts`, relevant existing\ncontent-intelligence intake/piece/derivation services; no duplicate repositories.\n**Dependencies:** Task1 for context contract, or coordinate the unchanged\nresource schema when implementation can remain independent.\n\nPrefer native getMessages, observation group/record navigation and actual\nattachment recall; migrate redundant history/image handling only with equivalent\nprivacy and content behavior. Verify PostgreSQL atomic working-memory merge,\nempty extraction preservation and observation/reflection generation races.\nImplement `toModelOutput` and read-on-demand against real native Memory/Workspace\nand saved research revisions. Model chooses searches and writing order; writing\ncan consume already-known research without new interpretation/retrieval by\nconstruction. Integrate native history filtering/compaction/working memory;\nconfigure memory auxiliary calls through the same metered adapter. A schema-valid\npartial finding is not a quality certificate and is not a mandatory question.\n**Acceptance:** all evidence retrievable, original input exact, no hidden\nsemantic top-N, no repeated completed research for an unchanged task, retained\nsources do not flood each model call, saved draft/adaptation usable on screens.\n**Focused checks:** `agent.model-intake-composition`, `agent.content-material-echo`,\n`agent.model-autonomy`, `agent-native-history`, source/research fixture contracts;\ninclude giant tool output, exact citations and selective full-source reads.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "all evidence retrievable, original input exact, no hidden semantic top-N, no repeated completed research for an unchanged task, retained sources do not flood each model call, saved draft/adaptation usable on screens.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:54:22Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:27Z",
+    "started_at": "2026-10-19T15:55:27Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1125",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.3",
+    "title": "Durable и background: продолжение, перезапуск и защита от повторов",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task3 — Durable background execution and safe recovery (`on0i.3`)\n\n**Boundary:** process lifetime, shared storage, claims and side effects.\n**Files:** `mastra.service.ts`, `conductor.agent.ts`, `conductor.execution.ts`,\n`agent-run-claims.ts`, `agent-turn-lifecycle.ts`, run/thread repositories and\nexisting `openai/ai.usage.service.ts` / `ai.text-chain.ts` observers; local fixture\nstartup/config and backend shutdown lifecycle.\n**Dependencies:** Tasks1,2; Task2 provides stable saved-result references.\n\nAdopt persistent durable snapshots/cache/pubsub, native distributed ownership,\nbackground tasks and until-idle events. Explicitly enable native\n`recovery.durableAgents: 'auto'`, persist running checkpoints and wire the actual\nNest bootstrap/recoverAllDurableAgents lifecycle; a custom server cannot assume\nthe deployer's startup hook runs. This recovers orphaned running work, not every\nterminal failed run. An exhausted provider chain needs a supported durable\nwait/retry/resume transition before terminal failure, not orphan recovery or a\nblind replay of the whole task. Exercise new native ownership renewal\nand storage run fencing with a stale driver as well as a crashed one.\nDisconnect detaches; Stop cancels. Use\nnative storage/recovery rather than extending fixed600s claims. Re-register\nbackground executor context when the pinned resume API requires it. Persist\noperation identities and keep all existing committed/uncertain write receipts.\nRecover a model outage in the existing task using native wait/recovery APIs;\npreserve fallback/attempt state through restart and cancel recovery on Stop.\nTask5 owns the policy; this task owns its durable lifecycle (A30/A31).\nIntegrate native scheduler lifecycle for owned agent-only schedules; no new\nsocial scheduling implementation or modified Temporal contract.\n**Acceptance:** complete a task beyond the old nine-minute window (bounded\ninjected-clock/local-delay test); observer reconnect and actual child-process\nrestart pass separately; duplicate drivers/late results/replayed tool or subagent\ncannot repeat an accepted artifact/publication; receipts remain terminal/accurate.\n**Focused checks:** `agent-task-execution`, native resume/recovery/ledger and\nproposal contracts; add real local PostgreSQL/Redis plus kill/restart tests with\nscripted provider receipts. Retain foreign local services and clean own fixtures.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "complete a task beyond the old nine-minute window (bounded injected-clock/local-delay test); observer reconnect and actual child-process restart pass separately; duplicate drivers/late results/replayed tool or subagent cannot repeat an accepted artifact/publication; receipts remain terminal/accurate.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:54:35Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:33Z",
+    "started_at": "2026-10-19T16:38:18Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1128",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.4",
+    "title": "Нативная автономность: цели, планы, вопросы, задачи и субагенты",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task4 — Native autonomy, planning, questions and delegation (`on0i.4`)\n\n**Boundary:** exposed agent capabilities and model decisions; distinct from\ntransport and persistent ownership. **Dependencies:** Tasks1,2,3,5.\n**Files:** `conductor.agent.ts`, `conductor.skills.ts`, `conductor.instructions.ts`,\ncapability registry/admission/adapter, controller config and small role-specific\nnative-agent definitions only where there is a useful consumer.\n\nUse native ask_user, submit_plan, task tools, typed queueSignal,\nstate/notification signals and beforeApproval preflight validation, plus\noptional tool discovery. Register task tracking exactly once. Model chooses\nwhether to plan, ask, delegate or answer. Native goals use a metered judge and\nread-only artifact/source verification, not a deterministic topic workflow.\nExpose bounded research/writing/review delegation through one native surface,\nwith least-privilege inherited context and configured role models. Support\nexplicit agent follow-up schedule creation/read/cancel through native schedules\nwithout another cron engine; no proactive task created merely by opening a chat.\n**Acceptance:** self-contained requests do not need an artificial intake/plan;\nambiguous business facts trigger a useful question; delegated “decide for me” is\nhonored; multi-step goal cannot mark complete from self-written prose alone;\nqueued/steering input and background result refer to the right task. Cross-role\nsubagents cannot gain write/publication rights or leak other histories.\n**Focused checks:** native installed tool/goal/delegation behavior in actual\nproduct composition, varied frozen input fixtures, approval denial/resume,\nlong-chat task recovery, local schedule/timezone/cancel and task-state recall.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "self-contained requests do not need an artificial intake/plan; ambiguous business facts trigger a useful question; delegated “decide for me” is honored; multi-step goal cannot mark complete from self-written prose alone; queued/steering input and background result refer to the right task. Cross-role subagents cannot gain write/publication rights or leak other histories.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:54:49Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:39Z",
+    "started_at": "2026-10-19T19:35:27Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1126",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.5",
+    "title": "Нативный выбор моделей, ретраи, фолбеки и полный учёт",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task5 — Native model routing, retries, fallbacks and accounting (`on0i.5`)\n\n**Boundary:** provider/model/credential compatibility, retry/fallback settings,\navailability recovery and task-wide metering.\n**Files:** `openai/ai.roles.ts`, `ai.clients.ts`, `ai.text-chain.ts`,\n`ai.usage.service.ts`, `chat/mastra.service.ts`, native controller/gateway and\nprocessor configuration; `apps/frontend/src/components/admin/admin-ai-defaults.component.tsx`,\n`openai/instance-ai-defaults.service.ts`, `openai/ai.provider.config.ts`,\n`dtos/settings/instance-ai-defaults.dto.ts` and\n`database/prisma/schema.prisma` for the existing settings roundtrip and\nbackward-compatible fallback-chain/retry-policy persistence. Follow component\ninventory/authoring rules for settings UI; no second model-settings screen.\n**Dependencies:** Task1; existing operation identities from Task3 must converge\nbefore final acceptance. Do not make Tasks1/2 wait for live decision-provider QA.\n\nUse installed `ModelSelectionProcessor` with a compatible classifier/decision\nmodel object (a normal chat ID is not automatically compatible). Choices,\ncriteria, confidence and role defaults are config. The capable configured model\nis the safe abstention default; classify once with scope chosen from documented\nsemantics, not a custom per-step rule engine. Integrate explicit manual choices,\nauxiliary roles and an ordered, user-configured compatible fallback chain\nwithout changing organization keys. Implement the automatic recovery contract\nin section6, including settings migration and explicit empty/inherited policy.\nUse native model arrays/StreamErrorRetryProcessor rather than preserving the\nold fetch chain as a second retry/fallback owner. Fault recovery must also work\nfor supported own-key calls, not only included OpenRouter calls.\nMove provider-specific reasoning-effort/flex/fallback handling out of generic\nsemantic routing into provider/config adapters, preserving explicit owner policy\nuntil a tested change is justified. Verify default error processors and\ntransport/SDK retries as one policy. Record\nrouting choice/abstention and all classifier/judge/subagent/memory/main/search\ncalls in task lineage, including cached/failed/possibly-billed outcomes. Native\ntraces are correlated with domain ledgers, not a replacement for billing truth.\n**Acceptance:** scripted routing/abstention/provider failure pass; actual configured\nprovider compatibility and end-to-end quality/cost are measured before claiming\nrouting works or saves money. An unavailable classifier keeps the configured\nfallback running and produces a visible diagnostic; it does not silently choose\nan unconfigured provider. No price, model ID or complexity phrase is hardcoded. Settings survive reload;\ntransient faults and failed streams recover with counted attempts, the same\nsaved work and no duplicate writes. All-model outages retain resumable state;\nStop cancels backoff and future recovery. A29–A31 prove these paths.\n**Focused checks:** role/model/usage/provider compatibility tests and native\nrouting/retry/fallback fixtures and settings persistence/browser roundtrip;\nactual local-provider comparison after credentials are present. Use scripted\nerrors for outages instead of intentionally failing real paid providers.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "scripted routing/abstention/provider failure pass; actual configured provider compatibility and end-to-end quality/cost are measured before claiming routing works or saves money. An unavailable classifier keeps the configured fallback running and produces a visible diagnostic; it does not silently choose an unconfigured provider. No price, model ID or complexity phrase is hardcoded. Settings survive reload; transient faults and failed streams recover with counted attempts, the same saved work and no duplicate writes. All-model outages retain resumable state; Stop cancels backoff and future recovery. A29–A31 prove these paths.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:55:03Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:45Z",
+    "started_at": "2026-10-19T17:51:39Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1124",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.6",
+    "title": "Чаты и управление выполнением через нативные события Mastra",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task6 — Product UI consumes native chat/run controls (`on0i.6`)\n\n**Boundary:** user-visible streaming state, navigation and controls.\n**Files:** `apps/frontend/src/components/agents/agent.screen.tsx`,\n`agent.threads.tsx`, actual chat stream/approval/artifact components in that\nfolder, `new-layout/assistant-menu.tsx`, existing fetch/SWR adapters and backend\ntransport mapping. Read component inventory/authoring rules before UI edits.\n**Dependencies:** Tasks1,3,4; keep compatible event mapping while other tasks\nsettle. Preserve the already-implemented sidebar change.\n\nStandard sidebar plus creates a chat; disclosure shows paginated chats. No\npermanent archive above messages. Use native initial-history and tool-call-resumed parts (including resumed:true)\nto reconcile history and clear a pending card before its later tool-result.\nDo not manually replay completed runs or create empty threads on page entry.\nNative state drives running/waiting/paused/\nfailed/stopped, tool approvals, task/goal progress and saved artifacts. Navigation\nkeeps drafts and reattaches to a running chat without resubmitting its message.\nExpose native queue/follow-up/steer/stop through clear ordinary interactions;\nShow understandable retry/model-switch/waiting state, preserve partial output\nas incomplete and expose resume after a real blocker. Stop cancels delayed\nretries; duplicate attempts do not create extra user turns (A30/A31).\nRetain accessible mobile controls. Use existing UI primitives and Mastra SDK\nadapters; adopt another documented UI library only if a concrete gap warrants it.\n**Acceptance:** two browser tabs/chats and reload/reconnect preserve state,\ncontrolled Stop cancels, pending approvals show actual content, partial/failed\nruns show a useful retained result;0 overflow or conversation-height regression.\n**Focused checks:** `assistant-sidebar.chats`, current AgentScreen behavior,\nrepresentative browser flows desktop/mobile and pending/failure/reconnect states.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "two browser tabs/chats and reload/reconnect preserve state, controlled Stop cancels, pending approvals show actual content, partial/failed runs show a useful retained result;0 overflow or conversation-height regression.",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "feature",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:55:17Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:51Z",
+    "started_at": "2026-10-19T21:17:38Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1129",
+    "labels": [
+      "component:content-factory"
+    ]
+  },
+  {
+    "id": "content-factory-next-on0i.7",
+    "title": "Единый нативный путь продукта и удаление заменённого runtime",
+    "description": "## Goal\nImplement this complete cohesive task of the existing native Mastra epic. Gemini Argon is executor; local implementation only, no deploy.\n\n### Task7 — Default native product path and legacy retirement (`on0i.7`)\n\n**Boundary:** all real entrances converge; final integration owns obsolete code\nremoval and epic acceptance. **Dependencies:** Tasks1–6.\n**Files:** actual backend/frontend/MCP entrances above, capability registration,\nold conductor helpers/config/tests with no remaining consumers, durable product\nand operational docs; local scenario/eval runner and final evidence.\n\nMake the native path the default for all in-scope chat/work-context entrances.\nDelete replaced loop/queue/claim/closing/model-dispatch branches instead of\nleaving an alternative custom harness behind a permanent feature flag. Retain\nonly named compatibility adapters needed for old pending native snapshots, with\nconsumer and safe removal condition recorded in the task. Do not erase history\nor an active pending operation to simplify migration. Confirm manual screens,\nMCP and chat use the same artifact/provenance and consent services.\n**Acceptance:** every integrated row in section4 has a consumer and evidence;\nall criteria below have a passing result or explicitly owner-approved external\ngate. No green claim from a probe-only composition. Remove obsolete fixtures\nthat merely pin old hardcodes; keep behavior regressions. Update navigation,\ncomponent inventory, runtime/operator docs and handoff; no hidden debt.\n**Final checks:** section10, all three suite halves, local product scenarios and\nan independent outcome/side-effect review by the root acceptance owner.\n\nA1-A31 and the full consumer/recovery/compatibility contract: docs/superpowers/plans/2026-10-19-native-mastra-harness.md. Automatic retry/fallback and menu scope: .codex/stages/content-factory-next-on0i-native-harness-20261019/retry-fallback/reliability.md. Keep the same epic/task identities and dependency graph.\n",
+    "acceptance_criteria": "every integrated row in section4 has a consumer and evidence; all criteria below have a passing result or explicitly owner-approved external gate. No green claim from a probe-only composition. Remove obsolete fixtures that merely pin old hardcodes; keep behavior regressions. Update navigation, component inventory, runtime/operator docs and handoff; no hidden debt.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "integrator@local",
+    "created_at": "2026-10-19T12:55:30Z",
+    "created_by": "integrator",
+    "updated_at": "2026-10-21T07:06:57Z",
+    "started_at": "2026-10-19T21:57:28Z",
+    "external_ref": "https://github.com/maslennikov-ig/content-factory-next/issues/1123",
+    "labels": [
+      "component:content-factory"
+    ]
+  }
+]

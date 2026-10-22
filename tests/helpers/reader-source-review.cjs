@@ -10,6 +10,8 @@ module.exports.syntheticReaderReview = (request, summary) => {
   const evidence = JSON.parse(request.split('Untrusted reader evidence:\n')[1]);
   if (request.includes('Return answer, references and gaps.'))
     return {
+      scopeQuote: null,
+      scopeStatus: 'not_temporal',
       answer: summary.summary,
       references: evidence.sources.map(({ id }) => ({ id, relevance: 'relevant' })),
       gaps: [],

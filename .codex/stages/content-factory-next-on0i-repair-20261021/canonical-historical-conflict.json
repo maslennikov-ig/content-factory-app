@@ -1,0 +1,14 @@
+{
+  "schema": "on0i-historical-tracker-conflict/1",
+  "scope": "Scoped read-only operations journal for this epic",
+  "operationId": "e34b41dd9432521b118a4b976ac26260854b6e83eb4b3795668f6458fcc34adb",
+  "kind": "concurrent-local",
+  "status": "conflict",
+  "createdAt": "2026-10-19 11:57:03",
+  "payloadTopLevelKeys": [
+    "captured",
+    "fresh_attempt"
+  ],
+  "preserved": true,
+  "boundary": "Predates this21Oct local repair/closure. Do not clear or rewrite historical journal. Current task acceptance requires fresh canonical Done states separately."
+}

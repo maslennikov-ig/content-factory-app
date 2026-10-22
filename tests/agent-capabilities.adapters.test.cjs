@@ -336,9 +336,11 @@ describe('native Mastra tools', () => {
   });
 
   test('the confirm class, and a write one that asks in the web chat (kcxz.45), ask for approval; every input and a paid one with a mid-run choice suspend', () => {
+    const calls = fixtures();
     for (const capability of catalogue) {
       const tool = tools[registry.toolNameOf(capability.id)];
-      expect({ id: capability.id, approval: tool.requireApproval === true }).toEqual({
+      expect(typeof tool.requireApproval).toBe('function');
+      expect({ id: capability.id, approval: tool.requireApproval(calls[capability.id].input) }).toEqual({
         id: capability.id,
         approval: capability.risk === 'confirm' || !!capability.asksInWebChat,
       });
@@ -534,6 +536,36 @@ describe('one capability of each class, end to end', () => {
       { requestContext: requestContextFor(registry) }
     );
     expect(output).toEqual({ ok: false, code: 'PIECE_NOT_FOUND', reason: 'Такой заготовки нет.' });
+  });
+
+  test.each(['extra-field', 'wrong-snapshot-type', 'too-many-keys', 'artifact-written', 'no-revision-proof', 'wrong-code'])(
+    'a %s recovery payload cannot turn a refusal into a claim that no artifact was written', kind => {
+      const recovery = { kind: 'research_selection', snapshotKey: 'res_owned', selectedFactKeys: ['fact-1'], selectedFactCount: 1,
+        evidenceScope: 'captured_quotes_only', currentCall: { mode: 'reuse_only', newSearch: 'not_started' },
+        globalSearchAvailability: 'not_assessed', sourceRead: { tool: 'piece.read', part: 'research_source', find: true, ranges: true },
+        selection: { tool: 'piece.create', input: 'passages', fields: ['sourceUrl', 'revision', 'quote'] }, artifactWritten: false };
+      const error = Object.assign(new Error('The selected input is insufficient.'), {
+        code: 'INTAKE_INPUT_INSUFFICIENT', canReviseInput: true, inputRecovery: recovery,
+      });
+      if (kind === 'extra-field') recovery.rawProviderResponse = 'PRIVATE_UPSTREAM_BODY';
+      if (kind === 'wrong-snapshot-type') recovery.snapshotKey = { raw: 'PRIVATE_UPSTREAM_BODY' };
+      if (kind === 'too-many-keys') { recovery.selectedFactKeys = Array(201).fill('fact-1'); recovery.selectedFactCount = 201; }
+      if (kind === 'artifact-written') recovery.artifactWritten = true;
+      if (kind === 'no-revision-proof') delete error.canReviseInput;
+      if (kind === 'wrong-code') error.code = 'AI_ALLOWANCE_EXHAUSTED';
+      const output = registry.codedRefusal(error);
+      expect(output.inputRecovery).toBeUndefined();
+      expect(JSON.stringify(output)).not.toContain('PRIVATE_UPSTREAM_BODY');
+    }
+  );
+
+  test('the model instructions distinguish server-proven input revision from non-revisable refusals', () => {
+    const { conductorInstructions } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts');
+    const text = conductorInstructions({ language: 'en', now: new Date('2026-10-20T09:00:00Z'), snapshot: null });
+    expect(text).toContain('canReviseInput: true');
+    expect(text).toMatch(/correct.*arguments|revise.*input/i);
+    expect(text).toMatch(/uncertain write/i);
+    expect(text).not.toContain('A tool result with `ok: false` is a refusal: tell the person');
   });
 
   test('paid: the intake generator\'s events stream as transient progress, the piece card is persisted', async () => {

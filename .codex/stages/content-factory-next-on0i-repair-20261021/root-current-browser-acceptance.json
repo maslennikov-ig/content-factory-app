@@ -1,0 +1,38 @@
+{
+  "schema": "on0i-root-current-browser-composed/1",
+  "status": "PASS",
+  "localOnly": true,
+  "buildId": "tmvBVorjTll4eVz0CthsG",
+  "currentCompiledClient": {
+    "receipt": "root-current-compiled-payment-error.json",
+    "receiptSha256": "005d84ddcd19ac9c2ba83634ac11662edadf6347280adef835c13c3dce50342d",
+    "boundary": "Controlled HTTP402, no model/backend chat call. Visible RU actionable error, no raw diagnostic/code, ready composer/new chat."
+  },
+  "backendPid": 4924,
+  "backendLoadedSourcesStillExact": true,
+  "sourceDeltaFromPriorBrowser": [
+    "apps/frontend/src/components/agents/agent.contract.ts",
+    "apps/frontend/src/components/agents/agent.copy.ts",
+    "tests/agent-screen.w2-recheck.test.cjs"
+  ],
+  "deltaManifest": "gate10-source-delta.json",
+  "approvedAppliedDelta": "final-client-fixes-applied.json",
+  "reusedRealBrowser": {
+    "receipt": "attempt-9/root-current-browser-acceptance.json",
+    "receiptSha256": "a9198df5827584cc6a317463ce3c9faba3685f2165ce04b5d59e4c9da1174fc2",
+    "buildId": "G93McLwpWdG8VXwjCaxUp",
+    "scope": "Prior actual real-provider active reconnect, persisted Stop tail/composer and followup. Native/backend execution and frontend functions unchanged; only mirrored declaration and legacy-limit string literals changed. This is bounded reuse, not a new paid/browser run on this build.",
+    "priorMetrics": {
+      "providerCharacters": 4409,
+      "domItems": 80,
+      "stopFirstHistoryResponseDelayMs": 36,
+      "messagesAfterFollowup": 6
+    }
+  },
+  "sourceChangedDuringCurrentProbe": false,
+  "currentCompiledSavedHistory": {
+    "receipt": "root-current-compiled-saved-history.json",
+    "receiptSha256": "73cc2ba26144d7731c3fbcd72ffa424a9ba96c4cd469e033efedbadc63f8c52b",
+    "boundary": "New current-build read-only HTTP/DOM proof of the prior actual provider conversation:6exact message IDs/assistant bodies,80exact items/final answer,0pending/0POST/enabled composer. Live generation/Stop execution itself remains prior source-bound reuse."
+  }
+}

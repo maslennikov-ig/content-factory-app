@@ -1,0 +1,104 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "aiSdkReact": "4.0.121"
+  },
+  "sourceFrozen": true,
+  "scope": "Frontend-only post-freeze real compiled Stop repair. Application source changed only agent.conversation.tsx plus its existing component-inventory row; no backend source was changed.",
+  "red": {
+    "log": "chat-native-stop-sdk-red.log",
+    "exitCode": 1,
+    "assertion": "lag: preserve the new human after Stop (false !== true)",
+    "additionalObservedDefects": [
+      "same-ID shorter saved partial truncated already visible text",
+      "exact positively settled Stop still left composer disabled"
+    ],
+    "callbackOrder": [
+      "sdk-send",
+      "stop-request",
+      "sdk-finish:true:false",
+      "history-read:2:running",
+      "history-read:2:running",
+      "sdk-reader-cancel",
+      "stop-ack",
+      "history-read:2:running",
+      "old-history-response"
+    ]
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-flow.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-screen.w2-recheck.test.cjs tests/agent-transport.test.cjs",
+      "exitCode": 0,
+      "suites": 4,
+      "tests": 81,
+      "seconds": 37.323,
+      "log": "chat-native-stop-delta-focused.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-stop-delta-frontend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "actualUseChatProbe": {
+    "path": "tests/helpers/agent-native-stop-flow.probe.cjs",
+    "sdk": "Actual installed useChat/Chat with public controlled transport; real SDK emits Stop/error/finish callbacks. The late-finish case defers delivery of the SDK actual callback arguments deliberately.",
+    "internalCases": [
+      "lag",
+      "shorter",
+      "terminal",
+      "late-finish",
+      "mismatch",
+      "unknown",
+      "failed",
+      "uncertain",
+      "unresolved",
+      "pending",
+      "no-ack",
+      "network"
+    ],
+    "assertions": [
+      "lagging two-message read preserves the new human and live partial",
+      "same native assistant ID with shorter saved text preserves the longer actual visible prefix",
+      "saved tool states remain authoritative; output-error is not upgraded to success",
+      "only a matching positive Stop receipt plus exact owned request/human settled completed or interrupted state with no pending/unconfirmed operation unlocks input",
+      "late finish callback does not re-lock a verified Stop",
+      "unknown network/outcome, failed/mismatched receipt, pending gate or unconfirmed/uncertain operation remains blocked",
+      "manual saved-result reconciliation after commit lag preserves the result and unlocks deliberately",
+      "one controlled transport send per case; no automatic repeated task"
+    ],
+    "externalProviderCalls": 0,
+    "paidCalls": 0
+  },
+  "sourceSha256": {
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "0da6a5415d71e3aeae0405f6e107cd3840cc2b2427d197c4c53011f1e1838903",
+    "docs/design/component-inventory.md": "ba0c876bb970119bd67b62d5398f2661970449499866958ac48c1ae7b98f8b4d",
+    "tests/agent-native-stop-flow.test.cjs": "15b84a763bbe42742242930a59ea9ec449e2e291a3456689144da31e650504d6",
+    "tests/helpers/agent-native-stop-flow.probe.cjs": "5c27a57c8efb85447e8d805f66b718ea69962219cce0ef7b32cf60c10ef12c4d",
+    "tests/agent-screen.w2-recheck.test.cjs": "4dd067f2888b15a81384bb02dc83591099ac5317a5646e8d15cf88110dd52801",
+    "tests/agent-native-conversation-flow.test.cjs": "9ef46f7f5248d494eb1e1a0892fdfdf017442150e46b1361d2401d1ded13d804",
+    "tests/agent-transport.test.cjs": "a2d274e42040d3ecfd50d0df843a370ef15fa371acaf1955d978c3c335ddef43",
+    "apps/frontend/src/components/agents/agent.transport.ts": "6912cea0ec62515df3cd410255c8837cdb355a0522cbbc58f5ca225d6b5ab097",
+    "apps/frontend/src/components/agents/agent.contract.ts": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "node_modules/@ai-sdk/react/package.json": "73ad07df49e1707698aa7467d4dff7cd42a6ae8044d9da0bc4d70bd2337ab0cc",
+    "node_modules/@ai-sdk/react/src/use-chat.ts": "2a922703e5fafbec46cd2d9711818fdb29936477935be39877a575b8705173b8",
+    "node_modules/ai/src/ui/chat.ts": "dacfae02cc0fe8255c795a2fe0c33ff2f5e88cd44a457d537b90e679ffc85d63",
+    "node_modules/ai/src/util/consume-stream.ts": "73f198a43d4bb006e11eec367539defbc03055c91145d3c8d5b1accd4cc9f8ae"
+  },
+  "logSha256": {
+    "chat-native-stop-sdk-red.log": "cdd0e934c90023db7834e669f71ba7a7819bae1b16fcd3cac7d358330d9edac2",
+    "chat-native-stop-sdk-first-green.log": "92cc073920514fbaf9f5801a9990fa6d38e1a301d572c384e72695f82389ec12",
+    "chat-native-stop-delta-focused.log": "9073aa09e1e920be150f838daf5ba53360757c2f798f85ebbb875fe410cd6d2f",
+    "chat-native-stop-delta-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "earlierFrozenEvidence": "chat-native-observer-final-evidence.json",
+  "boundaries": "Earlier root full-suite attempts failed and are not claimed as accepted. Root owns the next unified acceptance, frontend build and compiled-browser retest of this delta. No backend change, full suite, production access, model/search call, commit, push or deploy by worker."
+}

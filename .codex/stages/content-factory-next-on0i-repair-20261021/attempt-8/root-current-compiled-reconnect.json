@@ -1,0 +1,11 @@
+{
+  "schema": "on0i-current-compiled-browser/1",
+  "localOnly": true,
+  "phase": "reconnect",
+  "cliExitCode": 1,
+  "probeSha256": "9e65b9979206ca28e9284c6826587839c3c7dc166bb298ef3a60aed1df977da5",
+  "cliLog": "evidence/root-current-compiled-reconnect-cli.log",
+  "cliLogSha256": "8c62372f0b54351b06b8079a1f8d87e60ddca2d450f5ec89e8caaa38ff75e678",
+  "result": null,
+  "status": "FAIL"
+}

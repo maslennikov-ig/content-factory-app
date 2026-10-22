@@ -1,0 +1,775 @@
+{
+  "schema": "on0i-real-local-summary/1",
+  "at": "2026-10-21T08:36:29.342Z",
+  "localOnly": true,
+  "result": "OBSERVED_SCENARIOS_WITH_EXPLICIT_GAPS",
+  "scenarios": [
+    {
+      "artifact": "real-local-qa-scenario-direct-no-search.json",
+      "sha256": "72e9d081215fc5c5b5309d6d97f661faba5c8889714b2e236362eed0c4818dbf",
+      "at": "2026-10-21T07:14:56.228Z",
+      "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+      "lifecycleVerdict": "SEE_ORIGINAL_RECEIPT",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "b2d53454-1dcd-4a45-a67b-093fb7854cf7",
+      "execution": {
+        "requestId": "f22d71ac-9cbb-414e-bb57-9cdfff47be7d",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "30f963b6-3fe2-44e9-ba26-f5d3c674a06f"
+      },
+      "usageTotals": {
+        "operations": 1,
+        "knownCostUsd": 0.00355365,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "This scenario only; not full epic acceptance."
+      },
+      "bootstrap": {
+        "binding": "UNKNOWN_NO_EMBEDDED_BOOT_MANIFEST",
+        "note": "The mutable latest boot receipt cannot prove the source loaded during this earlier scenario."
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 1,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-scenario-reference.json",
+      "sha256": "694732dacc4e76c999a943981891f560fbba0af4f42f26068c358ea51edbeaeb",
+      "at": "2026-10-21T07:26:34.668Z",
+      "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "6118f740-026a-456a-a747-f9a1af923a27",
+      "execution": {
+        "requestId": "1e462755-cc32-4db7-968f-bbeae77c3e33",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "e7e49dde-ed65-4f6d-abbc-f18aeb2fa43c"
+      },
+      "usageTotals": {
+        "operations": 1,
+        "knownCostUsd": 0.0036581,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "This scenario only; not full epic acceptance."
+      },
+      "bootstrap": {
+        "binding": "UNKNOWN_NO_EMBEDDED_BOOT_MANIFEST",
+        "note": "The mutable latest boot receipt cannot prove the source loaded during this earlier scenario."
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 1,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-scenario-fresh-research.json",
+      "sha256": "23dc430f52707b24a7881709d80ea9c0d53ca118760999ae9af273ae692cd163",
+      "at": "2026-10-21T07:57:00.578Z",
+      "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "9a97c0b9-0a4a-444f-b222-35927a0b1ccb",
+      "execution": {
+        "requestId": "f4b6c43c-056c-445b-be05-625227d41c10",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "b0bbab87-bd6b-43fd-b987-56ae059c13ab"
+      },
+      "usageTotals": {
+        "operations": 4,
+        "knownCostUsd": 0.03001562,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "This scenario only; not full epic acceptance."
+      },
+      "bootstrap": {
+        "pid": 26082,
+        "at": "2026-10-21T07:56:36.159Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 2,
+      "actualModelRequests": 12,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-research-reuse-resume.json",
+      "sha256": "dc6f58fefb197756ba3e382e36153aae559256c4af0326ee031caa60193ab969",
+      "at": "2026-10-21T08:02:18.987Z",
+      "lifecycleVerdict": "PASS",
+      "threadId": "9a97c0b9-0a4a-444f-b222-35927a0b1ccb",
+      "execution": {
+        "requestId": "b463aac8-0a34-429f-ac14-476d7d4b6d65",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "3d465b41-8e21-478a-bc12-aa39f4d466fa"
+      },
+      "usageTotals": {
+        "operations": 2,
+        "knownCostUsd": 0.01076455,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "This scenario only; not full epic acceptance."
+      },
+      "bootstrap": {
+        "pid": 26082,
+        "at": "2026-10-21T07:56:36.159Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 2,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-scenario-private-question.json",
+      "sha256": "cafe56b468c125b0b52b350f18acb986b6b504699ab2fc8d09c36a2a10f2f884",
+      "at": "2026-10-21T07:59:38.818Z",
+      "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "fbea0cdd-663a-47f4-8403-7298b65d988c",
+      "execution": {
+        "requestId": "aebfdaf4-6de1-496d-a3de-3d24263f957e",
+        "state": "running",
+        "runId": "4a17dcb6-9e5e-4836-8a54-586e7f6f7090"
+      },
+      "usageTotals": {
+        "operations": 1,
+        "knownCostUsd": 0,
+        "unknownCostOperations": 1,
+        "pendingOperations": 1,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS_ACTIONABLE_QUESTION",
+        "evidenceHashMatches": true,
+        "scope": "This scenario only; not full epic acceptance."
+      },
+      "bootstrap": {
+        "pid": 26082,
+        "at": "2026-10-21T07:56:36.159Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 1,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-private-question-resume.json",
+      "sha256": "594bc5eaa6792df29dcc1a60c0a06c603a8b5dc443a69c68ce75f912d1cf64d0",
+      "at": "2026-10-21T08:10:37.352Z",
+      "kind": "SYNTHETIC_DECIDE_FOR_PERSON_TEMPLATE",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "fbea0cdd-663a-47f4-8403-7298b65d988c",
+      "execution": {
+        "requestId": "aebfdaf4-6de1-496d-a3de-3d24263f957e",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "4a17dcb6-9e5e-4836-8a54-586e7f6f7090"
+      },
+      "usageTotals": {
+        "operations": 3,
+        "knownCostUsd": 0.00327069,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "Synthetic person decision; no real customer facts or publication."
+      },
+      "bootstrap": {
+        "pid": 26082,
+        "at": "2026-10-21T07:56:36.159Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 5,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-scenario-unknown-sources.json",
+      "sha256": "a357c575dd0f0b03449beb9b7861f8b478df73e96bb86f29ee009e938621e6c5",
+      "at": "2026-10-21T07:59:46.957Z",
+      "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "b8ec9ba6-61c1-41fa-bd6b-f04a38411ddf",
+      "execution": {
+        "requestId": "88dc7955-34c5-4905-9f67-7a0434bc1e91",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "17c773ef-55d7-422d-86f7-ccd1ecba250c"
+      },
+      "usageTotals": {
+        "operations": 2,
+        "knownCostUsd": 0.043420810000000004,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "Evidence of an unsupported premise, not a universal proof about all conflicting/empty sources."
+      },
+      "bootstrap": {
+        "pid": 26082,
+        "at": "2026-10-21T07:56:36.159Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 3,
+      "actualModelRequests": 3,
+      "scriptedRequests": 0
+    },
+    {
+      "artifact": "real-local-qa-scenario-real-fallback-scripted-primary.json",
+      "sha256": "d5b3726157784257c78048a8c4327b219ed17b3c2814982456e90302ba16701a",
+      "at": "2026-10-21T08:31:32.021Z",
+      "kind": "SCRIPTED_PRIMARY_429_REAL_CONFIGURED_FALLBACK",
+      "lifecycleVerdict": "PASS",
+      "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+      "threadId": "ceaa74e8-a982-458d-9795-7139f04ec270",
+      "execution": {
+        "requestId": "eaecd4dd-c05c-4656-b866-898f60633fe5",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "2e7732a0-b83c-44c3-8b8d-547d81de62de"
+      },
+      "usageTotals": {
+        "operations": 1,
+        "knownCostUsd": 0.04842849,
+        "unknownCostOperations": 0,
+        "pendingOperations": 0,
+        "possiblyBilledOperations": 0
+      },
+      "rootReview": {
+        "verdict": "PASS",
+        "evidenceHashMatches": true,
+        "scope": "Fallback availability/functionality; no comparative model-cost or quality ranking."
+      },
+      "bootstrap": {
+        "pid": 53623,
+        "at": "2026-10-21T08:29:56.737Z",
+        "sourceChangedDuringBootstrap": false,
+        "sourceSha256": {
+          "apps/backend/src/api/routes/agent.controller.ts": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+          "libraries/nestjs-libraries/src/chat/mastra.service.ts": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+          "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+          "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+          "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+          "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+          "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+          "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+        }
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 1,
+      "scriptedRequests": 1
+    },
+    {
+      "artifact": "real-local-qa-fallback-readonly-wrapup.json",
+      "sha256": "227ed15aef3f9c1cbf09987ea3011e7e33490e06807f03570b14f17d66c79543",
+      "at": "2026-10-21T08:05:31.553Z",
+      "kind": "READ_ONLY_FALLBACK_CONTINUATION_CHECK",
+      "lifecycleVerdict": "SEE_ORIGINAL_RECEIPT",
+      "threadId": "f5af55d7-cb04-4d7a-bfb3-4af60477ceec",
+      "execution": {
+        "requestId": "08003bce-45ae-42b5-87ba-19dc35a64a66",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "fda3e26f-f7c6-4ea9-828f-a549b3777057"
+      },
+      "rootReview": {
+        "verdict": "PENDING_ROOT_REVIEW"
+      },
+      "bootstrap": {
+        "binding": "UNKNOWN_NO_EMBEDDED_BOOT_MANIFEST",
+        "note": "The mutable latest boot receipt cannot prove the source loaded during this earlier scenario."
+      },
+      "actualSearchRequests": 0,
+      "actualModelRequests": 1,
+      "scriptedRequests": 1
+    }
+  ],
+  "coldStop": {
+    "artifact": "real-local-qa-old-cold-stop-current.json",
+    "sha256": "a62f40d4bee915b2eef882191b1544481818ac0b5f7212a373c2ee91c202cd51",
+    "at": "2026-10-21T08:30:54.945Z",
+    "result": "FAIL",
+    "threadId": "8603ca5a-681e-4183-934b-2aaf2a6b9643",
+    "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb",
+    "beforeExecution": {
+      "requestId": "496dc8fe-3c3d-49a3-b686-8797964a89fc",
+      "state": "running",
+      "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb"
+    },
+    "beforePending": [
+      {
+        "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb",
+        "toolCallId": "call_OOMopiFm4PU6WixTTD1X1Bmx",
+        "toolName": "skill",
+        "kind": "approval",
+        "args": {
+          "name": "content"
+        },
+        "summary": null
+      }
+    ],
+    "stopHttp": 201,
+    "stopBody": {
+      "stopped": true,
+      "threadId": "8603ca5a-681e-4183-934b-2aaf2a6b9643",
+      "requestId": null
+    },
+    "afterExecution": {
+      "requestId": "496dc8fe-3c3d-49a3-b686-8797964a89fc",
+      "state": "running",
+      "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb"
+    },
+    "afterPending": [
+      {
+        "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb",
+        "toolCallId": "call_OOMopiFm4PU6WixTTD1X1Bmx",
+        "toolName": "skill",
+        "kind": "approval",
+        "args": {
+          "name": "content"
+        },
+        "summary": null
+      }
+    ],
+    "usage": {
+      "id": "7c0242ea-0142-4c7c-903b-95f380ef0b9a",
+      "status": "admitted",
+      "costUsd": null,
+      "possiblyBilled": null
+    },
+    "providerRequestsInStopWindow": [],
+    "bootstrap": {
+      "at": "2026-10-21T08:29:56.737Z",
+      "result": "STARTED",
+      "pid": 53623,
+      "head": "e74e059ea104593d2fac831eb989714a5b151263",
+      "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+      "sourceSha256": {
+        "apps/backend/src/api/routes/agent.controller.ts": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+        "libraries/nestjs-libraries/src/chat/mastra.service.ts": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+        "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+        "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+        "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+        "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+        "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+        "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+        "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+      },
+      "sourceChangedDuringBootstrap": false,
+      "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+      "backendUrl": "http://localhost:3478",
+      "actualApiModule": true,
+      "realAuthMiddleware": true,
+      "realPoliciesGuard": true,
+      "realPrisma": true,
+      "realMastraStore": true,
+      "omittedApplicationModules": [
+        "TemporalRegisterMissingSearchAttributesModule",
+        "InfiniteWorkflowRegisterModule",
+        "AnalyticsScheduleRegisterModuleV1",
+        "NewsletterDeliveryRetryModuleV1",
+        "VoiceRetentionModule"
+      ],
+      "temporalAddressUnreachable": true,
+      "productionAccess": false,
+      "paidCallsByBootstrap": 0
+    },
+    "manualLedgerMutation": false
+  },
+  "runtime": {
+    "pid": 53623,
+    "backendProcessMatches": true,
+    "authenticatedHealthHttp": 200,
+    "backendUrl": "http://localhost:3478",
+    "frontendUrl": "http://localhost:4278",
+    "loadedBootstrap": {
+      "at": "2026-10-21T08:29:56.737Z",
+      "result": "STARTED",
+      "pid": 53623,
+      "head": "e74e059ea104593d2fac831eb989714a5b151263",
+      "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+      "sourceSha256": {
+        "apps/backend/src/api/routes/agent.controller.ts": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+        "libraries/nestjs-libraries/src/chat/mastra.service.ts": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+        "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+        "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+        "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+        "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+        "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+        "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+        "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+      },
+      "sourceChangedDuringBootstrap": false,
+      "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+      "backendUrl": "http://localhost:3478",
+      "actualApiModule": true,
+      "realAuthMiddleware": true,
+      "realPoliciesGuard": true,
+      "realPrisma": true,
+      "realMastraStore": true,
+      "omittedApplicationModules": [
+        "TemporalRegisterMissingSearchAttributesModule",
+        "InfiniteWorkflowRegisterModule",
+        "AnalyticsScheduleRegisterModuleV1",
+        "NewsletterDeliveryRetryModuleV1",
+        "VoiceRetentionModule"
+      ],
+      "temporalAddressUnreachable": true,
+      "productionAccess": false,
+      "paidCallsByBootstrap": 0
+    },
+    "sourceDifferencesSinceBoot": [
+      {
+        "file": "apps/backend/src/api/routes/agent.controller.ts",
+        "loaded": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+        "current": "64b3b3281e6977a977b8bc880b79e3e9094a0f3714aea03d6b55d124c3742767"
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/chat/mastra.service.ts",
+        "loaded": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+        "current": "f5a9d8947f38335e5d8e952c2beecced76040051f447223a45e5ab450d4c2862"
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts",
+        "loaded": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+        "current": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e"
+      }
+    ],
+    "scope": "These results prove the loaded local runtime only. Source edits after its boot need an explicitly bound restart/retest."
+  },
+  "safety": {
+    "qaFallbackSettingsRestored": true,
+    "qaProviderFaultDisabled": true,
+    "socialIntegrationRows": 0,
+    "durablePrivateConfigModes": [
+      {
+        "file": "/tmp/on0i-real-local-qa-s2nihQ/stand.json",
+        "mode": "600"
+      },
+      {
+        "file": "/home/me/.config/content-factory/local-ai.json",
+        "mode": "600"
+      }
+    ],
+    "productionMutations": 0,
+    "deployment": false,
+    "push": false
+  },
+  "allHttpActorLedger": {
+    "note": "Includes earlier failed attempts and pending questions; these are not hidden by successful selected cases.",
+    "rows": [
+      {
+        "id": "154cc279-d66c-438e-b15f-9a4e307743c7",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00355365",
+        "possiblyBilled": null
+      },
+      {
+        "id": "da31dd1e-e7b3-4d7f-8322-f87165723517",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "failed",
+        "costUsd": "0.00356826",
+        "possiblyBilled": null
+      },
+      {
+        "id": "b6bdd5b3-665f-42a9-afd9-1a242792b9e4",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "failed",
+        "costUsd": "0.00358756",
+        "possiblyBilled": null
+      },
+      {
+        "id": "4af810d3-b390-48c0-8b3d-c9bef60453b6",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.0036581",
+        "possiblyBilled": null
+      },
+      {
+        "id": "7c0242ea-0142-4c7c-903b-95f380ef0b9a",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "admitted",
+        "costUsd": null,
+        "possiblyBilled": null
+      },
+      {
+        "id": "c0a2601a-f491-4105-8e36-c0667e2ff75d",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "failed",
+        "costUsd": "0.0035737",
+        "possiblyBilled": null
+      },
+      {
+        "id": "ce73e18b-ac99-4277-9e57-f89eed567fe8",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.01038502",
+        "possiblyBilled": null
+      },
+      {
+        "id": "88dd8cb4-d678-4b49-b3b4-bb1c75de1c4e",
+        "operation": "web_research",
+        "role": "research",
+        "provider": "openrouter",
+        "model": "exa",
+        "status": "succeeded",
+        "costUsd": "0.014",
+        "possiblyBilled": null
+      },
+      {
+        "id": "56c4ebec-2db3-4e9d-98a1-0d317e17f788",
+        "operation": "intake",
+        "role": "extract",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00415879",
+        "possiblyBilled": null
+      },
+      {
+        "id": "07535cd0-8ef5-416d-9dca-517cdb37ff7a",
+        "operation": "intake",
+        "role": "draft",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00147181",
+        "possiblyBilled": null
+      },
+      {
+        "id": "793cb9de-5c5a-4223-b8f5-69464de7a179",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.0098146",
+        "possiblyBilled": null
+      },
+      {
+        "id": "b9796992-2041-4f9c-81eb-8495735c9cc4",
+        "operation": "text_generation",
+        "role": "review",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00094995",
+        "possiblyBilled": null
+      },
+      {
+        "id": "d0fd07ae-bef8-4d82-ac4e-44dc3c16e656",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00192251",
+        "possiblyBilled": null
+      },
+      {
+        "id": "98b49616-34fd-4c17-b9c5-59b797f7a114",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00242081",
+        "possiblyBilled": null
+      },
+      {
+        "id": "ffafb75a-0f81-4cf3-ac74-f8339bc5e066",
+        "operation": "web_research",
+        "role": "research",
+        "provider": "openrouter",
+        "model": "exa",
+        "status": "succeeded",
+        "costUsd": "0.041",
+        "possiblyBilled": null
+      },
+      {
+        "id": "1cef008b-13f2-46aa-b384-a2ed178cf4e0",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00357704",
+        "possiblyBilled": false
+      },
+      {
+        "id": "ce2d7282-ca38-4bc0-a86a-cee4c0e400f9",
+        "operation": "intake",
+        "role": "extract",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00098876",
+        "possiblyBilled": null
+      },
+      {
+        "id": "de68cdde-3181-4168-b459-415860915258",
+        "operation": "intake",
+        "role": "draft",
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "status": "succeeded",
+        "costUsd": "0.00035942",
+        "possiblyBilled": null
+      },
+      {
+        "id": "c96fe4f4-658a-4c51-aa36-28203a8fa780",
+        "operation": "agent",
+        "role": "agent",
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3",
+        "status": "succeeded",
+        "costUsd": "0.04842849",
+        "possiblyBilled": false
+      }
+    ],
+    "knownCostUsd": 0.15741847,
+    "unknownCostOperations": 1,
+    "pendingOperations": 1,
+    "possiblyBilledOperations": 0
+  },
+  "paidCallsByThisSummary": 0,
+  "fullSuiteRunByChild": false,
+  "remainingAcceptance": [
+    "Root owns semantic acceptance and final browser checks.",
+    "No cheap-classifier savings claim: configured classify and agent model IDs are equal.",
+    "Search evidence proves the configured Exa research route; no Tavily request has been observed.",
+    "Provider invoices and production/Temporal/social publication are outside this local evidence."
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "mastra": "1.78.0",
+    "redisStreams": "0.6.3"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-screen.w2-recheck.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-transport.test.cjs tests/agent-native-session-http.test.cjs tests/agent-native-session-cold.test.cjs tests/agent-native-session-queued.test.cjs tests/agent-native-session-owner.test.cjs tests/agent-native-session-observe.test.cjs tests/agent-native-signal-boundary.test.cjs",
+      "exitCode": 0,
+      "suites": 9,
+      "tests": 85,
+      "seconds": 75.59,
+      "log": "chat-native-observer-affected.log",
+      "coverageNote": "Executed before the final UI merge-preservation refinement and Stop-during-Memory-read revalidation; those final changes are checked separately below. Counts overlap and must not be added."
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-conversation-flow.test.cjs",
+      "exitCode": 0,
+      "suites": 1,
+      "tests": 14,
+      "seconds": 8.584,
+      "log": "chat-native-observer-ui-final.log",
+      "coverageNote": "Final current UI source, including finish/released-replay continuation partial preservation."
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-session-observe.test.cjs",
+      "exitCode": 0,
+      "suites": 1,
+      "tests": 1,
+      "seconds": 6.513,
+      "log": "chat-native-observer-http-final.log",
+      "coverageNote": "Final current backend predicate including concurrent Stop during saved Memory recall."
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-screen.w2-recheck.test.cjs",
+      "exitCode": 0,
+      "suites": 1,
+      "tests": 39,
+      "seconds": 16.019,
+      "log": "chat-native-w2-final.log"
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-session-owner.test.cjs tests/native-queued-input.test.cjs",
+      "exitCode": 0,
+      "suites": 2,
+      "tests": 3,
+      "seconds": 29.037,
+      "log": "chat-native-queued-context.log",
+      "coverageNote": "Includes actual PostgreSQL native queued-input mode/fault checks and original selected-object preservation."
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-observer-backend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-observer-frontend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "actualHttpObserverAssertions": {
+    "providerFixtureCalls": 1,
+    "admissions": 1,
+    "allNumberedNotes": 40,
+    "producerAndConcurrentObserverComplete": true,
+    "nativeMemoryByteExact": true,
+    "splitSyntheticSecretRedacted": true,
+    "canceledReaderDoesNotAbortProducerOrClearReplay": true,
+    "postAndGetStartIdEqualsSavedAssistantId": true,
+    "rememberedNativeResponseIdEqualsSavedAssistantId": true,
+    "emptyReplayPositiveOwnedSavedTerminal204": true,
+    "historyCommitLagRemainsNon204": true,
+    "stopDuringSavedRecallRefusesCompletion": true,
+    "extraProviderPost": false
+  },
+  "resolvedNativeSessionOptions": {
+    "sessionMaxSteps": 1000,
+    "nativeAgentLegacyDefaultMaxSteps": 64,
+    "providerCalls": 0,
+    "log": "chat-native-resolved-native-options.log",
+    "note": "Actual native Session buildStreamOptions overrides the legacy Agent default; no new model execution was used."
+  },
+  "redEvidence": {
+    "nativeSharedStateCorruption": [
+      "chat-native-observer-native-red.log",
+      "chat-native-observer-native-red-assertion.log"
+    ],
+    "stopDuringRead": "chat-native-observer-stop-read-red.log"
+  },
+  "independentReview": {
+    "path": "observer-final-review.md",
+    "sourceHashes": "evidence/observer-final-review-source-sha256.json",
+    "verdict": "No actionable finding in bounded final observer source review."
+  },
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "64bacce685a962436bb29955e96221ec8b73ecde70de4c2c26805eb600211795",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-chat.request.ts": "2bf776ce1529f8547dd443f7b7c320b7fe9fdc6fb356920bad076100c9fb62a7",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "bd4aa1f40ee3b385121ed2863cfb33f3990c289a20fa0d5334b836e434149f69",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+    "libraries/nestjs-libraries/src/chat/conductor/native-run-observer.ts": "bd7edeba03bfbb3a0945bc24d76f39d80aea971c1242cbd38c55796c9d8f5934",
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "eedacbbf52642af0128a8641789d91e15f2851fe1053016684f1110455b814e3",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.execution.ts": "f2f1c1f2303ec36a85a3f288f23b256f84582573e460a549a3b33d7b9fbfeb72",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c32994a5d9ec74abd6403ac0e2879178c07cd9ca5eea6e56dec0df83ac9066ef",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "90df8641275bb5641f988b7c85f740d74ba41f1627438db2d0c9d5ab8a60f3c5",
+    "apps/frontend/src/components/agents/agent.transport.ts": "6912cea0ec62515df3cd410255c8837cdb355a0522cbbc58f5ca225d6b5ab097",
+    "apps/frontend/src/components/agents/agent.contract.ts": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "apps/frontend/src/components/agents/agent.screen.tsx": "7328c9c3e5b97000f18919b1fa77855835835d7a35442b054395f6bcefb8d485",
+    "docs/design/component-inventory.md": "48f04c1e2a4456040a1b5b648a41794123df6738534ad70abec83259b5dc479b",
+    "pnpm-lock.yaml": "f289ed42197f037e5c01d5b20cb9e5045236a4f3431acdc3b2dc7ec069ee05f1",
+    "node_modules/@mastra/core/package.json": "69df237dfc36bceb2f4ea4dd1b272e755a0aa69ae9fba499f0ecc75cf0ca8fce",
+    "node_modules/@mastra/core/dist/agent-controller-C_6RbJaM.cjs": "afe99c2a84d837052bd3d39b1fa0142552fffcdbbe5fa71c0aa56f93cd822e3d",
+    "node_modules/@mastra/redis-streams/package.json": "aa68992d2a7473e97af6feaf5e44dd24c44d70e9e77ab651e42682c3d7183f2a",
+    "node_modules/@mastra/ai-sdk/package.json": "5b5278a7ff6852b37e682ff7841fd3594ad6d719eabc4b4b4f9103190d4f8fb1",
+    "tests/agent-screen.w2-recheck.test.cjs": "d0d6e71dcdcd6dd8b3d0ca1d3c44932c2dc3d6d5eabf55bcc33ed3e62d885a60",
+    "tests/agent-native-conversation-flow.test.cjs": "9ef46f7f5248d494eb1e1a0892fdfdf017442150e46b1361d2401d1ded13d804",
+    "tests/agent-transport.test.cjs": "a2d274e42040d3ecfd50d0df843a370ef15fa371acaf1955d978c3c335ddef43",
+    "tests/agent-native-session-http.test.cjs": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+    "tests/helpers/agent-native-session-http.probe.cjs": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+    "tests/agent-native-session-cold.test.cjs": "a83d33e333c24c88c47caa39abae75018ac54669b09d21e132e17e5f6af411ee",
+    "tests/helpers/agent-native-session-cold.probe.cjs": "afc3af21b37a1473cc5ed92e4f3e35cab0c1e4fe47df8e3c60e4d93668ee69b2",
+    "tests/agent-native-session-queued.test.cjs": "8783a1c1dad0975e26791906418a5cb62762f5f7f4d77dcd81d25bce50c69c3b",
+    "tests/helpers/agent-native-session-queued.probe.cjs": "22f1f5515a856012f6142386bcd8cbea46cd3d7bc819664a82d2756d2ddbdb3f",
+    "tests/agent-native-session-owner.test.cjs": "942cf4836a6ae0d656695f3e5d5f0c7ed90607592d676fcb977a817296a7894e",
+    "tests/helpers/agent-native-session-owner.probe.cjs": "cdf9b44913aa83a5fcc6af609c405a680b4cf7fe126f3044675eb5d0a3fcb2f3",
+    "tests/agent-native-session-observe.test.cjs": "e43a74608a86ab6aab2c974fc4693654317942fd70d931d76773e56edd5b2e6a",
+    "tests/helpers/agent-native-session-observe.probe.cjs": "dd08597c994a8615ad012e0bee419b8f471b93bea0111a358653ed6a5bba3507",
+    "tests/agent-native-signal-boundary.test.cjs": "044e3bd6ab93e9e228a57f3b016bd6f8ae845461d15e909dd25f7ff7d8c3797c",
+    "tests/helpers/agent-native-signal-boundary.probe.cjs": "5e75e31084921b615ca7cd526dc94a1374b3145105af20619b9ca2e8e7960469",
+    "tests/native-queued-input.test.cjs": "d91568567e7b0c34e0159a30b80b59467d1cd8edb4a35acf59f614d983fed0e7",
+    "tests/helpers/native-queued-input.probe.cjs": "c5df04abfabc82bfbe5266358faa0497f5ccea11ab8f31ceb076212502f96e3a",
+    "tests/helpers/mastra-service-native-integration.probe.cjs": "aef91ee085ff224d7768d1cfb6d7ec49a8ac87e444c7285dffa1115cb0209cdb"
+  },
+  "logSha256": {
+    "chat-native-observer-affected.log": "7af803131ad8dccc57984d1073267283b3c6c5cd96af8bf8cebb6dae19bdfe1b",
+    "chat-native-observer-ui-final.log": "0c3e34b7d6bc1360971f1d75e9b549355814a96394c2e5944012e2cedcd115ae",
+    "chat-native-observer-http-final.log": "0bb387fcdd2f2872f405491694a10707a6e0674fe76fe143eed526c8a6715eff",
+    "chat-native-observer-stop-read-red.log": "cc1703a23e424ff3a77c05dbe17a76101f8c67c5f0b3c7f7849a84b959954a00",
+    "chat-native-observer-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "chat-native-observer-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "chat-native-observer-native-red.log": "25c0ec2e964cede62eb4191b8198a3a94711ee6a029aaeaf4cd7ba84922731db",
+    "chat-native-observer-native-red-assertion.log": "95c35285bd0f0763f9ddb236803a475e90865cc07489d1aa22e77a756914172f",
+    "chat-native-w2-final.log": "afbd6ae75313de54a14e9ad902842e3e83246f413bbf90322b773e4ad3c94ead",
+    "chat-native-queued-context.log": "57829a911ffff2543d2e457c71293511fadb5b85ca9ed250f9df0c08b20c0a6e",
+    "chat-native-resolved-native-options.log": "79fdbb9bb51a979c6e16ee86889f7b0ecbcb1647e2b16e9139efbcc60262dfc5"
+  },
+  "scope": "Final W2, selected work-context snapshot and native observer integration. Source frozen. Root owns whole-epic acceptance/build/compiled-browser/raw-provider verification. This worker performed no paid call, production access, full suite, commit, push or deploy.",
+  "earlierEvidence": [
+    "chat-native-evidence.json",
+    "chat-native-qa-followup-evidence.json",
+    "chat-native-final-scope-evidence.json",
+    "chat-native-stop-rendered-evidence.json"
+  ]
+}

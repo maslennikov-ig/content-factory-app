@@ -1,0 +1,182 @@
+FAIL tests/intake.research-reuse.test.cjs
+  ✕ a reuse-only create refusal identifies fixed selected quotes and accepts revised exact passages through the same tool (24 ms)
+  ✕ piece.create retained source selection preserves the original person-policy (6 ms)
+  ✕ piece.create retained source selection preserves the original human-requirement (5 ms)
+  ✕ piece.create.from-research retained source selection preserves the original person-policy (5 ms)
+  ✕ piece.create.from-research retained source selection preserves the original human-requirement (6 ms)
+  ✕ unified passage selection retains a direct person-selection request without creating model consent (19 ms)
+  ○ skipped piece.create preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped piece.create.from-research preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped another person in the same organization and an unknown selection are refused before any model or write
+  ○ skipped a quote from a different source and unknown claim body never become confirmed through an id
+  ○ skipped an uncertain standalone write cannot replay the writer or silently fall back to creating another piece
+  ○ skipped two passages from the same URL retain independent evidence instead of reusing an old URL excerpt
+  ○ skipped a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again
+  ○ skipped piece.create refuses a stale passage before any model or new source write
+  ○ skipped piece.create refuses a foreign-url passage before any model or new source write
+  ○ skipped piece.create refuses a invented-quote passage before any model or new source write
+  ○ skipped piece.create.from-research refuses a stale passage before any model or new source write
+  ○ skipped piece.create.from-research refuses a foreign-url passage before any model or new source write
+  ○ skipped piece.create.from-research refuses a invented-quote passage before any model or new source write
+  ○ skipped another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot
+  ○ skipped an uncertain derived write cannot replay through another passage or the legacy selection
+  ○ skipped a safe insufficient initial selection can read later evidence and revise without another search or a poisoned writer claim
+  ○ skipped a writer exception with the insufficiency code cannot acquire pre-write evidence recovery or release its claim
+  ○ skipped a lost claim acknowledgement cannot reopen the existing writer scope
+  ○ skipped a lost completed-result acknowledgement cannot reopen the existing writer scope
+  ○ skipped an uncertain legacy write also fences a newly selected retained passage
+  ○ skipped intake-origin snapshots retain full sources with actor authority and can feed late passages to the same writer
+  ○ skipped passage captures are canonical across source order and keep multi-source evidence separate
+  ○ skipped an existing piece research read uses the public scoped service only with both explicit ids
+  ○ skipped a retained descendant cannot outlive its immediate parent or bypass a terminal root when the native claim expires
+  ○ skipped piece.create native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=false)
+  ○ skipped piece.create native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=true)
+  ○ skipped piece.create.from-research native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=false)
+  ○ skipped piece.create.from-research native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=true)
+  ○ skipped a material requirement for human fact selection is not replaced with model consent
+  ○ skipped query-only reuse keeps the supported fallback and labels it as the research task
+  ○ skipped selection person cannot turn standalone research reuse into human consent or claim a writer
+  ○ skipped selection person cannot replay a completed model-origin standalone write as an answered human card
+
+  ● a reuse-only create refusal identifies fixed selected quotes and accepts revised exact passages through the same tool
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 31
+    + Received  +  0
+
+      Object {
+        "type": "json",
+        "value": Object {
+    -     "canReviseInput": true,
+          "code": "INTAKE_INPUT_INSUFFICIENT",
+    -     "inputRecovery": Object {
+    -       "artifactWritten": false,
+    -       "currentCall": Object {
+    -         "mode": "reuse_only",
+    -         "newSearch": "not_started",
+    -       },
+    -       "evidenceScope": "captured_quotes_only",
+    -       "globalSearchAvailability": "not_assessed",
+    -       "kind": "research_selection",
+    -       "selectedFactCount": 1,
+    -       "selectedFactKeys": Array [
+    -         "initial-preview",
+    -       ],
+    -       "selection": Object {
+    -         "fields": Array [
+    -           "sourceUrl",
+    -           "revision",
+    -           "quote",
+    -         ],
+    -         "input": "passages",
+    -         "tool": "piece.create",
+    -       },
+    -       "snapshotKey": "res_68f2ed75-44cc-4b28-b562-4f758c9d8771",
+    -       "sourceRead": Object {
+    -         "find": true,
+    -         "part": "research_source",
+    -         "ranges": true,
+    -         "tool": "piece.read",
+    -       },
+    -     },
+          "ok": false,
+          "reason": "Выбранных сохранённых цитат и материала пока недостаточно для запрошенного результата. В этом вызове использовались сохранённые доказательства без нового поиска; доступность поиска в других инструментах не проверялась. Ничего не записано. Можно уточнить выбор точных цитат из сохранённых источников.",
+        },
+      }
+
+      295 |       globalSearchAvailability: 'not_assessed', sourceRead: { tool: 'piece.read', part: 'research_source', find: true, ranges: true },
+      296 |       selection: { tool: 'piece.create', input: 'passages', fields: ['sourceUrl', 'revision', 'quote'] }, artifactWritten: false } });
+    > 297 |   expect(insufficient.model).toEqual({ type: 'json', value: insufficient.output });
+          |                              ^
+      298 |   expect(insufficient.output.reason).not.toContain('globally unavailable');
+      299 |   expect(calls[0].prompt).toContain('Additional search inside this writing invocation: false');
+      300 |   expect(calls[0].prompt).toContain('Saved research selection supplied: true');
+
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:297:30)
+
+  ● piece.create retained source selection preserves the original person-policy
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not true
+
+      456 |     passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] }, built);
+      457 |   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON' });
+    > 458 |   expect(result.output.canReviseInput).not.toBe(true);
+          |                                            ^
+      459 |   expect(result.model.value.canReviseInput).not.toBe(true);
+      460 |   expect(result.output.inputRecovery).toBeUndefined();
+      461 |   expect(calls).toEqual([]);
+
+      at tests/intake.research-reuse.test.cjs:458:44
+
+  ● piece.create retained source selection preserves the original human-requirement
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not true
+
+      456 |     passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] }, built);
+      457 |   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON' });
+    > 458 |   expect(result.output.canReviseInput).not.toBe(true);
+          |                                            ^
+      459 |   expect(result.model.value.canReviseInput).not.toBe(true);
+      460 |   expect(result.output.inputRecovery).toBeUndefined();
+      461 |   expect(calls).toEqual([]);
+
+      at tests/intake.research-reuse.test.cjs:458:44
+
+  ● piece.create.from-research retained source selection preserves the original person-policy
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not true
+
+      456 |     passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] }, built);
+      457 |   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON' });
+    > 458 |   expect(result.output.canReviseInput).not.toBe(true);
+          |                                            ^
+      459 |   expect(result.model.value.canReviseInput).not.toBe(true);
+      460 |   expect(result.output.inputRecovery).toBeUndefined();
+      461 |   expect(calls).toEqual([]);
+
+      at tests/intake.research-reuse.test.cjs:458:44
+
+  ● piece.create.from-research retained source selection preserves the original human-requirement
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not true
+
+      456 |     passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] }, built);
+      457 |   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON' });
+    > 458 |   expect(result.output.canReviseInput).not.toBe(true);
+          |                                            ^
+      459 |   expect(result.model.value.canReviseInput).not.toBe(true);
+      460 |   expect(result.output.inputRecovery).toBeUndefined();
+      461 |   expect(calls).toEqual([]);
+
+      at tests/intake.research-reuse.test.cjs:458:44
+
+  ● unified passage selection retains a direct person-selection request without creating model consent
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not true
+
+      653 |     passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] }, built);
+      654 |   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON' });
+    > 655 |   expect(result.output.canReviseInput).not.toBe(true);
+          |                                            ^
+      656 |   expect(result.model.value.canReviseInput).not.toBe(true);
+      657 |   expect(result.output.inputRecovery).toBeUndefined();
+      658 |   expect(built.writes).not.toHaveBeenCalled();
+
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:655:44)
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 32 skipped, 38 total
+Snapshots:   0 total
+Time:        2.787 s, estimated 3 s
+Ran all test suites within paths "tests/intake.research-reuse.test.cjs".

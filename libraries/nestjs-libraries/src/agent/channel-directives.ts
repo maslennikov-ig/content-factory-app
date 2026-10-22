@@ -273,6 +273,9 @@ const CTA_LINE: Record<ChannelWritingProfileV1['ctaKind'], string> = {
   reply: 'End by asking the reader to reply, once.',
 };
 
+const PROSE_CTA_LINK_FOOTER_LINE =
+  "With end-position links, 'end' in the call-to-action rule means the end of the main prose. Any final link or source footer follows that prose; never add another question or call to action after the footer.";
+
 /**
  * Строение поста под выбранный формат — форма, без единого числа.
  *
@@ -558,7 +561,7 @@ export const POST_CHOICES_PRIORITY_LINE =
 
 /** Пожелание к посту — самое частное слово того же человека, с той же оградой. */
 export const POST_WISH_PRIORITY_LINE =
-  "This wish is for this post only and outranks this channel's defaults and the owner's note above. It never lifts the rules about facts, copying or the author's voice.";
+  "This wish is for this post only and outranks this channel's defaults and the owner's note above. An explicit request for multiple supporting citations overrides the channel's default one-link cap, not an explicit no-links instruction for this post. It does not permit extra promotional links, invented URLs or claims, or treat a URL as proof. It never lifts the rules about facts, copying or the author's voice.";
 
 const notesLine = (notes?: string | null): string | null => {
   if (typeof notes !== 'string') return null;
@@ -802,6 +805,9 @@ export function channelInstructionLines(
     );
   if (linkOnWords && (resolved.linkPolicy === 'end' || resolved.ctaKind === 'link'))
     lines.push(AUTHOR_LINK_WORDS_AT_END_LINE);
+  if (resolved.linkPolicy === 'end' &&
+    ['question', 'comment', 'reply', 'subscribe'].includes(resolved.ctaKind))
+    lines.push(PROSE_CTA_LINK_FOOTER_LINE);
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
   const notes = notesLine(resolved.notes);

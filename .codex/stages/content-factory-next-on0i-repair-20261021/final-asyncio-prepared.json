@@ -1,0 +1,24 @@
+{
+  "schema": "on0i-real-scenario-preparation/1",
+  "executed": true,
+  "localOnly": true,
+  "case": {
+    "id": "final-asyncio-taskgroup",
+    "prompt": "Хочу короткую полезную заметку для разработчика: что делает Python asyncio.TaskGroup, когда одна из вложенных задач падает с исключением. Проверь по официальной документации Python. Сохрани одну новую заготовку «QA ON0I: Python TaskGroup» на русском со ссылками на первоисточник, затем прочитай её и проверь ключевые утверждения. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+    "acceptance": [
+      "Actual current-source configured model and real search",
+      "One useful short Russian CORE with the exact requested title, opened and read back",
+      "Official Python sources support sibling cancellation/wait/exception-group claims without overstatement",
+      "Usage uncertainty retained; no publication or social connection"
+    ],
+    "expectedSavedCore": 1
+  },
+  "privateRunner": "/tmp/on0i-real-local-qa-s2nihQ/final-asyncio-scenario.cjs",
+  "runnerSha256": "75434df7e3d272e1f71dbc95bb3469976dbc077bed4dd5d03606b73f701f30cf",
+  "uniqueGuard": "final-asyncio-submission.guard",
+  "currentSourceBackendRequired": true,
+  "scope": "Only existing local synthetic HTTP runner; configured real model/search authorized. Guardwx prevents resubmission. No original objects/publication.",
+  "initialReceipt": "real-local-qa-scenario-final-asyncio-taskgroup.json",
+  "nativeSelectionResume": "real-local-qa-final-asyncio-resume.json",
+  "rootSemanticVerdict": "PASS_AFTER_EXPLICIT_QA_EDITORIAL_SELECTION"
+}

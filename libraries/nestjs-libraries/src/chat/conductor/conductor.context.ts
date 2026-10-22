@@ -11,10 +11,11 @@ import {
   CAPABILITY_CONTEXT_KEYS,
   capabilityContextSchema,
   grantApproval,
+  originalAuthorRequestSchema,
   seedCapabilityContext,
   setOpenProposals,
 } from '../capabilities/capability.context';
-import type { CapabilityIdentity } from '../capabilities/capability.types';
+import type { CapabilityIdentity, OriginalAuthorRequest } from '../capabilities/capability.types';
 import { CONDUCTOR_EXECUTION_DEFAULTS, type ConductorExecutionPolicy } from './conductor.execution';
 import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext } from './work-context';
 
@@ -176,6 +177,8 @@ export type ConductorTurn = {
   requestId?: string;
   trackExecution?: boolean;
   workContext?: ResolvedAgentWorkContext | null;
+  /** Only the current message accepted by the server door, never client history. */
+  originalAuthorRequest?: OriginalAuthorRequest;
 };
 
 /**
@@ -186,6 +189,10 @@ export type ConductorTurn = {
 export const buildConductorContext = (turn: ConductorTurn) => {
   const context = new RequestContext<Record<string, unknown>>();
   seedCapabilityContext(context, turn.identity);
+  if (turn.originalAuthorRequest) {
+    context.set(CAPABILITY_CONTEXT_KEYS.originalAuthorRequest,
+      JSON.stringify(originalAuthorRequestSchema.parse(turn.originalAuthorRequest)));
+  }
   context.set(
     MASTRA_RESOURCE_ID_KEY,
     conductorResourceId(turn.identity.organizationId, turn.identity.userId)

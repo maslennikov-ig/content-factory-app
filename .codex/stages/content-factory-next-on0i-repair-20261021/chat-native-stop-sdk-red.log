@@ -1,0 +1,247 @@
+🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+{
+  "reports": [
+    {
+      "mode": "lag",
+      "messages": [
+        "old-human",
+        "old-answer"
+      ],
+      "humanPreserved": false,
+      "partialPreserved": false,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "sdk-finish:true:false",
+        "history-read:2:running",
+        "history-read:2:running",
+        "sdk-reader-cancel",
+        "stop-ack",
+        "history-read:2:running",
+        "old-history-response"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "shorter",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "sVNcPMWEspDvHPJQ",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": false,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "terminal",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "o6sxoW1pTJc0lu1Z",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "mismatch",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "eDVUcn6lzliTVvwo",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "unknown",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "ES0JJvMFyyYzdYJQ",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:unknown",
+        "sdk-finish:true:false",
+        "history-read:4:unknown",
+        "history-read:4:unknown",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "failed",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "HjG85fwqpPc1pQD0",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "uncertain",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "2vnyJOqineQZs3Bh",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "no-ack",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "qJ5e5bXKtRFOA9gT",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "network",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "FshwqFnnOz2qHfzU",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 1,
+      "trace": [
+        "sdk-send",
+        "sdk-error",
+        "sdk-finish:false:true",
+        "history-read:4:settled",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    }
+  ]
+}
+AssertionError [ERR_ASSERTION]: lag: preserve the new human after Stop
+
+false !== true
+
+    at /tmp/on0i-real-sdk-stop.probe.cjs:107:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

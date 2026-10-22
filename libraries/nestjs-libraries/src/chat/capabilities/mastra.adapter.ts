@@ -1,6 +1,8 @@
 import type { Type } from '@nestjs/common';
+import type { MastraCompositeStore } from '@mastra/core/storage';
 import { createTool, validateToolInput } from '@mastra/core/tools';
 import { toStandardSchema } from '@mastra/core/schema';
+import { z } from 'zod';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   admitCapabilityCall,
@@ -23,6 +25,7 @@ import {
   type CapabilityRefusal,
   type CapabilityRunContext,
   type CapabilityToolOutput,
+  type ResearchSelectionRecovery,
   type RiskClass,
 } from './capability.types';
 import { roleMayUse } from './door-policy';
@@ -31,11 +34,21 @@ import { runPaidCapability } from './paid-adapter';
 import { questionCardView } from './question-card';
 import { modelSummary, wrapUntrusted } from './untrusted-data';
 import { redactSecretLeaves } from '../conductor/secret-shapes';
+import { trackAgentTurnWork } from '../conductor/agent-turn-lifecycle';
+import { CONDUCTOR_EXECUTION_ID_KEY } from '../conductor/conductor.context';
+import { authorRequestResolver } from './original-author-request';
 import {
-  readCommittedToolReceipt,
+  AgentOperationPersistenceError,
+  AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY,
+  agentOperationResumeKey,
+  agentOperationStateType,
+  beginAgentOperation,
+  recordAgentOperationUncertain,
   recordCommittedToolReceipt,
-  trackAgentTurnWork,
-} from '../conductor/agent-turn-lifecycle';
+  recordSuspendedToolOperation,
+  uncertainAgentOperation,
+  type AgentOperationScope,
+} from '../conductor/agent-operation-receipts';
 import { approvalContentDigest, cleanApprovalSummary } from './approval-summary';
 import {
   isConfirmationNeeded,
@@ -126,6 +139,28 @@ export const MCP_ANNOTATIONS: Record<
 const UNKNOWN_FAILURE =
   'The action failed for a reason the product did not name; nothing more is known. Tell the person it did not work; do not retry by yourself.';
 
+// Only this bounded server contract may accompany a pre-write refusal. Raw
+// service/model/provider errors must never become arbitrary recovery context.
+const researchSelectionRecoverySchema = z.object({
+  kind: z.literal('research_selection'),
+  snapshotKey: z.string().min(1).max(128),
+  selectedFactKeys: z.array(z.string().min(1).max(1_000)).max(20),
+  selectedFactCount: z.number().int().min(0).max(200),
+  evidenceScope: z.literal('captured_quotes_only'),
+  currentCall: z.object({ mode: z.literal('reuse_only'), newSearch: z.literal('not_started') }).strict(),
+  globalSearchAvailability: z.literal('not_assessed'),
+  sourceRead: z.object({ tool: z.literal('piece.read'), part: z.literal('research_source'), find: z.literal(true), ranges: z.literal(true) }).strict(),
+  selection: z.object({ tool: z.literal('piece.create'), input: z.literal('passages'),
+    fields: z.tuple([z.literal('sourceUrl'), z.literal('revision'), z.literal('quote')]) }).strict(),
+  artifactWritten: z.literal(false),
+}).strict().refine(value => value.selectedFactCount >= value.selectedFactKeys.length);
+
+const validatedInputRecovery = (code: string, canReviseInput: unknown, input: unknown): ResearchSelectionRecovery | undefined => {
+  if (code !== 'INTAKE_INPUT_INSUFFICIENT' || canReviseInput !== true) return undefined;
+  const parsed = researchSelectionRecoverySchema.safeParse(input);
+  return parsed.success ? parsed.data as ResearchSelectionRecovery : undefined;
+};
+
 /**
  * A service refusal keeps its code (the screens' `safeHttpError` shape), so
  * the model says «в этом месяце посты кончились», not «что-то пошло не так».
@@ -142,8 +177,10 @@ export const codedRefusal = (error: unknown) => {
     code,
     typeof message === 'string' && message ? message.slice(0, 1_000) : code
   );
-  return (error as { canReviseInput?: unknown })?.canReviseInput === true
-    ? { ...result, canReviseInput: true as const } : result;
+  if ((error as { canReviseInput?: unknown })?.canReviseInput !== true) return result;
+  const inputRecovery = validatedInputRecovery(code, true, (error as { inputRecovery?: unknown }).inputRecovery);
+  return { ...result, canReviseInput: true as const,
+    ...(inputRecovery ? { inputRecovery } : {}) };
 };
 
 /**
@@ -252,7 +289,9 @@ const inputSchemaFor = (capability: CapabilityDeclaration, entrance: CapabilityE
 
 type ToolContextLike = {
   runId?: string;
+  mastra?: { getStorage: () => MastraCompositeStore | undefined };
   memory?: {
+    storage?: Pick<MastraCompositeStore, 'getStore'>;
     getThreadById?: (input: { threadId: string }) => Promise<{ metadata?: Record<string, unknown> } | null>;
     updateThread?: (input: { id: string; metadata?: Record<string, unknown> }) => Promise<unknown>;
   };
@@ -391,44 +430,96 @@ export const buildCapabilityTool = (
       });
     };
     const durableExecutions = context?.requestContext?.get?.('mastra__durableExecutions');
-    const isDurableRun =
+    const durableRunIds = durableExecutions && typeof durableExecutions === 'object'
+      ? Object.keys(durableExecutions) : [];
+    const executionId = context?.requestContext?.get?.(CONDUCTOR_EXECUTION_ID_KEY);
+    const needsDurableReceipt =
       options.entrance === 'chat' &&
       capability.risk !== 'read' &&
-      !!durableExecutions &&
-      typeof durableExecutions === 'object' &&
-      Object.keys(durableExecutions).length > 0 &&
-      typeof context?.agent?.toolCallId === 'string' &&
-      !!context.agent.toolCallId;
-    const receiptScope = isDurableRun
-      ? {
+      (durableRunIds.length > 0 || (typeof executionId === 'string' && !!executionId));
+    let receiptScope: AgentOperationScope | null = null;
+    const uncertainResult = async (operationType = receiptScope ? agentOperationStateType(receiptScope) : undefined) => {
+      if (receiptScope) context?.requestContext?.set?.(AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY, {
+        runId: receiptScope.runId, operationType,
+      });
+      if (receiptScope) {
+        try {
+          await recordAgentOperationUncertain(receiptScope, operationType);
+        } catch {
+          // Remain uncertain. The primitive native context blocks this driver;
+          // the pre-write durable witness blocks a restarted driver even when
+          // the uncertainty marker's acknowledgement is unavailable.
+        }
+      }
+      const uncertain = uncertainAgentOperation();
+      return refusal(uncertain.code, uncertain.message);
+    };
+    if (needsDurableReceipt) {
+      try {
+        if (!context?.agent?.toolCallId) {
+          throw new AgentOperationPersistenceError('CAPABILITY_RECEIPT_UNAVAILABLE');
+        }
+        receiptScope = {
+          organizationId: identity.organizationId,
           runId:
             typeof context?.runId === 'string' && context.runId
               ? context.runId
-              : Object.keys(durableExecutions)[0],
+              : durableRunIds[0],
           threadId: context?.agent?.threadId,
           toolName: name,
-          toolCallId: context!.agent!.toolCallId!,
+          toolCallId: context.agent.toolCallId,
           resumed: context?.agent?.resumeData !== undefined,
+          ...(context?.agent?.resumeData !== undefined ? {
+            resumeKey: agentOperationResumeKey(context.agent.resumeData, context.agent.suspendPayload),
+          } : {}),
           memory: context?.memory,
+          storage: context?.mastra?.getStorage() ?? context?.memory?.storage,
+        };
+        const blocked = context?.requestContext?.get?.(AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY);
+        const { receipt: committed } = await beginAgentOperation<CapabilityToolOutput>(receiptScope,
+          blocked?.runId === receiptScope.runId ? blocked.operationType : undefined);
+        if (committed) {
+          if (capability.risk === 'paid' && context?.requestContext) {
+            releasePaidSlot(context.requestContext);
+          }
+          if (committed.card) {
+            await emit({ kind: committed.card.kind as any, data: committed.card });
+          }
+          return committed.result;
         }
-      : null;
-    if (receiptScope) {
-      const committed = await readCommittedToolReceipt<CapabilityToolOutput>(receiptScope);
-      if (committed) {
+      } catch (error) {
         if (capability.risk === 'paid' && context?.requestContext) {
           releasePaidSlot(context.requestContext);
         }
-        if (committed.card) {
-          await emit({ kind: committed.card.kind as any, data: committed.card });
-        }
-        return committed.result;
+        const failed = error instanceof AgentOperationPersistenceError
+          ? error : new AgentOperationPersistenceError('CAPABILITY_RECEIPT_UNAVAILABLE');
+        if (failed.code === 'CAPABILITY_OUTCOME_UNCERTAIN') return uncertainResult(failed.operationType);
+        return refusal(failed.code, failed.message);
       }
     }
+    const commitResult = async (
+      result: CapabilityToolOutput,
+      card?: { kind: string; id: string; [key: string]: unknown } | null
+    ): Promise<CapabilityToolOutput> => {
+      if (receiptScope) {
+        try {
+          // A domain write can finish after Stop. Its receipt must still be
+          // durable; cancellation never makes a completed write replayable.
+          await recordCommittedToolReceipt({ ...receiptScope, receipt: { result, card } });
+        } catch {
+          return uncertainResult();
+        }
+      }
+      return result;
+    };
     const suspend = context?.agent?.suspend;
     const runContext: CapabilityRunContext = {
       ...identity,
       entrance: options.entrance,
       service: options.services,
+      ...(options.entrance === 'chat' ? {
+        resolveAuthorRequest: authorRequestResolver(identity, context?.requestContext, options.services),
+      } : {}),
       abortSignal: context?.abortSignal,
       resumeData: context?.agent?.resumeData,
       suspendPayload: context?.agent?.suspendPayload,
@@ -441,11 +532,22 @@ export const buildCapabilityTool = (
 
     let output: unknown;
     try {
+      if (context?.abortSignal?.aborted) {
+        throw new DOMException('The agent request was aborted.', 'AbortError');
+      }
       output =
         capability.risk === 'paid'
           ? await runPaidCapability(invoke)
           : await invoke();
     } catch (error) {
+      if (context?.abortSignal?.aborted && (
+        (error as { name?: unknown })?.name === 'AbortError' ||
+        /request has stopped|aborted/i.test(String((error as { message?: unknown })?.message ?? ''))
+      )) {
+        // Explicit cancellation remains an interrupted turn. The pending
+        // operation still prevents a later crash-replay from repeating it.
+        throw error;
+      }
       // The run stopped before anything was spent for a «Да» only the person
       // gives (the autopilot consent over MCP).
       if (asksByCode && !confirmed && isConfirmationNeeded(error)) {
@@ -464,7 +566,10 @@ export const buildCapabilityTool = (
         ) {
           releasePaidSlot(context.requestContext);
         }
-        return refused;
+        return commitResult(refused);
+      }
+      if (receiptScope) {
+        return uncertainResult();
       }
       throw error;
     } finally {
@@ -478,7 +583,13 @@ export const buildCapabilityTool = (
       }
     }
     // Suspended for the person's answer: Mastra resumes the same call.
-    if (output === undefined) return undefined;
+    if (output === undefined) {
+      if (receiptScope) {
+        try { await recordSuspendedToolOperation(receiptScope); }
+        catch { return uncertainResult(); }
+      }
+      return undefined;
+    }
     // A paid run that spent nothing gives the turn's slot back; only the
     // chat's hooks took one (MCP admits with `countPaid: false`).
     if (
@@ -490,21 +601,24 @@ export const buildCapabilityTool = (
       releasePaidSlot(context.requestContext);
     }
 
-    const card = capability.cardOf?.(output) ?? null;
-    const result: CapabilityToolOutput = {
-      ok: true,
-      capability: capability.id,
-      summary: modelSummary(capability.summarize(output), capability.untrusted),
-      ...(card ? { card: { kind: card.kind, id: card.id } } : {}),
-    };
-    if (receiptScope && !context?.abortSignal?.aborted) {
-      await recordCommittedToolReceipt({
-        ...receiptScope,
-        receipt: { result, card },
-      });
+    let card: ReturnType<NonNullable<typeof capability.cardOf>> | null;
+    let result: CapabilityToolOutput;
+    try {
+      card = capability.cardOf?.(output) ?? null;
+      result = {
+        ok: true,
+        capability: capability.id,
+        summary: modelSummary(capability.summarize(output), capability.untrusted),
+        ...(card ? { card: { kind: card.kind, id: card.id } } : {}),
+      };
+    } catch (error) {
+      if (!receiptScope) throw error;
+      return uncertainResult();
     }
+    const durableResult = await commitResult(result, card);
+    if (durableResult.ok === false) return durableResult;
     if (card) await emit({ kind: card.kind, data: card });
-    return result;
+    return durableResult;
   };
 
   const tool = createTool({
@@ -513,11 +627,11 @@ export const buildCapabilityTool = (
     description: capability.description,
     inputSchema: inputSchemaFor(capability, options.entrance),
     requestContextSchema: capabilityContextSchema,
-    // Over MCP a `confirm` tool asks in the conversation instead (`kcxz.49`).
-    ...(options.entrance === 'chat' && capability.risk === 'confirm' ? { requireApproval: true } : {}),
-    // kcxz.45: in the web chat a lead action always asks (a lead's title is
-    // outside text); over MCP the client's own tool approval stays.
-    ...(options.entrance === 'chat' && capability.asksInWebChat ? { requireApproval: true } : {}),
+    // An explicit public verdict also overrides Session's global approval
+    // policy for ordinary tools. Invalid input never parks an approval card.
+    ...(options.entrance === 'chat' ? { requireApproval: (input: unknown) =>
+      mayAskApproval(capability) && !validateToolInput(toStandardSchema(capability.input), input).error,
+    } : {}),
     ...(options.entrance === 'chat' && mayAskApproval(capability)
       ? {
           beforeApproval: (async (
@@ -592,9 +706,12 @@ export const buildCapabilityTool = (
       const output = withoutEchoedInput(raw) as CapabilityToolOutput;
       if (output.ok === false) {
         const refused = output as CapabilityRefusal;
+        const inputRecovery = validatedInputRecovery(refused.code, refused.canReviseInput, refused.inputRecovery);
         return {
           type: 'json',
-          value: { ok: false, code: refused.code, reason: refused.reason },
+          value: { ok: false, code: refused.code, reason: refused.reason,
+            ...(refused.canReviseInput === true ? { canReviseInput: true } : {}),
+            ...(inputRecovery ? { inputRecovery } : {}) },
         };
       }
       return {
@@ -614,15 +731,9 @@ export const buildCapabilityTool = (
     },
     execute: ((input: any, context: ToolContextLike) =>
       options.entrance === 'chat'
-        ? trackAgentTurnWork(context?.requestContext, () => execute(input, context))
+        ? trackAgentTurnWork(context?.requestContext, () => execute(input, context), context)
         : execute(input, context)) as any,
   });
-  if (options.entrance === 'chat' && mayAskApproval(capability)) {
-    // Schema-invalid calls skip the approval gate so `beforeToolCall`
-    // returns `CAPABILITY_INPUT_INVALID` without parking a card.
-    (tool as any).needsApprovalFn = (input: unknown) =>
-      !validateToolInput(toStandardSchema(capability.input), input).error;
-  }
   return tool;
 };
 

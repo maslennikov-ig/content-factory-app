@@ -1,0 +1,171 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "real-fallback-scripted-primary",
+  "at": "2026-10-21T08:31:32.021Z",
+  "elapsedMs": 12021,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "8ba0c58c5636afde67119cbf18dda1e4aea1b445710a7d2aefe52414dd3adc7e",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "backendLaunch": {
+    "at": "2026-10-21T08:29:56.737Z",
+    "result": "STARTED",
+    "pid": 53623,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "paidCallsByBootstrap": 0
+  },
+  "kind": "SCRIPTED_PRIMARY_429_REAL_CONFIGURED_FALLBACK",
+  "requestId": "5e1bfa26-bcc0-41dc-9067-27d53d305087",
+  "threadId": "ceaa74e8-a982-458d-9795-7139f04ec270",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamTransportError": null,
+  "observationResponses": [],
+  "nativeContinuations": [],
+  "streamErrors": [],
+  "assistantText": [
+    "Каждую пятницу будем рассказывать команде, как идут работы, — чтобы всё было прозрачно."
+  ],
+  "pending": [],
+  "execution": {
+    "requestId": "eaecd4dd-c05c-4656-b866-898f60633fe5",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "2e7732a0-b83c-44c3-8b8d-547d81de62de"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "c96fe4f4-658a-4c51-aa36-28203a8fa780",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "z-ai/glm-5.3",
+      "status": "succeeded",
+      "promptTokens": 39517,
+      "completionTokens": 506,
+      "reasoningTokens": 482,
+      "cachedTokens": 0,
+      "costUsd": "0.04842849",
+      "possiblyBilled": false,
+      "attempt": 2
+    }
+  ],
+  "usageTotals": {
+    "operations": 1,
+    "knownCostUsd": 0.04842849,
+    "unknownCostOperations": 0,
+    "pendingOperations": 0,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": true,
+  "providerReceipts": [
+    {
+      "id": "a95d0650-ba52-489b-b4be-58e8c720c474",
+      "at": "2026-10-21T08:31:32.500Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": true,
+      "phase": "started",
+      "fault": "owned-primary-429"
+    },
+    {
+      "id": "a95d0650-ba52-489b-b4be-58e8c720c474",
+      "at": "2026-10-21T08:31:32.500Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": true,
+      "phase": "completed",
+      "status": 429,
+      "elapsedMs": 0,
+      "fault": "owned-primary-429",
+      "actualProviderRequest": false,
+      "usage": null
+    },
+    {
+      "id": "1e9ec525-c49a-4936-963d-f4fd713b202a",
+      "at": "2026-10-21T08:31:32.562Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "z-ai/glm-5.3",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "1e9ec525-c49a-4936-963d-f4fd713b202a",
+      "at": "2026-10-21T08:31:32.562Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "z-ai/glm-5.3",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "z-ai/glm-5.3",
+      "generationId": "gen-1792571493-dCDCNEg70iCm4d5QTUjQ",
+      "usage": {
+        "promptTokens": 39517,
+        "completionTokens": 506,
+        "totalTokens": 40023,
+        "reasoningTokens": 482,
+        "cachedTokens": 0,
+        "costUsd": 0.0484284933
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 10725
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Clearly scripted primary 429",
+    "Native fallback calls an already configured model through the real provider",
+    "Useful rewrite",
+    "Exact attempts and whole operation cost",
+    "QA settings restored"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-real-fallback-scripted-primary-2026-10-21T08-31-32-021Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "PASS"
+}

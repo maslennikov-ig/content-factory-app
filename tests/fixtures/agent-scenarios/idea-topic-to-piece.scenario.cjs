@@ -31,6 +31,7 @@ module.exports = {
   id: 'idea-topic-to-piece',
   title: 'Тема → проверка → повод → заготовка с адресом источника',
   covers: ['ideas.topic.add', 'ideas.check', 'ideas.queue', 'ideas.take', 'piece.create'],
+  incompleteTurns: [2],
   world: ideaRows({ topicFound: [FOUND] }),
   turns: [
     {
@@ -85,7 +86,8 @@ module.exports = {
     // «Проверить сейчас» a moment later: the service's own minute, in words;
     // nothing searched again, and the paid step is given back.
     expect(checked.outputs[0].output).toMatchObject({ ok: false, code: 'CHECK_TOO_SOON' });
-    expect(checked.admissions).toEqual([['agent', 'agent', 'user-1', 'succeeded']]);
+    expect(checked.admissions).toEqual([['agent', 'agent', 'user-1', 'failed']]);
+    expect(checked.execution).toMatchObject({ state: 'settled', outcome: 'failed' });
     // The lead, with the judge's own sentence as its reason.
     const queue = checked.outputs[1].output.summary.untrustedData.value;
     expect(queue.leads).toEqual([

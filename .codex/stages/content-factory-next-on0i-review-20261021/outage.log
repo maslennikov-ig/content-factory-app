@@ -1,0 +1,296 @@
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'anthropic/claude-4-sonnet',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: all providers unavailable
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'anthropic/claude-4-sonnet',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"all providers unavailable"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: 'ac250107-5b10-4106-91e5-a2b67637718a'
+}
+Mastra shutdown completed
+REVIEW_RESULT={"mode":"outage","streamOutputText":"","httpAttemptModels":["openai/gpt-5.4-primary","openai/gpt-5.4-primary","openai/gpt-5.4-backup-1","openai/gpt-5.4-backup-1","anthropic/claude-4-sonnet","anthropic/claude-4-sonnet"],"httpAttemptIntervalsMs":[20,6,4,6,5],"ledgerAttemptCount":6,"activeRunCount":0,"persistedRuns":[],"recovery":{"recovered":[],"succeeded":0,"failed":0}}

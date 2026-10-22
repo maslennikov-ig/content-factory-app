@@ -361,6 +361,9 @@ describe('stream errors are product codes (premortem S6)', () => {
     [{ cause: { status: 503 } }, 'AI_PROVIDER_BUSY'],
     // Not a provider's error: ours, whatever its status.
     [{ statusCode: 400, message: 'bad model' }, 'AGENT_FAILED'],
+    [{ statusCode: 402, message: 'Domain payment refused' }, 'AGENT_FAILED'],
+    [{ name: 'AI_APICallError', statusCode: 402, url: 'https://api.example' }, 'AI_PROVIDER_PAYMENT_REQUIRED'],
+    [{ name: 'AI_RetryError', cause: { name: 'AI_APICallError', statusCode: 402 } }, 'AI_PROVIDER_PAYMENT_REQUIRED'],
     // The provider refused the request itself (kcxz.29, D9): settings, not luck.
     [
       { name: 'AI_APICallError', statusCode: 404, url: 'https://api.example/v1/responses' },
@@ -485,6 +488,30 @@ describe('reading POST /agent/chat (premortem S2–S5)', () => {
   });
 
   const scope = { threadId: 'thread-1234', resourceId: 'org-1:user-1' };
+  test('native namespaced run ids parse for approvals and questions without relaxing ownership or other ids', () => {
+    const runId = `queued-turn:${'a'.repeat(64)}`;
+    const approval = { threadId: scope.threadId, messages: [{ id: 'msg-assistant-1', role: 'assistant', parts: [{
+      type: 'tool-piece_delete', toolCallId: 'call-1', state: 'approval-responded', approval: { id: `${runId}::call-1`, approved: true },
+    }] }] };
+    const parsed = request.parseAgentChatBody(approval);
+    expect(parsed.approvals[0].runId).toBe(runId);
+    const runs = [{ runId, ...scope, toolCalls: [{ toolCallId: 'call-1', toolName: 'piece_delete', requiresApproval: true, args: { pieceId: 'p1' } }] }];
+    expect(request.verifyPendingAnswer(parsed, runs, scope).runId).toBe(runId);
+    expect(() => request.verifyPendingAnswer(parsed, [], scope)).toThrow(expect.objectContaining({ code: 'AGENT_RUN_NOT_PENDING', status: 409 }));
+    expect(() => request.verifyPendingAnswer(parsed, [{ ...runs[0], resourceId: 'org-foreign:user-foreign' }], scope))
+      .toThrow(expect.objectContaining({ code: 'AGENT_NOT_YOURS', status: 403 }));
+    expect(request.parseAgentChatBody({ threadId: scope.threadId, runId, toolCallId: 'call-1', cardId: CARD(undefined), resumeData: {} }).runId).toBe(runId);
+    expect(() => request.parseAgentChatBody({ ...approval, threadId: runId })).toThrow(expect.objectContaining({ code: 'AGENT_BAD_REQUEST' }));
+    expect(() => request.parseAgentChatBody({ messages: [userMessage('hello', { id: runId })] })).toThrow(expect.objectContaining({ code: 'AGENT_BAD_REQUEST' }));
+  });
+
+  test.each(['../run-123', 'queued-turn:../123', 'queued turn:123', ':run-123', 'run-123:', 'run::123', '::::::', `queued-turn:${'a'.repeat(128)}`])(
+    'native run ids still reject malformed or unbounded values: %s', runId => {
+      expect(() => request.parseAgentChatBody({ threadId: scope.threadId, runId, cardId: CARD(undefined), resumeData: {} }))
+        .toThrow(expect.objectContaining({ code: 'AGENT_BAD_REQUEST' }));
+    }
+  );
+
   const pending = [
     {
       runId: 'run-approve-1',

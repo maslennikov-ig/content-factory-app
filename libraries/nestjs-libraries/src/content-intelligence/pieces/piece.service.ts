@@ -82,6 +82,7 @@ import type {
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import {
   INTAKE_HINTS_VERSION,
+  adaptationReferenceUrls,
   INTAKE_MATERIAL_MAX_CHARS,
   INTAKE_MATERIAL_MAX_ITEMS,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
@@ -498,6 +499,8 @@ const isoOf = (value: Date | string | null | undefined): string | null => {
  * строкой стрима.
  */
 export type PieceAdaptPlanV1 = {
+  /** Trusted native author references; not part of the public adaptation request. */
+  authorReferenceUrls?: string[];
   pieceId: string;
   integrationId: string;
   kind: AdaptationKindV1;
@@ -1289,7 +1292,8 @@ export class PieceService {
     organizationId: string,
     pieceId: string,
     request: PieceAdaptRequestV1,
-    language: 'ru' | 'en'
+    language: 'ru' | 'en',
+    internal?: { authorReferenceUrls?: string[] }
   ): Promise<PieceAdaptPlanV1> {
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
@@ -1349,7 +1353,9 @@ export class PieceService {
       piece.tags,
       integration.id
     );
+    const sourceUrls = adaptationReferenceUrls(...(internal?.authorReferenceUrls || []));
     return {
+      ...(sourceUrls.length ? { authorReferenceUrls: sourceUrls } : {}),
       pieceId,
       integrationId,
       firstOnChannel: !earlier.some((row) => row.integrationId === integration.id),
@@ -4893,6 +4899,29 @@ export class PieceService {
     return this.continueCoreResearch(organizationId, pieceId, actorUserId, input, 'person');
   }
 
+  /** Read retained evidence without applying it or repeating paid research. */
+  async readCoreResearchSnapshot(organizationId: string, pieceId: string, actorUserId: string, snapshotKey: string) {
+    if (!this.snapshots || !organizationId || !pieceId || !actorUserId || !snapshotKey) return null;
+    if (!await this.pieces.getPiece(organizationId, pieceId)) return null;
+    try {
+      const raw = await this.snapshots.get(this.coreResearchKey(organizationId, actorUserId, pieceId, snapshotKey));
+      if (!raw) return null;
+      const saved = JSON.parse(raw) as { version: string; organizationId: string; actorUserId: string;
+        pieceId: string; body: string; state: IntakeRunState; expiresAt: number } | null;
+      if (!saved || !(PIECE_RESEARCH_VERSIONS as readonly string[]).includes(saved.version) ||
+        saved.organizationId !== organizationId || saved.actorUserId !== actorUserId || saved.pieceId !== pieceId ||
+        !Number.isFinite(saved.expiresAt) || saved.expiresAt <= this.now().getTime() ||
+        typeof saved.body !== 'string' || !Array.isArray(saved.state?.evidence) ||
+        !Array.isArray(saved.state?.filled?.brief?.facts)) return null;
+      return { snapshotKey,
+        input: typeof saved.state.resumePlan?.input === 'string' ? saved.state.resumePlan.input : saved.body,
+        summary: saved.state.summary, evidence: saved.state.evidence, facts: saved.state.filled.brief.facts };
+    } catch {
+      this.logger.warn('The core research snapshot could not be read.');
+      return null;
+    }
+  }
+
   /** Editorial selection is recorded as model-origin, never a human card answer. */
   async acceptCoreResearchForModel(organizationId: string, pieceId: string, actorUserId: string,
     input: PieceResearchSelection) {
@@ -6085,6 +6114,7 @@ export class PieceService {
       : null;
     return {
       version: INTAKE_HINTS_VERSION,
+      ...(plan.authorReferenceUrls?.length ? { authorReferenceUrls: [...plan.authorReferenceUrls] } : {}),
       ...(plan.core?.request ? { request: plan.core.request } : {}),
       ...(trimmed(plan.core?.instructionText) ? { instructionText: plan.core!.instructionText } : {}),
       brief: {
@@ -6096,6 +6126,10 @@ export class PieceService {
         ...(brief?.origins ? { origins: { ...brief.origins } } : {}),
       },
       ...(plan.core ? { core: plan.core.text } : {}),
+      ...(brief ? { evidenceQuotes: selectedFactsBrief(brief).facts
+        .filter(fact => trimmed(fact.evidenceId) && trimmed(fact.quote))
+        .map(fact => ({ evidenceId: trimmed(fact.evidenceId), sourceUrl: trimmed(fact.sourceUrl),
+          quote: trimmed(fact.quote), statement: trimmed(fact.statement) })) } : {}),
       ...(material.length ? { material } : {}),
       ...(quoted.length
         ? { answers: quoted.map((answer) => `${answer.key}: ${answer.text}`) }

@@ -22,6 +22,25 @@ test.each([
   expect(root.required).toEqual(Object.keys(root.properties));
 });
 
+test.each([
+  ['native intake extraction', brief.briefFillSchemaV12],
+  ['current native intake extraction', briefV13.briefFillSchemaV13],
+])('%s defines human fact selection in the actual provider schema as a person action before writing', (_name, schema) => {
+  const root = zodResponseFormat(schema, 'extract').json_schema.schema;
+  const constraints = root.properties.understanding.properties.constraints.anyOf.find(row => row.type === 'object');
+  const description = constraints.properties.humanFactSelection.description;
+  const declared = meaning.intakeRequestSchemaV1.shape.constraints.unwrap().shape.humanFactSelection.unwrap().description;
+  expect(description).toEqual(expect.any(String));
+  expect(description.trim().length).toBeGreaterThan(0);
+  expect(description).toBe(declared);
+});
+
+test.each([true, false])('describing the human-selection field preserves its explicit %s value without coercion', humanFactSelection => {
+  const request = meaning.parseModelIntakeUnderstanding({ version: 'intake-request/v1', goal: 'Write the requested note.',
+    constraints: { humanFactSelection } });
+  expect(request.constraints.humanFactSelection).toBe(humanFactSelection);
+});
+
 test('provider nulls mean absent optional semantics, while explicit title and temporal boundaries survive', () => {
   const supplied = {
     version: 'intake-request/v1', goal: 'Объясни материал без новостей.', requestedOutputs: null,

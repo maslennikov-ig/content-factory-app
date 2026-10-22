@@ -1,0 +1,3 @@
+# Unified diff context uses a literal space on unchanged empty lines.
+# Keep reviewed patch bytes exact; other whitespace checks remain enabled.
+*.patch whitespace=-blank-at-eol

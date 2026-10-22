@@ -1,0 +1,43 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+FAIL tests/agent-native-conversation-flow.test.cjs
+  ✕ positive native idle refusal submits the same human message through the ordinary chat door (968 ms)
+  ○ skipped reload resumes the real SDK observer once and explicit Stop also reaches the server
+  ○ skipped a busy instruction is accepted by native server delivery and shown without a browser execution queue
+  ○ skipped a native continuation resumes as a fresh response and preserves the earlier partial assistant message
+  ○ skipped history arriving after a fresh conversation mount populates the log
+  ○ skipped a native pending question arriving in the mounted thread restores controls from its persisted input part
+  ○ skipped a native question suspension supersedes the earlier approval projection for the same call
+  ○ skipped an uncertain native queue acknowledgement stays unknown after history reload
+
+  ● positive native idle refusal submits the same human message through the ordinary chat door
+
+    The instruction was not accepted.
+
+      at eval (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:497:19)
+
+  ● positive native idle refusal submits the same human message through the ordinary chat door
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      84 |   await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: 'Send instruction' })));
+      85 |   const original = JSON.parse(f.calls.find(call => call.url.endsWith('/signals')).body).message;
+    > 86 |   expect(f.sendMessage).toHaveBeenCalledTimes(1);
+         |                         ^
+      87 |   expect(f.sendMessage.mock.calls[0][0]).toEqual(original);
+      88 |   expect(document.body.textContent).not.toContain(words.composer.signalAccepted);
+      89 | });
+
+      at Object.<anonymous> (tests/agent-native-conversation-flow.test.cjs:86:25)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 7 skipped, 8 total
+Snapshots:   0 total
+Time:        1.9 s, estimated 5 s
+Ran all test suites matching /tests\/agent-native-conversation-flow.test.cjs/i with tests matching "positive native idle".

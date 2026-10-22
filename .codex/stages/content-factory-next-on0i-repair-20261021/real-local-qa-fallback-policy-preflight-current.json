@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-21T08:14:58.456Z",
+  "result": "PASS_CURRENT_SOURCE_PREFLIGHT",
+  "policy": {
+    "flex": false,
+    "fallbackModel": "z-ai/glm-5.3",
+    "fallbackModels": [
+      "z-ai/glm-5.3"
+    ],
+    "configuredFallbackModels": [
+      "z-ai/glm-5.3"
+    ],
+    "fallbackDisabled": false,
+    "inheritedDefault": false,
+    "maxRetries": 0,
+    "effectiveChain": [
+      {
+        "model": "openai/gpt-6-luna",
+        "role": "primary",
+        "flex": false,
+        "maxRetries": 0
+      },
+      {
+        "model": "z-ai/glm-5.3",
+        "role": "fallback",
+        "flex": false,
+        "maxRetries": 0
+      }
+    ],
+    "unavailableModels": []
+  },
+  "entries": [
+    {
+      "id": "openrouter/openai/gpt-6-luna",
+      "modelId": "openai/gpt-6-luna",
+      "maxRetries": 0
+    },
+    {
+      "id": "openrouter/z-ai/glm-5.3",
+      "modelId": "z-ai/glm-5.3",
+      "maxRetries": 0
+    }
+  ],
+  "sourceHashes": {
+    "ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51"
+  },
+  "currentBackendNotRestarted": true,
+  "databaseWrites": 0,
+  "providerCalls": 0
+}

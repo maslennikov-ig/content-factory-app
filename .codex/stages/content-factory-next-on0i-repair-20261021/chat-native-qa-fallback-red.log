@@ -1,0 +1,74 @@
+FAIL tests/agent-native-retry-routing.test.cjs
+  R2 combined native routing and provider outage
+    ✕ an explicitly saved default fallback remains eligible for a workspace key (310 ms)
+    ✕ the current provider factory advances from primary 429 to an explicit default fallback with zero retries (2930 ms)
+    ○ skipped explicit session selection replaces the primary while preserving the ordered fallback policy
+    ○ skipped an OpenAI own key refuses a model from another provider before execution
+    ○ skipped retry settings survive native context cloning and ambiguous durable identities stay unresolved
+    ○ skipped included Flex transport plans exactly one HTTP request per native attempt
+    ○ skipped confident agent routing preserves one retry per ordered model
+    ○ skipped confident classify routing preserves one retry per ordered model
+    ○ skipped authorization failure sends one HTTP request and never walks fallback models
+    ○ skipped Stop during native retry delay prevents all later provider attempts
+    ○ skipped hard quota failures are actionable and never retried as availability faults
+    ○ skipped native Retry-After takes precedence over the configured backoff
+    ○ skipped classify auxiliary execution uses exactly the same single native retry budget
+    ○ skipped review auxiliary execution uses exactly the same single native retry budget
+    ○ skipped research auxiliary execution uses exactly the same single native retry budget
+    ○ skipped the metered native classifier returns a usable decision through the real outer Classifier
+
+  ● R2 combined native routing and provider outage › an explicitly saved default fallback remains eligible for a workspace key
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      22 |     const options = { provider: 'openrouter', usageMode: 'workspace_key', hasKey: true, primaryModel: 'openai/gpt-6-luna' };
+      23 |     const policy = chain.resolveOrderedTextChainPolicy(settings, options);
+    > 24 |     expect(policy.inheritedDefault).toBe(false);
+         |                                     ^
+      25 |     expect(policy.effectiveChain.map(entry => entry.model)).toEqual(['openai/gpt-6-luna', 'z-ai/glm-5.3']);
+      26 |     const inherited = chain.resolveTextChainSettings({ textFlexEnabled: false, textFallbackModel: null });
+      27 |     expect(chain.resolveOrderedTextChainPolicy(inherited, options).effectiveChain.map(entry => entry.model))
+
+      at Object.<anonymous> (tests/agent-native-retry-routing.test.cjs:24:37)
+
+  ● R2 combined native routing and provider outage › the current provider factory advances from primary 429 to an explicit default fallback with zero retries
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 2
+
+      Object {
+        "configuredMaxRetries": 0,
+        "httpAttemptModels": Array [
+          "openai/gpt-5.4-primary",
+    -     "z-ai/glm-5.3",
+        ],
+    -   "ledgerAttemptCount": 2,
+    +   "ledgerAttemptCount": 1,
+        "nativeModels": Array [
+          "openai/gpt-5.4-primary",
+    -     "z-ai/glm-5.3",
+        ],
+    -   "text": "Ответ получен от третьей модели в цепочке.",
+    +   "text": "",
+      }
+
+      32 |   test('the current provider factory advances from primary 429 to an explicit default fallback with zero retries', () => {
+      33 |     const result = outage('agent', 429, undefined, { allUnavailable: false, explicitDefaultFallback: true });
+    > 34 |     expect(result).toEqual({
+         |                    ^
+      35 |       httpAttemptModels: ['openai/gpt-5.4-primary', 'z-ai/glm-5.3'],
+      36 |       ledgerAttemptCount: 2,
+      37 |       configuredMaxRetries: 0,
+
+      at Object.<anonymous> (tests/agent-native-retry-routing.test.cjs:34:20)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 14 skipped, 16 total
+Snapshots:   0 total
+Time:        3.38 s, estimated 49 s
+Ran all test suites matching /tests\/agent-native-retry-routing.test.cjs/i with tests matching "explicitly saved default|current provider factory advances".

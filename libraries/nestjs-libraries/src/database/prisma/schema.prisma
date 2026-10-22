@@ -716,7 +716,7 @@ model InstanceAiDefaults {
   /// включён: одна попытка flex на 60 с (у потока — до первого токена) →
   /// обычный уровень → запасная модель (`content-factory-next-97dq.94`).
   textFlexEnabled     Boolean?
-  /// Запасная модель последней попытки. NULL или пусто — `z-ai/glm-5.3`
+  /// Запасная модель последней попытки. NULL или пусто — `xiaomi/mimo-v2.6-pro`
   /// (`DEFAULT_TEXT_FALLBACK_MODEL`).
   textFallbackModel   String?
   /// Кто менял последним — для чтения таблицы человеком во время разбора.
@@ -1554,6 +1554,8 @@ model ContentContextItem {
   inclusionReason          String
   statementHash            String?
   excerptHash              String?
+  /// Versioned literal span offsets and raw excerpt digest. Null retains legacy rendering.
+  evidenceProjection       Json?
   factStatement            String?
   factTemporalKind         String?
   factVerifiedAt           DateTime?

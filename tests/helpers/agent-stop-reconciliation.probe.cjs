@@ -1,6 +1,6 @@
 'use strict';
 
-// Source controller/service/adapter + installed Mastra1.71/Memory1.32 and
+// Source controller/service/adapter + installed Mastra1.78/Memory1.38 and
 // handleChatStream. The model is scripted, the service is a deferred Promise;
 // no provider, network, database or paid call is made.
 require('reflect-metadata');
@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { z } = require('zod');
 const { Agent } = require('@mastra/core/agent');
+const { createDurableAgent } = require('@mastra/core/agent/durable');
 const { Mastra } = require('@mastra/core/mastra');
 const { Memory } = require('@mastra/memory');
 const { InMemoryStore } = require('@mastra/core/storage');
@@ -25,12 +26,12 @@ lifecycle.AgentTurnLifecycle = class extends OriginalLifecycle {
   constructor(requestId, settle) { contextTrace.push({ registered: requestId }); super(requestId, settle); }
 };
 const trackWork = lifecycle.trackAgentTurnWork;
-lifecycle.trackAgentTurnWork = (context, work) => {
+lifecycle.trackAgentTurnWork = (context, work, invocation) => {
   contextTrace.push({
     executeId: context?.get('cf.executionId'), requestId: context?.get('cf.requestId'),
     resource: context?.get(MASTRA_RESOURCE_ID_KEY), thread: context?.get(MASTRA_THREAD_ID_KEY),
   });
-  return trackWork(context, work);
+  return trackWork(context, work, invocation);
 };
 const { inProcessRunClaimStore, agentRunClaimKey } = loadTypeScriptModule(`${CONDUCTOR}/agent-run-claims.ts`);
 const adapter = loadCapabilityModule('mastra.adapter.ts', { mocks: { '../conductor/agent-turn-lifecycle': lifecycle } });
@@ -224,14 +225,49 @@ async function lateOldCallback() {
   const late = old.run(() => gate.promise.then(() => tool.execute({}, { requestContext: requestContext('old-invocation') })));
   await old.finish('interrupted');
   const next = new lifecycle.AgentTurnLifecycle('new-invocation', async () => {});
-  await next.run(async () => {
-    gate.resolve();
-    await assert.rejects(late, /request has stopped/);
-    assert.equal(writes, 0);
-    await tool.execute({}, { requestContext: requestContext('new-invocation') });
-  });
-  await next.finish('completed');
-  assert.equal(writes, 1);
-  return { oldRejected: true, successorWrites: writes };
+  const storage = new InMemoryStore();
+  await storage.init();
+  const memory = new Memory({ storage, options: { generateTitle: false, semanticRecall: false } });
+  let step = 0;
+  const model = {
+    specificationVersion: 'v3', provider: 'scripted', modelId: 'scripted', supportedUrls: {},
+    doGenerate: async () => { throw new Error('Streaming only.'); },
+    doStream: async () => {
+      const calling = step++ === 0;
+      const parts = [{ type: 'stream-start', warnings: [] },
+        ...(calling ? [{ type: 'tool-call', toolCallId: 'fresh-native-call', toolName: 'test_late', input: '{}' }] : [
+          { type: 'text-start', id: 'done' }, { type: 'text-delta', id: 'done', delta: 'Done.' }, { type: 'text-end', id: 'done' },
+        ]),
+        { type: 'finish', finishReason: { unified: calling ? 'tool-calls' : 'stop', raw: calling ? 'tool_calls' : 'stop' }, usage },
+      ];
+      return { stream: new ReadableStream({ start(controller) { for (const part of parts) controller.enqueue(part); controller.close(); } }) };
+    },
+  };
+  const agent = createDurableAgent({ agent: new Agent({
+    id: 'late-callback-native', name: 'Late callback native successor', instructions: 'Use the scripted tool once.',
+    model, memory, tools: { test_late: tool },
+  }), cleanupTimeoutMs: 0 });
+  const mastra = new Mastra({ logger: false, storage, agents: { successor: agent }, recovery: { durableAgents: 'auto' } });
+  try {
+    await next.run(async () => {
+      gate.resolve();
+      await assert.rejects(late, /request has stopped/);
+      assert.equal(writes, 0);
+      // A trusted successor has the native invocation and persistence the
+      // adapter requires before a tracked write; an isolated tool.execute does not.
+      await agent.generate('Write once.', {
+        runId: 'fresh-native-successor', requestContext: requestContext('new-invocation'),
+        memory: { thread: threadId, resource: resourceId },
+      });
+    });
+    await next.finish('completed');
+    assert.equal(writes, 1);
+    const witnesses = Object.entries((await memory.getThreadById({ threadId })).metadata ?? {})
+      .filter(([key]) => key.startsWith('assistant-operation-run:'));
+    assert.equal(witnesses.length, 1);
+    const state = await storage.getStore('threadState');
+    assert.equal((await state.getState({ threadId, type: witnesses[0][1].operationType })).state, 'committed');
+    return { oldRejected: true, successorWrites: writes };
+  } finally { await mastra.shutdown(); }
 }
 main().catch((error) => { process.stderr.write(String(error.stack ?? error)); process.exitCode = 1; });

@@ -75,11 +75,20 @@ export const INTERACTIVE_FLEX_TIMEOUT_MS = 25_000;
 /** Time the SDK allows beyond the attempts themselves, for reading the body. */
 const CHAIN_BUDGET_MARGIN_MS = 5_000;
 
-export const DEFAULT_TEXT_FALLBACK_MODEL = 'z-ai/glm-5.3';
+export const DEFAULT_TEXT_FALLBACK_MODEL = 'openai/gpt-6.1-sol';
 export const DEFAULT_TEXT_FLEX_ENABLED = true;
 export const DEFAULT_TEXT_MAX_RETRIES = 0;
 export const MAX_TEXT_FALLBACK_MODELS = 8;
 export const MAX_TEXT_MODEL_RETRIES = 5;
+
+/** Owner21Oct: our Sol6.1 route is discounted-only; own-key choices stay authoritative. */
+const discountedSolOnly = (
+  model: string,
+  source: { provider: string; usageMode: string }
+): boolean =>
+  model === 'openai/gpt-6.1-sol' &&
+  source.provider === 'openrouter' &&
+  source.usageMode === 'included';
 
 /** What the operator or workspace set on the row; absent reads as the defaults. */
 export interface TextChainSettings {
@@ -326,10 +335,18 @@ export const resolveTextChainSettings = (row?: {
   const explicitMaxRetries = clampMaxRetries(row?.textMaxRetries);
   const parsed = parseStoredTextFallback(row?.textFallbackModel);
 
-  if (!hasExplicitArray && !hasExplicitDisabled && explicitMaxRetries === undefined && !parsed.structured) {
+  // A plain model id is still an explicit operator choice, including when it
+  // equals the built-in default. Preserve that provenance in fallbackModels
+  // so resolving these settings again does not drop an own-key fallback.
+  if (!hasExplicitArray && !hasExplicitDisabled && explicitMaxRetries === undefined &&
+    !parsed.structured && parsed.inheritedDefault) {
     return {
       flex,
       fallbackModel: parsed.models[0] || DEFAULT_TEXT_FALLBACK_MODEL,
+      // A stored single model is an explicit choice even when it matches the
+      // built-in default. Preserve it as an explicit list so the resolved
+      // settings do not suppress it in workspace-key mode as an inherited one.
+      ...(!parsed.inheritedDefault ? { fallbackModels: parsed.models } : {}),
     };
   }
 
@@ -497,10 +514,11 @@ export const resolveOrderedTextChainPolicy = (
       model: primaryModel,
       role: 'primary',
       flex:
-        flex &&
-        usageMode === 'included' &&
-        provider === 'openrouter' &&
-        primaryModel.startsWith('openai/'),
+        discountedSolOnly(primaryModel, { provider, usageMode }) ||
+        (flex &&
+          usageMode === 'included' &&
+          provider === 'openrouter' &&
+          primaryModel.startsWith('openai/')),
       maxRetries,
     });
   }
@@ -508,7 +526,7 @@ export const resolveOrderedTextChainPolicy = (
     effectiveChain.push({
       model: fallback,
       role: 'fallback',
-      flex: false,
+      flex: discountedSolOnly(fallback, { provider, usageMode }),
       maxRetries,
     });
   }
@@ -533,7 +551,7 @@ export const textChainFingerprint = (settings?: TextChainSettings): string => {
     : settings.fallbackModel ?? '';
   return `${settings.flex}|${models}|${settings.fallbackDisabled ? 'disabled' : 'enabled'}|${
     settings.maxRetries ?? ''
-  }`;
+  }|${Array.isArray(settings.fallbackModels) ? 'explicit' : 'legacy'}`;
 };
 
 /** The part of a resolved configuration the transport reads. */
@@ -604,10 +622,9 @@ export const textChainApplies = (source: TextChainSource): boolean => {
 };
 
 /**
- * Luna-family ids take `reasoning.effort`. GLM gets nothing: OpenRouter's
- * unified `reasoning` object is honoured per model, and the owner's decision
- * names Luna, so a fallback keeps the provider's own default rather than a
- * guessed one.
+ * Luna-family ids take `reasoning.effort`. The owner also selects medium for
+ * Sol6.1; other fallback vendors keep their provider's native default.
+ * Explicit caller reasoning settings remain authoritative.
  */
 export const isLunaModel = (model: string): boolean =>
   /(^|\/)gpt-[\w.]*-luna(\b|$)/i.test(model);
@@ -629,29 +646,26 @@ export const planTextAttempts = (
     ];
   }
   const settings = source.textChain ?? defaultTextChainSettings();
+  const primaryDiscountedOnly = discountedSolOnly(model, source);
   if (source.singleModelAttempt) {
-    const singleSteps: Array<Omit<TextAttempt, 'number'>> = [];
-    if (
+    const flex = primaryDiscountedOnly || Boolean(
       settings.flex &&
       source.usageMode === 'included' &&
       source.provider === 'openrouter' &&
       flexCapable(model)
-    ) {
-      singleSteps.push({
-        model,
-        flex: true,
-        timeoutMs:
-          source.profile === 'interactive'
-            ? INTERACTIVE_FLEX_TIMEOUT_MS
-            : FLEX_ATTEMPT_TIMEOUT_MS,
-      });
-    }
-    singleSteps.push({
+    );
+    // The native agent owns all retries and failover. Selecting Flex changes
+    // this attempt's tier/deadline; it must never add a hidden Standard call.
+    return [{
+      number: 1,
       model,
-      flex: false,
-      timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
-    });
-    return singleSteps.map((step, index) => ({ ...step, number: index + 1 }));
+      flex,
+      timeoutMs: flex
+        ? source.profile === 'interactive'
+          ? INTERACTIVE_FLEX_TIMEOUT_MS
+          : FLEX_ATTEMPT_TIMEOUT_MS
+        : STANDARD_ATTEMPT_TIMEOUT_MS,
+    }];
   }
   const policy = resolveOrderedTextChainPolicy(settings, {
     provider: source.provider,
@@ -661,10 +675,11 @@ export const planTextAttempts = (
   });
   const steps: Array<Omit<TextAttempt, 'number'>> = [];
   if (
-    settings.flex &&
-    source.usageMode === 'included' &&
-    source.provider === 'openrouter' &&
-    flexCapable(model)
+    primaryDiscountedOnly ||
+    (settings.flex &&
+      source.usageMode === 'included' &&
+      source.provider === 'openrouter' &&
+      flexCapable(model))
   ) {
     // One flex attempt (`97dq.94`): the interactive chat keeps its shorter
     // time to first token.
@@ -678,15 +693,23 @@ export const planTextAttempts = (
     });
   }
   const standardTriesPerModel = 1 + policy.maxRetries;
-  for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
-    steps.push({ model, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS });
+  for (let retry = primaryDiscountedOnly ? 1 : 0; retry < standardTriesPerModel; retry += 1) {
+    steps.push({
+      model,
+      flex: primaryDiscountedOnly,
+      timeoutMs: primaryDiscountedOnly && source.profile === 'interactive'
+        ? INTERACTIVE_FLEX_TIMEOUT_MS
+        : STANDARD_ATTEMPT_TIMEOUT_MS,
+    });
   }
   for (const fallback of policy.fallbackModels) {
     for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
       steps.push({
         model: fallback,
-        flex: false,
-        timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
+        flex: discountedSolOnly(fallback, source),
+        timeoutMs: discountedSolOnly(fallback, source) && source.profile === 'interactive'
+          ? INTERACTIVE_FLEX_TIMEOUT_MS
+          : STANDARD_ATTEMPT_TIMEOUT_MS,
       });
     }
   }
@@ -775,14 +798,22 @@ export const buildAttemptBody = (
 ): Record<string, unknown> => {
   const body: Record<string, unknown> = { ...original, model: attempt.model };
   delete body.service_tier;
-  if (attempt.flex) body.service_tier = 'flex';
+  if (attempt.flex) {
+    body.service_tier = 'flex';
+    if (attempt.model === 'openai/gpt-6.1-sol') {
+      const provider = original.provider && typeof original.provider === 'object'
+        ? original.provider as Record<string, unknown>
+        : {};
+      body.provider = { ...provider, only: ['openai/flex'], allow_fallbacks: false };
+    }
+  }
   const usage =
     original.usage && typeof original.usage === 'object'
       ? (original.usage as Record<string, unknown>)
       : {};
   body.usage = { ...usage, include: true };
   if (
-    isLunaModel(attempt.model) &&
+    (isLunaModel(attempt.model) || attempt.model === 'openai/gpt-6.1-sol') &&
     original.reasoning === undefined &&
     original.reasoning_effort === undefined
   ) {
@@ -1403,6 +1434,44 @@ const parseBody = (init?: RequestInit): Record<string, unknown> | undefined => {
   }
 };
 
+const isOpenRouterChatUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'openrouter.ai' && /\/chat\/completions$/.test(parsed.pathname);
+  } catch { return false; }
+};
+
+const isOpenRouterInFlightBudgetBody = (text: string): boolean => {
+  try { return JSON.parse(text)?.error?.metadata?.limit_source === 'openrouter_in_flight_budget'; }
+  catch { return false; }
+};
+
+/** Only the provider-normalized SDK error may override a human billing hint. */
+export const isOpenRouterInFlightBudgetError = (error: unknown): boolean => {
+  const value = error as { statusCode?: unknown; url?: unknown; responseBody?: unknown } | null;
+  return value?.statusCode === 429 && typeof value.url === 'string' &&
+    isOpenRouterChatUrl(value.url) && typeof value.responseBody === 'string' &&
+    isOpenRouterInFlightBudgetBody(value.responseBody);
+};
+
+/** OpenRouter's temporary credit reservation is capacity, not exhausted credit. */
+const withOpenRouterInFlightBudget = (source: TextChainSource, fetch: FetchLike): FetchLike =>
+  async (input, init) => {
+    const response = await fetch(input, init);
+    if (source.provider !== 'openrouter' || response.status !== 402 ||
+      !isChatCompletions(urlOf(input), { method: init?.method ?? (input instanceof Request ? input.method : 'GET') }) ||
+      !isOpenRouterChatUrl(urlOf(input))) return response;
+    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+    const text = await (signal ? abortable(response.text(), signal) : response.text());
+    // limit_source is authoritative; reason and human hints may change.
+    const status = isOpenRouterInFlightBudgetBody(text) ? 429 : response.status;
+    return new Response(text, {
+      status,
+      statusText: status === 429 ? 'Too Many Requests' : response.statusText,
+      headers: copyHeaders(response.headers),
+    });
+  };
+
 /**
  * The shared `fetch` for every text-capable client.
  *
@@ -1431,7 +1500,7 @@ export const createTextChainFetch = (
     budgetMs?: number;
   } = {}
 ): FetchLike =>
-  withLengthRetry(source, sendText(source, baseFetch), options.budgetMs);
+  withLengthRetry(source, sendText(source, withOpenRouterInFlightBudget(source, baseFetch)), options.budgetMs);
 
 /* ------------------------------------------------------------------------ */
 /* An answer cut at the ceiling                                             */
@@ -1664,7 +1733,12 @@ const sendText = (
     // three minutes would outlive that budget and bill in the background.
     const pluginCall = Array.isArray(original.plugins);
 
-    if (!textChainApplies(source) || imageRequest || pluginCall) {
+    // A mistaken image-role alias or a search plugin must not bypass our
+    // discounted-only Sol policy. Own-key and real image models keep passthrough.
+    if (
+      (!textChainApplies(source) || imageRequest || pluginCall) &&
+      !discountedSolOnly(original.model, source)
+    ) {
       const attempt: TextAttempt = {
         number: 1,
         model: original.model,

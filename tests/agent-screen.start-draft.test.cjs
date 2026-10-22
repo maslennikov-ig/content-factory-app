@@ -193,6 +193,25 @@ const field = () => document.querySelector('textarea');
 beforeEach(reset);
 afterEach(cleanup);
 
+test('returning to a conversation that began fresh loads native history and preserves its unsent draft', async () => {
+  await open('/agents/new');
+  await act(async () => world.conversationProps.onThreadId('named-native-thread'));
+  const original = field();
+  fireEvent.change(original, { target: { value: 'Неотправленный черновик' } });
+  await act(async () => world.switcher.onNew());
+  world.history = { ok: true, status: 200, json: async () => ({
+    thread: null, pending: [], messages: [
+      { id: 'saved-human', role: 'user', parts: [{ type: 'text', text: 'Сохранённый вопрос' }] },
+      { id: 'saved-answer', role: 'assistant', parts: [{ type: 'text', text: 'Сохранённый ответ' }] },
+    ],
+  }) };
+  await act(async () => world.switcher.onOpen('named-native-thread'));
+  await waitFor(() => expect(world.sessions.get('named-native-thread').initialMessages.map(message => message.id)).toEqual(['saved-human', 'saved-answer']));
+  expect(original.value).toBe('Неотправленный черновик');
+  expect(original.isConnected).toBe(true);
+  expect(world.sent).toEqual([]);
+});
+
 test('persistent route and contextual show signal reach the same conversation without remounting or losing composer input', async () => {
   world.routeId = 't1';
   const view = await open('/agents/t1');

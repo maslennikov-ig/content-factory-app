@@ -1,0 +1,182 @@
+{
+  "schema": "queued-native-stop-response-proposal/1",
+  "at": "2026-10-21T13:43:17.799Z",
+  "status": "READONLY_SOURCE_DIAGNOSIS_CONFIRMED_WAITING_ROOT_GO",
+  "toolchain": {
+    "node": "v22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "classification": "must-fix",
+  "confidence": "confirmed by one scripted-provider actual-native PostgreSQL reproduction",
+  "boundary": "Queued native child original fullStream consumer does not record assistant response identity; HTTP original view has onMessageId but ActiveTurns is intentionally absent for a native queue owner.",
+  "sourceFiles": {
+    "apps/backend/src/api/routes/agent.controller.ts": "0842745fe8117d3c2273f9e15cefb63c4b97d0f39e8aaa0cd8e8a817f88f521d",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "fb912699889e903b8498ffbeef27837ca571128ba39673602e8ea701e70182d6",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "eedacbbf52642af0128a8641789d91e15f2851fe1053016684f1110455b814e3",
+    "tests/helpers/agent-native-session-queued.probe.cjs": "22f1f5515a856012f6142386bcd8cbea46cd3d7bc819664a82d2756d2ddbdb3f",
+    "tests/agent-native-session-queued.test.cjs": "8783a1c1dad0975e26791906418a5cb62762f5f7f4d77dcd81d25bce50c69c3b"
+  },
+  "evidence": {
+    "evidence/stop-queued-response-diagnostic.cjs": "03397347940a01727951ec5376636bee2c3ebcf71a1d01af2eb93a74f22d5113",
+    "evidence/stop-queued-response-diagnostic.red.log": "b56f8bd31c7e6b85e0f045362d1b1f3b1b995c443f578230346ec7ff14e0c11c"
+  },
+  "snapshots": [
+    {
+      "diagnostic": "native-producer-consumer",
+      "actualRunId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "outputMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058",
+      "consumer": "native-queued-input original runtime.agent.stream fullStream",
+      "flags": {
+        "untilIdle": false,
+        "closeOnSuspend": false
+      }
+    },
+    {
+      "diagnostic": "native-producer-consumer",
+      "actualRunId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "outputMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058",
+      "consumer": "native-queued-input original runtime.agent.stream fullStream",
+      "flags": {
+        "untilIdle": true,
+        "closeOnSuspend": false
+      }
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "start",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "payloadMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058"
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "start",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "payloadMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058"
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "step-start",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "payloadMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058"
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "step-start",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+      "payloadMessageId": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058"
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "tool-call-suspended",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7"
+    },
+    {
+      "diagnostic": "original-native-chunk",
+      "type": "tool-call-suspended",
+      "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7"
+    },
+    {
+      "diagnostic": "before-queued-stop",
+      "schemaName": "cf_service_native_1792590054455_22489",
+      "requestId": "7fef40d2-45ce-4375-b58b-3deb419c49ec",
+      "pointer": {
+        "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+        "state": "running",
+        "logicalRequestId": "7fef40d2-45ce-4375-b58b-3deb419c49ec",
+        "availabilityCycles": 0
+      },
+      "execution": {
+        "requestId": "7fef40d2-45ce-4375-b58b-3deb419c49ec",
+        "state": "unknown",
+        "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7"
+      },
+      "nativeOwner": true,
+      "activeHTTP": null,
+      "pendingCount": 1,
+      "messages": [
+        {
+          "id": "queued-stop",
+          "role": "signal",
+          "parts": [
+            "text"
+          ]
+        },
+        {
+          "id": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058",
+          "role": "assistant",
+          "parts": [
+            "tool-invocation"
+          ]
+        }
+      ]
+    },
+    {
+      "diagnostic": "queued-stop-refusal",
+      "status": 503,
+      "message": "Native Stop could not confirm its saved response.",
+      "pointer": {
+        "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7",
+        "state": "stopped",
+        "retryAt": null,
+        "logicalRequestId": "7fef40d2-45ce-4375-b58b-3deb419c49ec",
+        "availabilityCycles": 0,
+        "continuationPending": false,
+        "continuationIdentity": null
+      },
+      "execution": {
+        "requestId": "7fef40d2-45ce-4375-b58b-3deb419c49ec",
+        "state": "settled",
+        "outcome": "interrupted",
+        "runId": "queued-turn:316b8a84b3f00eebf57fd0c29dc8284455669cf24b44fec2265bb8bdb76523c7"
+      },
+      "nativeOwner": false,
+      "pendingCount": 0,
+      "messages": [
+        {
+          "id": "queued-stop",
+          "role": "signal",
+          "parts": [
+            "text"
+          ]
+        },
+        {
+          "id": "2ca5aa10-2d2f-4ce3-9784-c11dd70f2058",
+          "role": "assistant",
+          "parts": [
+            "tool-invocation"
+          ]
+        }
+      ]
+    }
+  ],
+  "publicContracts": {
+    "ChunkType.start": "Installed @mastra/core/dist/stream/types.d.ts exposes runId and start payload. Actual existing queue reader receives payload.messageId matching the saved assistant ID.",
+    "MastraModelOutput.messageId": "Public installed output field matches the same saved ID.",
+    "memoryStore.updateThreadMetadata": "Existing public atomic metadata updater used by this native queue adapter already; guard current marker/request/run against stale writers."
+  },
+  "proposal": {
+    "changedApp": [
+      "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts"
+    ],
+    "unchanged": "HTTP original reader drain, strictStop proof predicate and frontend guards.",
+    "steps": [
+      "Add optional runtime onMessageId callback used by the already-existing child native fullStream and child observeCompletion consumers when their native start chunk carries an ID. Waiting on a preceding different task must not adopt its proof.",
+      "MastraService records that exact response only for the trusted input request/current execution marker, same current native run, and nonstopped task; use public atomic metadata updater so late A cannot overwrite B.",
+      "When first native start creates proof before model admission, preserve it if beforeModelAttempt initializes the exact same request+run; replace=true must still discard all proof for a different owner/run.",
+      "Any failed/missing response write remains actionable and the existing saved-assistant Memory check remains mandatory."
+    ],
+    "verification": [
+      "queued approval/question/Stop same owner and one original admission",
+      "wrong request/run and stopped marker refuse proof writes",
+      "failed proof persistence cannot fabricate positive Stop",
+      "native queue basic/recovery/lineage checks and prior HTTP Stop tail/early/no-pointer failures"
+    ]
+  },
+  "limits": [
+    "No application/test/helper source changed. Stage-only diagnostic instrumented original public fullStream with a pass-through proxy; native untilIdle wrapper plus its underlying stream log the same single run twice.",
+    "Exactly one actual diagnostic run with synthetic providers; no paid call, owner stand action, restart, build or broad suite.",
+    "Existing scenario finally dropped its isolated PostgreSQL fixture and removed its temporary audit directory."
+  ]
+}

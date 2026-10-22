@@ -22,6 +22,7 @@ import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-li
 import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { StoredEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { IntakeUnderstandingV1 } from '../content-intelligence/intake/request-understanding';
+import type { PieceEvidenceInputV1 } from '../content-intelligence/context/content-context.types';
 
 /**
  * `v2` (`97dq.75`) carries `authorLink`, the author's link for the post, into
@@ -36,6 +37,12 @@ import type { IntakeUnderstandingV1 } from '../content-intelligence/intake/reque
 export const INTAKE_HINTS_VERSION = 'intake-hints/v3' as const;
 export const INTAKE_HINTS_VERSION_V2 = 'intake-hints/v2' as const;
 export const INTAKE_HINTS_VERSION_V1 = 'intake-hints/v1' as const;
+
+/** Bounded reference selectors only; the registry still validates URL and source proof. */
+export const adaptationReferenceUrls = (...texts: string[]): string[] =>
+  [...new Set(texts.flatMap(text => (text.match(/https:\/\/[^\s<>"')\]]+/gu) || [])
+    .map(url => url.replace(/[.,;!?]+$/u, '')).filter(url => url.length <= 2_000)))].slice(0, 64);
+
 
 /**
  * Опора заготовки словами: утверждение и адрес, по которому его проверяли.
@@ -88,7 +95,11 @@ export type IntakeChannelHintsV1 = {
 };
 
 export type IntakeGenerationHintsV1 = {
+  /** Server-owned current author references, separate from the model-supplied editorial wish. */
+  authorReferenceUrls?: string[];
   allowQuestion?: boolean;
+  /** Saved selected quotes, outside the short editorial material budget. All are untrusted until registry validation. */
+  evidenceQuotes?: PieceEvidenceInputV1['quotes'];
   version:
     | typeof INTAKE_HINTS_VERSION
     | typeof INTAKE_HINTS_VERSION_V2

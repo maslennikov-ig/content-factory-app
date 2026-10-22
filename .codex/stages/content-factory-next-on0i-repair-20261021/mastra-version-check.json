@@ -1,0 +1,34 @@
+{
+  "checkedDate": "2026-10-21",
+  "source": "Published registry metadata through pnpm view <package> version; installed package.json pins compared",
+  "latestStableAndPinned": {
+    "@mastra/core": "1.78.0",
+    "@mastra/memory": "1.38.0",
+    "@mastra/pg": "1.31.2",
+    "@mastra/ai-sdk": "1.11.1",
+    "@mastra/redis": "1.4.10",
+    "@mastra/redis-streams": "0.6.3",
+    "@mastra/observability": "1.20.1",
+    "mastra": "1.34.2"
+  },
+  "mcp": {
+    "latestStable": "2.4.1",
+    "pinned": "1.18.0",
+    "decision": "Intentional supported compatibility pin for existing pre-2026 clients and the current serverless HTTP transport contract",
+    "evidence": "mcp-compatibility.md",
+    "officialMigration": "https://mastra.ai/reference/migrations/mcp-v2"
+  },
+  "observabilityEvidence": "real-local-qa-native-observability.json",
+  "typeSupport": {
+    "@types/pg": "8.23.1",
+    "purpose": "public caller-owned PostgreSQL pool lifecycle types",
+    "license": "MIT",
+    "existingRuntimePinsChanged": false
+  },
+  "cliEvidence": {
+    "command": "pnpm view mastra version",
+    "exitCode": 0,
+    "version": "1.34.2",
+    "checkedDate": "2026-10-21"
+  }
+}

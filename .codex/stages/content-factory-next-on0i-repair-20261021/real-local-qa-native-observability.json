@@ -1,0 +1,238 @@
+{
+  "schema": "content-factory-native-observability-proof/1",
+  "at": "2026-10-21T11:03:18.196Z",
+  "result": "PASS_NATIVE_PRODUCER_REDACTION_SCOPED_LEGACY_PG_CONSUMER",
+  "runtimeHttp": {
+    "result": "PASS_ACTUAL_AUTHENTICATED_CURRENT_RUNTIME",
+    "backendPid": 87219,
+    "bootstrapReceipt": "real-local-qa-native-observability-final-bootstrap.json",
+    "currentResearchReceipt": "real-local-qa-final-postgresql-native-traces.json",
+    "currentBrowserReceipt": "real-local-qa-root-current-compiled-native-traces.json",
+    "researchHttpStatus": 200,
+    "researchRoots": 1,
+    "researchSpans": 202,
+    "researchRequestId": "a779ebf4-8d08-46da-890a-6af263c57dbc",
+    "mainAndToolSpansPresent": true,
+    "configuredCredentialsAbsent": true,
+    "allInputOutputOmitted": true,
+    "explicitScopeConflicts": 0,
+    "semanticOutcome": "FAILED_RESEARCH_CASE_NOT_ACCEPTED",
+    "semanticFailureBoundary": "readConversationHistory-required-unnecessary-manual-approval; intake-result-insufficient; noCOREwritten",
+    "failureReceipt": "real-local-qa-scenario-final-postgresql-skip-locked.json",
+    "stoppedReceipt": "real-local-qa-final-postgresql-parked-stop.json"
+  },
+  "gracefulShutdown": {
+    "result": "PASS",
+    "publicApi": "PostgresStore({pool}) caller-owned-pool; Mastra.shutdown(); finally pool.end()",
+    "nativeDrainOrderPreserved": true,
+    "shutdownProof": {
+      "actualServiceAndStore": true,
+      "actualNativeEventedDrain": true,
+      "manualFlush": false,
+      "bufferedSpanPersisted": true,
+      "spanEndedDuringDrainPersisted": true,
+      "repeatedShutdownIdempotent": true,
+      "ownedPoolEnds": 1,
+      "actualExternalRequests": 0,
+      "actualProviderCalls": 0
+    },
+    "redControl": {
+      "actualServiceShutdown": true,
+      "manualFlush": false,
+      "bufferedSpanPersisted": false,
+      "exit": 1,
+      "log": "real-local-qa-native-observability-shutdown-red.log"
+    },
+    "fixtureCorrection": "Explicit public mastra.startWorkers required for evented-only library fixture; incomplete fixture created one uniquely owned schema, removed by exact PID/name guard before final proof."
+  },
+  "integration": {
+    "producer": "Observability",
+    "exporter": "MastraStorageExporter",
+    "exporterCount": 1,
+    "destination": "existing-local-Mastra-PostgreSQL",
+    "externalExporters": 0,
+    "processor": "native-public-SpanOutputProcessor",
+    "storageEngine": "native-PostgresStore",
+    "customTraceEngine": false,
+    "rawSpanSql": false,
+    "scopeInheritance": "verified-root-and-parent-chain-only",
+    "explicitConflict": "exclude-branch",
+    "requestContext": "trusted-primitive-IDs-only",
+    "inputOutput": "omitted-before-export",
+    "privateErrors": "generic-message-and-bounded-native-classification"
+  },
+  "dependency": {
+    "name": "@mastra/observability",
+    "version": "1.20.1",
+    "license": "Apache-2.0",
+    "engines": {
+      "node": ">=22.13.0"
+    },
+    "peerDependencies": {
+      "@mastra/core": ">=1.16.0-0 <2.0.0-0",
+      "zod": "^3.25.0 || ^4.0.0"
+    },
+    "existingPinsUnchanged": true,
+    "existingLockPackageMetadataUnchanged": true,
+    "removedLockPackages": [],
+    "installCommand": "pnpm add --workspace-root --save-exact @mastra/observability@1.20.1 --ignore-scripts",
+    "installExit": 0,
+    "newDirectRuntimeDependencies": [
+      {
+        "name": "@mastra/observability",
+        "before": null,
+        "after": "1.20.1"
+      }
+    ],
+    "newDirectDevelopmentTypes": [
+      {
+        "name": "@types/pg",
+        "before": null,
+        "after": "8.23.1"
+      }
+    ],
+    "newLockPackages": [
+      "@mastra/observability@1.20.1",
+      "@types/pg@8.23.1"
+    ],
+    "typesLicense": "MIT",
+    "typesInstallCommand": "pnpm add --workspace-root --save-dev --save-exact @types/pg@8.23.1 --ignore-scripts",
+    "typesInstallExit": 0
+  },
+  "proof": {
+    "nativeObservability": true,
+    "postgres": true,
+    "nativeAgentAndTool": true,
+    "linkedTool": true,
+    "otherActorExcluded": true,
+    "otherThreadExcluded": true,
+    "requestCorrelation": true,
+    "secretsAndMediaNeverStored": true,
+    "inputOutputOmitted": true,
+    "realLegacyConsumer": true,
+    "privateInstructionsAndToolDescriptionsOmitted": true,
+    "nativeProviderFailureDetailsOmitted": true,
+    "advancedMetricsUnsupported": true,
+    "scopeLessChildrenInherited": true,
+    "conflictingBranchesExcluded": true,
+    "syntheticModelCalls": 2,
+    "actualProviderCalls": 0,
+    "actualExternalRequests": 0,
+    "inlineMediaReads": [
+      {
+        "scheme": "data:",
+        "mediaType": "image/jpeg",
+        "method": "GET",
+        "hasBody": false,
+        "headerNames": []
+      },
+      {
+        "scheme": "data:",
+        "mediaType": "application/pdf",
+        "method": "GET",
+        "hasBody": false,
+        "headerNames": []
+      }
+    ],
+    "blockedExternalRequests": []
+  },
+  "postgresFixture": {
+    "schema": "unique-cf_native_obs_PID_UUID-owned-schema",
+    "producerWrites": "public-native-agent-tool-and-error-spans",
+    "cleanup": "owned-schema-drop-finally",
+    "exit": 0,
+    "manualRawSpanInserts": 0,
+    "actualGenerationProviderCalls": 0
+  },
+  "checks": [
+    {
+      "command": "node tests/helpers/agent-native-observability.probe.cjs",
+      "exit": 0,
+      "log": "real-local-qa-native-observability-probe.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --project apps/backend/tsconfig.json",
+      "exit": 0,
+      "log": "real-local-qa-native-observability-types.log"
+    },
+    {
+      "command": "native provider error sentinel regression before attributes omission",
+      "exit": 1,
+      "expected": "RED",
+      "log": "real-local-qa-native-observability-error-red.log"
+    },
+    {
+      "command": "pnpm exec jest tests/agent-native-observability.test.cjs tests/agent-native-acceptance-matrix.test.cjs tests/postgres-role-isolation.test.cjs --runInBand --testNamePattern='native exporter|native observability|actual service shutdown|distinct product'",
+      "exit": 0,
+      "suitesPassed": 3,
+      "testsPassed": 4,
+      "unrelatedTestsSkipped": 9,
+      "log": "real-local-qa-native-observability-focused.log"
+    },
+    {
+      "command": "node tests/helpers/agent-native-observability-shutdown.probe.cjs",
+      "exit": 0,
+      "log": "real-local-qa-native-observability-shutdown-probe.log"
+    },
+    {
+      "command": "pnpm exec jest tests/agent-mastra-service-native-integration.test.cjs --runInBand --testNamePattern='actual Session uses'",
+      "exit": 0,
+      "suitesPassed": 1,
+      "testsPassed": 1,
+      "log": "real-local-qa-native-observability-service-cleanup.log"
+    },
+    {
+      "command": "git diff --check -- owned-tracked-paths; git diff --no-index --check /dev/null each-new-source",
+      "exit": 0
+    }
+  ],
+  "limitations": {
+    "nativeMetrics": "unsupported-current-legacy-PG",
+    "advancedQueryAndAggregation": "unsupported-current-legacy-PG",
+    "nativeCostEstimates": "not-invoice",
+    "billingTruth": "AiUsageService-ledger",
+    "pastRuns": "not-retroactively-instrumented",
+    "httpRuntime": "Loaded on scoped restart PID87219; actual current spans read through authenticatedHTTP and public nativePG; quality acceptance remains separate."
+  },
+  "sourceHashes": {
+    "package.json": "eb03d7d1ab2c97075a8e1c3fdfef9fb0460539f0f0e78f93144e87e33e3a0f32",
+    "pnpm-lock.yaml": "210f2efefae8865b154d50f1d7ec1f68a5436b507149755879ed0f90fdc31524",
+    "libraries/nestjs-libraries/src/chat/conductor/native-observability.ts": "b0cc768caa8c9d53ca2ffe3935aa6f367e0f13b33993bf4592a27f7029fccd08",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "dc6c7501a8d5f4b0c6d0b4bfe6ef9200f059fa5bdef90b458072d3cbe73dc20c",
+    "tests/helpers/agent-native-observability.probe.cjs": "e137a54b44f802edc6a5299754eabc9b3f8843ed6ae503bcdc8e60cb864f439d",
+    "tests/agent-native-observability.test.cjs": "413d6e60d8a6d24e4e26e0f0db8ad17694d8786ec270b03abcd5f7097ed120a1",
+    "tests/agent-native-acceptance-matrix.test.cjs": "841ced7b707c833802de5d49c61f6e6a6a1055f7cb35baea78ca63752f8e3277",
+    "docs/architecture/mastra-native-integration.md": "09da0c3541cc75a5b2a10213a6de50d2d6decbc93f625cb3267bcdb2703314f3",
+    "libraries/nestjs-libraries/src/chat/mastra.store.ts": "4d60b39f00aec034fadd993d30b407efefd19b57c1f06cd718dcd953959e8160",
+    "tests/helpers/agent-native-observability-shutdown.probe.cjs": "b13064e872ce8534eca68144452299aff72b468b082eb17b1f78d675088eda8c",
+    "tests/helpers/mastra-service-native-integration.probe.cjs": "0a6c5de70206dfe3f7187fb418e0712ca2a6bab18dde7a41331e8647c23f5bb2",
+    "scripts/evidence/on0i-real-local-qa-backend.cjs": "5bc6fde97356e0cc707655218a6221c1037e738f7f048e862b65a8f9966ee3bd"
+  },
+  "networkClassification": {
+    "previousFourFetchAttempts": "synthetic-data-URL-media-reads-blocked-in-initial-fixture-not-catalog",
+    "finalFixture": "inline-data-URL-reads-allowed-without-network; external-HTTP-blocked",
+    "catalogAttempts": 0,
+    "telemetryPosts": 0,
+    "actualExternalRequests": 0
+  },
+  "boundaries": {
+    "paidProviderCalls": 0,
+    "paidSearchCalls": 0,
+    "productionWrites": 0,
+    "standRestarts": 0,
+    "fullSuite": "not-run-by-child"
+  },
+  "sourceFreeze": {
+    "appAndTestsFrozen": true,
+    "at": "2026-10-21T10:51:17.201Z",
+    "remaining": "documentation-and-evidence-only"
+  },
+  "publicApiProof": {
+    "poolConfigDeclaration": "@mastra/pg1.31.2 shared/config.d.ts PoolInstanceConfig.pool",
+    "closeContract": "@mastra/pg1.31.2 storage/index.d.ts close(): caller-provided pools are not closed",
+    "nativeOrder": "@mastra/core1.78.0 shutdown drains/abandons active runs then storage.close then observability.shutdown",
+    "monkeypatch": false,
+    "sdkPrivateMembers": false
+  }
+}

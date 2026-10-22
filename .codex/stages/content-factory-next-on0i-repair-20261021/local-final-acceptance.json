@@ -1,0 +1,76 @@
+{
+  "schema": "on0i-local-final-acceptance/1",
+  "status": "PASS_LOCAL_ONLY",
+  "localOnly": true,
+  "branch": "codex/on0i-native-repair-20261021",
+  "rootAcceptance": {
+    "file": "root-command-acceptance.json",
+    "sha256": "694f543b3d08f2cd943891c2a18b0e50b84f1e56d2c7816b7124e5b75e9a5275",
+    "checksPassed": 10,
+    "sourceInputs": 135,
+    "allCurrentBytesMatch": true,
+    "sourceChangedDuringChecks": false
+  },
+  "testResults": {
+    "jest": {
+      "suitesPassed": 733,
+      "suitesSkipped": 7,
+      "testsPassed": 12922,
+      "testsSkipped": 70,
+      "failed": 0
+    },
+    "node": {
+      "passed": 127,
+      "skipped": 4,
+      "failed": 0,
+      "total": 131
+    },
+    "python": {
+      "passed": 50,
+      "failed": 0
+    }
+  },
+  "criticalNativeSuitesExecuted": {
+    "count": 24,
+    "missingOrSkipped": []
+  },
+  "browser": {
+    "file": "root-current-browser-acceptance.json",
+    "sha256": "324051be623837793c42dac291d9b7d89460e231b7118ec92114c7c94edb9c88",
+    "currentBuild": "tmvBVorjTll4eVz0CthsG",
+    "currentChecks": "Controlled before-start provider402 copy/draft/composer plus real saved6-message HTTP/DOM readback, no new generation",
+    "priorLiveScope": "Exact unchanged native/backend and UI function reuse of Gate9 actual provider reconnect/Stop/followup; three reviewed literal/test-only file deltas."
+  },
+  "realModelsAndSearch": {
+    "semanticReview": "root-semantic-review.json",
+    "freshAutonomousResearch": "real-local-qa-scenario-intent-postgresql-skip-locked.json",
+    "additionalResearch": "real-local-qa-final-asyncio-resume.json",
+    "additionalResearchBoundary": "PASS after one explicit native QA editorial selection; original pending/FAIL preserved; no universal future model-quality claim"
+  },
+  "coldBootstrap": "root-current-cold-bootstrap.json",
+  "scopeLimits": [
+    "No production deployment/push/schema mutation/social publication/account connection/user messaging",
+    "Native full permitted catalog; optional tool-search processor tested as SDK facility, not active runtime discovery",
+    "Main/classifier currently same model; no cheaper-route or comparative-quality claim",
+    "Legacy PG advanced metrics unsupported; scoped redacted trace consumer verified, billing ledger separate",
+    "Existing skipped tests are recorded; native SDK/PG recovery/receipt/HTTP/UI suites above executed"
+  ],
+  "processScope": "Generic orchestration contract and existing configured j9p5 stage readiness passed. Current repair acceptance is this explicit root A1-A31 packet, not inferred from historical configured-stage validation.",
+  "docsReviewed": "updated",
+  "graphReviewed": "used read-only owner graph; exact current files verified",
+  "delivery": "ACCEPTED_FOR_LOCAL_COMMIT_NO_PUSH_NO_DEPLOY",
+  "existingNodeEnvironmentSkips": [
+    "SOURCE_REGISTRY_POSTGRES_URL:serializable lease crossing",
+    "EDITORIAL_STAGE_POSTGRES_URL:legacy editorial-stage migration",
+    "POST_CONTENT_CONTEXT_POSTGRES_URL:foreign post/group refusal",
+    "POST_CONTENT_CONTEXT_POSTGRES_URL:AutoPostV2/provenance atomicity"
+  ],
+  "canonicalClosure": {
+    "receipt": "canonical-done.json",
+    "sha256": "40e9e34e5c56fbb11a26da09882861887df499cd2d072f589153c35320637490",
+    "at": "2026-10-21T16:12:36.668722+00:00",
+    "allEightDone": true,
+    "currentPendingOrFailedOperations": 0,
+    "historicalConflict": "canonical-historical-conflict.json (19Oct; preserved)"
+  }
+}

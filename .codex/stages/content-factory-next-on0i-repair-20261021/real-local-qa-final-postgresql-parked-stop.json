@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-21T11:00:42.402Z",
+  "threadId": "ddffddce-4693-410b-8cf8-c795b9e4b53b",
+  "result": "PASS_STOP_FAILED_CASE_WITHOUT_NEW_CALL_OR_WRITE",
+  "originalScenario": "real-local-qa-scenario-final-postgresql-skip-locked.json",
+  "originalFailure": "native-readConversationHistory-unnecessary-manual-approval",
+  "pendingBefore": [
+    {
+      "kind": "approval",
+      "toolName": "readConversationHistory",
+      "runId": "5bf76875-11c4-4aa6-aada-ef7b57faaf47",
+      "toolCallId": "call_mxnuFWpapaMqi0Pxa1pHn0Q7"
+    }
+  ],
+  "stop": {
+    "status": 201,
+    "body": {
+      "stopped": true,
+      "threadId": "ddffddce-4693-410b-8cf8-c795b9e4b53b",
+      "requestId": "a779ebf4-8d08-46da-890a-6af263c57dbc"
+    }
+  },
+  "execution": {
+    "requestId": "a779ebf4-8d08-46da-890a-6af263c57dbc",
+    "state": "settled",
+    "outcome": "interrupted",
+    "runId": "5bf76875-11c4-4aa6-aada-ef7b57faaf47"
+  },
+  "pendingAfter": 0,
+  "newPiecesBeforeStop": [],
+  "newPiecesAfterStop": [],
+  "domainRowsUnchangedAfterStop": true,
+  "providerCallsAfterStop": 0,
+  "usage": [
+    {
+      "id": "2caf2e1b-3cf9-4c95-b37a-a34c00d9f3d8",
+      "operation": "agent",
+      "model": "openai/gpt-6-luna",
+      "status": "failed",
+      "costUsd": "0.0104624",
+      "possiblyBilled": null,
+      "attempt": 9
+    },
+    {
+      "id": "033faf25-fc40-48a7-bf2f-e6cf9225a2d5",
+      "operation": "web_research",
+      "model": "exa",
+      "status": "succeeded",
+      "costUsd": "0.031",
+      "possiblyBilled": null,
+      "attempt": null
+    },
+    {
+      "id": "a2e2159a-5294-4fc2-ae99-b0bbc8789e76",
+      "operation": "intake",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "costUsd": "0.00416263",
+      "possiblyBilled": null,
+      "attempt": 1
+    }
+  ],
+  "noApprovalOrPromptResend": true,
+  "semanticAcceptance": false
+}

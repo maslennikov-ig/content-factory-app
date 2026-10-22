@@ -1,0 +1,158 @@
+{
+  "at": "2026-10-21T08:37:25.657Z",
+  "result": "REAL_LOCAL_SCENARIOS_DELIVERED_COLD_STOP_ASSIGNED_TO_SOURCE_OWNER",
+  "task": "/root/real_local_qa",
+  "repo": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "scope": "New local QA scripts/evidence and owned private stand only; no app-source edits, commit, push or deployment.",
+  "commands": [
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-scenarios.cjs smoke --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-scenarios.cjs run --case fresh-research --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-scenarios.cjs run --case research-reuse,private-question,unknown-sources --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 2,
+      "note": "Rewrite correctly paused at displayed domain review; subsequent exact-card acceptance completed it."
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-resume.cjs --accept-owned-rewrite --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-resume.cjs --decide-private-template --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-scenarios.cjs run --case real-fallback-scripted-primary --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0,
+      "note": "The one authorized final rerun: one scripted primary429 and one real configured GLM request; settings restored."
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-summary.cjs --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "exit": 0
+    },
+    {
+      "command": "node --check FILE for each of the eight owned CJS files",
+      "exit": 0,
+      "evidence": "real-local-qa-focused-verification.json"
+    },
+    {
+      "command": "Authenticated GET/POST Stop/GET of exact old cold synthetic thread plus Prisma readback",
+      "exit": 2,
+      "evidence": "real-local-qa-old-cold-stop-current.json",
+      "note": "Current-runtime failure delivered to root and availability_recovery; no manual ledger mutation."
+    }
+  ],
+  "summary": {
+    "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-summary.json",
+    "sha256": "8891c8e3619fcfd24e1967d40f47e48a744476b13189e401f06951d3b452863d"
+  },
+  "rootSemanticReviews": [
+    {
+      "artifact": "real-local-qa-scenario-direct-no-search.json",
+      "sha256": "72e9d081215fc5c5b5309d6d97f661faba5c8889714b2e236362eed0c4818dbf",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-scenario-reference.json",
+      "sha256": "694732dacc4e76c999a943981891f560fbba0af4f42f26068c358ea51edbeaeb",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-scenario-fresh-research.json",
+      "sha256": "23dc430f52707b24a7881709d80ea9c0d53ca118760999ae9af273ae692cd163",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-research-reuse-resume.json",
+      "sha256": "dc6f58fefb197756ba3e382e36153aae559256c4af0326ee031caa60193ab969",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-scenario-private-question.json",
+      "sha256": "cafe56b468c125b0b52b350f18acb986b6b504699ab2fc8d09c36a2a10f2f884",
+      "verdict": "PASS_ACTIONABLE_QUESTION"
+    },
+    {
+      "artifact": "real-local-qa-private-question-resume.json",
+      "sha256": "594bc5eaa6792df29dcc1a60c0a06c603a8b5dc443a69c68ce75f912d1cf64d0",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-scenario-unknown-sources.json",
+      "sha256": "a357c575dd0f0b03449beb9b7861f8b478df73e96bb86f29ee009e938621e6c5",
+      "verdict": "PASS"
+    },
+    {
+      "artifact": "real-local-qa-scenario-real-fallback-scripted-primary.json",
+      "sha256": "d5b3726157784257c78048a8c4327b219ed17b3c2814982456e90302ba16701a",
+      "verdict": "PASS"
+    }
+  ],
+  "runtime": {
+    "pid": 53623,
+    "authenticatedHealthHttp": 200,
+    "backendUrl": "http://localhost:3478",
+    "frontendUrl": "http://localhost:4278",
+    "keptRunning": true,
+    "sourceDifferencesSinceBoot": [
+      {
+        "file": "apps/backend/src/api/routes/agent.controller.ts",
+        "loaded": "d40029ec8d9019d905dbbf74b2bb4ab1f74e62ff6a2b4a86736581f83e459740",
+        "current": "64b3b3281e6977a977b8bc880b79e3e9094a0f3714aea03d6b55d124c3742767"
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/chat/mastra.service.ts",
+        "loaded": "9fa8ec312f2d55e355f467a70e5fe0ee11a14492bfb7d40b058ed131b8461c52",
+        "current": "f5a9d8947f38335e5d8e952c2beecced76040051f447223a45e5ab450d4c2862"
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts",
+        "loaded": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+        "current": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e"
+      }
+    ],
+    "inspectorClosed": true
+  },
+  "settingsRestored": true,
+  "faultDisabled": true,
+  "durableAiConfiguration": "/home/me/.config/content-factory/local-ai.json",
+  "privateModes": {
+    "config": "600",
+    "configDirectory": "700",
+    "stand": "600",
+    "standDirectory": "700"
+  },
+  "publicSafetyScan": {
+    "result": "PASS",
+    "files": 66,
+    "secretValuesPrinted": false
+  },
+  "wholeHttpLedger": {
+    "rows": 19,
+    "knownCostUsd": 0.15741847,
+    "unknownCostOperations": 1,
+    "pendingOperations": 1,
+    "scope": "Synthetic HTTP actor only; includes historical failed attempts, excludes root browser actor and is not a provider invoice."
+  },
+  "outstanding": {
+    "coldStop": "FAIL",
+    "artifact": "real-local-qa-old-cold-stop-current.json",
+    "owner": "root + public SDK/service owners",
+    "tavily": "No actual Tavily request observed; real search proof is the configured Exa route.",
+    "cheapClassifier": "No separate savings claim: agent and classify IDs match.",
+    "finalSource": "Loaded hashes are embedded. Later source changes and full browser/suite acceptance belong to root."
+  },
+  "safeCleanup": "Only duplicate newly-owned polling evidence moved to private hash-verified backups; root frontend, schedules, navigation fixtures and foreign objects were preserved.",
+  "fullSuiteRunByChild": false,
+  "productionMutations": 0,
+  "additionalPaidCasesStarted": false
+}

@@ -1,0 +1,830 @@
+{
+  "schema": "on0i-research-source-diagnosis/1",
+  "at": "2026-10-21T11:58:01.316Z",
+  "actualReceipt": ".codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-scenario-postfix-postgresql-skip-locked.json",
+  "actualElapsedMs": 562609,
+  "execution": {
+    "requestId": "6f1a38f4-1a5d-4465-a71e-2647849b2100",
+    "state": "settled",
+    "outcome": "failed",
+    "runId": "2453fdd1-d70d-4ff3-9e36-3f16d7efb993"
+  },
+  "changedPieces": 0,
+  "toolCounts": {
+    "skill": 4,
+    "piece_create": 1,
+    "research_search": 14,
+    "piece_read": 16,
+    "piece_create_from-research": 4,
+    "workspace_snapshot": 1,
+    "readConversationHistory": 1
+  },
+  "reads": [
+    {
+      "call": "call_DVwtQjOgkCSRfFH3kpHaj1MO",
+      "input": {
+        "pieceId": null,
+        "researchId": "res_1322790e-91c2-44b6-9f0e-6f50cb2b2cf0",
+        "part": "research_source",
+        "adaptationId": null,
+        "versionIndex": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "factId": null,
+        "factIndex": null,
+        "offset": 0,
+        "length": 6000,
+        "revision": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 5682,
+      "returnedCharacters": 5682,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_ziu69AkDkW2paKrGv9xZZ1tu",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 7000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_ffca9993-94ac-4ce5-9653-1f2c9cc3716b",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 5682,
+      "returnedCharacters": 5682,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_2BVZNd9jaGt227TEjSCsYibc",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 7000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "10b07350-7b2b-4b30-a9e5-818f2c6435fc",
+        "revision": null,
+        "sourceIndex": 1,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 157,
+      "returnedCharacters": 157,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_8664QwbTY2SSGgzHbO4UeYzp",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 7000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_17b0c54f-06de-4698-af4e-8849eac20212",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 5799,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_SHOK6CExLfRrvNQQTvIJxp5Y",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 7000,
+        "offset": 2500,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_ca62447b-9cf1-412f-834f-eb356a57cc32",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 3299,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_6QFp6QZ7AiyhqsS6Nn02hPUR",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 5000,
+        "offset": 4300,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_a26451d9-6099-4cf7-9d2f-502eaa34ba6d",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 5682,
+      "returnedCharacters": 1382,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_zzQXRQMPIHNwRwnTfZTQX08L",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 8000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_2654bcb0-9c83-4397-a673-0d27b5e8967e",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 5799,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_0iGPKIfQYK3xSllNYL7RthFt",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 7000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_2654bcb0-9c83-4397-a673-0d27b5e8967e",
+        "revision": null,
+        "sourceIndex": 2,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/explicit-locking.html",
+      "totalCharacters": 5590,
+      "returnedCharacters": 5590,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_gGDgu39hmnZoE3cMGULUbAMJ",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 12000,
+        "offset": 4500,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_17b0c54f-06de-4698-af4e-8849eac20212",
+        "revision": "de5cc8eaeaa2530b7d0956bfcb2f6145593026f9e312256e9e8fbdbb46d62fbb",
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 1299,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_x9gjLuLfkoyXxeRqe94FSpZn",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 4000,
+        "offset": 5000,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_34c94e2f-1f0a-4601-b8c8-f63637cce94b",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 5682,
+      "returnedCharacters": 682,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_diFVbfbzuKy5QOwQea1WnnMU",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 4500,
+        "offset": 2500,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_34c94e2f-1f0a-4601-b8c8-f63637cce94b",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "totalCharacters": 5682,
+      "returnedCharacters": 3182,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_i4HRieBZJGC7QUgDj30YSsvL",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 6000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_4776d2b4-b9de-48cf-9180-7450aaebb046",
+        "revision": null,
+        "sourceIndex": null,
+        "sourceUrl": "https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE",
+        "versionIndex": null
+      },
+      "ok": false,
+      "hasQueueParagraph": false,
+      "error": "MATERIAL_NOT_AVAILABLE"
+    },
+    {
+      "call": "call_A6SECHRrVXR7CpvSslJvRhEr",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 6000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_4776d2b4-b9de-48cf-9180-7450aaebb046",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 5799,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_wVs7ivxboFJWgCmBEyySdx6D",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 6000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_bc3ebdda-f1d1-4d2c-89b4-0f8c4f90eadd",
+        "revision": null,
+        "sourceIndex": 0,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "totalCharacters": 5799,
+      "returnedCharacters": 5799,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_FT6wnlrESiJvVE4XBUqXxkyT",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 6000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_7de68d0a-4490-49a3-9a34-123f8a663e01",
+        "revision": null,
+        "sourceIndex": 2,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://www.postgresql.org/about/featurematrix/detail/skip-locked-clause/",
+      "totalCharacters": 111,
+      "returnedCharacters": 111,
+      "truncated": false,
+      "hasQueueParagraph": false
+    },
+    {
+      "call": "call_zk8BP6je0B4AsbTNjceZEvmf",
+      "input": {
+        "adaptationId": null,
+        "factId": null,
+        "factIndex": null,
+        "length": 6000,
+        "offset": 0,
+        "part": "research_source",
+        "pieceId": null,
+        "researchId": "res_4776d2b4-b9de-48cf-9180-7450aaebb046",
+        "revision": null,
+        "sourceIndex": 3,
+        "sourceUrl": null,
+        "versionIndex": null
+      },
+      "ok": true,
+      "url": "https://access.crunchydata.com/documentation/postgresql18/18.0/sql-select.html",
+      "totalCharacters": 5890,
+      "returnedCharacters": 5890,
+      "truncated": false,
+      "hasQueueParagraph": false
+    }
+  ],
+  "searches": [
+    {
+      "call": "call_9dudqFpfR7KTZ1GMN8E67bLH",
+      "snapshotKey": "res_1322790e-91c2-44b6-9f0e-6f50cb2b2cf0",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_cpBJNvXwgXJ5NVYhO8NykmNZ",
+      "snapshotKey": "res_ffca9993-94ac-4ce5-9653-1f2c9cc3716b",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_9FwVfMxvBkc3rI8PH0cMytRh",
+      "snapshotKey": "res_17b0c54f-06de-4698-af4e-8849eac20212",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        }
+      ]
+    },
+    {
+      "call": "call_77332rLrCv44vKtTAMvH3zd9",
+      "snapshotKey": "res_ca62447b-9cf1-412f-834f-eb356a57cc32",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        },
+        {
+          "index": 1,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        },
+        {
+          "factKey": "res:1:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_BVvNWycoRhXaOlc1D7lO8b1H",
+      "snapshotKey": "res_a26451d9-6099-4cf7-9d2f-502eaa34ba6d",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_5scwU334jyTT9lKFI8SGylrV",
+      "snapshotKey": "res_2654bcb0-9c83-4397-a673-0d27b5e8967e",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        },
+        {
+          "index": 1,
+          "url": "https://www.postgresql.org/docs/17/sql-select.html",
+          "totalCharacters": 5799
+        },
+        {
+          "index": 2,
+          "url": "https://www.postgresql.org/docs/18/explicit-locking.html",
+          "totalCharacters": 5590
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        },
+        {
+          "factKey": "res:1:search:dbec52e0a0ad1c5f",
+          "evidenceId": "031f2df4-beea-4b1b-bc1d-6811e804d216",
+          "totalCharacters": 15642
+        },
+        {
+          "factKey": "res:2:search:2bc5bd8fbba8f0d8",
+          "evidenceId": "2c5d8a72-e8a9-489f-8eac-223e223385d9",
+          "totalCharacters": 14532
+        }
+      ]
+    },
+    {
+      "call": "call_nthjbDOLIVy0jeOVRTDzD5e4",
+      "snapshotKey": "res_66ddca19-f978-4fdc-aec8-7774b5926a05",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_uUo9o44O0NsvzvDw8O9yfC8L",
+      "snapshotKey": "res_34c94e2f-1f0a-4601-b8c8-f63637cce94b",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_X79O6snppvetIYC9PLTEqlF9",
+      "snapshotKey": "res_857c6c0e-717a-45e8-958b-9c903aae09cd",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_H9RxYW2jdGDICBhEQ924mPAP",
+      "snapshotKey": "res_4776d2b4-b9de-48cf-9180-7450aaebb046",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        },
+        {
+          "index": 1,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        },
+        {
+          "index": 2,
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "totalCharacters": 5662
+        },
+        {
+          "index": 10,
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "totalCharacters": 5946
+        },
+        {
+          "index": 12,
+          "url": "https://www.postgresql.org/docs/current/sql-declare.html",
+          "totalCharacters": 5402
+        },
+        {
+          "index": 13,
+          "url": "https://www.postgresql.org/docs/12/explicit-locking.html",
+          "totalCharacters": 5708
+        },
+        {
+          "index": 14,
+          "url": "https://www.postgresql.org/docs/16/explicit-locking.html",
+          "totalCharacters": 5590
+        },
+        {
+          "index": 16,
+          "url": "https://www.postgresql.org/docs/11/explicit-locking.html",
+          "totalCharacters": 5678
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        },
+        {
+          "factKey": "res:1:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        },
+        {
+          "factKey": "res:2:search:368b40bc7563b3e7",
+          "evidenceId": "c2e8fa8a-8a86-4967-816c-ea8a2919585c",
+          "totalCharacters": 14650
+        }
+      ]
+    },
+    {
+      "call": "call_xZxodZyKh6KPEuPktDINwSDN",
+      "snapshotKey": "res_bc3ebdda-f1d1-4d2c-89b4-0f8c4f90eadd",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        }
+      ]
+    },
+    {
+      "call": "call_J9Crp05tpDApHhvC5CabXuJV",
+      "snapshotKey": "res_bd850dce-415b-4e7d-a277-360b034fa333",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        },
+        {
+          "index": 1,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        },
+        {
+          "factKey": "res:1:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_8FWJDfPcXZnZ9AoUjcrkPOg2",
+      "snapshotKey": "res_7de68d0a-4490-49a3-9a34-123f8a663e01",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "totalCharacters": 5682
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:16c54cf7df85559c",
+          "evidenceId": "e260c772-2caf-4c46-940f-01e5590bc626",
+          "totalCharacters": 15470
+        }
+      ]
+    },
+    {
+      "call": "call_8FbiApcwii9x4laDQi07RfiC",
+      "snapshotKey": "res_4dacd284-12bf-4f23-913c-7b08f8b99a6d",
+      "sources": [
+        {
+          "index": 0,
+          "url": "https://www.postgresql.org/docs/18/sql-select.html",
+          "totalCharacters": 5799
+        }
+      ],
+      "facts": [
+        {
+          "factKey": "res:0:search:d67e3c2eabd6aeac",
+          "evidenceId": "46bc927c-5193-475a-a17c-a663b49a8c21",
+          "totalCharacters": 15642
+        }
+      ]
+    }
+  ],
+  "creates": [
+    {
+      "call": "call_bOUPPprVjWugMqichIKziPCz",
+      "snapshotKey": "res_2654bcb0-9c83-4397-a673-0d27b5e8967e",
+      "factKeys": [
+        "res:0:search:d67e3c2eabd6aeac",
+        "res:2:search:2bc5bd8fbba8f0d8"
+      ],
+      "output": {
+        "ok": false,
+        "code": "INTAKE_INPUT_INSUFFICIENT",
+        "reason": "Предоставленные выдержки подтверждают наличие SKIP LOCKED в синтаксисе SELECT и описывают блокировку выбранных строк, но не раскрывают поведение при пропуске уже заблокированных строк и ограничения такого использования. Для содержательной заметки требуется дополнительная проверка официальной документации.",
+        "canReviseInput": true
+      }
+    },
+    {
+      "call": "call_VSx8nDuUEwkg3t2OnmLSZcZ0",
+      "snapshotKey": "res_34c94e2f-1f0a-4601-b8c8-f63637cce94b",
+      "factKeys": [
+        "res:0:search:16c54cf7df85559c"
+      ],
+      "output": {
+        "ok": false,
+        "code": "INTAKE_INPUT_INSUFFICIENT",
+        "reason": "В доступной выдержке официальной документации подтверждён синтаксис SKIP LOCKED в locking clause, но нет подробного описания его поведения и ограничений. Нужны дополнительные официальные материалы PostgreSQL.",
+        "canReviseInput": true
+      }
+    },
+    {
+      "call": "call_BX52ARk3h2aznGWoLdLOlkkQ",
+      "snapshotKey": "res_4776d2b4-b9de-48cf-9180-7450aaebb046",
+      "factKeys": [
+        "res:0:search:d67e3c2eabd6aeac"
+      ],
+      "output": {
+        "ok": false,
+        "code": "INTAKE_INPUT_INSUFFICIENT",
+        "reason": "Для запрошенного результата пока недостаточно материала или подтверждений.",
+        "canReviseInput": true
+      }
+    },
+    {
+      "call": "call_UirhHr3YYFrYZZ9Ysb75i5JT",
+      "snapshotKey": "res_7de68d0a-4490-49a3-9a34-123f8a663e01",
+      "factKeys": [
+        "res:0:search:16c54cf7df85559c",
+        "res:2:search:118e0c681ab0b5c6"
+      ],
+      "output": {
+        "ok": false,
+        "code": "INTAKE_RESEARCH_SELECTION_INVALID",
+        "reason": "Each selected fact must have its own saved supporting source and quote.",
+        "canReviseInput": true
+      }
+    }
+  ],
+  "sourceSha256Before": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "cec65b5f2f6ccb9e96dd1c363ded3f17ae4a6399b46a37338457b921c8d57fb3",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "40193fa95db8cb76ea24a47a3af77e3cbb6d0a0f90440ab4d348f9e1f51860a0",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "d5fcb7aa04504956209ab8061a8ba0466e21960b2062cea05bd68574731ca744",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "38526be4db9411b3e18690f0eb3ac11c36916d27e360cdc4c0fa19d7ba8e1998",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "062e0905ea73c51289042a3b3b47d8a0973d0d358f82bca36a0eb094aa0bb630",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "6121a74df8dab941d44830371be39743d22286a796e1095c1fa1c778ced07dea"
+  },
+  "controlledRed": {
+    "script": ".codex/stages/content-factory-next-on0i-repair-20261021/research-fulltext.probe.cjs",
+    "log": ".codex/stages/content-factory-next-on0i-repair-20261021/research-fulltext-controlled-red.log",
+    "exitCode": 1,
+    "rawCharacters": 225088,
+    "previewCharacters": 5967,
+    "retainedCharacters": 5967,
+    "lateEvidenceRetained": false,
+    "paidCalls": 0,
+    "actualNetworkCalls": 0
+  },
+  "rootCause": {
+    "upstreamProvider": "ExaWebSearch preserves complete rawContent; no new search engine is needed",
+    "loss": "WebResearchService.pageText stores a 6000-character model preview as the only source body; its scan is 48000 chars; piece.read correctly reaches only that shortened saved body and reports EOF",
+    "secondLoss": "research-evidence.normalizeStoredSource silently clips at200000 characters without original-length metadata",
+    "wrongKey": "The last write selected res:2:search:118e0c681ab0b5c6 but the owned snapshot has res:6:search:118e0c681ab0b5c6. Rejection is correct and remains required.",
+    "compositionGap": "Existing from-research accepts only initial saved factKeys. A later full-source read needs an exact validated passage-selection path into existing writer, without refetching or accepting invented claim support."
+  },
+  "graph": {
+    "path": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "external": true,
+    "baseline": "dd67538d524417749bc46935ffb84431bc3da42f",
+    "current": "e74e059ea104593d2fac831eb989714a5b151263",
+    "freshness": "relevant source changed; confirmed current files directly"
+  },
+  "nativeReference": {
+    "url": "https://github.com/mastra-ai/mastra/blob/main/docs/src/content/en/reference/tools/create-tool.mdx",
+    "access": "Context7 /mastra-ai/mastra",
+    "behavior": "toModelOutput presents a compact view while application retains full execution data; domain snapshot remains authorized existing source of truth"
+  },
+  "boundaries": {
+    "applicationEdits": 0,
+    "paidCalls": 0,
+    "externalSearchCalls": 0,
+    "restarts": 0,
+    "deploys": 0,
+    "pushes": 0
+  }
+}

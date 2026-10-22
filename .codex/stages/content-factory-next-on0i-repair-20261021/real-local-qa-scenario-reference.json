@@ -1,0 +1,101 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "reference",
+  "at": "2026-10-21T07:26:34.668Z",
+  "elapsedMs": 6525,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "098a81c7c4c909f7db027c987337d800e8016466d42e859f6317ef8e455627c2",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "fa2f3973-7b36-43d7-b3a3-a05f5edb36a1",
+  "threadId": "6118f740-026a-456a-a747-f9a1af923a27",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamErrors": [],
+  "assistantText": [
+    "В заметке за 6–8 октября описан прототип приложения: данные копировались между модулями, поэтому команда создала общую функцию чтения и убрала дублирование. Численных замеров результата пока нет."
+  ],
+  "pending": [],
+  "execution": {
+    "requestId": "1e462755-cc32-4db7-968f-bbeae77c3e33",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "e7e49dde-ed65-4f6d-abbc-f18aeb2fa43c"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "4af810d3-b390-48c0-8b3d-c9bef60453b6",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 28529,
+      "completionTokens": 258,
+      "reasoningTokens": 202,
+      "cachedTokens": 0,
+      "costUsd": "0.0036581",
+      "possiblyBilled": null,
+      "attempt": 1
+    }
+  ],
+  "usageTotals": {
+    "operations": 1,
+    "knownCostUsd": 0.0036581,
+    "unknownCostOperations": 0,
+    "pendingOperations": 0,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": true,
+  "providerReceipts": [
+    {
+      "id": "106e2816-8fe2-4753-9632-9948ac15088e",
+      "at": "2026-10-21T07:26:35.003Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "106e2816-8fe2-4753-9632-9948ac15088e",
+      "at": "2026-10-21T07:26:35.003Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792567595-JPUrTIrR1ydcvF66imwj",
+      "usage": {
+        "promptTokens": 28529,
+        "completionTokens": 258,
+        "totalTokens": 28787,
+        "reasoningTokens": 202,
+        "cachedTokens": 0,
+        "costUsd": 0.0036580995
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 5482
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Dates remain attached to the supplied reference",
+    "No search or fabricated results",
+    "Faithful concise adaptation"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-reference-2026-10-21T07-26-34-668Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "PASS"
+}

@@ -1,0 +1,52 @@
+FAIL tests/intake.research-reuse.test.cjs
+  ✕ a retained descendant cannot outlive its immediate parent or bypass a terminal root when the native claim expires (68 ms)
+  ○ skipped piece.create preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped piece.create.from-research preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped another person in the same organization and an unknown selection are refused before any model or write
+  ○ skipped a quote from a different source and unknown claim body never become confirmed through an id
+  ○ skipped an uncertain standalone write cannot replay the writer or silently fall back to creating another piece
+  ○ skipped two passages from the same URL retain independent evidence instead of reusing an old URL excerpt
+  ○ skipped a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again
+  ○ skipped a stale passage is refused before any model or new source write
+  ○ skipped a foreign-url passage is refused before any model or new source write
+  ○ skipped a invented-quote passage is refused before any model or new source write
+  ○ skipped another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot
+  ○ skipped an uncertain derived write cannot replay through another passage or the legacy selection
+  ○ skipped a safe insufficient initial selection can read later evidence and revise without another search or a poisoned writer claim
+  ○ skipped a lost claim acknowledgement cannot reopen the existing writer scope
+  ○ skipped a lost completed-result acknowledgement cannot reopen the existing writer scope
+  ○ skipped an uncertain legacy write also fences a newly selected retained passage
+  ○ skipped intake-origin snapshots retain full sources with actor authority and can feed late passages to the same writer
+  ○ skipped passage captures are canonical across source order and keep multi-source evidence separate
+  ○ skipped retained source selection preserves the original person-policy
+  ○ skipped retained source selection preserves the original human-requirement
+  ○ skipped an existing piece research read uses the public scoped service only with both explicit ids
+  ○ skipped a material requirement for human fact selection is not replaced with model consent
+  ○ skipped query-only reuse keeps the supported fallback and labels it as the research task
+  ○ skipped selection person cannot turn standalone research reuse into human consent or claim a writer
+  ○ skipped selection person cannot replay a completed model-origin standalone write as an answered human card
+
+  ● a retained descendant cannot outlive its immediate parent or bypass a terminal root when the native claim expires
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"evidence": [[Object]], "facts": [[Object]], "level": "standard", "parentSnapshotKey": "res_1dc9679e8371877cdb1e56455b312728808d143eb88fd497d0f533547796c73c", "query": "  Подготовь полный обзор двух независимых изменений.
+    Старый пример — только пример структуры.  ", "snapshotKey": "res_0a3bccdef93a1a421968f59d68e1c033304fb4337bca54172eca62e05c4c4ae9", "sourceSnapshotKey": "res_103bdac6-b7ee-49bb-92ff-15ef06b64ede", "sources": [[Object]], "summary": {"status": "partial", "summary": "Exact retained source passages selected by the model; assess sufficiency against the original request."}, "version": "research-reuse/v1"}
+
+      450 |   now = 60;
+      451 |   const passage = [{ sourceUrl: urlA, revision: read.revision, quote: quoteB }];
+    > 452 |   await expect(built.service.selectStoredResearchPassages(IDENTITY.organizationId, IDENTITY.userId,
+          |         ^
+      453 |     parent.snapshotKey, passage)).rejects.toMatchObject({ code: 'INTAKE_RESEARCH_SELECTION_CONFLICT' });
+      454 |   // A descendant persisted by the pre-repair code must also fail closed.
+      455 |   const child = await built.service.storeResearchEvidence(IDENTITY.organizationId, IDENTITY.userId, {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:452:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 25 skipped, 26 total
+Snapshots:   0 total
+Time:        2.639 s, estimated 7 s
+Ran all test suites matching /tests\/intake.research-reuse.test.cjs/i with tests matching "retained descendant".

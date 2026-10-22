@@ -1,0 +1,73 @@
+{
+  "schema": "autonomy-goal-approval-fixture-proposal/v1",
+  "at": "2026-10-21T13:52:10.532125+00:00",
+  "status": "PROPOSED_NOT_APPLIED_SOURCE_LOCKED",
+  "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture.patch",
+  "patchSha256": "9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4",
+  "files": {
+    "tests/helpers/agent-native-autonomy.probe.cjs": {
+      "beforeSha256": "3ef18c552e58e936c459e051ed0e5e505b5eb8f01ce8d1fbf71804a155abef95",
+      "candidateSha256": "8f14e1be756d87dd8baf2689cc06889c49f837ce4821bbb4fff00ea10ee405cd"
+    },
+    "tests/agent-native-autonomy.test.cjs": {
+      "beforeSha256": "d9ceee2771afa843d37f8dbd1e8fe166575993a83d639ec3122b09ffba1e0f8a",
+      "candidateSha256": "f82eac35ccda34c6542b16c8feb69986bd30fdca5f9e3d27a212f2d4b549973b"
+    }
+  },
+  "cause": {
+    "boundary": "set_objective native requireApproval before any intake/write",
+    "appSource": "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts:582",
+    "proof": "Native result.finishReason suspended with bound set_objective pending approval; no tool result, goal judge or piece_create occurred.",
+    "intakeAndSchemaFailure": false
+  },
+  "baseline": {
+    "createdPiecesCount": 0,
+    "mainModelCalls": 1,
+    "judgeEvalCount": 0
+  },
+  "afterExplicitBoundApproval": {
+    "createdPiecesCount": 1,
+    "mainModelCalls": 4,
+    "judgeEvalCount": 2,
+    "finalText": "Заготовка «Итоги релиза» создана и сохранена в пространстве.",
+    "storedObjective": {
+      "id": "goal-thread-autonomy-goal-1792590590985",
+      "objective": "Создать заготовку с темой «Итоги релиза»",
+      "text": "Создать заготовку с темой «Итоги релиза»",
+      "status": "done",
+      "runsUsed": 2,
+      "activeDurationMs": 0,
+      "startedAt": 1792590590985,
+      "updatedAt": 1792590591083,
+      "createdAt": "2026-10-21T13:49:50.985Z",
+      "maxRuns": 3
+    }
+  },
+  "proofs": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-readonly-probe.json": "ab5559374ad664c5cb421c87c36684adb50dee7726ae8aea20acd6120cc1eda7",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-detailed-readonly-probe.json": "a07b67fb26bfa6183c9c0bba1cd94c59d327ebc4a6b647da29b8da5ac6052cf5",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approved-readonly-probe.json": "f221504395e67b96e5f1bb1e16fde83f6602786913bdabc1f4031fb70a7cfd01"
+  },
+  "proposal": "Fixture proves pending approval/no effects, scopes the suspended native run by owned thread/resource and exact tool id, explicitly approves set_objective through public resumeGenerate, then preserves every existing post-approval objective/artifact assertion.",
+  "patchCheck": "git apply --check passed; source unchanged",
+  "notDone": [
+    "Source/test application",
+    "Focused wrapper test after root unlock/apply GO"
+  ],
+  "boundaries": {
+    "appWrites": 0,
+    "testWrites": 0,
+    "paidCalls": 0,
+    "runtimeStandCalls": 0,
+    "restarts": 0,
+    "builds": 0,
+    "fullSuites": 0,
+    "nativeModels": "scripted only",
+    "storage": "InMemoryStore only"
+  },
+  "cleanup": {
+    "ownedProbeProcessesExited": true,
+    "startedPersistentResources": 0,
+    "sourceHashesUnchanged": true
+  }
+}

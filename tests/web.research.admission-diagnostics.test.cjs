@@ -475,6 +475,14 @@ describe('reader-only admission decision counts', () => {
         provider: 'wikipedia',
       },
     ];
+    // The current semantic reader sees retained source text even when the
+    // snippet admission rejected it. This fake endpoint explicitly judges the
+    // digest irrelevant and the repeated fragment insufficient, instead of
+    // treating every captured page as relevant by fixture default.
+    summaryOutput = {scopeQuote:null,scopeStatus:'not_temporal',
+      answer:'Креативу присваивается идентификатор ERID.',
+      references:[{id:'S1',relevance:'relevant'},{id:'S2',relevance:'irrelevant'},
+        {id:'S3',relevance:'insufficient_context'},{id:'S4',relevance:'relevant'}],gaps:[]};
     const result = await service.research(
       'fixture-organization',
       telegram.subject,
@@ -498,6 +506,13 @@ describe('reader-only admission decision counts', () => {
       advertisingContextRejected: 1,
       truncationEmpty: 1,
     });
+    expect(result.readerAssessment.sources).toEqual(summaryOutput.references);
+    expect(result.facts.map(fact=>fact.sourceUrl)).toEqual([
+      'https://example.com/provider','https://example.com/keyless-admitted']);
+    const presented=JSON.parse(summaryPrompts()[0].input.reviewRequest.split('Untrusted reader evidence:\n')[1]);
+    expect(presented.sources.map(source=>source.url)).toEqual([
+      'https://example.com/provider','https://example.com/keyless-rejected',
+      'https://example.com/keyless-truncated','https://example.com/keyless-admitted']);
     expect(result.admissionDiagnostics.candidateSourceCount).toBe(5);
     expect(result.admissionDiagnostics.admittedFactCount).toBe(2);
     expect(calls.search).toHaveLength(1);

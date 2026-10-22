@@ -1,0 +1,72 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "mastra": "1.78.0"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-session-owner.test.cjs tests/agent-native-session-queued.test.cjs tests/agent-native-session-http.test.cjs tests/agent-native-session-cold.test.cjs tests/agent-native-signal-boundary.test.cjs tests/agent-native-conversation-flow.test.cjs",
+      "exitCode": 0,
+      "suites": 6,
+      "tests": 15,
+      "log": "chat-native-final-scope-focused.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-final-backend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-final-frontend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "1aa20494a77b61e30c0b109015ea2f7bee1b0aeeca93308e9c6ac2a724c62d73",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "61cd7d65debfc77d04eeb90e146f52b20a67ff3ff5f5413c450f48fe4228a925",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "3873f3af85ddcc716092c758180da0ef190a5737af479d9580d09da443a95e18",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.execution.ts": "f855860cef7ae9b35a8db46dc1055afeaf03ec2cccd11c1b796664e868a8464e",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "4c2c747165b70598ac8e61c1a5dd55bf8ada5ca94bc00ea8cbaa47343d5f3b5d",
+    "apps/frontend/src/components/agents/agent.contract.ts": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "docs/design/component-inventory.md": "08c6b3b4a6dd697fbb7b3d606aff460f0f7ea58df3502f6120d4cda8b794a6cf",
+    "pnpm-lock.yaml": "f289ed42197f037e5c01d5b20cb9e5045236a4f3431acdc3b2dc7ec069ee05f1",
+    "tests/agent-native-session-owner.test.cjs": "942cf4836a6ae0d656695f3e5d5f0c7ed90607592d676fcb977a817296a7894e",
+    "tests/helpers/agent-native-session-owner.probe.cjs": "da9be972d50ab63667bab402218653e7f1039a886646ae25a92137a73c99f239",
+    "tests/agent-native-session-queued.test.cjs": "8783a1c1dad0975e26791906418a5cb62762f5f7f4d77dcd81d25bce50c69c3b",
+    "tests/helpers/agent-native-session-queued.probe.cjs": "22f1f5515a856012f6142386bcd8cbea46cd3d7bc819664a82d2756d2ddbdb3f",
+    "tests/agent-native-session-http.test.cjs": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+    "tests/helpers/agent-native-session-http.probe.cjs": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+    "tests/agent-native-session-cold.test.cjs": "a83d33e333c24c88c47caa39abae75018ac54669b09d21e132e17e5f6af411ee",
+    "tests/helpers/agent-native-session-cold.probe.cjs": "afc3af21b37a1473cc5ed92e4f3e35cab0c1e4fe47df8e3c60e4d93668ee69b2",
+    "tests/agent-native-signal-boundary.test.cjs": "044e3bd6ab93e9e228a57f3b016bd6f8ae845461d15e909dd25f7ff7d8c3797c",
+    "tests/helpers/agent-native-signal-boundary.probe.cjs": "a0213a194a403b4ba02573fa6d55a60307a644c6fabf28e8ed16d06a809cb73d",
+    "tests/agent-native-conversation-flow.test.cjs": "f03749f98e4e74d9b05db2eb5745eb97288e10002db2caa3ea56350fd869083e",
+    "tests/helpers/mastra-service-native-integration.probe.cjs": "aef91ee085ff224d7768d1cfb6d7ec49a8ac87e444c7285dffa1115cb0209cdb"
+  },
+  "logSha256": {
+    "chat-native-final-owner-red.log": "2ca35015968b85633ec1668b7c0b2f5fdddc7988611a797fc27feb0100746eed",
+    "chat-native-final-owner-green.log": "2c711bb96225111fb05efc98da257cecdbcb562d114a749b56be4f5a17260bd0",
+    "chat-native-final-hydration-red.log": "23325770cca17da3a0947399dd5a5da0067b307c76b8aa15af123b63600d0612",
+    "chat-native-final-hydration-green.log": "10ac9ca4a669c817b81bf19b63aac0a9b4149a8ee5e66b414948e32ecf0a2b47",
+    "chat-native-final-scope-focused.log": "ca4be80988d92cb6bfc0ad57f364ea60692e16a80eb9dd2a91ceb5e4c97b76d9",
+    "chat-native-final-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "chat-native-final-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Bounded cached-native-Session ownership and final replay hydration followup. Root unified acceptance required; no full suite, paid call, commit, push, deployment or production access by worker.",
+  "earlierEvidence": [
+    "chat-native-evidence.json",
+    "chat-native-qa-followup-evidence.json"
+  ]
+}

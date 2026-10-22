@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-21T08:18:28.886Z",
+  "result": "READ_ONLY_OLD_COLD_FIXTURE_RESIDUAL",
+  "threadId": "8603ca5a-681e-4183-934b-2aaf2a6b9643",
+  "usageId": "7c0242ea-0142-4c7c-903b-95f380ef0b9a",
+  "historicalRunId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb",
+  "httpStatus": 200,
+  "execution": {
+    "requestId": "496dc8fe-3c3d-49a3-b686-8797964a89fc",
+    "state": "running",
+    "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb"
+  },
+  "pending": [
+    {
+      "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb",
+      "toolCallId": "call_OOMopiFm4PU6WixTTD1X1Bmx",
+      "toolName": "skill",
+      "kind": "approval",
+      "args": {
+        "name": "content"
+      },
+      "summary": null
+    }
+  ],
+  "providerCallsByReadback": 0,
+  "manualLedgerMutation": false
+}

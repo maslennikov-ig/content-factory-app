@@ -1,0 +1,97 @@
+{
+  "schema": "cf.provider-repair-evidence/v1",
+  "capturedAt": "2026-10-21T14:40:53.860911+00:00",
+  "finding": {
+    "priority": "must-fix",
+    "confidence": "confirmed",
+    "trigger": "OpenRouter chat-completion HTTP 402 with exact error.metadata.limit_source=openrouter_in_flight_budget.",
+    "failure": "Blanket terminal-402 classification prevented the existing native retry processor from retrying a documented temporary reservation conflict.",
+    "secondaryFailure": "Preserved provider wording mentioning credit balance still hit the existing terminal billing heuristic after status normalization.",
+    "reviewRegression": "A broad billing-hint exception initially also bypassed permission/auth/consent messages in a cause chain; controlled RED caught it and the final split preserves authority errors unconditionally."
+  },
+  "implementation": {
+    "paths": [
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts",
+      "tests/ai-text-chain.test.cjs"
+    ],
+    "transport": "Gate on configured provider, exact OpenRouter host, POST chat-completion URL, status 402 and exact structured limit_source. Preserve body text and Retry-After while exposing standard 429. Error-body read is signal-abortable; successful streams are returned without inspection. No retry/resubmit is performed by the normalizer.",
+    "classifier": "Reuse the exact normalized-provider predicate only to disambiguate billing wording. Auth/permission/consent/invalid request, explicit terminal HTTP statuses, Abort and execution budget stop retain precedence over all temporary metadata.",
+    "retryOwner": "Existing public native StreamErrorRetryProcessor; configured retry/fallback budgets and 30000 ms Retry-After cap unchanged.",
+    "accounting": "Known refusals remain failed and not possibly billed; successful retry has its own usage row. No billing reset or bypass was added."
+  },
+  "controlledRed": [
+    {
+      "log": "evidence/openrouter-inflight-402.red.log",
+      "observed": "Exact source remained HTTP 402 instead of 429; actual SDK made 1 request instead of the expected 2."
+    },
+    {
+      "log": "evidence/openrouter-inflight-402-credit-wording.red.log",
+      "observed": "Normalized temporary error with credit-balance wording still made 1 request instead of 2."
+    },
+    {
+      "log": "evidence/openrouter-inflight-402-authority.red.log",
+      "observed": "Broad cause-chain bypass wrongly made all five authority errors transient; final narrow billing-only exception corrects them."
+    }
+  ],
+  "validated": {
+    "focused": {
+      "suitesPassed": 2,
+      "testsPassed": 104,
+      "durationSeconds": 61.154
+    },
+    "transport": [
+      "Exact transient limit_source with normal, missing or future reason becomes 429; unchanged body, Retry-After and request limits.",
+      "Key cap, credits/weight_exceeds_budget, unknown or reason-only metadata remain one-attempt 402.",
+      "OpenAI source, non-OpenRouter host, embeddings and opaque refusals retain their semantics.",
+      "Successful SSE has no new text/clone read; Stop interrupts a held 402 body read."
+    ],
+    "nativeSDK": {
+      "configuration": {
+        "defaultMaxRetries": 1,
+        "models": [
+          "test-credit-primary",
+          "test-credit-backup"
+        ],
+        "retryAfterSeconds": 1,
+        "innerSdkMaxRetries": 0
+      },
+      "twoRequestsSamePrimary": [
+        "temporary source",
+        "temporary source with misleading credit-balance wording",
+        "temporary source wrapped with billing wording"
+      ],
+      "oneRequestNoFallback": [
+        "key limit",
+        "credits/weight_exceeds_budget",
+        "unknown source",
+        "wrapped permission denied",
+        "wrapped consent denied",
+        "wrapped invalid API key",
+        "Stop during Retry-After"
+      ],
+      "assertions": [
+        "Temporary retries wait at least 900 ms for Retry-After: 1.",
+        "Each HTTP attempt has one ledger row; refusal is not possibly billed, successful retry has its exact synthetic cost.",
+        "Stop finishes before the one-second backoff and starts no second request."
+      ]
+    },
+    "authorityCauseChain": [
+      "permission denied",
+      "consent denied",
+      "invalid API key",
+      "access denied",
+      "bad request",
+      "explicit 402",
+      "AbortError",
+      "executionBudgetStop"
+    ],
+    "backendTypesExitCode": 0,
+    "diffCheckExitCode": 0
+  },
+  "freeze": {
+    "path": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-source-freeze.json",
+    "sha256": "044b91a55005db9605af67ae2410a01924f020333847ef415575721111a950ef"
+  },
+  "rootAcceptance": "Pending independent root Gate9 compiled/full-suite acceptance. Focused proof is not external provider or production acceptance."
+}

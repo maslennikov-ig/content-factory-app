@@ -16,6 +16,7 @@ async function run({ steps = 8, repeat = false, emergencyMaxSteps = 64 }) {
   let calls = 0;
   let modelCalls = 0;
   const choices = [];
+  const outputCaps = [];
   const capability = {
     id: 'test.paid', group: 'content', label: { ru: 'Шаг', en: 'Step' }, description: 'test',
     input: z.object({ index: z.number() }), risk: 'paid', door: registry.pieceCreate.door,
@@ -36,6 +37,7 @@ async function run({ steps = 8, repeat = false, emergencyMaxSteps = 64 }) {
     doGenerate: async (options) => {
       modelCalls += 1;
       choices.push(options.toolChoice?.type ?? 'auto');
+      outputCaps.push(options.maxOutputTokens);
       const content = modelCalls <= steps ? [{
         type: 'tool-call', toolCallId: `c${modelCalls}`, toolName: 'test_paid',
         input: JSON.stringify({ index: repeat ? 0 : modelCalls }),
@@ -51,7 +53,7 @@ async function run({ steps = 8, repeat = false, emergencyMaxSteps = 64 }) {
   const result = await scope.run(() => agent.generate('Finish requested work.', {
     requestContext: requestContextFor(registry, IDENTITY), ...scope.streamOptions(), abortSignal: scope.signal,
   }));
-  return { calls, modelCalls, choices, text: result.text, budget: scope.snapshot() };
+  return { calls, modelCalls, choices, outputCaps, text: result.text, budget: scope.snapshot() };
 }
 
 (async () => {

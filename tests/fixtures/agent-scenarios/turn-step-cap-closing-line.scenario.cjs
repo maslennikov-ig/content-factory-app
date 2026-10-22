@@ -1,17 +1,14 @@
 'use strict';
 
-const { loadCapabilityModule } = require('../../helpers/agent-capabilities.cjs');
-
-const { STEP_CAP_CLOSING } = loadCapabilityModule('../conductor/conductor.steps.ts');
-
-/** A silent technical stop gets a visible incomplete closing in the native UI stream. */
+/** An explicitly configured technical stop remains visibly incomplete. */
 const LIST = ['tool', 'channels_list', {}];
 
 module.exports = {
   id: 'turn-step-cap-closing-line',
   incompleteTurns: [0],
-  title: 'Предел шагов — поставщик не послушал: дверь сама закрывает ход строкой «напишите «дальше»»',
+  title: 'Настроенный предел трёх одинаковых результатов честно останавливает незавершённую задачу',
   covers: ['channels.list'],
+  maxIdenticalToolResults: 3,
   ignoreToolChoice: true,
   turns: [
     {
@@ -28,5 +25,6 @@ module.exports = {
     expect(turn.text).toContain('Задача не завершена');
     expect(turn.types.at(-1)).toBe('finish');
     expect(turn.client.messages.at(-1).parts.some((part) => part.type === 'text' && part.text.includes('Задача не завершена'))).toBe(true);
+    expect(run.history.execution).toMatchObject({ state: 'settled', outcome: 'failed' });
   },
 };

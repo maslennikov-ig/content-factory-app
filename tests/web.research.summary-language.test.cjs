@@ -462,7 +462,7 @@ describe('сводка веб-поиска говорит на языке чит
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
       'переезд с 1С в облако',
-      { language: 'ru', readerResponse: true, queries: ['1C cloud migration'] }
+      { language: 'ru', readerResponse: false, queries: ['1C cloud migration'] }
     );
 
     assert.equal(result.summary, recorded1cSummary);
@@ -929,7 +929,7 @@ describe('сводка веб-поиска говорит на языке чит
     [
       'supplied queries / fact-review consumer',
       recordedTruncated1c.answer,
-      { language: 'ru', readerResponse: true, queries: ['1С в облако'] },
+      { language: 'ru', readerResponse: false, queries: ['1С в облако'] },
     ],
     [
       'discovery',

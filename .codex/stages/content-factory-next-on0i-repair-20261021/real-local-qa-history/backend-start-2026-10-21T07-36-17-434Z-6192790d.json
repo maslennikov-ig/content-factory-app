@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-21T07:30:25.508Z",
+  "result": "STARTED",
+  "pid": 90443,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "a8f8173351d178e625f726cdcdb469727e21104bb8099aa7519d9f710dfdc1f1",
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "124ac58daf886688cc9f561286a6e89537861c006108485459d1611858e7370c",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "3e799c1c69092e8ff98808e18666e2f55f4d4c11ecf92f9441d62105cb1c3bac",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "8aab45a461c5a9d96ea486e4dade9bdb130ec2f3dc38a7fe1ca3d3ccd86dde25",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "766e6e614259521cdb82e7f6a1dae31e8ef220f3ee287b8e0cf06a95b67e9f38",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "f2696550050ef054494236356dae80afa5069b29329bab498efe1cb4b8202baa",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+    "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "a39a98fe9b0e4a7c6bf1e8fdd62002d3ad17eef58a3f0193611a680e140e818a",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+  },
+  "sourceChangedDuringBootstrap": false,
+  "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+  "backendUrl": "http://localhost:3478",
+  "actualApiModule": true,
+  "realAuthMiddleware": true,
+  "realPoliciesGuard": true,
+  "realPrisma": true,
+  "realMastraStore": true,
+  "omittedApplicationModules": [
+    "TemporalRegisterMissingSearchAttributesModule",
+    "InfiniteWorkflowRegisterModule",
+    "AnalyticsScheduleRegisterModuleV1",
+    "NewsletterDeliveryRetryModuleV1",
+    "VoiceRetentionModule"
+  ],
+  "temporalAddressUnreachable": true,
+  "productionAccess": false,
+  "paidCallsByBootstrap": 0
+}

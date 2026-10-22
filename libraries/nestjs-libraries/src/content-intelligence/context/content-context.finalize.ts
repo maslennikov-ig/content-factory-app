@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
+import { renderEvidenceProjection } from './piece-evidence-projection';
 
 type PrismaClientLike = Record<string, any>;
 
@@ -156,10 +157,13 @@ export async function validateContentContextForDraft(
   }
 
   const requested = [...new Set(input.usedCitationIds || [])].sort();
+  const citationPattern = snapshot.selectionAlgorithmVersion >= 3
+    ? /^(?:F[1-8]|E(?:[1-9]|1[0-6]))$/
+    : /^[FE][1-8]$/;
   if (
     requested.some(
       (citationId) =>
-        typeof citationId !== 'string' || !/^([FE])[1-8]$/.test(citationId)
+        typeof citationId !== 'string' || !citationPattern.test(citationId)
     )
   ) {
     throw new ContentContextError(
@@ -184,6 +188,17 @@ export async function validateContentContextForDraft(
       422,
       'Grounded drafts require at least one context citation'
     );
+  }
+
+  // The complete v3 proof pack informed generation, including sources whose
+  // citation was not selected. A changed passage cannot silently survive saving.
+  if (snapshot.selectionAlgorithmVersion >= 3) {
+    for (const item of snapshot.items.filter((item: any) => item.evidenceId)) {
+      if (!item.evidenceProjection || !evidenceCurrentlyUsable(item, input.organizationId, now) ||
+        item.evidence.snapshot?.organizationId !== input.organizationId) invalidated('Selected source proof is no longer eligible');
+      const projected = renderEvidenceProjection(item.evidence.excerpt || '', item.evidenceProjection);
+      if (createHash('sha256').update(projected.excerpt).digest('hex') !== item.excerptHash) invalidated('Selected source projection has changed');
+    }
   }
 
   const evidence = new Map<

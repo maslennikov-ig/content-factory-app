@@ -77,6 +77,7 @@ export const CAPABILITY_REFUSAL_CODES = [
 export const AGENT_ERROR_CODES = [
   'AGENT_FAILED',
   'AI_PROVIDER_UNAVAILABLE',
+  'AI_PROVIDER_PAYMENT_REQUIRED',
   'AI_ALLOWANCE_EXHAUSTED',
   'AI_PROVIDER_BUSY',
   'AI_PROVIDER_TIMEOUT',
@@ -346,6 +347,7 @@ export const AGENT_DOORS = {
   threadWorkspace: (id: string) => `/agent/threads/${encodeURIComponent(id)}/workspace`,
   stopThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/stop`,
   observeThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/observe`,
+  threadSignals: (id: string) => `/agent/threads/${encodeURIComponent(id)}/signals`,
   threadModel: (id: string) => `/agent/threads/${encodeURIComponent(id)}/model`,
   threadMode: (id: string) => `/agent/threads/${encodeURIComponent(id)}/mode`,
   threadObjective: (id: string) => `/agent/threads/${encodeURIComponent(id)}/objective`,
@@ -838,14 +840,17 @@ const readPending = (row: unknown): AgentPendingRun | null => {
 
 export type AgentThreadExecution = {
   requestId: string | null;
+  runId?: string;
   state: 'running' | 'settled' | 'unknown';
   outcome?: 'completed' | 'failed' | 'interrupted';
 };
+export type AgentSignalReceipt = { id: string; text: string; kind: string; durability: 'native' | 'process'; state?: 'unknown' };
 
 const readExecution = (body: unknown): AgentThreadExecution => {
   const record = recordOf(body);
   const requestId = stringOf(record.requestId);
-  if (requestId && record.state === 'running') return { requestId, state: 'running' };
+  const runId = stringOf(record.runId);
+  if (requestId && record.state === 'running') return { requestId, state: 'running', ...(runId ? { runId } : {}) };
   if (requestId && record.state === 'settled' && ['completed', 'failed', 'interrupted'].includes(String(record.outcome))) {
     return { requestId, state: 'settled', outcome: record.outcome as AgentThreadExecution['outcome'] };
   }
@@ -858,6 +863,7 @@ export type AgentThreadHistory = {
   pending: AgentPendingRun[];
   workspace?: AgentWorkspaceV1 | null;
   execution?: AgentThreadExecution;
+  signalReceipts?: AgentSignalReceipt[];
   pagination?: AgentPagination;
 };
 
@@ -885,7 +891,13 @@ export const readThreadHistory = (body: unknown): AgentThreadHistory => {
   const messages = (Array.isArray(record.messages) ? record.messages : [])
     .filter(isUiMessage)
     .map((message) => reopenApprovals(message, approvals));
-  return { thread: readThread(record.thread), messages, pending, pagination: readPagination(body), ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}), ...(record.execution !== undefined ? { execution: readExecution(record.execution) } : {}) };
+  const signalReceipts = (Array.isArray(record.signalReceipts) ? record.signalReceipts : []).flatMap((value) => {
+    const receipt = recordOf(value);
+    return typeof receipt.id === 'string' && typeof receipt.text === 'string' && typeof receipt.kind === 'string' &&
+      (receipt.durability === 'native' || receipt.durability === 'process')
+      ? [{ id: receipt.id, text: receipt.text, kind: receipt.kind, durability: receipt.durability, ...(receipt.state === 'unknown' ? { state: 'unknown' } : {}) } as AgentSignalReceipt] : [];
+  });
+  return { thread: readThread(record.thread), messages, pending, signalReceipts, pagination: readPagination(body), ...(record.workspace !== undefined ? { workspace: readAgentWorkspace(record.workspace) } : {}), ...(record.execution !== undefined ? { execution: readExecution(record.execution) } : {}) };
 };
 
 const reopenApprovals = (
@@ -2437,6 +2449,19 @@ export const readMessageBlocks = (
       state: approvalState,
     });
 
+    // Native built-ins can first request tool permission and then suspend
+    // with a question. The SDK tool part may retain its earlier approval
+    // state; the later suspension is the gate that is actually waiting.
+    const question = questions.get(toolCallId);
+    if (question && (state === 'approval-requested' || state === 'approval-responded')) {
+      blocks.push({
+        type: 'question', key, toolName, title, runId: question.runId,
+        toolCallId: stringOf(part.toolCallId),
+        question: readQuestion(toolName, question.payload, question.resumeSchema),
+      });
+      return;
+    }
+
     if (state === 'approval-requested') {
       blocks.push(approvalBlock(approval.closed === true ? 'closed' : 'asked'));
       return;
@@ -2461,7 +2486,6 @@ export const readMessageBlocks = (
       return;
     }
 
-    const question = questions.get(toolCallId);
     const lost =
       question === undefined
         ? gone.find((run) => run.kind === 'question' && run.toolCallId === toolCallId)

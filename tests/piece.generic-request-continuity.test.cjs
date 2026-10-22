@@ -110,6 +110,24 @@ const answer = async service => {
 };
 beforeEach(() => { modelAnswers = [{ text: FIRST_BODY }, { text: REBUILT_BODY }]; prompts.length = 0; writers.length = 0; });
 
+test('adaptation proof hints retain selected quotes even when the short editorial material excludes their full pages', () => {
+  const { service } = build({ meaningField: 'request' });
+  const core = { ...storedCore(), text: FIRST_BODY };
+  core.brief.facts.push({ ...core.brief.facts[0], factKey: 'source-long', evidenceId: 'source-long',
+    statement: 'A complete selected source page. '.repeat(150), quote: 'A complete selected source page. '.repeat(150) });
+  const plan = { core, request: {}, foreignShingles: [], channel: {
+    id: 'channel', providerIdentifier: 'telegram', maxLength: 4096, maxCaptionLength: 1024, editor: 'none', profile: null,
+  } };
+  const material = service.briefMaterial(plan);
+  const hints = service.hintsOf(plan, [], material.material);
+  expect(hints.evidenceQuotes).toEqual(core.brief.facts.map(fact => ({
+    evidenceId: fact.evidenceId, sourceUrl: fact.sourceUrl, quote: fact.quote.trim(), statement: fact.statement.trim(),
+  })));
+  expect(hints.evidenceQuotes[1].quote.length).toBeGreaterThan(4_000);
+  expect(material.evidenceIds).toEqual(['source-approval', 'source-long']);
+  expect(prompts).toHaveLength(0);
+});
+
 test.each(['request', 'requestUnderstanding'])('native author answer and rebuild retain saved %s, research provenance and explicit title', async meaningField => {
   const { service, piece, saved } = build({ meaningField });
   // Read the actual native pending-question record through the public service.

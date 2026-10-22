@@ -239,6 +239,23 @@ describe('shared web research service', () => {
     jest.useRealTimers();
   });
 
+  test('retains the complete paid provider page independently of the bounded model preview, including event material', async () => {
+    const tail = 'LATE_MANUAL_SECTION: the documented constraint is only in this last section.';
+    const fullText = 'Earlier reference section with ordinary explanatory prose.\n\n'.repeat(4_000) + tail;
+    implementations.tavily = () => ({ results: [{ url: 'https://primary.example/manual', title: 'Manual', rawContent: fullText }] });
+    for (const eventInterval of [undefined, { start: '2026-10-20T00:00:00.000Z', end: '2026-10-22T00:00:00.000Z' }]) {
+      const result = await new WebResearchService(aiUsage).research(`org-fulltext-${!!eventInterval}`, 'Reference manual', {
+        level: 'deep', queries: ['reference manual'],
+        ...(eventInterval ? { researchIntent: { version: 'research-intent/v1', task: 'Reference manual',
+          mode: 'delta', eventInterval, exclusions: [], asOf: '2026-10-21T00:00:00.000Z', timezone: 'UTC', clarification: null } } : {}),
+      });
+      expect(result.sources[0].fullText).toBe(fullText);
+      expect(result.sources[0].text.length).toBeLessThanOrEqual(6_000);
+      expect(result.sources[0].text).not.toContain(tail);
+      expect(result.facts[0].text.length).toBeLessThanOrEqual(8_000);
+    }
+  });
+
   test('anchored event research constrains primary publication and preserves bounded rolling-page recall', async () => {
     const researchIntent = {
       version: 'research-intent/v1', task: 'What changed since the previous overview?',
@@ -463,13 +480,14 @@ describe('shared web research service', () => {
     ['undated', 'Latest current version?', {}, undefined],
     ['ambiguous', 'Current version as of 2026-10-01T14Z?', {}, undefined],
     ['automatic', 'Current version as of 2026-10-01?', { readerResponse: false }, undefined],
-    ['supplied query', 'Current version as of 2026-10-01?', { queries: ['exact claim'] }, undefined],
+    ['supplied reader query', 'Current version as of 2026-10-01?', { queries: ['exact claim'] }, 'general'],
   ])('date routing preserves %s retrieval', async (_name, subject, options, topic) => {
     classification.scope = 'local';
     classification.freshnessRequired = true;
     await new WebResearchService(aiUsage).research('organization-a', subject,
       { language: 'en', readerResponse: true, windowDays: 30, ...options });
-    expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
+    if (options.queries) expect(clientFactoryCalls[0].options).not.toHaveProperty('windowDays');
+    else expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
     expect(clientFactoryCalls[0].options.topic).toBe(topic);
     expect(clientFactoryCalls[0].options.freshnessRequired).toBe(
       options.queries ? false : true);

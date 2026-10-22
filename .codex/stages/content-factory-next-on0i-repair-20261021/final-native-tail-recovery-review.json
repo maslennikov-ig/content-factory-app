@@ -1,0 +1,258 @@
+{
+  "schema": "native-tail-research-recovery-review/1",
+  "at": "2026-10-21T13:07:03.778431+00:00",
+  "status": "APPROVED_SCOPED_SOURCE_REVIEW_ROOT_ACCEPTANCE_PENDING",
+  "baseline": "e74e059ea104593d2fac831eb989714a5b151263",
+  "branch": "codex/on0i-native-repair-20261021",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "openFindings": [],
+  "researchSourceReview": {
+    "status": "APPROVED_SCOPED_SOURCE_REVIEW",
+    "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-freeze.json",
+    "manifestSha256": "a277c9afe5c1cd5b78f11aa3c66924e579694a4da703dcfcec89428bb3ef5042",
+    "entriesCompared": 33,
+    "mismatches": [],
+    "frozenSha256": {
+      "libraries/nestjs-libraries/src/openai/web.research.service.ts": "8ed1cfdefae0fe9953b86984a952479fd7d16b525081431c6dee4a57c95c8c1b",
+      "libraries/nestjs-libraries/src/content-intelligence/research/retained-source.ts": "33a954574bfcb164b480db586cf297a40f9b0b0173cd31b0c1dca8eba0ad1cd9",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "98bd4772671e133ed96e5906e888cab81122f9f2353e91984bf62ab672bd4c90",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "202cdb21249d0ae1aee6af85cc04d591fb88d324d7603dead08afd986ad93de4",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "1799e202dd04e8b7697489bb833699dc4ab266b60e0c08db0cfcd46f8950d1ca",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "863de27b578898f75ae620f778a26bff783998d97529c8459e80c8808addf3b1",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "334660f8228e2c6c6cbf8ab5f9e2d77ed8fecaafdaa160f592ec2205565ef803",
+      "libraries/nestjs-libraries/src/chat/capabilities/capability.types.ts": "0759daec00bb3f1e37557a88065be3138510d27b97706f602ca1c89eac56d942",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "745fac15558ef53c38548cc53203cfc1de65ed1b24d5e3c2014108908cca4870",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts": "ec3e0928c8ebbda6bdbd7f091108b75ab91887f8560f7e0025e4006f10b0dccc",
+      "tests/intake.research-reuse.test.cjs": "ed2662ad76984f31c4bd0599fbfea1e7a0f07f1b2880698c140197fb2e33925c",
+      "tests/web.research.service.test.cjs": "fff27ac0010c94d1d554a550ae90f223890954f10d041089ad23c5b06325d376",
+      "tests/agent-capabilities.adapters.test.cjs": "032432052b96691729a27834e4be4acea4065a56470a2887c17ea2e5690ac3bb",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts": "3d838c65c4dc934195676decfe18b8bcd4c4463fe1cd338946eededa8b2a4690",
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+      "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78",
+      "tests/agent.model-autonomy.test.cjs": "97ba44f2e15a10977edec171759d1306a60fd9439ee16843971e5cf44337155a",
+      "tests/agent-capabilities.mcp-redaction.test.cjs": "1d6cc29d85feb4d12e0d0fb3634650430a856fbffc190ec8bb09d6e1889445ca",
+      "tests/agent-conductor.unit.test.cjs": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+      "tests/agent-conductor.guard.test.cjs": "270e31db489a1874bf16c38356c2899b8f098fe87f98e44ea0dac55f6b2e31c1",
+      "tests/intake.model-led.test.cjs": "9bd3e8132634edc742605a2305ae1712837e3e0aceaaed5ca9fe9cf9f1338328",
+      "tests/intake.provider-schema.test.cjs": "b50ea1ec3394d5024036b7b9a63d6c1b5f751902439e6009e3ab3db2d4080ce5",
+      "tests/intake.manual-research-semantics.test.cjs": "3cc3fcf935b74e9c6483df3487acc279877c84bd195a6d3c227c5f67e25de864",
+      "tests/intake.date-role.test.cjs": "a6bdbdc68ffa32699e111fc0c67f7272c6fe38643c92cec47e67ffb0e380d398"
+    },
+    "evidenceSha256": {
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-diagnosis.json": "5c3c125040755d6cdc34b1684dea430fb92662b4188ec0b7bda8fd3afb63b863",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-controlled-red.log": "accd898f6182fec3507819bf30a3078954563fd1de44b6be84c1be01c03333ea",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-projection-controlled-red.log": "4c4bbd5fb7148ff2d86d94ee6d0e5b5fc10fc6e9d2245935fd8042840b7f1100",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-focused-green.log": "9f22e97fdb3721bee07fee9ff5a4c63ed0f32e5f024afea7f8d52a1ee8ddfeca",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-regressions.log": "d9d9531046098d0a6294acec33dbc107545f705c3168593dd8244b78883caa82",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-outcome.md": "5d45e923bf0a39bc5a3d1d4d7e6bd64c9e8a2f19ee6737ed96045ad8d13426c6",
+      ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-freeze.json": "8e94e2cfad5af71f656c1bc034479882383f8dac95979749d9957422c245357c"
+    },
+    "verification": {
+      "controlledRed": {
+        "contractFailedTests": 5,
+        "projectionConsentFailedTests": 6,
+        "status": "EXPECTED_FAILURE"
+      },
+      "focused": {
+        "command": "/home/me/.nvm/versions/node/v22.23.2/bin/node node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/intake.research-reuse.test.cjs tests/agent-capabilities.adapters.test.cjs tests/agent.model-autonomy.test.cjs tests/agent-capabilities.mcp-redaction.test.cjs tests/agent-conductor.unit.test.cjs tests/agent-conductor.guard.test.cjs tests/intake.model-led.test.cjs tests/intake.provider-schema.test.cjs tests/intake.manual-research-semantics.test.cjs tests/intake.date-role.test.cjs",
+        "suites": 10,
+        "passed": 259,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0
+      },
+      "backendTypes": {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+        "exitCode": 0
+      },
+      "scopedDiffCheck": {
+        "command": "git diff --check -- <approved source and test paths>",
+        "exitCode": 0
+      }
+    },
+    "postStopFreezeRecheck": {
+      "entriesCompared": 33,
+      "mismatches": []
+    }
+  },
+  "stopSourceReview": {
+    "status": "APPROVED_SCOPED_SOURCE_REVIEW",
+    "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-native-tail-source-freeze.json",
+    "manifestSha256": "3092b2778d7e5a568a5b3eaf5ee460ca14cad98856a159183580d02347eaf814",
+    "entriesCompared": 32,
+    "mismatches": [],
+    "frozenSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "0842745fe8117d3c2273f9e15cefb63c4b97d0f39e8aaa0cd8e8a817f88f521d",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "fb912699889e903b8498ffbeef27837ca571128ba39673602e8ea701e70182d6",
+      "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9",
+      "tests/agent-native-stop-tail.test.cjs": "62c3a13b2ba53d29f4e2483aecd3844c664f940896b111cdf0d13a7662cf3a70",
+      "tests/helpers/agent-native-stop-tail.probe.cjs": "806c745ded28d1d73136eb6e053cb481da45e8e070552ca7bd13976ce837d511",
+      "tests/agent-native-stop-settlement.test.cjs": "4cb5ea258df8326b237d4b2ae479d76c0c07afb51dee6b203092817096a3d7b2",
+      "tests/helpers/agent-native-stop-settlement.probe.cjs": "a3998a10a568711da0ab8d653ec4e219ec59a0ce44c7f8333e94ff00c9fea5d5",
+      "tests/agent-native-stop-identity.test.cjs": "b306c37a5293c6234ae237de8dc47e917c5df97b25fd4a89195dcc0c3aa094f0",
+      "tests/helpers/agent-native-stop-identity.cjs": "1ba6ac93af38ca25e6559c29ad9ce18d2070a209de151245a7e0bc9128d9fff5",
+      "tests/agent-native-stop-flow.test.cjs": "8aa91dbd9e5eabd31f0f5fff7e1348d7a6f503208d306bc94b912a584d823b32",
+      "tests/helpers/agent-native-stop-flow.probe.cjs": "7db2596eb94f00279de53854b70f7dffe98348a7f85c9d161aea73fa85b341cf",
+      "tests/agent-mastra-service-native-integration.test.cjs": "fbb75843a609a173a39f14094ce3acf69173cb013a98bf48307951e77b74a299",
+      "tests/helpers/mastra-service-native-integration.probe.cjs": "d745ae5149d5fd2df63b218a9baf93b65590832018a3717ce71a339d300f7ba7",
+      "node_modules/@mastra/core/package.json": "69df237dfc36bceb2f4ea4dd1b272e755a0aa69ae9fba499f0ecc75cf0ca8fce",
+      "node_modules/@mastra/core/dist/agent-controller/session.d.ts": "45a2545c0e936ddc6d591335b82dd4ae2bb1cd3c6bbc999cab9c439062d23489",
+      "node_modules/@mastra/core/dist/agent-controller-DRiP9C5v.js": "89187a550440d68c7a5f914c60aeba5a20a8d9316e4d0540e25ab99fb5e2e673",
+      "node_modules/@mastra/core/dist/create-durable-agent-CdL_GpVq.js": "406101e51c83eb077a0595f932247fef4ea7e72fc6433c1906bea99e34387b71",
+      "node_modules/@mastra/core/dist/workflows/workflow.d.ts": "1d79d41c02496ef591c23b3fe252cd792a46f114835613b95b17ba4f77ff50ec",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+      "libraries/nestjs-libraries/src/chat/conductor/native-run-observer.ts": "bd7edeba03bfbb3a0945bc24d76f39d80aea971c1242cbd38c55796c9d8f5934",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11"
+    },
+    "evidenceSha256": {
+      "evidence/root-gate5-stop-diagnostic-cli.log": "c2f90e123353b2a9107ec1e7a25d94506299650ac67c6567376bcb43e1b6d851",
+      "evidence/root-gate5-stop-late-focus-cli.log": "57588b78ff630861d1a4bf2d04be228964e3cb17a53bd41abcd339855ee84758",
+      "evidence/stop-native-tail.red.log": "9e94799a8842cc4de0c7a238aaae8e149457fa90ce64c878798434fa09b43060",
+      "evidence/stop-native-tail-public-completion.red.log": "705d479956300f4981b04e94626ecf26155e982366bd3c8940dae589268b44f2",
+      "evidence/stop-native-tail-early-response.red.log": "6e592de93fd9c00cf6f1409b3dc0008658a39c8d73052404594c0a5311afff3c",
+      "evidence/stop-native-tail-accepted-run-pointer.red.log": "1c17c9d6f21c9694d52c606e05b6d91f9bdb2f87abb65f727f026bf43d52e03a",
+      "evidence/stop-native-tail-accepted-run-pointer.green.log": "dde0be4e3d585d7b8b10d78c25c615925874862071837a2e23b522ec2e827fae",
+      "evidence/stop-native-tail-internal-close.green.log": "15bdd357dd96662dc3564f88dcb083ecf020c2bee2dbbbd996d91f8322a1ce4c",
+      "evidence/stop-native-tail-focused.final.log": "133c0c4835fb652b510b3ff0c3a6d2af53a6a4cdfe67822f910ccaa79d666527",
+      "evidence/stop-native-tail-backend-types.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "evidence/stop-native-tail-cold-checks.log": "68e45a7a8f651690883254cd9389843c7b5d617a37c0144f3a885b64468010f0"
+    },
+    "verification": [
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-tail.test.cjs tests/agent-native-stop-settlement.test.cjs tests/agent-native-stop-identity.test.cjs tests/agent-native-stop-flow.test.cjs",
+        "exit": 0,
+        "result": {
+          "suites": 4,
+          "tests": 16,
+          "seconds": 54.372
+        },
+        "log": "evidence/stop-native-tail-focused.final.log",
+        "coveredNativeCases": {
+          "tailAndBoundaries": 8,
+          "domainSettlement": 3,
+          "actualInstalledUseChat": 20,
+          "identityTests": 13
+        }
+      },
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+        "exit": 0,
+        "log": "evidence/stop-native-tail-backend-types.final.log"
+      },
+      {
+        "command": "git diff --check",
+        "exit": 0
+      },
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-mastra-service-native-integration.test.cjs --testNamePattern='cold native Stop|Stop settles the accepted'",
+        "exit": 0,
+        "result": {
+          "suites": 1,
+          "tests": 4,
+          "skipped": 13,
+          "seconds": 40.949
+        },
+        "log": "evidence/stop-native-tail-cold-checks.log",
+        "scope": "Existing service-native cold cancellation checks; no app delta in MastraService"
+      }
+    ],
+    "supplementalEvidence": {
+      "path": ".codex/stages/content-factory-next-on0i-repair-20261021/stop-native-tail-evidence.json",
+      "sha256": "d06f82c491fe0ddb6af280b05f92f6cb6a62d2d9823002321fecc528e8ccf11e"
+    },
+    "boundaries": [
+      "Drain only original native HTTP reader for explicit live durable Stop; consume true native FINISH/EOF after message flush.",
+      "Parked gates and default/internal abort keep cancellation; no new observer, polling, private/internal SDK API, SDK patch or frontend guard relaxation.",
+      "Same-request/same-captured-run authoritative exact assistant message proof required before positive ACK.",
+      "Missing tail, swallowed storage failure and known native producer with missing pointer return 503 without clearing capability uncertainty."
+    ],
+    "evidenceLimits": [
+      "Controlled actual installed SDK/PostgreSQL/Redis with synthetic model, not root compiled browser acceptance.",
+      "Internal-close fixture executes controlled legacy HTTP transport; native operator/revocation event is source-reviewed, not independently executed by that fixture.",
+      "Earlier rejected fixture attempts are excluded; use final frozen logs and declared filtered cold checks."
+    ]
+  },
+  "resolvedObservations": [
+    {
+      "id": "O1",
+      "priority": "P2",
+      "classification": "high-value improvement",
+      "confidence": "high",
+      "title": "Generic research error helper marked consent and missing/storage refusals revisable",
+      "resolution": "Allowlist restricts revision flag to own selection, stale source and incomplete research input errors; actual model projection tests include person and foreign actor refusals",
+      "expectedValue": "No misleading automatic repair guidance for missing authority",
+      "tradeoff": "Fail closed on missing or unproven authority"
+    }
+  ],
+  "preservedHistoricalArtifactsSha256": {
+    "research-final-review.md": "39faac11c8d418039c5870b72f58915de2454df66312affa2bff64792e87eb60",
+    "research-final-review.json": "261547cd8f7322d3860b6426c8990342dfd8c46f7251a2a3e68910c189043fa6",
+    "research-source-freeze.json": "8e94e2cfad5af71f656c1bc034479882383f8dac95979749d9957422c245357c"
+  },
+  "reviewerActions": {
+    "tests": 0,
+    "acceptanceRuns": 0,
+    "modelCalls": 0,
+    "providerCalls": 0,
+    "browserActions": 0,
+    "runtimeActions": 0,
+    "sourceEdits": 0,
+    "commit": 0,
+    "push": 0,
+    "deploy": 0
+  },
+  "remainingBounds": [
+    "Root new compiled build and loaded runtime acceptance",
+    "Root actual UI reconnect/Stop/follow-up",
+    "Root fresh natural research and semantic saved-CORE/source acceptance",
+    "Root final full three-part suite; no production or client approval"
+  ],
+  "completionEvent": "Final bounded source review delivered against both final freezes; S1 resolved, no open findings; root compiled/UI/natural/full-suite acceptance remains separate.",
+  "resolvedFindings": [
+    {
+      "id": "S1",
+      "priority": "P1",
+      "classification": "must-fix",
+      "confidence": "high",
+      "path": "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts",
+      "preCorrectionLines": [
+        535,
+        537,
+        546
+      ],
+      "title": "Stop skips saved response proof for an incomplete native pointer",
+      "edges": [
+        {
+          "trigger": "Stop before remembered response commit; swallowed tail store error",
+          "status": "RESOLVED",
+          "redEvidence": "evidence/stop-native-tail-early-response.red.log",
+          "greenEvidence": "evidence/stop-native-tail-focused.final.log"
+        },
+        {
+          "trigger": "Native signal accepted before run pointer commit; pointer store fails",
+          "status": "RESOLVED",
+          "sourceEvidence": "streamNativeSession accepts signal before onRunId; if owned null skips exact response proof",
+          "redEvidence": "evidence/stop-native-tail-accepted-run-pointer.red.log",
+          "greenEvidence": "evidence/stop-native-tail-accepted-run-pointer.green.log",
+          "finalFocusedEvidence": "evidence/stop-native-tail-focused.final.log"
+        }
+      ],
+      "impact": "Positive Stop despite missing original native response tail",
+      "suggestedFix": "Fail closed for known native producer lacking owned saved proof, resolve only captured request/run after drain, keep true pre-native case finite",
+      "expectedValue": "Positive Stop remains evidence of persisted original response",
+      "tradeoff": "Unproven storage/pointer state returns service failure; no extra observer or polling",
+      "rootAcknowledged": true,
+      "status": "RESOLVED",
+      "finalSourceLines": [
+        535,
+        540,
+        546,
+        549,
+        553
+      ],
+      "resolution": "After captured owner settles, refresh only the same logical request and captured native run, require exact saved assistant response; known aborted native work without owned pointer fails 503; true pre-native case stays finite without a model call."
+    }
+  ]
+}

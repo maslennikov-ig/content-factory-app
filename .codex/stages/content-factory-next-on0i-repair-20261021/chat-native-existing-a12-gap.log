@@ -1,0 +1,123 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+-   outcome: 'completed',
+    requestId: 'req-crash-1',
++   state: 'running'
+-   state: 'settled'
+  }
+
+    at verifyPostgresCrashRecoveryAndFencing (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs:884:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async main (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs:989:21)[AGENT] [DurableAgent] run run-crash-1: Durable run run-crash-1: could not verify that this execution still owns the run; stopping without writing.
+FAIL tests/agent-durable-recovery.test.cjs (9.635 s)
+  ● native Mastra 1.78 DurableAgent execution, signals, reconnect, and crash recovery (on0i.3, A11-A14, A30) › A11: observer disconnect detaches the SSE response while the durable run completes in the background and reconnecting observers receive the stream
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+
+      {
+    -   outcome: 'completed',
+        requestId: 'req-crash-1',
+    +   state: 'running'
+    -   state: 'settled'
+      }
+
+      882 |
+      883 |     const threadAfterRecovery = await memory2.getThreadById({ threadId });
+    > 884 |     assert.deepEqual(threadAfterRecovery.metadata.assistantExecution, {
+          |            ^
+      885 |       requestId: 'req-crash-1',
+      886 |       state: 'settled',
+      887 |       outcome: 'completed',
+
+      at verifyPostgresCrashRecoveryAndFencing (tests/helpers/agent-durable-recovery.probe.cjs:884:12)
+      at async main (tests/helpers/agent-durable-recovery.probe.cjs:989:21)[AGENT] [DurableAgent] run run-crash-1: Durable run run-crash-1: could not verify that this execution still owns the run; stopping without writing.
+      at Object.<anonymous> (tests/agent-durable-recovery.test.cjs:11:17)
+
+  ● native Mastra 1.78 DurableAgent execution, signals, reconnect, and crash recovery (on0i.3, A11-A14, A30) › A13: explicit Stop cancels the active durable turn, settles as interrupted, and rejects late callbacks without writing
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+
+      {
+    -   outcome: 'completed',
+        requestId: 'req-crash-1',
+    +   state: 'running'
+    -   state: 'settled'
+      }
+
+      882 |
+      883 |     const threadAfterRecovery = await memory2.getThreadById({ threadId });
+    > 884 |     assert.deepEqual(threadAfterRecovery.metadata.assistantExecution, {
+          |            ^
+      885 |       requestId: 'req-crash-1',
+      886 |       state: 'settled',
+      887 |       outcome: 'completed',
+
+      at verifyPostgresCrashRecoveryAndFencing (tests/helpers/agent-durable-recovery.probe.cjs:884:12)
+      at async main (tests/helpers/agent-durable-recovery.probe.cjs:989:21)[AGENT] [DurableAgent] run run-crash-1: Durable run run-crash-1: could not verify that this execution still owns the run; stopping without writing.
+      at Object.<anonymous> (tests/agent-durable-recovery.test.cjs:11:17)
+
+  ● native Mastra 1.78 DurableAgent execution, signals, reconnect, and crash recovery (on0i.3, A11-A14, A30) › A12 & A30: real child-process crash mid-run recovers on PostgreSQL and completes remaining steps with zero duplicate domain writes
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+
+      {
+    -   outcome: 'completed',
+        requestId: 'req-crash-1',
+    +   state: 'running'
+    -   state: 'settled'
+      }
+
+      882 |
+      883 |     const threadAfterRecovery = await memory2.getThreadById({ threadId });
+    > 884 |     assert.deepEqual(threadAfterRecovery.metadata.assistantExecution, {
+          |            ^
+      885 |       requestId: 'req-crash-1',
+      886 |       state: 'settled',
+      887 |       outcome: 'completed',
+
+      at verifyPostgresCrashRecoveryAndFencing (tests/helpers/agent-durable-recovery.probe.cjs:884:12)
+      at async main (tests/helpers/agent-durable-recovery.probe.cjs:989:21)[AGENT] [DurableAgent] run run-crash-1: Durable run run-crash-1: could not verify that this execution still owns the run; stopping without writing.
+      at Object.<anonymous> (tests/agent-durable-recovery.test.cjs:11:17)
+
+  ● native Mastra 1.78 DurableAgent execution, signals, reconnect, and crash recovery (on0i.3, A11-A14, A30) › A14: PostgreSQL ExecutionFence prevents concurrent duplicate drivers and rejects stale-generation writes after takeover
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-durable-recovery.probe.cjs
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+
+      {
+    -   outcome: 'completed',
+        requestId: 'req-crash-1',
+    +   state: 'running'
+    -   state: 'settled'
+      }
+
+      882 |
+      883 |     const threadAfterRecovery = await memory2.getThreadById({ threadId });
+    > 884 |     assert.deepEqual(threadAfterRecovery.metadata.assistantExecution, {
+          |            ^
+      885 |       requestId: 'req-crash-1',
+      886 |       state: 'settled',
+      887 |       outcome: 'completed',
+
+      at verifyPostgresCrashRecoveryAndFencing (tests/helpers/agent-durable-recovery.probe.cjs:884:12)
+      at async main (tests/helpers/agent-durable-recovery.probe.cjs:989:21)[AGENT] [DurableAgent] run run-crash-1: Durable run run-crash-1: could not verify that this execution still owns the run; stopping without writing.
+      at Object.<anonymous> (tests/agent-durable-recovery.test.cjs:11:17)
+
+PASS tests/agent-native-provider-postgres.test.cjs (6.429 s)
+PASS tests/agent-native-session-cold.test.cjs (23.268 s)
+PASS tests/agent-native-session-http.test.cjs
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       4 failed, 3 passed, 7 total
+Snapshots:   0 total
+Time:        44.186 s
+Ran all test suites matching /tests\/agent-native-provider-postgres.test.cjs|tests\/agent-native-session-http.test.cjs|tests\/agent-native-session-cold.test.cjs|tests\/agent-durable-recovery.test.cjs/i.

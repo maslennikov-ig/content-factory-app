@@ -1,0 +1,26 @@
+PASS tests/agent-mastra-service-native-integration.test.cjs (6.377 s)
+  MastraService native PostgreSQL/Redis integration
+    ✓ actual Session uses one durable agent, shared transports, selected model and native skill tool (6292 ms)
+    ○ skipped queued runtime refreshes persisted selected context with current membership
+    ○ skipped positive native observer-only recovery voids the unused admission without settling the owner lifecycle
+    ○ skipped cold queued continuation retains its original selected target across the native checkpoint gap
+    ○ skipped cold queued continuation honors its original immutable Stop witness before a successor checkpoint
+    ○ skipped cold native Stop cancels a persisted approval without another provider call
+    ○ skipped cold native Stop cancels a persisted question without another provider call
+    ○ skipped cold native Stop rejects an SDK-swallowed cancellation persistence failure
+    ○ skipped Stop settles the accepted availability checkpoint gap immediately without waiting for FINISH
+    fresh-process recovery and task metadata
+      ○ skipped bootstrap returns promptly, respects the live lease and natively rechecks after SIGKILL
+      ○ skipped two fresh bootstraps repair the actual queue/checkpoint crash gap exactly once
+      ○ skipped membership revocation blocks continuation before another provider call
+      ○ skipped Stop survives a delayed queue receipt and restart
+      ○ skipped cross-process Stop cancels a native wait promptly without another provider call
+      ○ skipped permanent failure is failed and a native suspension remains resumable
+      ○ skipped explicit queued input uses native durable acceptance and one finished service admission
+      ○ skipped queued task availability continuation retains the same single admission and completed tool
+
+Test Suites: 1 passed, 1 total
+Tests:       16 skipped, 1 passed, 17 total
+Snapshots:   0 total
+Time:        6.534 s, estimated 157 s
+Ran all test suites matching /tests\/agent-mastra-service-native-integration.test.cjs/i with tests matching "actual Session uses".

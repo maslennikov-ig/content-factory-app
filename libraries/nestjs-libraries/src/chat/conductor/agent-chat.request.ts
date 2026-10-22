@@ -105,6 +105,8 @@ export const claimUnavailable = () =>
 
 /** Our ids and Mastra's (uuid, nanoid) both fit; paths and spaces do not. */
 export const AGENT_ID_PATTERN = /^[A-Za-z0-9_-]{6,128}$/;
+/** Public native workflow run ids can contain non-empty namespace segments. */
+const AGENT_RUN_ID_PATTERN = /^(?=.{6,128}$)[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)*$/;
 /** The longest message one request carries, in characters of text. */
 export const AGENT_MESSAGE_MAX_CHARS = 20_000;
 /** A question card's answer is a few fields, never a document. */
@@ -180,6 +182,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const idOrNull = (value: unknown) =>
   typeof value === 'string' && AGENT_ID_PATTERN.test(value) ? value : null;
+const runIdOrNull = (value: unknown) =>
+  typeof value === 'string' && AGENT_RUN_ID_PATTERN.test(value) ? value : null;
 
 /**
  * Every string leaf with key shapes redacted; the shape is kept. One function
@@ -560,7 +564,7 @@ const approvalAnswers = (parts: unknown): AgentApprovalAnswer[] => {
     if (typeof approvalId !== 'string') continue;
     const separator = approvalId.lastIndexOf('::');
     if (separator === -1) continue;
-    const runId = idOrNull(approvalId.slice(0, separator));
+    const runId = runIdOrNull(approvalId.slice(0, separator));
     const toolCallId = approvalId.slice(separator + 2);
     if (!runId || !toolCallId || toolCallId !== part.toolCallId) continue;
     if (typeof part.approval.approved !== 'boolean') continue;
@@ -592,7 +596,7 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
   const workContext = body.workContext === undefined ? undefined : parseAgentWorkContext(body.workContext);
 
   if (body.runId !== undefined || body.resumeData !== undefined) {
-    const runId = idOrNull(body.runId);
+    const runId = runIdOrNull(body.runId);
     if (!runId || !isResumePayloadShape(body.resumeData)) {
       throw badRequest('A resume needs a run id and the answer.');
     }

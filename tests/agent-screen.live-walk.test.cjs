@@ -95,8 +95,25 @@ describe('D2 — a streaming turn is never unmounted by the availability check',
 
   test('a loaded thread is not swapped for the skeleton or the error on revalidation', () => {
     const screen = source('apps/frontend/src/components/agents/agent.screen.tsx');
-    expect(screen).toContain('if (load && !history.data && history.isLoading)');
-    expect(screen).toContain('if (load && !history.data && history.error)');
+    const ts = require('typescript');
+    const parsed = ts.createSourceFile('agent.screen.tsx', screen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const conditions = [];
+    const visit = (node) => {
+      if (ts.isIfStatement(node)) conditions.push(node.expression.getText(parsed));
+      ts.forEachChild(node, visit);
+    };
+    visit(parsed);
+    for (const state of ['isLoading', 'error']) {
+      const matches = conditions.filter((condition) => condition.includes(`history.${state}`));
+      expect(matches).toHaveLength(1);
+      const blocks = new Function('load', 'history', 'conversationMounted', `return !!(${matches[0]});`);
+      const revalidating = { data: undefined, isLoading: state === 'isLoading', error: state === 'error' ? new Error('temporary') : undefined };
+      expect(blocks(true, revalidating, { current: false })).toBe(true);
+      // A retained conversation survives even a temporarily empty SWR read.
+      expect(blocks(true, revalidating, { current: true })).toBe(false);
+      expect(blocks(true, { ...revalidating, data: { messages: [] } }, { current: true })).toBe(false);
+      expect(blocks(false, revalidating, { current: false })).toBe(false);
+    }
     expect(screen).toContain('revalidateOnReconnect: false');
   });
 });

@@ -46,6 +46,7 @@ const readAll = async (stream) => {
   let historyStatus = 200;
   let serverContext = null;
   let onHistoryRead = null;
+  let replayReleased = false;
   const app = express();
   app.use(express.json());
   app.get('/agent/threads/:id', async (req, res) => {
@@ -81,6 +82,16 @@ const readAll = async (stream) => {
     }
     res.end('data: [DONE]\n\n');
   });
+  app.get('/agent/threads/:id/observe', (req, res) => {
+    seen.push({ method: req.method, path: req.path });
+    if (replayReleased) { res.status(204).end(); return; }
+    res.setHeader('content-type', 'text/event-stream');
+    res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
+    for (const part of [{ type: 'start', messageId: 'replayed' }, { type: 'finish', finishReason: 'stop' }]) {
+      res.write(`data: ${JSON.stringify(part)}\n\n`);
+    }
+    res.end('data: [DONE]\n\n');
+  });
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -90,6 +101,7 @@ const readAll = async (stream) => {
     seen.length = 0;
     zones.length = 0;
     historyReads.length = 0; preStartSignals = 0; historyStatus = 200; serverContext = null; onHistoryRead = null;
+    replayReleased = false;
     const named = [];
     try {
       const parts = await run(named);
@@ -298,6 +310,15 @@ const readAll = async (stream) => {
     });
   }
 
+  await play('native-reconnect', async named => readAll(await transport(THREAD, named).reconnectToStream({ chatId: THREAD })));
+  await play('native-replay-released', async named => {
+    replayReleased = true;
+    let hydrated = 0;
+    const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => THREAD,
+      onThread: id => named.push(id), onReplayComplete: async () => { hydrated++; } });
+    const stream = await client.reconnectToStream({ chatId: THREAD });
+    return { streamAbsent: stream === null, hydrated };
+  });
   await new Promise((resolve) => server.close(resolve));
   process.stdout.write(JSON.stringify(report));
 })().catch((error) => {

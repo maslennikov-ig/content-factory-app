@@ -1,0 +1,30 @@
+{
+  "schema": "cf.provider-docs-evidence/v1",
+  "capturedAt": "2026-10-21T14:40:53.860911+00:00",
+  "official": {
+    "url": "https://openrouter.ai/docs/api_reference/limits",
+    "observedLines": [
+      104,
+      105,
+      106,
+      129
+    ],
+    "shortQuote": "branch on limit_source, not on the hint text",
+    "findings": [
+      "openrouter_in_flight_budget denotes a temporary reservation conflict and supplies Retry-After.",
+      "openrouter_credits includes weight_exceeds_budget; retrying that refusal does not help.",
+      "openrouter_key_limit is a configured key cap. The structured limit_source governs classification; reason and human wording are not required."
+    ]
+  },
+  "installedPublicContract": {
+    "path": "node_modules/@mastra/core/dist/processors/stream-error-retry-processor.d.ts",
+    "sha256": "05568db07dad43c3741be08d75340a7a4733fcd65e413a9ea9302fec46e34866",
+    "version": "1.78.0",
+    "lines": [
+      35,
+      40
+    ],
+    "finding": "StreamErrorRetryProcessor accepts maxRetryAfterMs, with documented default 30 seconds. Existing application cap is unchanged at 30000 ms."
+  },
+  "evidenceBoundary": "Official provider docs and installed public SDK declarations; no external model call or account mutation."
+}

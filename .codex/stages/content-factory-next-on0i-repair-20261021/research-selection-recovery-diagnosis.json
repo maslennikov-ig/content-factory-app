@@ -1,0 +1,132 @@
+{
+  "schema": "research-selection-recovery-diagnosis/v1",
+  "actualReceipt": ".codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-scenario-fullsource-postgresql-skip-locked.json",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-fullsource-postgresql-skip-locked-2026-10-21T12-33-03-108Z.json",
+  "privateEvidenceSha256": "f71cc3b0f87789e2ae2da6f2379ba116e187af251c16cf1a880d06f05623eeb5",
+  "semanticOutcome": "FAILED_NO_CORE",
+  "lifecycleOutcome": "completed",
+  "elapsedMs": 107638,
+  "changedPieceCount": 0,
+  "pendingCount": 0,
+  "knownUsageOperations": 3,
+  "knownCostUsd": "0.02845863",
+  "toolCounts": {
+    "skill": 1,
+    "workspace_snapshot": 1,
+    "research_search": 1,
+    "piece_read": 5,
+    "piece_create": 1
+  },
+  "calls": [
+    {
+      "tool": "skill",
+      "ok": null,
+      "code": null,
+      "rawCanReviseInput": null
+    },
+    {
+      "tool": "workspace_snapshot",
+      "ok": true,
+      "code": null,
+      "rawCanReviseInput": null
+    },
+    {
+      "tool": "research_search",
+      "ok": true,
+      "code": null,
+      "rawCanReviseInput": null
+    },
+    {
+      "tool": "piece_read",
+      "ok": true,
+      "code": null,
+      "rawCanReviseInput": null,
+      "sourceIndex": 0,
+      "find": "SKIP LOCKED",
+      "totalCharacters": 64412,
+      "matchOffset": 883,
+      "revision": "5a8922ed846960e1a4956e17a2c3920bc0d96c8358186a5849d228e3a58e062c"
+    },
+    {
+      "tool": "piece_read",
+      "ok": false,
+      "code": "MATERIAL_PASSAGE_NOT_FOUND",
+      "rawCanReviseInput": true,
+      "sourceIndex": 1,
+      "find": "SKIP LOCKED",
+      "totalCharacters": null,
+      "matchOffset": null,
+      "revision": null
+    },
+    {
+      "tool": "piece_read",
+      "ok": true,
+      "code": null,
+      "rawCanReviseInput": null,
+      "sourceIndex": 0,
+      "find": "inconsistent view",
+      "totalCharacters": 64412,
+      "matchOffset": 48790,
+      "revision": "5a8922ed846960e1a4956e17a2c3920bc0d96c8358186a5849d228e3a58e062c"
+    },
+    {
+      "tool": "piece_read",
+      "ok": false,
+      "code": "MATERIAL_PASSAGE_NOT_FOUND",
+      "rawCanReviseInput": true,
+      "sourceIndex": 1,
+      "find": "The locks acquired by a transaction",
+      "totalCharacters": null,
+      "matchOffset": null,
+      "revision": null
+    },
+    {
+      "tool": "piece_read",
+      "ok": true,
+      "code": null,
+      "rawCanReviseInput": null,
+      "sourceIndex": 1,
+      "find": "Row-level locks",
+      "totalCharacters": 17637,
+      "matchOffset": 7228,
+      "revision": "43d681c3f26503d075c5d97979a962a0c0972fd4e86d8fc561a3a7b89b127d5f"
+    },
+    {
+      "tool": "piece_create",
+      "ok": false,
+      "code": "INTAKE_INPUT_INSUFFICIENT",
+      "rawCanReviseInput": true,
+      "inputFields": [
+        "factId",
+        "inputKind",
+        "material",
+        "researchId",
+        "selection",
+        "sourceLeadId",
+        "text",
+        "research"
+      ],
+      "researchId": "res_4f620c19-2164-4f8f-89ec-a8467750e5c4",
+      "factId": [
+        "res:0:search:16c54cf7df85559c",
+        "res:1:search:368b40bc7563b3e7"
+      ],
+      "research": "none",
+      "reason": "Перед подготовкой фактологической заметки требуется дополнительная проверка официальной документации: предоставленные цитаты подтверждают синтаксис SKIP LOCKED и общие свойства блокировок строк, но не подтверждают все нужные детали. Дополнительный поиск недоступен в текущих настройках.",
+      "hasPassages": false,
+      "originalTextCharacters": 409,
+      "modelMaterialCharacters": 1484
+    }
+  ],
+  "confirmedBoundaries": [
+    "The retained source read/find path exposed later official source material; full body retention is working.",
+    "The chosen old fact keys still selected their originally captured quotes. Reading a full source did not expand those facts.",
+    "A model paraphrase in material did not become confirmed research evidence; the insufficient-evidence refusal was correct.",
+    "The prior native toModelOutput projection removed canReviseInput. Controlled projection RED reproduces this actual model-input loss.",
+    "The old brief label Paid research enabled:false described reuse-only invocation state but was misreported as global search availability.",
+    "The old blanket refusal instruction contradicted server-proven input repair.",
+    "Runtime MastraService does not enable ToolSearchProcessor; the alternate from-research tool was not hidden by that processor.",
+    "No native objective was set in the observed nine tools. No new objective/retry engine was introduced."
+  ],
+  "claimLimit": "Controlled regressions do not convert the real failed scenario to PASS. A new root-owned real natural prompt is still required."
+}

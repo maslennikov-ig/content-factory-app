@@ -146,7 +146,7 @@ export function AgentComposer({
   busy: boolean;
   /** A message is already waiting for the turn to end. */
   queued: boolean;
-  onSubmit: (message: ComposerSubmit) => void;
+  onSubmit: (message: ComposerSubmit) => void | Promise<void>;
   onStop: () => void;
   /** Sends sample files to the target avatar's door; the receipt comes back. */
   uploadSamples?: (files: File[], avatarId: string | null) => Promise<SamplesSent>;
@@ -439,12 +439,17 @@ export function AgentComposer({
       });
     }
     for (const [file, pictureKey] of shown) keepShownPicture(file, pictureKey);
-    onSubmit({
-      text: currentText.trim(),
-      files: parts,
-      ...(samples ? { samples } : {}),
-      ...(media?.media.length ? { media } : {}),
-    });
+    try {
+      await onSubmit({
+        text: currentText.trim(),
+        files: parts,
+        ...(samples ? { samples } : {}),
+        ...(media?.media.length ? { media } : {}),
+      });
+    } catch {
+      setNotice(w.sendFailed);
+      return;
+    }
     setText('');
     setFiles([]);
     setNotice(null);
@@ -590,6 +595,10 @@ export function AgentComposer({
 
   const submit = useCallback(async () => {
     if (!canSend) return;
+    if (busy && files.some(file => isLibraryImage(file) && !goesToLibrary(file))) {
+      setNotice(w.pictureBusy);
+      return;
+    }
     // Samples sent while the agent answers would change the corpus an
     // analysis in this turn may be reading: they wait for the turn (F6).
     if (busy && hasSamples && uploadSamples) {
@@ -597,7 +606,7 @@ export function AgentComposer({
       return;
     }
     await send();
-  }, [busy, canSend, hasSamples, send, uploadSamples]);
+  }, [busy, canSend, files, goesToLibrary, hasSamples, send, uploadSamples, w.pictureBusy]);
 
   useEffect(() => {
     if (!held || busy) return;

@@ -1,0 +1,152 @@
+AssertionError [ERR_ASSERTION]: http: resumed provider keeps its current execution, not the completed parent.
++ actual - expected
+
++ undefined
+- ConductorExecution {
+-   assertCanSpend: [Function (anonymous)],
+-   halt: AbortController {},
+-   knownCostUsd: 0,
+-   notes: [],
+-   options: {
+-     native: true,
+-     requestId: 'd4532723-eba7-4312-8c61-ce2f388ea3ac',
+-     signal: AbortSignal {
+-       [Symbol(events.maxEventTargetListeners)]: 0,
+-       [Symbol(events.maxEventTargetListenersWarned)]: false,
+-       [Symbol(kAborted)]: false,
+-       [Symbol(kComposite)]: false,
+-       [Symbol(kDependantSignals)]: SafeSet(1) {
+-         SafeWeakRef {}
+-       },
+-       [Symbol(kEvents)]: SafeMap(0) {},
+-       [Symbol(kHandlers)]: SafeMap(0) {},
+-       [Symbol(kReason)]: undefined
+-     }
+-   },
+-   paidInFlight: null,
+-   policy: {
+-     emergencyMaxSteps: 64,
+-     maxDurationMs: 3600000,
+-     maxIdenticalToolResults: 3
+-   },
+-   possiblyBilled: false,
+-   progressLimited: false,
+-   providerCalls: 0,
+-   results: Map(0) {},
+-   signal: AbortSignal {
+-     [Symbol(events.maxEventTargetListeners)]: 0,
+-     [Symbol(events.maxEventTargetListenersWarned)]: false,
+-     [Symbol(kAborted)]: false,
+-     [Symbol(kComposite)]: true,
+-     [Symbol(kEvents)]: SafeMap(0) {},
+-     [Symbol(kHandlers)]: SafeMap(0) {},
+-     [Symbol(kReason)]: undefined,
+-     [Symbol(kSourceSignals)]: SafeSet(2) {
+-       SafeWeakRef {},
+-       SafeWeakRef {}
+-     }
+-   },
+-   startedAt: 1792572753201,
+-   stepLimited: false,
+-   steps: 1,
+-   timeLimited: false,
+-   tokens: 0,
+-   unknownCostCalls: 0
+- }
+
+    at scenario (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-owner.probe.cjs:85:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-owner.probe.cjs:109:53 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: [ConductorExecution],
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+FAIL tests/agent-native-session-owner.test.cjs (5.333 s)
+  ✕ fresh HTTP and queued owners replace a finished Session subscription while approvals retain their current admission (5248 ms)
+
+  ● fresh HTTP and queued owners replace a finished Session subscription while approvals retain their current admission
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-owner.probe.cjs
+    AssertionError [ERR_ASSERTION]: http: resumed provider keeps its current execution, not the completed parent.
+    + actual - expected
+
+    + undefined
+    - ConductorExecution {
+    -   assertCanSpend: [Function (anonymous)],
+    -   halt: AbortController {},
+    -   knownCostUsd: 0,
+    -   notes: [],
+    -   options: {
+    -     native: true,
+    -     requestId: 'd4532723-eba7-4312-8c61-ce2f388ea3ac',
+    -     signal: AbortSignal {
+    -       [Symbol(events.maxEventTargetListeners)]: 0,
+    -       [Symbol(events.maxEventTargetListenersWarned)]: false,
+    -       [Symbol(kAborted)]: false,
+    -       [Symbol(kComposite)]: false,
+    -       [Symbol(kDependantSignals)]: SafeSet(1) {
+    -         SafeWeakRef {}
+    -       },
+    -       [Symbol(kEvents)]: SafeMap(0) {},
+    -       [Symbol(kHandlers)]: SafeMap(0) {},
+    -       [Symbol(kReason)]: undefined
+    -     }
+    -   },
+    -   paidInFlight: null,
+    -   policy: {
+    -     emergencyMaxSteps: 64,
+    -     maxDurationMs: 3600000,
+    -     maxIdenticalToolResults: 3
+    -   },
+    -   possiblyBilled: false,
+    -   progressLimited: false,
+    -   providerCalls: 0,
+    -   results: Map(0) {},
+    -   signal: AbortSignal {
+    -     [Symbol(events.maxEventTargetListeners)]: 0,
+    -     [Symbol(events.maxEventTargetListenersWarned)]: false,
+    -     [Symbol(kAborted)]: false,
+    -     [Symbol(kComposite)]: true,
+    -     [Symbol(kEvents)]: SafeMap(0) {},
+    -     [Symbol(kHandlers)]: SafeMap(0) {},
+    -     [Symbol(kReason)]: undefined,
+    -     [Symbol(kSourceSignals)]: SafeSet(2) {
+    -       SafeWeakRef {},
+    -       SafeWeakRef {}
+    -     }
+    -   },
+    -   startedAt: 1792572753201,
+    -   stepLimited: false,
+    -   steps: 1,
+    -   timeLimited: false,
+    -   tokens: 0,
+    -   unknownCostCalls: 0
+    - }
+
+      83 |     assert.equal(attempts.length, 3);
+      84 |     assert.ok(attempts[1].execution && attempts[1].execution !== attempts[0].execution, 'A new human task has its own execution.');
+    > 85 |     assert.equal(attempts[2].execution, attempts[1].execution, `${kind}: resumed provider keeps its current execution, not the completed parent.`);
+         |            ^
+      86 |     assert.equal(attempts[1].admission, ledgerRows[1]);
+      87 |     assert.equal(attempts[2].admission, ledgerRows[1], `${kind}: resumed provider keeps its current admitted ledger.`);
+      88 |     assert.equal(attempts[2].closedAtCall, false, 'A completed ledger cannot own resumed work.');
+
+      at scenario (tests/helpers/agent-native-session-owner.probe.cjs:85:12)
+      at async /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-owner.probe.cjs:109:53 {
+        generatedMessage: false,
+        code: 'ERR_ASSERTION',
+        actual: undefined,
+        expected: [ConductorExecution],
+        operator: 'strictEqual',
+        diff: 'simple'
+      }
+      at Object.<anonymous> (tests/agent-native-session-owner.test.cjs:6:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        5.359 s
+Ran all test suites matching /tests\/agent-native-session-owner.test.cjs/i.

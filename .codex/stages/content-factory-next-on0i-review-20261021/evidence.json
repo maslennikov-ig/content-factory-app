@@ -1,0 +1,141 @@
+{
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "branch": "codex/on0i-native-harness-implementation-20261019",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "verdict": "CHANGES_REQUIRED",
+  "focusedTests": {
+    "suites": 6,
+    "tests": 73,
+    "passed": 73,
+    "exitCode": 0
+  },
+  "probes": {
+    "routing-outage": {
+      "mode": "routing-outage",
+      "streamOutputText": "",
+      "httpAttemptModels": [
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-backup-1",
+        "openai/gpt-5.4-backup-1",
+        "anthropic/claude-4-sonnet",
+        "anthropic/claude-4-sonnet",
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-backup-1",
+        "openai/gpt-5.4-backup-1",
+        "anthropic/claude-4-sonnet",
+        "anthropic/claude-4-sonnet",
+        "openai/gpt-5.4-backup-1",
+        "openai/gpt-5.4-backup-1",
+        "anthropic/claude-4-sonnet",
+        "anthropic/claude-4-sonnet"
+      ],
+      "httpAttemptIntervalsMs": [
+        2,
+        0,
+        0,
+        3,
+        1,
+        15,
+        0,
+        1,
+        1,
+        0,
+        0,
+        5,
+        4,
+        6,
+        7
+      ],
+      "ledgerAttemptCount": 16,
+      "activeRunCount": 0,
+      "persistedRuns": [],
+      "recovery": {
+        "recovered": [],
+        "succeeded": 0,
+        "failed": 0
+      }
+    },
+    "outage": {
+      "mode": "outage",
+      "streamOutputText": "",
+      "httpAttemptModels": [
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-backup-1",
+        "openai/gpt-5.4-backup-1",
+        "anthropic/claude-4-sonnet",
+        "anthropic/claude-4-sonnet"
+      ],
+      "httpAttemptIntervalsMs": [
+        20,
+        6,
+        4,
+        6,
+        5
+      ],
+      "ledgerAttemptCount": 6,
+      "activeRunCount": 0,
+      "persistedRuns": [],
+      "recovery": {
+        "recovered": [],
+        "succeeded": 0,
+        "failed": 0
+      }
+    },
+    "boundary": {
+      "observer": {
+        "midState": "running",
+        "finalOutcome": "completed",
+        "toolExecutions": 1,
+        "observedText": "",
+        "messageCount": 2
+      },
+      "receipt": {
+        "domainWrites": 2,
+        "results": [
+          {
+            "ok": true,
+            "capability": "piece.create",
+            "summary": {
+              "pieceId": "piece-1"
+            }
+          },
+          {
+            "ok": true,
+            "capability": "piece.create",
+            "summary": {
+              "pieceId": "piece-2"
+            }
+          }
+        ]
+      }
+    },
+    "active-stop": {
+      "status": "streaming",
+      "localStopCalls": 1,
+      "serverStopCalls": [],
+      "calls": []
+    }
+  },
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "a98332df92c5ba091bf7a65c0c6cc6e6c11868a83d54d5bbbdf22aa3745bad89",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "9ab65ef08eb72e5d0e1cb06aabcd1829cf7a6a9febc213786d67fd5b89ac21a9",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "b83868bd612c7ff6a87dd1ff00bd88c2d2dd4392c2b5ada59310542bc7f341f1",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "75badfa8e2a58b085d83ef83d2dae4e6f5ec85a984f40255c0523ade8770f3a5",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "c01d51e6e2a1c884853ad0b1b641b2e3b97a9bba1fc418e8759a2e36191914d1",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "22af0861fb42915e9f44340d1467d920e8b0457a04c3f782a2d8a321883b1a4a",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "7e33bad9c4b5e45b77dab3c8226a1bf71b009d461093064664306e6896ec1042",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "7c74847395e4f7133f5c15c5a78a8675c6187926f97221885b624bd5be025980",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "f0ddf54ebb93598684a2c2e75b1939b1674261ea167d3766e339c8cddd1723bd"
+  },
+  "boundaries": {
+    "productionAccess": false,
+    "paidProviderCalls": 0,
+    "applicationSourceEdits": false,
+    "fullSuiteRerun": false,
+    "realBrowserE2E": false,
+    "realModelQuality": false
+  }
+}

@@ -1,6 +1,6 @@
 # Focused correctness review: task 5rgn
 
-Current follow-up status: no unresolved release-blocking finding in the reviewed source. R1–R3 below retain their original evidence; all three fixes were subsequently inspected in code and the targeted new regression assertions were read. Their execution remains root-owned.
+Current follow-up status: no unresolved source-review blocker. Both projection findings below are resolved after bounded inspection of the final fixes and three new regression assertions. R1–R3 below retain their original evidence; all three fixes were subsequently inspected in code and the targeted new regression assertions were read. Execution and final integration acceptance remain root-owned.
 
 Read-only source review on 2026-10-20 in the shared repair worktree. Findings
 are based on the current implementation and existing test evidence, not on
@@ -210,3 +210,143 @@ and citation excerpts remain untrusted external data; this does not prove
 verbatim agreement with an independently fetched full page or certify every
 semantic assertion. A future caller that accepts model-generated `fact.text`
 would need a different explicit contract; no such current caller was found.
+
+## Live follow-up review: research coverage
+
+The source-producer trace above describes the first accepted source d1caf509.
+Its first-eight, fact-backed reader selection is superseded by the additional
+correction after an actual rerun demonstrated coverage loss. Independent
+reviewer `pipeline_review` read the stable additional diff and its real
+producer-to-capture-to-native-create regressions. The current reader honors
+explicit queries, fairly admits query results, presents up to 50 bounded actual
+source windows in one call, and uses reader-summary/v2 cache identity. Private
+source-only candidates expose their keys and unverified/unselected status;
+default selection excludes them. Explicit selection checks owner scope,
+literal statement/quote and registry evidence pairing. No other concrete
+correctness blocker was found in that additional scope.
+
+R4 (P2) was found and resolved: `insufficient_evidence` was missing from the
+reuse refusal statuses. This allowed an explicit literal candidate to bypass
+an assessment with no usable answer/relevant source. The guard now refuses
+before selection, claim or writer. The actual-producer regression returns an
+empty answer and all-irrelevant references, leaves a candidate inspectable,
+and verifies native reuse refusal with no intake model, claim or writer. Root
+accepts this source-level resolution; root release checks and actual post
+quality remain separate gates. The reviewer ran no tests and edited no files.
+
+Bounded limitation: 50 full pages cannot fit into one 25k-byte reader input.
+Windows can be short, and oversized metadata can make the reader refuse. This
+is fail-closed; captured full sources remain inspectable, while relevance and
+completeness for the original request still require actual-result assessment.
+
+## Local date-scope review
+
+The first actual local diagnostic exposed the legacy single-day gate rejecting
+valid ranges with reference dates before any semantic reader invocation.
+Independent review then found two remaining concrete defects in the narrow v3
+patch: slash ranges still failed its parser gate, and a correctly repeated
+period in the answer was treated as an unsupported event date and discarded
+all facts. These findings are resolved by the v4 scope contract, not a
+whitelist of dates appearing anywhere in the query.
+
+Reviewer read and accepted the stable v4 implementation and meaningful
+English/Russian/slash and unsupported-date assertions: required exact
+scopeQuote/scopeStatus, request-context rendering outside the factual answer,
+hint-only parsing and no event-date exception for even a single as-of hint.
+needs_clarification becomes insufficient_evidence with no selectable facts;
+native reuse refuses before writing. No new model loop or call, no legacy V1
+change, and no remaining concrete review blocker. Reviewer ran no tests or
+network calls and edited no files. Root accepts the source-level resolution;
+actual saved-post quality remains separate.
+
+## Piece evidence projection review, 2026-10-20
+
+Read-only bounded inspection of the frozen projection stream: producer
+`PieceService.hintsOf` -> `AgentGraphService.start` -> context builder and
+repository -> nullable persisted `evidenceProjection` -> literal-span consumer
+and final draft validation. The reviewer ran no tests, build, database,
+network, model or runtime actions. Only this existing review artifact was
+updated. Worker-reported passing suites are existing evidence, not a reviewer
+acceptance run.
+
+### [RESOLVED] Projection finding 1 — P1: valid new evidence citations E9–E16 cannot be finalized
+
+Evidence: `context/piece-evidence-projection.ts:6` permits 16 evidence items;
+`context/content-context.builder.ts:515–516` assigns E1 through E16. Generator
+structured output uses strings and validates membership against the actual
+context (`agent/agent.graph.service.ts:280`, lines 1168–1186 and 1609–1636).
+However `context/content-context.finalize.ts:163` still accepts only
+`/^([FE])[1-8]$/`.
+
+Trigger: build the supported nine-source v3 pack, then finalize a valid draft
+using `['E9']` or `['E1', 'E9']`. Finalization refuses with
+`CONTENT_CONTEXT_CITATIONS_INVALID` after generation despite the selected
+source and its projection being valid. The new nine-source finalization test
+only chooses E1, so it misses the consumer mismatch.
+
+Fix: admit E1–E16 only for the new projection version, preserve F1–F8 and legacy
+E1–E8, and retain actual snapshot membership validation. Add actual-finalizer
+positive E9/E16 and negative E17/legacy-E9 assertions.
+
+Expected value: all newly admitted sources can actually support a saved draft.
+Tradeoff: the new citation range must remain versioned rather than weakening
+legacy acceptance. Confidence: high. Classification: must-fix.
+Resolved in source: `content-context.finalize.ts:160–162` now accepts F1–F8
+and E1–E16 only for version 3+, while legacy snapshots retain F/E1–8. Actual
+snapshot membership is still checked at line 178. The regression at
+`tests/content-context.builder.test.cjs:586` builds a real 16-item v3 context
+and calls the actual finalizer: E9/E16 succeed; E17/F9 fail; removing E12 from
+the snapshot proves that a numerically valid id still fails membership;
+changing the same snapshot to version 2 rejects E9. Reviewer inspected these
+assertions without executing them. Source resolution accepted.
+
+### [RESOLVED] Projection finding 2 — P2: normal long semantic quotes are misclassified as whole-page background
+
+Evidence: `context/piece-evidence-projection.ts:132` drops the mandatory span
+when normalized quote equals the complete registry excerpt and exceeds 1024
+characters. This does not identify a full-page candidate: the actual normal
+semantic-fact producer stores its supporting quote itself as the registry
+excerpt (`intake/intake.service.ts:2240–2249`).
+
+Trigger: an otherwise valid selected semantic fact has a short paraphrased
+statement and a 1200-character quote. Registry excerpt equals that quote by
+the production acceptance contract. The new branch skips the mandatory span
+even with ample 24k budget and retains at most 160 plus 800 background
+characters. `materialSupport` cannot match the complete normalized quote in
+any literal span; generation is explicitly told there is no matching admitted
+quote (`agent/agent.graph.service.ts:444–449`). This quote previously fitted
+the ordinary 4k selected excerpt. The failure is proof loss, not fabricated
+confirmation.
+
+Fix: retain semantic quotes as mandatory. Whole-page background needs an
+explicit producer role (or at least the literal statement/quote identity
+contract), not equality with registry excerpt. Add an actual capture ->
+piece hints -> builder -> materialSupport regression with quote 1025–2000 and
+statement different from quote; keep the separate whole-page background case.
+
+Expected value: valid semantic support is not silently discarded before the
+paid adaptation. Tradeoff: large essential quotes must consume the real proof
+budget or produce an honest preflight deficit. Confidence: high.
+Classification: must-fix.
+
+Resolved in source: `piece-evidence-projection.ts:132–133` skips a complete
+long capture only when its normalized statement also equals the quote.
+A semantic paraphrase (or absent statement) keeps the actual quote mandatory
+even when the entire registry excerpt equals it. The new regression at
+`tests/content-context.builder.test.cjs:494` exercises the builder and actual
+`materialSupport` for normalized semantic quotes of 1025, 1600 and 2000
+characters with a short different statement. The separate complete-page
+regression retains statement=quote, verifies compact relevant background,
+and confirms the original raw source is unchanged. Reviewer inspected both
+assertions without executing them. Source resolution accepted.
+
+No other concrete blocker was identified in this bounded inspection. Raw
+excerpt hash, span offset bounds, saved rendered hash and organization checks
+are present; projection reload preserves individual literal spans so omission
+markers do not prove continuity. The finalizer also checks projected sources
+outside chosen citations. Legacy nullable projection fallback remains
+separate. Semantic entailment remains the model review's responsibility;
+literal provenance alone is not a semantic certificate. Root owns schema,
+type/build integration and live result acceptance following this source-level
+resolution inspection. No additional tests, runtime or provider calls were
+made for the final delta.

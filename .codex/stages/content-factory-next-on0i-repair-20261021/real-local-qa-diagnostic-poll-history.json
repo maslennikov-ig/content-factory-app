@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-21T08:02:32.698Z",
+  "result": "OWNED_DUPLICATE_POLL_EVIDENCE_RETAINED_PRIVATELY",
+  "originalFiles": 127,
+  "distinctStates": 2,
+  "retainedFirstLastForEachState": [
+    "native-permission-diagnostic-2026-10-21T07-39-06-433Z-01569c3d.json",
+    "native-permission-diagnostic-2026-10-21T07-39-08-609Z-3113a9d3.json",
+    "native-permission-diagnostic-2026-10-21T07-54-48-708Z-7e5a4809.json"
+  ],
+  "movedCount": 124,
+  "privateBackupDirectory": "/tmp/on0i-real-local-qa-s2nihQ/diagnostic-history-backup",
+  "privateIndex": "/tmp/on0i-real-local-qa-s2nihQ/diagnostic-history-backup/index.json",
+  "allMovedFilesHashVerified": true,
+  "onlyOwnNewDiagnosticFiles": true
+}

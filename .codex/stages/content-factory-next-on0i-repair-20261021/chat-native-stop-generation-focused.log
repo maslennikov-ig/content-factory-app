@@ -1,0 +1,24 @@
+PASS tests/agent-screen.w2-recheck.test.cjs (18.373 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-native-stop-flow.test.cjs (12.934 s)
+PASS tests/agent-native-conversation-flow.test.cjs (12.071 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-transport.test.cjs
+
+Test Suites: 4 passed, 4 total
+Tests:       84 passed, 84 total
+Snapshots:   0 total
+Time:        44.244 s
+Ran all test suites matching /tests\/agent-native-stop-flow.test.cjs|tests\/agent-native-conversation-flow.test.cjs|tests\/agent-screen.w2-recheck.test.cjs|tests\/agent-transport.test.cjs/i.

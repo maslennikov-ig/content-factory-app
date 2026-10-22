@@ -1,0 +1,1 @@
+{"actualServiceAndStore":true,"actualNativeEventedDrain":true,"manualFlush":false,"bufferedSpanPersisted":true,"spanEndedDuringDrainPersisted":true,"repeatedShutdownIdempotent":true,"ownedPoolEnds":1,"actualExternalRequests":0,"actualProviderCalls":0}

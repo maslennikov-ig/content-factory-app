@@ -1,0 +1,50 @@
+PASS tests/agent-native-session-cold.test.cjs (24.384 s)
+PASS tests/agent-native-provider-postgres.test.cjs (6.211 s)
+PASS tests/agent-native-session-http.test.cjs
+PASS tests/agent-native-conversation-flow.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-task-execution.test.cjs
+  ● Console
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, AttemptTimeout, 44999 ms): no answer within 44999 ms
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1303:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1133:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, TypeError, 1 ms): connection lost after sending
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1303:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1133:22)
+      at Object.<anonymous> (tests/agent-task-execution.test.cjs:353:5)
+
+PASS tests/agent-transport.test.cjs
+PASS tests/agent-screen.start-draft.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-composer.media.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+
+Test Suites: 8 passed, 8 total
+Tests:       111 passed, 111 total
+Snapshots:   0 total
+Time:        51.856 s, estimated 54 s
+Ran all test suites matching /tests\/agent-native-provider-postgres.test.cjs|tests\/agent-native-session-http.test.cjs|tests\/agent-native-session-cold.test.cjs|tests\/agent-native-conversation-flow.test.cjs|tests\/agent-composer.media.test.cjs|tests\/agent-transport.test.cjs|tests\/agent-screen.start-draft.test.cjs|tests\/agent-task-execution.test.cjs/i.

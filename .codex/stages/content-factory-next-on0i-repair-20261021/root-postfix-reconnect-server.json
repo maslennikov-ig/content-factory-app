@@ -1,0 +1,32 @@
+{
+  "schema": "on0i-postfix-compiled-reconnect/1",
+  "result": "PASS",
+  "threadId": "7e7b965b-bae7-4c69-88a9-b9e9033e85c6",
+  "snapshotAt": "2026-10-21T11:46:28.628Z",
+  "execution": {
+    "requestId": "679c5a49-cadc-481d-823b-f7632fe0d08b",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "dc68d862-bf5c-431d-91e9-62822cd440a4"
+  },
+  "messageCount": 2,
+  "pending": 0,
+  "textChars": 4513,
+  "textSha256": "f7bf4b6f5a628f1a351b4f08e80a0d2369f7896f3648f2b615a91f383cdb39f2",
+  "providerRawEqualsNativeContentAndPartsAndHTTP": true,
+  "all80ItemsEqualVisibleDOM": true,
+  "beforeActive": true,
+  "beforeVisibleItems": 1,
+  "exactVisibleHumanCount": 1,
+  "chatPosts": 1,
+  "observeGets": 1,
+  "pageErrors": [],
+  "realProviderCalls": 1,
+  "model": "openai/gpt-6-luna",
+  "generationId": "gen-1792583142-sBBuPTPNWh6Hp981Y0dS",
+  "usageRecordId": "22ace5cc-3dfd-4477-86fa-ed9f05f6b508",
+  "knownCostUsd": "0.00428168",
+  "backendManifest": "real-local-qa-backend-start.json",
+  "browserEvidence": "root-current-compiled-reconnect.json",
+  "localOnly": true
+}

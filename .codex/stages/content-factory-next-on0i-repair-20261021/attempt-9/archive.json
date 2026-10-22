@@ -1,0 +1,29 @@
+{
+  "schema": "on0i-attempt-archive/1",
+  "status": "FAIL_PRESERVED",
+  "sourceChangedDuringChecks": false,
+  "files": {
+    "root-command-acceptance.json": "c16e8f641c3137ae2461060f133a0b63681b9146a6a7d25b0865022be850fdb3",
+    "evidence/root-types-backend.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/root-types-frontend.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/root-types-orchestrator.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/root-build.log": "43993f70b33ec9a8774920ffac939ae984bb955a65eb3c7510346763b247f91c",
+    "evidence/root-suite.log": "2ab377b50ecdbde9ca6abaa02f54177e51f8471e61e6cea3aca24b1e3501a39f",
+    "evidence/root-suite-halves.log": "8b807055be53d2e27f7740fdb50e7bbb13204a9190bb876ad65a52a0a5e4c9b4",
+    "evidence/root-docs.log": "4fd35ba2673d8589d2f3be5cb4f503d61183d695785b36dd230f1547a471f6fe",
+    "evidence/root-branding.log": "92de49af5a8e45856311e297697d24d2d9c2cb4879f446bca6d4bad3eceb31a5",
+    "evidence/root-process.log": "40b7366b33cb753578b0ad24058750afc2d6ffbd86bf3e49bbd6b72bf02bf170",
+    "evidence/root-diff.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root-current-browser-acceptance.json": "a9198df5827584cc6a317463ce3c9faba3685f2165ce04b5d59e4c9da1174fc2",
+    "root-current-cold-bootstrap.json": "95366337c61622778ffd81f3eb7b547aaf871a7465fe662ddb0b3666cdc98428",
+    "root-current-compiled-reconnect.json": "924a4cecfd189e1fd06255b18d2a901d861d70dffb00a5f43872e795a7a8395a",
+    "root-current-compiled-stop.json": "e5cb412e55d1ab84b65c6a32e4dc2862926ae0064ff569ed42a691380ce88e2f",
+    "root-current-compiled-followup.json": "aad130abcee02f77af933afe9b76c91ad241395775e8c63258bea7f7ca8e2aff",
+    "real-local-qa-backend-start.json": "b6ba0909a2f23b0efaeb3ceab36517eba8a57e8aec49f77a770902664693560a",
+    "real-local-qa-final-asyncio-resume.json": "502af24cbf2254f291d01b4d865d04c473601e6d8ac2489c377a80cbc254d618",
+    "real-local-qa-scenario-final-asyncio-taskgroup.json": "208d2036b7b5504cfceb15658cb17dec910e622474799fdda7aae9827df9e24b",
+    "evidence/root-current-compiled-reconnect-cli.log": "48f57a054fff177b04a4f6cf7ee6d3dbb43389d3e2a39eec7696acfa443d3c97",
+    "evidence/root-current-compiled-stop-cli.log": "622c8f0287140a42777906b1d6751015ce26850275d467161cfcf272efdf86d6",
+    "evidence/root-current-compiled-followup-cli.log": "31a896559bf907194e285da6d9f5f7d854aae2331fb59a8484ba9bdb53e65cfc"
+  }
+}

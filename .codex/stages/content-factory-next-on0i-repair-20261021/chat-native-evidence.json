@@ -1,0 +1,79 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "mastra": "1.78.0"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-provider-postgres.test.cjs tests/agent-native-session-http.test.cjs tests/agent-native-session-cold.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-composer.media.test.cjs tests/agent-transport.test.cjs tests/agent-screen.start-draft.test.cjs tests/agent-task-execution.test.cjs",
+      "exitCode": 0,
+      "suites": 8,
+      "tests": 111,
+      "log": "chat-native-focused.log"
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-retry-routing.test.cjs tests/agent-model-fallback-retry.test.cjs tests/agent-native-autonomy.test.cjs",
+      "exitCode": 0,
+      "suites": 3,
+      "tests": 24,
+      "log": "retry-models-current-focused.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-frontend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 2,
+      "knownOwnerGap": "web.research.service.ts:2041 fallback mock-compatible admission is missing newly added voidUnstarted method; root notified",
+      "log": "chat-native-backend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.execution.ts": "f855860cef7ae9b35a8db46dc1055afeaf03ec2cccd11c1b796664e868a8464e",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "995321c78b23d7bf88b762eedb7ea7e12a214b266efd1c2e34a5e33eb7a4e142",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "380e0411c0ae6b4420eb97f6f09d1bfd51f09d4aa64911f99070d4c85e7464a8",
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "39e28d40a22f4ee6844e87706de5cccdaa14f5c04d847137e38c03f181924b8b",
+    "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": "c2b723ea81adaad48cbbe50bf0961513575cc982a18d0434575016195f357ed2",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "5a820dbee6651fbf815b9de23993fee3d67fe8ef142cc137ad6d9b5ef1166e78",
+    "apps/frontend/src/components/agents/agent.screen.tsx": "7328c9c3e5b97000f18919b1fa77855835835d7a35442b054395f6bcefb8d485",
+    "apps/frontend/src/components/agents/agent.contract.ts": "044cd86211a62394766f4738ffdcea779b441f58ebfea95c740914ae1cc8c1ed",
+    "apps/frontend/src/components/agents/agent.transport.ts": "6ca4d5ca0900a7535b9c4fb3ba0701dd2990ac17622262addff0cdc1e4a53b39",
+    "apps/frontend/src/components/agents/agent.composer.tsx": "a1fa8fd1a46d53a508e702c07c918839c932113d18207c0b6036b225603513cb",
+    "apps/frontend/src/components/agents/agent.copy.ts": "e924dd65cbb165f8c6a4dc7d991ed587564ff3ddb29842efd4e52e9f676186e0",
+    "docs/design/component-inventory.md": "345be824050b2baba994877f80a8246be1b9f6d84a46a7f0f8c9d38f20967c99",
+    "tests/agent-native-provider-postgres.test.cjs": "c3eba8c1972b952834ca8cf290aa09994bb0e5c56c1dae49973ab287c2680475",
+    "tests/agent-native-session-http.test.cjs": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+    "tests/agent-native-session-cold.test.cjs": "a83d33e333c24c88c47caa39abae75018ac54669b09d21e132e17e5f6af411ee",
+    "tests/agent-native-conversation-flow.test.cjs": "1b674bc84f34afb137452a7e58bb049d2fa4139077fb2f6f9ae73395129935e9",
+    "tests/agent-composer.media.test.cjs": "056338ef987313d6cd267630bee35d9ccf975b7585fd839b10f74d3ef312442a",
+    "tests/agent-transport.test.cjs": "c43d36d15000cd0a1c780c47a5bc2a92ffabc20b0767f860cbe97d343b5265f6",
+    "tests/agent-screen.start-draft.test.cjs": "d405bd12d5e646ca42044d5eee6527ff46c2c0b6b16f2a34ac37018a6fdfdf18",
+    "tests/agent-task-execution.test.cjs": "95bdabdf60470dcd5d1d7057f065375915c82df8b3ebda449959c1fffd92cfa0",
+    "tests/helpers/agent-native-provider-postgres.probe.cjs": "0d850770a5d55fb07419c71ec125b0584ca65e2bac760d97faae7e690c92424a",
+    "tests/helpers/agent-native-session-http.probe.cjs": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+    "tests/helpers/agent-native-session-cold.probe.cjs": "afc3af21b37a1473cc5ed92e4f3e35cab0c1e4fe47df8e3c60e4d93668ee69b2",
+    "tests/helpers/mastra-service-native-integration.probe.cjs": "c0311efccbee65c445f8107c17c00f5745e11d724a8087fea4fe4d1ed2fcad2c",
+    "tests/helpers/agent-transport.runner.cjs": "570ffeff4aa46eefb2e0775a5cb0a4db5d86647bcbfca236bc39fb281bb0b7d5",
+    "tests/helpers/agent-durable-recovery.probe.cjs": "aec5f6443f13c2cfc43ac5a8fb0dad8701b115225e495255955504a078ef7604",
+    "pnpm-lock.yaml": "f289ed42197f037e5c01d5b20cb9e5045236a4f3431acdc3b2dc7ec069ee05f1"
+  },
+  "scope": "local only; worker focused checks; root final acceptance required",
+  "existingA12Gap": "Old standalone recovery helper reaches terminal-marker assertion at tests/helpers/agent-durable-recovery.probe.cjs:884 with assistantExecution still running. New source-service cold HTTP tests pass. Root/service owner notified."
+}

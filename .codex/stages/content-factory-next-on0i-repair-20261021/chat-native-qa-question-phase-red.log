@@ -1,0 +1,220 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+FAIL tests/agent-native-conversation-flow.test.cjs
+  ✕ a native question suspension supersedes the earlier approval projection for the same call (812 ms)
+  ○ skipped reload resumes the real SDK observer once and explicit Stop also reaches the server
+  ○ skipped a busy instruction is accepted by native server delivery and shown without a browser execution queue
+  ○ skipped a native continuation resumes as a fresh response and preserves the earlier partial assistant message
+  ○ skipped history arriving after a fresh conversation mount populates the log
+  ○ skipped a native pending question arriving in the mounted thread restores controls from its persisted input part
+  ○ skipped an uncertain native queue acknowledgement stays unknown after history reload
+
+  ● a native question suspension supersedes the earlier approval projection for the same call
+
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Решите за меня"
+
+    Here are the accessible roles:
+
+      log:
+
+      Name "Разговор":
+      [36m<div[39m
+        [33maria-label[39m=[32m"Разговор"[39m
+        [33maria-live[39m=[32m"polite"[39m
+        [33maria-relevant[39m=[32m"additions"[39m
+        [33mclass[39m=[32m"flex w-full min-w-0 flex-col gap-[20px]"[39m
+        [33mrole[39m=[32m"log"[39m
+      [36m/>[39m
+
+      --------------------------------------------------
+      paragraph:
+
+      Name "":
+      [36m<p[39m
+        [33mclass[39m=[32m"max-w-[85%] whitespace-pre-wrap rounded-[12px] rounded-ee-[4px] border border-cf-border bg-cf-surface-raised px-[12px] py-[8px] cf-body-md text-cf-ink [overflow-wrap:anywhere]"[39m
+      [36m/>[39m
+
+      Name "":
+      [36m<p[39m
+        [33mclass[39m=[32m"flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted"[39m
+        [33mdata-agent-approval[39m=[32m"closed"[39m
+        [33mdata-agent-card[39m=[32m"approval"[39m
+      [36m/>[39m
+
+      --------------------------------------------------
+      article:
+
+      Name "":
+      [36m<article[39m
+        [33mclass[39m=[32m"flex min-w-0 items-start gap-[12px]"[39m
+      [36m/>[39m
+
+      --------------------------------------------------
+      group:
+
+      Name "":
+      [36m<fieldset[39m
+        [33mclass[39m=[32m"min-w-0"[39m
+      [36m/>[39m
+
+      --------------------------------------------------
+      button:
+
+      Name "Send instruction":
+      [36m<button />[39m
+
+      Name "Explicit Stop":
+      [36m<button />[39m
+
+      --------------------------------------------------
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex min-h-0 flex-1 flex-col"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"relative min-h-0 flex-1 overflow-y-auto px-[16px] py-[24px] md:px-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Разговор"[39m
+              [33maria-live[39m=[32m"polite"[39m
+              [33maria-relevant[39m=[32m"additions"[39m
+              [33mclass[39m=[32m"flex w-full min-w-0 flex-col gap-[20px]"[39m
+              [33mrole[39m=[32m"log"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col items-end gap-[4px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"sr-only"[39m
+                [36m>[39m
+                  [0mВы[0m
+                  [0m:[0m
+                [36m</span>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"max-w-[85%] whitespace-pre-wrap rounded-[12px] rounded-ee-[4px] border border-cf-border bg-cf-surface-raised px-[12px] py-[8px] cf-body-md text-cf-ink [overflow-wrap:anywhere]"[39m
+                [36m>[39m
+                  [0mИсходная задача[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<article[39m
+                [33mclass[39m=[32m"flex min-w-0 items-start gap-[12px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"pt-[4px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"inline-flex shrink-0 select-none"[39m
+                    [33mstyle[39m=[32m"width: 24px; height: 24px; border-radius: 4px; font-family: var(--font-cf-mono), ui-monospace, SFMono-Regular, monospace;"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex h-full w-full flex-col items-center justify-between"[39m
+                      [33mstyle[39m=[32m"padding: 2px 3px;"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mstyle[39m=[32m"font-size: 7px; font-weight: 600; line-height: 1; align-self: flex-start; opacity: 0.8;"[39m
+                      [36m>[39m
+                        [0m98[0m
+                      [36m</span>[39m
+                      [36m<span[39m
+                        [33mstyle[39m=[32m"font-size: 11px; font-weight: 600; line-height: 1;"[39m
+                      [36m>[39m
+                        [0mCf[0m
+                      [36m</span>[39m
+                    [36m</span>[39m
+                  [36m</span>[39m
+                [36m</span>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex min-w-0 flex-1 flex-col gap-[12px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                  [36m>[39m
+                    [0mИИ-помощник[0m
+                    [0m:[0m
+                  [36m</span>[39m
+                  [36m<p[39m
+                    [33mclass[39m=[32m"flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted"[39m
+                    [33mdata-agent-approval[39m=[32m"closed"[39m
+                    [33mdata-agent-card[39m=[32m"approval"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-hidden[39m=[32m"true"[39m
+                      [33mclass[39m=[32m"shrink-0"[39m
+                      [33mfill[39m=[32m"none"[39m
+                      [33mfocusable[39m=[32m"false"[39m
+                      [33mheight[39m=[32m"12"[39m
+                      [33mstroke[39m=[32m"currentColor"[39m
+                      [33mstroke-linecap[39m=[32m"round"[39m
+                      [33mstroke-linejoin[39m=[32m"round"[39m
+                      [33mstroke-width[39m=[32m"1.5"[39m
+                      [33mviewBox[39m=[32m"0 0 16 16"[39m
+                      [33mwidth[39m=[32m"12"[39m
+                    [36m>[39m
+                      [36m<path[39m
+                        [33md[39m=[32m"M4 4l8 8M12 4l-8 8"[39m
+                      [36m/>[39m
+                    [36m</svg>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"min-w-0 truncate"[39m
+                    [36m>[39m
+                      [0mСделать это[0m
+                      [0m — [0m
+                      [0mбольше не ждёт ответа[0m
+                    [36m</span>[39m
+                  [36m</p>[39m
+                [36m</div>[39m
+              [36m</article>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"shrink-0 px-[16px] pb-[16px] pt-[8px] md:px-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-full min-w-0"[39m
+            [36m>[39m
+              [36m<fieldset[39m
+                [33mclass[39m=[32m"min-w-0"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mdata-queued[39m=[32m"false"[39m
+                [36m>[39m
+                  [36m<button>[39m
+                    [0mSend instruction[0m
+                  [36m</button>[39m
+                  [36m<button>[39m
+                    [0mExplicit Stop[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+              [36m</fieldset>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      126 |   const f = fixture({ initialMessages: [human, asked], initialExecution: active, pending });
+      127 |   await act(async () => render(h(f.Component, f.props)));
+    > 128 |   expect(within(document.body).getByRole('button', { name: 'Решите за меня' }).disabled).toBe(false);
+          |                                ^
+      129 |   expect(within(document.body).getByRole('textbox')).toBeTruthy();
+      130 |   expect(document.body.textContent).toContain(question.question);
+      131 |   expect(document.body.textContent).not.toContain('больше не ждёт ответа');
+
+      at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at Object.<anonymous> (tests/agent-native-conversation-flow.test.cjs:128:32)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 6 skipped, 7 total
+Snapshots:   0 total
+Time:        1.573 s, estimated 6 s
+Ran all test suites matching /tests\/agent-native-conversation-flow.test.cjs/i with tests matching "supersedes the earlier approval".

@@ -1,0 +1,234 @@
+PASS tests/agent-durable-recovery.test.cjs (7.499 s)
+[ModelSelectionProcessor:model-selection] Classifier evaluation failed, using the configured model: classifier provider 503
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: primary overloaded
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"primary overloaded"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '9bf45cdb-2bd8-4b38-9d17-63b4f0adb7eb'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: primary overloaded
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"primary overloaded"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '9bf45cdb-2bd8-4b38-9d17-63b4f0adb7eb'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: backup-1 rate limited
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 429,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"backup-1 rate limited"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '9bf45cdb-2bd8-4b38-9d17-63b4f0adb7eb'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: backup-1 rate limited
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 429,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"backup-1 rate limited"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '9bf45cdb-2bd8-4b38-9d17-63b4f0adb7eb'
+}
+Stream captured error {
+  error: Error: user_stopped
+      at doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-model-fallback-retry.probe.cjs:502:29)
+      at MockLanguageModelV3.doStream (file:///home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/ai/dist/test/index.js:171:22)
+      at AISDKV6LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/llm-C9M1xYBO.cjs:107:28)
+      at retryResult.default.retries (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:29225:110)
+      at Module.pRetry (file:///home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/p-retry/index.js:197:25)
+      at createStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:29216:64)
+      at async Object.start (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/trip-wire-EvtO_3wL.cjs:3259:20),
+  runId: '7c516ed0-16a9-4cd2-aa4b-9ea0a85d01a9'
+}
+PASS tests/agent-model-fallback-retry.test.cjs
+PASS tests/agent-native-ui.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/instance-ai-defaults.test.cjs
+PASS tests/agent-native-acceptance-matrix.test.cjs
+PASS tests/admin-ai-defaults.screen.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+
+Test Suites: 6 passed, 6 total
+Tests:       73 passed, 73 total
+Snapshots:   0 total
+Time:        15.535 s, estimated 21 s
+Ran all test suites matching /tests\/agent-model-fallback-retry.test.cjs|tests\/agent-native-acceptance-matrix.test.cjs|tests\/agent-native-ui.test.cjs|tests\/admin-ai-defaults.screen.test.cjs|tests\/instance-ai-defaults.test.cjs|tests\/agent-durable-recovery.test.cjs/i.

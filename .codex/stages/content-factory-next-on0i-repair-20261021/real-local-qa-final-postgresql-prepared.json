@@ -1,0 +1,21 @@
+{
+  "schema": "on0i-final-postgresql-preparation/1",
+  "at": "2026-10-21T10:54:59.189Z",
+  "id": "final-postgresql-skip-locked",
+  "prompt": "Хочу короткую полезную заметку для разработчика: как PostgreSQL SKIP LOCKED помогает нескольким воркерам разбирать одну очередь и какие у него ограничения. Проверь по официальной документации PostgreSQL. Сохрани одну новую заготовку «QA ON0I: очередь PostgreSQL» на русском со ссылками на первоисточник, затем прочитай её и проверь результат. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+  "acceptance": [
+    "Actual search and official PostgreSQL sources",
+    "One short useful saved CORE, read back after saving",
+    "Accurate queue-worker use, locked-row behavior and inconsistent-view limitation",
+    "Exact real-provider/search and ledger receipts; scoped native agent/tool spans"
+  ],
+  "canonicalRunner": "scripts/evidence/on0i-real-local-qa-scenarios.cjs",
+  "canonicalRunnerSha256": "8ba0c58c5636afde67119cbf18dda1e4aea1b445710a7d2aefe52414dd3adc7e",
+  "privateRunner": "/tmp/on0i-real-local-qa-s2nihQ/final-postgresql-scenario.cjs",
+  "privateRunnerSha256": "9c87d5fdc5da1fb4389f0786eb6334031637bbe84efd94ac9e43d158bc7453fa",
+  "singleSubmissionGuard": true,
+  "stateIsolated": true,
+  "oldEightCaseArtifactsUnchanged": true,
+  "status": "PREPARED_NOT_EXECUTED",
+  "paidCalls": 0
+}

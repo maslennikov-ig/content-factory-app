@@ -115,6 +115,8 @@ export type ContentContextEnvelopeV1 = {
     sourceSnapshotId: string;
     title: string;
     excerpt: string;
+    /** Individually literal source spans; omission markers never establish continuity. */
+    literalSpans?: string[];
     url: string | null;
     exposure: 'PUBLIC' | 'INTERNAL_ONLY';
     publishedAt: string | null;

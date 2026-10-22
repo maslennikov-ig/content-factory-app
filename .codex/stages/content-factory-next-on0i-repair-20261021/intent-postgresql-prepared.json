@@ -1,0 +1,14 @@
+{
+  "schema": "on0i-private-natural-scenario-preparation/3",
+  "caseId": "intent-postgresql-skip-locked",
+  "runnerSha256": "a62438dfb7cca601bc9d13fb08d4367504547090149df3e453b5ed4ca3437818",
+  "sameNaturalPromptAsPreviousFailures": true,
+  "prompt": "Хочу короткую полезную заметку для разработчика: как PostgreSQL SKIP LOCKED помогает нескольким воркерам разбирать одну очередь и какие у него ограничения. Проверь по официальной документации PostgreSQL. Сохрани одну новую заготовку «QA ON0I: очередь PostgreSQL» на русском со ссылками на первоисточник, затем прочитай её и проверь результат. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+  "expectedSavedCore": 1,
+  "singleSubmissionGuard": "intent-postgresql-submission.guard",
+  "executed": true,
+  "paidCallsByPreparation": 0,
+  "changes": "Unique case/state/guard only; no added model hints. New source-schema/prompt clarification acceptance remains pending.",
+  "actualReceipt": "real-local-qa-scenario-intent-postgresql-skip-locked.json",
+  "rootSemanticVerdict": "PASS"
+}

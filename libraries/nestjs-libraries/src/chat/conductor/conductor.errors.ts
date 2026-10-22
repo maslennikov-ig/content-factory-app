@@ -94,6 +94,9 @@ const ownErrorCode = (error: unknown): AgentErrorCode => {
   if (name === 'TripWire' || field(error, 'processorId') !== undefined) {
     return 'AGENT_BLOCKED';
   }
+  if (status === 402 && (fromProvider(error) || fromProvider(cause))) {
+    return 'AI_PROVIDER_PAYMENT_REQUIRED';
+  }
   if (
     name === 'TimeoutError' ||
     name === 'AbortError' ||

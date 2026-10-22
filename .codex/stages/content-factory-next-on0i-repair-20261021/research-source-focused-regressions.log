@@ -1,0 +1,12 @@
+[Nest] 45683  - 10/21/2026, 3:25:17 PM   ERROR [IntakeService] The piece could not be recorded: Uncertain write receipt
+[Nest] 45683  - 10/21/2026, 3:25:19 PM   ERROR [IntakeService] The piece could not be recorded: Uncertain writer receipt
+[Nest] 45683  - 10/21/2026, 3:25:19 PM   ERROR [IntakeService] The piece could not be recorded: Unknown legacy writer effect
+PASS tests/intake.research-reuse.test.cjs
+PASS tests/agent.model-autonomy.test.cjs
+PASS tests/web.research.service.test.cjs
+
+Test Suites: 3 passed, 3 total
+Tests:       118 passed, 118 total
+Snapshots:   0 total
+Time:        6.041 s
+Ran all test suites matching /tests\/intake.research-reuse.test.cjs|tests\/agent.model-autonomy.test.cjs|tests\/web.research.service.test.cjs/i.

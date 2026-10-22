@@ -1,0 +1,124 @@
+{
+  "at": "2026-10-21T07:54:30.136Z",
+  "result": "READ_ONLY_EXACT_WARM_WORKFLOW",
+  "api": "PostgresStore.getStore(workflows).getWorkflowRunById({runId})",
+  "threadId": "a639d888-aa39-4c00-8535-f828b5890cb8",
+  "runId": "11a1550a-7ead-4d0d-8d85-7745e91ca768",
+  "found": true,
+  "workflowName": "durable-agentic-execution",
+  "createdAt": "2026-10-21T07:38:28.770Z",
+  "updatedAt": "2026-10-21T07:38:33.238Z",
+  "snapshotTopLevelKeys": [
+    "runId",
+    "value",
+    "status",
+    "context",
+    "timestamp",
+    "activePaths",
+    "resumeLabels",
+    "waitingPaths",
+    "parentWorkflow",
+    "requestContext",
+    "suspendedPaths",
+    "tracingContext",
+    "activeStepsPath",
+    "stepExecutionPath",
+    "serializedStepGraph"
+  ],
+  "states": [
+    {
+      "at": "snapshot",
+      "runId": "11a1550a-7ead-4d0d-8d85-7745e91ca768",
+      "status": "suspended"
+    },
+    {
+      "at": "snapshot.context.map-to-llm-input",
+      "status": "success"
+    },
+    {
+      "at": "snapshot.context.durable-tool-call",
+      "status": "suspended"
+    },
+    {
+      "at": "snapshot.context.durable-tool-call.suspendPayload",
+      "toolName": "skill",
+      "toolCallId": "call_kDHLCRJ1Emwgl2AZswSoPHqo"
+    },
+    {
+      "at": "snapshot.context.durable-tool-call.suspendPayload.__workflow_meta.resumeLabels.call_kDHLCRJ1Emwgl2AZswSoPHqo",
+      "stepId": "durable-tool-call"
+    },
+    {
+      "at": "snapshot.context.durable-tool-call.suspendPayload.__workflow_meta.foreachOutput[0]",
+      "status": "suspended"
+    },
+    {
+      "at": "snapshot.context.durable-tool-call.suspendPayload.__workflow_meta.foreachOutput[0].suspendPayload",
+      "toolName": "skill",
+      "toolCallId": "call_kDHLCRJ1Emwgl2AZswSoPHqo"
+    },
+    {
+      "at": "snapshot.context.extract-tool-calls",
+      "status": "success"
+    },
+    {
+      "at": "snapshot.context.durable-llm-execution",
+      "status": "success"
+    },
+    {
+      "at": "snapshot.resumeLabels.call_kDHLCRJ1Emwgl2AZswSoPHqo",
+      "stepId": "durable-tool-call"
+    },
+    {
+      "at": "snapshot.parentWorkflow",
+      "runId": "11a1550a-7ead-4d0d-8d85-7745e91ca768",
+      "stepId": "durable-agentic-execution"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[0]",
+      "id": "map-to-llm-input"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[1].step",
+      "id": "durable-llm-execution"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[2]",
+      "id": "extract-tool-calls"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[3].step.step",
+      "id": "durable-tool-call"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[4]",
+      "id": "collect-tool-results"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[5].step",
+      "id": "durable-llm-mapping"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[6].step",
+      "id": "durable-agentic-execution-bg-task-check"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[7].step",
+      "id": "durable-agentic-execution-signal-drain"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[8]",
+      "id": "update-iteration-state"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[9].step",
+      "id": "durable-is-task-complete"
+    },
+    {
+      "at": "snapshot.serializedStepGraph[10].step",
+      "id": "durable-goal"
+    }
+  ],
+  "rawPrivateFile": "/tmp/on0i-real-local-qa-s2nihQ/warm-native-workflow.actual.json",
+  "providerCalls": 0
+}

@@ -1,0 +1,24 @@
+[Nest] 33656  - 10/21/2026, 3:04:21 PM   ERROR [IntakeService] The piece could not be recorded: Uncertain writer receipt
+PASS tests/intake.research-reuse.test.cjs (5.388 s)
+  ✓ a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again (190 ms)
+  ✓ a stale passage is refused before any model or new source write (14 ms)
+  ✓ a foreign-url passage is refused before any model or new source write (13 ms)
+  ✓ a invented-quote passage is refused before any model or new source write (2000 ms)
+  ✓ another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot (19 ms)
+  ✓ a selected late quote still requires sufficient input and an uncertain derived write cannot replay (71 ms)
+  ○ skipped piece.create preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped piece.create.from-research preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped another person in the same organization and an unknown selection are refused before any model or write
+  ○ skipped a quote from a different source and unknown claim body never become confirmed through an id
+  ○ skipped an uncertain standalone write cannot replay the writer or silently fall back to creating another piece
+  ○ skipped two passages from the same URL retain independent evidence instead of reusing an old URL excerpt
+  ○ skipped a material requirement for human fact selection is not replaced with model consent
+  ○ skipped query-only reuse keeps the supported fallback and labels it as the research task
+  ○ skipped selection person cannot turn standalone research reuse into human consent or claim a writer
+  ○ skipped selection person cannot replay a completed model-origin standalone write as an answered human card
+
+Test Suites: 1 passed, 1 total
+Tests:       10 skipped, 6 passed, 16 total
+Snapshots:   0 total
+Time:        5.563 s
+Ran all test suites matching /tests\/intake.research-reuse.test.cjs/i with tests matching "compact native|a (stale|foreign-url|invented-quote) passage|another person cannot capture|selected late quote".

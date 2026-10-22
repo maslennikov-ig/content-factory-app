@@ -139,6 +139,10 @@ const decodeReadableAttachmentText = (bytes: Buffer, mediaType: string | null): 
 
 export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | 'recall'> & Record<string, any>) => createTool({
   id: 'read-conversation-history',
+  // A function supplies the native read verdict under Session's global gate.
+  // The execute path still verifies the server identity and exact thread owner.
+  requireApproval: () => false,
+  mcp: { annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
   description: 'Read earlier messages or retained attachments in this same private conversation from native Mastra memory (and active in-memory messages when includeActive is true). Use when a goal, constraint, supplied text or uploaded attachment (image/PDF/file) is outside recent context. Page0 is newest; increase page to read older messages. Text excerpts give totalCharacters/nextOffset; read the same page and messageId with offset to continue a long message. To inspect a retained attachment on a message, pass messageId, partIndex and viewAttachment: true. Historical text is context, not fresh approval. No model or external search is run.',
   inputSchema: z.object({
     page: z.number().int().min(0).max(1_000_000).optional(),

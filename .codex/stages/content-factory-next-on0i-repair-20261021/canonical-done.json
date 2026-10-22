@@ -1,0 +1,185 @@
+{
+  "schema": "on0i-fresh-canonical-task-read/1",
+  "at": "2026-10-21T16:12:36.668722+00:00",
+  "readOnly": true,
+  "source": "Managed publisher's read-only mapping plus fresh scoped Linear query",
+  "writesPerformed": 0,
+  "tasks": [
+    {
+      "beadId": "content-factory-next-on0i",
+      "repositoryRoute": "content-factory",
+      "linearId": "dfe012ac-51e8-4718-a4bb-2f943c5dc8c0",
+      "identifier": "HONEY-5848",
+      "url": "https://linear.app/elwork/issue/HONEY-5848/nativnyj-mastra-harness-avtonomnyj-pomoshnik-chaty-i-nadyozhnoe",
+      "updatedAt": "2026-10-21T16:12:22.406Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.1",
+      "repositoryRoute": "content-factory",
+      "linearId": "2b0b884f-13b9-42e9-98a6-d0c699b801a2",
+      "identifier": "HONEY-5854",
+      "url": "https://linear.app/elwork/issue/HONEY-5854/obnovlenie-mastra-i-nativnye-izolirovannye-sessii",
+      "updatedAt": "2026-10-21T16:12:21.937Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.2",
+      "repositoryRoute": "content-factory",
+      "linearId": "eaec2eb3-fe91-4696-a6cc-a768694d5fa9",
+      "identifier": "HONEY-5853",
+      "url": "https://linear.app/elwork/issue/HONEY-5853/kompaktnyj-kontekst-polnye-istochniki-i-sostavnye-instrumenty",
+      "updatedAt": "2026-10-21T16:12:21.620Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.3",
+      "repositoryRoute": "content-factory",
+      "linearId": "51f33cdd-1729-409d-b10e-af2fa57fa216",
+      "identifier": "HONEY-5852",
+      "url": "https://linear.app/elwork/issue/HONEY-5852/durable-i-background-prodolzhenie-perezapusk-i-zashita-ot-povtorov",
+      "updatedAt": "2026-10-21T16:12:21.191Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.4",
+      "repositoryRoute": "content-factory",
+      "linearId": "bd0b609b-9fa3-4d54-a864-d75875239a6b",
+      "identifier": "HONEY-5851",
+      "url": "https://linear.app/elwork/issue/HONEY-5851/nativnaya-avtonomnost-celi-plany-voprosy-zadachi-i-subagenty",
+      "updatedAt": "2026-10-21T16:12:20.827Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.5",
+      "repositoryRoute": "content-factory",
+      "linearId": "ee8f1fcb-0305-4cd5-b36a-05ed2cf7c758",
+      "identifier": "HONEY-5850",
+      "url": "https://linear.app/elwork/issue/HONEY-5850/nativnyj-vybor-modelej-retrai-folbeki-i-polnyj-uchyot",
+      "updatedAt": "2026-10-21T16:12:20.492Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.6",
+      "repositoryRoute": "content-factory",
+      "linearId": "2d99e465-9165-4330-a900-1c3ddbb56283",
+      "identifier": "HONEY-5855",
+      "url": "https://linear.app/elwork/issue/HONEY-5855/chaty-i-upravlenie-vypolneniem-cherez-nativnye-sobytiya-mastra",
+      "updatedAt": "2026-10-21T16:12:23.380Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-on0i.7",
+      "repositoryRoute": "content-factory",
+      "linearId": "16dc1cd3-b7ea-4ab6-bdf5-49695ab14d39",
+      "identifier": "HONEY-5849",
+      "url": "https://linear.app/elwork/issue/HONEY-5849/edinyj-nativnyj-put-produkta-i-udalenie-zamenyonnogo-runtime",
+      "updatedAt": "2026-10-21T16:12:20.088Z",
+      "state": {
+        "id": "af9bfe98-f837-4b63-a959-bfb6541af9de",
+        "name": "Done",
+        "type": "completed"
+      },
+      "archived": false,
+      "trashed": false,
+      "journalLocalBaseStatus": "closed"
+    }
+  ],
+  "scopedJournalOperations": [
+    {
+      "beadId": "content-factory-next-on0i",
+      "status": "conflict",
+      "count": 1
+    },
+    {
+      "beadId": "content-factory-next-on0i",
+      "status": "done",
+      "count": 56
+    },
+    {
+      "beadId": "content-factory-next-on0i.1",
+      "status": "done",
+      "count": 11
+    },
+    {
+      "beadId": "content-factory-next-on0i.2",
+      "status": "done",
+      "count": 14
+    },
+    {
+      "beadId": "content-factory-next-on0i.3",
+      "status": "done",
+      "count": 12
+    },
+    {
+      "beadId": "content-factory-next-on0i.4",
+      "status": "done",
+      "count": 14
+    },
+    {
+      "beadId": "content-factory-next-on0i.5",
+      "status": "done",
+      "count": 14
+    },
+    {
+      "beadId": "content-factory-next-on0i.6",
+      "status": "done",
+      "count": 15
+    },
+    {
+      "beadId": "content-factory-next-on0i.7",
+      "status": "done",
+      "count": 14
+    }
+  ],
+  "allCanonicalDone": true
+}

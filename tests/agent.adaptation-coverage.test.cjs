@@ -170,6 +170,26 @@ describe('final adaptation coverage uses the actual complete post and bounded re
     expect(calls[3]).toContain(CORE.replace(/\n/g, '\\n'));
   });
 
+  test('final review and its one repair receive the same resolved channel instructions', async () => {
+    const source = state();
+    source.channelLines = ['Address the reader as ты.', 'Put source links at the end.'];
+    source.content = item(`${CORE} Какое обновление вам полезнее?`);
+    const fixed = `${CORE} Какое обновление тебе полезнее?`;
+    const { service, calls } = build([
+      { status: 'partial', missingRequirements: ['The explicit channel address form is not followed.'], unsupportedClaims: [] },
+      { hook: source.hook, content: item(fixed) },
+      PASSED,
+    ]);
+    const result = await service.fixArray(source);
+    expect(result.content[0].content).toBe(fixed);
+    for (const call of calls) {
+      expect(call).toContain('channelInstructions');
+      expect(call).toContain('Address the reader as ты.');
+      expect(call).toContain('Put source links at the end.');
+    }
+    expect(result.adaptationCoverage).toEqual({ status: 'passed', reviews: 2, repaired: true });
+  });
+
   test('coverage passing under a hard limit does not require every sentence or number', async () => {
     const { service, calls, usage } = build([PASSED]);
     const source = state();
@@ -470,6 +490,13 @@ describe('final adaptation coverage uses the actual complete post and bounded re
 });
 
 describe('a selected claim needs the actual admitted source quote', () => {
+  test('omitted spans cannot be presented as one literal source quote', () => {
+    const source = context();
+    source.evidence[0].excerpt = `${FIRST}\n[... source text omitted ...]\n${SECOND}`;
+    source.evidence[0].literalSpans = [FIRST, SECOND];
+    expect(materialSupport({ ...state().intake.material[0], quote: source.evidence[0].excerpt }, source)).toBeNull();
+    expect(materialSupport(state().intake.material[0], source)).toMatchObject({ quote: SECOND });
+  });
   test('matching identity, URL and literal quote retain usable source support', () => {
     expect(materialSupport(state().intake.material[0], context())).toEqual({
       citationId: 'E1',
@@ -486,4 +513,33 @@ describe('a selected claim needs the actual admitted source quote', () => {
       materialSupport({ ...state().intake.material[0], ...mismatch }, context())
     ).toBeNull();
   });
+});
+
+test('piece proof preflight receives the whole saved core and untrimmed proof hints before paid generation', async () => {
+  const source = state();
+  source.intake.evidenceQuotes = [...source.intake.material, {
+    evidenceId: 'late-source', sourceUrl: 'https://example.test/late', quote: 'Late literal quote.', statement: 'Late claim.',
+  }];
+  const buildContext = jest.fn(async () => {
+    throw Object.assign(new Error('Essential source proof needs 900 characters; only 200 remain.'), {
+      code: 'CONTENT_EVIDENCE_REQUIRED', missingRequirements: ['The essential late quote could not be admitted.'], unsupportedClaims: [],
+    });
+  });
+  const paid = jest.fn(() => { throw new Error('No generation may be admitted after failed proof preflight'); });
+  const { AgentGraphService } = loadAgentGraph({ chatModel: { withStructuredOutput: paid } });
+  const service = new AgentGraphService({}, {}, {}, {
+    executeAiOperation: paid, executeAiStreamOperation: paid,
+  }, { build: buildContext }, {}, null, null);
+  const events = [];
+  for await (const event of service.start('org-a', {
+    research: 'A short thesis', language: 'ru', format: 'one_long', isPicture: false,
+    intake: source.intake, materialPolicy: 'PIECE_ONLY', userMaterialEvidenceIds: ['e-1', 'late-source'],
+  }, { draftOnly: true })) events.push(event);
+  expect(buildContext.mock.calls[0][1].pieceEvidence).toEqual({
+    version: 'piece-evidence/v1', core: CORE, quotes: source.intake.evidenceQuotes,
+  });
+  expect(paid).not.toHaveBeenCalled();
+  expect(events).toEqual([expect.objectContaining({
+    code: 'CONTENT_EVIDENCE_REQUIRED', missingRequirements: ['The essential late quote could not be admitted.'],
+  })]);
 });

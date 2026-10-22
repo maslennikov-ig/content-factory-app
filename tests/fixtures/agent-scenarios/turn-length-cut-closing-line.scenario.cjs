@@ -26,12 +26,15 @@ module.exports = {
     expect(cut.modelCalls).toBe(2);
     expect(cut.text).toContain('Задача не завершена');
     expect(cut.types.slice(-4)).toEqual(['text-start', 'text-delta', 'text-end', 'finish']);
-    // Words after the tool are an answer, whatever the finish reason.
+    // Preserve useful partial words, while the terminal length remains incomplete.
     expect(spoke.text).toBe('Один канал: «Канал про работу».');
     expect(run.writes).toEqual([]);
     for (const turn of [cut, spoke]) {
+      expect(turn.modelCalls).toBe(2);
+      expect(turn.toolCalls).toHaveLength(1);
       expect(turn.outputs[0]).toMatchObject({ toolName: 'channels_list', output: { ok: true } });
       expect(turn.admissions).toEqual([['agent', 'agent', 'user-1', 'failed']]);
     }
+    expect(run.history.execution).toMatchObject({ state: 'settled', outcome: 'failed' });
   },
 };

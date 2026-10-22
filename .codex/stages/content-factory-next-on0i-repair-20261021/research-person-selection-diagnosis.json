@@ -1,0 +1,77 @@
+{
+  "schema": "research-person-selection-diagnosis/v1",
+  "actualReceipt": ".codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-scenario-recovery-postgresql-skip-locked.json",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-recovery-postgresql-skip-locked-2026-10-21T13-02-13-094Z.json",
+  "privateEvidenceSha256": "3b12ef42b6fdaa0e8effb8eb0ddf9ae7e3cd3dba13991182d1034d0c2e7f07da",
+  "privateSnapshotCapture": "/tmp/on0i-real-local-qa-s2nihQ/research-human-policy-snapshots.json",
+  "privateSnapshotCaptureSha256": "99987f46040e06b4912e3a24783dcf099f77ac3b53255213ed68d4f1ec7ee795",
+  "privateCaptureMode": "0600",
+  "actualOutcome": {
+    "semantic": "FAILED_NO_CORE",
+    "lifecycle": "failed",
+    "elapsedMs": 187652,
+    "changedPieceCount": 0,
+    "pendingCount": 0,
+    "assistantTextCount": 0,
+    "knownUsageOperations": 6,
+    "knownCostUsd": "0.06719531"
+  },
+  "initialNative": {
+    "snapshotKey": "ce5b4192-52d3-471c-afc1-21c2cab22d4c",
+    "trustedPolicy": "model",
+    "humanFactSelection": false,
+    "originalInputMatches": true,
+    "modelContinuation": null,
+    "pttlAtRead": 3229632
+  },
+  "standaloneSearch": {
+    "snapshotKey": "res_d503c724-343b-4cd9-9b2b-e7143f7d49d8",
+    "requestPresent": false,
+    "sourceSnapshotKey": null,
+    "parentSnapshotKey": null,
+    "continuation": null,
+    "pttlAtRead": 3239666
+  },
+  "finalTool": {
+    "name": "piece_create_from-research",
+    "originalInputMatches": true,
+    "passageCount": 3,
+    "selectionArgumentAbsent": true,
+    "requestArgumentAbsent": true,
+    "code": "INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON",
+    "reason": "Исходное задание требует выбора фактов человеком."
+  },
+  "provenance": [
+    {
+      "boundary": "from-research -> pieceCreate -> intakePass",
+      "finding": "No selection argument becomes trusted internal model policy. No supplied structured request exists on this standalone path.",
+      "source": "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts"
+    },
+    {
+      "boundary": "prepare -> run",
+      "finding": "The pre-brief person policy guard passes; otherwise its English refusal would have been emitted.",
+      "source": "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:690"
+    },
+    {
+      "boundary": "fillBrief -> plan.request",
+      "finding": "Only setter adopts fresh parsed model understanding when request is absent. humanFactSelection has validated boolean type.",
+      "source": "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:1625"
+    },
+    {
+      "boundary": "finish person guard",
+      "finding": "The unique exact Russian refusal proves fresh humanFactSelection was true. This final plan was not persisted before a writer claim; non-stream provider body was not captured, so its value is branch-proven rather than directly read back.",
+      "source": "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts:1119"
+    }
+  ],
+  "rootCause": "The model-facing structured field was an undescribed boolean and the brief instruction did not distinguish a PERSON choosing facts before writing from assistant research/verification/saved-artifact readback. A fresh semantic true became an outstanding person-selection constraint.",
+  "changeBoundary": "Only schema description plus generic brief semantics; no new fields, boolean coercion, phrase routing, guard changes, automatic retries or paid calls.",
+  "diagnosticAccess": {
+    "reservedLocalRedisOwnerVerified": true,
+    "endpoint": "localhost:6380/db13",
+    "commands": "owner GET plus exactly two snapshot GET/PTTL",
+    "scan": false,
+    "mutations": false,
+    "clientDisconnected": true
+  },
+  "claimLimit": "The schema description and controlled consumer tests cannot guarantee how a real model interprets a future prompt. Root must rerun the natural request and an explicit person-selection case."
+}

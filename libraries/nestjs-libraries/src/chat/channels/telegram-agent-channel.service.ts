@@ -164,8 +164,8 @@ export class TelegramAgentChannelService implements TelegramAgentChannelHandler 
     if (!this.stateAdapterInstance) {
       const memoryStore = await pStore.getStore('memory').catch(() => null);
       const fallbackMemoryStore = {
-        patchThread: async () => undefined,
-        listThreads: async () => ({ threads: [] }),
+        patchThread: async (): Promise<void> => undefined,
+        listThreads: async (): Promise<{ threads: never[] }> => ({ threads: [] }),
       };
       this.stateAdapterInstance = new MastraStateAdapter(
         (memoryStore ?? fallbackMemoryStore) as any,

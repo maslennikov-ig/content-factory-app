@@ -149,6 +149,76 @@ const withEnvironment = async (values, run) => {
   }
 };
 
+describe('service-managed model defaults preserve own-model choices (8o2z)', () => {
+  const chain = require('@contentfactory/nestjs-libraries/openai/ai.text-chain');
+  const operator = {
+    provider: 'openrouter',
+    apiKey: 'operator-key',
+    roleModels: {},
+  };
+
+  test('included settings and runtime use Luna then Sol6.1 when no override is saved', async () => {
+    await withEnvironment(
+      { AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: undefined },
+      async () => {
+        const { loadAiConfig } = loadConfig(includedRow, operator);
+        const config = await loadAiConfig('included-defaults');
+        expect(config.textModel).toBe('openai/gpt-6-luna');
+        const policy = chain.resolveOrderedTextChainPolicy(config.textChain, {
+          provider: config.provider, usageMode: config.usageMode,
+          primaryModel: config.textModel, hasKey: Boolean(config.apiKey),
+        });
+        expect(policy.effectiveChain.map(({ model }) => model)).toEqual([
+          'openai/gpt-6-luna', 'openai/gpt-6.1-sol',
+        ]);
+        expect(policy.inheritedDefault).toBe(true);
+        const { service } = loadService({ row: operator });
+        const view = await service.read();
+        expect(view.textChain.defaultFallbackModel).toBe('openai/gpt-6.1-sol');
+        expect(view.textChain.effectiveChain).toEqual(policy.effectiveChain);
+        expect(JSON.stringify(view)).not.toContain('operator-key');
+
+        await service.update('operator-user', { textFallbackModel: 'custom/operator' });
+        expect((await service.read()).textChain.fallbackModels).toEqual(['custom/operator']);
+        await service.update('operator-user', { textFallbackModel: '' });
+        expect((await service.read()).textChain.fallbackModels).toEqual(['openai/gpt-6.1-sol']);
+      }
+    );
+  });
+
+  test.each([
+    ['explicit built-in model', () => chain.DEFAULT_TEXT_FALLBACK_MODEL, () => [chain.DEFAULT_TEXT_FALLBACK_MODEL]],
+    ['explicit legacy model', () => 'z-ai/glm-5.3', () => ['z-ai/glm-5.3']],
+    ['custom model', () => 'custom/workspace', () => ['custom/workspace']],
+    ['ordered models', () => JSON.stringify({ version: 1, models: ['custom/first', 'custom/second'] }), () => ['custom/first', 'custom/second']],
+    ['disabled fallback', () => JSON.stringify({ version: 1, models: [], disabled: true }), () => []],
+    ['no personal fallback', () => null, () => []],
+  ])('%s stays authoritative on the workspace key', async (_label, storedFallback, expectedFallbacks) => {
+    const stored = {
+      ...includedRow, usageMode: 'workspace_key', provider: 'openrouter',
+      apiKey: 'workspace-key', textModel: 'custom/primary',
+      roleModels: { draft: 'custom/draft', ...(storedFallback() ? { __textChain: storedFallback() } : {}) },
+    };
+    const original = JSON.stringify(stored);
+    const { loadAiConfig } = loadConfig(stored, {
+      ...operator, textFallbackModel: 'xiaomi/mimo-v2.6-pro',
+      roleModels: { draft: 'operator/draft' },
+    });
+    const config = await loadAiConfig('workspace-models');
+    expect(config.textModel).toBe('custom/primary');
+    expect(config.roleModels).toEqual({ draft: 'custom/draft' });
+    expect(config.apiKey).toBe('plain:workspace-key');
+    const policy = chain.resolveOrderedTextChainPolicy(config.textChain, {
+      provider: config.provider, usageMode: config.usageMode,
+      primaryModel: config.textModel, hasKey: Boolean(config.apiKey),
+    });
+    expect(policy.effectiveChain.map(({ model }) => model)).toEqual([
+      'custom/primary', ...expectedFallbacks(),
+    ]);
+    expect(JSON.stringify(stored)).toBe(original);
+  });
+});
+
 describe('the operator row stands in front of the environment', () => {
   test('a stored key is what an included workspace spends', async () => {
     await withEnvironment({ AI_INCLUDED_API_KEY: 'from-server' }, async () => {

@@ -27,6 +27,7 @@ export const ANTI_COPY_MIN_WORDS = 8;
 const WORD = /[\p{L}\p{N}]+/gu;
 const HTML_TAG = /<[^>]*>/g;
 const ENTITY = /&(?:[a-zA-Z]+|#\d+);/g;
+const HTTP_URL = /\bhttps?:\/\/[^\s<>"'`]+/gi;
 
 /** Гасит найденное пробелами, сохраняя длину и переводы строк. */
 const blank = (value: string): string => value.replace(/[^\n]/g, ' ');
@@ -39,6 +40,29 @@ const maskMarkup = (text: string): string =>
   looksLikeHtml(text)
     ? text.replace(HTML_TAG, blank).replace(ENTITY, blank)
     : text;
+
+/** Addresses are attribution, not copied prose. Keep link labels and offsets. */
+const maskUrls = (text: string): string => text.replace(HTTP_URL, (value) => {
+  let end = 0, parentheses = 0, brackets = 0;
+  for (; end < value.length; end += 1) {
+    const char = value[end];
+    if (char === '\\' && ['(', ')', '[', ']'].includes(value[end + 1])) {
+      end += 1;
+      continue;
+    }
+    if (char === '(') parentheses += 1;
+    if (char === ')') {
+      if (!parentheses) break; // Markdown destination / surrounding prose ends here.
+      parentheses -= 1;
+    }
+    if (char === '[') brackets += 1; // Includes literal IPv6 URL hosts.
+    if (char === ']') {
+      if (!brackets) break;
+      brackets -= 1;
+    }
+  }
+  return blank(value.slice(0, end)) + value.slice(end);
+});
 
 export type AntiCopyToken = {
   /** Слово в нормальном виде: строчные буквы, «ё» сведена к «е». */
@@ -56,7 +80,7 @@ const normaliseWord = (raw: string): string =>
 
 /** Слова с их местом в исходной строке. */
 export function wordTokens(text: string): AntiCopyToken[] {
-  const masked = maskMarkup(text);
+  const masked = maskUrls(maskMarkup(text));
   const tokens: AntiCopyToken[] = [];
   for (const match of masked.matchAll(WORD)) {
     const start = match.index ?? 0;

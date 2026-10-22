@@ -1153,6 +1153,8 @@ const currentWireFromRequest = (request) => {
 
 const simpleReader = require('./helpers/reader-summary.cjs');
 const simpleOutput = (input = sample(), gaps = []) => ({
+  scopeQuote: null,
+  scopeStatus: 'not_temporal',
   answer: 'Версия 2 действовала на указанную дату.',
   references: input.sources.map((_, i) => ({ id: `S${i + 1}`, relevance: 'relevant' })),
   gaps,
@@ -1182,7 +1184,7 @@ test('active reader uses the simple schema, one synthesis, the original usage le
 
 test('recorded off-topic 1C references are never takeable; readable refusal and original provenance remain', async () => {
   const input = fixture['1c'];
-  h.set(input, input.summary, { answer: '', references: input.sources.map((_, i) => ({ id: `S${i + 1}`, relevance: 'irrelevant' })), gaps: ['Найденные материалы не отвечают на вопрос о 1С.'] });
+  h.set(input, input.summary, { scopeQuote: null, scopeStatus: 'not_temporal', answer: '', references: input.sources.map((_, i) => ({ id: `S${i + 1}`, relevance: 'irrelevant' })), gaps: ['Найденные материалы не отвечают на вопрос о 1С.'] });
   const result = await h.search(input.subject);
   expect(result.facts).toEqual([]);
   expect(result.readerAssessment.status).toBe('insufficient_evidence');
@@ -1194,6 +1196,8 @@ test('recorded off-topic 1C references are never takeable; readable refusal and 
 test.each(['telegram-labeling', 'rate-summary', '1c-cloud'])('retained %s prose stays useful through the real endpoint with honest gaps, no auxiliary-name arithmetic', async (name) => {
   const input = require('./fixtures/reader-summary-retained-public.json')[name];
   h.set(input, 'Не использовать ответ провайдера.', {
+    scopeQuote: null,
+    scopeStatus: 'not_temporal',
     answer: input.answer,
     references: input.sources.map((_, i) => ({ id: `S${i + 1}`, relevance: 'relevant' })),
     gaps: [name === 'rate-summary' ? 'Дата действующего решения в этом ответе не установлена.' : 'Некоторые детали требуют проверки по полным источникам.'],
@@ -1281,11 +1285,12 @@ test('material unsupported literals keep useful prose marked partial but cannot 
   expect(result.facts).toEqual([]);
 });
 
-test('ambiguous requested date buys no reader synthesis and cannot become an undated answer', async () => {
+test('the semantic reader flags an impossible requested date without issuing takeable facts', async () => {
   const input = sample(article, 'По состоянию на 31 февраля 2026 года: версия?');
-  h.set(input, 'Непроверенный ответ.', simpleOutput(input));
+  h.set(input, 'Непроверенный ответ.', { ...simpleOutput(input), scopeQuote: '31 февраля 2026 года', scopeStatus: 'needs_clarification', answer: '', gaps: ['Запрошенная календарная дата не существует.'] });
   const result = await h.search(input.subject);
-  expect(result.readerAssessment.status).toBe('review_unavailable');
-  expect(result.summary).toBe('');
-  expect(h.calls.model).toHaveLength(1);
+  expect(result.readerAssessment.status).toBe('insufficient_evidence');
+  expect(result.summary).toContain('дата не существует');
+  expect(result.facts).toEqual([]);
+  expect(h.calls.model).toHaveLength(2);
 });

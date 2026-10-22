@@ -1,0 +1,19 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-native-conversation-flow.test.cjs
+  ✓ a native question suspension supersedes the earlier approval projection for the same call (795 ms)
+  ○ skipped reload resumes the real SDK observer once and explicit Stop also reaches the server
+  ○ skipped a busy instruction is accepted by native server delivery and shown without a browser execution queue
+  ○ skipped a native continuation resumes as a fresh response and preserves the earlier partial assistant message
+  ○ skipped history arriving after a fresh conversation mount populates the log
+  ○ skipped a native pending question arriving in the mounted thread restores controls from its persisted input part
+  ○ skipped an uncertain native queue acknowledgement stays unknown after history reload
+
+Test Suites: 1 passed, 1 total
+Tests:       6 skipped, 1 passed, 7 total
+Snapshots:   0 total
+Time:        1.556 s, estimated 2 s
+Ran all test suites matching /tests\/agent-native-conversation-flow.test.cjs/i with tests matching "supersedes the earlier approval".

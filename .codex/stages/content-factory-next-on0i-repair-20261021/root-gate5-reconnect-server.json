@@ -1,0 +1,32 @@
+{
+  "schema": "on0i-gate5-compiled-reconnect/1",
+  "result": "PASS",
+  "localOnly": true,
+  "threadId": "940c8cf6-b22b-4c10-b373-12984cdc3fe4",
+  "snapshotAt": "2026-10-21T12:30:00.770Z",
+  "buildId": "iWRiebpEW2XGj5Rj6YWe6",
+  "backendPid": 48048,
+  "execution": {
+    "requestId": "e2ab0607-d7b8-4385-8c5d-8ed1ef654402",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "bd4f7e1c-b90d-4c42-b726-ced8a08e632e"
+  },
+  "messageCount": 2,
+  "pending": 0,
+  "textChars": 4559,
+  "textSha256": "64cb2225a3d226955aa4adfa15549a51b018d2f23fd85b36a4679cadb2ada2c9",
+  "providerRawEqualsNativeContentAndPartsAndHTTP": true,
+  "all80ItemsEqualVisibleDOM": true,
+  "DOMComparison": "Number prefixes/inline Markdown stripped, all80 exact item texts compared",
+  "beforeVisibleItems": 2,
+  "chatPosts": 1,
+  "observeGets": 1,
+  "pageErrors": [],
+  "model": "openai/gpt-6-luna",
+  "generationId": "gen-1792585763-qKBB4hpymcteKkOAlrTJ",
+  "usageRecordId": "81c18636-db95-4b6f-bfcd-46c9f97ba34d",
+  "knownCostUsd": "0.00432585",
+  "browserEvidence": "root-current-compiled-reconnect.json",
+  "privateRawFile": "gate5-reconnect-server-raw.json"
+}

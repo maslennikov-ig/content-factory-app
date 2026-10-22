@@ -1,0 +1,111 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "fresh-research",
+  "at": "2026-10-21T07:23:31.650Z",
+  "elapsedMs": 7499,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "0453c4d29941bf7ba24506da220dc8356a7d922d9ce80bf169d44e933f74518a",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "4ddc3d45-f471-4db2-b51e-748753940d72",
+  "threadId": "28e79207-ecfb-4ae1-a584-98e2a6e89f95",
+  "httpStatus": 200,
+  "streamDone": false,
+  "observerDetachedForPending": true,
+  "streamErrors": [],
+  "assistantText": [],
+  "pending": [
+    {
+      "runId": "c64e4ffe-7df2-4f8a-b468-255330c1262a",
+      "toolCallId": "call_BkUKEm8rL965rfpgQIPB0205",
+      "toolName": "skill",
+      "kind": "approval"
+    }
+  ],
+  "execution": {
+    "requestId": "66a20402-f239-449e-9c1e-aea324066f81",
+    "state": "running",
+    "runId": "c64e4ffe-7df2-4f8a-b468-255330c1262a"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "b6bdd5b3-665f-42a9-afd9-1a242792b9e4",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "admitted",
+      "promptTokens": null,
+      "completionTokens": null,
+      "reasoningTokens": null,
+      "cachedTokens": null,
+      "costUsd": null,
+      "possiblyBilled": null,
+      "attempt": null
+    }
+  ],
+  "usageTotals": {
+    "operations": 1,
+    "knownCostUsd": 0,
+    "unknownCostOperations": 1,
+    "pendingOperations": 1,
+    "possiblyBilledOperations": 0
+  },
+  "providerReceipts": [
+    {
+      "id": "0b1023b1-73de-44ea-a0ae-311206eb17aa",
+      "at": "2026-10-21T07:23:32.051Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "0b1023b1-73de-44ea-a0ae-311206eb17aa",
+      "at": "2026-10-21T07:23:32.051Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792567412-t6s9HjPcejJ5OkPDXzc6",
+      "usage": {
+        "promptTokens": 28519,
+        "completionTokens": 118,
+        "totalTokens": 28637,
+        "reasoningTokens": 99,
+        "cachedTokens": 0,
+        "costUsd": 0.003587562
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 4734
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Actual search and official SQLite sources",
+    "One useful saved CORE",
+    "Reader/writer limits are accurate",
+    "Saved result and source references read back"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-fresh-research-2026-10-21T07-23-31-650Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "qaStopAfterFailure": {
+    "httpStatus": 201,
+    "body": {
+      "stopped": true,
+      "threadId": "28e79207-ecfb-4ae1-a584-98e2a6e89f95",
+      "requestId": "66a20402-f239-449e-9c1e-aea324066f81"
+    }
+  }
+}

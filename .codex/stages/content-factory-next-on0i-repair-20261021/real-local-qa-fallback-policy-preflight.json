@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-21T08:06:56.502Z",
+  "result": "READ_ONLY_SETTINGS_RESOLUTION_PREFLIGHT",
+  "current": {
+    "provider": "openrouter",
+    "usageMode": "workspace_key",
+    "textModel": "openai/gpt-6-luna",
+    "roleModels": {},
+    "modelKeyConfigured": true
+  },
+  "simulatedQaOverride": {
+    "provider": "openrouter",
+    "usageMode": "workspace_key",
+    "textModel": "openai/gpt-6-luna",
+    "roleModels": {},
+    "textChain": {
+      "flex": false,
+      "fallbackModel": "z-ai/glm-5.3"
+    },
+    "modelKeyConfigured": true
+  },
+  "simulatedOrderedPolicy": {
+    "flex": false,
+    "fallbackModel": "",
+    "fallbackModels": [],
+    "configuredFallbackModels": [
+      "z-ai/glm-5.3"
+    ],
+    "fallbackDisabled": false,
+    "inheritedDefault": true,
+    "maxRetries": 0,
+    "effectiveChain": [
+      {
+        "model": "openai/gpt-6-luna",
+        "role": "primary",
+        "flex": false,
+        "maxRetries": 0
+      }
+    ],
+    "unavailableModels": [],
+    "provider": "openrouter",
+    "primaryModel": "openai/gpt-6-luna"
+  },
+  "simulatedColumn": "z-ai/glm-5.3",
+  "databaseWrites": 0,
+  "providerCalls": 0
+}

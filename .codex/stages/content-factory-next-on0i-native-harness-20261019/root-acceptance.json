@@ -4,7 +4,7 @@
   "branch": "codex/on0i-native-harness-implementation-20261019",
   "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
   "boundary": "owner-authorized-push-merge-deploy-20261020; zero-paid-provider-calls",
-  "status": "DELIVERED_TO_PRODUCTION",
+  "status": "HISTORICAL_ACCEPTANCE_REJECTED_SUPERSEDED_BY_VERIFIED_LOCAL_REPAIR",
   "release": {
     "privateSourceCommit": "f4468131c38fb96aa35f232e0fda49925aec5309",
     "publicTreeCommit": "86008cab0c4613906ea5f92f9e479c2d88942198",
@@ -29,42 +29,126 @@
     "content-factory-next-on0i.1": {
       "status": "closed",
       "commit": "8fca65069",
-      "criteria": ["A9", "A23", "A24", "A27"],
+      "criteria": [
+        "A9",
+        "A23",
+        "A24",
+        "A27"
+      ],
       "verification": "tests/agent-native-sessions.test.cjs"
     },
     "content-factory-next-on0i.2": {
       "status": "closed",
       "commit": "c5c2b2659",
-      "criteria": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A26"],
+      "criteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A21",
+        "A22",
+        "A26"
+      ],
       "verification": "tests/agent-compact-evidence.test.cjs"
     },
     "content-factory-next-on0i.3": {
       "status": "closed",
       "commit": "f50e6e8ea",
-      "criteria": ["A11", "A12", "A13", "A14", "A30", "A31"],
+      "criteria": [
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A30",
+        "A31"
+      ],
       "verification": "tests/agent-durable-recovery.test.cjs"
     },
     "content-factory-next-on0i.4": {
       "status": "closed",
       "commit": "10138adb0",
-      "criteria": ["A5", "A8", "A18", "A19", "A20"],
+      "criteria": [
+        "A5",
+        "A8",
+        "A18",
+        "A19",
+        "A20"
+      ],
       "verification": "tests/agent-native-autonomy.test.cjs"
     },
     "content-factory-next-on0i.5": {
       "status": "closed",
       "commit": "e1ff81ccf",
-      "criteria": ["A16", "A17", "A29", "A30", "A31"],
+      "criteria": [
+        "A16",
+        "A17",
+        "A29",
+        "A30",
+        "A31"
+      ],
       "verification": "tests/agent-native-model-routing.test.cjs"
     },
     "content-factory-next-on0i.6": {
       "status": "closed",
       "commit": "9d89238de",
-      "criteria": ["A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20", "A28", "A29", "A30", "A31"],
+      "criteria": [
+        "A9",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18",
+        "A19",
+        "A20",
+        "A28",
+        "A29",
+        "A30",
+        "A31"
+      ],
       "verification": "tests/agent-native-ui-controls.test.cjs"
     },
     "content-factory-next-on0i.7": {
       "status": "closed",
-      "criteria": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20", "A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30", "A31"],
+      "criteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18",
+        "A19",
+        "A20",
+        "A21",
+        "A22",
+        "A23",
+        "A24",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A29",
+        "A30",
+        "A31"
+      ],
       "verification": "tests/agent-native-acceptance-matrix.test.cjs"
     }
   },
@@ -94,5 +178,22 @@
     "productionDbMutation": "Mastra owner-only upgrade 45 -> 47 tables (R1-R5); Product Prisma schema diff 0 / SQL 0",
     "paidProviderCalls": 0,
     "realUserMessaging": false
+  },
+  "historicalDeliveryStatus": "DELIVERED_TO_PRODUCTION",
+  "acceptanceCorrection": {
+    "date": "2026-10-21",
+    "findings": "../content-factory-next-on0i-review-20261021/review.md",
+    "currentWork": "../content-factory-next-on0i-repair-20261021/plan.md",
+    "allA1A31Accepted": false,
+    "reason": "R1-R6 reproduced; test inventory did not execute scenario acceptance; four test references do not exist; no real-provider quality evidence. Historical release fields below are retained as reported, not reverified."
+  },
+  "currentLocalRepair": {
+    "stage": "../content-factory-next-on0i-repair-20261021",
+    "acceptance": "local-final-acceptance.json",
+    "status": "PASS_LOCAL_ONLY",
+    "rootChecks": 10,
+    "canonicalTasksDone": 8,
+    "deployed": false,
+    "scope": "New independent repair acceptance; does not restamp or revalidate historical release claims."
   }
 }

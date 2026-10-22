@@ -1,0 +1,11 @@
+{
+  "schema": "on0i-current-compiled-browser/1",
+  "localOnly": true,
+  "phase": "stop",
+  "cliExitCode": 1,
+  "probeSha256": "cdb7ea7f35a41725abe22772bc41c55772845d09f02a4056ab2fb968dd519628",
+  "cliLog": "evidence/root-current-compiled-stop-cli.log",
+  "cliLogSha256": "cc06f20f025de33687465fd913baeaabc70a9dcc654fa2011e480ca3bd05d953",
+  "result": null,
+  "status": "FAIL"
+}

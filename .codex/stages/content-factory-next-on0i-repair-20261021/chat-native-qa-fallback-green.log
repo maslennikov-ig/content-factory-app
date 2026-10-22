@@ -1,0 +1,24 @@
+PASS tests/agent-native-retry-routing.test.cjs
+  R2 combined native routing and provider outage
+    ✓ an explicitly saved default fallback remains eligible for a workspace key (309 ms)
+    ✓ the current provider factory advances from primary 429 to an explicit default fallback with zero retries (2862 ms)
+    ○ skipped explicit session selection replaces the primary while preserving the ordered fallback policy
+    ○ skipped an OpenAI own key refuses a model from another provider before execution
+    ○ skipped retry settings survive native context cloning and ambiguous durable identities stay unresolved
+    ○ skipped included Flex transport plans exactly one HTTP request per native attempt
+    ○ skipped confident agent routing preserves one retry per ordered model
+    ○ skipped confident classify routing preserves one retry per ordered model
+    ○ skipped authorization failure sends one HTTP request and never walks fallback models
+    ○ skipped Stop during native retry delay prevents all later provider attempts
+    ○ skipped hard quota failures are actionable and never retried as availability faults
+    ○ skipped native Retry-After takes precedence over the configured backoff
+    ○ skipped classify auxiliary execution uses exactly the same single native retry budget
+    ○ skipped review auxiliary execution uses exactly the same single native retry budget
+    ○ skipped research auxiliary execution uses exactly the same single native retry budget
+    ○ skipped the metered native classifier returns a usable decision through the real outer Classifier
+
+Test Suites: 1 passed, 1 total
+Tests:       14 skipped, 2 passed, 16 total
+Snapshots:   0 total
+Time:        3.299 s, estimated 4 s
+Ran all test suites matching /tests\/agent-native-retry-routing.test.cjs/i with tests matching "explicitly saved default|current provider factory advances".

@@ -339,6 +339,7 @@ const stand = (scenario) => {
       '@contentfactory/nestjs-libraries/openai/ai.text-chain': textChain,
       '@contentfactory/nestjs-libraries/user/acting.user': {
         getActingUserId: () => USER.id,
+        runAsActingUser: (_userId, work) => work(),
       },
     }
   );
@@ -699,9 +700,17 @@ const openingSnapshot = (call) => {
 
 const play = async (scenario) => {
   const logs = watchLogs();
+  const setting = 'CF_AGENT_TASK_MAX_IDENTICAL_TOOL_RESULTS';
+  const previousSetting = process.env[setting];
+  // Exercise the real operator setting. Ordinary native runs have no implicit
+  // repeated-result cutoff; each scenario restores the child process's env.
+  if (scenario.maxIdenticalToolResults === undefined) delete process.env[setting];
+  else process.env[setting] = String(scenario.maxIdenticalToolResults);
   try {
     return await playWatched(scenario, logs);
   } finally {
+    if (previousSetting === undefined) delete process.env[setting];
+    else process.env[setting] = previousSetting;
     logs.stop();
   }
 };
@@ -796,6 +805,9 @@ const playWatched = async (scenario, logs) => {
     const before = threadId
       ? await controller.getThread(organization, USER, threadId, zone).catch(() => null)
       : null;
+    // This owned public read is the previous turn's settled outcome, recorded
+    // independently of the usage ledger rather than inferred from tool output.
+    if (turns.length) turns.at(-1).execution = before?.execution ?? null;
     let res = new RecordingResponse();
     let refused = null;
     const door = async (sent) => {
@@ -914,6 +926,7 @@ const playWatched = async (scenario, logs) => {
   const history = threadId
     ? await controller.getThread(organization, USER, threadId, zone).catch(() => null)
     : null;
+  if (turns.length) turns.at(-1).execution = history?.execution ?? null;
   // The secrets guard (kcxz.20, spec §1.5, §4.10): which key shapes each
   // record holds. `sent` is what the scenario itself sent to the door — the
   // pasted key — so a guard that finds it there and nowhere else is not blind.

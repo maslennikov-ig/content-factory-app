@@ -27,6 +27,7 @@ export const SERVER_ONLY_CARD_KEYS: readonly string[] = [
   'token',
   'askedAt',
   'afterConsent',
+  'authorReferenceUrls',
   'target',
   // Flagged spots a check left as they are (`kcxz.38`): said by the agent.
   'notes',

@@ -26,6 +26,8 @@ import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion } from '
 import { ConfirmationNeeded } from '../mcp-confirmation';
 import { wrapUntrusted } from '../untrusted-data';
 import { proposalTarget } from '../capability.context';
+import { withAdaptationOpening } from '@contentfactory/nestjs-libraries/agent/adaptation-coverage';
+import { adaptationReferenceUrls } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 
 /**
  * Adaptations (spec §5.2 «Контент», `kcxz.14`): writing a piece for a
@@ -67,8 +69,12 @@ const postFields = {
  * and why it is asked; the person answers some in their words, confirms a
  * suggestion («Так и есть»), gives some to us, or all («Решите за меня»).
  */
+const authorReferences = z.array(z.string().min(1).max(2_000)).max(64).optional();
+
 const interviewQuestion = z.object({
   kind: z.literal('interview'),
+  /** Trusted server payload only, never taken from the person's card answer. */
+  authorReferenceUrls: authorReferences,
   question: z.string(),
   questions: z.array(
     z.object({
@@ -126,6 +132,7 @@ const adaptAnswer = z.union([autopilotAnswer, interviewAnswer]);
  */
 const autopilotQuestion = z.object({
   kind: z.literal('consent'),
+  authorReferenceUrls: authorReferences,
   subject: z.literal('autopilot'),
   question: z.string(),
   answerKey: z.literal('consentGiven'),
@@ -191,6 +198,29 @@ type AdaptPass =
     }
   | { kind: 'questions'; questions: InterviewQuestion['questions']; channel: InterviewQuestion['channel'] };
 
+/** Rejected text is diagnostic data, never a saved adaptation or an instruction. */
+const rejectedReview = (event: Record<string, unknown>) => {
+  const findings = (value: unknown) => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+      .slice(0, 20).map(item => item.slice(0, 1_000))
+    : [];
+  const draft = event.incompleteDraft && typeof event.incompleteDraft === 'object'
+    ? event.incompleteDraft as Record<string, unknown> : null;
+  const content = draft?.content;
+  const body = typeof content === 'string' ? content
+    : (Array.isArray(content) ? content : [content])
+      .filter((item): item is { content: string } => !!item && typeof item === 'object' && 'content' in item && typeof item.content === 'string')
+      .map(item => item.content).join('\n\n');
+  const text = withAdaptationOpening(draft?.hook, body);
+  return wrapUntrusted({
+    reviewAvailable: Array.isArray(event.missingRequirements) && Array.isArray(event.unsupportedClaims),
+    missingRequirements: findings(event.missingRequirements),
+    unsupportedClaims: findings(event.unsupportedClaims),
+    candidate: text ? { text: text.slice(0, 16_000), totalCharacters: text.length, truncated: text.length > 16_000 }
+      : { unavailable: true },
+  }, ['workspace-text']);
+};
+
 /**
  * One request of the adapt door: its generator, events as transient progress.
  * `queueAllowed` is the person's consent to the autopilot queue on this call;
@@ -202,10 +232,13 @@ const adaptPass = async (
   id: string,
   body: Record<string, unknown>,
   emit: CapabilityEmit,
-  queueAllowed: boolean
+  queueAllowed: boolean,
+  sourceUrls: string[] = []
 ): Promise<AdaptPass> => {
   const pieces = ctx.service(PieceService);
-  const plan = await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language);
+  const plan = sourceUrls.length
+    ? await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language, { authorReferenceUrls: sourceUrls })
+    : await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language);
   let channel: InterviewQuestion['channel'] = null;
   let result: AdaptPass | null = null;
   for await (const event of pieces.adapt(ctx.organizationId, plan, ctx.userId, { queueAllowed })) {
@@ -242,6 +275,14 @@ const adaptPass = async (
       };
     }
     if (named.name === 'error') {
+      if (named.code === 'CONTENT_ADAPTATION_INCOMPLETE') {
+        // Unlike transient progress, preserve the actual failed review in the
+        // native thread so a generic tool refusal cannot erase its evidence.
+        await emit({ kind: 'progress', data: {
+          capability: 'piece.adapt', stage: 'error', code: named.code, saved: false,
+          qualityReview: rejectedReview(named),
+        } });
+      }
       throw eventFailure(named.code, named.message, 'GENERATION_FAILED', 'The adaptation could not be written.');
     }
   }
@@ -323,6 +364,14 @@ export const pieceAdapt = defineCapability({
   resumeSchema: adaptAnswer,
   run: async (ctx, input, emit): Promise<Adapted | AdaptDeclined | undefined> => {
     const pieces = ctx.service(PieceService);
+    // Native author text is read by the owned-chat resolver, never reconstructed
+    // from a shortened tool wish. Server-stored references survive question resumes.
+    const author = ctx.entrance === 'chat' ? await ctx.resolveAuthorRequest?.({}) : null;
+    const storedQuestion = ctx.resumeData !== undefined ? adaptQuestion.safeParse(ctx.suspendPayload) : null;
+    const sourceUrls = ctx.entrance === 'chat' && ctx.resolveAuthorRequest ? adaptationReferenceUrls(
+      ...(storedQuestion?.success ? storedQuestion.data.authorReferenceUrls || [] : []), ...(author ? [author.text] : [])
+    ) : [];
+    const referenceMetadata = sourceUrls.length ? { authorReferenceUrls: sourceUrls } : {};
     const wish = input.wish?.trim();
     // `buildAdaptPayload` with `adaptOverrides`: only what differs from the
     // channel, which is what the person named.
@@ -363,15 +412,16 @@ export const pieceAdapt = defineCapability({
     // question round lands here too, as the page's limit of two rounds does:
     // that is a second service admission inside the call's one paid slot.
     const decideAll = async (asked: number, queueAllowed: boolean) =>
-      finished(await adaptPass(ctx, input.pieceId, body({ skipInterview: true }), emit, queueAllowed), asked);
+      finished(await adaptPass(ctx, input.pieceId, body({ skipInterview: true }), emit, queueAllowed, sourceUrls), asked);
 
     // The first request of the page, or the interview pause after it.
     const firstPass = async (queueAllowed: boolean): Promise<Adapted | undefined> => {
-      const pass = await adaptPass(ctx, input.pieceId, body(), emit, queueAllowed);
+      const pass = await adaptPass(ctx, input.pieceId, body(), emit, queueAllowed, sourceUrls);
       if (pass.kind === 'adaptation') return finished(pass, 0);
       if (!pass.questions.length) return decideAll(0, queueAllowed);
       await ctx.suspend!({
         kind: 'interview',
+        ...referenceMetadata,
         question: INTERVIEW_TEXT[ctx.language],
         questions: pass.questions,
         canDecideForPerson: true,
@@ -428,7 +478,8 @@ export const pieceAdapt = defineCapability({
           ...(decideKeys.length ? { decideKeys } : {}),
         }),
         emit,
-        queueAllowed
+        queueAllowed,
+        sourceUrls
       );
       // A second round is past the page's limit of two: we decide the rest.
       return pass.kind === 'questions' ? decideAll(asked, queueAllowed) : finished(pass, asked);
@@ -457,6 +508,7 @@ export const pieceAdapt = defineCapability({
       }
       await ctx.suspend({
         kind: 'consent',
+        ...referenceMetadata,
         subject: 'autopilot',
         question: AUTOPILOT_TEXT[ctx.language](String(channel?.name || input.channelId)),
         answerKey: 'consentGiven',

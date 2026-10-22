@@ -1,0 +1,52 @@
+🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+{
+  "reports": [
+    {
+      "mode": "successor",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "0vB5m3Easj0NVn4J",
+        "stopped-native-answer",
+        "MS3Egc6P2Wizj2bI",
+        "next-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 2,
+      "finish": 2,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "old-finish-history-held",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled",
+        "sdk-send",
+        "old-finish-history-delivered-after-new-send",
+        "sdk-finish:false:false",
+        "history-read:6:settled"
+      ],
+      "status": "ready",
+      "toolStates": [],
+      "callsAfterBlockedSubmit": 2
+    }
+  ]
+}
+AssertionError [ERR_ASSERTION]: successor: unlock only positively settled work
+
+true !== false
+
+    at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-stop-flow.probe.cjs:159:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

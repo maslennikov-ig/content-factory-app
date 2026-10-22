@@ -150,3 +150,175 @@ Verification:
 No full suite, commit/push, live/provider calls or production changes. Root's
 already-running full scenario child retained the pre-fix loaded fixture; this
 focused result is fresh evidence for the corrected world.
+
+## Live producer coverage correction and R4 (2026-10-20)
+
+The stopped first diagnostic on public source `0ca38ed190f3` exposed a distinct
+producer/admission defect, not an error in accepting an actual provider
+`fact.text` passage. Private trace:
+`/tmp/cf-adaptation-audit-20261020/diagnostic-0ca38ed190f3/rerun-0.json`.
+Three research results had 50/50/20 retained sources but only 5/7/9 selectable
+fact rows; 45/43/11 readable captured pages lacked a selectable fact. Explicit
+queries disabled the semantic reader despite `readerResponse: true`. The
+shared 32k fact budget and FIFO source admission favored early query results;
+the current semantic pack also required a pre-existing fact and kept only
+its first eight sources. Reading a later private page could not turn it into
+durable evidence for native create without another path/fetch.
+
+Implemented bounded correction:
+
+- `readerResponse: true` now remains an explicit semantic-reader opt-in with
+  supplied queries. Queries are used unchanged (apart from the pre-existing
+  explicit event-retrieval contract); supplying them still skips the query
+  classifier. `readerResponse: false` keeps the old no-reader/model budget.
+- Existing round-robin/water-filling admission now also covers reader
+  multi-query responses. The established source cap and shared 32k snippet
+  budget remain; original full captured page text is retained separately.
+- Current `reader-summary/v2` considers up to the existing deep source cap of
+  50 using generic verbatim source windows, including source-only page text.
+  It makes one existing semantic reader call, bounded by the existing 21k
+  evidence envelope and 25k actually serialized input limit. Output budget is
+  1200 for up to eight sources, scales to 2880 for 50, with a hard 4096 cap.
+  Hashes remain in authenticated assessment metadata; they no longer displace
+  actual passages in the semantic prompt. The strict legacy V1 pack/validator
+  is unchanged; its generic verbatim-window helper is merely exported.
+- Full retained page passages become private durable registry-backed
+  `sourcePassage: true` candidates exposed with real fact keys. They remain
+  `status: unverified`, `verified: false`, `selected: false`; default selection
+  excludes them. Explicit selection validates actual saved URL/evidence/quote
+  and requires literal `statement === quote`. It verifies captured source
+  material, not an arbitrary paraphrase or a fabricated semantic judgment.
+  Tool descriptions explain this distinction. Saved original source content
+  remains readable before selection, without another network request.
+- Cache identity changes to `reader-summary/v2`; explicit-reader queries
+  cannot hit the old `reader` bypass key or first-eight summary version.
+  No global cache purge or TTL change.
+- Review R4 was independently reproduced with the actual producer: an empty
+  semantic answer/all sources irrelevant gave `insufficient_evidence`, but a
+  literal candidate could previously be selected. The shared reuse guard now
+  rejects that actual status before model/claim/writer. Candidates stay
+  inspectable. `supported`/`partial` explicitly selected source material works.
+
+Changed production paths for this follow-up:
+
+- chat/capabilities/catalogue/{piece.capabilities,research.capabilities,research-evidence}.ts
+- content-intelligence/intake/{intake.service,research-reuse}.ts
+- content-intelligence/research/reader-summary.ts
+- openai/{web.research.service,reader-source-review}.ts
+
+All are under `libraries/nestjs-libraries/src/`. Focused tests changed:
+`tests/intake.research-reuse.test.cjs`, `tests/web.research.service.test.cjs`,
+`tests/web.research.source-admission.test.cjs`, and
+`tests/web.research.summary-language.test.cjs`. Old fixture cases intended to
+prove the no-reader consumer path now explicitly request `readerResponse:
+false`; their original no-summary/no-extra-model assertions remain.
+Root-owned handoff/outcome/plan edits were preserved, not edited by this stream.
+
+Final focused acceptance:
+
+`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --coverage=false tests/intake.research-reuse.test.cjs tests/web.research.reader-summary.test.cjs tests/web.research.reader-source-review.test.cjs tests/web.research.source-admission.test.cjs tests/web.research.service.test.cjs tests/web.research.summary-language.test.cjs tests/agent.model-autonomy.test.cjs tests/agent.model-intake-composition.test.cjs tests/intake.model-led.test.cjs tests/intake.provider-schema.test.cjs tests/agent-capabilities.registry.guard.test.cjs tests/agent-capabilities.adapters.test.cjs`
+
+Exit 0: **12 suites, 517 tests passed**. Log:
+`/tmp/cf-research-multiquery-final-acceptance-20261020.log`.
+
+`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc --noEmit --pretty false -p apps/backend/tsconfig.json`
+exited 0, no diagnostics; log
+`/tmp/cf-research-multiquery-types-20261020.log`. This preceded only the tool
+description clarification and R4 status-string addition; root owns final build.
+`git diff --check`: exit 0.
+
+Meaningful new regression runs the actual WebResearchService producer with
+three exact supplied queries. The first has 55 long pages (enough to exhaust
+the old cap/budget); the relevant later query page appears as S23, after the
+old first-eight boundary, with support beyond character 800. The actual reader
+compiler sees/assesses it, the real intake capture persists it, and both that
+semantic row and a separately exposed literal source candidate reach the saved
+brief via existing native create, with no second fetch/search. It also checks
+owner refusal, literal-statement tampering, exclusion from broad default
+selection, query preservation, false-reader spend, and poisoning the old reader
+cache key. R4's actual-producer all-irrelevant regression first failed (1 failed,
+13 passed), then passed with refusal before intake model/claim/write; red log:
+`/tmp/cf-research-insufficient-red-20261020.log`.
+
+Limits: bounded windows are not exhaustive coverage or live editorial quality.
+Semantic review may truthfully return partial/insufficient evidence. Dates absent
+from actual captured text remain unknown; no date inference or source-specific
+extraction rule was introduced. Existing source cleaning can strip a linked
+short heading (`cleanExcerpt` link/prose threshold), but the retained live trace
+alone does not prove whether the provider supplied such date headings; no crawler
+rewrite was made. Full canonical release checks and fresh exact-original paid
+reruns remain root-owned. No paid/provider calls, production changes, deploy,
+full suite, commits or pushes by this stream. Source is stable for root review
+and integration; temporary task logs are retained under /tmp only.
+
+## Local-only current semantic date-scope correction — final focused evidence
+
+The preserved local v3 diagnostic exposed an actual pre-model refusal: the
+strict legacy single-date parser marked a reporting range plus reference dates
+ambiguous; current `prepareReaderSummary` returned null before any reader call.
+The same parser cannot recognize a slash range. A first hint-only correction
+also exposed answer framing as a second problem: ordinary reporting boundaries
+in answer prose failed the factual date check, while exempting query dates
+would falsely authorize invented events on those dates.
+
+The current reader now resolves scope in its existing single semantic call.
+Required wire fields `scopeStatus` and `scopeQuote` carry its temporal judgment
+and an exact contiguous original-subject quote (maximum 500 characters).
+The server presents that quote explicitly as request context, outside the
+factual answer; it never acts as source evidence. All answer dates/numbers
+continue to require the actual relevant source text, including a date matching
+a recognized single-day hint. `needs_clarification` emits no reusable facts and
+returns `insufficient_evidence`, which existing native reuse refuses before
+intake model/claim/writer. Current preparation treats the legacy date parser
+only as a hint, preserves the entire original task and permits named/slash
+ranges to reach the same reader; strict legacy V1 pack/validator is unchanged.
+Cache identity is now `reader-summary/v4`; there is no global cache purge,
+legacy-output fallback, extra reader call or custom date-language classifier.
+
+Production path for this correction:
+`libraries/nestjs-libraries/src/content-intelligence/research/reader-summary.ts`.
+Frozen file SHA256:
+`909111c69923098d27c18d836d676106b57975a70dfce0a000f69ced4433ca45`.
+Root independently built this hash before starting its local final rerun;
+production source remained unchanged throughout the final tests.
+
+Meaningful regressions exercise the real producer with explicit exact queries
+and English, Russian and slash ranges plus prior-reference dates. The model
+port receives the original task, source event 15 October is retained, and
+scope is displayed separately. Pure compiler checks refuse invented event
+19 October, scope-end event 20 October and a single as-of hint 20 October when
+none is in source text. An actual-producer impossible-date response with an
+otherwise relevant literal source remains inspectable, but native create is
+refused before any intake model, continuation claim, writer or fetch. The
+installed SDK test asserts every new wire property is required. Shared fake
+endpoints supply the actual new fields; the production boundary has no repair
+fallback. Existing query, usage, quota, admission and legacy validation checks
+remain intact. The admission diagnostics fixture explicitly judges retained
+irrelevant/repetitive source pages instead of defaulting every capture to
+relevant.
+
+Focused final command (Node 22.23.2 / pnpm 10.6.1):
+
+`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --coverage=false tests/web.research.*.test.cjs tests/intake.research-reuse.test.cjs tests/agent-capabilities.adapters.test.cjs`
+
+Exit 0: **18 suites / 595 tests passed**. Log:
+`/tmp/cf-research-scope-contract-consumers-final-20261020.log`.
+The earlier focused six-suite pass was **312 tests**; broader first pass caught
+three stale fake-endpoint expectations, corrected with explicit current wire
+or precise reader-only/semantic verdict assertions. No production weakening.
+`git diff --check`: exit 0. Root-owned handoff/outcome/plan preserved.
+
+Additional focused test paths changed in this correction:
+`tests/helpers/reader-source-review.cjs`,
+`tests/intake.research-reuse.test.cjs`,
+`tests/web.research.reader-summary.test.cjs`,
+`tests/web.research.reader-source-review.test.cjs`,
+`tests/web.research.reader-schema-transport.test.cjs`,
+`tests/web.research.advertising-query.test.cjs`,
+`tests/web.research.admission-diagnostics.test.cjs`.
+
+This is local implementation and focused contract evidence, not live editorial
+acceptance. Scope interpretation remains the one semantic reader's bounded
+judgment. Root owns private local paid reruns, runtime and outcome; this stream
+made no provider calls, runtime edits, restarts, deploys, full-suite runs,
+commits or pushes.

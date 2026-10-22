@@ -23,6 +23,7 @@ import {
   door,
   type CapabilityEmit,
   type CapabilityRunContext,
+  type ResearchSelectionRecovery,
 } from '../capability.types';
 import {
   RESEARCH_LEVELS,
@@ -125,6 +126,19 @@ const INTAKE_ANSWER_WINDOW_MS = (INTAKE_SNAPSHOT_TTL_SECONDS - 60) * 1_000;
 
 /** The door takes at most this many kept rows (`IntakeDto.researchSelections`). */
 const MAX_SELECTIONS = 200;
+const researchReferences = z.array(z.object({
+  snapshotKey: z.string().min(1).max(128),
+  factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(MAX_SELECTIONS),
+})).min(1).max(8).optional().describe('Select facts from multiple owned research.search captures. Each factKey belongs to its paired snapshotKey. Exclusive with single researchId/snapshotKey and factId/factKeys; at most 200 facts total. Keep these structured references instead of pasting researched claims as material. Requires the actual original author request.');
+
+
+const researchPassages = z.array(z.object({
+  sourceUrl: z.string().url().max(2_000),
+  revision: z.string().regex(/^[a-f0-9]{64}$/),
+  quote: z.string().min(1).max(8_000).describe('Contiguous verbatim supporting passage from that saved source, not a paraphrase'),
+})).min(1).max(20).describe('Exact sourceUrl/revision/quote passages from full retained sources through piece.read, including later sections; old fact keys may be omitted when passages are supplied');
+
+type ResearchSelectionContext = { snapshotKey: string; factKeys: string[] };
 
 type PieceCreated = {
   pieceId: string;
@@ -149,7 +163,7 @@ type PieceCreated = {
   researchSummary?: Record<string, unknown> | null;
   selectionOrigin?: 'person' | 'model';
   reusedResearchId?: string;
-  requestBasis?: 'original_request' | 'research_query';
+  requestBasis?: 'original_request' | 'research_query' | 'provided_input';
   voiceScore?: BrandVoiceFactScoreSummary;
 };
 
@@ -179,13 +193,15 @@ const intakePass = async (
   const intake = ctx.service(IntakeService);
   const plan = await intake.prepare(ctx.organizationId, { ...body, timeZone: ctx.timeZone },
     { researchSelectionPolicy: selectionPolicy ?? 'model' });
-  return collectIntakePass(ctx, intake.run(ctx.organizationId, plan, ctx.userId), emit);
+  return collectIntakePass(ctx, intake.run(ctx.organizationId, plan, ctx.userId), emit,
+    plan.researchReuse ? { snapshotKey: plan.researchReuse.snapshotKey, factKeys: plan.researchReuse.factKeys ?? [] } : undefined);
 };
 
 const collectIntakePass = async (
   ctx: CapabilityRunContext,
   events: AsyncIterable<unknown>,
-  emit: CapabilityEmit
+  emit: CapabilityEmit,
+  researchSelection?: ResearchSelectionContext
 ): Promise<IntakePass> => {
   let created: Extract<IntakePass, { kind: 'piece' }> | null = null;
   let selection: FactSelection | null = null;
@@ -258,7 +274,23 @@ const collectIntakePass = async (
       const error = eventFailure(named.code, named.message, 'INTAKE_FAILED', 'The piece could not be written.');
       // A server-owned refusal before the artifact write permits a revised call;
       // incurred model/search usage is still charged and never rolled back.
-      if (named.canReviseInput === true) Object.assign(error, { canReviseInput: true });
+      if (named.canReviseInput === true && !created) {
+        Object.assign(error, { canReviseInput: true });
+        // This is the domain's explicit pre-write event, not a thrown writer
+        // exception with a coincidentally matching error code.
+        if (named.code === 'INTAKE_INPUT_INSUFFICIENT' && researchSelection) {
+          const inputRecovery: ResearchSelectionRecovery = {
+            kind: 'research_selection', snapshotKey: researchSelection.snapshotKey,
+            selectedFactKeys: researchSelection.factKeys.slice(0, 20), selectedFactCount: researchSelection.factKeys.length,
+            evidenceScope: 'captured_quotes_only', currentCall: { mode: 'reuse_only', newSearch: 'not_started' },
+            globalSearchAvailability: 'not_assessed',
+            sourceRead: { tool: 'piece.read', part: 'research_source', find: true, ranges: true },
+            selection: { tool: 'piece.create', input: 'passages', fields: ['sourceUrl', 'revision', 'quote'] },
+            artifactWritten: false,
+          };
+          Object.assign(error, { inputRecovery });
+        }
+      }
       throw error;
     }
   }
@@ -271,23 +303,46 @@ const collectIntakePass = async (
 /** What the product keeps by itself — the screen's «Продолжить» untouched. */
 const defaultSelection = (selection: FactSelection) => defaultIds(selection.options);
 
+const requestMessageId = z.string().min(1).max(128).optional().describe(
+  'Native chat author message id. The server reads its exact original text; omit text to avoid retyping. Use the original message id when continuing an earlier request, not a summary or the latest continue message.'
+);
+
+const originalWords = async (
+  ctx: CapabilityRunContext,
+  input: { text?: string; requestMessageId?: string },
+  query?: string
+): Promise<{ words: string; basis: NonNullable<PieceCreated['requestBasis']> }> => {
+  if (ctx.resolveAuthorRequest) {
+    const author = await ctx.resolveAuthorRequest(input);
+    if (author) return { words: author.text, basis: 'original_request' };
+  } else if (!input.requestMessageId) {
+    return { words: input.text ?? query ?? '', basis: input.text ? 'provided_input' : 'research_query' };
+  }
+  throw Object.assign(unspentFailure('INTAKE_REQUEST_NOT_AUTHORED',
+    'The original request must match an actual user message in this owned chat. Use its requestMessageId (omit text to read the exact server text), or pass its words verbatim. Put model commentary and reference material in material, never append them to the original request. Only the latest 200 stored messages are read. Nothing was written, searched or spent.'),
+    { canReviseInput: true as const });
+};
+
 export const pieceCreate = defineCapability({
   id: 'piece.create',
   group: 'content',
   label: { ru: 'Написать заготовку', en: 'Write a piece' },
   description:
-    'Create a new piece from the original request and optional labelled material, or from already-completed research (researchId) without running another search. Paid. Pass the person’s original words verbatim in text; use material for relevant earlier conversation, selected material or researched evidence with its actual source labels. The existing brief model interprets the goal, roles, dates and constraints from these inputs; do not manually serialize another task schema. Choose inputKind by meaning, not keywords; choose research explicitly when missing/current evidence is required, none for self-contained/no-search work. A previous post, dates or channel are optional. With research this returns actual facts/summary/gaps and snapshotKey before any draft: assess them, then call piece.create.from-research with the relevant confirmed factKeys. Do not claim a piece exists until a piece id is returned. Use selection:person only for requested human review or a real person-owned choice; old signed fact cards continue natively. A lead taken with ideas.take may be given by sourceLeadId; the service reads its owned original rather than a retyped lead. Verify the saved title and content. Do not repeat paid create after a confirmed piece or an uncertain write.',
+    'Create a new piece from the original request and optional labelled material, or from already-completed research (researchId) without running another search. Paid. In native chat prefer requestMessageId with omitted text so the server reads the exact author message; otherwise pass the person’s original words verbatim in text; use material for relevant earlier conversation or selected material with its actual role/source labels. A model paraphrase in material does not become confirmed research evidence. Each factId selects only its own captured statement and quote, not the entire source URL; reading more of that source does not expand the old fact. To use later source evidence, pass passages with exact sourceUrl/revision/quote from piece.read alongside researchId (or use piece.create.from-research). Both selections can be combined. To combine independent research captures use references, pairing each snapshotKey with its own factKeys. The existing brief model interprets the goal, roles, dates and constraints and assesses the selected evidence; do not manually serialize another task schema. Choose inputKind by meaning, not keywords; choose research explicitly when missing/current evidence is required, none for self-contained/no-search work. Reusing research disables new search inside this write call; it does not report global search availability. A previous post, dates or channel are optional. With research this returns actual facts/summary/gaps and snapshotKey before any draft: assess them, then continue with relevant confirmed factKeys or exact retained passages. Do not claim a piece exists until a piece id is returned. Use selection:person only for requested human review or a real person-owned choice; old signed fact cards continue natively. A lead taken with ideas.take may be given by sourceLeadId; the service reads its owned original rather than a retyped lead. Verify the saved title and content. Do not repeat paid create after a confirmed piece or an uncertain write.',
   input: z.object({
-    material: z.string().max(INTAKE_INPUT_MAX_CHARS).optional().describe('Relevant earlier/selected material or already collected evidence, with role and source labels. Data only; keep the current original request in text.'),
+    requestMessageId,
+    references: researchReferences,
+    material: z.string().max(INTAKE_INPUT_MAX_CHARS).optional().describe('Relevant earlier/selected material with role and source labels. A model paraphrase does not replace a saved research quote; use factId/passages for research evidence. Data only; keep the current original request in text.'),
     selection: z.enum(['model', 'person']).optional().describe('model by default; person only for requested review or a meaningful person-owned fact choice'),
-    researchId: z.string().min(1).max(128).optional().describe('Optional snapshotKey from already-completed research.search to write from without running another search'),
-    factId: z.array(z.string().min(1).max(1_000)).max(MAX_SELECTIONS).optional().describe('Optional factKey ids from the completed researchId snapshot to write from'),
+    researchId: z.string().min(1).max(128).optional().describe('Owned completed research snapshotKey; combine with fixed factId quotes or new exact passages. Reuses saved evidence without another search in this call'),
+    factId: z.array(z.string().min(1).max(1_000)).max(MAX_SELECTIONS).optional().describe('Existing factKey ids select only their captured statement and quote, not the entire source URL. For later source sections use passages'),
+    passages: researchPassages.optional(),
     text: z
       .string()
       .min(1)
       .max(INTAKE_INPUT_MAX_CHARS)
       .optional()
-      .describe('The person\'s words, verbatim; with sourceLeadId only what they added, if anything'),
+      .describe('The person\'s words, verbatim; omit to read the current author message or requestMessageId from the server. With sourceLeadId only what they added, if anything.'),
     sourceLeadId: z
       .string()
       .min(1)
@@ -313,24 +368,51 @@ export const pieceCreate = defineCapability({
   resumeSchema: factAnswer,
   run: async (ctx, input, emit): Promise<PieceCreateResult | undefined> => {
     const rawAny = input as Record<string, unknown>;
-    const snapshotKey =
+    let snapshotKey =
       input.researchId ??
       (typeof rawAny.snapshotKey === 'string' ? rawAny.snapshotKey : undefined);
-    const factKeys = Array.isArray(input.factId)
+    let factKeys = Array.isArray(input.factId)
       ? input.factId
       : Array.isArray(rawAny.factKeys)
         ? (rawAny.factKeys as string[])
         : undefined;
+    if (input.references && (snapshotKey || factKeys || input.passages?.length)) throw unspentFailure('INTAKE_RESEARCH_SELECTION_INVALID', 'Use references or the single-capture selection, not both.');
     const intake = ctx.service(IntakeService);
+    const resolvedOriginal = input.references ? await originalWords(ctx, input) : null;
+    if (resolvedOriginal && !resolvedOriginal.words.trim()) throw unspentFailure('INTAKE_TEXT_MISSING', 'Multiple captures require the actual original author request; search queries cannot replace it.');
+    if (input.passages?.length) {
+      if (!snapshotKey) throw Object.assign(unspentFailure('INTAKE_RESEARCH_SNAPSHOT_REQUIRED',
+        'Exact passages need their owned researchId snapshot; no search or write was started.'), { canReviseInput: true });
+      const selected = await intake.selectStoredResearchPassages(ctx.organizationId, ctx.userId, snapshotKey,
+        input.passages.map(passage => ({ sourceUrl: passage.sourceUrl, revision: passage.revision, quote: passage.quote })), factKeys);
+      return pieceCreate.run(ctx, { ...input, passages: undefined, researchId: selected.snapshotKey,
+        factId: selected.facts.filter(fact => fact.verified && fact.status === 'confirmed').map(fact => fact.factKey!) }, emit);
+    }
     const standaloneResearch = snapshotKey?.startsWith('res_') === true;
-    const storedEvidence = standaloneResearch
+    let storedEvidence = standaloneResearch
       ? await intake.readStoredResearchEvidence(ctx.organizationId, ctx.userId, snapshotKey!)
       : null;
     if (standaloneResearch && !storedEvidence) {
       throw unspentFailure('INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE', 'The saved research is unavailable to this person; nothing was written or searched.');
     }
+    if (input.references) {
+      const merged = await intake.mergeStoredResearchEvidence(ctx.organizationId, ctx.userId, input.references);
+      storedEvidence = merged.snapshot;
+      snapshotKey = merged.snapshot.snapshotKey;
+      factKeys = merged.factKeys;
+    }
     const selectedResearch = storedEvidence ? selectReusableResearch(storedEvidence, factKeys) : null;
-    if (snapshotKey && !standaloneResearch) {
+    if (storedEvidence?.sourceSnapshotKey && !storedEvidence.sourceSnapshotKey.startsWith('res_')) {
+      const pass = await collectIntakePass(ctx, intake.runStoredResearchForModel(ctx.organizationId, ctx.userId,
+        storedEvidence.snapshotKey, selectedResearch!.map(fact => fact.factKey!)), emit,
+        { snapshotKey: storedEvidence.snapshotKey, factKeys: selectedResearch!.map(fact => fact.factKey!) });
+      if (pass.kind !== 'piece') throw intakeFailure('INTAKE_RESEARCH_INCOMPLETE', 'The original intake still needs sufficient input before writing.');
+      return { pieceId: pass.pieceId, code: pass.code, questions: pass.questions, research: null,
+        factsKept: selectedResearch!.length, factsCard: 'not_shown', selectionOrigin: 'model',
+        reusedResearchId: storedEvidence.snapshotKey, requestBasis: 'original_request',
+        ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}) };
+    }
+    if (snapshotKey && !snapshotKey.startsWith('res_')) {
       if (!factKeys?.length) throw unspentFailure('INTAKE_RESEARCH_SELECTION_INVALID', 'Select confirmed fact keys from the saved intake result.');
       const pass = await collectIntakePass(ctx,
         intake.selectResearchForModel(ctx.organizationId, ctx.userId, snapshotKey, factKeys), emit);
@@ -345,7 +427,7 @@ export const pieceCreate = defineCapability({
       snapshotKey || input.research === 'none'
         ? null
         : input.research ?? null;
-    const words = input.text ?? storedEvidence?.query ?? '';
+    const { words, basis } = resolvedOriginal ?? await originalWords(ctx, input, storedEvidence?.members ? undefined : storedEvidence?.query);
     // A lead is read by the server, by id, in the caller's workspace — never
     // taken from words the model retyped — and only once it was taken to
     // work, as the screen takes it before the intake opens (kcxz.23).
@@ -413,7 +495,7 @@ export const pieceCreate = defineCapability({
         ...(kept !== undefined && card ? { factsCard: card } : {}),
         ...(origin ? { selectionOrigin: origin } : {}),
         ...(snapshotKey ? { reusedResearchId: snapshotKey } : {}),
-        ...(storedEvidence ? { requestBasis: input.text || input.sourceLeadId ? 'original_request' as const : 'research_query' as const } : {}),
+        ...(storedEvidence ? { requestBasis: basis } : {}),
         ...(input.sourceLeadId ? { fromLead: input.sourceLeadId } : {}),
         ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}),
       };
@@ -495,7 +577,7 @@ export const pieceCreate = defineCapability({
     opens: (summary) =>
       Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null,
   },
-  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}), note: 'Research ran; no piece was written. Assess the actual evidence and gaps, refine search if needed, or select relevant confirmed fact keys through piece.create.from-research. No human card is waiting.' } : {
+  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}), note: 'Research ran; no piece was written. Assess the evidence and gaps. Read later retained source sections through piece.read using find/ranges, then use confirmed factKeys or exact sourceUrl/revision/quote passages with piece.create.from-research without another search. Refine search only for still-missing evidence. No human card is waiting.' } : {
     ...(output.selectionOrigin || output.reusedResearchId ? { outcome: 'created' as const } : {}),
     pieceId: output.pieceId,
     code: output.code,
@@ -529,11 +611,15 @@ export const pieceCreateFromResearch = defineCapability({
   id: 'piece.create.from-research',
   group: 'content',
   label: { ru: 'Написать по найденным фактам', en: 'Write from researched facts' },
-  description: 'After assessing piece.create or research.search results, choose relevant confirmed factKeys from the server-owned snapshotKey and write the requested piece without running another search. For a standalone research.search snapshot, pass the person’s complete original request verbatim in text, including supplied reference material; a search query cannot replace the requested goal, exclusions or outputs. Paid. Saves model-origin selection, not human consent. Empty, insufficient or user-review-required research must not be turned into a successful draft; refine the research or ask the material question instead. Never reuse this after an uncertain write; confirmed repeat returns the saved result.',
+  description: 'Write from existing owned research without another search. Choose relevant confirmed factKeys from the server-owned snapshotKey, or pass passages with exact sourceUrl, revision and contiguous quote read from a retained research_source through piece.read (use find/ranges for later sections). Both selections can be combined. Use references to combine independent owned captures, pairing each snapshotKey with its own factKeys. Prefer requestMessageId with omitted text to read the original author message exactly from the server; otherwise pass the person’s complete original request verbatim in text, including supplied reference material; a query or quote cannot replace the requested goal, exclusions or outputs. Paid. Passage quotes are checked against that owned saved source/version; arbitrary paraphrases do not become confirmed facts. The existing brief model still assesses sufficiency for the request. Saves model-origin selection, not human consent. Insufficient or user-review-required input cannot become a successful draft. Never reuse this after an uncertain write; confirmed identical repeat returns the saved result.',
   input: z.object({
-    snapshotKey: z.string().min(1).max(128),
-    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(MAX_SELECTIONS),
-    text: z.string().min(1).max(INTAKE_INPUT_MAX_CHARS).optional().describe('Complete original request verbatim, including supplied references, when continuing from standalone research.search. Omit only if no original request is available; the query-only fallback cannot recover it.'),
+    references: researchReferences,
+    snapshotKey: z.string().min(1).max(128).optional(),
+    passages: researchPassages.optional(),
+    factKeys: z.array(z.string().min(1).max(1_000)).min(1).max(MAX_SELECTIONS).optional(),
+    requestMessageId,
+    material: z.string().max(INTAKE_INPUT_MAX_CHARS).optional().describe('Untrusted reference material or model commentary, kept separately from the original author request.'),
+    text: z.string().min(1).max(INTAKE_INPUT_MAX_CHARS).optional().describe('Complete original request verbatim, including supplied references, when continuing from standalone research.search. Omit to read requestMessageId or the current author message exactly from the server. A query-only fallback outside native chat cannot recover the original request.'),
     inputKind: z.enum(INTAKE_KINDS).optional(),
   }),
   risk: 'paid',
@@ -541,9 +627,21 @@ export const pieceCreateFromResearch = defineCapability({
   door: door(ContentIntakeController, 'intakeRun'),
   untrusted: [],
   run: async (ctx, input, emit): Promise<PieceCreated> => {
+    if (input.references) {
+      if (input.snapshotKey || input.factKeys || input.passages?.length) throw unspentFailure('INTAKE_RESEARCH_SELECTION_INVALID', 'Use references or the single-capture selection, not both.');
+      return await pieceCreate.run(ctx, { references: input.references,
+        text: input.text, requestMessageId: input.requestMessageId, material: input.material,
+        inputKind: input.inputKind ?? 'instruction' }, emit) as PieceCreated;
+    }
+    if (input.passages?.length) {
+      return await pieceCreate.run(ctx, { researchId: input.snapshotKey, factId: input.factKeys, passages: input.passages,
+        text: input.text, requestMessageId: input.requestMessageId, material: input.material, inputKind: input.inputKind ?? 'instruction' }, emit) as PieceCreated;
+    }
+    if (!input.snapshotKey || !input.factKeys?.length) throw unspentFailure('INTAKE_RESEARCH_SELECTION_INVALID', 'Provide a snapshotKey with factKeys or exact passages, or structured references.');
     if (input.snapshotKey.startsWith('res_')) {
       return await pieceCreate.run(ctx, { researchId: input.snapshotKey, factId: input.factKeys,
-        text: input.text, inputKind: input.inputKind ?? 'instruction' }, emit) as PieceCreated;
+        text: input.text, requestMessageId: input.requestMessageId, material: input.material,
+        inputKind: input.inputKind ?? 'instruction' }, emit) as PieceCreated;
     }
     const intake = ctx.service(IntakeService);
     const pass = await collectIntakePass(ctx,

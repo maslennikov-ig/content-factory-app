@@ -1,0 +1,13 @@
+{
+  "schema": "on0i-owned-frontend-stop/1",
+  "status": "PASS",
+  "pids": [
+    22373,
+    22385
+  ],
+  "signals": "SIGTERM only",
+  "cwdVerified": true,
+  "noForeignProcessTouched": true,
+  "reason": "Release shared Next build directory for final source-stable build",
+  "priorSafetyAttempt": "Command identity guard refused before signals because pnpm launcher differs from direct Next executable; exact recorded launcher verified on retry"
+}

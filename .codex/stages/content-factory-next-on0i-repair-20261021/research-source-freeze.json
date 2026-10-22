@@ -1,0 +1,111 @@
+{
+  "schema": "on0i-research-source-freeze/1",
+  "at": "2026-10-21T12:26:31.943Z",
+  "status": "FROZEN_FOR_ROOT_ACCEPTANCE",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "appSha256": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "8ed1cfdefae0fe9953b86984a952479fd7d16b525081431c6dee4a57c95c8c1b",
+    "libraries/nestjs-libraries/src/content-intelligence/research/retained-source.ts": "33a954574bfcb164b480db586cf297a40f9b0b0173cd31b0c1dca8eba0ad1cd9",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "b97ddc75bc35dffbe3e6822ef7e09216b96e84d484b55a3eb3db78fa834eb789",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "9dcab5351152b17f234fee14efc67c187c8b7a77281f2aa8193913d9601406af",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "98bd4772671e133ed96e5906e888cab81122f9f2353e91984bf62ab672bd4c90",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "e21db03e4e6e97bd7c3197bfbadc99745f868a5f83dfa241172be4d6118fcf7f",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781"
+  },
+  "testSha256": {
+    "tests/intake.research-reuse.test.cjs": "50a0b3e5999b019e2567305c98b4176852cf4385d38df8523cfabaab7e7301ec",
+    "tests/web.research.service.test.cjs": "fff27ac0010c94d1d554a550ae90f223890954f10d041089ad23c5b06325d376"
+  },
+  "readOnlyIntegratedSha256": {
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts": "8b92d95151de3744c5d5616bc2a0097ad1751bc33270f3601c602c7ced08a4d3",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+    "tests/agent.model-autonomy.test.cjs": "97ba44f2e15a10977edec171759d1306a60fd9439ee16843971e5cf44337155a",
+    "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78"
+  },
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-diagnosis.json": "14512992769c987cc307c091477c84e8a82447df8139016391c2851b75df0b6d",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-fulltext.probe.cjs": "b0cf9715e373e2360f6bf55f8a1952b6bb322ee4d18c13733c6c0df9d7ad83a5",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-fulltext-controlled-red.log": "0166100507117cfb2ec26bd677e212ddfe99d249406cb64ccd96c16b2e0d72c2",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-fulltext-controlled-green.log": "eeb3b9729421b4cfeee0d2f6cf2e1c7fd3ffa668bea213e519ee837db4221546",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-passages-controlled-red.log": "6f581d318e8437ae58957fbfd3269f3e57f0d6953c651ecca0ab3ce09a20e2a2",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-ancestry-controlled-red.log": "2384d6b3e284eac22be8dd4bf5b6b34ea55e3b10dfa26de638ecd3212dc61ffd",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-native-context-controlled-red.log": "e87f675fcead59293a133a7c2c36babd4e61ca67520bdca34a53f77dfe91f414",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-ancestry-native-focused-green.log": "c112896ad48c632644ebbacc14f4c20b137f69a514a33a0b6f00d491fb9f0700",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-focused-regressions.log": "684b224c378c3c71572e1f65a2c6e2d8d217476ab8f1a8baec45d8cbdc9a7ff0",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-backend-types-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "verification": {
+    "focused": {
+      "command": "pnpm exec jest tests/intake.research-reuse.test.cjs tests/agent.model-autonomy.test.cjs tests/web.research.service.test.cjs --runInBand",
+      "exitCode": 0,
+      "suites": 3,
+      "passed": 118,
+      "skipped": 0,
+      "log": ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-focused-regressions.log"
+    },
+    "types": {
+      "command": "pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": ".codex/stages/content-factory-next-on0i-repair-20261021/research-source-backend-types-final.log"
+    },
+    "diffCheck": {
+      "exitCode": 0,
+      "scope": "owned source/test paths only"
+    },
+    "controlledFullSource": {
+      "before": {
+        "raw": 225088,
+        "retained": 5967,
+        "lateEvidenceRetained": false,
+        "exitCode": 1
+      },
+      "after": {
+        "raw": 225088,
+        "preview": 5967,
+        "retained": 225088,
+        "lateEvidenceRetained": true,
+        "exitCode": 0
+      },
+      "providerMode": "synthetic offline provider",
+      "actualModelCalls": 0,
+      "actualSourceNetworkCalls": 0,
+      "paidCalls": 0
+    }
+  },
+  "boundaries": {
+    "paidCalls": 0,
+    "sourceProviderCalls": 0,
+    "runtimeRestart": 0,
+    "deploys": 0,
+    "pushes": 0,
+    "fullSuite": false,
+    "commit": false,
+    "credentialsRead": false
+  },
+  "remaining": [
+    "Root independent review of exact frozen diff",
+    "Root new compiled runtime and same natural PostgreSQL request with actual models/search",
+    "Root full acceptance suite and UI/Stop checks"
+  ],
+  "graphReviewed": {
+    "used": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "mode": "borrowed read-only orientation, current files confirmed",
+    "baseline": "dd67538d524417749bc46935ffb84431bc3da42f",
+    "currentSource": "e74e059ea104593d2fac831eb989714a5b151263",
+    "refresh": false
+  },
+  "residualRisks": [
+    "Complete provider text is retained, not a proof that the provider captured every byte of the original website.",
+    "Larger private snapshots use more storage; model-facing previews/ranges remain bounded.",
+    "Concurrent preparation on different processes can purchase brief-model work before the existing atomic writer claim; artifact creation remains fenced.",
+    "Unknown external/model/provider outcomes and production behavior remain root/environment acceptance gates."
+  ],
+  "cleanup": {
+    "syntheticTestState": "memory only; process exits",
+    "newOwnedRuntimeResources": 0,
+    "temporaryCredentials": 0,
+    "retainedArtifacts": "public-safe stage proofs and focused regression source"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "schema": "core-source-read-delivery/1",
+  "at": "2026-10-21T12:15:22.956871+00:00",
+  "status": "SOURCE_FROZEN_FOCUSED_PASS_ROOT_INTEGRATION_PENDING",
+  "scope": "PieceService readCoreResearchSnapshot and the existing piece-research.flow service fixture only",
+  "rootCause": "CORE piece.research persists a piece:research:organization:actor:piece:snapshot envelope, while the research-source reader previously consulted only the separate Intake snapshot namespace.",
+  "api": {
+    "method": "readCoreResearchSnapshot(organizationId, pieceId, actorUserId, snapshotKey)",
+    "return": "null or {snapshotKey,input,summary,evidence,facts}",
+    "input": "saved.state.resumePlan.input when string; otherwise saved.body",
+    "evidence": "Complete saved.state.evidence, including retained fullText; no truncation or provider fetch",
+    "authorization": "Current pieces.getPiece(organizationId,pieceId), exact existing coreResearchKey, supported v1/v2 envelope and same organization/actor/piece identities",
+    "expiry": "Finite expiresAt strictly greater than the existing injected now().getTime()",
+    "readOnly": "No stale body/title equality gate for reading, no accepting/research/writer/cache/index mutation"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/piece-research.flow.test.cjs --testNamePattern='read-only CORE research snapshots'",
+      "exitCode": 1,
+      "newCasesFailed": 12,
+      "previousSkipped": 39,
+      "log": "evidence/core-source-read.red.log",
+      "failure": "Public domain read API was absent"
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/piece-research.flow.test.cjs",
+      "exitCode": 0,
+      "suites": 1,
+      "tests": 51,
+      "seconds": 3.515,
+      "newCases": 12,
+      "log": "evidence/core-source-read.green.log"
+    },
+    {
+      "command": "pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "evidence/core-source-read.backend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "validated": [
+    "actual researchCore writer envelope -> v1/v2 read preserves complete long source",
+    "read after current piece edit without accepting research",
+    "current deleted or foreign piece refused",
+    "foreign actor/exact missing snapshot refused",
+    "tampered envelope organization/actor/piece/version refused",
+    "expiry at/past clock, null or string refused",
+    "malformed JSON/evidence/facts state refused",
+    "legacy input provenance falls back to saved body",
+    "storage entries unchanged; no writer or repeat model/search call"
+  ],
+  "ownedSourceSha256": {
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+    "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78"
+  },
+  "relatedAppSha256AtTypesCompletion": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "67a454524b31eaef9c73f7ec4d11e20ae1614eb9f6a82d86da9a98931bef1562",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "e4acb918b733080da6643e02ffd55b3b8d48c3cb4280695a571ddd4216193fc9"
+  },
+  "logSha256": {
+    "evidence/core-source-read.red.log": "c9c675a287209b82ad7dd523d61271145e94a51076fced0636cbf99efe94c87e",
+    "evidence/core-source-read.green.log": "cf3bcba7046c0976d7bc18bfb82b6e7513eb10620419d76f748e4c222104b56f",
+    "evidence/core-source-read.backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "limits": "Source authentication is scoped private storage plus current piece ownership and envelope validation; no new cryptographic signature contract. Adapter fallback and real compiled integration acceptance belong to research_source_debug/root. No paid/network call, running service restart, broad suite/build, commit, push or deployment by this worker.",
+  "completionEvent": "Bounded read-only CORE snapshot API and service regression delivered; both owned sources frozen. Root and research_final_review notified."
+}

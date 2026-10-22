@@ -1,0 +1,13 @@
+AssertionError [ERR_ASSERTION]: Raw native provider error/stack/cause/config reached PostgreSQL spans.
+
+true !== false
+
+    at main (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-observability.probe.cjs:150:53)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

@@ -1,0 +1,26 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-native-conversation-flow.test.cjs (8.423 s)
+  ✓ reload resumes the real SDK observer once and explicit Stop also reaches the server (844 ms)
+  ✓ Stop hydrates the new saved human and partial answer before its aborted observer finishes (612 ms)
+  ✓ native replay finishing after empty history hydrates the human once when the owner is settled (530 ms)
+  ✓ native replay finishing after empty history hydrates the human once when the owner is running (525 ms)
+  ✓ a released native replay hydrates committed history even when the SDK never calls onFinish (509 ms)
+  ✓ an unreadable completed response remains uncertain until a deliberate saved-history check succeeds (542 ms)
+  ✓ a busy instruction is accepted by native server delivery and shown without a browser execution queue (505 ms)
+  ✓ positive native idle refusal submits the same human message through the ordinary chat door (516 ms)
+  ✓ a native continuation preserves its earlier partial after terminal finish (517 ms)
+  ✓ a native continuation preserves its earlier partial after terminal released (542 ms)
+  ✓ history arriving after a fresh conversation mount populates the log (486 ms)
+  ✓ a native pending question arriving in the mounted thread restores controls from its persisted input part (535 ms)
+  ✓ a native question suspension supersedes the earlier approval projection for the same call (516 ms)
+  ✓ an uncertain native queue acknowledgement stays unknown after history reload (495 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       14 passed, 14 total
+Snapshots:   0 total
+Time:        8.584 s
+Ran all test suites matching /tests\/agent-native-conversation-flow.test.cjs/i.

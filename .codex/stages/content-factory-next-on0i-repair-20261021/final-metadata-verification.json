@@ -1,0 +1,51 @@
+{
+  "schema": "on0i-final-metadata-verification/1",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "docs",
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "log": "evidence/final-metadata-docs.log",
+      "logSha256": "4fd35ba2673d8589d2f3be5cb4f503d61183d695785b36dd230f1547a471f6fe"
+    },
+    {
+      "name": "process",
+      "command": [
+        "bash",
+        "scripts/orchestration/run_process_verification.sh"
+      ],
+      "exitCode": 0,
+      "log": "evidence/final-metadata-process.log",
+      "logSha256": "40b7366b33cb753578b0ad24058750afc2d6ffbd86bf3e49bbd6b72bf02bf170"
+    },
+    {
+      "name": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "log": "evidence/final-metadata-diff.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "documentationInputsSha256": {
+    ".codex/handoff.md": "59bf8ac0bf5d4b47d3c04193bfccc26b583b541d06124318b940c972fe254b90",
+    ".codex/project-index.md": "816f4e2b2985d4382cfa9a419bbf8a14418424b7c1e8adf48bea49eb5cb6ae46",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/outcome.md": "110d093073d87a194181b6328e2ea76de85e780d3da29373e49a2354ed4c8215",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/acceptance-map.md": "f177a8f55cc2ff9e88d58f39a0137d887a134794819ffadca963a6990dbf2b9f",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/local-final-acceptance.json": "d6d27e91bab9ce63c6b1b3ac1188b1796801bb2798c9532df7bca36d66321209",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/child-stream-acceptance.json": "61b543b9a71917aae6f6865732d936dcfca7f1e9d0ddd5caa338b395f17d2ee8",
+    ".codex/stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md": "b8dfa473b549f5239b10ffdb9681608e8f2573737324cdc6395559dfe4eb8d0e",
+    ".codex/stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json": "115498acdb91cec9d826179c592c917746836d3912940e0996e43c24dde2b01c"
+  },
+  "inputsChangedDuringChecks": false,
+  "rootAccepted135SourceInputsStillExact": true,
+  "boundary": "Only documentation/status changed after the accepted full Gate10; no second full suite needed. Process command scope remains generic and existing configured historical stage, as documented in local-final-acceptance."
+}

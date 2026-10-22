@@ -1,0 +1,20 @@
+{
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "mastra": "1.78.0",
+  "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-retry-routing.test.cjs tests/agent-model-fallback-retry.test.cjs tests/agent-native-autonomy.test.cjs",
+  "exitCode": 0,
+  "suites": 3,
+  "tests": 24,
+  "failures": 0,
+  "paidCalls": 0,
+  "files": {
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "f5cf935256d5c50806fdf7fa9b21cfda682f49d34a17aede8820164db1aa5215",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "156a1699612460895b6f0aa660fa76ce6c495ec6208a77583c3e24e29a8983a0",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "7496a786019462f094a27a2232aa82dd0dd4494e56e4fd55d818d1788cdc9b25",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "b669a475abe279de0afe7382e07d069503a35e0f14f91c67cf95fc58f2e7f86a",
+    "tests/agent-native-retry-routing.test.cjs": "ffbc473f2e2a2dd49e84837c007db4afebefe35b39573daaa99853fcbed37d06",
+    "tests/helpers/agent-model-fallback-retry.probe.cjs": "cf97ae6574e61ff645531d7211941d81a02381355c4233a463b410094e8a90d7"
+  }
+}

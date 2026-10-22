@@ -1,3 +1,4 @@
+import { adaptationReferenceUrls } from './generator-run-input';
 import { unavoidableQuestionSchemaV2, unavoidableQuestionV2, hasAutomaticChannelField, channelQuestionPromptV2, channelQuestionTemplateV2 } from '../content-intelligence/channels/channel-question.v2';
 import type { PieceQuestionV1 } from '../content-intelligence/brand-voice/voice-wiring.contract';
 import { takeawayHintLine } from '../content-intelligence/channels/channel-question.v3';
@@ -962,7 +963,7 @@ export class AgentGraphService {
       state.language
     );
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7)
+      await getChatModel(state.orgId, 0.7, 512)
     ).withStructuredOutput(category);
     const { category: outputCategory } = await ChatPromptTemplate.fromTemplate(
       `
@@ -993,7 +994,7 @@ export class AgentGraphService {
     );
 
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7)
+      await getChatModel(state.orgId, 0.7, 512)
     ).withStructuredOutput(topic);
     const { topic: outputTopic } = await ChatPromptTemplate.fromTemplate(
       `
@@ -1023,7 +1024,7 @@ export class AgentGraphService {
 
   async generateHook(state: WorkflowChannelsState) {
     const structuredOutput = (
-      await getChatModel(state.orgId, 0.7)
+      await getChatModel(state.orgId, 0.7, 2_048)
     ).withStructuredOutput(hook);
     const { hook: outputHook } = await ChatPromptTemplate.fromTemplate(
       `
@@ -1549,6 +1550,7 @@ export class AgentGraphService {
         interview: state.intake?.interview,
         postOverrides: state.intake?.post,
       },
+      channelInstructions: state.channelLines || [],
       core: state.intake?.core,
       brief: state.intake?.brief,
       material: state.intake?.material?.map(item => ({
@@ -1926,6 +1928,12 @@ export class AgentGraphService {
     scheduling: GeneratorSchedulingOptions = {}
   ) {
     const hints = body.intake;
+    // Saved-core citations, then explicit one-post wish links, select registry candidates. Bare,
+    // Markdown and HTML link tokens do not grant factual confirmation.
+    const coreSourceUrls = body.materialPolicy === 'PIECE_ONLY' && hints?.core
+      ? adaptationReferenceUrls(hints.core, hints.post?.wish || '', ...(hints.authorReferenceUrls || []))
+      : [];
+
     let resolvedChannelProfile: ResolvedChannelProfile | undefined;
 
     if (hints) {
@@ -2016,6 +2024,17 @@ export class AgentGraphService {
         purpose: 'DRAFT_CREATE',
         query: body.research,
         language: body.language,
+        ...(body.materialPolicy === 'PIECE_ONLY' && hints?.core?.trim() ? {
+          pieceEvidence: {
+            version: 'piece-evidence/v1' as const,
+            core: hints.core,
+            ...(coreSourceUrls.length ? { sourceUrls: coreSourceUrls } : {}),
+            quotes: hints.evidenceQuotes ?? (hints.material || [])
+              .filter(item => item.evidenceId && item.quote)
+              .map(item => ({ evidenceId: item.evidenceId!, sourceUrl: item.sourceUrl || '',
+                quote: item.quote!, statement: item.statement })),
+          },
+        } : {}),
         // Площадка называется строителю и разрешителю голоса только когда она
         // известна: `PlatformVoiceOverrideV1` применяется по имени провайдера,
         // и без него профиль области отвечает как отвечал.
@@ -2054,7 +2073,11 @@ export class AgentGraphService {
           message:
             code === 'BRAND_PROFILE_VERSION_UNAVAILABLE'
               ? 'The selected brand profile is unavailable.'
-              : 'Current evidence is required before generation.',
+              : error?.missingRequirements?.length ? error.message : 'Current evidence is required before generation.',
+          ...(Array.isArray(error?.missingRequirements) ? {
+            missingRequirements: error.missingRequirements,
+            unsupportedClaims: error.unsupportedClaims || [],
+          } : {}),
         } as any;
         return;
       }

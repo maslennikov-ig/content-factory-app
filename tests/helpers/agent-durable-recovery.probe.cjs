@@ -9,11 +9,11 @@ const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { z } = require('zod');
 const { Mastra } = require('@mastra/core/mastra');
-const { isDurableAgent, ExecutionFence } = require('@mastra/core/agent/durable');
+const { createDurableAgent, isDurableAgent, ExecutionFence } = require('@mastra/core/agent/durable');
 const { isRunFenceConflictError, InMemoryStore } = require('@mastra/core/storage');
 const { Memory } = require('@mastra/memory');
 const { PostgresStore } = require('@mastra/pg');
-const { handleChatStream } = require('@mastra/ai-sdk');
+const { handleChatStream, toAISdkStream } = require('@mastra/ai-sdk');
 const { MockLanguageModelV3 } = require('ai/test');
 const { convertArrayToReadableStream } = require('@ai-sdk/provider-utils/test');
 const { loadTypeScriptModule } = require('./load-ts-module.cjs');
@@ -194,7 +194,7 @@ function loadConductorStack() {
     },
   });
   const mocks = {
-    '@mastra/ai-sdk': { handleChatStream },
+    '@mastra/ai-sdk': { handleChatStream, toAISdkStream },
     '@mastra/ai-sdk/ui': {
       toAISdkMessages: (messages) =>
         messages.map((message) => ({ id: message.id, role: message.role, parts: message.parts })),
@@ -311,13 +311,14 @@ async function verifyObserverDisconnectAndReconnect() {
     capabilities: [capability],
     snapshot: async () => ({ channels: [] }),
   });
-  const controllerInstance = stack.conductorAgent.buildConductorController(agent, {
+  const durableAgent = createDurableAgent({ agent, cleanupTimeoutMs: 250 });
+  const controllerInstance = stack.conductorAgent.buildConductorController(durableAgent, {
     storage,
     memory,
   });
   const mastra = new Mastra({
     storage,
-    agents: { [stack.conductorAgent.CONDUCTOR_AGENT_ID || 'content-factory']: agent },
+    agents: { [stack.conductorAgent.CONDUCTOR_AGENT_ID || 'content-factory']: durableAgent },
     agentControllers: { [stack.conductorAgent.CONDUCTOR_AGENT_ID || 'content-factory']: controllerInstance },
     recovery: { workflows: 'auto', durableAgents: 'auto' },
   });
@@ -331,7 +332,11 @@ async function verifyObserverDisconnectAndReconnect() {
       await controllerInstance.initStorage();
       return controllerInstance;
     },
-    sessionFor: async () => undefined,
+    sessionFor: async (_identity, threadId, options) => {
+      await controllerInstance.init();
+      return controllerInstance.createSession({ id: `${resourceId}:${threadId}`, ownerId: USER.id, resourceId,
+        scope: threadId, threadId, createInitialThread: false, requestContext: options?.requestContext });
+    },
     toolTitle: () => 'Создать заготовку',
   };
   const finishedAdmissions = [];
@@ -459,17 +464,39 @@ async function verifyExplicitStopAndLateRejection() {
     capabilities: [capability],
     snapshot: async () => ({ channels: [] }),
   });
+  const durableAgent = createDurableAgent({ agent, cleanupTimeoutMs: 250 });
+  const controllerInstance = stack.conductorAgent.buildConductorController(durableAgent, {
+    storage,
+    memory,
+  });
   const mastra = new Mastra({
     storage,
-    agents: { 'content-factory': agent },
+    agents: { 'content-factory': durableAgent },
+    agentControllers: { 'content-factory': controllerInstance },
     recovery: { workflows: 'auto', durableAgents: 'auto' },
   });
   const durable = mastra.getAgentById('content-factory');
+  assert.equal(isDurableAgent(durable), true);
 
   const mastraService = {
     mastra: async () => mastra,
     conductor: async () => durable,
-    sessionFor: async () => undefined,
+    controller: async () => {
+      await controllerInstance.initStorage();
+      return controllerInstance;
+    },
+    sessionFor: async (_identity, threadId, options) => {
+      await controllerInstance.init();
+      return controllerInstance.createSession({
+        id: `${resourceId}:${threadId}`,
+        ownerId: USER.id,
+        resourceId,
+        scope: threadId,
+        threadId,
+        createInitialThread: false,
+        requestContext: options?.requestContext,
+      });
+    },
     toolTitle: () => 'Создать заготовку',
   };
   const finishedAdmissions = [];
@@ -496,10 +523,31 @@ async function verifyExplicitStopAndLateRejection() {
     res
   );
 
-  await toolStarted.promise;
-  const stopResult = await controller.stopThread(ORG, USER, threadId);
-  assert.equal(stopResult.stopped, true);
+  const toolContext = await toolStarted.promise;
+  let stopSettled = false;
+  const stopPromise = controller.stopThread(ORG, USER, threadId).then(
+    (result) => {
+      stopSettled = true;
+      return { result };
+    },
+    (error) => {
+      stopSettled = true;
+      return { error };
+    }
+  );
+  const abortSignal = toolContext.abortSignal;
+  assert.ok(abortSignal && typeof abortSignal.addEventListener === 'function', 'held tool actual abort signal');
+  if (!abortSignal.aborted) {
+    await new Promise((resolve) => abortSignal.addEventListener('abort', resolve, { once: true }));
+  }
+  assert.equal(abortSignal.aborted, true, 'Stop must abort the signal captured by the executing capability.');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(stopSettled, false, 'Stop must wait while the noncooperative capability remains held.');
   releaseTool.resolve();
+  const stopOutcome = await stopPromise;
+  if ('error' in stopOutcome) throw stopOutcome.error;
+  const stopResult = stopOutcome.result;
+  assert.equal(stopResult.stopped, true);
   await chatPromise;
 
   // Attempt a late tool execution with the stopped requestId: must be rejected!

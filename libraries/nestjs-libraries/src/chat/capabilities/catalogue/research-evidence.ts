@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { redactSecretShapes } from '../../conductor/secret-shapes';
 import { wrapUntrusted } from '../untrusted-data';
+import { retainedSourceText, retainedSourceRevision } from '../../../content-intelligence/research/retained-source';
 
 export const COMPACT_FACT_STATEMENT_MAX = 220;
 export const COMPACT_FACT_QUOTE_MAX = 160;
 export const COMPACT_SOURCE_EXCERPT_MAX = 140;
-export const STORED_RESEARCH_SOURCE_MAX = 200_000;
 export const STORED_RESEARCH_FACT_MAX = 20_000;
 const MAX_STORED_SNAPSHOTS = 250;
 
@@ -55,15 +55,7 @@ const researchEvidenceStore = new Map<string, StoredResearchEvidence>();
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
 const normalizeStoredSource = (source: any, index: number): StoredResearchSource => {
-  const rawBody =
-    typeof source?.text === 'string' && source.text.trim()
-      ? source.text
-      : typeof source?.content === 'string' && source.content.trim()
-        ? source.content
-        : typeof source?.excerpt === 'string'
-          ? source.excerpt
-          : '';
-  const text = redactSecretShapes(String(rawBody)).slice(0, STORED_RESEARCH_SOURCE_MAX);
+  const text = redactSecretShapes(retainedSourceText(source));
   const rawExcerpt =
     typeof source?.excerpt === 'string' && source.excerpt.trim()
       ? source.excerpt
@@ -79,7 +71,7 @@ const normalizeStoredSource = (source: any, index: number): StoredResearchSource
     text,
     excerpt,
     totalCharacters: text.length,
-    revision: sha256(text),
+    revision: retainedSourceRevision(source),
   };
 };
 
@@ -210,6 +202,7 @@ export const researchFacts = (value: unknown) =>
       status: fact?.status ?? (fact?.verified === true ? 'confirmed' : 'unverified'),
       ...(fact?.kind || fact?.origin ? { kind: fact?.kind ?? fact?.origin } : {}),
       ...(fact?.selected === true ? { selected: true } : {}),
+      ...(fact?.sourcePassage === true ? { sourcePassage: true, selected: false } : {}),
       quote,
       ...(fact?.dateProvenance ? { dateProvenance: fact.dateProvenance } : {}),
       ...(fact?.note ? { note: redactSecretShapes(String(fact.note)).slice(0, 1_000) } : {}),

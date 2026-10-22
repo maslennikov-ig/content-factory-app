@@ -87,6 +87,7 @@ export const createAgentTransport = ({
   currentContext,
   onThread,
   onNotStarted,
+  onReplayComplete,
 }: {
   request: ProductFetch;
   /** The thread the next request writes to; `null` opens a new one. */
@@ -97,15 +98,24 @@ export const createAgentTransport = ({
   onThread: (id: string) => void;
   /** Positive proof: local preparation or the server refused before starting. */
   onNotStarted?: () => void;
+  /** Native replay was released after its saved terminal response committed. */
+  onReplayComplete?: () => void | Promise<void>;
 }) =>
   new AgentChatTransport({
     api: AGENT_DOORS.chat,
+    prepareReconnectToStreamRequest: ({ headers }) => ({
+      api: currentThread() ? AGENT_DOORS.observeThread(currentThread()!) : AGENT_DOORS.chat,
+      headers,
+    }),
     fetch: async (input, init) => {
       if (init?.signal?.aborted) {
         onNotStarted?.();
         init.signal.throwIfAborted();
       }
       const response = await request(String(input), init ?? {});
+      if (response.status === 204 && currentThread() && String(input).endsWith(AGENT_DOORS.observeThread(currentThread()!))) {
+        await onReplayComplete?.();
+      }
       if (!response.ok && response.headers.get(AGENT_NOT_STARTED_HEADER) === '1') {
         onNotStarted?.();
         throw new AgentRequestNotStartedError(await response.text(), response.status);

@@ -124,9 +124,18 @@ importers:
       '@mastra/memory':
         specifier: 1.38.0
         version: 1.38.0(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))
+      '@mastra/observability':
+        specifier: 1.20.1
+        version: 1.20.1(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(zod@3.25.76)
       '@mastra/pg':
         specifier: 1.31.2
         version: 1.31.2(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))
+      '@mastra/redis':
+        specifier: 1.4.10
+        version: 1.4.10(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(@opentelemetry/api@1.9.1)
+      '@mastra/redis-streams':
+        specifier: 0.6.3
+        version: 0.6.3(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(@opentelemetry/api@1.9.1)
       '@meronex/icons':
         specifier: ^4.0.0
         version: 4.0.0(react@19.2.4)
@@ -743,6 +752,9 @@ importers:
       '@types/node-telegram-bot-api':
         specifier: ^0.64.7
         version: 0.64.14
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       '@types/react':
         specifier: 19.1.8
         version: 19.1.8
@@ -3852,8 +3864,27 @@ packages:
     peerDependencies:
       '@mastra/core': '>=1.4.1-0 <2.0.0-0'
 
+  '@mastra/observability@1.20.1':
+    resolution: {integrity: sha512-I4q+bHpzYTrzS0n+Ytq2tKpuo+xkiCESZcFIGtuLs4/Mc5oaGbGQSju8o2bAtOalAEwN3V4OOUglkqqj1Q7mYA==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.16.0-0 <2.0.0-0'
+      zod: ^3.25.0 || ^4.0.0
+
   '@mastra/pg@1.31.2':
     resolution: {integrity: sha512-6Uawo8mVKcvnUT1G0xcrdSio+JCbeQ7FqGzvL3oarfNONEe0W6UMV218fof5Vrh/qcOV7BsuA7LcJRTu/kgCnw==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.76.0-0 <2.0.0-0'
+
+  '@mastra/redis-streams@0.6.3':
+    resolution: {integrity: sha512-c64hbbC9UlsOr72AKu1JMaAc7ii9nhj0o+87n7WgedVWGM3BoMoFpDGDR0XgksTL2HsfpHWMb4WdE7+l32DQfQ==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.0.0-0 <2.0.0-0'
+
+  '@mastra/redis@1.4.10':
+    resolution: {integrity: sha512-/B5DBnr81MbPGvfQGwsdedjOKS/y0givFS4FTrBBgmZkwVfx+s+LnLxSYwbU01mRmzx/zCenPdkj+yyiAwhGFQ==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       '@mastra/core': '>=1.76.0-0 <2.0.0-0'
@@ -4832,9 +4863,27 @@ packages:
     peerDependencies:
       '@redis/client': ^1.0.0
 
+  '@redis/bloom@5.12.1':
+    resolution: {integrity: sha512-PUUfv+ms7jgPSBVoo/DN4AkPHj4D5TZSd6SbJX7egzBplkYUcKmHRE8RKia7UtZ8bSQbLguLvxVO+asKtQfZWA==}
+    engines: {node: '>= 18.19.0'}
+    peerDependencies:
+      '@redis/client': ^5.12.1
+
   '@redis/client@1.6.1':
     resolution: {integrity: sha512-/KCsg3xSlR+nCK8/8ZYSknYxvXHwubJrU82F3Lm1Fp6789VQ0/3RJKfsmRXjqfaTA++23CvC3hqmqe/2GEt6Kw==}
     engines: {node: '>=14'}
+
+  '@redis/client@5.12.1':
+    resolution: {integrity: sha512-7aPGWeqA3uFm43o19umzdl16CEjK/JQGtSXVPevplTaOU3VJA/rseBC1QvYUz9lLDIMBimc4SW/zrW4S89BaCA==}
+    engines: {node: '>= 18.19.0'}
+    peerDependencies:
+      '@node-rs/xxhash': ^1.1.0
+      '@opentelemetry/api': '>=1 <2'
+    peerDependenciesMeta:
+      '@node-rs/xxhash':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
 
   '@redis/graph@1.1.1':
     resolution: {integrity: sha512-FEMTcTHZozZciLRl6GiiIB4zGm5z5F3F6a6FZCyrfxdKOhFlGkiAqlexWMBzCi4DcRoyiOsuLfW+cjlGWyExOw==}
@@ -4846,15 +4895,33 @@ packages:
     peerDependencies:
       '@redis/client': ^1.0.0
 
+  '@redis/json@5.12.1':
+    resolution: {integrity: sha512-eOze75esLve4vfqDel7aMX08CNaiLLQS2fV8mpRN9NxPe1rVR4vQyYiW/OgtGUysF6QOr9ANhfxABKNOJfXdKg==}
+    engines: {node: '>= 18.19.0'}
+    peerDependencies:
+      '@redis/client': ^5.12.1
+
   '@redis/search@1.2.0':
     resolution: {integrity: sha512-tYoDBbtqOVigEDMAcTGsRlMycIIjwMCgD8eR2t0NANeQmgK/lvxNAvYyb6bZDD4frHRhIHkJu2TBRvB0ERkOmw==}
     peerDependencies:
       '@redis/client': ^1.0.0
 
+  '@redis/search@5.12.1':
+    resolution: {integrity: sha512-ItlxbxC9cKI6IU1TLWoczwJCRb6TdmkEpWv05UrPawqaAnWGRu3rcIqsc5vN483T2fSociuyV1UkWIL5I4//2w==}
+    engines: {node: '>= 18.19.0'}
+    peerDependencies:
+      '@redis/client': ^5.12.1
+
   '@redis/time-series@1.1.0':
     resolution: {integrity: sha512-c1Q99M5ljsIuc4YdaCwfUEXsofakb9c8+Zse2qxTadu8TalLXuAESzLvFAvNVbkmSlvlzIQOLpBCmWI9wTOt+g==}
     peerDependencies:
       '@redis/client': ^1.0.0
+
+  '@redis/time-series@5.12.1':
+    resolution: {integrity: sha512-c6JL6E3EcZJuNqKFz+KM+l9l5mpcQiKvTwgA3blt5glWJ8hjDk0yeHN3beE/MpqYIQ8UEX44ItQzgkE/gCBELQ==}
+    engines: {node: '>= 18.19.0'}
+    peerDependencies:
+      '@redis/client': ^5.12.1
 
   '@remirror/core-constants@3.0.0':
     resolution: {integrity: sha512-42aWfPrimMfDKDi4YegyS7x+/0tlzaqwPQCULLanv3DMIlu96KTJR0fM5isWX2UViOqlGnX6YFgqWepcX+XMNg==}
@@ -6463,6 +6530,9 @@ packages:
 
   '@types/parse5@6.0.1':
     resolution: {integrity: sha512-ARATsLdrGPUnaBvxLhUlnltcMgn7pQG312S8ccdYlnyijabrX9RN/KN/iGj9Am96CoW8e/K9628BA7Bv4XHdrA==}
+
+  '@types/pg@8.23.1':
+    resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
@@ -12362,6 +12432,10 @@ packages:
   redis@4.7.1:
     resolution: {integrity: sha512-S1bJDnqLftzHXHP8JsT5II/CtHWQrASX5K96REjWjlmWKrviSOLWmM7QnRLstAWsu1VBBV1ffV6DzCvxNP0UJQ==}
 
+  redis@5.12.1:
+    resolution: {integrity: sha512-LDsoVvb/CpoV9EN3FXvgvSHNJWuCIzl9MiO3ppOevuGLpSGJhwfQjpEwfFJcQvNSddHADDdZaWx0HnmMxRXG7g==}
+    engines: {node: '>= 18.19.0'}
+
   redux@4.2.1:
     resolution: {integrity: sha512-LAUYz4lc+Do8/g7aeRa8JkyDErK6ekstQaqWQrNRW//MY1TvCEpMtpTWvlQ+FPbWCx+Xixu/6SHt5N0HR+SB4w==}
 
@@ -17646,6 +17720,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mastra/observability@1.20.1(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(zod@3.25.76)':
+    dependencies:
+      '@mastra/core': 1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76)
+      zod: 3.25.76
+
   '@mastra/pg@1.31.2(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))':
     dependencies:
       '@mastra/core': 1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76)
@@ -17655,6 +17734,22 @@ snapshots:
       xxhash-wasm: 1.1.0
     transitivePeerDependencies:
       - pg-native
+
+  '@mastra/redis-streams@0.6.3(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@mastra/core': 1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76)
+      redis: 5.12.1(@opentelemetry/api@1.9.1)
+    transitivePeerDependencies:
+      - '@node-rs/xxhash'
+      - '@opentelemetry/api'
+
+  '@mastra/redis@1.4.10(@mastra/core@1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76))(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@mastra/core': 1.78.0(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.5)(ai@7.0.118(zod@3.25.76))(bufferutil@4.1.0)(express@5.2.1)(quansync@0.2.11)(rxjs@7.8.2)(utf-8-validate@5.0.10)(zod-to-json-schema@3.25.1(zod@3.25.76))(zod@3.25.76)
+      redis: 5.12.1(@opentelemetry/api@1.9.1)
+    transitivePeerDependencies:
+      - '@node-rs/xxhash'
+      - '@opentelemetry/api'
 
   '@mastra/schema-compat@1.3.15(zod@3.25.76)':
     dependencies:
@@ -18649,11 +18744,21 @@ snapshots:
     dependencies:
       '@redis/client': 1.6.1
 
+  '@redis/bloom@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
+
   '@redis/client@1.6.1':
     dependencies:
       cluster-key-slot: 1.1.2
       generic-pool: 3.9.0
       yallist: 4.0.0
+
+  '@redis/client@5.12.1(@opentelemetry/api@1.9.1)':
+    dependencies:
+      cluster-key-slot: 1.1.2
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
 
   '@redis/graph@1.1.1(@redis/client@1.6.1)':
     dependencies:
@@ -18663,13 +18768,25 @@ snapshots:
     dependencies:
       '@redis/client': 1.6.1
 
+  '@redis/json@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
+
   '@redis/search@1.2.0(@redis/client@1.6.1)':
     dependencies:
       '@redis/client': 1.6.1
 
+  '@redis/search@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
+
   '@redis/time-series@1.1.0(@redis/client@1.6.1)':
     dependencies:
       '@redis/client': 1.6.1
+
+  '@redis/time-series@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
 
   '@remirror/core-constants@3.0.0': {}
 
@@ -20414,6 +20531,12 @@ snapshots:
   '@types/parse-json@4.0.2': {}
 
   '@types/parse5@6.0.1': {}
+
+  '@types/pg@8.23.1':
+    dependencies:
+      '@types/node': 18.16.9
+      pg-protocol: 1.16.0
+      pg-types: 2.2.0
 
   '@types/prismjs@1.26.6': {}
 
@@ -27611,6 +27734,17 @@ snapshots:
       '@redis/json': 1.0.7(@redis/client@1.6.1)
       '@redis/search': 1.2.0(@redis/client@1.6.1)
       '@redis/time-series': 1.1.0(@redis/client@1.6.1)
+
+  redis@5.12.1(@opentelemetry/api@1.9.1):
+    dependencies:
+      '@redis/bloom': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
+      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
+      '@redis/json': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
+      '@redis/search': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
+      '@redis/time-series': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
+    transitivePeerDependencies:
+      - '@node-rs/xxhash'
+      - '@opentelemetry/api'
 
   redux@4.2.1:
     dependencies:

@@ -13,6 +13,7 @@
 
 const { Mastra } = require('@mastra/core/mastra');
 const { InMemoryStore } = require('@mastra/core/storage');
+const { Memory } = require('@mastra/memory');
 const { handleChatStream } = require('@mastra/ai-sdk');
 const {
   IDENTITY,
@@ -158,32 +159,41 @@ const contextFor = (identity, extra = {}) =>
 const outcomesOf = (result) =>
   result.toolResults.map((entry) => (entry.payload ?? entry).result);
 
-const agentWith = (steps, { identity = IDENTITY } = {}) => {
+const agentWith = (steps, { identity = IDENTITY, memory } = {}) => {
   const { services, calls } = fakeServices();
   const { model, seen } = scripted(steps);
   const agent = conductor.buildConductorAgent({
     services,
     gate: allowAll,
     model: async () => model,
+    memory,
     now: () => new Date('2026-09-27T10:00:00.000Z'),
   });
   return { agent, calls, seen, identity };
 };
 
 const paidCap = async (paidLimit) => {
+  const storage = new InMemoryStore();
+  await storage.init();
+  const memory = new Memory({ storage, options: { generateTitle: false, semanticRecall: false } });
+  const request = 'напиши три заготовки';
   const { agent, calls } = agentWith([
     [
-      ['tool', 'piece_create', { text: 'первая мысль' }],
-      ['tool', 'piece_create', { text: 'вторая мысль' }],
-      ['tool', 'piece_create', { text: 'третья мысль' }],
+      ['tool', 'piece_create', { text: request, material: 'первая мысль' }],
+      ['tool', 'piece_create', { text: request, material: 'вторая мысль' }],
+      ['tool', 'piece_create', { text: request, material: 'третья мысль' }],
     ],
-  ]);
+  ], { memory });
+  const mastra = new Mastra({ logger: false, storage, agents: { 'content-factory': agent }, recovery: { durableAgents: 'auto' } });
   const execution = conductor.createConductorExecution({ requestId: 'paid-probe' });
-  const result = await execution.run(() => agent.generate('напиши три заготовки', {
-    ...execution.streamOptions(), abortSignal: execution.signal,
-    requestContext: contextFor(IDENTITY, { paidLimit }),
-  }));
-  return { runs: calls.intake, outcomes: outcomesOf(result) };
+  try {
+    const result = await execution.run(() => mastra.getAgentById('content-factory').generate('напиши три заготовки', {
+      ...execution.streamOptions(), abortSignal: execution.signal,
+      memory: { thread: 'thread-probe-1', resource: `${IDENTITY.organizationId}:${IDENTITY.userId}` },
+      requestContext: contextFor(IDENTITY, { paidLimit, originalAuthorRequest: { messageId: 'paid-probe-request', text: request } }),
+    }));
+    return { runs: calls.intake, outcomes: outcomesOf(result) };
+  } finally { await mastra.shutdown(); }
 };
 
 const stepCap = async () => {
@@ -279,7 +289,7 @@ const doorPipeline = async () => {
       paidLimit = 2;
       if (input.mode === 'resume') resume = { runId: input.runId, resumeData: input.resumeData };
     }
-    const execution = conductor.createConductorExecution({ requestId: 'pipeline-probe' });
+    const execution = conductor.createConductorExecution({ requestId: 'pipeline-probe', initialStepNotes: notes });
     return execution.run(async () => {
     const stream = await handleChatStream({
       mastra,

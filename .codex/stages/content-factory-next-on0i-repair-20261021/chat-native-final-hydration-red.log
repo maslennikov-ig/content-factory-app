@@ -1,0 +1,38 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+FAIL tests/agent-native-conversation-flow.test.cjs
+  ✕ native replay finishing after empty history hydrates the saved human and the same assistant without another POST (922 ms)
+  ○ skipped reload resumes the real SDK observer once and explicit Stop also reaches the server
+  ○ skipped a busy instruction is accepted by native server delivery and shown without a browser execution queue
+  ○ skipped positive native idle refusal submits the same human message through the ordinary chat door
+  ○ skipped a native continuation resumes as a fresh response and preserves the earlier partial assistant message
+  ○ skipped history arriving after a fresh conversation mount populates the log
+  ○ skipped a native pending question arriving in the mounted thread restores controls from its persisted input part
+  ○ skipped a native question suspension supersedes the earlier approval projection for the same call
+  ○ skipped an uncertain native queue acknowledgement stays unknown after history reload
+
+  ● native replay finishing after empty history hydrates the saved human and the same assistant without another POST
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "Исходная задача"
+    Received string:    "98CfИИ-помощник:Полный восстановленный ответ.Send instructionExplicit Stop"
+
+      81 |   await act(async () => { f.config().onFinish({ isAbort: false, isError: false, isDisconnect: false }); });
+      82 |   await act(async () => view.rerender(h(f.Component, f.props)));
+    > 83 |   expect(document.body.textContent).toContain('Исходная задача');
+         |                                     ^
+      84 |   expect(within(document.body).getAllByText('Полный восстановленный ответ.')).toHaveLength(1);
+      85 |   expect(f.sendMessage).not.toHaveBeenCalled();
+      86 |   expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+
+      at Object.<anonymous> (tests/agent-native-conversation-flow.test.cjs:83:37)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 8 skipped, 9 total
+Snapshots:   0 total
+Time:        1.839 s, estimated 6 s
+Ran all test suites matching /tests\/agent-native-conversation-flow.test.cjs/i with tests matching "replay finishing after empty".

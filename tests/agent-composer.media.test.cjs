@@ -92,6 +92,24 @@ const switchToLibrary = async (name = 'кофейня.png') => {
 };
 
 describe('pictures in the composer', () => {
+  test('a busy picture remains unsent and stays in the composer', async () => {
+    const sent = await mount({ busy: true });
+    await paste([picture()]);
+    await submit();
+    expect(sent).toEqual([]);
+    expect(document.body.textContent).toContain(ru.composer.pictureBusy);
+    expect(document.body.textContent).toContain('кофейня.png');
+  });
+
+  test('a refused native instruction retains the original words and files', async () => {
+    await mount({ onSubmit: async () => { throw new Error('Native signal was not accepted.'); } });
+    await paste([picture()]);
+    fireEvent.change(document.querySelector('textarea'), { target: { value: 'Покажи картинку' } });
+    await submit();
+    expect(document.querySelector('textarea').value).toBe('Покажи картинку');
+    expect(document.body.textContent).toContain('кофейня.png');
+    await waitFor(() => expect(document.body.textContent).toContain(ru.composer.sendFailed));
+  });
   test('the words exist in both languages and say which path a picture takes', () => {
     expect(ru.composer.pictureViewNote).toMatch(/нигде её не сохранит/);
     expect(en.composer.pictureViewNote).toMatch(/saves it nowhere/);

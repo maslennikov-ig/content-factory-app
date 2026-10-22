@@ -1,0 +1,253 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "research-reuse",
+  "at": "2026-10-21T07:59:24.631Z",
+  "elapsedMs": 14173,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "44974ca05fdb8d7eb4791dc1d17574dbcc858b63fd860ea944eae935e4a71313",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "backendLaunch": {
+    "at": "2026-10-21T07:56:36.159Z",
+    "result": "STARTED",
+    "pid": 26082,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "paidCallsByBootstrap": 0
+  },
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "c16eb916-68b5-4fd2-8c36-0864bf9087af",
+  "threadId": "9a97c0b9-0a4a-444f-b222-35927a0b1ccb",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamTransportError": null,
+  "streamErrors": [],
+  "assistantText": [
+    "Сохранили и проверили заготовку **«QA ON0I: SQLite WAL»** (`cnt-01`). В тексте верно указано: читатели могут работать одновременно с писателем, но писатель может быть только один. Также отмечено, что процессы с WAL-базой должны работать на одном компьютере.\n\nИсточники: [WAL в SQLite](https://sqlite.org/wal.html) и [изоляция в SQLite](https://www.sqlite.org/isolation.html). Ничего не публиковали и аккаунты не подключали."
+  ],
+  "pending": [
+    {
+      "runId": "3d465b41-8e21-478a-bc12-aa39f4d466fa",
+      "toolCallId": "call_cVhsxTpkbVdx6ko2uk8Dy5cj",
+      "toolName": "piece_rewrite",
+      "kind": "question",
+      "suspendPayload": {
+        "kind": "selection",
+        "options": [
+          {
+            "id": "1",
+            "label": "Обновить текст — Сократил объяснение до трёх коротких предложений, сохранив ограничение одного писателя и ссылки.",
+            "source": null,
+            "status": "show",
+            "selected": true,
+            "preview": {
+              "before": "В режиме WAL читатели могут работать одновременно с писателем: они читают согласованный снимок данных, пока изменения записываются в журнал. Но писатель может быть только один — параллельная запись нескольких писателей не поддерживается. Все процессы, работающие с такой базой, должны быть на одном компьютере: WAL не подходит для сетевых файловых систем.\n\nИсточники: [документация SQLite о WAL](https://sqlite.org/wal.html), [изоляция в SQLite](https://www.sqlite.org/isolation.html).",
+              "after": "В WAL читатели могут работать одновременно с писателем и видеть согласованный снимок данных. Писатель может быть только один. Все процессы должны работать на одном компьютере, поэтому WAL не подходит для сетевых файловых систем.\n\nИсточники: [документация SQLite о WAL](https://sqlite.org/wal.html), [изоляция в SQLite](https://www.sqlite.org/isolation.html).",
+              "reason": "Сократил объяснение до трёх коротких предложений, сохранив ограничение одного писателя и ссылки.",
+              "target": "text"
+            }
+          }
+        ],
+        "verdict": "review",
+        "question": "Вот что предлагаем поправить. Отметьте, что принять.",
+        "answerKey": "changeIds",
+        "canDecideForPerson": true,
+        "cardId": "1675c5d8d63d5703cde80484be29a441"
+      }
+    }
+  ],
+  "execution": {
+    "requestId": "b463aac8-0a34-429f-ac14-476d7d4b6d65",
+    "state": "running",
+    "runId": "3d465b41-8e21-478a-bc12-aa39f4d466fa"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "793cb9de-5c5a-4223-b8f5-69464de7a179",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "admitted",
+      "promptTokens": null,
+      "completionTokens": null,
+      "reasoningTokens": null,
+      "cachedTokens": null,
+      "costUsd": null,
+      "possiblyBilled": null,
+      "attempt": null
+    },
+    {
+      "id": "b9796992-2041-4f9c-81eb-8495735c9cc4",
+      "operation": "text_generation",
+      "role": "review",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 4957,
+      "completionTokens": 680,
+      "reasoningTokens": 389,
+      "cachedTokens": 0,
+      "costUsd": "0.00094995",
+      "possiblyBilled": null,
+      "attempt": 1
+    }
+  ],
+  "usageTotals": {
+    "operations": 2,
+    "knownCostUsd": 0.00094995,
+    "unknownCostOperations": 1,
+    "pendingOperations": 1,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": false,
+  "providerReceipts": [
+    {
+      "id": "3e68bb7f-9a8a-4517-8b35-cf829fcd5792",
+      "at": "2026-10-21T07:59:25.074Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "3e68bb7f-9a8a-4517-8b35-cf829fcd5792",
+      "at": "2026-10-21T07:59:25.074Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569565-FgSMWAY4Xd74uxZKqhbs",
+      "usage": {
+        "promptTokens": 37960,
+        "completionTokens": 17,
+        "totalTokens": 37977,
+        "reasoningTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.00470589075
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 2667
+    },
+    {
+      "id": "0b839dfd-8d47-41ec-bebd-d21de994b1fe",
+      "at": "2026-10-21T07:59:28.725Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "0b839dfd-8d47-41ec-bebd-d21de994b1fe",
+      "at": "2026-10-21T07:59:28.725Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569569-kuXmGQmxG27IlRngzUxG",
+      "usage": {
+        "promptTokens": 39348,
+        "completionTokens": 90,
+        "totalTokens": 39438,
+        "reasoningTokens": 0,
+        "cachedTokens": 28447,
+        "costUsd": 0.0016750998
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 2963
+    },
+    {
+      "id": "5ab09d10-f11d-4d26-8b00-c7a47ce5cf4a",
+      "at": "2026-10-21T07:59:31.980Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "5ab09d10-f11d-4d26-8b00-c7a47ce5cf4a",
+      "at": "2026-10-21T07:59:31.980Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569572-7YQtHK1Wx9jYDbg7UuiN",
+      "usage": {
+        "promptTokens": 4957,
+        "completionTokens": 680,
+        "totalTokens": 5637,
+        "reasoningTokens": 389,
+        "cachedTokens": 0,
+        "costUsd": 0.0009499545
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 6490
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Uses saved research",
+    "No repeated completed search",
+    "Same saved piece is refined"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-research-reuse-2026-10-21T07-59-24-631Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "FAIL"
+}

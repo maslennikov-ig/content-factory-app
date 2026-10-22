@@ -101,7 +101,8 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   useLayoutEffect(() => {
     if (!isAgentsRoute || routeId === current.current.threadId) return;
     if (routeId) {
-      const next = [...knownSessions.current.values()].find((item) => item.threadId === routeId) ?? threadSession(routeId);
+      const known = [...knownSessions.current.values()].find((item) => item.threadId === routeId);
+      const next = known ? { ...known, fresh: false } : threadSession(routeId);
       const saved = sessionContexts.current.get(next.key);
       assistantRef.current?.setWorkContext(saved?.context ?? null, saved?.artifact ?? null);
       setSession(next);
@@ -194,7 +195,8 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
     if (window.innerWidth < 1280) dispatch({ type: 'hide' });
   }, [words, dispatch]);
   const openThread = useCallback((id: string) => {
-    const next = [...knownSessions.current.values()].find((item) => item.threadId === id) ?? threadSession(id);
+    const known = [...knownSessions.current.values()].find((item) => item.threadId === id);
+    const next = known ? { ...known, fresh: false } : threadSession(id);
     const saved = sessionContexts.current.get(next.key);
     manualContextSessions.current.delete(next.key);
     assistantRef.current?.setWorkContext(saved?.context ?? null, saved?.artifact ?? null);
@@ -360,6 +362,7 @@ function SessionView({
   words: AgentWords;
 }) {
   const request = useFetch();
+  const conversationMounted = useRef(false);
   const load = !session.fresh && session.threadId;
   const history = useSWR<AgentThreadHistory>(
     load ? [AGENT_DOORS.thread(session.threadId as string), session.key] : null,
@@ -385,7 +388,7 @@ function SessionView({
     if (history.data) reportHistory.current(history.data);
   }, [history.data]);
 
-  if (load && !history.data && history.isLoading) {
+  if (load && !history.data && history.isLoading && !conversationMounted.current) {
     return (
       <div className="flex-1 px-[16px] py-[24px] md:px-[20px]">
         <SkeletonRows rows={4} label={words.history.loading} />
@@ -393,7 +396,7 @@ function SessionView({
     );
   }
 
-  if (load && !history.data && history.error) {
+  if (load && !history.data && history.error && !conversationMounted.current) {
     return (
       <div className="flex-1 px-[16px] py-[24px] md:px-[20px]">
         <ErrorState
@@ -415,6 +418,7 @@ function SessionView({
   }
 
   const loaded = history.data ?? EMPTY_HISTORY;
+  conversationMounted.current = true;
   return (
     <AgentConversation
       visible={visible}
@@ -422,6 +426,7 @@ function SessionView({
       initialMessages={loaded.messages}
       initialPagination={loaded.pagination}
       initialExecution={loaded.execution}
+      initialSignalReceipts={loaded.signalReceipts}
       draftStorageKey={draftStorageKey}
       pending={loaded.pending}
       workContext={workContext}

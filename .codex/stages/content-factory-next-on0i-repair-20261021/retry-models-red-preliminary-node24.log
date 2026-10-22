@@ -1,0 +1,79 @@
+FAIL tests/agent-native-retry-routing.test.cjs (6.758 s)
+  R2 combined native routing and provider outage
+    ✕ confident agent routing preserves one retry per ordered model (2264 ms)
+    ✕ confident classify routing preserves one retry per ordered model (2210 ms)
+    ✕ authorization failure sends one HTTP request and never walks fallback models (2169 ms)
+
+  ● R2 combined native routing and provider outage › confident agent routing preserves one retry per ordered model
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 450
+    Received:    22.34998500000006
+
+      24 |     ]);
+      25 |     expect(result.ledgerAttemptCount).toBe(6);
+    > 26 |     for (const index of [0, 2, 4]) expect(result.intervalsMs[index]).toBeGreaterThanOrEqual(450);
+         |                                                                      ^
+      27 |   });
+      28 |
+      29 |   test('authorization failure sends one HTTP request and never walks fallback models', () => {
+
+      at tests/agent-native-retry-routing.test.cjs:26:70
+
+  ● R2 combined native routing and provider outage › confident classify routing preserves one retry per ordered model
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Array [
+    -   "openai/gpt-5.4-classify",
+    -   "openai/gpt-5.4-classify",
+    +   "openai/gpt-5.4-primary",
+    +   "openai/gpt-5.4-primary",
+        "openai/gpt-5.4-backup-1",
+        "openai/gpt-5.4-backup-1",
+        "anthropic/claude-4-sonnet",
+        "anthropic/claude-4-sonnet",
+      ]
+
+      18 |     const result = outage(choice);
+      19 |     const primary = choice === 'classify' ? 'openai/gpt-5.4-classify' : 'openai/gpt-5.4-primary';
+    > 20 |     expect(result.httpAttemptModels).toEqual([
+         |                                      ^
+      21 |       primary, primary,
+      22 |       'openai/gpt-5.4-backup-1', 'openai/gpt-5.4-backup-1',
+      23 |       'anthropic/claude-4-sonnet', 'anthropic/claude-4-sonnet',
+
+      at tests/agent-native-retry-routing.test.cjs:20:38
+
+  ● R2 combined native routing and provider outage › authorization failure sends one HTTP request and never walks fallback models
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      Array [
+        "openai/gpt-5.4-primary",
+    +   "openai/gpt-5.4-backup-1",
+    +   "anthropic/claude-4-sonnet",
+      ]
+
+      29 |   test('authorization failure sends one HTTP request and never walks fallback models', () => {
+      30 |     const result = outage('agent', 401);
+    > 31 |     expect(result.httpAttemptModels).toEqual(['openai/gpt-5.4-primary']);
+         |                                      ^
+      32 |     expect(result.ledgerAttemptCount).toBe(1);
+      33 |   });
+      34 | });
+
+      at Object.<anonymous> (tests/agent-native-retry-routing.test.cjs:31:38)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total
+Snapshots:   0 total
+Time:        6.805 s
+Ran all test suites matching /tests\/agent-native-retry-routing.test.cjs/i.

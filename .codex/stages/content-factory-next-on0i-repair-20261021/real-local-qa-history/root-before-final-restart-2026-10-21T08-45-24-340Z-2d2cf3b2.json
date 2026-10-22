@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-21T08:43:46.677Z",
+  "result": "TERMINAL",
+  "threadId": "4c321185-7cc8-41ac-ab88-01f2d159f45e",
+  "pid": 53623,
+  "httpStatus": 200,
+  "execution": {
+    "requestId": "d14cc8e1-22b3-4fa7-b34c-628971eb0190",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "970a11f1-f882-4819-a341-058a80b4ca9b"
+  },
+  "pending": [],
+  "providerCallsByReadback": 0
+}

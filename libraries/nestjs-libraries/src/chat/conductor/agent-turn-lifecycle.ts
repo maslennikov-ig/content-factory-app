@@ -22,113 +22,13 @@ export const markAgentTurnStopped = (requestId: string) => {
 export const isAgentTurnStopped = (requestId: string) =>
   stoppedExecutionIds.has(requestId);
 
-export type CommittedToolReceipt<T = unknown> = {
-  result: T;
-  card?: { kind: string; id: string; [key: string]: unknown } | null;
-};
-
-const inProcessToolReceipts = new Map<string, CommittedToolReceipt>();
-
-export const agentOperationReceiptMetadataKey = (
-  toolName: string,
-  toolCallId: string,
-  resumed = false,
-  runId?: string
-) =>
-  `assistantReceipt:${runId ? `${runId}:` : ''}${toolName}:${toolCallId}${resumed ? ':resumed' : ''}`;
-
-const inProcessReceiptKey = (
-  scopeId: string,
-  toolName: string,
-  toolCallId: string,
-  resumed = false,
-  runId?: string
-) =>
-  `${scopeId}:${agentOperationReceiptMetadataKey(toolName, toolCallId, resumed, runId)}`;
-
-export const readCommittedToolReceipt = async <T = unknown>(args: {
-  runId?: string;
-  threadId?: string;
-  toolName: string;
-  toolCallId: string;
-  resumed?: boolean;
-  memory?: {
-    getThreadById?: (input: {
-      threadId: string;
-    }) => Promise<{ metadata?: Record<string, unknown> } | null>;
-  };
-}): Promise<CommittedToolReceipt<T> | null> => {
-  const scopeId = args.runId || args.threadId || 'default';
-  const memKey = inProcessReceiptKey(
-    scopeId,
-    args.toolName,
-    args.toolCallId,
-    args.resumed,
-    args.runId
-  );
-  const cached = inProcessToolReceipts.get(memKey);
-  if (cached) return cached as CommittedToolReceipt<T>;
-  const metadataKey = agentOperationReceiptMetadataKey(
-    args.toolName,
-    args.toolCallId,
-    args.resumed,
-    args.runId
-  );
-  if (!args.threadId || !args.memory?.getThreadById) return null;
-  try {
-    const thread = await args.memory.getThreadById({ threadId: args.threadId });
-    const stored = thread?.metadata?.[metadataKey] as
-      | CommittedToolReceipt<T>
-      | undefined;
-    if (stored && typeof stored === 'object' && 'result' in stored) {
-      inProcessToolReceipts.set(memKey, stored);
-      return stored;
-    }
-  } catch {
-    /* Fall through when metadata read is unavailable. */
-  }
-  return null;
-};
-
-export const recordCommittedToolReceipt = async <T = unknown>(args: {
-  runId?: string;
-  threadId?: string;
-  toolName: string;
-  toolCallId: string;
-  resumed?: boolean;
-  receipt: CommittedToolReceipt<T>;
-  memory?: {
-    updateThread?: (input: {
-      id: string;
-      metadata?: Record<string, unknown>;
-    }) => Promise<unknown>;
-  };
-}): Promise<void> => {
-  const scopeId = args.runId || args.threadId || 'default';
-  const memKey = inProcessReceiptKey(
-    scopeId,
-    args.toolName,
-    args.toolCallId,
-    args.resumed,
-    args.runId
-  );
-  inProcessToolReceipts.set(memKey, args.receipt);
-  const metadataKey = agentOperationReceiptMetadataKey(
-    args.toolName,
-    args.toolCallId,
-    args.resumed,
-    args.runId
-  );
-  if (!args.threadId || !args.memory?.updateThread) return;
-  try {
-    await args.memory.updateThread({
-      id: args.threadId,
-      metadata: { [metadataKey]: args.receipt },
-    });
-  } catch {
-    /* In-process receipt still protects same-process retries. */
-  }
-};
+// Kept as re-exports for existing lifecycle consumers.
+export {
+  agentOperationReceiptMetadataKey,
+  readCommittedToolReceipt,
+  recordCommittedToolReceipt,
+  type CommittedToolReceipt,
+} from './agent-operation-receipts';
 
 export const readAgentThreadExecution = async (
   store: AgentRunClaimStore,
@@ -188,6 +88,8 @@ export class AgentTurnLifecycle {
   /** Native resumed tool context can still contain its first request's id. */
   run<T>(work: () => T): T { return executionScope.run(this, work); }
 
+  get acceptingWork() { return this.accepting; }
+
   stop() {
     this.accepting = false;
     markAgentTurnStopped(this.requestId);
@@ -215,37 +117,50 @@ export class AgentTurnLifecycle {
     } finally { this.pending.delete(pending); }
   }
 
-  async finish(outcome: AgentTurnOutcome) {
+  async finish(outcome: AgentTurnOutcome): Promise<AgentTurnOutcome> {
     this.stop();
     await Promise.allSettled([...this.pending]);
-    await this.settle(this.failed ? 'failed' : outcome);
+    const settled = this.failed ? 'failed' : outcome;
+    await this.settle(settled);
+    return settled;
   }
 }
 
 export const trackAgentTurnWork = <T>(
   context: { get?: (key: string) => unknown } | undefined,
-  work: () => Promise<T>
+  work: () => Promise<T>,
+  invocation?: { runId?: string; abortSignal?: { aborted: boolean } }
 ): Promise<T> => {
   // Bind to the actual invocation, never to a restored snapshot or another
   // request of the thread. A late callback retains its own stopped scope,
   // even while a successor invocation is active.
   const execution = executionScope.getStore();
-  if (execution) return execution.track(work);
   const requestId = context?.get?.(CONDUCTOR_EXECUTION_ID_KEY);
+  if (execution) {
+    if (!execution.acceptingWork && typeof requestId === 'string' && requestId &&
+        requestId !== execution.requestId) {
+      // Native queued work inherits the parent's async context. A fresh
+      // server-built successor identity must pass the live native checks
+      // below instead of binding to a lifecycle that has already finished.
+      return executionScope.exit(() => trackAgentTurnWork(context, work, invocation));
+    }
+    return execution.track(work);
+  }
   // Direct/legacy native callers and MCP retain their existing behavior.
   if (typeof requestId !== 'string' || !requestId) return work();
   const durable = context?.get?.('mastra__durableExecutions') as
     | Record<string, { abortController?: { signal?: { aborted?: boolean } } }>
     | undefined;
-  if (
-    !stoppedExecutionIds.has(requestId) &&
-    durable &&
-    typeof durable === 'object' &&
-    Object.keys(durable).length > 0 &&
-    !Object.values(durable).some((entry) => entry?.abortController?.signal?.aborted)
-  ) {
+  // Session mode agents expose the public tool execution identity even when
+  // there is no DurableAgent-specific request-context registry.
+  const nativeInvocation = typeof invocation?.runId === 'string' && !!invocation.runId;
+  const nativeIsLive = nativeInvocation
+    ? invocation.abortSignal?.aborted !== true
+    : durable && typeof durable === 'object' && Object.keys(durable).length > 0 &&
+      !Object.values(durable).some((entry) => entry?.abortController?.signal?.aborted);
+  if (!stoppedExecutionIds.has(requestId) && nativeIsLive) {
     return Promise.resolve().then(() => {
-      if (stoppedExecutionIds.has(requestId)) {
+      if (stoppedExecutionIds.has(requestId) || invocation?.abortSignal?.aborted) {
         throw new Error('The agent request has stopped.');
       }
       return work();

@@ -1,0 +1,19 @@
+{
+  "schema": "on0i-client-payment-candidate/1",
+  "status": "STAGE_ONLY_NOT_APPLIED_GATE9_SOURCE_FROZEN",
+  "source": "apps/frontend/src/components/agents/agent.contract.ts",
+  "beforeSha256": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+  "afterSha256": "452debdfc80866782e022b996b1bb331fe7d1158ab11cb90a86ca8a42b7066b7",
+  "patchSha256": "b9d5a77a360bd14a238e94ec7d7607e1d45c4144d2d303db207638237102f274",
+  "regression": "Existing agent-parts.mirror.guard.test.cjs fails on missing frontend public provider-payment code; all guard assertions preserved.",
+  "verification": {
+    "mode": "in-memory exact-source substitution; disk app source untouched",
+    "log": "evidence/provider-payment-client-candidate.log",
+    "logSha256": "62d61f7aa11b9270ac9eab10b5e45840edc21d96c6c84a6b63d32074a5651bc0",
+    "suites": 2,
+    "tests": 55,
+    "exitCode": 0,
+    "extraBehavior": "Plain/JSON/HTTP-door/tool error decoders retain code; RU/EN actionable words present",
+    "probeSetupCorrection": "First stage-only synthetic tool part omitted required product title; corrected only probe shape. Original probe failure retained separately, not product failure."
+  }
+}

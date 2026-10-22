@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-21T07:48:43.228Z",
+  "result": "ACTUAL_WARM_PUBLIC_HISTORY_READ",
+  "pid": 96995,
+  "threadId": "a639d888-aa39-4c00-8535-f828b5890cb8",
+  "runId": "11a1550a-7ead-4d0d-8d85-7745e91ca768",
+  "api": "Actual cached conductor.pubsub.getHistory(AGENT_STREAM_TOPIC(runId)) and public Session lifecycle/display accessors",
+  "eventCount": 0,
+  "events": [],
+  "sessionDisplayError": null,
+  "sessionFlags": {
+    "runId": null,
+    "runIsRunning": false,
+    "streamIsActive": false,
+    "displayIsRunning": false,
+    "registryHasRun": false
+  },
+  "backendRestarted": false,
+  "debuggerResumed": true,
+  "inspectorClosed": true,
+  "providerCalls": 0,
+  "privateRawFile": "/tmp/on0i-real-local-qa-s2nihQ/warm-native-event-history.actual.json"
+}

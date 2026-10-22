@@ -1,0 +1,153 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "aiSdkReact": "4.0.121"
+  },
+  "sourceFrozen": true,
+  "scope": "Bounded frontend same-thread stale-history/Stop-response followup; application edit only agent.conversation.tsx. No backend source changes.",
+  "cause": "Task A finish began a history read; another A read positively verified Stop, allowing deliberate B. The older read later adopted A state and the finish .then read refs already reset by B, reasserting interruption on B. A separate old Stop acknowledgement could start an obsolete read after B.",
+  "fix": "One local turn generation advances at deliberate new human/retry/question/completed-approval send boundaries. Each history read captures it before awaiting and refuses all state/message adoption after a generation change. Finish/released-replay/Stop/manual-reconcile post-await branches also check it. Old Stop receipt/error branches cannot mutate a successor. No execution queue, polling or provider retry.",
+  "red": [
+    {
+      "exitCode": 1,
+      "log": "chat-native-stop-generation-red.log",
+      "assertion": "successor: unlock only positively settled work (true !== false)"
+    },
+    {
+      "exitCode": 1,
+      "log": "chat-native-stop-reply-generation-red.log",
+      "assertion": "an old Stop reply must not read or change a newer task (false !== true)"
+    }
+  ],
+  "targetedGreenReports": [
+    {
+      "mode": "successor",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "7Q9PVUuYOV4ih2S1",
+        "stopped-native-answer",
+        "jdsaMl95PhaEGAfa",
+        "next-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 2,
+      "finish": 2,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "old-finish-history-held",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled",
+        "sdk-send",
+        "old-finish-history-delivered-after-new-send",
+        "sdk-finish:false:false",
+        "history-read:6:settled"
+      ],
+      "status": "ready",
+      "toolStates": [],
+      "callsAfterBlockedSubmit": 2
+    },
+    {
+      "mode": "late-stop-reply",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "U5oKfB9OXF4zEgk6",
+        "stopped-native-answer",
+        "U2b5LcPYi8UGsg8l",
+        "next-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 2,
+      "finish": 2,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled",
+        "sdk-send",
+        "stop-ack",
+        "sdk-finish:false:false",
+        "history-read:6:settled"
+      ],
+      "lateStopIgnored": true,
+      "status": "ready",
+      "toolStates": [],
+      "callsAfterBlockedSubmit": 2
+    }
+  ],
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-flow.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-screen.w2-recheck.test.cjs tests/agent-transport.test.cjs",
+      "exitCode": 0,
+      "suites": 4,
+      "tests": 84,
+      "seconds": 44.244,
+      "log": "chat-native-stop-generation-focused.log",
+      "note": "Exact final frozen source, including explicit retry generation advance. The actual-useChat helper has 14 internal modes."
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-stop-generation-frontend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "renderedAdditionalCases": [
+    "old released-replay history cannot block a later deliberate task",
+    "old history cannot replace resumed question response",
+    "old history cannot replace resumed approval response"
+  ],
+  "independentReview": {
+    "agent": "/root/availability_recovery",
+    "reviewedConversationSha256": "06d507d5ecc191742c29827b3eff9899ccbbb44cb921f1dfb88c551717685a56",
+    "verdict": "No additional actionable finding in exact frozen generation guard delta; no duplicate test execution by reviewer."
+  },
+  "sourceSha256": {
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "06d507d5ecc191742c29827b3eff9899ccbbb44cb921f1dfb88c551717685a56",
+    "tests/agent-native-stop-flow.test.cjs": "b56b241b567adaff06385f216ce0dc77d1531679f20f2f7a842eba186e458a87",
+    "tests/helpers/agent-native-stop-flow.probe.cjs": "72102a0b9c362ed94ce25068be4a425a268a33749d68646e272bf4e55a4308c6",
+    "tests/agent-native-conversation-flow.test.cjs": "7e486350acb22fe9ef0e0f220c59eb9e5d245e66e17af291d5521daacbecc0ac",
+    "tests/agent-screen.w2-recheck.test.cjs": "4dd067f2888b15a81384bb02dc83591099ac5317a5646e8d15cf88110dd52801",
+    "tests/agent-transport.test.cjs": "a2d274e42040d3ecfd50d0df843a370ef15fa371acaf1955d978c3c335ddef43",
+    "docs/design/component-inventory.md": "ba0c876bb970119bd67b62d5398f2661970449499866958ac48c1ae7b98f8b4d",
+    "node_modules/@ai-sdk/react/package.json": "73ad07df49e1707698aa7467d4dff7cd42a6ae8044d9da0bc4d70bd2337ab0cc",
+    "node_modules/@ai-sdk/react/src/use-chat.ts": "2a922703e5fafbec46cd2d9711818fdb29936477935be39877a575b8705173b8",
+    "node_modules/ai/src/ui/chat.ts": "dacfae02cc0fe8255c795a2fe0c33ff2f5e88cd44a457d537b90e679ffc85d63",
+    "node_modules/ai/src/util/consume-stream.ts": "73f198a43d4bb006e11eec367539defbc03055c91145d3c8d5b1accd4cc9f8ae"
+  },
+  "logSha256": {
+    "chat-native-stop-generation-red.log": "9025e922b21e7dbb5ba90b1f191c9c99d477480e0d9fa285d993adc5f099d3c5",
+    "chat-native-stop-reply-generation-red.log": "373bc2824bab339aa93664697cadb52ddddc9e7787476d92f67c1ee5ec672802",
+    "chat-native-stop-generation-green.log": "365a84891ab08e8372fd1ab4ec8f99d312ced2e4c018fdecbed9f54ba966efd6",
+    "chat-native-stop-reply-generation-green.log": "13401d75deea9c4ca078cc53281ecc54b6ec0c18306035fb188f87167627d8e0",
+    "chat-native-stop-generation-focused.log": "8065c0f990d1ae118721bca311cdbae07ff72ba458ff0f71a8bf8c2a7e89a9a2",
+    "chat-native-stop-generation-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "earlierEvidence": [
+    "chat-native-stop-delta-evidence.json",
+    "chat-native-observer-final-evidence.json"
+  ],
+  "boundaries": "All model/HTTP transport work in the SDK probe is controlled and local. No external provider/model/search call, paid call, full suite, production access, commit, push or deploy. Root owns final unified acceptance/build and compiled-browser retest."
+}

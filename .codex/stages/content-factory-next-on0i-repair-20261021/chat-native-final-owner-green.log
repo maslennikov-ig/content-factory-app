@@ -1,0 +1,8 @@
+PASS tests/agent-native-session-owner.test.cjs (8.944 s)
+  ✓ fresh HTTP and queued owners replace a finished Session subscription while approvals retain their current admission (8868 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        8.97 s
+Ran all test suites matching /tests\/agent-native-session-owner.test.cjs/i.

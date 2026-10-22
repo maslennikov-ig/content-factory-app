@@ -1,0 +1,108 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "mastra": "1.78.0"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-session-queued.test.cjs tests/agent-native-signal-boundary.test.cjs tests/agent-native-session-http.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-native-ui.test.cjs tests/agent-conductor.unit.test.cjs",
+      "exitCode": 0,
+      "suites": 6,
+      "tests": 117,
+      "log": "chat-native-qa-focused.log"
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/ai-text-chain.test.cjs tests/agent-model-fallback-retry.test.cjs tests/agent-native-retry-routing.test.cjs",
+      "exitCode": 0,
+      "suites": 3,
+      "tests": 84,
+      "log": "chat-native-qa-fallback-affected.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "log": "chat-native-qa-frontend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 2,
+      "knownOwnerGap": "mastra.service.ts:623 new cold-Stop snapshot union; service owner notified, no owned-source type errors",
+      "log": "chat-native-qa-backend-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": {
+    "apps/backend/src/api/routes/agent.controller.ts": "046c5420465653fcef4600ffd18bc787252af4090ee5c1944d8357bb13aa3b19",
+    "apps/frontend/src/components/agents/agent.composer.tsx": "a1fa8fd1a46d53a508e702c07c918839c932113d18207c0b6036b225603513cb",
+    "apps/frontend/src/components/agents/agent.contract.ts": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "7c3580e8ec16d5fbe3affdaf9bd17f0ef2e3ef3eda065e0d9092ab78c8b64b00",
+    "apps/frontend/src/components/agents/agent.copy.ts": "e924dd65cbb165f8c6a4dc7d991ed587564ff3ddb29842efd4e52e9f676186e0",
+    "apps/frontend/src/components/agents/agent.screen.tsx": "7328c9c3e5b97000f18919b1fa77855835835d7a35442b054395f6bcefb8d485",
+    "apps/frontend/src/components/agents/agent.transport.ts": "6ca4d5ca0900a7535b9c4fb3ba0701dd2990ac17622262addff0cdc1e4a53b39",
+    "docs/design/component-inventory.md": "0521db48e827677887d4746dbc3c168f7dad834585985cee1d6c237b4cefc6d2",
+    "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": "c2b723ea81adaad48cbbe50bf0961513575cc982a18d0434575016195f357ed2",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-chat.request.ts": "2bf776ce1529f8547dd443f7b7c320b7fe9fdc6fb356920bad076100c9fb62a7",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "995321c78b23d7bf88b762eedb7ea7e12a214b266efd1c2e34a5e33eb7a4e142",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.execution.ts": "f855860cef7ae9b35a8db46dc1055afeaf03ec2cccd11c1b796664e868a8464e",
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "3873f3af85ddcc716092c758180da0ef190a5737af479d9580d09da443a95e18",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "bbc58f39577a377d4dc0f3b65552ea46f75f0c20822034dbf099c34d8ae06a04",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "pnpm-lock.yaml": "f289ed42197f037e5c01d5b20cb9e5045236a4f3431acdc3b2dc7ec069ee05f1",
+    "tests/agent-composer.media.test.cjs": "056338ef987313d6cd267630bee35d9ccf975b7585fd839b10f74d3ef312442a",
+    "tests/agent-conductor.unit.test.cjs": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+    "tests/agent-native-conversation-flow.test.cjs": "ba054e8881a98ec1e7bd473909fbd877964febb8a748467a97f843ad10d9ad6e",
+    "tests/agent-native-provider-postgres.test.cjs": "c3eba8c1972b952834ca8cf290aa09994bb0e5c56c1dae49973ab287c2680475",
+    "tests/agent-native-retry-routing.test.cjs": "7dc9cc85da669c81b2516eba3b9b4fbb5e6f76f7378b32003b5a9559b3c889e4",
+    "tests/agent-native-session-cold.test.cjs": "a83d33e333c24c88c47caa39abae75018ac54669b09d21e132e17e5f6af411ee",
+    "tests/agent-native-session-http.test.cjs": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+    "tests/agent-native-session-queued.test.cjs": "8783a1c1dad0975e26791906418a5cb62762f5f7f4d77dcd81d25bce50c69c3b",
+    "tests/agent-native-signal-boundary.test.cjs": "044e3bd6ab93e9e228a57f3b016bd6f8ae845461d15e909dd25f7ff7d8c3797c",
+    "tests/agent-native-ui.test.cjs": "554dc585fc7fe1950444a0e91202351a282f7b1323ae5fa1bb2bcea8406ef7ed",
+    "tests/agent-screen.start-draft.test.cjs": "d405bd12d5e646ca42044d5eee6527ff46c2c0b6b16f2a34ac37018a6fdfdf18",
+    "tests/agent-task-execution.test.cjs": "95bdabdf60470dcd5d1d7057f065375915c82df8b3ebda449959c1fffd92cfa0",
+    "tests/agent-transport.test.cjs": "c43d36d15000cd0a1c780c47a5bc2a92ffabc20b0767f860cbe97d343b5265f6",
+    "tests/helpers/agent-durable-recovery.probe.cjs": "aec5f6443f13c2cfc43ac5a8fb0dad8701b115225e495255955504a078ef7604",
+    "tests/helpers/agent-model-fallback-retry.probe.cjs": "cbbcd11fe55162fa9845210b5baad7370de9561914bf5c05dc5b06f731b61238",
+    "tests/helpers/agent-native-provider-postgres.probe.cjs": "0d850770a5d55fb07419c71ec125b0584ca65e2bac760d97faae7e690c92424a",
+    "tests/helpers/agent-native-session-cold.probe.cjs": "afc3af21b37a1473cc5ed92e4f3e35cab0c1e4fe47df8e3c60e4d93668ee69b2",
+    "tests/helpers/agent-native-session-http.probe.cjs": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+    "tests/helpers/agent-native-session-queued.probe.cjs": "22f1f5515a856012f6142386bcd8cbea46cd3d7bc819664a82d2756d2ddbdb3f",
+    "tests/helpers/agent-native-signal-boundary.probe.cjs": "a0213a194a403b4ba02573fa6d55a60307a644c6fabf28e8ed16d06a809cb73d",
+    "tests/helpers/agent-transport.runner.cjs": "570ffeff4aa46eefb2e0775a5cb0a4db5d86647bcbfca236bc39fb281bb0b7d5",
+    "tests/helpers/mastra-service-native-integration.probe.cjs": "19c4e628d1ef14386ba94ba90c7dcfb1f789738893e1e18b3ee7e6054c1aac87"
+  },
+  "logSha256": {
+    "chat-native-qa-backend-types.log": "04909dad34a9e659fb3b8fb7aaa26d75aea7354bf8ba11d046c12704d77c0f48",
+    "chat-native-qa-fallback-affected.log": "b79aee12fb8d638d6eb3dc323491bca46040a13d5367a3d7a4930c965489a1be",
+    "chat-native-qa-fallback-green.log": "09f4a19ca51aad2555d6b5bd376ca53afb3091d18a6ccd7c97cf6d3977401a12",
+    "chat-native-qa-fallback-red.log": "c28ae331945cc408fb61869f44bfd5cab5e1d03e9fad7494714197a288cda805",
+    "chat-native-qa-focused.log": "65815ef2879faa9c75ba61439e8c71d44e12cf9bdd4ce31f29ee5ed86d0e381f",
+    "chat-native-qa-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "chat-native-qa-idle-green.log": "2b388d26f78888a0c3008f2b08e5c38b09537590ee17dcbcaabb7b66aa41dae4",
+    "chat-native-qa-idle-red.log": "578d90b2e541549332673e5a11cfcb155329f6fae2da4adc2c3e0b0f8d241c70",
+    "chat-native-qa-native-runid-red.log": "6a934ff70d5b4c5d72f6efde313c61927e1f4785c64e3927eaec266c95a91268",
+    "chat-native-qa-question-phase-green.log": "23544831d0479c42e3c05ef7db35b26cd85832090e897824a02b362472f8d451",
+    "chat-native-qa-question-phase-red.log": "f1ddf955d4e608e51fbfd4efc21099de61fbed84dbeb341da87c6a093458ee7b",
+    "chat-native-qa-queued-bounded.log": "0343aea781f5bf4d10fc974bbee2ba97c708af0712782d45e1bfbd25e64e17a8",
+    "chat-native-qa-signal-boundary.log": "b1724daaf57ddb7f4d91b460623890ed1d96b153f3a45464233d5a1173922557"
+  },
+  "scope": "Final worker QA followups; no paid calls, push, deploy or production access. Root unified acceptance required.",
+  "inputCaptureNote": "Worker source frozen. Shared service/queue source snapshot captured for integration; that owner is still proving cold Stop and can change it after these worker checks.",
+  "earlierEvidence": "chat-native-evidence.json",
+  "realQaOwnerEvidence": [
+    "real-local-qa-scenario-fresh-research.json",
+    "real-local-qa-scenario-real-fallback-scripted-primary.json"
+  ]
+}

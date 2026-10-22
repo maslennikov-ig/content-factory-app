@@ -76,6 +76,11 @@ type AgentWords = {
     label: string;
     placeholder: string;
     placeholderBusy: string;
+    signalAccepted: string;
+    signalQueued: string;
+    signalUnknown: string;
+    sendFailed: string;
+    pictureBusy: string;
     attach: string;
     attachHint: string;
     removeFile: (name: string) => string;
@@ -469,7 +474,12 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     composer: {
       label: 'Сообщение ИИ-помощнику',
       placeholder: 'Напишите, что сделать, или вставьте ссылку на пост…',
-      placeholderBusy: 'Можно писать дальше — отправим, когда закончим',
+      placeholderBusy: 'Дополните задачу — учтём во время работы',
+      signalAccepted: 'Дополнение принято',
+      signalQueued: 'Принято после текущего ответа',
+      signalUnknown: 'Не удалось подтвердить отправку. Обновите историю: задача могла быть принята.',
+      sendFailed: 'Не удалось отправить. Сообщение и файлы остались в поле — попробуйте ещё раз.',
+      pictureBusy: 'Картинки можно показать после текущего ответа. Сообщение и файлы остались в поле.',
       attach: 'Приложить файл',
       attachHint: 'образцы текстов, экспорт Telegram, картинки',
       removeFile: (name) => `Убрать ${name}`,
@@ -688,7 +698,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     error: {
       paidCapNote: (title) =>
-        `${title ? `${title} — ` : ''}следующим сообщением: за одно сообщение один платный шаг.`,
+        `${title ? `${title} — ` : ''}шаг остановлен ограничением старой версии помощника. Проверьте сохранённые результаты перед продолжением.`,
       kind: 'Не получилось',
       generic: {
         what: 'Не получилось довести до конца.',
@@ -710,6 +720,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         AI_PROVIDER_UNAVAILABLE: {
           what: 'ИИ пока не подключён: нет ни включённого лимита, ни ключа пространства.',
           next: 'Администратор подключает его в «Настройки → Глобальные настройки».',
+        },
+        AI_PROVIDER_PAYMENT_REQUIRED: {
+          what: 'Провайдер ИИ отклонил запрос из-за баланса или лимита ключа.',
+          next: 'Администратор проверяет баланс и лимит ключа у провайдера. После изменения можно повторить запрос.',
         },
         AI_ALLOWANCE_EXHAUSTED: {
           what: 'Обращения к ИИ в этом месяце закончились.',
@@ -981,6 +995,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Этот повод ещё не взят в работу — заготовку не писали и ничего не потратили.',
           next: 'Скажите «возьми в работу» — возьмём и сразу напишем.',
         },
+        INTAKE_RESEARCH_SNAPSHOT_REQUIRED: {
+          what: 'Не указано сохранённое исследование для выбранных цитат.',
+          next: 'Помощник может выбрать доступное исследование и продолжить.',
+        },
         INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE: {
           what: 'Сохранённое исследование больше недоступно для этого разговора.',
           next: 'Найдём источники заново или используем доступную заготовку.',
@@ -1012,6 +1030,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         CONTENT_ADAPTATION_INCOMPLETE: {
           what: 'Адаптация пока не готова: не удалось сохранить весь нужный смысл с опорой на источники и в пределах длины.',
           next: 'Покажем, чего не хватает, и уточним материал перед следующей попыткой.',
+        },
+        INTAKE_REQUEST_NOT_AUTHORED: {
+          what: 'Не удалось подтвердить исходный запрос в этом чате.',
+          next: 'Вернёмся к вашему сообщению и продолжим с его исходным текстом.',
         },
         INTAKE_TEXT_MISSING: {
           what: 'Писать заготовку не из чего: нет ни слов, ни повода.',
@@ -1242,7 +1264,12 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     composer: {
       label: 'Message to the AI assistant',
       placeholder: 'Say what to do, or paste a link to a post…',
-      placeholderBusy: 'Keep writing — we send it when we are done',
+      placeholderBusy: 'Add instructions while we work',
+      signalAccepted: 'Additional instruction accepted',
+      signalQueued: 'Accepted for after the current response',
+      signalUnknown: 'Delivery could not be confirmed. Refresh history: the task may have been accepted.',
+      sendFailed: 'Could not send. Your message and files remain in the composer — try again.',
+      pictureBusy: 'You can show pictures after the current response. Your message and files remain in the composer.',
       attach: 'Attach a file',
       attachHint: 'text samples, Telegram export, pictures',
       removeFile: (name) => `Remove ${name}`,
@@ -1458,7 +1485,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     error: {
       paidCapNote: (title) =>
-        `${title ? `${title} — ` : ''}in your next message: one paid step per message.`,
+        `${title ? `${title} — ` : ''}this step was stopped by an older assistant limit. Check saved results before continuing.`,
       kind: 'Did not work',
       generic: {
         what: 'We could not finish this.',
@@ -1480,6 +1507,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         AI_PROVIDER_UNAVAILABLE: {
           what: 'AI is not connected yet: no included allowance and no workspace key.',
           next: 'An administrator connects it in Settings → Global Settings.',
+        },
+        AI_PROVIDER_PAYMENT_REQUIRED: {
+          what: 'The AI provider declined the request because of its balance or key limit.',
+          next: 'An administrator checks the provider balance and key limit. Retry after they have been updated.',
         },
         AI_ALLOWANCE_EXHAUSTED: {
           what: 'The AI requests for this month are spent.',
@@ -1751,6 +1782,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'This lead was not taken to work yet — no piece was written, nothing spent.',
           next: 'Say “take it to work” — we take it and write at once.',
         },
+        INTAKE_RESEARCH_SNAPSHOT_REQUIRED: {
+          what: 'The selected quotes are not linked to saved research.',
+          next: 'The assistant can select the available research and continue.',
+        },
         INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE: {
           what: 'The saved research is no longer available to this conversation.',
           next: 'Research the sources again or use the available piece.',
@@ -1782,6 +1817,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         CONTENT_ADAPTATION_INCOMPLETE: {
           what: 'The adaptation is not ready: its required scope, source support or length could not be verified.',
           next: 'Identify the missing material before another attempt.',
+        },
+        INTAKE_REQUEST_NOT_AUTHORED: {
+          what: 'The original request could not be confirmed in this chat.',
+          next: 'Return to your message and continue with its original text.',
         },
         INTAKE_TEXT_MISSING: {
           what: 'There is nothing to write the piece from: no words and no lead.',

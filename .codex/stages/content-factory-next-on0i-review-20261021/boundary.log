@@ -1,0 +1,1 @@
+REVIEW_RESULT={"observer":{"midState":"running","finalOutcome":"completed","toolExecutions":1,"observedText":"","messageCount":2},"receipt":{"domainWrites":2,"results":[{"ok":true,"capability":"piece.create","summary":{"pieceId":"piece-1"}},{"ok":true,"capability":"piece.create","summary":{"pieceId":"piece-2"}}]}}

@@ -15,6 +15,56 @@ const task = (extra = {}) => execution.createConductorExecution({ requestId: 're
 const served = (costUsd, extra = {}) => ({ attempt: 1, promptTokens: 2, completionTokens: 3, ...(costUsd !== undefined ? { costUsd } : {}), ...extra });
 
 describe('task execution uses real accounting and technical fuses', () => {
+  test('native inference uncertainty keeps retrying while an uncertain final paid effect stops new work', () => {
+    const scope = execution.createConductorExecution({ requestId: 'native-retry', native: true });
+    scope.run(() => {
+      const ledger = new chain.TextUsageLedger();
+      ledger.record(served(undefined, { failed: true, possiblyBilled: true }));
+      ledger.recordSearch({ engine: 'tavily', credits: 1, failed: true, possiblyBilled: true });
+      expect(() => chain.assertAiExecutionBudget()).not.toThrow();
+      expect(scope.snapshot()).toMatchObject({ providerCalls: 2, possiblyBilled: true, stopCode: undefined });
+      ledger.record(served(undefined, { final: true, failed: true, possiblyBilled: true }));
+      expect(() => chain.assertAiExecutionBudget()).toThrow(expect.objectContaining({ code: 'AGENT_TASK_UNCERTAIN' }));
+    });
+  });
+  test('the default output ceiling is per response, without creating a total task allowance', () => {
+    const scope = task();
+    expect(scope.streamOptions().modelSettings.maxOutputTokens).toBe(16_384);
+    expect(scope.policy.maxTokens).toBeUndefined();
+    expect(scope.policy.maxCostUsd).toBeUndefined();
+    scope.run(() => {
+      const ledger = new chain.TextUsageLedger();
+      ledger.record(served(0.001, { promptTokens: 12_000, completionTokens: 6_000 }));
+      expect(() => scope.assertCanSpend()).not.toThrow();
+    });
+    expect(scope.snapshot()).toMatchObject({ tokens: 18_000, providerCalls: 1, stopCode: undefined });
+    expect(scope.streamOptions().modelSettings.maxOutputTokens).toBe(16_384);
+    expect(scope.policy.maxTokens).toBeUndefined();
+  });
+
+  test.each([[512, 512], [16_384, 16_384], [65_536, 16_384]])(
+    'configured total threshold %s cannot expand the per-call output ceiling beyond %s',
+    (maxTokens, expected) => {
+      const scope = task({ policy: policy({ maxTokens }) });
+      expect(scope.streamOptions().modelSettings.maxOutputTokens).toBe(expected);
+      expect(scope.policy.maxTokens).toBe(maxTokens);
+    }
+  );
+
+  test('a continuation uses the remaining total after observed input and output, and stops at exhaustion', () => {
+    const scope = task({ policy: policy({ maxTokens: 20_000 }) });
+    expect(scope.streamOptions().modelSettings.maxOutputTokens).toBe(16_384);
+    scope.run(() => {
+      const ledger = new chain.TextUsageLedger();
+      ledger.record(served(0.001, { promptTokens: 10_000, completionTokens: 3_000 }));
+      expect(scope.streamOptions().modelSettings.maxOutputTokens).toBe(7_000);
+      expect(scope.snapshot()).toMatchObject({ tokens: 13_000, stopCode: undefined });
+      ledger.record(served(0.001, { promptTokens: 6_000, completionTokens: 1_000 }));
+      expect(() => scope.assertCanSpend()).toThrow(expect.objectContaining({ code: 'AGENT_TASK_TOKEN_BUDGET' }));
+    });
+    expect(scope.snapshot()).toMatchObject({ tokens: 20_000, providerCalls: 2, stopCode: 'AGENT_TASK_TOKEN_BUDGET' });
+  });
+
   test.each(['direct', 'sdk-wrapped', 'sent-response-lost'])('image request keeps truthful preflight and sent-attempt accounting (%s)', async (mode) => {
     const OpenAI = require('openai').default;
     const sent = mode === 'sent-response-lost';
@@ -140,8 +190,38 @@ describe('task execution uses real accounting and technical fuses', () => {
     const turn = new AgentTurnLifecycle('revised-input', async outcome => outcomes.push(outcome));
     await turn.track(async () => ({ ok: false, code: 'INTAKE_INPUT_INSUFFICIENT', ...(canReviseInput !== undefined ? { canReviseInput } : {}) }));
     await turn.track(async () => ({ ok: true, summary: { saved: true } }));
-    await turn.finish('completed');
+    expect(await turn.finish('completed')).toBe(expected);
     expect(outcomes).toEqual([expected]);
+  });
+
+  test('lifecycle finish waits for tracked work and durable settlement before returning its actual failure', async () => {
+    const { AgentTurnLifecycle } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
+    let releaseWork, releaseSettlement;
+    const work = new Promise(resolve => { releaseWork = resolve; });
+    const settlement = new Promise(resolve => { releaseSettlement = resolve; });
+    const outcomes = [];
+    const turn = new AgentTurnLifecycle('pending-fatal-result', async outcome => { outcomes.push(outcome); await settlement; });
+    const tracked = turn.track(async () => { await work; return { ok: false, code: 'CAPABILITY_FAILED' }; });
+    await Promise.resolve();
+    let finished = false;
+    const result = turn.finish('completed').then(outcome => { finished = true; return outcome; });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    releaseWork();
+    await tracked;
+    expect(finished).toBe(false);
+    releaseSettlement();
+    expect(await result).toBe('failed');
+    expect(outcomes).toEqual(['failed']);
+  });
+
+  test('lifecycle finish preserves interrupted Stop and rejects an unacknowledged settlement', async () => {
+    const { AgentTurnLifecycle } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
+    const stopped = new AgentTurnLifecycle('settled-stop', async () => {});
+    stopped.stop();
+    expect(await stopped.finish('interrupted')).toBe('interrupted');
+    const lost = new AgentTurnLifecycle('lost-settlement', async () => { throw new Error('Settlement persistence unavailable.'); });
+    await expect(lost.finish('completed')).rejects.toThrow('Settlement persistence unavailable.');
   });
 
   test.each([
@@ -316,6 +396,41 @@ describe('task execution uses real accounting and technical fuses', () => {
     expect(scope.snapshot().stopCode).toBe('AGENT_TASK_NO_PROGRESS');
   });
 
+  test('repeated skill reads continue after new research and a saved piece result', () => {
+    const scope = task();
+    const readSkill = () => scope.recordToolResult('skill', { name: 'content' }, 'Content instructions.');
+    readSkill();
+    scope.recordToolResult('research_search', { query: 'Requested updates' }, { snapshotKey: 'new-research', facts: ['source-backed fact'] });
+    readSkill();
+    scope.recordToolResult('piece_create_from-research', { snapshotKey: 'new-research' }, {
+      ok: true, summary: { pieceId: 'saved-core', outcome: 'created' },
+    });
+    readSkill();
+    expect(scope.snapshot().stopCode).toBeUndefined();
+    expect(() => scope.assertCanSpend()).not.toThrow();
+  });
+
+  test('alternating already-seen results cannot reset the no-progress fuse', () => {
+    const scope = task();
+    const read = (id) => scope.recordToolResult('read', { id }, { revision: 1 });
+    for (const id of ['a', 'b', 'a', 'b', 'a']) {
+      read(id);
+      expect(scope.snapshot().stopCode).toBeUndefined();
+    }
+    read('b');
+    expect(scope.snapshot().stopCode).toBe('AGENT_TASK_NO_PROGRESS');
+    expect(() => scope.assertCanSpend()).toThrow(expect.objectContaining({ code: 'AGENT_TASK_NO_PROGRESS' }));
+  });
+
+  test('changed results keep revising work active despite repeated reads between revisions', () => {
+    const scope = task();
+    for (let revision = 0; revision < 8; revision += 1) {
+      scope.recordToolResult('read', { id: 'p' }, { revision });
+      scope.recordToolResult('skill', { name: 'content' }, 'Content instructions.');
+      expect(scope.snapshot().stopCode).toBeUndefined();
+    }
+  });
+
   test('native fuse reports incomplete work while every ordinary step retains tools', () => {
     const scope = task({ policy: policy({ emergencyMaxSteps: 9 }) });
     const native = scope.streamOptions(['NOTE']);
@@ -396,6 +511,7 @@ describe('bounded autonomy inside the installed native Mastra loop', () => {
   test('eight paid operations and the final answer run in the same request with native tools available', () => {
     expect(report.multiple).toMatchObject({ calls: 8, modelCalls: 9, text: 'Saved requested artifacts.' });
     expect(report.multiple.choices).not.toContain('none');
+    expect(report.multiple.outputCaps).toEqual(Array(9).fill(16_384));
     expect(report.multiple.budget).toMatchObject({ steps: 9, providerCalls: 8, tokens: 16, knownCostUsd: 0.008 });
     expect(report.multiple.budget.stopCode).toBeUndefined();
   });

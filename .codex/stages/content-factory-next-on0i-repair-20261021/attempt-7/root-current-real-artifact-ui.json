@@ -1,0 +1,30 @@
+{
+  "schema": "on0i-current-real-artifact-ui/1",
+  "status": "PASS",
+  "localOnly": true,
+  "threadId": "7b7f1149-5e83-422c-94a5-e3abaaefcf43",
+  "pieceId": "f1f862de-ed78-431a-884d-63fc8a5c896e",
+  "title": "QA ON0I: очередь PostgreSQL",
+  "bodyChars": 860,
+  "bodySha256": "180001f7c8c0c4fa4835b92b2b2ba5bef03a088602efc72846a6caff4fa99703",
+  "bodyAndTitleUnchangedAfterOpen": true,
+  "realCardOpensBeside": true,
+  "pageErrors": 0,
+  "newModelPosts": 0,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/content-intelligence/pieces/f1f862de-ed78-431a-884d-63fc8a5c896e"
+    },
+    {
+      "method": "GET",
+      "path": "/content/pieces/f1f862de-ed78-431a-884d-63fc8a5c896e"
+    },
+    {
+      "method": "GET",
+      "path": "/content/pieces/f1f862de-ed78-431a-884d-63fc8a5c896e"
+    }
+  ],
+  "screenshot": "evidence/root-research-open-ui.png",
+  "initialProbeBoundary": "Initial exact accessible-name selector omitted the contextual label suffix and timed out before clicking; retained initial log. Corrected selector uses actual accessible name; no application fix."
+}

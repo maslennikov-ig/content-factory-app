@@ -1,0 +1,2 @@
+{"sessionMaxSteps":1000,"nativeDefaultOptions":{"maxSteps":64,"toolCallConcurrency":1,"closeOnSuspend":false,"maxProcessorRetries":45},"providerCalls":0}
+Mastra shutdown completed

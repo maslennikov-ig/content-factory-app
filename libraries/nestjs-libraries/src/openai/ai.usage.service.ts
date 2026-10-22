@@ -17,7 +17,7 @@ import {
   modelFor,
   roleForOperation,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
-import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
+import { getActingUserId, runAsActingUser } from '@contentfactory/nestjs-libraries/user/acting.user';
 import {
   assertAiExecutionBudget,
   currentUsageLedger,
@@ -352,6 +352,12 @@ type ExecutableAiModel = object & {
 
 @Injectable()
 export class AiUsageService {
+  private readonly closedLedgers = new WeakSet<TextUsageLedger>();
+
+  private hasActiveAdmission(organizationId: string) {
+    const ledger = currentUsageLedger();
+    return Boolean(getActiveAiConfig(organizationId)) && !(ledger && this.closedLedgers.has(ledger));
+  }
   constructor(private readonly prisma: PrismaService) {
     // Credential resolution runs before every AI operation and used to open a
     // connection pool of its own to read one row. Lend it the injected client
@@ -542,6 +548,7 @@ export class AiUsageService {
     succeeded: boolean,
     ledger?: TextUsageLedger
   ) {
+    if (ledger) this.closedLedgers.add(ledger);
     // The status is written on its own first: it is what admission counts, and
     // a usage-column failure (schema not applied yet, a value out of range)
     // must not leave the row `admitted` (correctness review F16).
@@ -707,9 +714,22 @@ export class AiUsageService {
        * `usageMode`, and spend of the other source does not belong on it.
        */
       track: <T>(callback: () => T): T => runWithUsageLedger(ledger, callback),
+      /** Only after a positive native ownership verdict that no driver started. */
+      voidUnstarted: async () => {
+        if (closed) return;
+        if (ledger.calls.length || ledger.searches.length) {
+          throw new Error('An AI operation with provider attempts cannot be voided.');
+        }
+        await this.prisma.aiUsageRecord.deleteMany({
+          where: { id: admission.id, organizationId },
+        });
+        closed = true;
+        this.closedLedgers.add(ledger);
+      },
       finish: async (succeeded: boolean, error?: unknown) => {
         if (closed) return;
         closed = true;
+        this.closedLedgers.add(ledger);
         if (isConfigurationRefusal(error)) {
           await this.voidAdmission(organizationId, admission.id);
         } else {
@@ -724,9 +744,9 @@ export class AiUsageService {
    * the workspace's own configuration (`content-factory-next-kcxz.8`).
    *
    * The agent chat is the consumer: its turn is one `agent` operation for the
-   * whole SSE response, and the door — not the callback's return — knows how
-   * it ended. A stream that carried an error part, or that the person left,
-   * is closed as failed with the tokens it did spend (premortem U2, U3).
+   * logical task, and the execution owner knows how it ended. Disconnecting
+   * an HTTP observer does not finish the operation. A failed or explicitly
+   * stopped execution retains the usage it did spend (premortem U2, U3).
    * Refusals (no key, allowance spent) are thrown here, before any byte of
    * the stream is written.
    */
@@ -753,7 +773,7 @@ export class AiUsageService {
     role?: AiRole
   ): Promise<T> {
     this.assertTenant(organizationId);
-    if (getActiveAiConfig(organizationId)) {
+    if (this.hasActiveAdmission(organizationId)) {
       return callback();
     }
     const config = preparedConfig || (await loadAiConfig(organizationId));
@@ -791,7 +811,7 @@ export class AiUsageService {
     role?: AiRole
   ): AsyncGenerator<T> {
     this.assertTenant(organizationId);
-    if (getActiveAiConfig(organizationId)) {
+    if (this.hasActiveAdmission(organizationId)) {
       for await (const item of await factory()) yield item;
       return;
     }
@@ -847,16 +867,18 @@ export class AiUsageService {
     model: T,
     preparedConfig?: AiConfig,
     admittedConfig?: AiConfig,
-    admittedLedger?: TextUsageLedger
+    admittedLedger?: TextUsageLedger,
+    actingUserId = getActingUserId()
   ): T {
+    const inActorScope = <R>(callback: () => R): R => actingUserId ? runAsActingUser(actingUserId, callback) : callback();
     const doGenerate = model.doGenerate.bind(model);
     const doStream = model.doStream.bind(model);
     return new Proxy(model, {
       get: (target, property) => {
         if (property === 'doGenerate') {
-          return (...args: any[]) => {
+          return (...args: any[]) => inActorScope(() => {
             const execute = () => Promise.resolve(doGenerate(...args));
-            return admittedConfig
+            return admittedConfig && !(admittedLedger && this.closedLedgers.has(admittedLedger))
               ? this.continueAdmittedOperation(
                   organizationId,
                   admittedConfig,
@@ -867,14 +889,14 @@ export class AiUsageService {
                   organizationId,
                   operation,
                   execute,
-                  preparedConfig
+                  preparedConfig ?? admittedConfig
                 );
-          };
+          });
         }
         if (property === 'doStream') {
-          return (...args: any[]) => {
+          return (...args: any[]) => inActorScope(() => {
             const execute = () => Promise.resolve(doStream(...args));
-            return admittedConfig
+            return admittedConfig && !(admittedLedger && this.closedLedgers.has(admittedLedger))
               ? this.continueAdmittedOperation(
                   organizationId,
                   admittedConfig,
@@ -885,9 +907,9 @@ export class AiUsageService {
                   organizationId,
                   operation,
                   execute,
-                  preparedConfig
+                  preparedConfig ?? admittedConfig
                 );
-          };
+          });
         }
         const value = Reflect.get(target, property, target);
         return typeof value === 'function' ? value.bind(target) : value;
@@ -906,11 +928,16 @@ export class AiUsageService {
   >(
     organizationId: string,
     operation: AiOperation,
-    factory: () => Promise<T>
+    factory: () => Promise<T>,
+    actor?: { userId: string }
   ): Promise<T> {
     this.assertTenant(organizationId);
-    const activeConfig = getActiveAiConfig(organizationId);
-    const activeLedger = currentUsageLedger?.();
+    const actingUserId = actor?.userId ?? getActingUserId();
+    // Queued native runs may inherit the old async context after HTTP finished.
+    // A closed ledger cannot admit new provider work or absorb its usage.
+    const activeConfig = this.hasActiveAdmission(organizationId) ? getActiveAiConfig(organizationId) : undefined;
+    const inheritedLedger = currentUsageLedger?.();
+    const activeLedger = inheritedLedger && !this.closedLedgers.has(inheritedLedger) ? inheritedLedger : undefined;
     if (activeConfig) {
       const resolved = await factory();
       if (Array.isArray(resolved)) {
@@ -922,7 +949,8 @@ export class AiUsageService {
             entry.model,
             undefined,
             activeConfig,
-            activeLedger
+            activeLedger,
+            actingUserId
           ),
         })) as unknown as T;
       }
@@ -932,7 +960,8 @@ export class AiUsageService {
         resolved as ExecutableAiModel,
         undefined,
         activeConfig,
-        activeLedger
+        activeLedger,
+        actingUserId
       ) as T;
     }
     const config = await loadAiConfig(organizationId);
@@ -954,7 +983,8 @@ export class AiUsageService {
           entry.model,
           config,
           undefined,
-          activeLedger
+          activeLedger,
+          actingUserId
         ),
       })) as unknown as T;
     }
@@ -964,7 +994,8 @@ export class AiUsageService {
       model as ExecutableAiModel,
       config,
       undefined,
-      activeLedger
+      activeLedger,
+      actingUserId
     ) as T;
   }
 
@@ -976,7 +1007,7 @@ export class AiUsageService {
     role?: AiRole
   ): Promise<T> {
     this.assertTenant(organizationId);
-    if (getActiveAiConfig(organizationId)) {
+    if (this.hasActiveAdmission(organizationId)) {
       return factory();
     }
     const config = preparedConfig || (await loadAiConfig(organizationId));

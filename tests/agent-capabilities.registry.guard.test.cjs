@@ -99,9 +99,9 @@ describe('agent capability registry', () => {
       return [];
     };
     const modelInputs = {
-      'piece.create': [['selection']],
+      'piece.create': [['selection'], ['references','[]','snapshotKey'], ['references','[]','factKeys']],
       'piece.research': [['selection']],
-      'piece.create.from-research': [['snapshotKey'], ['factKeys']],
+      'piece.create.from-research': [['references','[]','snapshotKey'], ['references','[]','factKeys'], ['snapshotKey'], ['factKeys']],
       'piece.research.apply': [['snapshotKey'], ['factKeys']],
     };
     for (const capability of catalogue) {

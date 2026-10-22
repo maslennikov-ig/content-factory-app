@@ -1,0 +1,41 @@
+PASS tests/intake.research-reuse.test.cjs
+FAIL tests/intake.provider-schema.test.cjs
+  ● native intake extraction defines human fact selection in the actual provider schema as a person action before writing
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: Any<String>
+    Received: undefined
+
+      31 |   const description = constraints.properties.humanFactSelection.description;
+      32 |   const declared = meaning.intakeRequestSchemaV1.shape.constraints.unwrap().shape.humanFactSelection.unwrap().description;
+    > 33 |   expect(description).toEqual(expect.any(String));
+         |                       ^
+      34 |   expect(description.trim().length).toBeGreaterThan(0);
+      35 |   expect(description).toBe(declared);
+      36 | });
+
+      at tests/intake.provider-schema.test.cjs:33:23
+
+  ● current native intake extraction defines human fact selection in the actual provider schema as a person action before writing
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: Any<String>
+    Received: undefined
+
+      31 |   const description = constraints.properties.humanFactSelection.description;
+      32 |   const declared = meaning.intakeRequestSchemaV1.shape.constraints.unwrap().shape.humanFactSelection.unwrap().description;
+    > 33 |   expect(description).toEqual(expect.any(String));
+         |                       ^
+      34 |   expect(description.trim().length).toBeGreaterThan(0);
+      35 |   expect(description).toBe(declared);
+      36 | });
+
+      at tests/intake.provider-schema.test.cjs:33:23
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       2 failed, 45 skipped, 4 passed, 51 total
+Snapshots:   0 total
+Time:        3.059 s
+Ran all test suites within paths "tests/intake.provider-schema.test.cjs", "tests/intake.research-reuse.test.cjs".

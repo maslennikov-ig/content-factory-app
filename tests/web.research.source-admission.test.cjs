@@ -206,7 +206,7 @@ describe('Russian advertising-labeling reader admission', () => {
   test('recorded five candidates retain all provenance but only two article-context facts', async () => {
     const baseline = await search(telegram.subject, {
       language: 'ru',
-      readerResponse: true,
+      readerResponse: false,
       queries: ['literal fixture query'],
     });
     expect(baseline.facts).toHaveLength(5);
@@ -337,7 +337,7 @@ describe('Russian advertising-labeling reader admission', () => {
     [
       'supplied fact-check queries',
       telegram.subject,
-      { language: 'ru', readerResponse: true, queries: ['advertising laws'] },
+      { language: 'ru', readerResponse: false, queries: ['advertising laws'] },
     ],
     [
       'reader marker without language',
@@ -407,7 +407,7 @@ describe('source-only reader summary and spend', () => {
     useExa();
     const baseline = await search(cloud.subject, {
       language: 'ru',
-      readerResponse: true,
+      readerResponse: false,
       queries: ['1С в облако'],
     });
     expect(baseline.summary).toBe('');
@@ -554,7 +554,7 @@ describe('source-only reader summary and spend', () => {
   test.each([
     [
       'supplied queries',
-      { language: 'ru', readerResponse: true, queries: ['1С в облако'] },
+      { language: 'ru', readerResponse: false, queries: ['1С в облако'] },
       0,
     ],
     ['reader marker without language', { readerResponse: true }, 1],
@@ -572,9 +572,14 @@ describe('source-only reader summary and spend', () => {
       useExa();
       const result = await search(cloud.subject, options);
       expect(result.summary).toBe('');
-      expect(result.sources.map(({ text, ...source }) => source)).toEqual(
+      expect(result.sources.map(({ text, fullText, ...source }) => source)).toEqual(
         expectedSources(cloud)
       );
+      if (options.level) {
+        expect(result.sources.map((source) => source.fullText)).toEqual(
+          cloud.sources.map((source) => source.excerpt.trim())
+        );
+      }
       expect(result.facts).toHaveLength(5);
       expect(summaryPrompts()).toHaveLength(0);
       expect(calls.model).toHaveLength(expectedModels);

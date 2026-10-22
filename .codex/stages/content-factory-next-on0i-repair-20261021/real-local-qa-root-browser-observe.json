@@ -1,0 +1,149 @@
+{
+  "at": "2026-10-21T08:55:36.064Z",
+  "result": "READ_ONLY_BROWSER_OBSERVE_PERSISTENCE_CHECK",
+  "threadId": "9b1c3615-dd5c-4e3a-8a65-1a9d8e21108d",
+  "httpStatus": 200,
+  "backendHistoryVerdict": "PASS",
+  "rootReportedBrowserObservation": {
+    "postChatRequestIndex": 529,
+    "postChatStatus": 200,
+    "getObserveRequestIndex": 608,
+    "getObserveStatus": 200,
+    "afterReloadAssistantArticleCount": 1,
+    "numberedItems": 45,
+    "originalUserMessageVisible": false,
+    "verdict": "MISSING_USER_MESSAGE_IN_BROWSER"
+  },
+  "messages": [
+    {
+      "id": "fbCt8U4EcZRNSN9Z",
+      "role": "user",
+      "createdAt": "2026-10-21T08:51:11.311Z",
+      "textChars": 230,
+      "textPreview": "Локальная проверка восстановления чата. Напиши нумерованный список из 45 коротких советов о том, как вести рабочие заметки. Каждый пункт отдельной строкой. Не используй поиск и инструменты, ничего не сохраняй, вопросов не задавай.",
+      "numberedItems": 0
+    },
+    {
+      "id": "71d1056a-4bab-4814-9639-3d98cdf04b5b",
+      "role": "assistant",
+      "createdAt": "2026-10-21T08:51:26.744Z",
+      "textChars": 1685,
+      "textPreview": "1. Записывайте мысль сразу.\n2. Указывайте дату заметки.\n3. Начинайте с короткого заголовка.\n4. Формулируйте одну тему за раз.\n5. Пишите простыми словами.\n6. Отделяйте факты от предположений.\n7. Фиксируйте источник информации.\n8. Д",
+      "numberedItems": 45
+    }
+  ],
+  "execution": {
+    "requestId": "70b41d7e-6d97-4c25-a0b2-07bde3349bb3",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "431e243e-ff5e-447c-aa17-c04943232542"
+  },
+  "pending": [],
+  "providerObservationWindow": {
+    "from": "2026-10-21T08:51:09.264Z",
+    "to": "2026-10-21T08:51:28.744Z",
+    "reason": "Signal acceptedAt minus2s to final assistant persistedAt plus2s covers admission just before acceptance and ledger finalization after the final persisted message."
+  },
+  "actualModelRequests": 1,
+  "actualSearchRequests": 0,
+  "scriptedRequests": 0,
+  "providerReceipts": [
+    {
+      "id": "8e0a01f1-b169-41d9-b592-6c71c6dd1147",
+      "at": "2026-10-21T08:51:11.623Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "8e0a01f1-b169-41d9-b592-6c71c6dd1147",
+      "at": "2026-10-21T08:51:11.623Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792572672-ZYoWFOtsyCY9HhEx8twr",
+      "usage": {
+        "promptTokens": 28577,
+        "completionTokens": 529,
+        "totalTokens": 29106,
+        "reasoningTokens": 30,
+        "cachedTokens": 0,
+        "costUsd": 0.0037981845
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 15114
+    }
+  ],
+  "ledger": [
+    {
+      "id": "06bc8675-bdf6-403d-a0b0-c782670658f9",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 28577,
+      "completionTokens": 529,
+      "costUsd": "0.00379818",
+      "attempt": 1,
+      "possiblyBilled": null,
+      "createdAt": "2026-10-21T08:51:11.236Z",
+      "updatedAt": "2026-10-21T08:51:27.416Z"
+    }
+  ],
+  "ledgerProviderTupleMatches": true,
+  "ledgerAttribution": "The one primary-actor row in the bounded window matches actual provider model and both token counts; ledger schema does not store a thread foreign key.",
+  "bootstrap": {
+    "at": "2026-10-21T08:45:38.376Z",
+    "result": "STARTED",
+    "pid": 75266,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "d4b8191199d6f8991c898dae27575915dca29708fa7f8d664b9dcd7768c6c830",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "046c5420465653fcef4600ffd18bc787252af4090ee5c1944d8357bb13aa3b19",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "b51118eb501f607d64958c9f7afe2b4d80318036aaa45026ee17d5e253228f32",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "providerRequestsDuringBootstrap": [],
+    "paidCallsByBootstrap": 0
+  },
+  "privateRawEvidence": "/tmp/on0i-real-local-qa-s2nihQ/root-browser-observe-evidence.json",
+  "paidCallsByThisInspector": 0,
+  "requestsReplayed": 0,
+  "restartedByThisInspector": false
+}

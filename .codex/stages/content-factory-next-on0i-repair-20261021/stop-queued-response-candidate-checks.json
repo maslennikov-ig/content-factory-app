@@ -1,0 +1,44 @@
+{
+  "schema": "queued-stop-stage-candidate-checks/1",
+  "at": "2026-10-21T13:50:21.529Z",
+  "status": "CANDIDATE_NATIVE_PG_GREEN_APPLY_PENDING_ROOT_SUITE_RECEIPT",
+  "patchSha256": "b143b5ab1655e4ad5c41401a5ad1df408d557a17d8705dbfafb59a902b5d01b3",
+  "sourceFilesystemUnchanged": true,
+  "sourceSubstitution": "fs.readFileSync only the two exact approved paths, fresh child process per probe",
+  "fullSourceCopies": "Private /tmp directory0700; both sourcefiles0600",
+  "storageUpdaterContract": "Installed public updateThreadMetadata serializes only within one storageinstance. No claim of PostgreSQL cross-process transaction; existing native run generation filters and original workflow authority are retained.",
+  "checks": [
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node .codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate-probe.cjs queued",
+      "exit": 0,
+      "log": "evidence/stop-queued-response-candidate.queued.log",
+      "logSha256": "783a2955534cb4124578d6b825ec57fccb227476ef43fc226a6a097440ca71fa",
+      "result": "Existing native queue HTTP scenarios approval/question/Stop each keep one original admission,0HTTP admissions; Stop domaincalls0, repeatedanswerrefused."
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node .codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate-probe.cjs proof",
+      "exit": 0,
+      "log": "evidence/stop-queued-response-candidate.proof.log",
+      "logSha256": "5ab817a9c7380ad146ad69d331d653e0c0a79e783f40909ca2c5ec354729929b",
+      "result": "Actual public PG metadata write held while model init queues; exact same-run response retained. Other owner/run clears proof; lateA/wrongrun/stopped/settled callbacks cannot write. Actual failed proofwrite rejects; strictStop still503.0provider/admission calls."
+    }
+  ],
+  "appFiles": {
+    "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": {
+      "absoluteOriginal": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts",
+      "candidate": "/tmp/cf-stop-queued-response-drGI2Q/native-queued-input.ts",
+      "originalSha256": "eedacbbf52642af0128a8641789d91e15f2851fe1053016684f1110455b814e3",
+      "candidateSha256": "0263a8ab71c3d0a8c38169304c07da03b6dd2bbdf630158541843fa0e3228aa9"
+    },
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": {
+      "absoluteOriginal": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/mastra.service.ts",
+      "candidate": "/tmp/cf-stop-queued-response-drGI2Q/mastra.service.ts",
+      "originalSha256": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+      "candidateSha256": "ce142fa1db17803d9baa5817adc5b94aaf41f3a6a31d9a24ad0c1ff8375b877e"
+    }
+  },
+  "limits": [
+    "No app/test/QAhelper filesystem changes, paid call, runtime restart, build or full suite.",
+    "Static backend types, final existing affected tests and independent read review follow only after authorized application."
+  ]
+}

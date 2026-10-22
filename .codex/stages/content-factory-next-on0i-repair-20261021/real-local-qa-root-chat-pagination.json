@@ -1,0 +1,29 @@
+{
+  "schema": "on0i-chat-pagination/1",
+  "result": "PASS",
+  "seeded": 105,
+  "firstCount": 100,
+  "secondCount": 6,
+  "allOwnedIdsPresent": true,
+  "noDuplicates": true,
+  "renameReadback": true,
+  "providerCalls": 0,
+  "localOnly": true,
+  "fixtureScriptSha256": "bcda3928d31983c9ba44cd355462f3f8d290fd79ff1bcce6b95e6b8750bf2015",
+  "cleanup": {
+    "removed": 104,
+    "remainingOwnedFixtureThreads": 0,
+    "viaActualAuthenticatedDelete": true,
+    "removedViaBrowser": 1
+  },
+  "browser": {
+    "actualLoadMoreClick": true,
+    "dialogFixtureLinksAfterClick": 105,
+    "loadMoreAbsentAfterLastPage": true,
+    "renameViaForm": true,
+    "renameReadbackTitle": "ON0I переименован в браузере",
+    "deleteViaTwoClicks": true,
+    "deletedThreadId": "58e8b4ef-49c8-4621-9202-2be77312db1e",
+    "afterDeleteRoute": "/agents/new"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "schema": "stop-settlement-delivery/1",
+  "at": "2026-10-21T12:00:43.755408+00:00",
+  "scope": "Exact explicit Stop acknowledgement, actual HTTP owner lifecycle settlement, and late authoritative Stop history confirmation",
+  "status": "SOURCE_FROZEN_FOCUSED_VERIFIED_ROOT_COMPILED_ACCEPTANCE_PENDING",
+  "classification": "must-fix",
+  "priority": "P1",
+  "confidence": "high for reproduced mechanism; original failed Stop GET timing remains unknown",
+  "confirmed": [
+    "Installed Session.abort is public void; native request acknowledgement is not teardown completion.",
+    "Actual native Session/HTTP/PostgreSQL delayed terminal commit returned positive exact Stop while history remained running before this repair.",
+    "An already-finalizing HTTP owner was removed before the same pending terminal Memory commit; a second RED isolates this ordering.",
+    "A later settled/interrupted exact history did not invoke confirmStopped: actual root browser focus check and actual installed useChat reproduction both remained blocked."
+  ],
+  "fix": [
+    "Active HTTP handle carries only its actual turn.finish completion Promise; Stop awaits it after all native abort calls.",
+    "HTTP active handle remains discoverable until terminal Memory settlement succeeds or fails.",
+    "Terminal write rejection rejects Stop rather than fabricating terminal success.",
+    "Any fresh authoritative history reuses existing exact Stop request/human/tool/outcome/pending/error checks; generation guard remains intact."
+  ],
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-flow.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-screen.w2-recheck.test.cjs tests/agent-transport.test.cjs tests/agent-native-stop-identity.test.cjs tests/agent-native-stop-settlement.test.cjs",
+      "exitCode": 1,
+      "passedSuites": 5,
+      "passedTests": 97,
+      "failedTests": 1,
+      "seconds": 73.014,
+      "log": "evidence/stop-settlement-focused.first-attempt.log",
+      "failure": "Only new late-uncertainty fixture assertion required output-error parts in the DOM after a focus read, which intentionally does not replace messages. Corrected to assert no manufactured output-available; app code unchanged."
+    },
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-stop-flow.test.cjs",
+      "exitCode": 0,
+      "passedSuites": 1,
+      "passedTests": 1,
+      "internalActualHookModes": 20,
+      "seconds": 20.101,
+      "log": "evidence/stop-settlement-flow.final.log"
+    },
+    {
+      "command": "pnpm exec tsc -p apps/frontend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "evidence/stop-settlement-frontend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "evidence/stop-settlement-backend-types.log"
+    },
+    {
+      "command": "CF_NATIVE_STOP_SETTLEMENT_MODE=late node tests/helpers/agent-native-stop-settlement.probe.cjs",
+      "exitCode": 0,
+      "log": "evidence/stop-settlement-late-owner.green.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "nativeCoverage": [
+    "Stop before actual terminal Memory commit",
+    "failed actual terminal Memory write keeps history nonterminal and rejects Stop",
+    "Stop entered after natural owner reached its terminal Memory write"
+  ],
+  "negativeCoverage": [
+    "null/mismatched Stop receipt",
+    "failed/unknown execution",
+    "pending gate",
+    "uncertain or unconfirmed tool write",
+    "network failure",
+    "late A history or Stop receipt after deliberate B",
+    "late focus history with uncertain tool result"
+  ],
+  "sourceSha256": {
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9",
+    "apps/backend/src/api/routes/agent.controller.ts": "66b13557fe1dc2e27ebb191e1ea648a10fbda9a00b01faee7140fe9295cc933b",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "8c1f8052b4daf6aa79326481fa732ccb2282ce8831755b82d892ea4aeb1f98fd",
+    "tests/agent-native-stop-flow.test.cjs": "8aa91dbd9e5eabd31f0f5fff7e1348d7a6f503208d306bc94b912a584d823b32",
+    "tests/helpers/agent-native-stop-flow.probe.cjs": "7db2596eb94f00279de53854b70f7dffe98348a7f85c9d161aea73fa85b341cf",
+    "tests/agent-native-stop-settlement.test.cjs": "4cb5ea258df8326b237d4b2ae479d76c0c07afb51dee6b203092817096a3d7b2",
+    "tests/helpers/agent-native-stop-settlement.probe.cjs": "a3998a10a568711da0ab8d653ec4e219ec59a0ce44c7f8333e94ff00c9fea5d5"
+  },
+  "logSha256": {
+    "stop-settlement-sdk.red.log": "c4ce759529e68abc339bf0d0ae03673f7bb43a16e02ea0a0ff04d0a293fa281d",
+    "stop-settlement-focus.red.log": "70ed86a94952cbb16baa742fdd9460bea80d95986aeca4e037184c1f333d4123",
+    "stop-settlement-focus.green.log": "59fb30d54a585762e37b959bdbcf3574b275c44f2aa8bdb881927e88ba8d4661",
+    "stop-settlement-native.red.log": "aa35ccdde987d550c92dd298072288a4afca8bcf934e0c7e68fa42c1ff945148",
+    "stop-settlement-native.green.log": "ddcc0acae10efb5cb88e31d47f3404bbcd45339f9dbc756ea8e03e5e641a15a1",
+    "stop-settlement-late-owner.red.log": "1615e03bd4c5295544edf45c758f1c0dc3637cba081cf6c3358e28d1f0a6a833",
+    "stop-settlement-late-owner.green.log": "7e0cb2b505cdc1ed64cb61d837f28fc6c6517494528653cf2b8a279ab266dfbc",
+    "stop-settlement-focused.first-attempt.log": "f569a4b2b1a25897e83235d33d5aa86c05f5d5de9503e5d3809db0511bcff57f",
+    "stop-settlement-flow.final.log": "3bd5f8305b783cedce32fbabf8897889a10a36ba2b7224a44df7d13266cd40e6",
+    "stop-settlement-frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stop-settlement-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root-postfix-stop-focus-cli.log": "a1531a432bf93cd917694cd455bbfdf4b9f375069c78689099d18001c9a05e5b"
+  },
+  "limits": [
+    "Root owns unified suite/build and compiled-browser real Stop retest after restarting its local stand with these exact sources.",
+    "Native fixtures use synthetic providers and isolated local PostgreSQL schemas; no paid calls, production access, browser actions, app service restart, commit, push or deployment by this worker.",
+    "Cold-native Stop retains the existing persisted cancellation/reconcile contract; this patch adds no inferred terminal receipt when no live HTTP completion Promise exists.",
+    "Noncancellable domain work can keep Stop pending until its real completion; unknown action/cost does not become success or zero cost.",
+    "Original failed Stop GET bodies/order were not captured; early-original-GET timing remains a hypothesis, not reconstructed evidence."
+  ],
+  "completionEvent": "Bounded Stop implementation and exact focused verification delivered; app and test sources frozen. Root acceptance and safe-only runtime management remain with root."
+}

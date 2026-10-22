@@ -1,0 +1,14 @@
+{
+  "schema": "on0i-private-natural-scenario-preparation/2",
+  "caseId": "recovery-postgresql-skip-locked",
+  "runnerSha256": "b200a326b2112dcff90475a25f243227c92f0d528611e77dbb1de68dd2d7e10c",
+  "canonicalBase": "scripts/evidence/on0i-real-local-qa-scenarios.cjs",
+  "canonicalBaseSha256": "ad48c52a0d2d31984bdbb5e214d973bfcb68f02f2b05885dff8125d104758a82",
+  "prompt": "Хочу короткую полезную заметку для разработчика: как PostgreSQL SKIP LOCKED помогает нескольким воркерам разбирать одну очередь и какие у него ограничения. Проверь по официальной документации PostgreSQL. Сохрани одну новую заготовку «QA ON0I: очередь PostgreSQL» на русском со ссылками на первоисточник, затем прочитай её и проверь результат. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+  "sameNaturalPromptAsPreviousFailures": true,
+  "expectedSavedCore": 1,
+  "singleSubmissionGuard": "recovery-postgresql-submission.guard",
+  "executed": false,
+  "paidCallsByPreparation": 0,
+  "changes": "Unique case/state/guard names plus explicit requested-artifact assertion; no extra model hint or topic rule. Lifecycle alone cannot pass with zero CORE. Content/readback/source quality remains root semantic acceptance."
+}

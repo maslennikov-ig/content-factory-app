@@ -34,6 +34,16 @@ export class MockRedis {
     return 'OK';
   }
 
+  /** Synchronous map mutation mirrors the Redis Lua all-or-none claim. */
+  async claimMany(keys: string[], value: string, seconds: number): Promise<boolean> {
+    for (const key of keys) { this.expired(key); if (this.data.has(key)) return false; }
+    for (const key of keys) {
+      this.data.set(key, value);
+      this.expiries.set(key, Date.now() + seconds * 1000);
+    }
+    return true;
+  }
+
   private expired(key: string) {
     const expiresAt = this.expiries.get(key);
     if (expiresAt === undefined || expiresAt > Date.now()) return false;

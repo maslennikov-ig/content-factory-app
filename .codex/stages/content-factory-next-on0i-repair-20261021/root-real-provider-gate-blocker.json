@@ -1,0 +1,17 @@
+{
+  "schema": "on0i-real-provider-gate-blocker/1",
+  "status": "RESOLVED_OWNER_LIMIT_UPDATED_READBACK_CONFIRMED",
+  "localOnly": true,
+  "actualModel": "openai/gpt-6-luna",
+  "provider": "openrouter",
+  "threadId": "7ef76b3a-3e96-4c9f-ace2-c6c93c9242b7",
+  "nativeRunId": "0195acc9-4c5a-4317-86f1-72ea397df5c4",
+  "paidRequestsAfterRefusal": 0,
+  "keyStatusReadback": "private provider-limit-readback.json outsideGit",
+  "ownerAskedToIncreaseProviderLimitOrSupplyLocalKey": true,
+  "boundedInScopeRepair": "Render structured native provider402 as actionable balance/key-limit message; keep terminal no-retry/no-fallback policy",
+  "earlierRealEvidence": "Successful Gate7 real-model/search/browser receipts remain historical source-bound evidence; no restamping",
+  "updatedKeyReadbackHttpStatus": 200,
+  "readyForLocalQa": true,
+  "privateUpdatedReadback": "provider-limit-readback-updated.json outsideGit"
+}

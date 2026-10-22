@@ -1,0 +1,8 @@
+PASS tests/intake.provider-schema.test.cjs
+PASS tests/intake.research-reuse.test.cjs
+
+Test Suites: 2 passed, 2 total
+Tests:       45 skipped, 6 passed, 51 total
+Snapshots:   0 total
+Time:        2.931 s, estimated 3 s
+Ran all test suites within paths "tests/intake.provider-schema.test.cjs", "tests/intake.research-reuse.test.cjs".

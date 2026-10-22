@@ -532,7 +532,7 @@ export function AdminAiDefaultsView({
       : data?.textChain?.fallbackModels ??
         (orderedFallbacks.length
           ? orderedFallbacks
-          : [data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3']);
+          : [data?.textChain?.defaultFallbackModel ?? 'openai/gpt-6.1-sol']);
 
   const searchKeyField = (engine: KeyedSearchProvider) => {
     const field = words.keys[engine];
@@ -831,7 +831,7 @@ export function AdminAiDefaultsView({
               disableForm={true}
               value={form.textFallbackModel ?? ''}
               placeholder={
-                data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3'
+                data?.textChain?.defaultFallbackModel ?? 'openai/gpt-6.1-sol'
               }
               onBlur={() => {
                 const trimmed = (form.textFallbackModel ?? '').trim();

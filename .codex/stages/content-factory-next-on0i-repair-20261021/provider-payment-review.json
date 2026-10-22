@@ -1,0 +1,351 @@
+{
+  "schema": "provider-payment-independent-review/1",
+  "at": "2026-10-21T14:44:28.978052+00:00",
+  "status": "APPROVED_EXACT_APPLIED_PROVIDER_PATCHES_ROOT_ACCEPTANCE_PENDING",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "baseline": "e74e059ea104593d2fac831eb989714a5b151263",
+  "openSourceFindings": [],
+  "safePaymentCode": {
+    "status": "APPROVE_EXACT_APPLIED_PATCH",
+    "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment.patch",
+    "patchSha256": "ee44454a085fbdaf836475145e5c91b9f82377146fefef4f2ca67debcc326f0a",
+    "sourceEvidenceManifest": ".codex/stages/content-factory-next-on0i-repair-20261021/provider-payment-evidence.json",
+    "sourceEvidenceManifestSha256": "b9565e77fdaabd7f5816e6762daf9540baa16ae3729058b90dc021d94f085dc7",
+    "files": {
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.errors.ts": {
+        "beforeSha256": "40b2456a76989b2cb1028887511afeb1bb6a80350739f5b6f9790aa660e2a2d1",
+        "afterSha256": "abbe0eae43e2114a22547be8ba471d4d33e9e8aa65116688231924db3e588b7d"
+      },
+      "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": {
+        "beforeSha256": "c2b723ea81adaad48cbbe50bf0961513575cc982a18d0434575016195f357ed2",
+        "afterSha256": "3d7ecfd83909b1dd85857181dd45523b035517ff35d02d29c3a29c713b1a6b59"
+      },
+      "apps/frontend/src/components/agents/agent.copy.ts": {
+        "beforeSha256": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+        "afterSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e"
+      },
+      "tests/agent-conductor.unit.test.cjs": {
+        "beforeSha256": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+        "afterSha256": "6035279263f781b195d97ffcad7e88204ba81fec3b82f14f3a269ba414f47ea2"
+      },
+      "tests/agent-native-session-http.test.cjs": {
+        "beforeSha256": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+        "afterSha256": "7a58081e1499b40d372f8d95997d9367234ed22df85a81801611c1a94a90efed"
+      },
+      "tests/helpers/agent-native-session-http.probe.cjs": {
+        "beforeSha256": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+        "afterSha256": "a0abbb99db7ca0cf588950e104361610112d3ea2d8c52296f11f2520b139a79d"
+      }
+    },
+    "entriesCompared": 6,
+    "mismatches": [],
+    "beforeProvenance": "Five original files match Gate8 sourceSha256Before; conductor.errors.ts original matches HEAD. Exact patch was reversed in memory and checked against all six before/after digests.",
+    "verification": {
+      "red": {
+        "log": "evidence/provider-payment-red.log",
+        "failed": 3,
+        "passed": 101
+      },
+      "green": {
+        "log": "evidence/provider-payment-green.log",
+        "suites": 3,
+        "tests": 158,
+        "exitCode": 0,
+        "logSha256": "f97547cd3ff6dac6613ddb50f473440b7bbd208932cb658898d14ff6615d4ec5"
+      },
+      "nativeContract": "actual installed OpenAI provider V2, native Session/DurableAgent/Memory, real product HTTP handler; scripted fetch402, public safe code,1request/0writes/1false admission/no pending/failed outcome; no paid calls"
+    },
+    "conclusions": [
+      "Provider-tagged direct or one-cause 402 maps to allowlisted safe product code; plain domain402 remains generic.",
+      "Existing quota/configuration/processor blocks retain their preceding mappings; no permission or approval contract changes.",
+      "RU/EN copy describes balance/key-limit action without fee, billing, artifact or effect claims.",
+      "Actual V2\u2192native Session/DurableAgent\u2192real HTTP scenario returns exactly one public error code, omits private detail sentinel, writes0, pending0, settledfailed, one false-finished admission.",
+      "No native retry/fallback policy changed in these six files."
+    ],
+    "limits": [
+      "Terminal HTTP fixture has retry budget0 and fallbacks disabled; one-call assertion proves that configuration, not all configured native retry policies.",
+      "Server diagnostic logging still uses the existing redacted logger; no new claim that every diagnostic detail is absent from server logs."
+    ]
+  },
+  "transientAdapter": {
+    "status": "APPROVE_EXACT_APPLIED_PATCH",
+    "patch": {
+      "path": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402.patch",
+      "sha256": "a093ffba49037ebe918612b2f86552b9fc493da5c384b245208324c29abef41f",
+      "description": "Bounded provider follow-up reconstructed in memory; excludes unrelated pre-existing changes.",
+      "validation": {
+        "reverseCheckExitCode": 0,
+        "baselineSyntacticDiagnostics": {
+          "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": [],
+          "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": [],
+          "tests/ai-text-chain.test.cjs": []
+        }
+      }
+    },
+    "sourceFreeze": {
+      "path": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-source-freeze.json",
+      "sha256": "044b91a55005db9605af67ae2410a01924f020333847ef415575721111a950ef",
+      "sourceEntriesCompared": 16,
+      "logEntriesCompared": 6,
+      "mismatches": []
+    },
+    "changedFiles": {
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": {
+        "baselineSha256": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+        "finalSha256": "e1cc9dce6d07598d6569b7fdbebd39185d95fcc249c4f33d43947f28de4111da"
+      },
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": {
+        "baselineSha256": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+        "finalSha256": "43f3e4c91d7422d8d651e9d9248a37f89c93036a73a481f3867a8a3d1b68af7d"
+      },
+      "tests/ai-text-chain.test.cjs": {
+        "baselineSha256": "b043f235167b1b2159bff69fcaab96060732f375f35c044837859ac474a80d16",
+        "finalSha256": "d0cde47850546526257bc9de637c3b49a5be9f2780ceeab69affa82476beb3f7"
+      }
+    },
+    "frozenInputs": {
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "e1cc9dce6d07598d6569b7fdbebd39185d95fcc249c4f33d43947f28de4111da",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "43f3e4c91d7422d8d651e9d9248a37f89c93036a73a481f3867a8a3d1b68af7d",
+      "tests/ai-text-chain.test.cjs": "d0cde47850546526257bc9de637c3b49a5be9f2780ceeab69affa82476beb3f7",
+      "tests/agent-native-retry-routing.test.cjs": "7dc9cc85da669c81b2516eba3b9b4fbb5e6f76f7378b32003b5a9559b3c889e4",
+      "tests/helpers/load-ts-module.cjs": "3add2c87bf80828c9cdf2c73d843840eef8ee7023334e41dd57cfb1b17a86e02",
+      "tests/helpers/agent-model-fallback-retry.probe.cjs": "cbbcd11fe55162fa9845210b5baad7370de9561914bf5c05dc5b06f731b61238",
+      "tests/helpers/ai-text-chain.cjs": "e9357faa7fcda674fd94c5d35a58d61ba7b0e0ea94dd8630406490f245fda99b",
+      "apps/backend/tsconfig.json": "f895fd09f6cb1ef8ba55e392ad07973879b761cff324065e14f33165baa2e782",
+      "pnpm-lock.yaml": "210f2efefae8865b154d50f1d7ec1f68a5436b507149755879ed0f90fdc31524",
+      ".nvmrc": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a",
+      "node_modules/@mastra/core/package.json": "69df237dfc36bceb2f4ea4dd1b272e755a0aa69ae9fba499f0ecc75cf0ca8fce",
+      "node_modules/@mastra/core/dist/processors/stream-error-retry-processor.d.ts": "05568db07dad43c3741be08d75340a7a4733fcd65e413a9ea9302fec46e34866",
+      "node_modules/@ai-sdk/openai/package.json": "3d7260f8fdf3fc5a067e02d8409796b102b982b060f63c445fd7d9fa701753dd",
+      "node_modules/ai/package.json": "6b6cfcf6619d5d3f47f85224a8fc83657b4ee964234d128b3f3fc53cb656d14d",
+      "node_modules/jest/package.json": "679fd6f49e8dcb1fd82b7d610c5d555b70204ad2e5e5092e284e9bc10eb9f353",
+      "node_modules/typescript/package.json": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d"
+    },
+    "checks": [
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/ai-text-chain.test.cjs tests/agent-native-retry-routing.test.cjs",
+        "exitCode": 0,
+        "suitesPassed": 2,
+        "testsPassed": 104,
+        "durationSeconds": 61.154,
+        "log": "evidence/openrouter-inflight-402-focused.final.log",
+        "logSha256": "975075df0ac3d98580656641a8c1afc0a3e5aac1b767145dc0290d179308b800",
+        "exitObservedViaExecSession": 6006
+      },
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+        "exitCode": 0,
+        "log": "evidence/openrouter-inflight-402-backend-types.final.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exitObservedViaExecSession": 10076
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0,
+        "log": "evidence/openrouter-inflight-402-diff.final.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "logs": {
+      "openrouter-inflight-402.red.log": "094496c46ef44d24bbe90bbd2a1a67e2409191fc672d73fe5842d89705018f69",
+      "openrouter-inflight-402-credit-wording.red.log": "5753dec628d694bfc1b0138e0bd8235134f2b07a3abf1ba57bf9a9e6bba51a2a",
+      "openrouter-inflight-402-authority.red.log": "6cfdc3f46367d27ba38a5668e638748bb71c9cee8de183bb0faf3fa59367da18",
+      "openrouter-inflight-402-focused.final.log": "975075df0ac3d98580656641a8c1afc0a3e5aac1b767145dc0290d179308b800",
+      "openrouter-inflight-402-backend-types.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "openrouter-inflight-402-diff.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "conclusions": [
+      "Only configured OpenRouter POST chat completion on actual provider host,402 and exact limit_source normalize to429; body and Retry-After preserved.",
+      "Native retry processor owns configured delay/retry/fallback budgets; no retry/resubmit in response normalizer.",
+      "Unknown/key-limit/credits refusals remain terminal; successful response streams not inspected; Stop interrupts held refusal body.",
+      "Metadata proof may disambiguate billing wording across legitimate wrappers, never unconditional authority/auth/consent/invalid-request, hard terminal status or Stop.",
+      "Actual SDK two models/budget1: temporary and wrapped billing2sameprimary with >=900ms wait; permanent key/credits/unknown and wrapped authority1call/no fallback; Stop1call/<900ms.",
+      "Ledger assertions retain known failed refusal and separate successful usage row; no quota/claim/receipt reset."
+    ],
+    "limits": [
+      "Synthetic transport with installed public native SDK; not a live provider retry/billing acceptance.",
+      "Configured retry/fallback budgets,existing Retry-After cap and all application writer/permission checks remain; broader policies still need root final acceptance."
+    ]
+  },
+  "officialDocumentation": {
+    "url": "https://openrouter.ai/docs/api_reference/limits",
+    "readAt": "2026-10-21T14:27:46.019218+00:00",
+    "readMethod": "Independent official web open/find; no authenticated provider/API requests.",
+    "verifiedMeaning": "limit_source=openrouter_in_flight_budget is transient and carries Retry-After. openrouter_key_limit and openrouter_credits are terminal; credits includes a single request exceeding the whole in-flight budget. Branch on metadata, not message/remedy hint.",
+    "webReadCalls": 3
+  },
+  "preservedPriorReviewSha256": {
+    "research-final-review.md": "39faac11c8d418039c5870b72f58915de2454df66312affa2bff64792e87eb60",
+    "research-final-review.json": "261547cd8f7322d3860b6426c8990342dfd8c46f7251a2a3e68910c189043fa6",
+    "final-native-tail-recovery-review.md": "445f994da618a56e36fcce55f12d232a059797236f54f747b7de531c4eacfe03",
+    "final-native-tail-recovery-review.json": "cf816b9a1b45679f737d24a324b389b30f0ea3741dfe094f17f50b2fedb60149",
+    "request-intent-selection-review.md": "4dea01524e008327f11cf4cf3eede4452e18b745fef66b77cef452cca4077134",
+    "request-intent-selection-review.json": "f67a159bc3d03ecf687307e65f261c7eae75b8c1c01b70220aa77e6ff845a048",
+    "gate7-regression-review.md": "e54a36c2922ef8ebeda6409dc9d579a90a2ca72f43f7ae79a3398fb0d2b40835",
+    "gate7-regression-review.json": "4e74ed3431bf984d2225f6beebe442e50dcbf5939c1021d70fe52bada99d9cdd"
+  },
+  "reviewerActions": {
+    "sourceEdits": 0,
+    "testEdits": 0,
+    "testsRun": 0,
+    "acceptanceRuns": 0,
+    "paidCalls": 0,
+    "providerApiCalls": 0,
+    "browserRuntimeActions": 0,
+    "runtimeActions": 0,
+    "storeCommands": 0,
+    "restart": 0,
+    "commit": 0,
+    "push": 0,
+    "deployment": 0,
+    "officialDocumentationWebReads": 3
+  },
+  "remainingBounds": [
+    "Root newly loaded compiled/UI/provider acceptance on exact final bytes.",
+    "Root complete Jest/Node/Python sequence; Gate8 aborted before suite and is not successful acceptance.",
+    "Focused synthetic native evidence is not universal live-provider/billing or production/client acceptance."
+  ],
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment.patch": "ee44454a085fbdaf836475145e5c91b9f82377146fefef4f2ca67debcc326f0a",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/provider-payment-evidence.json": "b9565e77fdaabd7f5816e6762daf9540baa16ae3729058b90dc021d94f085dc7",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-red.log": "c8c9032da0651e91123c11ad336942288f9dcf82b50b2f5148fe886c95d6e75f",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-green.log": "f97547cd3ff6dac6613ddb50f473440b7bbd208932cb658898d14ff6615d4ec5",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/attempt-8/root-command-acceptance.json": "abb5d0f3228c391ad3a3651da160101ad12367c1796f66591a78445dcd1a4b64",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-source-freeze.json": "044b91a55005db9605af67ae2410a01924f020333847ef415575721111a950ef",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402.patch": "a093ffba49037ebe918612b2f86552b9fc493da5c384b245208324c29abef41f",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/openrouter-inflight-402-evidence.json": "0be62943e394efa0d035a2d6ff3b10606de4cb122548bd2c1f6b29a9bcd1366b",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/openrouter-inflight-402-docs.json": "b4a2bf03a197a91a386b313b0b96ab282e308868c3a24730426f20d093c956fe",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402.red.log": "094496c46ef44d24bbe90bbd2a1a67e2409191fc672d73fe5842d89705018f69",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-credit-wording.red.log": "5753dec628d694bfc1b0138e0bd8235134f2b07a3abf1ba57bf9a9e6bba51a2a",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-authority.red.log": "6cfdc3f46367d27ba38a5668e638748bb71c9cee8de183bb0faf3fa59367da18",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-focused.final.log": "975075df0ac3d98580656641a8c1afc0a3e5aac1b767145dc0290d179308b800",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-backend-types.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/openrouter-inflight-402-diff.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "resolvedFindings": [
+    {
+      "id": "PAY1",
+      "priority": "P2",
+      "classification": "must-fix",
+      "confidence": "high",
+      "path": "libraries/nestjs-libraries/src/openai/ai.native-retries.ts",
+      "lines": [
+        73,
+        74,
+        75,
+        76
+      ],
+      "reviewedSha256": "0c13231d6c9d22397e6edd8ca4926ce3ac969bdb903e740ba659314449d7739d",
+      "title": "Known provider capacity disables every terminal message recognizer across the complete cause chain",
+      "evidence": "inFlightBudget is chain.some(providerPredicate); terminalMessage is gated by !inFlightBudget for every chain node, including outer domain authority errors.",
+      "concreteCase": {
+        "outerMessage": "Permission denied",
+        "cause": {
+          "statusCode": 429,
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "responseBody": "{\"error\":{\"metadata\":{\"limit_source\":\"openrouter_in_flight_budget\"}}}"
+        }
+      },
+      "inferredBeforeResult": false,
+      "inferredPendingResult": true,
+      "testExecutedByReviewer": false,
+      "impact": "Broadens native retry classification for authority/consent/auth/invalid-request denials; application permission checks themselves were not removed.",
+      "suggestedFix": "Keep authority/auth/permission/consent/invalid-request recognizers unconditional; exempt only known provider billing wording at the appropriate error node/wrapper.",
+      "expectedValue": "Documented temporary capacity can retry without weakening native refusal boundaries.",
+      "tradeoff": "Some ambiguous billing text remains terminal unless exact provider evidence exists.",
+      "ownerAcknowledged": true,
+      "rootNotified": true,
+      "status": "RESOLVED_IN_FINAL_FROZEN_SOURCE",
+      "resolution": "Unconditional authority/auth/permission/consent/invalid-request matcher; only separate billing hints yield to known normalized provider proof; hard terminal status, Abort and executionBudgetStop retain precedence.",
+      "resolutionPath": "libraries/nestjs-libraries/src/openai/ai.native-retries.ts:62",
+      "finalSha256": "43f3e4c91d7422d8d651e9d9248a37f89c93036a73a481f3867a8a3d1b68af7d",
+      "controlledRed": {
+        "log": "evidence/openrouter-inflight-402-authority.red.log",
+        "failedTestCases": 1,
+        "incorrectAuthorityResults": 5
+      },
+      "finalRegressionProof": "Final 104-test receipt includes five outer authority unit cases, hard402/Abort/budget and actual native wrapped permission/consent/auth one-request cases."
+    }
+  ],
+  "independentPatchProvenance": {
+    "filesCompared": 9,
+    "mismatches": [],
+    "files": [
+      {
+        "file": "libraries/nestjs-libraries/src/chat/conductor/conductor.errors.ts",
+        "beforeSha256": "40b2456a76989b2cb1028887511afeb1bb6a80350739f5b6f9790aa660e2a2d1",
+        "afterSha256": "abbe0eae43e2114a22547be8ba471d4d33e9e8aa65116688231924db3e588b7d",
+        "beforeVerifiedAgainst": "HEAD",
+        "matches": true
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts",
+        "beforeSha256": "c2b723ea81adaad48cbbe50bf0961513575cc982a18d0434575016195f357ed2",
+        "afterSha256": "3d7ecfd83909b1dd85857181dd45523b035517ff35d02d29c3a29c713b1a6b59",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "apps/frontend/src/components/agents/agent.copy.ts",
+        "beforeSha256": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+        "afterSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "tests/agent-conductor.unit.test.cjs",
+        "beforeSha256": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+        "afterSha256": "6035279263f781b195d97ffcad7e88204ba81fec3b82f14f3a269ba414f47ea2",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "tests/agent-native-session-http.test.cjs",
+        "beforeSha256": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+        "afterSha256": "7a58081e1499b40d372f8d95997d9367234ed22df85a81801611c1a94a90efed",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "tests/helpers/agent-native-session-http.probe.cjs",
+        "beforeSha256": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+        "afterSha256": "a0abbb99db7ca0cf588950e104361610112d3ea2d8c52296f11f2520b139a79d",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+        "beforeSha256": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+        "afterSha256": "e1cc9dce6d07598d6569b7fdbebd39185d95fcc249c4f33d43947f28de4111da",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/openai/ai.native-retries.ts",
+        "beforeSha256": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+        "afterSha256": "43f3e4c91d7422d8d651e9d9248a37f89c93036a73a481f3867a8a3d1b68af7d",
+        "beforeVerifiedAgainst": "Gate8 source manifest",
+        "matches": true
+      },
+      {
+        "file": "tests/ai-text-chain.test.cjs",
+        "beforeSha256": "b043f235167b1b2159bff69fcaab96060732f375f35c044837859ac474a80d16",
+        "afterSha256": "d0cde47850546526257bc9de637c3b49a5be9f2780ceeab69affa82476beb3f7",
+        "beforeVerifiedAgainst": "HEAD",
+        "matches": true
+      }
+    ],
+    "priorGate8Manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/attempt-8/root-command-acceptance.json",
+    "priorGate8ManifestSha256": "abb5d0f3228c391ad3a3651da160101ad12367c1796f66591a78445dcd1a4b64"
+  },
+  "supersededStageArtifacts": {
+    "oldPatchPrefix": "0c74d257",
+    "oldManifestPrefix": "d44f8b1e",
+    "cause": "Incorrect reconstructed old classifier line; artifact-only correction. Final source and 104-test receipt unchanged.",
+    "correctedClassifierBeforeSha256": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "independentGate8BeforeHashMatch": true,
+    "preAuthority99TestReceipt": "HISTORICAL_NOT_FINAL"
+  },
+  "completionEvent": "Both exact provider patches independently approved against nine applied files; PAY1 corrected and closed; 16 adapter dependency/source and six log hashes match; prior reviews preserved; root final acceptance pending."
+}

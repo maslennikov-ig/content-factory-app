@@ -1,0 +1,186 @@
+{
+  "schema": "on0i-root-semantic-review/1",
+  "localOnly": true,
+  "status": "PASS_SCOPED_REAL_SCENARIOS_FULL_SUITE_PENDING",
+  "scenarios": [
+    {
+      "scenario": "direct-no-search",
+      "evidence": "real-local-qa-scenario-direct-no-search.json",
+      "sha256": "72e9d081215fc5c5b5309d6d97f661faba5c8889714b2e236362eed0c4818dbf",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "method": "Read original prompt, actual assistant output, task status, piece changes and real provider/search receipts.",
+      "reason": "The reply is one natural Russian sentence, preserves the weekly team update and removes bureaucratic phrasing. The actual trace contains one real model call, no search, no piece mutation, no pending card and a completed task.",
+      "assistantText": [
+        "Каждую пятницу будем рассказывать команде, как идут работы."
+      ],
+      "model": "openai/gpt-6-luna",
+      "scope": "This scenario only; not full epic acceptance."
+    },
+    {
+      "scenario": "reference",
+      "evidence": "real-local-qa-scenario-reference.json",
+      "sha256": "694732dacc4e76c999a943981891f560fbba0af4f42f26068c358ea51edbeaeb",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "method": "Read original prompt, actual assistant output, task status, piece changes and real provider/search receipts.",
+      "reason": "The reply contains exactly two sentences; October 6–8 remains attached to the supplied example. Shared reading and removal of duplicate data are retained, and absence of numerical measurements is explicit. No search or piece mutation occurred.",
+      "assistantText": [
+        "В заметке за 6–8 октября описан прототип приложения: данные копировались между модулями, поэтому команда создала общую функцию чтения и убрала дублирование. Численных замеров результата пока нет."
+      ],
+      "model": "openai/gpt-6-luna",
+      "scope": "This scenario only; not full epic acceptance."
+    },
+    {
+      "scenario": "fresh-research",
+      "evidence": "real-local-qa-scenario-fresh-research.json",
+      "sha256": "23dc430f52707b24a7881709d80ea9c0d53ca118760999ae9af273ae692cd163",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "method": "Read original prompt, saved CORE body, actual piece readback/tool trace, task outcome and provider/search receipts; independently checked the linked official SQLite pages.",
+      "reason": "Exactly one short Russian CORE with the required title. Correctly explains concurrent reader snapshots, a single active writer, and the same-host/network filesystem restriction. Two real Exa searches and subsequent native tool/model steps completed; the saved artifact contains primary-source links, no publication or account connection.",
+      "sources": [
+        "https://sqlite.org/wal.html",
+        "https://www.sqlite.org/isolation.html"
+      ],
+      "knownCostUsd": 0.03001562,
+      "scope": "This scenario only; not full epic acceptance."
+    },
+    {
+      "scenario": "research-reuse",
+      "evidence": "real-local-qa-research-reuse-resume.json",
+      "sha256": "dc6f58fefb197756ba3e382e36153aae559256c4af0326ee031caa60193ab969",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "reason": "The same saved piece contains three short factual sentences and both original source links after the displayed change was selected. No new search occurred, and the persisted preview matches the saved body. The original content remained unchanged until that exact selection.",
+      "observations": [
+        "Final assistant reply includes an unnecessary self-question about sentence counting; the saved artifact satisfies the request."
+      ],
+      "scope": "This scenario only; not full epic acceptance."
+    },
+    {
+      "scenario": "private-question",
+      "evidence": "real-local-qa-scenario-private-question.json",
+      "sha256": "cafe56b468c125b0b52b350f18acb986b6b504699ab2fc8d09c36a2a10f2f884",
+      "verdict": "PASS_ACTIONABLE_QUESTION",
+      "reviewer": "root",
+      "reason": "The actual native ask_user card asks for the real private reason and does not invent an autobiographical cause. Its delegated-choice option explicitly offers a template with blanks instead of fabricated facts. No search or saved piece.",
+      "observations": [
+        "The logical task is waiting for a person; its still-admitted cost row is pending/unknown, not zero or fully accounted."
+      ],
+      "scope": "This scenario only; not full epic acceptance."
+    },
+    {
+      "scenario": "unknown-sources",
+      "evidence": "real-local-qa-scenario-unknown-sources.json",
+      "sha256": "a357c575dd0f0b03449beb9b7861f8b478df73e96bb86f29ee009e938621e6c5",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "reason": "Actual search found official release/download pages. The response explicitly says the requested synthetic version/name is not confirmed; the real current version/date were independently verified on both linked official pages. No fabricated quotation, saved piece or publication.",
+      "sources": [
+        "https://www.sqlite.org/releaselog/current.html",
+        "https://www.sqlite.org/download.html"
+      ],
+      "scope": "Evidence of an unsupported premise, not a universal proof about all conflicting/empty sources."
+    },
+    {
+      "scenario": "private-question-delegated-choice",
+      "evidence": "real-local-qa-private-question-resume.json",
+      "sha256": "594bc5eaa6792df29dcc1a60c0a06c603a8b5dc443a69c68ce75f912d1cf64d0",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "reason": "An answer to the exact displayed native card continues the same run. Read back the saved template: the client, event, disagreement, real reason and outcome are explicit bracketed blanks. No invented private cause or external search. Task completed with all three usage rows finalized and known.",
+      "scope": "Synthetic person decision; no real customer facts or publication."
+    },
+    {
+      "scenario": "real-configured-fallback",
+      "evidence": "real-local-qa-scenario-real-fallback-scripted-primary.json",
+      "sha256": "d5b3726157784257c78048a8c4327b219ed17b3c2814982456e90302ba16701a",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "reason": "Useful single-sentence rewrite preserves weekly team updates/transparency. A deliberately scripted primary429 is followed by one real configured OpenRouter GLM response; final task completed, pending empty and ledger finalized with known usage. QA settings and fault control were restored.",
+      "faultBoundary": "Primary429 is injected; the fallback model/provider response is real. This is not evidence of a naturally occurring primary outage.",
+      "scope": "Fallback availability/functionality; no comparative model-cost or quality ranking."
+    },
+    {
+      "scenario": "intent-postgresql-skip-locked",
+      "evidence": "real-local-qa-scenario-intent-postgresql-skip-locked.json",
+      "sha256": "2d5160ff26be0c9c54a1db4e0e7e75ab035066c4168cb41da04cb1946e82de55",
+      "verdict": "PASS",
+      "reviewer": "root",
+      "reason": "Read original request, saved860-character Russian CORE, exact readback and factcheck tool result. Actual official-source search -> self-corrected a wrong literal and invalid tool input -> one saved/opened/read CORE -> nothing-to-change fact check. Explains concurrent queue consumers, skipped row locks, transaction lifetime and inconsistent-view restriction with real official links; no exactly-once/FIFO or total-nonblocking claim. Independently read PostgreSQL18 SELECT locking and explicit-locking sections. Short note is not an exhaustive lock tutorial.",
+      "costBoundary": "Known ledger total0.07082413USD is a minimum/estimate, not invoice or proven whole-run cost: one successful Exa record remains possiblyBilled. Preserved unchanged.",
+      "sources": [
+        "https://www.postgresql.org/docs/18/sql-select.html",
+        "https://www.postgresql.org/docs/18/explicit-locking.html"
+      ],
+      "scope": "Latest frozen source real useful saved/read research; no fullsuite/deploy claim."
+    },
+    {
+      "scenario": "human-selection",
+      "evidence": "real-local-qa-scenario-human-selection.json",
+      "sha256": "bde6fe2a4a83f3042d1d974ca58c28d6ba967b3fe52f5cda79ab2f2f3e07a03c",
+      "verdict": "PASS_EXPLICIT_HUMAN_SELECTION_BOUNDARY",
+      "reviewer": "root",
+      "reason": "Actual official SQLite WAL search returned five sourced facts, asks the person for chosen numbers and saves no CORE. Model used a persisted conversational question; there is no typed native question card or waiting pending run. This proves the requested human boundary, not an extracted humanFactSelection:true value or native ask_user card. Those contracts have separate deterministic/native-card evidence.",
+      "knownCostUsd": 0.02055417,
+      "scope": "No CORE before person choice; plain conversational selection, not typed question-card proof."
+    }
+  ],
+  "currentDiagnosticFailures": [
+    {
+      "scenario": "final-postgresql-skip-locked",
+      "verdict": "FAIL_PRESERVED",
+      "reason": "Real Exa search executed; draft intake returned actionable INTAKE_INPUT_INSUFFICIENT. The model attempted legitimate own-history recovery but the registered read tool incorrectly inherited Session ask permission. No CORE was created; native callable success span is not domain success. Owned Stop settled without another provider call or late write.",
+      "evidence": "real-local-qa-scenario-final-postgresql-skip-locked.json",
+      "stopEvidence": "real-local-qa-final-postgresql-parked-stop.json",
+      "next": "Authoritative public read-only tool approval declaration, actual SDK regression, new frozen-source real scenario required.",
+      "laterSuccessfulCase": "intent-postgresql-skip-locked",
+      "historicalFailurePreserved": true
+    },
+    {
+      "scenario": "postfix-postgresql-skip-locked",
+      "verdict": "FAIL_PRESERVED",
+      "evidence": "real-local-qa-scenario-postfix-postgresql-skip-locked.json",
+      "method": "Read original prompt, full recorded tool chain, final response and unchanged CORE result; independently read the cited official PostgreSQL SELECT page.",
+      "reason": "Actual Exa and model work completed, own-history read no longer asks. The assistant made many searches and source reads but saw only insufficient source passages, rejected draft creation and falsely reported that source limitations could not be confirmed. The official page contains the requested evidence. No CORE saved; task correctly failed. Full-source/provenance path under repair.",
+      "knownLedgerCostUsd": 0.84105252,
+      "costIsInvoice": false,
+      "elapsedMs": 562609,
+      "usageOperations": 21,
+      "rootReference": "https://www.postgresql.org/docs/18/sql-select.html",
+      "completedProviderRowsBoundary": "Time window includes concurrent separate browser actor; not all93 provider rows are this task.",
+      "laterSuccessfulCase": "intent-postgresql-skip-locked",
+      "historicalFailurePreserved": true
+    },
+    {
+      "scenario": "fullsource-postgresql-skip-locked",
+      "verdict": "FAIL_PRESERVED",
+      "evidence": "real-local-qa-scenario-fullsource-postgresql-skip-locked.json",
+      "evidenceSha256": "a9bdc73ee7f81a4e683e38e640cb3f95c3b03cd27af3f5ced32dcafb5af96d48",
+      "reason": "Actual full-source reads now include the requested official limitations; model selected only initial preview factKeys when writing, got revisable insufficient-input refusal, and gave up while wrongly describing this invocation research:none as globally unavailable search. No CORE saved. Lifecycle completion is not goal fulfilment.",
+      "elapsedMs": 107638,
+      "knownLedgerCostUsd": 0.02845863,
+      "costIsInvoice": false,
+      "actualUsefulProgress": "Real full retained source read/find recovered a wrong literal and returned the official locking/queue/inconsistent-view passage.",
+      "requestedSavedCoreCount": 0,
+      "lifecycleCompletedIsSemanticPass": false,
+      "laterSuccessfulCase": "intent-postgresql-skip-locked",
+      "historicalFailurePreserved": true
+    },
+    {
+      "scenario": "recovery-postgresql-skip-locked",
+      "verdict": "FAIL_PRESERVED",
+      "evidence": "real-local-qa-scenario-recovery-postgresql-skip-locked.json",
+      "evidenceSha256": "a0ca4875c58bb43eafa1d2fcad453787ce9f28f6de659476fec4c4f010109daa",
+      "reason": "Model read complete retained official source and submitted three exact passages. The write returned INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON; no draft, pending card or final explanation was saved. This request contained no person fact-selection requirement. Policy provenance is under diagnosis; consent guard is not bypassed.",
+      "knownLedgerCostUsd": 0.06719531,
+      "costIsInvoice": false,
+      "elapsedMs": 187652,
+      "requestedSavedCoreCount": 0,
+      "rootCause": "PENDING_EXACT_POLICY_PROVENANCE_DIAGNOSIS",
+      "laterSuccessfulCase": "intent-postgresql-skip-locked",
+      "historicalFailurePreserved": true
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "content-factory-native-observability-diagnosis/1",
+  "at": "2026-10-21T10:43:21.281Z",
+  "scope": "isolated-local-stand-only",
+  "baseline": {
+    "recordedAt": "2026-10-21T10:14:57.506Z",
+    "threadId": "17f6f289-c3e8-4170-99e6-232949e3dc1d",
+    "authenticatedHttpStatus": 500,
+    "httpBody": {
+      "statusCode": 500,
+      "message": "Internal server error"
+    },
+    "explicitObservabilityConfig": false,
+    "coreDefault": "NoOpObservability",
+    "nativePgStore": "ObservabilityPG",
+    "nativeGlobalRootTraceCount": 0,
+    "nativeExactThreadResourceRootTraceCount": 0,
+    "inheritedUnsupportedMethods": {
+      "querySpans": "OBSERVABILITY_STORAGE_QUERY_SPANS_NOT_IMPLEMENTED",
+      "aggregateTraces": "OBSERVABILITY_STORAGE_AGGREGATE_TRACES_NOT_IMPLEMENTED"
+    },
+    "baselineMeaning": "Missing producer and unsupported consumer call; prior real generations have no retrospective spans.",
+    "privateRawFiles": [
+      "/tmp/on0i-real-local-qa-s2nihQ/native-observability-http-read.json",
+      "/tmp/on0i-real-local-qa-s2nihQ/native-observability-store-read.json"
+    ]
+  },
+  "supportedContract": {
+    "listTraces": {
+      "filters": [
+        "threadId",
+        "resourceId"
+      ],
+      "operator": "AND",
+      "responseField": "spans"
+    },
+    "getTrace": {
+      "argument": "traceId",
+      "responseField": "spans"
+    },
+    "advancedQuery": false,
+    "advancedAggregation": false,
+    "nativeMetrics": false
+  },
+  "sources": [
+    "https://mastra.ai/docs/observability/overview",
+    "https://mastra.ai/reference/observability/tracing/exporters/mastra-storage-exporter",
+    "https://mastra.ai/reference/observability/tracing/processors/sensitive-data-filter"
+  ],
+  "noPaidProviderCalls": true,
+  "noProductionMutation": true
+}

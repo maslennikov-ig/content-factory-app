@@ -1,0 +1,116 @@
+{
+  "at": "2026-10-21T09:25:08.147Z",
+  "result": "READ_ONLY_NATIVE_MEMORY_AND_REDIS_CACHE",
+  "threadId": "0e68c770-4838-44eb-b4d2-7868e068eab6",
+  "runId": "9ae998e9-21b5-4b91-9cf1-9cc8b36b13c5",
+  "rawPrivateFile": "/tmp/on0i-real-local-qa-s2nihQ/root-compiled-reconnect-native-raw.json",
+  "nativeMemoryMessageCount": 2,
+  "nativeMemoryMessages": [
+    {
+      "id": "E5gEGHD6Zj287yFd",
+      "role": "signal",
+      "createdAt": "2026-10-21T09:14:29.380Z",
+      "contentKeys": [
+        "format",
+        "parts",
+        "metadata"
+      ],
+      "textChars": 162,
+      "textPreview": "Контроль восстановления текущего чата: напиши 45 коротких советов о ведении рабочих заметок нумерованным списком. Без поиска, инструментов, сохранения и вопросов.",
+      "numberedLabels": [],
+      "partsAndContentStringMatch": null,
+      "publicHistoryTextExactlyMatches": true
+    },
+    {
+      "id": "e0bd5d13-365e-4331-8182-e3f551616002",
+      "role": "assistant",
+      "createdAt": "2026-10-21T09:14:36.685Z",
+      "contentKeys": [
+        "format",
+        "parts",
+        "content",
+        "metadata"
+      ],
+      "textChars": 1278,
+      "textPreview": "1. Записывайте мысль сразу.\n2. Фиксируйте дату заметки.\n3. Добавляйте короткий заголовок.\n4. Одна заметка — одна тема.\n5. Пишите простыми словами.\n6. Отделяйте факты от идей.\n7. По",
+      "numberedLabels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "partsAndContentStringMatch": true,
+      "publicHistoryTextExactlyMatches": true
+    }
+  ],
+  "cacheEventCount": 0,
+  "cacheEvents": [],
+  "redisStreamType": "none",
+  "redisStreamEntryCount": 0,
+  "redisStreamEvents": [],
+  "transport": {
+    "package": "@mastra/redis-streams",
+    "version": "0.6.3",
+    "sourceSha256": "91f230358169e7db71d9ef7dc91f6b23db28be5b96258f94c110099d4f96297a",
+    "configured": {
+      "url": "OWNED_LOCAL_REDIS_DATABASE_13_PRIVATE",
+      "keyPrefix": "cf:mastra-events:${sha256(ownedMastraDatabaseUrl).slice(0,16)}",
+      "streamIdleTtlMs": 86400000
+    },
+    "packageDefaults": {
+      "blockMs": 1000,
+      "maxStreamLength": 10000,
+      "reclaimIntervalMs": 30000,
+      "reclaimIdleMs": 60000,
+      "maxDeliveryAttempts": 5,
+      "inFlightTimeoutMs": 0
+    },
+    "cache": {
+      "package": "@mastra/redis",
+      "ttlSeconds": 86400,
+      "keyPrefix": "cf:mastra:${sameNamespace}:"
+    }
+  },
+  "bootstrapPid": 89221,
+  "loadedMastraServiceSha256": "61cd7d65debfc77d04eeb90e146f52b20a67ff3ff5f5413c450f48fe4228a925",
+  "inspectionBackendRestarted": false,
+  "paidCalls": 0,
+  "newSubscriptions": 0,
+  "observerRequests": 0,
+  "sqlMutations": 0,
+  "schemaInitialization": false,
+  "nativeAndPublicHistoryTextsAllMatch": true,
+  "eventCacheLimitation": "No history entries or stream remain available at this post-terminal read; this observation does not identify whether lifecycle cleanup or another path removed them."
+}

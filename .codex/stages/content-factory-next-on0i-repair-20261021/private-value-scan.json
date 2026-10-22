@@ -1,0 +1,15 @@
+{
+  "schema": "on0i-scoped-private-value-scan/1",
+  "status": "PASS",
+  "filesChecked": 927,
+  "privateValuesChecked": 7,
+  "allStandActorAuthChecked": 3,
+  "matchingPaths": [],
+  "privateFileModes": {
+    "/home/me/.config/content-factory/local-ai.json": "0o600",
+    "/home/me/.config/content-factory": "0o700",
+    "/tmp/on0i-real-local-qa-s2nihQ/stand.json": "0o600",
+    "/tmp/on0i-real-local-qa-s2nihQ/storage-state.json": "0o600"
+  },
+  "scope": "repair sources/tests/docs/stages against actual model/search keys, local JWT secret, auth cookie and all stand actor auth tokens; synthetic organization selection UUID excluded; no secret values written"
+}

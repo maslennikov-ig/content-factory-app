@@ -30,6 +30,59 @@ const SEVEN = 'склад показывает остатки в реально�
 
 const foreignOf = (text) => new Set(wordShingles(text));
 
+const CITATION_URL = 'https://help.openai.com/en/articles/6825453-chatgpt-release-notes';
+// Stored fingerprints made before URL destinations were excluded must also work.
+const legacyUrlShingles = (url) => {
+  const words = url.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  return words.slice(0, Math.max(0, words.length - 7)).map((_, index) => words.slice(index, index + 8).join(' '));
+};
+
+describe('адрес источника не является заимствованной формулировкой', () => {
+  test.each([
+    CITATION_URL,
+    `[Источник](${CITATION_URL})`,
+    `<a href="${CITATION_URL}">Источник</a>`,
+    `<${CITATION_URL}>`,
+  ])('legacy URL fingerprints do not reject citation %s', (candidate) => {
+    expect(sharedRuns(candidate, legacyUrlShingles(CITATION_URL))).toEqual([]);
+  });
+
+  test('new source fingerprints omit plain and Markdown URL destinations', () => {
+    expect(wordShingles(CITATION_URL)).toEqual([]);
+    expect(normalisedWords(`[Источник](${CITATION_URL})`)).toEqual(['источник']);
+  });
+
+  test.each([
+    (url) => `${url} ${EIGHT}.`,
+    (url) => `[Источник](${url}) ${EIGHT}.`,
+    (url) => `<a href="${url}">Источник</a> ${EIGHT}.`,
+  ])('copied prose after a citation retains its original offsets', (format) => {
+    const candidate = `Свой зачин. ${format(CITATION_URL)}`;
+    const foreign = new Set([...legacyUrlShingles(CITATION_URL), ...wordShingles(EIGHT)]);
+    expect(sharedRuns(candidate, foreign)).toEqual([{
+      text: EIGHT, start: candidate.indexOf(EIGHT), end: candidate.indexOf(EIGHT) + EIGHT.length,
+    }]);
+  });
+
+  test.each([
+    `[${EIGHT}](${CITATION_URL})`,
+    `<a href="${CITATION_URL}">${EIGHT}</a>`,
+  ])('copied visible link labels remain detectable: %s', (link) => {
+    const candidate = `Вводный текст. ${link}.`;
+    const [run] = sharedRuns(candidate, foreignOf(EIGHT));
+    expect(run).toEqual({ text: EIGHT, start: candidate.indexOf(EIGHT), end: candidate.indexOf(EIGHT) + EIGHT.length });
+  });
+
+  test('balanced URL parentheses do not hide adjacent visible prose after the Markdown destination', () => {
+    const url = 'https://example.test/articles/(long-title)/one/two/three/four/five/six/seven/eight/nine';
+    const candidate = `[Источник](${url})${EIGHT}.`;
+    const foreign = new Set([...legacyUrlShingles(url), ...wordShingles(EIGHT)]);
+    expect(sharedRuns(candidate, foreign)).toEqual([{
+      text: EIGHT, start: candidate.indexOf(EIGHT), end: candidate.indexOf(EIGHT) + EIGHT.length,
+    }]);
+  });
+});
+
 describe('порог: семь слов — совпадение речи, восемь — перенос', () => {
   test('восемь слов подряд', () => {
     expect(ANTI_COPY_MIN_WORDS).toBe(8);

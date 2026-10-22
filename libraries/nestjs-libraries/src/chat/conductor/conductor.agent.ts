@@ -1,10 +1,11 @@
 import { Agent } from '@mastra/core/agent';
 import { AgentController } from '@mastra/core/agent-controller';
+import { resolveAgentSkills } from '@mastra/core/skills';
+import { createSkillTools } from '@mastra/core/workspace';
 import { ChatChannelProcessor } from '@mastra/core/channels';
 import type { MastraMemory } from '@mastra/core/memory';
 import {
   ModelSelectionProcessor,
-  StreamErrorRetryProcessor,
   TokenLimiterProcessor,
   ToolCallFilter,
   UnsupportedFileHandler,
@@ -14,11 +15,13 @@ import {
 import { MASTRA_THREAD_ID_KEY } from '@mastra/core/request-context';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import {
-  DEFAULT_TEXT_MAX_RETRIES,
-  MAX_TEXT_FALLBACK_MODELS,
-  MAX_TEXT_MODEL_RETRIES,
-  currentAiExecutionSignal,
-} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
+  NATIVE_TEXT_MAX_PROCESSOR_RETRIES,
+  createNativeTextRetryConfig,
+  getNativeTextMaxRetries,
+  isTransientNativeTextError,
+  setNativeTextMaxRetries,
+  type NativeTextRetryHooks,
+} from '@contentfactory/nestjs-libraries/openai/ai.native-retries';
 import {
   createCapabilityHooks,
   stopAfterOpenProposalRefusal,
@@ -51,6 +54,7 @@ import { AGENT_WORK_CONTEXT_KEY, type ResolvedAgentWorkContext } from './work-co
 import { conductorInstructions } from './conductor.instructions';
 import { ViewedPicturesProcessor } from './conductor.pictures';
 import { stepNotes } from './conductor.steps';
+import { currentConductorExecution } from './conductor.execution';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
 import {
   conductorInputProcessors,
@@ -97,30 +101,12 @@ export {
 
 export const CONDUCTOR_TOOL_STEP_FILTER = 6;
 export const CONDUCTOR_PROMPT_TOKEN_LIMIT = 48_000;
-export const CONDUCTOR_MAX_PROCESSOR_RETRIES =
-  MAX_TEXT_MODEL_RETRIES * (MAX_TEXT_FALLBACK_MODELS + 1);
+export const CONDUCTOR_MAX_PROCESSOR_RETRIES = NATIVE_TEXT_MAX_PROCESSOR_RETRIES;
 
-const modelMaxRetriesByContext = new WeakMap<object, number>();
 const modelSelectionDecisionByContext = new WeakMap<object, ModelSelectionDecision>();
 
-export const setConductorModelMaxRetries = (
-  requestContext: object | undefined | null,
-  maxRetries: number
-) => {
-  if (!requestContext || typeof requestContext !== 'object') return;
-  modelMaxRetriesByContext.set(
-    requestContext,
-    Math.min(Math.max(Math.trunc(maxRetries), 0), MAX_TEXT_MODEL_RETRIES)
-  );
-};
-
-export const getConductorModelMaxRetries = (
-  requestContext: object | undefined | null,
-  fallback = DEFAULT_TEXT_MAX_RETRIES
-): number => {
-  if (!requestContext || typeof requestContext !== 'object') return fallback;
-  return modelMaxRetriesByContext.get(requestContext) ?? fallback;
-};
+export const setConductorModelMaxRetries = setNativeTextMaxRetries;
+export const getConductorModelMaxRetries = getNativeTextMaxRetries;
 
 export const recordConductorModelSelectionDecision = (
   requestContext: object | undefined | null,
@@ -137,118 +123,13 @@ export const readConductorModelSelectionDecision = (
   return modelSelectionDecisionByContext.get(requestContext);
 };
 
-const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404, 422]);
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504, 529]);
-const TRANSIENT_ERROR_PATTERN =
-  /\b(429|500|502|503|504|529|rate[_ -]?limit|too many requests|overloaded|temporarily[_ -]?unavailable|service[_ -]?unavailable|bad gateway|gateway timeout|timeout|timed out|econnreset|etimedout|econnrefused|epipe|und_err_socket|fetch failed|socket hang up|stream error|stream ended|mid-?stream|premature close|connection reset|network error)\b/i;
-const TERMINAL_AUTH_OR_CLIENT_PATTERN =
-  /\b(400|401|403|invalid[_ -]?api[_ -]?key|authentication[_ -]?error|permission[_ -]?denied|access[_ -]?denied|unauthorized|forbidden|bad[_ -]?request)\b/i;
+export const isTransientConductorModelError = isTransientNativeTextError;
 
-export const isTransientConductorModelError = (error: unknown): boolean => {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as Record<string, unknown>;
-  if (
-    candidate.name === 'AbortError' ||
-    candidate.executionBudgetStop === true ||
-    currentAiExecutionSignal()?.aborted
-  ) {
-    return false;
-  }
-  const status = Number(candidate.statusCode ?? candidate.status);
-  if (Number.isFinite(status)) {
-    if (NON_RETRYABLE_STATUS_CODES.has(status)) return false;
-    if (RETRYABLE_STATUS_CODES.has(status)) return true;
-  }
-  if (candidate.isRetryable === false) return false;
-  if (candidate.isRetryable === true || candidate.name === 'AttemptTimeout') {
-    return true;
-  }
-  const message = typeof candidate.message === 'string' ? candidate.message : '';
-  if (TERMINAL_AUTH_OR_CLIENT_PATTERN.test(message)) return false;
-  if (TRANSIENT_ERROR_PATTERN.test(message)) return true;
-  if (candidate.cause && candidate.cause !== error) {
-    return isTransientConductorModelError(candidate.cause);
-  }
-  return false;
-};
-
-/**
- * Wraps Mastra's native `StreamErrorRetryProcessor` so each model in the
- * ordered `ModelWithRetries[]` array gets up to the configured per-model
- * `maxRetries` on transient 429/5xx/timeout/network/mid-stream faults before
- * Mastra advances to the next fallback model (`on0i.5`, `A16`, `A30`, `A31`).
- */
+/** Native processor adapter; use its input half to capture model transitions. */
 export const createConductorStreamErrorRetryProcessor = (options?: {
   defaultMaxRetries?: number;
   delayMs?: number;
-}) => {
-  const defaultMaxRetries =
-    options?.defaultMaxRetries ?? DEFAULT_TEXT_MAX_RETRIES;
-  const base = new StreamErrorRetryProcessor({
-    maxRetries: CONDUCTOR_MAX_PROCESSOR_RETRIES,
-    delayMs: options?.delayMs ?? 0,
-    matchers: [isTransientConductorModelError],
-  });
-  const retriesByMessageList = new WeakMap<object, Map<number, number>>();
-
-  const counterFor = (holder: object, stepNumber: number) => {
-    let byStep = retriesByMessageList.get(holder);
-    if (!byStep) {
-      byStep = new Map<number, number>();
-      retriesByMessageList.set(holder, byStep);
-    }
-    return {
-      get: () => byStep!.get(stepNumber) ?? 0,
-      set: (value: number) => byStep!.set(stepNumber, value),
-    };
-  };
-
-  return {
-    id: base.id,
-    name: base.name,
-    processAPIError: async (args: Parameters<StreamErrorRetryProcessor['processAPIError']>[0]) => {
-      if (
-        args.abortSignal?.aborted ||
-        currentAiExecutionSignal()?.aborted ||
-        (args.error as { name?: string })?.name === 'AbortError' ||
-        (args.error as { executionBudgetStop?: boolean })?.executionBudgetStop
-      ) {
-        return undefined;
-      }
-      const holder =
-        (args.messageList as unknown as object) ??
-        (args.requestContext as unknown as object) ??
-        base;
-      const stepNumber = typeof args.stepNumber === 'number' ? args.stepNumber : 0;
-      const counter = counterFor(holder, stepNumber);
-      const maxRetriesForModel = getConductorModelMaxRetries(
-        args.requestContext as unknown as object,
-        defaultMaxRetries
-      );
-      const usedRetries = counter.get();
-      if (
-        maxRetriesForModel <= 0 ||
-        usedRetries >= maxRetriesForModel ||
-        !isTransientConductorModelError(args.error)
-      ) {
-        // Exhausted retries (or non-retryable error) for the current model;
-        // reset per-model counter so the next fallback model starts at 0.
-        counter.set(0);
-        return undefined;
-      }
-      const decision = await base.processAPIError({
-        ...args,
-        retryCount: usedRetries,
-      });
-      if ((decision as { retry?: boolean } | undefined)?.retry) {
-        counter.set(usedRetries + 1);
-        return decision;
-      }
-      counter.set(0);
-      return undefined;
-    },
-  };
-};
+}) => createNativeTextRetryConfig(options).errorProcessors[0];
 
 export const createConductorModelSelectionProcessor = (
   options: ModelSelectionProcessorOptions
@@ -285,6 +166,7 @@ export type ConductorDependencies = {
         requestContext?: object
       ) => Promise<ModelSelectionProcessor | null | undefined>);
   defaultModelMaxRetries?: number;
+  modelAvailability?: NativeTextRetryHooks;
   /**
    * Optional metered goal-judge model resolver (`on0i.4`, `A18`). Defaults to `model`.
    */
@@ -376,7 +258,10 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         getSchedulesManager: () => deps.schedules?.(),
         getNotificationsStore: () => deps.notificationsStore?.(),
         resolveSubagentModel,
-        createSubagentRunner: (cfg) => new Agent(cfg as any),
+        createSubagentRunner: (cfg) => new Agent({
+          ...cfg,
+          ...createNativeTextRetryConfig({ defaultMaxRetries: deps.defaultModelMaxRetries }),
+        } as any),
       });
       autonomyToolsByLanguage.set(identity.language, builder);
     }
@@ -384,6 +269,9 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
   };
 
   // One tool set per interface language; the role filter picks from it.
+  // Native approval/resume rebuilds assigned tools before workspace tools.
+  // Register the SDK's own skill tools so a cold/resumed read can execute.
+  const skillTools = createSkillTools(resolveAgentSkills([...CONDUCTOR_SKILLS]));
   const toolsByLanguage = new Map<'ru' | 'en', CapabilityTools>();
   const toolsFor = (
     identity: CapabilityIdentity,
@@ -406,6 +294,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     );
     return {
       ...domainTools,
+      ...skillTools,
       ...autonomyToolsFor(identity, hasControllerToolset),
     };
   };
@@ -477,8 +366,13 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     judgeModel: deps.goalJudge ?? deps.model,
     maxRuns: deps.goalMaxRuns ?? 6,
     maxSteps: 6,
+    memory: deps.memory,
   });
 
+  const retryConfig = createNativeTextRetryConfig({
+    defaultMaxRetries: deps.defaultModelMaxRetries,
+    ...deps.modelAvailability,
+  });
   return new Agent({
     id: CONDUCTOR_AGENT_ID,
     name: 'Content Factory',
@@ -526,29 +420,31 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     },
     tools: ({ requestContext }) => {
       const identity = readCapabilityIdentity(requestContext as any);
-      const hasControllerToolset = Boolean(
-        (requestContext as { get?: (key: string) => unknown } | undefined)?.get?.(
-          'controller'
-        )
-      );
-      return identity ? toolsFor(identity, hasControllerToolset) : {};
+      // Durable tool steps rebuild against the registered Agent, including
+      // every call-time Controller toolset name. Keep the same public native
+      // ask/task tools registered here; Session may override matching names.
+      return identity ? toolsFor(identity, false) : {};
     },
     hooks: createCapabilityHooks(capabilities, deps.gate, deps.services),
     skills: CONDUCTOR_SKILLS,
     ...(deps.memory ? { memory: deps.memory } : {}),
     maxRetries: CONDUCTOR_MAX_RETRIES,
+    maxProcessorRetries: retryConfig.maxProcessorRetries,
+    errorProcessorDefaults: retryConfig.errorProcessorDefaults,
     // Mastra adds `stepCountIs(maxSteps)` to these conditions; a request's own
     // `maxSteps` keeps the stop after an open-card refusal (kcxz.38, R5). The
     // door passes `prepareStep` for its own `maxSteps`; this one is for a
     // caller that keeps the ordinary cap.
-    defaultOptions: {
+    defaultOptions: ({ requestContext }: any) => ({
       maxSteps: CONDUCTOR_MAX_STEPS,
       stopWhen: stopAfterOpenProposalRefusal as any,
       prepareStep: stepNotes() as any,
       toolCallConcurrency: 1,
-      closeOnSuspend: true,
+      // Session owns approval/question rendezvous across native suspension.
+      closeOnSuspend: !requestContext?.get('controller'),
       maxProcessorRetries: CONDUCTOR_MAX_PROCESSOR_RETRIES,
-    } as any,
+      ...(currentConductorExecution()?.streamOptions() ?? {}),
+    }) as any,
     // Pictures to look at go back into the outgoing prompt only (owner
     // decision 28.09, `conductor.pictures.ts`). ToolCallFilter and
     // TokenLimiterProcessor bound outgoing LLM requests without mutating
@@ -570,13 +466,25 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         strategy: 'truncate',
         trimMode: 'best-fit',
       }),
+      ...retryConfig.inputProcessors,
     ],
-    outputProcessors: conductorOutputProcessors(),
+    outputProcessors: [
+      ...conductorOutputProcessors(),
+      {
+        id: 'native-session-execution-budget',
+        processOutputStep: (args: any) => {
+          // Session supplies its own usage onStepFinish. Preserve the existing
+          // product execution fuse through a public processor on that path.
+          if (args.requestContext?.get('controller')) {
+            currentConductorExecution()?.streamOptions().onStepFinish(args);
+          }
+          return args.messages;
+        },
+      },
+    ],
     errorProcessors: [
       new UnsupportedFileHandler(),
-      createConductorStreamErrorRetryProcessor({
-        defaultMaxRetries: deps.defaultModelMaxRetries,
-      }) as any,
+      ...retryConfig.errorProcessors,
     ],
   });
 };
@@ -609,7 +517,7 @@ export const buildConductorController = (
           gate: options.gate,
         })
       : undefined;
-  return new AgentController({
+  const controller = new AgentController({
     id: CONDUCTOR_AGENT_ID,
     ...(options?.storage ? { storage: options.storage } : {}),
     ...(options?.memory ? { memory: options.memory } : {}),
@@ -634,6 +542,18 @@ export const buildConductorController = (
       },
     ],
   });
+  // Controller gates built-ins globally. These tools only read the bundled
+  // workspace or maintain the native task checklist; domain-tool approval
+  // remains the capability's authoritative requireApproval function.
+  controller.onSessionCreated(async (session) => {
+    for (const toolName of ['skill', 'skill_search', 'skill_read', 'ask_user',
+      'task_write', 'task_update', 'task_complete', 'task_check']) {
+      if (session.permissions.getRules().tools[toolName] === undefined) {
+        await session.permissions.setForTool({ toolName, policy: 'allow' });
+      }
+    }
+  }, { blocking: true });
+  return controller;
 };
 
 export type ConductorController = ReturnType<typeof buildConductorController>;

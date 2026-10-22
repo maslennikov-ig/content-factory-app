@@ -7,6 +7,17 @@ module.exports = {
   // `nest start --watch` running beside it. Refused where it happens, so the
   // failure names the test rather than surfacing later as a dead stand.
   setupFiles: ['<rootDir>/tests/helpers/source-tree-guard.cjs'],
+  // Mastra's CJS entry imports these ESM-only SDK dependencies. Compile their
+  // real sources for Jest's CJS runtime; native SDK subprocess probes keep
+  // using Node's unchanged loader. Include nested/pnpm package locations.
+  transform: {
+    '[/\\\\]node_modules[/\\\\](?:.*[/\\\\]node_modules[/\\\\])?(?:@ai-sdk[/\\\\]provider(?:-utils)?(?:-v7)?|@workflow[/\\\\]serde)[/\\\\].+\\.js$':
+      '<rootDir>/tests/helpers/esm-dependencies.transform.cjs',
+    '^.+\\.[jt]sx?$': 'babel-jest',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(?:\\.pnpm/|@ai-sdk/provider(?:-utils)?(?:-v7)?/|@workflow/serde/))',
+  ],
   // One ESM-only package sits behind the compose modal, which several suites
   // now reach through the Content section. Stubbed here so no suite has to
   // know about it.

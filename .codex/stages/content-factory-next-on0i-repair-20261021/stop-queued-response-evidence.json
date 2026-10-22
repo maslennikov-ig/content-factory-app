@@ -1,0 +1,62 @@
+{
+  "schema": "queued-native-stop-response-evidence/1",
+  "at": "2026-10-21T14:07:12.194Z",
+  "status": "APPLIED_REVIEWED_SOURCE_AND_FOCUSED_CHECKS_GREEN_ROOT_GATE8_PENDING",
+  "severity": "must-fix",
+  "cause": {
+    "confidence": "confirmed",
+    "evidence": "One authorized actual-native PostgreSQL probe had a persisted assistant whose ID matched public original-native start/step-start chunks, pendingquestion1, nativeOwnertrue, activeHTTPnull, but pointer.response was absent. After Stop pending0 and settledinterrupted with that same assistant, strictStop refused503. This is a production queue-consumer omission, not a missing fixture mock."
+  },
+  "implementation": [
+    "Existing child native original fullStream and child completion observer call an optional runtime.onMessageId on public native start; the preceding different task observer does not adopt its proof.",
+    "MastraService records response only for current trusted request/resource/current native run, refusing stopped, settled or stale owners. It uses the existing public updater and writes only assistantNativeRun metadata.",
+    "The same updater covers native run initialization and preserves a valid response only for an exact same logicalRequestId+runId. A held proof write cannot be overwritten by that initializer, and proof never carries to a different owner/run.",
+    "Strict HTTP saved-ID proof, explicit Stop native reader drain and frontend predicates are unchanged."
+  ],
+  "verification": {
+    "checks": [
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-native-session-queued.test.cjs tests/native-queued-input.test.cjs tests/agent-native-stop-tail.test.cjs tests/agent-native-stop-settlement.test.cjs tests/agent-native-stop-identity.test.cjs tests/agent-native-stop-flow.test.cjs",
+        "exit": 0,
+        "log": "evidence/stop-queued-response-focused.final.log",
+        "result": {
+          "suites": 6,
+          "tests": 19,
+          "seconds": 85.907
+        },
+        "details": [
+          "Queued original native approval/question/Stop retains one owner admission and requires exact savedassistantID.",
+          "Permanent actualPG proof race/owner/run/stopped/failedwrite cases.",
+          "Native queued input FIFO, SIGKILL, approval, honest uncertainty and cross-process Stop witness checks.",
+          "All prior critical HTTP Stop tail, metadata, requestidentity and actual installed useChat20modes."
+        ]
+      },
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+        "exit": 0,
+        "log": "evidence/stop-queued-response-backend-types.final.log"
+      },
+      {
+        "command": "git diff --check",
+        "exit": 0,
+        "log": "evidence/stop-queued-response-diff-check.final.log"
+      }
+    ],
+    "permanentRegressions": [
+      "Actual queued approval/question/Stop exact saved assistant identity and0extraHTTP admissions",
+      "Held actualPG response commit serializes same-instance initialization and retains exactproof",
+      "Late other request, wrongrun, oldrun of same request, stopped marker/pointer and settled marker cannot record proof",
+      "New logical owner or new native run clears priorproof even if another identity dimension matches",
+      "Failed actual proof metadata write propagates failure; strictStop refuses unproven503 with0provider/admission calls"
+    ]
+  },
+  "sourceFreeze": "evidence/stop-queued-response-source-freeze.json",
+  "remaining": [
+    "Root-owned compiled Gate8 and final full-suite acceptance."
+  ],
+  "boundaries": [
+    "Root final compiled build/browser/full-suite Gate8 remains a separate acceptance gate.",
+    "All providers synthetic; worker made0paidcalls and no owner stand actions, restart, deploy, push or commit.",
+    "Public updateThreadMetadata serializes metadata updates within one storageinstance; no PostgreSQL cross-process transaction claim. Existing native workflow ownership, generation filtering and queue Stop witness remain authority."
+  ]
+}

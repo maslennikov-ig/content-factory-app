@@ -1,0 +1,251 @@
+{
+  "at": "2026-10-21T10:57:41.298Z",
+  "pid": 87219,
+  "threadId": "ddffddce-4693-410b-8cf8-c795b9e4b53b",
+  "session": {
+    "id": "4c72b6b1-ee4f-4c4a-ad9d-99079c3a75d9:7080fbba-4518-4b19-9a95-9edc641ad2e8:ddffddce-4693-410b-8cf8-c795b9e4b53b",
+    "ownerId": "7080fbba-4518-4b19-9a95-9edc641ad2e8",
+    "resourceId": "4c72b6b1-ee4f-4c4a-ad9d-99079c3a75d9:7080fbba-4518-4b19-9a95-9edc641ad2e8",
+    "scope": "ddffddce-4693-410b-8cf8-c795b9e4b53b",
+    "threadId": "ddffddce-4693-410b-8cf8-c795b9e4b53b",
+    "runIsRunning": true,
+    "streamIsActive": true,
+    "sendSignal": "function"
+  },
+  "permissions": {
+    "categories": {},
+    "tools": {
+      "skill": "allow",
+      "skill_search": "allow",
+      "skill_read": "allow",
+      "ask_user": "allow",
+      "task_write": "allow",
+      "task_update": "allow",
+      "task_complete": "allow",
+      "task_check": "allow"
+    }
+  },
+  "skillPolicy": "allow",
+  "pending": [
+    {
+      "runId": "5bf76875-11c4-4aa6-aada-ef7b57faaf47",
+      "toolCallId": "call_mxnuFWpapaMqi0Pxa1pHn0Q7",
+      "toolName": "readConversationHistory",
+      "kind": "approval",
+      "args": {
+        "mode": "messages",
+        "page": 0,
+        "length": 12000,
+        "offset": null,
+        "groupId": null,
+        "perPage": 10,
+        "direction": null,
+        "messageId": null,
+        "partIndex": null,
+        "includeActive": true,
+        "viewAttachment": false
+      },
+      "summary": null,
+      "policy": "ask",
+      "gateArmed": true
+    }
+  ],
+  "sessionDisplayError": null,
+  "agentThreadsIsDurable": true,
+  "conductor": {
+    "id": "content-factory",
+    "isDurableAgent": true,
+    "observe": "function",
+    "hasRunRegistry": true
+  },
+  "controllerAgent": {
+    "id": "content-factory",
+    "isDurableAgent": true,
+    "sameInstanceAsConductor": true
+  },
+  "publicAgentToolNames": [
+    "workspace_snapshot",
+    "channels_list",
+    "piece_list",
+    "piece_open",
+    "piece_read",
+    "research_search",
+    "piece_rename",
+    "piece_archive",
+    "piece_create",
+    "piece_create_from-research",
+    "piece_answer",
+    "piece_core_edit",
+    "piece_material_add",
+    "piece_core_restore",
+    "piece_core_rebuild",
+    "piece_research",
+    "piece_research_apply",
+    "piece_check_facts",
+    "piece_rewrite",
+    "piece_adapt",
+    "channel_writing_remember",
+    "adaptation_review",
+    "adaptation_rewrite",
+    "adaptation_edit",
+    "adaptation_image",
+    "adaptation_delete",
+    "piece_delete",
+    "plan_ahead",
+    "plan_calendar",
+    "plan_ready",
+    "plan_place",
+    "plan_unschedule",
+    "plan_schedule",
+    "plan_publish_now",
+    "plan_move",
+    "plan_apply",
+    "avatar_list",
+    "avatar_overview",
+    "avatar_passport",
+    "avatar_passport_field",
+    "avatar_proposal",
+    "avatar_manual",
+    "avatar_samples",
+    "avatar_learning",
+    "avatar_create",
+    "avatar_rename",
+    "avatar_default",
+    "avatar_bind",
+    "avatar_samples_add",
+    "avatar_proposal_field",
+    "avatar_manual_field",
+    "avatar_analyse",
+    "avatar_learn",
+    "avatar_activate",
+    "avatar_samples_delete",
+    "avatar_delete",
+    "avatar_rule_forget",
+    "avatar_retire",
+    "channel_open",
+    "channel_posts",
+    "channel_writing",
+    "channel_plan",
+    "channel_times",
+    "channel_autopilot",
+    "channel_connect",
+    "channel_bot_rename",
+    "channel_disable",
+    "channel_delete",
+    "ai_settings",
+    "ai_usage",
+    "ai_mode",
+    "ai_key_enter",
+    "ai_key_clear",
+    "ai_search_key_clear",
+    "ideas_list",
+    "ideas_queue",
+    "ideas_feed_add",
+    "ideas_topic_add",
+    "ideas_archive",
+    "ideas_check",
+    "ideas_dismiss",
+    "ideas_take",
+    "facts_list",
+    "facts_add",
+    "facts_retract",
+    "facts_restore",
+    "texts_related",
+    "text_slop_check",
+    "analytics_production",
+    "analytics_channel",
+    "media_library",
+    "media_generate",
+    "media_keep",
+    "skill",
+    "skill_search",
+    "skill_read",
+    "ask_user",
+    "task_write",
+    "task_update",
+    "task_complete",
+    "task_check",
+    "submit_plan",
+    "subagent",
+    "set_objective",
+    "notification_inbox",
+    "schedule_followup_create",
+    "schedule_followup_list",
+    "schedule_followup_cancel"
+  ],
+  "sourceModules": [
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/openai/ai.clients.ts",
+      "currentFileSha256": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/openai/ai.text-chain.ts",
+      "currentFileSha256": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/openai/ai.native-retries.ts",
+      "currentFileSha256": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/apps/backend/src/api/routes/agent.controller.ts",
+      "currentFileSha256": "af7668fe99d692f0192e04b2828ea524bbb291955a586a14ff10a74afd6394e8"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts",
+      "currentFileSha256": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/mastra.service.ts",
+      "currentFileSha256": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts",
+      "currentFileSha256": "396286a3fbf4609ee00a8f57d36a3b1061bb8f481d2795a1f61e5ee46db93159"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts",
+      "currentFileSha256": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts",
+      "currentFileSha256": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts",
+      "currentFileSha256": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts",
+      "currentFileSha256": "b716d544505db827ecc4ab99ffe9958af332f8d8cd6a868d9754725be179741f"
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts",
+      "currentFileSha256": "dc6c7501a8d5f4b0c6d0b4bfe6ef9200f059fa5bdef90b458072d3cbe73dc20c"
+    }
+  ],
+  "sourceHashesAtBoot": {
+    "apps/backend/src/api/routes/agent.controller.ts": "af7668fe99d692f0192e04b2828ea524bbb291955a586a14ff10a74afd6394e8",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "b716d544505db827ecc4ab99ffe9958af332f8d8cd6a868d9754725be179741f",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "dc6c7501a8d5f4b0c6d0b4bfe6ef9200f059fa5bdef90b458072d3cbe73dc20c",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "396286a3fbf4609ee00a8f57d36a3b1061bb8f481d2795a1f61e5ee46db93159",
+    "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+  },
+  "moduleResolution": {
+    "@contentfactory/nestjs-libraries/chat/conductor/conductor.agent": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts",
+    "@contentfactory/nestjs-libraries/chat/mastra.service": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/libraries/nestjs-libraries/src/chat/mastra.service.ts",
+    "@contentfactory/backend/api/routes/agent.controller": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/apps/backend/src/api/routes/agent.controller.ts"
+  },
+  "execution": {
+    "requestId": "a779ebf4-8d08-46da-890a-6af263c57dbc",
+    "state": "running",
+    "runId": "5bf76875-11c4-4aa6-aada-ef7b57faaf47"
+  },
+  "providerRequestsInitiatedByDiagnostic": 0
+}

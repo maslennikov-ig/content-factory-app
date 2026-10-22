@@ -1,0 +1,311 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "unknown-sources",
+  "at": "2026-10-21T07:59:46.957Z",
+  "elapsedMs": 29673,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "44974ca05fdb8d7eb4791dc1d17574dbcc858b63fd860ea944eae935e4a71313",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "backendLaunch": {
+    "at": "2026-10-21T07:56:36.159Z",
+    "result": "STARTED",
+    "pid": 26082,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "fec5f3759694616013709703980c9f93a41336e28816ac298a3502317a30a7e0",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c84df1007ba14dcc2a527a82ccb1f59819efec70b193c6fd7e2927f317ac0b23",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "7fcd61dfdfb06fac489bbf6357e839bd0326a713cff2a65b80c3855db15e9ba3",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "d6115f8c453a047a43abc70e8e1d70e8a340a4dd22ad97d39e4a70f74644d860",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "97e655435bd4d5f4311b89fc94d47b8234b7ecc69a52aafab4163b1ea54f3ac4",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "d501c3737c6483b7eb62931268a7a772d24f55eeb735397a117d992afe92eeb4",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "paidCallsByBootstrap": 0
+  },
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "e3ee9ce9-73b3-4dad-a026-4ce65ed396d0",
+  "threadId": "b8ec9ba6-61c1-41fa-bd6b-f04a38411ddf",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamTransportError": null,
+  "streamErrors": [],
+  "assistantText": [
+    "Официального подтверждения релиза SQLite **9.99.99** под названием **«ON0I невидимый компас»** не нашлось. На официальной странице текущего журнала релизов указан **SQLite 3.54.1 от 16 октября 2026 года**; на странице загрузок перечислены файлы этой же версии. Названия «ON0I невидимый компас» там нет. Похоже, вам прислали выдумку.\n\nОфициальные источники:\n- [Текущий журнал релизов SQLite](https://www.sqlite.org/releaselog/current.html)\n- [Официальная страница загрузок SQLite](https://www.sqlite.org/download.html)"
+  ],
+  "pending": [],
+  "execution": {
+    "requestId": "88dc7955-34c5-4905-9f67-7a0434bc1e91",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "17c773ef-55d7-422d-86f7-ccd1ecba250c"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "98b49616-34fd-4c17-b9c5-59b797f7a114",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 99405,
+      "completionTokens": 866,
+      "reasoningTokens": 315,
+      "cachedTokens": 90549,
+      "costUsd": "0.00242081",
+      "possiblyBilled": null,
+      "attempt": 3
+    },
+    {
+      "id": "ffafb75a-0f81-4cf3-ac74-f8339bc5e066",
+      "operation": "web_research",
+      "role": "research",
+      "provider": "openrouter",
+      "model": "exa",
+      "status": "succeeded",
+      "promptTokens": null,
+      "completionTokens": null,
+      "reasoningTokens": null,
+      "cachedTokens": null,
+      "costUsd": "0.041",
+      "possiblyBilled": null,
+      "attempt": null
+    }
+  ],
+  "usageTotals": {
+    "operations": 2,
+    "knownCostUsd": 0.043420810000000004,
+    "unknownCostOperations": 0,
+    "pendingOperations": 0,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": true,
+  "providerReceipts": [
+    {
+      "id": "632de9c0-ffaf-45d1-a6dc-5bef811b74a0",
+      "at": "2026-10-21T07:59:47.290Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "632de9c0-ffaf-45d1-a6dc-5bef811b74a0",
+      "at": "2026-10-21T07:59:47.290Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569587-qDdLE4DBnZFZKsy8hk6W",
+      "usage": {
+        "promptTokens": 28532,
+        "completionTokens": 279,
+        "totalTokens": 28811,
+        "reasoningTokens": 96,
+        "cachedTokens": 28447,
+        "costUsd": 0.0004301748
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 5369
+    },
+    {
+      "id": "f58cbcf6-a212-4e00-84b3-b4f17ed06096",
+      "at": "2026-10-21T07:59:52.841Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "1e8fdc88-f77b-4e92-981a-f6f70c9aace6",
+      "at": "2026-10-21T07:59:52.842Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "90333595-ae60-46ee-8421-69b6eadd16dd",
+      "at": "2026-10-21T07:59:52.842Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "f58cbcf6-a212-4e00-84b3-b4f17ed06096",
+      "at": "2026-10-21T07:59:52.841Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": "f68ee4f1cdbc5f30814319747a99b46c",
+      "servedModel": null,
+      "generationId": null,
+      "usage": {
+        "searchCostUsd": 0.017
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 934
+    },
+    {
+      "id": "1e8fdc88-f77b-4e92-981a-f6f70c9aace6",
+      "at": "2026-10-21T07:59:52.842Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": "aa89c8a12a2aa5b19c495c39ee9006b1",
+      "servedModel": null,
+      "generationId": null,
+      "usage": {
+        "searchCostUsd": 0.007
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 1188
+    },
+    {
+      "id": "90333595-ae60-46ee-8421-69b6eadd16dd",
+      "at": "2026-10-21T07:59:52.842Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": "cdf6f978a299d5d3fe7ba12283eb0fbe",
+      "servedModel": null,
+      "generationId": null,
+      "usage": {
+        "searchCostUsd": 0.017
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 1599
+    },
+    {
+      "id": "c42fa28c-8036-4b0b-bd7b-a718bc9ea5b1",
+      "at": "2026-10-21T07:59:55.836Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "c42fa28c-8036-4b0b-bd7b-a718bc9ea5b1",
+      "at": "2026-10-21T07:59:55.836Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569596-Kn01w8sE7UxPtFlbDFo9",
+      "usage": {
+        "promptTokens": 33576,
+        "completionTokens": 293,
+        "totalTokens": 33869,
+        "reasoningTokens": 81,
+        "cachedTokens": 28529,
+        "costUsd": 0.0010519641
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 4694
+    },
+    {
+      "id": "2ab3a3c7-53b5-49c0-b1aa-1ab2e366f256",
+      "at": "2026-10-21T08:00:01.818Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "2ab3a3c7-53b5-49c0-b1aa-1ab2e366f256",
+      "at": "2026-10-21T08:00:01.818Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569602-3370ieyscvQMhWGzbrUA",
+      "usage": {
+        "promptTokens": 37297,
+        "completionTokens": 294,
+        "totalTokens": 37591,
+        "reasoningTokens": 138,
+        "cachedTokens": 33573,
+        "costUsd": 0.00093867345
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 13691
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Actual source check or honest inability",
+    "No invented release or quotation",
+    "Explicit evidence gap"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-unknown-sources-2026-10-21T07-59-46-957Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "PASS"
+}

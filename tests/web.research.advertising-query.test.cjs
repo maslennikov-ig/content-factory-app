@@ -289,11 +289,12 @@ test('a nonadvertising subject keeps the classifier query', async () => {
   expect(result.admissionDiagnostics.needsAdvertisingContext).toBe(false);
 });
 
-test('explicit caller queries are unchanged and skip classification', async () => {
+test('explicit caller queries are unchanged and skip query classification while retaining the requested reader', async () => {
   const result = await search(SUBJECT, { queries: [DRIFTED_QUERY] });
 
   expect(calls.search.map(({ query }) => query)).toEqual([DRIFTED_QUERY]);
-  expect(calls.roles).toEqual([]);
+  expect(calls.roles).toEqual(['classify']); // the reader only; caller queries need no classifier
+  expect(result.readerAssessment.status).not.toBe('review_unavailable');
   expect(result.admissionDiagnostics.needsAdvertisingContext).toBe(false);
 });
 

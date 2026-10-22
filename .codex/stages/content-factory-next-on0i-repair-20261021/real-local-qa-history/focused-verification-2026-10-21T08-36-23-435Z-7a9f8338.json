@@ -1,0 +1,119 @@
+{
+  "at": "2026-10-21T08:16:21.788Z",
+  "result": "PASS",
+  "node": "v22.23.2",
+  "pnpm": "10.6.1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "syntaxCommand": "node --check FILE (each owned CJS)",
+  "syntax": [
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-backend.cjs",
+      "sha256": "693421c2fe825277157a8b76b36fed491854952de41737f0f6a52f517741f685",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-network.cjs",
+      "sha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-provision.cjs",
+      "sha256": "9027fad624f31958ef330f6f39dda930f0fc836a3ab3e1b56453e0a805222ccb",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-read-events.cjs",
+      "sha256": "570a39252cbd047fa18e8fbaff425abbf68965a8c22676695c67610474860d6c",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-resume.cjs",
+      "sha256": "9db0e4874352e6c30499d8a085f813adfec29ce72b712f47a8daa4926d09e388",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-scenarios.cjs",
+      "sha256": "8ba0c58c5636afde67119cbf18dda1e4aea1b445710a7d2aefe52414dd3adc7e",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-summary.cjs",
+      "sha256": "c305e4a7337ff74d8f273f7d88793520af1cd2867c9b6b6bd4cf24fd4e0b2a92",
+      "exit": 0,
+      "diagnostic": ""
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa.cjs",
+      "sha256": "9d5c95ba3d75d075fe4fc424126698f04f29c556c14abcf767a5a451d9acb383",
+      "exit": 0,
+      "diagnostic": ""
+    }
+  ],
+  "whitespaceCommand": "git diff --no-index --check /dev/null FILE (each owned new CJS and stage doc)",
+  "whitespaceExitInterpretation": "Exit 1 with empty diagnostics is the expected non-empty new-file diff; only whitespace diagnostics or exit >1 fail this check.",
+  "whitespace": [
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-backend.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-network.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-provision.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-read-events.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-resume.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-scenarios.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa-summary.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/scripts/evidence/on0i-real-local-qa.cjs",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    },
+    {
+      "file": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa.md",
+      "exit": 1,
+      "diagnostic": "",
+      "pass": true
+    }
+  ],
+  "fullSuiteRun": false
+}

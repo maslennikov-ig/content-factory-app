@@ -1,0 +1,90 @@
+{
+  "at": "2026-10-21T08:05:31.553Z",
+  "result": "READ_ONLY_FALLBACK_CONTINUATION_CHECK",
+  "threadId": "f5af55d7-cb04-4d7a-bfb3-4af60477ceec",
+  "httpStatus": 200,
+  "execution": {
+    "requestId": "08003bce-45ae-42b5-87ba-19dc35a64a66",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "fda3e26f-f7c6-4ea9-828f-a549b3777057"
+  },
+  "pending": [],
+  "assistantText": [
+    "Каждую пятницу будем рассказывать команде, как идут дела."
+  ],
+  "usage": [
+    {
+      "id": "1cef008b-13f2-46aa-b384-a2ed178cf4e0",
+      "operation": "agent",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "costUsd": "0.00357704",
+      "possiblyBilled": false
+    }
+  ],
+  "providerReceipts": [
+    {
+      "id": "afd2e507-8362-420f-8112-5bfe4e1d59d8",
+      "at": "2026-10-21T08:02:55.771Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": true,
+      "phase": "started",
+      "fault": "owned-primary-429"
+    },
+    {
+      "id": "afd2e507-8362-420f-8112-5bfe4e1d59d8",
+      "at": "2026-10-21T08:02:55.771Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": true,
+      "phase": "completed",
+      "status": 429,
+      "elapsedMs": 0,
+      "fault": "owned-primary-429",
+      "actualProviderRequest": false,
+      "usage": null
+    },
+    {
+      "id": "a47c7999-8e0f-439a-ae84-3963673f5c2a",
+      "at": "2026-10-21T08:03:26.416Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "a47c7999-8e0f-439a-ae84-3963673f5c2a",
+      "at": "2026-10-21T08:03:26.416Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792569807-3BfLLloPtaJAplx2nPO1",
+      "usage": {
+        "promptTokens": 28570,
+        "completionTokens": 84,
+        "totalTokens": 28654,
+        "reasoningTokens": 62,
+        "cachedTokens": 0,
+        "costUsd": 0.00357704325
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 4078
+    }
+  ],
+  "paidCallsByReadback": 0,
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/fallback-readonly-wrapup.json"
+}

@@ -1,0 +1,9 @@
+PASS tests/agent-native-observability.test.cjs (5.376 s)
+PASS tests/agent-native-acceptance-matrix.test.cjs
+PASS tests/postgres-role-isolation.test.cjs
+
+Test Suites: 3 passed, 3 total
+Tests:       9 skipped, 4 passed, 13 total
+Snapshots:   0 total
+Time:        6.984 s
+Ran all test suites matching /tests\/agent-native-observability.test.cjs|tests\/agent-native-acceptance-matrix.test.cjs|tests\/postgres-role-isolation.test.cjs/i with tests matching "native exporter|native observability|actual service shutdown|distinct product".

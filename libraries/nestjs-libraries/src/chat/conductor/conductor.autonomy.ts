@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
+import { Agent } from '@mastra/core/agent';
+import { createScorer, type MastraScorer } from '@mastra/core/evals';
+import type { MastraMemory } from '@mastra/core/memory';
+import { createNativeTextRetryConfig, nativeTextAbortSignal } from '../../openai/ai.native-retries';
 import {
   DEFAULT_GOAL_JUDGE_PROMPT,
   TaskStateProcessor,
@@ -15,7 +20,7 @@ import {
   writeObjective,
 } from '@mastra/core/tools';
 import { ToolSearchProcessor } from '@mastra/core/processors';
-import { MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
+import { MASTRA_RESOURCE_ID_KEY, MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
 import {
   InMemoryNotificationsStorage,
   createNotificationInboxTool,
@@ -258,6 +263,7 @@ export const buildGoalVerificationTools = (options: {
 
 export interface ConductorGoalConfig {
   judge: (args: { requestContext?: unknown }) => Promise<any>;
+  scorer?: MastraScorer;
   tools?: (args: { requestContext?: unknown }) => Record<string, any>;
   prompt?: string;
   maxRuns?: number;
@@ -283,47 +289,105 @@ export const buildConductorGoalConfig = (options: {
   capabilities: readonly CapabilityDeclaration[];
   services: CapabilityServices;
   gate: CapabilityGate;
-  judgeModel: (
-    identity: CapabilityIdentity,
-    requestContext?: object
-  ) => Promise<unknown>;
+  judgeModel: (identity: CapabilityIdentity, requestContext?: object) => Promise<unknown>;
   maxRuns?: number;
   maxSteps?: number;
-}): ConductorGoalConfig => ({
-  judge: async ({ requestContext }: { requestContext?: unknown }) => {
-    const identity = readCapabilityIdentity(requestContext as any);
-    if (!identity) {
-      throw new Error('Goal judge requires a server-built capability identity.');
-    }
-    return (await options.judgeModel(
-      identity,
-      requestContext as unknown as object
-    )) as any;
-  },
-  tools: ({ requestContext }: { requestContext?: unknown }) => {
-    const identity = readCapabilityIdentity(requestContext as any);
-    if (!identity) return {};
-    const rc = requestContext as any;
-    const savedThreadId = rc?.get?.(MASTRA_THREAD_ID_KEY);
-    if (savedThreadId !== undefined && typeof rc?.delete === 'function') {
-      rc.delete(MASTRA_THREAD_ID_KEY);
-      setImmediate(() => {
-        if (!rc.get(MASTRA_THREAD_ID_KEY)) {
-          rc.set(MASTRA_THREAD_ID_KEY, savedThreadId);
-        }
-      });
-    }
-    return buildGoalVerificationTools({
-      capabilities: options.capabilities,
-      services: options.services,
-      gate: options.gate,
-      identity,
-    }) as any;
-  },
-  prompt: CONDUCTOR_GOAL_JUDGE_PROMPT,
-  maxRuns: options.maxRuns ?? 6,
-  maxSteps: options.maxSteps ?? 6,
-});
+  memory?: MastraMemory;
+}): ConductorGoalConfig => {
+  // Native custom scorers receive thread/resource identity, while judge model
+  // resolvers receive the authenticated RequestContext. Join only this native
+  // evaluation's identity; never infer tenancy or credentials from model text.
+  const evaluations = new Map<string, {
+    requestContext: RequestContext;
+    identity: CapabilityIdentity;
+    model: any;
+    mastra?: any;
+    abortSignal?: AbortSignal;
+  }>();
+  const keyOf = (resource: unknown, thread: unknown) => JSON.stringify([resource, thread]);
+  const toolsFor = (identity: CapabilityIdentity) => buildGoalVerificationTools({
+    capabilities: options.capabilities, services: options.services, gate: options.gate, identity,
+  });
+  const scorer = createScorer({
+    id: 'goal-scorer',
+    name: 'Goal (LLM)',
+    description: 'Checks the objective with the configured review model and read-only workspace tools.',
+  }).analyze(async ({ run }: any) => {
+    const input = run.input ?? {};
+    const key = keyOf(input.resourceId, input.threadId);
+    const evaluation = evaluations.get(key);
+    if (!evaluation) throw new Error('Goal judge requires its authenticated evaluation context.');
+    evaluations.delete(key);
+    const requestContext = new RequestContext<Record<string, any>>(Array.from(evaluation.requestContext.entries()) as any);
+    requestContext.delete(MASTRA_THREAD_ID_KEY);
+    const threadId = `${input.threadId}-goal-${createHash('sha256').update(String(input.originalTask)).digest('hex').slice(0, 16)}`;
+    const judge = new Agent({
+      id: 'content-factory-goal-judge', name: 'Goal judge',
+      instructions: CONDUCTOR_GOAL_JUDGE_PROMPT,
+      model: evaluation.model,
+      tools: toolsFor(evaluation.identity) as any,
+      ...(evaluation.mastra ? { mastra: evaluation.mastra } : {}),
+      ...(options.memory ? { memory: options.memory } : {}),
+      ...createNativeTextRetryConfig(),
+    });
+    const latestUser = [...(input.messages ?? [])].reverse().find((message: any) => message.role === 'user');
+    const userText = typeof latestUser?.content === 'string' ? latestUser.content :
+      (latestUser?.content?.parts ?? []).filter((part: any) => part.type === 'text').map((part: any) => part.text).join('\n');
+    const output = await judge.generate(
+      `Goal: ${String(input.originalTask ?? '')}\n\nLatest user message:\n${userText.slice(0, 4000)}\n\nLatest assistant message:\n${String(run.output ?? '').slice(0, 16000)}`,
+      {
+        requestContext,
+        abortSignal: nativeTextAbortSignal(evaluation.abortSignal),
+        maxSteps: options.maxSteps ?? 6,
+        modelSettings: { maxRetries: 0 },
+        structuredOutput: {
+          schema: z.object({ decision: z.enum(['done', 'continue', 'waiting']), reason: z.string() }),
+          jsonPromptInjection: 'inline',
+        },
+        ...(options.memory ? { memory: {
+          thread: { id: threadId, title: 'Goal judge', metadata: {
+            goalJudge: true, forkedSubagent: true, parentThreadId: input.threadId,
+          } },
+          resource: input.resourceId,
+        } } : {}),
+      }
+    );
+    if (!output.object) throw new Error('Goal judge returned no usable evaluation.');
+    return output.object;
+  }).generateScore(({ results }: any) => {
+    const decision = results.analyzeStepResult.decision;
+    // Mastra's goal-scorer waiting sentinel is 0.5; native goal handling owns
+    // waiting/continuation and never turns an unavailable judge into success.
+    return decision === 'done' ? 1 : decision === 'waiting' ? 0.5 : 0;
+  }).generateReason(({ results }: any) => results.analyzeStepResult.reason);
+
+  return {
+    judge: async ({ requestContext, mastra }: { requestContext?: unknown; mastra?: unknown }) => {
+      const identity = readCapabilityIdentity(requestContext as any);
+      if (!identity || !(requestContext instanceof RequestContext)) {
+        throw new Error('Goal judge requires a server-built capability identity.');
+      }
+      const model = await options.judgeModel(identity, requestContext);
+      const key = keyOf(requestContext.get(MASTRA_RESOURCE_ID_KEY), requestContext.get(MASTRA_THREAD_ID_KEY));
+      if (!evaluations.has(key) && evaluations.size >= 128) {
+        throw new Error('Goal judge evaluation capacity reached.');
+      }
+      const controller = requestContext.get('controller') as { abortSignal?: AbortSignal } | undefined;
+      evaluations.set(key, { requestContext, identity, model, mastra, abortSignal: controller?.abortSignal });
+      // The native goal config requires one judge model as its activation
+      // marker; the custom native scorer executes the full configured array.
+      return Array.isArray(model) ? model[0]?.model : model;
+    },
+    scorer,
+    tools: ({ requestContext }) => {
+      const identity = readCapabilityIdentity(requestContext as any);
+      return identity ? toolsFor(identity) as any : {};
+    },
+    prompt: CONDUCTOR_GOAL_JUDGE_PROMPT,
+    maxRuns: options.maxRuns ?? 6,
+    maxSteps: options.maxSteps ?? 6,
+  };
+};
 
 /**
  * Builds bounded specialist `subagents` (`research`, `writing`, `review`) for
@@ -514,6 +578,9 @@ export const buildSetObjectiveTool = (options: {
 }) =>
   createTool({
     id: 'set_objective',
+    // Only explicit inspection is a read; the schema default is a mutation.
+    requireApproval: (input) => input.action !== 'get',
+    mcp: { annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } },
     title: 'Цель разговора',
     description:
       'Set, inspect, or clear a multi-step thread objective verified by the workspace goal judge.',
@@ -755,6 +822,8 @@ export const buildFollowUpScheduleTools = (options: {
 
   const listFollowUps = createTool({
     id: 'schedule_followup_list',
+    requireApproval: () => false,
+    mcp: { annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     title: 'Список регулярных поручений',
     description:
       'List recurring agent follow-up schedules for this conversation or user.',

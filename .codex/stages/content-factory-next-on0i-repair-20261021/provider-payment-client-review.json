@@ -1,0 +1,171 @@
+{
+  "schema": "provider-payment-client-independent-review/1",
+  "at": "2026-10-21T15:17:22.998034+00:00",
+  "status": "APPROVE_EXACT_CANDIDATE_SOURCE_NOT_APPLIED_ROOT_ACCEPTANCE_PENDING",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "baseline": "e74e059ea104593d2fac831eb989714a5b151263",
+  "openCandidateFindings": [],
+  "candidate": {
+    "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client.patch",
+    "patchSha256": "b9d5a77a360bd14a238e94ec7d7607e1d45c4144d2d303db207638237102f274",
+    "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/provider-payment-client-candidate.json",
+    "manifestSha256": "ddc81449f74c919ee20ae1517885bb0f871d6d126ca488d4af1ccec67d9031bf",
+    "source": "apps/frontend/src/components/agents/agent.contract.ts",
+    "sourceSha256AtRead": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "beforeSha256": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "afterSha256": "452debdfc80866782e022b996b1bb331fe7d1158ab11cb90a86ca8a42b7066b7",
+    "exactOneLineReconstruction": true,
+    "sourceApplied": false,
+    "existingMirrorGuardSha256": "8995b4452fc5bbfe87eed74fba502f250a7b17c482ed47df383257489b8846fc",
+    "mirrorGuardMatchesHead": true
+  },
+  "observedExistingDefect": {
+    "id": "C1",
+    "priority": "P2",
+    "classification": "must-fix",
+    "confidence": "high",
+    "status": "EXACT_CANDIDATE_APPROVED_ROOT_APPLICATION_PENDING",
+    "path": "apps/frontend/src/components/agents/agent.contract.ts:77",
+    "title": "Frontend mirrored public error enum omits the payment-required code",
+    "evidence": "Backend literal includes AI_PROVIDER_PAYMENT_REQUIRED; frozen frontend literal does not; unchanged complete AST equality guard reports the exact missing value in active Gate9.",
+    "impact": "Client/server declared contract drifts and existing release guard fails. Runtime decoder loss is not established: code decoders already retain the identifier.",
+    "suggestedFix": "Add the exact server literal at the same mirror position; retain existing equality and both-language coverage assertions.",
+    "expectedValue": "Restore complete mirrored contract and future drift detection.",
+    "tradeoff": "Keeps the existing explicit mirror design.",
+    "previousReviewCoverageGap": "Earlier safe-provider review did not inspect frontend enum parity; prior receipt is preserved rather than rewritten."
+  },
+  "consumerTrace": [
+    {
+      "path": "apps/frontend/src/components/agents/agent.contract.ts:1745",
+      "role": "errorCodeOf plain identifier or JSON code",
+      "conclusion": "Preserves exact code; not a whitelist over AGENT_ERROR_CODES."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.contract.ts:1058",
+      "role": "readDoorError JSON/embedded code",
+      "conclusion": "Extracts code without forwarding raw response body."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.contract.ts:2476",
+      "role": "readMessageBlocks output-error",
+      "conclusion": "Titled product tool error keeps decoded code; title filtering at2421 remains intact."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.conversation.tsx:1185",
+      "role": "chatError and render1585",
+      "conclusion": "Passes parsed code to ErrorCard; no raw provider detail rendering."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.conversation.tsx:1410",
+      "role": "tool block error rendering",
+      "conclusion": "Passes block code to existing ErrorCard."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.cards.tsx:1253",
+      "role": "ErrorCard/errorWordsFor",
+      "conclusion": "Known entry renders localized what/next and hides unknown-code diagnostic line."
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.copy.ts:2013",
+      "role": "known copy lookup",
+      "conclusion": "Existing RU724/EN1507 entries present; no fee/effect claims."
+    }
+  ],
+  "guardPreservation": {
+    "path": "tests/agent-parts.mirror.guard.test.cjs",
+    "exactAstEqualityAt": 123,
+    "bothLanguageCompletenessAt": 130,
+    "sourceUnchanged": true,
+    "assertionsRemoved": 0,
+    "testEdits": 0
+  },
+  "consumerSourceSha256": {
+    "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": "3d7ecfd83909b1dd85857181dd45523b035517ff35d02d29c3a29c713b1a6b59",
+    "apps/frontend/src/components/agents/agent.contract.ts": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9",
+    "apps/frontend/src/components/agents/agent.cards.tsx": "8203c9a89921498f7669ca032f9ca7bb5e5cc32a3a55c06a1b049ea36143128e",
+    "apps/frontend/src/components/agents/agent.copy.ts": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e",
+    "tests/agent-parts.mirror.guard.test.cjs": "8995b4452fc5bbfe87eed74fba502f250a7b17c482ed47df383257489b8846fc",
+    "tests/agent-screen.adapter.test.cjs": "48f4ce41b8a41df28c93ae48b59a3b79841777ab89f4e9743f43363362bf63b9",
+    "tests/helpers/load-tsx.cjs": "3176a9a72825971906b0563683b6b4544305edef4fd9da4c96b07cdde2913cef"
+  },
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/provider-payment-client-candidate.json": "ddc81449f74c919ee20ae1517885bb0f871d6d126ca488d4af1ccec67d9031bf",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client.patch": "b9d5a77a360bd14a238e94ec7d7607e1d45c4144d2d303db207638237102f274",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client-candidate.ts": "452debdfc80866782e022b996b1bb331fe7d1158ab11cb90a86ca8a42b7066b7",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client-candidate.cjs": "f790679d3813f7b2e327ade2b45011fb3b9961b89d4daa677e9d5361acac9946",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client-candidate.log": "62d61f7aa11b9270ac9eab10b5e45840edc21d96c6c84a6b63d32074a5651bc0",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/provider-payment-client-probe-shape-mismatch.log": "572b9c1835c2726c6b19323ab315ab89e93393e74f9c0f7d1f3ecbd30d3a6551"
+  },
+  "verification": {
+    "ownerExecutionSession": 8088,
+    "ownerConfirmedExitCode": 0,
+    "completed": true,
+    "mode": "in-memory exact-source substitution; disk app source untouched",
+    "log": "evidence/provider-payment-client-candidate.log",
+    "logSha256": "62d61f7aa11b9270ac9eab10b5e45840edc21d96c6c84a6b63d32074a5651bc0",
+    "suites": 2,
+    "tests": 55,
+    "exitCode": 0,
+    "extraBehavior": "Plain/JSON/HTTP-door/tool error decoders retain code; RU/EN actionable words present",
+    "probeSetupCorrection": "First stage-only synthetic tool part omitted required product title; corrected only probe shape. Original probe failure retained separately, not product failure.",
+    "diskSourceUnchanged": true,
+    "reviewerReran": false,
+    "actualProjections": [
+      "plain code",
+      "JSON code",
+      "HTTP door code",
+      "titled tool error block",
+      "RU/EN copy"
+    ],
+    "renderedPaymentReactOrBrowserProof": false
+  },
+  "probeSetupCorrection": {
+    "initialLog": "evidence/provider-payment-client-probe-shape-mismatch.log",
+    "cause": "Synthetic product tool part omitted required title; existing filter correctly produced no blocks.",
+    "correction": "Only stage-only probe input title added; parser/product guard unchanged.",
+    "excludedFromProductDefectEvidence": true
+  },
+  "scopeConclusions": [
+    "Only one static mirror literal added; no intent strings, routing, native retry policy, permissions, consent, provider behavior or credential change.",
+    "Decoders were already code-preserving; this fixes declared parity and its guard rather than a proven runtime parsing bug.",
+    "Known payment rendering uses existing localized messages, not raw error text/body; unknown-code policy unchanged."
+  ],
+  "preservedPriorReviewSha256": {
+    "research-final-review.md": "39faac11c8d418039c5870b72f58915de2454df66312affa2bff64792e87eb60",
+    "research-final-review.json": "261547cd8f7322d3860b6426c8990342dfd8c46f7251a2a3e68910c189043fa6",
+    "final-native-tail-recovery-review.md": "445f994da618a56e36fcce55f12d232a059797236f54f747b7de531c4eacfe03",
+    "final-native-tail-recovery-review.json": "cf816b9a1b45679f737d24a324b389b30f0ea3741dfe094f17f50b2fedb60149",
+    "request-intent-selection-review.md": "4dea01524e008327f11cf4cf3eede4452e18b745fef66b77cef452cca4077134",
+    "request-intent-selection-review.json": "f67a159bc3d03ecf687307e65f261c7eae75b8c1c01b70220aa77e6ff845a048",
+    "gate7-regression-review.md": "e54a36c2922ef8ebeda6409dc9d579a90a2ca72f43f7ae79a3398fb0d2b40835",
+    "gate7-regression-review.json": "4e74ed3431bf984d2225f6beebe442e50dcbf5939c1021d70fe52bada99d9cdd",
+    "provider-payment-review.md": "d8e8f851247801593232e04457cba22e315d615457707bbb7d468ae0f59e7d62",
+    "provider-payment-review.json": "973198096cb3515f3f24c8551eae881b9f66de0050d5f02ee87ac6f205dfd821"
+  },
+  "reviewerActions": {
+    "appEdits": 0,
+    "testEdits": 0,
+    "qaHelperEdits": 0,
+    "testsRun": 0,
+    "acceptanceRuns": 0,
+    "modelCalls": 0,
+    "providerCalls": 0,
+    "browserActions": 0,
+    "runtimeActions": 0,
+    "builds": 0,
+    "restarts": 0,
+    "storeCommands": 0,
+    "commit": 0,
+    "push": 0,
+    "deployment": 0
+  },
+  "remainingBounds": [
+    "Root finishes the active frozen Gate9; candidate does not restamp that run.",
+    "Root applies only this exact candidate after source unlock and performs final acceptance on resulting bytes.",
+    "Payment-specific ErrorCard rendering is source-reviewed; synthetic decoder/copy proof is not a live browser/provider result.",
+    "No production/client acceptance."
+  ],
+  "completionEvent": "Exact one-line candidate approved with existing55-test completed receipt, actual consumers traced, mirror guard preserved and disk unchanged; root apply/final acceptance pending."
+}

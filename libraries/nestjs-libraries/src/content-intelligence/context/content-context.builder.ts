@@ -12,11 +12,16 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
 import { factRecordAdmission } from './fact-admission';
+import {
+  packPieceEvidence, proofPreflightFailure, renderEvidenceProjection,
+  PIECE_EVIDENCE_MAX_ITEMS, PIECE_EVIDENCE_MAX_CHARACTERS,
+} from './piece-evidence-projection';
 import { ContentContextRepository } from './content-context.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import type {
   BrandProfileContextPortV1,
   ContentContextBuildInputV1,
+  ContentContextCandidatesV1,
   ContentContextEnvelopeResultV1,
   ContentContextRepositoryPortV1,
   EvidenceCandidateV1,
@@ -266,10 +271,15 @@ export class ContentContextBuilderV1 {
       request.brandProfileSelection,
       request.provider
     );
-    const candidates = await this.repository.findCandidates(
-      organizationId,
-      request
-    );
+    let candidates: ContentContextCandidatesV1;
+    try {
+      candidates = await this.repository.findCandidates(organizationId, request);
+    } catch (error: any) {
+      if (request.pieceEvidence && error?.code === 'CONTENT_CONTEXT_NOT_FOUND') {
+        return proofPreflightFailure('A selected source or fact is unavailable in this workspace; the piece cannot be adapted without its proof.');
+      }
+      throw error;
+    }
     const rejected = new Map<string, RejectionReason>();
     let sawStale = false;
     let sawConflict = false;
@@ -379,12 +389,19 @@ export class ContentContextBuilderV1 {
           left.fact.id.localeCompare(right.fact.id)
       );
 
-    const selectedFacts: FactCandidateV1[] = [];
+    const selectedFacts: FactCandidateV1[] = request.pieceEvidence
+      ? ranked.filter(item => item.fact.explicit).map(item => item.fact) : [];
+    if (request.pieceEvidence && (selectedFacts.length > CONTENT_CONTEXT_MAX_FACTS_V1 ||
+      (request.factIds || []).some(id => !selectedFacts.some(fact => fact.id === id)))) {
+      return proofPreflightFailure('An essential selected fact is unavailable, inadmissible or exceeds the piece fact limit.');
+    }
     const selectedEvidence: EvidenceCandidateV1[] = [];
     const evidenceIds = new Set<string>();
+    const maxEvidence = request.pieceEvidence ? PIECE_EVIDENCE_MAX_ITEMS : CONTENT_CONTEXT_MAX_EVIDENCE_V1;
+    const maxCharacters = request.pieceEvidence ? PIECE_EVIDENCE_MAX_CHARACTERS : CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1;
     const profileCharacters = cleanText(
       JSON.stringify(profile.effectiveVoice || {}),
-      CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1
+      request.pieceEvidence ? Number.MAX_SAFE_INTEGER : maxCharacters
     ).length;
     let renderedCharacters = profileCharacters;
     const explicitEvidenceIds = new Set(request.userMaterialEvidenceIds || []);
@@ -394,7 +411,7 @@ export class ContentContextBuilderV1 {
       explicitEvidence(item) || evidenceProvenance(item) === 'SEARCH'
       ? MAX_SELECTED_EXCERPT_CHARACTERS : MAX_EXCERPT_CHARACTERS;
 
-    for (const candidate of ranked) {
+    for (const candidate of request.pieceEvidence ? [] : ranked) {
       if (selectedFacts.length >= CONTENT_CONTEXT_MAX_FACTS_V1) {
         rejected.set(candidate.fact.id, 'OVER_BUDGET');
         continue;
@@ -440,7 +457,21 @@ export class ContentContextBuilderV1 {
      * прогону.
      */
     const provenanceById = new Map<string, ContentEvidenceProvenanceV1>();
-    for (const item of [...candidates.evidence].sort(
+    const piecePack = request.pieceEvidence ? packPieceEvidence({
+      organizationId, piece: request.pieceEvidence,
+      evidence: [...candidates.evidence, ...ranked.filter(item => item.fact.explicit).flatMap(item => item.supports)],
+      requiredIds: [...(request.userMaterialEvidenceIds || []), ...candidates.evidence.filter(item => item.explicit).map(item => item.id), ...ranked.filter(item => item.fact.explicit).flatMap(item => item.supports.map(support => support.id))],
+      availableCharacters: maxCharacters - profileCharacters - selectedFacts.reduce((n, fact) => n + cleanText(fact.statement, 4_000).length, 0),
+      admit: item => sourceAllowed(item) && evidenceFresh(item, asOf) && evidenceProvenance(item) !== null,
+    }) : undefined;
+    if (piecePack) {
+      for (const item of piecePack.selected) {
+        selectedEvidence.push({ ...item, explicit: true });
+        evidenceIds.add(item.id);
+        provenanceById.set(item.id, evidenceProvenance(item)!);
+      }
+    }
+    for (const item of (piecePack ? [] : [...candidates.evidence]).sort(
       (left, right) =>
         Number(evidenceProvenance(left) === 'SEARCH') -
           Number(evidenceProvenance(right) === 'SEARCH') ||
@@ -512,6 +543,7 @@ export class ContentContextBuilderV1 {
       });
     }
     for (const item of selectedEvidence) {
+      const evidenceProjection = piecePack?.projections.get(item.id);
       items.push({
         ordinal: items.length + 1,
         citationId: evidenceCitations.get(item.id)!,
@@ -528,8 +560,9 @@ export class ContentContextBuilderV1 {
             : 'FACT_SUPPORT',
         statementHash: null,
         excerptHash:
-          item.excerptHash ||
+          evidenceProjection ? sha256(renderEvidenceProjection(item.excerpt || '', evidenceProjection).excerpt) : item.excerptHash ||
           sha256(cleanText(item.excerpt, excerptLimit(item))),
+        ...(evidenceProjection ? { evidenceProjection } : {}),
         factStatement: null,
         factTemporalKind: null,
         factVerifiedAt: null,
@@ -575,12 +608,12 @@ export class ContentContextBuilderV1 {
           profile.applied.mode === 'neutral_fallback'
             ? profile.applied.reason
             : null,
-        selectionAlgorithmVersion: SELECTION_ALGORITHM_VERSION,
+        selectionAlgorithmVersion: piecePack ? 3 : SELECTION_ALGORITHM_VERSION,
         trustPolicyVersion: 1,
         freshnessPolicyVersion: 1,
         maxFacts: CONTENT_CONTEXT_MAX_FACTS_V1,
-        maxEvidence: CONTENT_CONTEXT_MAX_EVIDENCE_V1,
-        maxRenderedCharacters: CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1,
+        maxEvidence,
+        maxRenderedCharacters: maxCharacters,
         selectedFactCount: selectedFacts.length,
         selectedEvidenceCount: selectedEvidence.length,
         rejectedCount: sortedRejections.length,
@@ -644,6 +677,15 @@ export class ContentContextBuilderV1 {
       const value = item.evidence!;
       const removed = item.tombstone || sourceRemoved(value);
       const internal = value.exposure === 'INTERNAL_ONLY';
+      if (snapshot.selectionAlgorithmVersion >= 3 && (removed || !item.evidenceProjection ||
+        value.organizationId !== snapshot.organizationId || value.snapshot.organizationId !== snapshot.organizationId)) {
+        throw new ContentContextError('CONTENT_CONTEXT_INVALIDATED', 409, 'Selected source proof is unavailable.');
+      }
+      const projected = !removed && item.evidenceProjection
+        ? renderEvidenceProjection(value.excerpt || '', item.evidenceProjection) : null;
+      if (projected && sha256(projected.excerpt) !== item.excerptHash) {
+        throw new ContentContextError('CONTENT_CONTEXT_INVALIDATED', 409, 'The stored source projection has changed.');
+      }
       return {
         citationId: item.citationId,
         evidenceId: item.evidenceId!,
@@ -653,11 +695,12 @@ export class ContentContextBuilderV1 {
           : cleanText(value.snapshot.normalizedTitle || 'Untitled source', 500),
         excerpt: removed
           ? 'SOURCE_REMOVED'
-          : cleanText(value.excerpt,
+          : projected?.excerpt ?? cleanText(value.excerpt,
             snapshot.selectionAlgorithmVersion >= 2 &&
               (item.inclusionReason === 'EXPLICIT' ||
                 item.inclusionReason === CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1)
               ? MAX_SELECTED_EXCERPT_CHARACTERS : MAX_EXCERPT_CHARACTERS),
+        ...(projected ? { literalSpans: projected.literalSpans } : {}),
         url:
           removed || internal
             ? null
@@ -684,6 +727,7 @@ export class ContentContextBuilderV1 {
       JSON.stringify({
         facts: facts.map((fact) => fact.factId),
         evidence: evidence.map((item) => item.evidenceId),
+        ...(snapshot.selectionAlgorithmVersion >= 3 ? { projections: evidenceItems.map(item => item.excerptHash) } : {}),
         profile: storedProfile(snapshot),
         queryHash: snapshot.queryHash,
         asOf: iso(snapshot.asOf),

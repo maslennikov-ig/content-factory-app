@@ -1,0 +1,15 @@
+PASS tests/agent-native-autonomy.test.cjs
+  Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up Schedules (on0i.4)
+    ✓ A5 & A18: native ask_user and submit_plan suspend with bound cardId and resume cleanly (3 ms)
+    ✓ A18: native task_write, task_update, task_check, task_complete and single TaskStateProcessor snapshot (1 ms)
+    ✓ A18: set_objective and native goal judge reject prose-only completion until workspace artifact exists, and hide internal threads (1 ms)
+    ✓ A18: bounded subagent delegation routes to metered roles, exposes zero confirm/secret tools, and refuses forked: true (1 ms)
+    ✓ A8: ToolSearchProcessor filters discovered tools by caller role (1 ms)
+    ✓ A19 & A20: recurring follow-up schedules default to Europe/Moscow when timezone is unset, cancel cleanly, and skip deleted threads
+    ✓ A18–A20: AgentThreadsService filters internal threads, manages objectives/schedules, and deletes thread schedules on remove() (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        3.562 s, estimated 4 s
+Ran all test suites within paths "tests/agent-native-autonomy.test.cjs".

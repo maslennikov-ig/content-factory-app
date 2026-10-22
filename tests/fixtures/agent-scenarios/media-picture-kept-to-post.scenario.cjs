@@ -54,5 +54,6 @@ module.exports = {
     expect(run.found[PNG].history).toBe(false);
     expect(run.storedPartTypes).not.toContain('file');
     expect(run.writes).toEqual([['adaptation.edited', 'a1']]);
+    expect(run.history.execution).toMatchObject({ state: 'settled', outcome: 'completed' });
   },
 };

@@ -1,0 +1,47 @@
+AssertionError [ERR_ASSERTION]: Stop committed during a saved-history read must prevent a stale completed verdict.
+
+true !== false
+
+    at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-observe.probe.cjs:146:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+FAIL tests/agent-native-session-observe.test.cjs (5.326 s)
+  ✕ native HTTP observers replay complete deltas without stealing model output or clearing shared history on detach (5240 ms)
+
+  ● native HTTP observers replay complete deltas without stealing model output or clearing shared history on detach
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-observe.probe.cjs
+    AssertionError [ERR_ASSERTION]: Stop committed during a saved-history read must prevent a stale completed verdict.
+
+    true !== false
+
+      144 |       return recalled;
+      145 |     };
+    > 146 |     assert.equal(await threads.completedNativeResponse(IDENTITY, threadId, pointer.runId), false,
+          |            ^
+      147 |       'Stop committed during a saved-history read must prevent a stale completed verdict.');
+      148 |     runtime.memory.recall = originalRecall;
+      149 |     assert.equal(providerCalls, 1);
+
+      at tests/helpers/agent-native-session-observe.probe.cjs:146:12
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+        generatedMessage: false,
+        code: 'ERR_ASSERTION',
+        actual: true,
+        expected: false,
+        operator: 'strictEqual',
+        diff: 'simple'
+      }
+      at Object.<anonymous> (tests/agent-native-session-observe.test.cjs:6:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        5.47 s, estimated 6 s
+Ran all test suites matching /tests\/agent-native-session-observe.test.cjs/i.

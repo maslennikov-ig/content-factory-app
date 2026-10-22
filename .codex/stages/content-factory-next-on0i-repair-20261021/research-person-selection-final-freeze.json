@@ -1,0 +1,113 @@
+{
+  "schema": "research-person-selection-final-freeze/v1",
+  "at": "2026-10-21T13:18:01.938160+00:00",
+  "status": "FROZEN_FOR_ROOT_ACCEPTANCE",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "previousAcceptedStreamFreeze": {
+    "path": ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-freeze.json",
+    "sha256": "a277c9afe5c1cd5b78f11aa3c66924e579694a4da703dcfcec89428bb3ef5042"
+  },
+  "supersededInitialWordOnlyCandidate": {
+    "path": ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-freeze.json",
+    "sha256": "a2d92b9f1b28eac0056290d93f9bb5659524d74f92a0e5597ae9c8674ca34917",
+    "status": "HISTORICAL_INITIAL_USER_ONLY_WORDING",
+    "historical88TestLog": ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-initial-wording-regressions.log"
+  },
+  "deltaAppBeforeSha256": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "baed8cf07230092c4dd07cd3d50daadfe34b6c8a23058d33deb9a08898118d91",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "334660f8228e2c6c6cbf8ab5f9e2d77ed8fecaafdaa160f592ec2205565ef803"
+  },
+  "deltaAppSha256": {
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "4abf4bdaf2bc02b1ef9c0effe8f256811249c83605e3803a029254f06ea56ca2",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "58a66004f5f8c4c04aa34f68bb0e4c74678081bfbf48c30ac59d724227245579"
+  },
+  "beforeHashProof": "Request schema before hash reconstructed by reversing the sole approved field-description delta; prompt before hash verified against previous accepted frozen bytes after removing the sole added instruction line.",
+  "appSha256": {
+    "libraries/nestjs-libraries/src/openai/web.research.service.ts": "8ed1cfdefae0fe9953b86984a952479fd7d16b525081431c6dee4a57c95c8c1b",
+    "libraries/nestjs-libraries/src/content-intelligence/research/retained-source.ts": "33a954574bfcb164b480db586cf297a40f9b0b0173cd31b0c1dca8eba0ad1cd9",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "98bd4772671e133ed96e5906e888cab81122f9f2353e91984bf62ab672bd4c90",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "202cdb21249d0ae1aee6af85cc04d591fb88d324d7603dead08afd986ad93de4",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "1799e202dd04e8b7697489bb833699dc4ab266b60e0c08db0cfcd46f8950d1ca",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "863de27b578898f75ae620f778a26bff783998d97529c8459e80c8808addf3b1",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "58a66004f5f8c4c04aa34f68bb0e4c74678081bfbf48c30ac59d724227245579",
+    "libraries/nestjs-libraries/src/chat/capabilities/capability.types.ts": "0759daec00bb3f1e37557a88065be3138510d27b97706f602ca1c89eac56d942",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "745fac15558ef53c38548cc53203cfc1de65ed1b24d5e3c2014108908cca4870",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts": "ec3e0928c8ebbda6bdbd7f091108b75ab91887f8560f7e0025e4006f10b0dccc",
+    "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "4abf4bdaf2bc02b1ef9c0effe8f256811249c83605e3803a029254f06ea56ca2"
+  },
+  "testSha256": {
+    "tests/intake.research-reuse.test.cjs": "920136747d5b77f0fbf71c6a97c77e29be7b8dec5794f4e66f44fc2eecb9ed44",
+    "tests/web.research.service.test.cjs": "fff27ac0010c94d1d554a550ae90f223890954f10d041089ad23c5b06325d376",
+    "tests/agent-capabilities.adapters.test.cjs": "032432052b96691729a27834e4be4acea4065a56470a2887c17ea2e5690ac3bb",
+    "tests/intake.provider-schema.test.cjs": "7417725262444eef4e4bd8635920ecfd6232ae89e11c856b1406b8395997a453"
+  },
+  "readOnlyIntegratedSha256": {
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts": "3d838c65c4dc934195676decfe18b8bcd4c4463fe1cd338946eededa8b2a4690",
+    "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+    "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78",
+    "tests/agent.model-autonomy.test.cjs": "97ba44f2e15a10977edec171759d1306a60fd9439ee16843971e5cf44337155a",
+    "tests/agent-capabilities.mcp-redaction.test.cjs": "1d6cc29d85feb4d12e0d0fb3634650430a856fbffc190ec8bb09d6e1889445ca",
+    "tests/agent-conductor.unit.test.cjs": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+    "tests/agent-conductor.guard.test.cjs": "270e31db489a1874bf16c38356c2899b8f098fe87f98e44ea0dac55f6b2e31c1",
+    "tests/intake.model-led.test.cjs": "9bd3e8132634edc742605a2305ae1712837e3e0aceaaed5ca9fe9cf9f1338328",
+    "tests/intake.manual-research-semantics.test.cjs": "3cc3fcf935b74e9c6483df3487acc279877c84bd195a6d3c227c5f67e25de864",
+    "tests/intake.date-role.test.cjs": "a6bdbdc68ffa32699e111fc0c67f7272c6fe38643c92cec47e67ffb0e380d398"
+  },
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-diagnosis.json": "3d1f8874c646b0588a9288429f42b73f91eada1ad84c4a5d74ca7b58adfc98f9",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-controlled-red.log": "37137bf118123519b7b68b186806eeb40e13810fd7edbbcbf4baa11a1aa2cfa2",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-regressions.log": "ed8bcaf409739a40fc1750f406cb7fe06eee48cebecd1d0702cdb544bae5146d",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-final-outcome.md": "aaa92c37a79929d37a53aae3abc22f4ed9d832ec1b1206b340db576bbec82603",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-selection-recovery-freeze.json": "a277c9afe5c1cd5b78f11aa3c66924e579694a4da703dcfcec89428bb3ef5042"
+  },
+  "verification": {
+    "controlledRed": {
+      "failed": 2,
+      "passed": 4,
+      "meaning": "Missing definition after exact provider schema conversion; actual boolean consumer cases already preserve authority"
+    },
+    "affected": {
+      "command": "/home/me/.nvm/versions/node/v22.23.2/bin/node node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/intake.research-reuse.test.cjs tests/intake.provider-schema.test.cjs tests/intake.model-led.test.cjs tests/agent.model-autonomy.test.cjs",
+      "suites": 4,
+      "passed": 89,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    "backendTypes": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0
+    },
+    "scopedDiffCheck": {
+      "exitCode": 0
+    }
+  },
+  "boundaries": {
+    "paidCalls": 0,
+    "apiOrToolRuntimeCalls": 0,
+    "readOnlyDiagnosticRedis": "Approved owner GET plus exactly2 snapshot GET/PTTL; no scan/mutation",
+    "restarts": 0,
+    "build": false,
+    "fullSuite": false,
+    "deployment": false,
+    "push": false,
+    "sourceAndTestsFrozen": true,
+    "domainConsentGuardsUnchanged": true
+  },
+  "remaining": [
+    "Independent exact-byte review",
+    "Root real same-natural-prompt evaluation",
+    "Root real explicit human-selection evaluation",
+    "Root final acceptance"
+  ],
+  "residualRisk": "Model semantic interpretation remains an external evaluation boundary; no deterministic success guarantee.",
+  "cleanup": {
+    "diagnosticRedisDisconnected": true,
+    "startedRuntimeResources": 0,
+    "evidenceRetained": true
+  }
+}

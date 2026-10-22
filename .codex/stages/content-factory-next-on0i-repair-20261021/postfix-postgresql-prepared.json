@@ -1,0 +1,25 @@
+{
+  "schema": "on0i-real-scenario-preparation/1",
+  "status": "PREPARED_NOT_SUBMITTED",
+  "id": "postfix-postgresql-skip-locked",
+  "prompt": "Хочу короткую полезную заметку для разработчика: как PostgreSQL SKIP LOCKED помогает нескольким воркерам разбирать одну очередь и какие у него ограничения. Проверь по официальной документации PostgreSQL. Сохрани одну новую заготовку «QA ON0I: очередь PostgreSQL» на русском со ссылками на первоисточник, затем прочитай её и проверь результат. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+  "acceptance": [
+    "Actual search and official PostgreSQL sources",
+    "One short useful saved CORE, read back after saving",
+    "Accurate queue-worker use, locked-row behavior and inconsistent-view limitation",
+    "Exact real-provider/search and ledger receipts; scoped native agent/tool spans"
+  ],
+  "runner": "/tmp/on0i-real-local-qa-s2nihQ/postfix-postgresql-scenario.cjs",
+  "runnerSha256": "6499cbb4f1fee0ebc8e2a7df5837a12b5e5453e928f36d56c9defadbc1d4a5d0",
+  "canonicalRunnerSha256": "8ba0c58c5636afde67119cbf18dda1e4aea1b445710a7d2aefe52414dd3adc7e",
+  "singleSubmissionGuard": true,
+  "stateIsolated": true,
+  "failedOriginalEvidencePreserved": true,
+  "paidCalls": 0,
+  "harnessImportCorrection": {
+    "previousRunnerSha256": "23f1d8d9fa87cd2fcfcd22fc3c0be14febfb9e76ee7205ee0bfc507f4091989e",
+    "error": "Private copied runner could not resolve root @prisma/client from /tmp; corrected explicit root module path before any submission",
+    "providerCalls": 0,
+    "submissionGuardWritten": false
+  }
+}

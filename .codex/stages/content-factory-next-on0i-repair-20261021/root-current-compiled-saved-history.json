@@ -1,0 +1,21 @@
+{
+  "schema": "on0i-current-compiled-saved-history/1",
+  "status": "PASS",
+  "localOnly": true,
+  "buildId": "tmvBVorjTll4eVz0CthsG",
+  "threadId": "b4c778cb-12ec-46dc-a966-ec92085ee204",
+  "messages": 6,
+  "priorHttpIdsAndAssistantTextsExact": true,
+  "currentDomFirst80ItemsEqualPriorRealDom": true,
+  "currentFinalAnswerEqualsSavedProviderText": true,
+  "pendingCount": 0,
+  "outcome": "completed",
+  "composerEnabled": true,
+  "chatPosts": 0,
+  "pageErrors": 0,
+  "probeSha256": "0444fb4e7bdb2153c3b66a1bedf6c93db3aa54d7c95314df01177b7fd15b86ef",
+  "cliExitCode": 0,
+  "log": "evidence/root-current-compiled-saved-history-cli.log",
+  "logSha256": "89df2057cb81235aae193aa10d87c7057f0008b99230c5750d3b5124689307da",
+  "boundary": "Read-only persisted real-provider conversation on the current compiled build; no new generation."
+}

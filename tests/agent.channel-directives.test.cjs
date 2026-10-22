@@ -218,6 +218,78 @@ describe('the rules the research measured', () => {
   });
 });
 
+describe('a prose call to action and an end-link footer compose', () => {
+  const base = defaultWritingProfileFor('telegram', 'ru');
+  const footerRule = (lines) => lines.find((line) => line.includes("'end' in the call-to-action rule"));
+
+  test.each(['question', 'comment', 'reply', 'subscribe'])(
+    '%s ends the main prose before the final links, with no second CTA after them',
+    (ctaKind) => {
+      const lines = linesFor({ ...base, linkPolicy: 'end', ctaKind });
+      const rule = footerRule(lines);
+
+      // The existing rules now explicitly admit body -> one CTA -> source footer.
+      expect(lines).toContain(channelCtaLine(ctaKind));
+      expect(lines).toContain('At most one link, and it goes at the end, after the last sentence.');
+      expect(rule).toContain('the end of the main prose');
+      expect(rule).toContain('Any final link or source footer follows that prose');
+      expect(rule).toContain('never add another question or call to action after the footer');
+      expect(lines.indexOf(rule)).toBeGreaterThan(lines.indexOf(channelCtaLine(ctaKind)));
+    }
+  );
+
+  test('composition follows resolved one-post choices instead of the channel defaults', () => {
+    const lines = linesFor({ ...base, linkPolicy: 'inline', ctaKind: 'none' }, TELEGRAM, {
+      post: { linkPolicy: 'end', ctaKind: 'question' },
+    });
+    expect(lines).toContain('For this post only: At most one link, and it goes at the end, after the last sentence.');
+    expect(lines).toContain(`For this post only: ${channelCtaLine('question')}`);
+    expect(footerRule(lines)).toContain('the end of the main prose');
+
+    expect(footerRule(linesFor({ ...base, linkPolicy: 'end', ctaKind: 'question' }, TELEGRAM, {
+      post: { linkPolicy: 'inline' },
+    }))).toBeUndefined();
+  });
+
+  test.each([
+    ['inline', 'question'], ['none', 'question'], ['auto', 'question'],
+    ['end', 'link'], ['end', 'none'], ['end', 'auto'],
+  ])('no footer reinterpretation for link policy %s and CTA %s', (linkPolicy, ctaKind) => {
+    const lines = linesFor({ ...base, linkPolicy, ctaKind });
+    expect(footerRule(lines)).toBeUndefined();
+    if (ctaKind !== 'auto') expect(lines).toContain(channelCtaLine(ctaKind));
+    if (ctaKind === 'link') expect(lines).toContain('End with exactly one link to follow, and nothing after it.');
+  });
+
+  test('the footer composition also follows the existing link-on-words priority', () => {
+    const lines = linesFor({ ...base, linkPolicy: 'end', ctaKind: 'question' }, TELEGRAM, {
+      authorLink: { url: 'https://example.com/author', forPost: true },
+    });
+    const linkedWordsAt = lines.findIndex((line) => line.startsWith("The author's link on words outranks"));
+    expect(linkedWordsAt).toBeGreaterThanOrEqual(0);
+    expect(lines.indexOf(footerRule(lines))).toBeGreaterThan(linkedWordsAt);
+  });
+
+  test('an explicit citation request overrides only the default link cap and keeps source and no-links safeguards', () => {
+    const wish = 'Сохрани подтверждающие ссылки на https://example.com/one и https://example.com/two.';
+    const lines = linesFor({ ...base, linkPolicy: 'end' }, TELEGRAM, { post: { wish } });
+    const priority = lines[lines.indexOf(`The author's wish for this post only: «${wish}»`) + 1];
+
+    expect(lines).toContain('At most one link, and it goes at the end, after the last sentence.');
+    expect(priority).toContain("multiple supporting citations overrides the channel's default one-link cap");
+    expect(priority).toContain('not an explicit no-links instruction for this post');
+    expect(priority).toContain('does not permit extra promotional links, invented URLs or claims');
+    expect(priority).toContain('or treat a URL as proof');
+    expect(priority).toContain("It never lifts the rules about facts, copying or the author's voice.");
+
+    const explicitNoLinks = linesFor(base, TELEGRAM, { post: { linkPolicy: 'none', wish } });
+    expect(explicitNoLinks).toContain('For this post only: No links in the post.');
+    expect(explicitNoLinks).toContain(priority);
+    expect(footerRule(explicitNoLinks)).toBeUndefined();
+    expect(linesFor(base).some((line) => line.includes('multiple supporting citations'))).toBe(false);
+  });
+});
+
 /** Ссылки из задания (`97dq.29`): сильнее политики ссылок карточки. */
 describe('links the person asked to keep', () => {
   const LINKS = ['https://vk.ru/radiosputnik_khv?w=wall-236404135_1466', 'https://t.me/radiosputnik_khv/20430'];

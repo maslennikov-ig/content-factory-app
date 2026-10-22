@@ -1,0 +1,19 @@
+{
+  "schema": "on0i-private-natural-scenario-preparation/1",
+  "caseId": "fullsource-postgresql-skip-locked",
+  "runnerSha256": "f07ac09d932d3207f4fd108c37495220d2922bfb5e9d35e144f2973a8493c956",
+  "derivedFromSha256": "6499cbb4f1fee0ebc8e2a7df5837a12b5e5453e928f36d56c9defadbc1d4a5d0",
+  "canonicalBase": "scripts/evidence/on0i-real-local-qa-scenarios.cjs",
+  "prompt": "Хочу короткую полезную заметку для разработчика: как PostgreSQL SKIP LOCKED помогает нескольким воркерам разбирать одну очередь и какие у него ограничения. Проверь по официальной документации PostgreSQL. Сохрани одну новую заготовку «QA ON0I: очередь PostgreSQL» на русском со ссылками на первоисточник, затем прочитай её и проверь результат. Предыдущего поста нет. Ничего не публикуй и не подключай аккаунты.",
+  "sameNaturalPromptAsPreviousFailure": true,
+  "singleSubmissionGuard": "fullsource-postgresql-submission.guard",
+  "separateStateFile": "fullsource-postgresql-state.json",
+  "executed": true,
+  "paidCallsByPreparation": 0,
+  "privateScriptOutsideGit": true,
+  "changes": "Only unique case/state/guard names changed; request, auth, native stream/readback and provider accounting path preserved.",
+  "result": "FAIL_NO_REQUESTED_SAVED_ARTIFACT",
+  "resubmissionAllowed": false,
+  "lifecycleVerdict": "PASS",
+  "receipt": "real-local-qa-scenario-fullsource-postgresql-skip-locked.json"
+}

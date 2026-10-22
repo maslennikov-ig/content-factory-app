@@ -1,0 +1,47 @@
+{
+  "schema": "on0i-root-suite-fixture-candidate/1",
+  "appAndTestsUnchanged": false,
+  "patch": "evidence/root-media-source-fixtures.patch",
+  "patchSha256": "50e333362c2e4585a8203b8a96f9f37661a7a30a69546ad24d5c9351fb542024",
+  "files": [
+    {
+      "path": "apps/frontend/src/components/agents/agent.copy.ts",
+      "originalSha256": "e924dd65cbb165f8c6a4dc7d991ed587564ff3ddb29842efd4e52e9f676186e0",
+      "candidateSha256": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+      "privateCandidate": "/tmp/on0i-real-local-qa-s2nihQ/root-suite-fix-proposal/0.source"
+    },
+    {
+      "path": "tests/agent-media.test.cjs",
+      "originalSha256": "9fa745f4984608b81036d99e1d0fc1d22bb9016078baae8db7694b6ad16e6e52",
+      "candidateSha256": "f4f008395e9c78be78fee0cc6c35ff171c0b314954a6719b4d0c316eb7f09372",
+      "privateCandidate": "/tmp/on0i-real-local-qa-s2nihQ/root-suite-fix-proposal/1.source"
+    },
+    {
+      "path": "tests/web.research.source-admission.test.cjs",
+      "originalSha256": "b185a25afdc30710d0bf024a3252f2d4a5b0f9bc6bd25f260ef3936d6aece71f",
+      "candidateSha256": "60614005bd8cf93e11c3782826c3caf328e7a4f7822f4464ea175542669e15bd",
+      "privateCandidate": "/tmp/on0i-real-local-qa-s2nihQ/root-suite-fix-proposal/2.source"
+    }
+  ],
+  "reason": [
+    "Localize new input-refusal code without fee claims",
+    "Remove obsolete static prohibition on observability; stronger real producer/exporter/PG secret-media proof already present and passed in fullsuite",
+    "Keep all source metadata assertions and additionally require complete provider body when standard intake keeps fullText"
+  ],
+  "validation": "APPLIED_EXACT_PREVALIDATED_CANDIDATE_FINAL_SUITE_PENDING",
+  "inMemoryValidation": {
+    "status": "PASS",
+    "suitesPassed": 3,
+    "testsPassed": 92,
+    "log": "evidence/root-media-source-fixtures-inmemory.log",
+    "logSha256": "6c4dd1333b08b4d3fcad2ecfdb9c4f63ad204740281b2665b7e8137c0d7853cd"
+  },
+  "appliedAfterGate7Completed": true,
+  "appliedValidation": {
+    "status": "PASS",
+    "suites": 3,
+    "tests": 92,
+    "log": "evidence/root-media-source-fixtures-applied.log",
+    "logSha256": "81cd7fe0937c717a25b4cac4625b431c12b1e11e89df78ccd453e740be9d6fe3"
+  }
+}

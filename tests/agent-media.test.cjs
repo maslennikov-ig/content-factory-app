@@ -742,24 +742,9 @@ describe('a picture the agent is shown (owner decision 28.09.2026, «агент 
     );
   });
 
-  test('no tracing records the prompt a picture rides in (review W4-25 vision F6)', () => {
-    // Mastra hands the outgoing prompt — pictures included — to its model
-    // spans; with no observability configured nothing records them. Enabling
-    // it must come with a span processor that drops file parts, and fails here
-    // until it does.
-    const root = path.join(__dirname, '..');
-    const service = fs.readFileSync(
-      path.join(root, 'libraries/nestjs-libraries/src/chat/mastra.service.ts'),
-      'utf8'
-    );
-    expect(service).toMatch(/new Mastra\(\{/);
-    expect(service).not.toMatch(/observability|telemetry/i);
-    const manifests = ['package.json', 'apps/backend/package.json', 'libraries/nestjs-libraries/package.json']
-      .map((file) => path.join(root, file))
-      .filter((file) => fs.existsSync(file))
-      .map((file) => fs.readFileSync(file, 'utf8'));
-    for (const manifest of manifests) expect(manifest).not.toMatch(/@mastra\/observability/);
-  });
+  // Raw prompt/media export privacy is exercised with the actual native
+  // producer, exporter and PostgreSQL consumer in agent-native-observability.test.cjs.
+  // That behavioral proof replaces the former blanket observability/package ban.
 
   test('a keep-picture answer names a library id when it says «kept» (review W4-25 vision F9)', () => {
     const payload = { kind: 'keep-picture', question: 'q', pictureKey: KEY, canDecideForPerson: false };

@@ -1,0 +1,13 @@
+# Research request actor clarification
+
+Source/tests frozen for independent review. Actual failed scenario remains FAILED_NO_CORE; a new real model evaluation is required.
+
+The owned native snapshot retained internal model policy and humanFactSelection:false for the exact original request. The later standalone research snapshot had no native ancestry or request. Its from-research continuation carried three exact source passages but no structured request or selection field. The fresh brief therefore interpreted the request again. The unique Russian refusal at finish proves its new humanFactSelection:true was consumed as an outstanding person action. This final interpretation was not persisted before writer admission; it is branch-proven rather than a direct provider-response readback.
+
+Only two application lines changed: request-understanding.ts describes humanFactSelection on the underlying Boolean so its definition survives optional/nullable conversion into the actual provider schema; intake.prompts.v12.ts defines a PERSON selecting/approving facts before writing and distinguishes that from assistant research, evidence selection and saved-result verification. No parser, value, consent/selection policy, signed card, snapshot lifetime, write claim or writer logic changed.
+
+The exact public LangChain/OpenAI zodResponseFormat path reproduced two missing-description failures, then passed both current/compatible schemas. True and false remain unchanged through the model normalizer. Actual tool/service consumer cases read a saved source and continue with exact passages: model-extracted false writes once; model-extracted true stops before writing/claiming and receives no revision proof. Existing native-context cases now preserve an authoritative false even when a later model answer says true. Existing explicit-person, signed policy, lifetime and uncertain-write checks remain in the affected suites.
+
+Final affected verification: 4 suites, 88 PASS, 0 skipped; backend no-emit typecheck exit 0; scoped diff check exit 0. No paid call, API/tool runtime invocation, restart, build, full suite, deployment or push was performed by this stream. Diagnostic store access was root-approved read-only GET/PTTL of exactly two owned snapshots after local/db13 ownership verification; the private full capture has mode0600 and the client disconnected.
+
+Root owns independent exact-byte review, the same-natural-prompt real model case and an explicit person-selection real case, followed by final acceptance. Residual risk is model interpretation: these bounded instructions clarify the consumed contract but cannot deterministically guarantee semantic quality.

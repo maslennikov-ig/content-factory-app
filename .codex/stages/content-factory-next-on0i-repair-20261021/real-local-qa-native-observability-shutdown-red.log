@@ -1,0 +1,14 @@
+{"actualServiceShutdown":true,"manualFlush":false,"bufferedSpanPersisted":false,"durationMs":3}
+AssertionError [ERR_ASSERTION]: Orderly native service shutdown lost the fresh buffered span.
+
+false !== true
+
+    at /tmp/on0i-real-local-qa-s2nihQ/observability-api/shutdown-control.cjs:35:10
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

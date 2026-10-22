@@ -1,0 +1,39 @@
+{
+  "schema": "on0i-current-cold-bootstrap/1",
+  "result": "PASS",
+  "localOnly": true,
+  "histories": 19,
+  "historyDigest": "b4158c5866f0160daf268a5841bcd0db52c8ad1cef02d9e2d8443b7ddf21376e",
+  "historiesUnchanged": true,
+  "usageRows": 35,
+  "ledgerDigest": "ffcbef17d3ca597ad8c0ee17cc98ced603253c73784e1ce01b6cd04586383189",
+  "ledgerUnchanged": true,
+  "providerCallsDuringBootstrap": 0,
+  "providerRows": 140,
+  "sourceChangedDuringBootstrap": false,
+  "sourceSha256": {
+    "package.json": "eb03d7d1ab2c97075a8e1c3fdfef9fb0460539f0f0e78f93144e87e33e3a0f32",
+    "pnpm-lock.yaml": "210f2efefae8865b154d50f1d7ec1f68a5436b507149755879ed0f90fdc31524",
+    "apps/backend/src/api/routes/agent.controller.ts": "af7668fe99d692f0192e04b2828ea524bbb291955a586a14ff10a74afd6394e8",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+    "libraries/nestjs-libraries/src/chat/mastra.store.ts": "4d60b39f00aec034fadd993d30b407efefd19b57c1f06cd718dcd953959e8160",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "c0cd24188c27a73c89907153ce034826ce5d5f77f77d46a0a47b204e140fb8cf",
+    "libraries/nestjs-libraries/src/chat/conductor/conversation-history.ts": "212f8d072417e68c5546c2fad024e39dd5fdaf2e09da024ab523e9f023634cb3",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "847d8fea8a6f763bb45fd94e4ffb9c8c5bbc6e8f80bf4cb34cb1e1864265d845",
+    "libraries/nestjs-libraries/src/chat/conductor/native-run-observer.ts": "bd7edeba03bfbb3a0945bc24d76f39d80aea971c1242cbd38c55796c9d8f5934",
+    "libraries/nestjs-libraries/src/chat/conductor/native-observability.ts": "b0cc768caa8c9d53ca2ffe3935aa6f367e0f13b33993bf4592a27f7029fccd08",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "b716d544505db827ecc4ab99ffe9958af332f8d8cd6a868d9754725be179741f",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "scripts/evidence/on0i-real-local-qa-backend.cjs": "5bc6fde97356e0cc707655218a6221c1037e738f7f048e862b65a8f9966ee3bd",
+    "scripts/evidence/on0i-real-local-qa-network.cjs": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11"
+  },
+  "backendPid": 17393,
+  "retainedUnknownRows": 4,
+  "bootstrapReceipt": "real-local-qa-backend-start.json",
+  "snapshotFiles": [
+    "root-cold-bootstrap-before.json",
+    "root-cold-bootstrap-after.json"
+  ],
+  "privateSnapshotsOutsideGit": true
+}

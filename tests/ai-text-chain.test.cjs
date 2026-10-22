@@ -1,8 +1,8 @@
 /**
  * The shared text transport and its usage ledger (`content-factory-next-97dq.55`).
  *
- * Owner's decision of 23.09.2026: text runs on `openai/gpt-6-luna` with
- * reasoning effort `medium` through flex → flex → standard → `z-ai/glm-5.3`,
+ * Owner's default of 21.10.2026: text runs on `openai/gpt-6-luna` with
+ * reasoning effort `medium` through flex → standard → discounted Sol6.1,
  * and every usage row records tokens, served tier, model, attempt and cost.
  * The transport is mocked; no request leaves the process.
  */
@@ -85,23 +85,23 @@ const post = (body, extra = {}) => ({
 const request = { model: LUNA, messages: [{ role: 'user', content: 'hi' }] };
 
 describe('text chain plan', () => {
-  test('included OpenRouter walks one 60 s flex attempt, standard, then GLM (97dq.94)', () => {
+  test('included OpenRouter walks one 60 s Luna Flex attempt, Standard, then Sol6.1 Flex', () => {
     expect(chain.planTextAttempts(LUNA, included)).toEqual([
       { number: 1, model: LUNA, flex: true, timeoutMs: 60_000 },
       { number: 2, model: LUNA, flex: false, timeoutMs: 60_000 },
-      { number: 3, model: 'z-ai/glm-5.3', flex: false, timeoutMs: 60_000 },
+      { number: 3, model: 'openai/gpt-6.1-sol', flex: true, timeoutMs: 60_000 },
     ]);
     // The SDK deadline covers every attempt at its longest non-streaming
     // window (F2), and the retry after a cut answer as a second pass (F1).
     expect(chain.textChainBudgetMs(LUNA, included)).toBe(5_000 + 2 * 3 * 180_000);
   });
 
-  test('interactive (the copilot chat): one flex attempt of 25 s to first token, then standard, then GLM', () => {
+  test('interactive chat: Luna Flex25s, Luna Standard, then Sol6.1 Flex25s', () => {
     const source = { ...included, profile: 'interactive' };
     expect(chain.planTextAttempts(LUNA, source)).toEqual([
       { number: 1, model: LUNA, flex: true, timeoutMs: 25_000 },
       { number: 2, model: LUNA, flex: false, timeoutMs: 60_000 },
-      { number: 3, model: 'z-ai/glm-5.3', flex: false, timeoutMs: 60_000 },
+      { number: 3, model: 'openai/gpt-6.1-sol', flex: true, timeoutMs: 25_000 },
     ]);
   });
 
@@ -115,8 +115,11 @@ describe('text chain plan', () => {
 
   test('a model without a flex endpoint and the fallback itself are not doubled', () => {
     expect(
+      chain.planTextAttempts('openai/gpt-6.1-sol', included).map((a) => [a.model, a.flex])
+    ).toEqual([['openai/gpt-6.1-sol', true]]);
+    expect(
       chain.planTextAttempts('z-ai/glm-5.3', included).map((a) => [a.model, a.flex])
-    ).toEqual([['z-ai/glm-5.3', false]]);
+    ).toEqual([['z-ai/glm-5.3', false], ['openai/gpt-6.1-sol', true]]);
   });
 
   test('workspace_key and the openai provider get a single attempt', () => {
@@ -132,11 +135,11 @@ describe('text chain plan', () => {
   test('stored settings: NULL and empty read as the defaults', () => {
     expect(chain.resolveTextChainSettings(null)).toEqual({
       flex: true,
-      fallbackModel: 'z-ai/glm-5.3',
+      fallbackModel: 'openai/gpt-6.1-sol',
     });
     expect(
       chain.resolveTextChainSettings({ textFlexEnabled: false, textFallbackModel: '  ' })
-    ).toEqual({ flex: false, fallbackModel: 'z-ai/glm-5.3' });
+    ).toEqual({ flex: false, fallbackModel: 'openai/gpt-6.1-sol' });
     expect(
       chain.resolveTextChainSettings({ textFallbackModel: 'x/other' }).fallbackModel
     ).toBe('x/other');
@@ -144,11 +147,11 @@ describe('text chain plan', () => {
 });
 
 describe('text chain transport', () => {
-  test('bodies: flex tier, usage accounting and medium effort on Luna only', async () => {
+  test('bodies: metering and medium effort on Luna and discounted Sol6.1', async () => {
     const { fetch, calls } = scripted(
       json(429, { error: { code: 429, message: 'flex capacity' } }),
       json(502, { error: { code: 502, message: 'bad gateway' } }),
-      json(200, completion({ model: 'z-ai/glm-5.3', service_tier: undefined }))
+      json(200, completion({ model: 'openai/gpt-6.1-sol', service_tier: 'flex' }))
     );
     const response = await chain.createTextChainFetch(included, fetch)(URL_, post(request));
 
@@ -156,7 +159,7 @@ describe('text chain transport', () => {
     expect(calls.map(({ body }) => [body.model, body.service_tier, body.reasoning])).toEqual([
       [LUNA, 'flex', { effort: 'medium' }],
       [LUNA, undefined, { effort: 'medium' }],
-      ['z-ai/glm-5.3', undefined, undefined],
+      ['openai/gpt-6.1-sol', 'flex', { effort: 'medium' }],
     ]);
     for (const { body } of calls) expect(body.usage).toEqual({ include: true });
   });
@@ -263,6 +266,197 @@ describe('text chain transport', () => {
       jest.useRealTimers();
     }
   });
+});
+
+describe('OpenRouter in-flight credit reservation', () => {
+  const metadata = { limit_source: 'openrouter_in_flight_budget', reason: 'in_flight_budget_exhausted' };
+  const source = { ...included, usageMode: 'workspace_key', singleModelAttempt: true };
+  const refusal = (details = metadata) => ({ error: { code: 402, message: 'Private provider diagnostic.', metadata: details } });
+
+  test.each([metadata, { limit_source: metadata.limit_source }, { limit_source: metadata.limit_source, reason: 'future_reason' }])(
+    'the exact transient source becomes 429, preserving body, Retry-After and request limits: %j', async details => {
+    const body = `  ${JSON.stringify(refusal(details))}\n`;
+    const { fetch, calls } = scripted(new Response(body, { status: 402,
+      headers: { 'content-type': 'application/json', 'retry-after': '1', 'x-request-id': 'credit-reservation-test' } }));
+    const init = post({ ...request, max_tokens: 87, temperature: 0.2 });
+    const ledger = new chain.TextUsageLedger();
+    const response = await chain.runWithUsageLedger(ledger, () => chain.createTextChainFetch({ ...source, outputLimits: { [LUNA]: 87 } }, fetch)(URL_, init));
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('1');
+    expect(response.headers.get('x-request-id')).toBe('credit-reservation-test');
+    expect(await response.text()).toBe(body);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.max_tokens).toBe(87);
+    expect(calls[0].body.temperature).toBe(0.2);
+    expect(ledger.calls).toHaveLength(1);
+    expect(ledger.calls[0]).toMatchObject({ failed: true });
+    expect(ledger.calls[0].possiblyBilled).toBeUndefined();
+  });
+
+  test.each([
+    ['key limit', { limit_source: 'openrouter_key_limit', reason: 'in_flight_budget_exhausted' }],
+    ['credits', { limit_source: 'openrouter_credits', reason: 'weight_exceeds_budget' }],
+    ['reason without source', { reason: 'in_flight_budget_exhausted' }],
+    ['unknown', {}],
+  ])('%s remains a terminal 402 even with the same message and Retry-After', async (_label, details) => {
+    const body = refusal(details);
+    const { fetch, calls } = scripted(new Response(JSON.stringify(body), { status: 402,
+      headers: { 'content-type': 'application/json', 'retry-after': '1' } }));
+    const response = await chain.createTextChainFetch(included, fetch)(URL_, post(request));
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual(body);
+    expect(calls).toHaveLength(1);
+  });
+
+  test.each([
+    ['OpenAI provider', { ...source, provider: 'openai' }, URL_],
+    ['OpenAI endpoint', source, 'https://api.openai.com/v1/chat/completions'],
+    ['embeddings', source, 'https://openrouter.ai/api/v1/embeddings'],
+  ])('%s does not normalize the refusal', async (_label, config, url) => {
+    const original = json(402, refusal());
+    const { fetch, calls } = scripted(original);
+    const response = await chain.createTextChainFetch(config, fetch)(url, post(request));
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual(refusal());
+    expect(calls).toHaveLength(1);
+  });
+
+  test('non-JSON 402 and successful streams retain their bodies without a new success-body read', async () => {
+    const success = sse([{ choices: [{ delta: { content: 'unchanged' } }] }]);
+    const read = jest.spyOn(success, 'text');
+    const clone = jest.spyOn(success, 'clone');
+    const { fetch, calls } = scripted(new Response('opaque refusal', { status: 402 }), success);
+    const run = chain.createTextChainFetch({ ...source, passthroughModels: [LUNA] }, fetch);
+    const opaque = await run(URL_, post(request));
+    expect(opaque.status).toBe(402);
+    expect(await opaque.text()).toBe('opaque refusal');
+    const result = await run(URL_, post({ ...request, stream: true }));
+    expect(result).toBe(success);
+    expect(read).not.toHaveBeenCalled();
+    expect(clone).not.toHaveBeenCalled();
+    await result.body.cancel();
+    expect(calls).toHaveLength(2);
+  });
+
+  test('Stop interrupts a stalled 402 body read without another request', async () => {
+    const abort = new AbortController();
+    let close;
+    const { fetch, calls } = scripted(new Response(new ReadableStream({ start(controller) { close = () => controller.close(); } }), { status: 402 }));
+    const pending = chain.createTextChainFetch(source, fetch)(URL_, post(request, { signal: abort.signal }));
+    const rejected = expect(pending).rejects.toThrow('stop-credit-body');
+    await new Promise(resolve => setImmediate(resolve));
+    abort.abort(new Error('stop-credit-body'));
+    close();
+    await rejected;
+    expect(calls).toHaveLength(1);
+  });
+
+  test('authority failures remain terminal around a documented temporary provider cause', () => {
+    const { execFileSync } = require('node:child_process');
+    const output = execFileSync(process.execPath, ['-e', `
+      const { loadTypeScriptModule } = require('./tests/helpers/load-ts-module.cjs');
+      const chain = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.text-chain.ts');
+      const retry = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.native-retries.ts', { './ai.text-chain': chain });
+      const provider = { statusCode: 429, url: ${JSON.stringify(URL_)}, message: 'credit balance temporarily reserved',
+        responseBody: JSON.stringify({ error: { metadata: ${JSON.stringify(metadata)} } }) };
+      const authority = ['Permission denied', 'consent_denied', 'invalid_api_key', 'access_denied', 'bad_request'];
+      console.log(JSON.stringify({ wrappedBilling: retry.isTransientNativeTextError({ message: 'credit balance temporarily reserved', cause: provider }),
+        authority: authority.map(message => retry.isTransientNativeTextError({ message, cause: provider })),
+        hardStatus: retry.isTransientNativeTextError({ statusCode: 402, cause: provider }),
+        stopped: retry.isTransientNativeTextError({ name: 'AbortError', cause: provider }),
+        budget: retry.isTransientNativeTextError({ executionBudgetStop: true, cause: provider }) }));
+    `], { cwd: require('node:path').join(__dirname, '..'), encoding: 'utf8', timeout: 10_000 });
+    expect(JSON.parse(output.trim())).toEqual({ wrappedBilling: true, authority: [false, false, false, false, false],
+      hardStatus: false, stopped: false, budget: false });
+  });
+
+  test.each([
+    ['transient', metadata, 2],
+    ['transient credit wording', metadata, 2],
+    ['transient wrapped billing', metadata, 2],
+    ['permanent key', { limit_source: 'openrouter_key_limit' }, 1],
+    ['permanent credits', { limit_source: 'openrouter_credits', reason: 'weight_exceeds_budget' }, 1],
+    ['permanent unknown', {}, 1],
+    ['permanent wrapped permission', metadata, 1],
+    ['permanent wrapped consent', metadata, 1],
+    ['permanent wrapped auth', metadata, 1],
+    ['stop', metadata, 1],
+  ])(
+    'the actual native SDK owns %s retry count and preserves accounting', (_label, details, expectedCalls) => {
+      const { execFileSync } = require('node:child_process');
+      const output = execFileSync(process.execPath, ['-e', `
+        const { loadTypeScriptModule } = require('./tests/helpers/load-ts-module.cjs');
+        const chain = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.text-chain.ts');
+        const retry = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.native-retries.ts', { './ai.text-chain': chain });
+        const { Agent } = require('@mastra/core/agent');
+        const { RequestContext } = require('@mastra/core/request-context');
+        const { createOpenAI } = require('@ai-sdk/openai');
+        const details = ${JSON.stringify(details)};
+        const diagnostic = ${JSON.stringify(_label.includes('wording') ? 'credit balance temporarily reserved' : 'Private provider diagnostic.')};
+        const wrapperMessage = ${JSON.stringify(_label.includes('wrapped') ?
+          _label.includes('permission') ? 'Permission denied' : _label.includes('consent') ? 'consent_denied' :
+          _label.includes('auth') ? 'invalid_api_key' : 'credit balance temporarily reserved' : null)};
+        const stopping = ${JSON.stringify(_label === 'stop')};
+        const stopped = new AbortController();
+        const calls = [], errors = [];
+        const config = retry.createNativeTextRetryConfig({ defaultMaxRetries: 1, delayMs: 0 });
+        const handleError = config.errorProcessors[0].processAPIError;
+        config.errorProcessors[0].processAPIError = async args => {
+          errors.push({ status: args.error.statusCode, retryAfter: args.error.responseHeaders?.['retry-after'] });
+          if (stopping) setTimeout(() => stopped.abort(new Error('stop-native-credit-backoff')), 15);
+          return handleError(args);
+        };
+        const fetch = async (_url, init) => {
+          calls.push({ at: performance.now(), body: JSON.parse(init.body) });
+          if (calls.length === 1) return new Response(JSON.stringify({ error: { code: 402, message: diagnostic, metadata: details } }),
+            { status: 402, headers: { 'content-type': 'application/json', 'retry-after': '1' } });
+          const events = [
+            { id: 'native-credit', object: 'chat.completion.chunk', created: 0, model: 'test-credit-model', choices: [{ index: 0, delta: { role: 'assistant', content: 'recovered' }, finish_reason: null }] },
+            { id: 'native-credit', object: 'chat.completion.chunk', created: 0, model: 'test-credit-model', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4, cost: 0.0001 } },
+          ];
+          return new Response(events.map(event => 'data: ' + JSON.stringify(event) + '\\n\\n').join('') + 'data: [DONE]\\n\\n',
+            { headers: { 'content-type': 'text/event-stream' } });
+        };
+        const provider = createOpenAI({ apiKey: 'synthetic', baseURL: 'https://openrouter.ai/api/v1',
+          fetch: chain.createTextChainFetch({ provider: 'openrouter', usageMode: 'included', singleModelAttempt: true,
+            textChain: { flex: false, fallbackModel: '', fallbackModels: [] } }, fetch) });
+        const models = ['test-credit-primary', 'test-credit-backup'];
+        const context = new RequestContext();
+        retry.setNativeTextMaxRetries(context, 1, models);
+        const wrap = model => !wrapperMessage ? model : new Proxy(model, { get(target, property) {
+          if (property === 'doStream') return async (...args) => {
+            try { return await target.doStream(...args); }
+            catch (error) { throw Object.assign(new Error(wrapperMessage), { cause: error }); }
+          };
+          const value = Reflect.get(target, property, target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        } });
+        const agent = new Agent({ id: 'native-credit-retry', name: 'Credit retry test', instructions: 'Reply once.',
+          model: models.map(model => ({ model: wrap(provider.chat(model)), maxRetries: 0 })), ...config });
+        const ledger = new chain.TextUsageLedger();
+        chain.runWithUsageLedger(ledger, async () => {
+          let text = '', failure;
+          try { text = await (await agent.stream('Reply once.', { maxRetries: 0, requestContext: context, abortSignal: stopped.signal })).text; }
+          catch (error) { failure = error.message; }
+          console.log('RESULT=' + JSON.stringify({ text, failure, calls: calls.length, models: calls.map(call => call.body.model),
+            elapsedAfterFirstMs: performance.now() - calls[0].at, waitMs: calls[1] ? calls[1].at - calls[0].at : null,
+            errors, ledger: ledger.calls.map(call => ({ failed: call.failed === true, possiblyBilled: call.possiblyBilled === true, costUsd: call.costUsd })) }));
+        }).catch(error => { console.error(error); process.exitCode = 1; });
+      `], { cwd: require('node:path').join(__dirname, '..'), encoding: 'utf8', timeout: 12_000, stdio: ['ignore', 'pipe', 'pipe'] });
+      const report = JSON.parse(output.split('\n').find(line => line.startsWith('RESULT=')).slice(7));
+      expect(report.calls).toBe(expectedCalls);
+      expect(report.models).toEqual(Array(expectedCalls).fill('test-credit-primary'));
+      if (!_label.includes('wrapped')) expect(report.errors[0]).toEqual({ status: details.limit_source === metadata.limit_source ? 429 : 402, retryAfter: '1' });
+      expect(report.ledger).toHaveLength(expectedCalls);
+      expect(report.ledger[0]).toEqual({ failed: true, possiblyBilled: false });
+      if (expectedCalls === 2) {
+        expect(report.text).toBe('recovered');
+        expect(report.waitMs).toBeGreaterThanOrEqual(900);
+        expect(report.ledger[1]).toEqual({ failed: false, possiblyBilled: false, costUsd: 0.0001 });
+      }
+      if (_label === 'stop') expect(report.elapsedAfterFirstMs).toBeLessThan(900);
+    }, 15_000
+  );
 });
 
 describe('streaming through the chain', () => {
@@ -857,8 +1051,8 @@ describe('failed attempts are in the ledger (review F15)', () => {
       );
       expect(response.status).toBe(503);
       expect(ledger.columns()).toEqual({
-        model: 'z-ai/glm-5.3',
-        serviceTier: null,
+        model: 'openai/gpt-6.1-sol',
+        serviceTier: 'flex',
         attempt: 3,
         promptTokens: null,
         completionTokens: null,

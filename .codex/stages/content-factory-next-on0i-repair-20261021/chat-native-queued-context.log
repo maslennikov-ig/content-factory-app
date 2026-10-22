@@ -1,0 +1,15 @@
+R5 cf_r5_35488_1792574696405: raw
+R5 cf_r5_35488_1792574696405: persist
+R5 cf_r5_35488_1792574696405: fifo
+R5 cf_r5_35488_1792574696405: gap
+R5 cf_r5_35488_1792574696405: stop-before
+R5 cf_r5_35488_1792574696405: stop-after
+R5 cf_r5_35488_1792574696405: approval
+PASS tests/native-queued-input.test.cjs (19.954 s)
+PASS tests/agent-native-session-owner.test.cjs (8.934 s)
+
+Test Suites: 2 passed, 2 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        29.037 s, estimated 33 s
+Ran all test suites matching /tests\/agent-native-session-owner.test.cjs|tests\/native-queued-input.test.cjs/i.

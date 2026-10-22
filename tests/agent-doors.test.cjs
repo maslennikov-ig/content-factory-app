@@ -1221,13 +1221,13 @@ describe('A3: /agent/chat is throttled per person', () => {
     expect(AGENT_CHAT_THROTTLE).toEqual({ limit: 20, ttl: 60_000 });
   });
 
-  test('the chat door carries the guard; the reads do not', () => {
+  test('chat and active user signals carry the guard; reads do not', () => {
     const source = require('node:fs').readFileSync(
       require('node:path').resolve(__dirname, '..', 'apps/backend/src/api/routes/agent.controller.ts'),
       'utf8'
     );
-    const guarded = source.split('@UseGuards(AgentChatThrottleGuard)');
-    expect(guarded).toHaveLength(2);
-    expect(guarded[1].trimStart()).toMatch(/^async chat\(/);
+    const guardedMethods = [...source.matchAll(/@UseGuards\(AgentChatThrottleGuard\)\s+async\s+(\w+)\(/g)]
+      .map((match) => match[1]);
+    expect(guardedMethods).toEqual(['chat', 'signalThread']);
   });
 });

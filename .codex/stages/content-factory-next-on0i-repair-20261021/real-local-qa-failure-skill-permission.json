@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-21T07:18:48.122Z",
+  "result": "FAIL_UNEXPECTED_BUILTIN_APPROVAL",
+  "threadId": "c9ab4b52-d24d-4b88-a905-d985b81e621e",
+  "execution": {
+    "requestId": "cd8a26fa-6385-46cb-b18b-253da907b582",
+    "state": "running",
+    "runId": "16f5ca54-cf58-49ac-bb74-828868b30654"
+  },
+  "pending": [
+    {
+      "runId": "16f5ca54-cf58-49ac-bb74-828868b30654",
+      "toolCallId": "call_b2bJHjMF1Ytx7ld9U2XOoQZC",
+      "toolName": "skill",
+      "kind": "approval",
+      "args": {
+        "name": "content"
+      },
+      "summary": null
+    }
+  ],
+  "usage": [
+    {
+      "id": "da31dd1e-e7b3-4d7f-8322-f87165723517",
+      "operation": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "admitted",
+      "promptTokens": null,
+      "completionTokens": null,
+      "costUsd": null,
+      "possiblyBilled": null
+    }
+  ],
+  "searchCalls": 0,
+  "savedPieces": 0,
+  "observerDetached": true,
+  "privateEvidence": "/tmp/on0i-real-local-qa-s2nihQ/pending-skill-failure.json",
+  "rootAuthorizedStopAfterCapture": true,
+  "stopHttp": 201,
+  "stopBody": {
+    "stopped": true,
+    "threadId": "c9ab4b52-d24d-4b88-a905-d985b81e621e",
+    "requestId": "cd8a26fa-6385-46cb-b18b-253da907b582"
+  },
+  "afterStop": {
+    "execution": {
+      "requestId": "cd8a26fa-6385-46cb-b18b-253da907b582",
+      "state": "settled",
+      "outcome": "interrupted",
+      "runId": "16f5ca54-cf58-49ac-bb74-828868b30654"
+    },
+    "pending": []
+  }
+}

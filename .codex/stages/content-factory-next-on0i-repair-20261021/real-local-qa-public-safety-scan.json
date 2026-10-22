@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-21T08:49:47.514Z",
+  "result": "PASS",
+  "filesScanned": 79,
+  "hits": [],
+  "privateConfigMode": "600",
+  "privateConfigDirectoryMode": "700",
+  "standMode": "600",
+  "privateStandDirectoryMode": "700",
+  "secretValuesPrinted": false
+}

@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-21T07:20:24.988Z",
+  "result": "PASS",
+  "ownThreadList": 200,
+  "sameOrganizationDifferentUser": 403,
+  "otherOrganization": 403,
+  "unauthenticated": 401,
+  "providerCalls": 0,
+  "historyDisclosed": false
+}

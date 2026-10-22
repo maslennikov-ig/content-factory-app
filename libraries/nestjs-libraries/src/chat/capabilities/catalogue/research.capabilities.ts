@@ -49,11 +49,11 @@ export const researchSearch = defineCapability({
       sources: found.sources,
       assessment: found.readerAssessment ?? null,
       sourceCount: found.sources.length,
-      factCount: found.facts.length,
+      factCount: captured.facts.length,
       fromCache: found.fromCache === true,
       outcome: found.facts.length || found.summary.trim() ? 'results' : 'empty',
       readWith: 'piece.read',
-      note: 'Assess relevance and evidence sufficiency for the actual request. Compact source and fact previews are shown here; read full source passages on demand with piece.read (snapshotKey + part: research_source / research_fact) or pass snapshotKey to piece.create without searching again. A search returning rows does not prove the task is complete; no piece was created.',
+      note: 'Assess relevance and evidence sufficiency for the actual request. sourcePassage:true rows are actual saved page captures, not semantic confirmed findings; they are excluded from default selection. Read and assess them with piece.read, then explicitly select their existing factKey if useful. Other compact source and fact previews are shown here; full passages remain readable without fetching or searching again. A search returning rows does not prove the task is complete; no piece was created.',
     };
   },
   summarize: (output) => {

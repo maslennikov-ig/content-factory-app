@@ -1,0 +1,8 @@
+{
+  "author": "integrator",
+  "created_at": "2026-10-21T14:51:07.940236107Z",
+  "id": "01a15ef1-d179-779c-9505-822d5d17c19a",
+  "issue_id": "content-factory-next-on0i",
+  "schema_version": 1,
+  "text": "Current local repair progress, no push/deploy. Gate7 full-suite failures are fixed and independently reviewed (queue response identity, native durable Stop fixture, native objective approval fixture, full-source/privacy/copy expectations). Current Gate9 source is frozen:3 typechecks/full build PASS, compiled browser80-item reconnect/raw provider=Memory=HTTP=DOM PASS, Stop ACK followed by all4 saved messages at first history response+36ms, next turn all6/no duplicates. Official OpenRouter temporary in-flight402 is delegated to native retry; permanent payment errors are actionable and remain terminal; auth/consent/Stop priority retained. Independent review accepts9 final provider files,158+104 focused tests. Owner raised the external key limit; private readback confirms readiness, no account figures/keys in source. Actual current-source model+search Python task saved/read one CORE and completed after one explicit QA native editorial correction selection; initial intermediate pending/FAIL is preserved, not first-pass autonomous success. Full Jest -\u003e Node -\u003e Python still RUNNING (root session2284); epic/children remain in_progress until final receipt. Evidence: .codex/stages/content-factory-next-on0i-repair-20261021/outcome.md and root-current-browser-acceptance.json.\n"
+}

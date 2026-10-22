@@ -1,0 +1,130 @@
+{
+  "schema": "content-factory-local-adaptation-acceptance/v1",
+  "task": "content-factory-next-5rgn",
+  "at": "2026-10-20T16:32:46.410069+00:00",
+  "sourceCommit": "da292c6159734933d5c673402000ee61f8e3a5d4",
+  "scope": "local-only repair and actual saved-post review",
+  "engineeringAccepted": true,
+  "publicationQualityAccepted": true,
+  "acceptedNativePosts": 2,
+  "posts": [
+    {
+      "index": 1,
+      "characters": 3927,
+      "bodySha256": "be0c1635ea20784dad569e760c29c834de6cc15c64f8e9ada8cb6aafbec1e569",
+      "fullSavedHtmlEqualsProductRendering": true,
+      "state": "DRAFT",
+      "releaseURL": null,
+      "sourceCount": 11,
+      "sourceCharacters": 56363,
+      "ownerAndLiteralDigestChecks": true,
+      "allWholeRawBodiesRetained": true,
+      "originalRequestSha256": "aba7a8f00166b6f3f7f62a36225316856fb9626f0d4d702d7178775a9ab3e547"
+    },
+    {
+      "index": 2,
+      "characters": 3492,
+      "bodySha256": "8a9c89c8d8e8e8428aa87a2661caa07de9e7a3072153122a83bee71ab59822c0",
+      "fullSavedHtmlEqualsProductRendering": true,
+      "state": "DRAFT",
+      "releaseURL": null,
+      "sourceCount": 9,
+      "sourceCharacters": 43320,
+      "ownerAndLiteralDigestChecks": true,
+      "allWholeRawBodiesRetained": true,
+      "originalRequestSha256": "aba7a8f00166b6f3f7f62a36225316856fb9626f0d4d702d7178775a9ab3e547"
+    }
+  ],
+  "intendedOwnerAvatarRestored": true,
+  "qaChannelAssignmentRemoved": true,
+  "originalProductionRecordsUnchanged": {
+    "pieces": 2,
+    "adaptations": 2,
+    "posts": 2,
+    "messages": 14,
+    "restoredChannel": true,
+    "readAfterAllLocalReruns": true
+  },
+  "originalReadableSha256": "cacbf6c3e54c03174d1a9d529a9acf7fff9c21cd98671a23b7d292004340d3c4",
+  "finalNativeExecutions": {
+    "settled": 2,
+    "completed": 2,
+    "pending": 0
+  },
+  "localUsage": {
+    "rows": 103,
+    "knownCostUsd": 5.740244010000001,
+    "possiblyBilledRows": 3,
+    "openRows": 0,
+    "actualRecentModels": [
+      "openai/gpt-6-sol"
+    ]
+  },
+  "localTextModel": "openai/gpt-6-sol",
+  "modelSelection": "local diagnostic choice without controlled comparison",
+  "productionModelChangedByThisTask": false,
+  "providerLimit": {
+    "usd": 8,
+    "setManuallyByOwner": true,
+    "agentMutation": false
+  },
+  "checks": {
+    "rootJestSuites": 11,
+    "rootJestTests": 483,
+    "rootJestPassed": true,
+    "backendNoEmit": true,
+    "backendBuild": true,
+    "sourceCompiledFileDigests": 19,
+    "docs": {
+      "command": [
+        "pnpm",
+        "run",
+        "docs:check"
+      ],
+      "exitCode": 0,
+      "filesChecked": 204
+    },
+    "diff": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0
+    },
+    "fullReleaseSuite": "not run for local-only task"
+  },
+  "graph": {
+    "review": "updated",
+    "sourceCommit": "da292c61",
+    "nodes": 29687,
+    "edges": 59128,
+    "communities": 1644,
+    "inputTokens": 0,
+    "outputTokens": 0
+  },
+  "privateEvidenceDirectory": "/home/me/.local/state/content-factory-next/adaptation-repair-20261020",
+  "localRuntimeCleanup": {
+    "backendStopped": true,
+    "ownContainersStopped": 2,
+    "containersRemoved": 0,
+    "databasesRetained": 2,
+    "sharedServicesUntouched": true
+  },
+  "delivery": {
+    "pushAfterLocalOnly": false,
+    "publicExportAfterLocalOnly": false,
+    "deploymentAfterLocalOnly": false,
+    "liveRerunAfterLocalOnly": false,
+    "productionProjectionDdl": false,
+    "socialPublication": false
+  },
+  "taskState": {
+    "beads": "closed",
+    "closedAt": "2026-10-20T16:34:30Z",
+    "rereadFromServerBackedBeads": true,
+    "canonicalLinearAcknowledgement": "not verified; managed server discovers pending edit",
+    "githubMirrorTrigger": "requested through managed hook",
+    "unrelatedSyncConflictsUntouched": true
+  }
+}

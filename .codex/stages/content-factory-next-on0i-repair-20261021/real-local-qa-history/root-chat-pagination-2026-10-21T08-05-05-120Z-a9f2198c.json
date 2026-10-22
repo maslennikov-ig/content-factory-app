@@ -1,0 +1,13 @@
+{
+  "schema": "on0i-chat-pagination/1",
+  "result": "PASS",
+  "seeded": 105,
+  "firstCount": 100,
+  "secondCount": 6,
+  "allOwnedIdsPresent": true,
+  "noDuplicates": true,
+  "renameReadback": true,
+  "providerCalls": 0,
+  "localOnly": true,
+  "fixtureScriptSha256": "bcda3928d31983c9ba44cd355462f3f8d290fd79ff1bcce6b95e6b8750bf2015"
+}

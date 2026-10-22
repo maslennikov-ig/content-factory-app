@@ -1,0 +1,293 @@
+{
+  "schema": "on0i-child-stream-acceptance/1",
+  "owner": "root",
+  "localOnly": true,
+  "wholeEpicAcceptance": "PASS_LOCAL_ONLY_A1_A31_SCOPED",
+  "streams": [
+    {
+      "agent": "retry_models",
+      "delivery": "chat-native-stop-generation-evidence.json",
+      "accepted": "BOUNDED_NATIVE_CHAT_RETRY_STOP_SOURCE_AND_FOCUSED_CHECKS",
+      "independentReview": "availability_recovery",
+      "conversationSha256": "06d507d5ecc191742c29827b3eff9899ccbbb44cb921f1dfb88c551717685a56",
+      "rootRemaining": "Current compiled UI and final build/full suite"
+    },
+    {
+      "agent": "durable_receipts",
+      "delivery": "durable-receipts.md",
+      "followup": "evidence/lifecycle-all-scenarios-recheck.json",
+      "accepted": "BOUNDED_NATIVE_RECEIPTS_RESUME_LINEAGE_AND_LIFECYCLE_ACCOUNTING",
+      "rootRemaining": "Unified current-source full suite"
+    },
+    {
+      "agent": "availability_recovery",
+      "delivery": "service-native-integration.md",
+      "observerDelivery": "native-run-observer.md",
+      "independentReview": "observer-final-review.md",
+      "accepted": "BOUNDED_NATIVE_RECOVERY_QUEUE_AND_ISOLATED_OBSERVER",
+      "rootRemaining": "Current real compiled reconnect and unified full suite"
+    },
+    {
+      "agent": "real_local_qa",
+      "delivery": "real-local-qa-native-observability.json",
+      "accepted": "BOUNDED_NATIVE_PG_PRODUCER_PRIVACY_SCOPE_AND_GRACEFUL_SHUTDOWN",
+      "independentReview": "availability_recovery",
+      "sourceSha256": {
+        "privacy": "b0cc768caa8c9d53ca2ffe3935aa6f367e0f13b33993bf4592a27f7029fccd08",
+        "store": "4d60b39f00aec034fadd993d30b407efefd19b57c1f06cd718dcd953959e8160",
+        "service": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+        "threads": "dc6c7501a8d5f4b0c6d0b4bfe6ef9200f059fa5bdef90b458072d3cbe73dc20c"
+      },
+      "rootRemaining": "Authorized exact-source stand restart, authenticated trace HTTP, current fresh real research and root semantic review"
+    },
+    {
+      "agent": "fixture_and_read_checks",
+      "accepted": "BOUNDED_FIXTURE_POOL_PARITY_AND_NATIVE_READ_PERMISSION_CHECKS",
+      "delivery": "evidence/fixture-pool-lifecycle-parity-20261021.json",
+      "fixtureSha256": "d745ae5149d5fd2df63b218a9baf93b65590832018a3717ce71a339d300f7ba7",
+      "focusedResult": "4 suites / 7 tests PASS; 0 exporter pool-after-close warnings",
+      "rootRemaining": "Current-source types/build, actual browser Stop+followup, real new-topic saved artifact and whole3-part suite"
+    },
+    {
+      "agent": "stop_settlement_debug",
+      "delivery": "stop-settlement-evidence.json",
+      "accepted": "BOUNDED_NATIVE_STOP_SETTLEMENT_AND_LATE_HISTORY_RECONCILIATION",
+      "rootReview": "Exact captured owner Promise resolves only after actual terminal Memory commit; rejection handled and propagated to Stop; cleanup after settlement; late history reuses same strict confirmation, without a new poller or SDK private API.",
+      "sourceFreeze": "evidence/stop-settlement-source-freeze.json",
+      "sourceSha256": {
+        "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9",
+        "apps/backend/src/api/routes/agent.controller.ts": "66b13557fe1dc2e27ebb191e1ea648a10fbda9a00b01faee7140fe9295cc933b",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "8c1f8052b4daf6aa79326481fa732ccb2282ce8831755b82d892ea4aeb1f98fd",
+        "tests/agent-native-stop-flow.test.cjs": "8aa91dbd9e5eabd31f0f5fff7e1348d7a6f503208d306bc94b912a584d823b32",
+        "tests/helpers/agent-native-stop-flow.probe.cjs": "7db2596eb94f00279de53854b70f7dffe98348a7f85c9d161aea73fa85b341cf",
+        "tests/agent-native-stop-settlement.test.cjs": "4cb5ea258df8326b237d4b2ae479d76c0c07afb51dee6b203092817096a3d7b2",
+        "tests/helpers/agent-native-stop-settlement.probe.cjs": "a3998a10a568711da0ab8d653ec4e219ec59a0ce44c7f8333e94ff00c9fea5d5"
+      },
+      "focusedResult": "5 suites / 97 tests PASS; corrected fixture-only assertion then actual Stop-flow 20 SDK modes PASS; both types PASS; actual native PG three orderings/failure covered.",
+      "rootRemaining": "Fresh compiled browser Stop acknowledgement, composer and follow-up; final whole suite"
+    },
+    {
+      "agent": "stop_settlement_debug/core-source-read",
+      "delivery": "core-source-read.json",
+      "accepted": "BOUNDED_EXISTING_CORE_RETAINED_SOURCE_READ_API",
+      "rootReview": "Existing scoped key, supported version, saved actor/org/piece, current piece existence and captured expiry checked. Returns retained source only; no research, writer or continuation.",
+      "focusedResult": "51 existing flow tests PASS, including12 new read cases; backend types PASS; diff PASS.",
+      "sourceSha256": {
+        "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+        "tests/piece-research.flow.test.cjs": "1b9bbf4a6433b13588260e19221c4b641b62de351b282cf2e4dd987b45716d78"
+      },
+      "rootRemaining": "Consumer adapter integration/freeze; source-stable whole suite; independent combined research review"
+    },
+    {
+      "agent": "research_source_debug",
+      "delivery": "research-source-outcome.md",
+      "accepted": "BOUNDED_RETAINED_SOURCE_PASSAGES_CONTEXT_AND_EXISTING_CLAIM_REUSE",
+      "independentReview": "research-final-review.json",
+      "reviewOpenFindings": 0,
+      "sourceFreeze": "research-source-freeze.json",
+      "sourceFreezeSha256": "8e94e2cfad5af71f656c1bc034479882383f8dac95979749d9957422c245357c",
+      "focusedResult": "3 suites / 118 tests PASS; final backend types and diff PASS; full225088/preview5967 controlled0paid; R1 TTL/replay and R2 captured-native context RED/GREEN passed.",
+      "rootRemaining": "Current compiled UI, real saved/read research artifact, stable full3-part suite"
+    },
+    {
+      "agent": "research_source_debug/recovery",
+      "delivery": "research-selection-recovery-outcome.md",
+      "accepted": "BOUNDED_UNIFIED_PASSAGES_AND_MODEL_VISIBLE_SAFE_INPUT_RECOVERY",
+      "sourceFreeze": "research-selection-recovery-freeze.json",
+      "sourceFreezeSha256": "a277c9afe5c1cd5b78f11aa3c66924e579694a4da703dcfcec89428bb3ef5042",
+      "independentReview": "final-native-tail-recovery-review.json",
+      "focusedResult": "10 suites / 259 tests PASS, 0 skipped; backend types and scoped diff PASS",
+      "rootRemaining": "New exact-source real natural prompt must save/read requested artifact; current compiled browser; stable full3-part suite"
+    },
+    {
+      "agent": "stop_settlement_debug/native-tail",
+      "delivery": "stop-native-tail.md",
+      "accepted": "BOUNDED_ORIGINAL_NATIVE_READER_DRAIN_AND_PERSISTED_STOP_PROOF",
+      "sourceFreeze": "evidence/stop-native-tail-source-freeze.json",
+      "sourceFreezeSha256": "3092b2778d7e5a568a5b3eaf5ee460ca14cad98856a159183580d02347eaf814",
+      "independentReview": "final-native-tail-recovery-review.json",
+      "focusedResult": "4 suites / 16 tests PASS (including nested native PG cases and20 actualuseChat modes), BEtypes and scoped diff PASS",
+      "rootRemaining": "Actual compiled immediate Stop composer and followup; stable full3-part suite"
+    },
+    {
+      "agent": "research_source_debug/person-selection-semantics",
+      "delivery": "research-person-selection-final-outcome.md",
+      "accepted": "BOUNDED_SCHEMA_AND_BRIEF_HUMAN_ACTOR_DEFINITION",
+      "sourceFreeze": "research-person-selection-final-freeze.json",
+      "sourceFreezeSha256": "9a25a315d86725d988042d2b0943562fe08f0e9123ce8e9f06d3ceed1498e74d",
+      "focusedResult": "4 affected suites /89tests PASS,0skip; backend types and scoped diff PASS",
+      "independentReview": "request-intent-selection-review.json",
+      "rootRemaining": "Actual same natural prompt +explicit human selection; current unified fullsuite"
+    }
+  ],
+  "safeCleanup": {
+    "performed": "none",
+    "reason": "Retain worktree, source, runtime/private configuration and receipts until root acceptance; no global or foreign cleanup"
+  },
+  "graphReviewed": {
+    "graph": "Original checkout owner graph at dd67538d used read-only for orientation",
+    "currentFiles": "Confirmed in repair worktree",
+    "ownerGraphModified": false
+  },
+  "newStopAndReadDelta": {
+    "status": "BOUNDED_SOURCE_REVIEW_AND_NATIVE_FOCUSED_ACCEPTED",
+    "review": "real-local-qa-bounded-native-stop-read-review.json",
+    "stopFocusedLog": "evidence/native-stop-identity-green.log",
+    "readFocusedReceipt": "evidence/fixture-pool-lifecycle-parity-20261021.json",
+    "scope": "Preserved native stopped logical ID through cancellation; authoritative true read-only tool approval functions, unchanged owner checks and mutation gates",
+    "frontendChanged": false
+  },
+  "latestRootRuntime": {
+    "browser": "root-current-browser-acceptance.json",
+    "semantic": "root-semantic-review.json",
+    "observability": "root-current-native-observability.json",
+    "cold": "root-current-cold-bootstrap.json",
+    "build": "root-command-acceptance.json",
+    "sourceReview": "request-intent-selection-review.json",
+    "reviewOpenSourceFindings": 0,
+    "sourceFrozen": true,
+    "suite": "PASS all3parts:733Jest suites/12922tests,Node127,Python50;70Jest/4Node documentedskips;135sourceinputsexact",
+    "canonical": "8Done currentread16:12:36UTC"
+  },
+  "gate7": {
+    "status": "FAIL_PRESERVED",
+    "receipt": "attempt-7/root-command-acceptance.json",
+    "sourceChangedDuringChecks": false,
+    "jestSuitesPassed": 728,
+    "jestSuitesFailed": 5,
+    "jestTestsPassed": 12888,
+    "jestTestsFailed": 9,
+    "nodePythonRan": false
+  },
+  "gate7CorrectionCandidates": {
+    "reviewer": "research_final_review",
+    "sourceReview": "APPROVED_EXACT_APPLIED_PATCHES_ROOT_ACCEPTANCE_PENDING",
+    "queuePatch": "b143b5ab1655e4ad5c41401a5ad1df408d557a17d8705dbfafb59a902b5d01b3",
+    "durableFixturePatch": "5ae1864e8d80726bbbf19ab0d96f30544aeec0c8b52b1f968c545558de80609f",
+    "objectiveFixturePatch": "9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4",
+    "mediaAndSourcePatch": "50e333362c2e4585a8203b8a96f9f37661a7a30a69546ad24d5c9351fb542024",
+    "acceptance": "ACCEPTED_EXACT_APPLIED_FOCUSED_GREEN_FROZEN_ROOT_GATE8_PENDING",
+    "cleanup": "All delegated source writers finished/frozen. Owned focused PostgreSQL helpers/schemas closed by owners; private source copies0600 preserved as review evidence. No broad process cleanup; current root local stand retained.",
+    "appliedChecks": {
+      "queue": {
+        "suites": 6,
+        "tests": 19,
+        "backendTypesExit": 0,
+        "strictStopHistoryUiGuardsUnchanged": true
+      },
+      "durable": {
+        "tests": 4,
+        "sourceSha256": "f8b21e68767821914bfb1b68a851036246817bf8b20f74a7d6b7d4e0f76197ac",
+        "manifest": "evidence/agent-durable-recovery-held-stop-manifest.json"
+      },
+      "objective": {
+        "tests": 7,
+        "manifest": "research-autonomy-goal-approval-fixture-freeze.json"
+      },
+      "mediaAndSource": {
+        "suites": 3,
+        "tests": 92,
+        "log": "evidence/root-media-source-fixtures-applied.log"
+      }
+    },
+    "review": {
+      "markdown": "gate7-regression-review.md",
+      "markdownSha256": "e54a36c2922ef8ebeda6409dc9d579a90a2ca72f43f7ae79a3398fb0d2b40835",
+      "manifest": "gate7-regression-review.json",
+      "manifestSha256": "4e74ed3431bf984d2225f6beebe442e50dcbf5939c1021d70fe52bada99d9cdd",
+      "matchedAppliedFiles": 10,
+      "matchedQueueEntries": 34,
+      "openFindings": 0,
+      "reviewerRuntimeMutations": 0
+    }
+  },
+  "gate8": {
+    "status": "ABORTED_BEFORE_SUITE",
+    "reason": "ActualOpenRouter402 API-key spending limit; key now raised by owner and readbackconfirmed. Actionablepayment error adapter fixed/focused158PASS; provider-specifictransient in-flight normalization pending. No Jest/Node/Python ran inGate8.",
+    "archive": "attempt-8/root-command-acceptance.json"
+  },
+  "gate9": {
+    "status": "FAIL_PRESERVED",
+    "rootSession": 2284,
+    "sourcesFrozen": false,
+    "backendPid": 4924,
+    "buildId": "G93McLwpWdG8VXwjCaxUp",
+    "types3AndBuild": "PASS",
+    "compiledBrowser": "PASS80reconnect/4409providerchars/StopGET+36ms4saved/followup6saved",
+    "browserReceipt": "root-current-browser-acceptance.json",
+    "realResearch": "PASS_AFTER_EXPLICIT_QA_EDITORIAL_SELECTION",
+    "realResearchReceipt": "real-local-qa-final-asyncio-resume.json",
+    "knownFailure": "Frontend AGENT_ERROR_CODES missing AI_PROVIDER_PAYMENT_REQUIRED; source frozen, stage-only one-line candidate55tests PASS, independent consumer review approves. Decoder/copy behavior was already supported; defect is mirrored declaration.",
+    "archive": "attempt-9/root-command-acceptance.json",
+    "jestSuitesPassed": 732,
+    "jestSuitesFailed": 1,
+    "jestTestsPassed": 12921,
+    "jestTestsFailed": 1,
+    "nodePythonRan": false,
+    "sourceChangedDuringChecks": false
+  },
+  "providerAdapterDelivery": {
+    "acceptance": "ACCEPTED_EXACT_SOURCE_AND_FOCUSED_PROOFS_ROOT_FINAL_PENDING",
+    "review": "provider-payment-review.json",
+    "reviewSha256": "973198096cb3515f3f24c8551eae881b9f66de0050d5f02ee87ac6f205dfd821",
+    "openFindings": 0,
+    "matchedFiles": 9,
+    "paymentFocused": 158,
+    "retryFocused": 104,
+    "freeze": "evidence/openrouter-inflight-402-source-freeze.json",
+    "freezeSha256": "044b91a55005db9605af67ae2410a01924f020333847ef415575721111a950ef",
+    "cleanup": "All delegated writers finished/frozen; only stage receipts touched after root started. Owned fixture processes/schemas closed; no broad cleanup; root stand retained."
+  },
+  "finalClientDelivery": {
+    "acceptance": "EXACT_APPLIED_INDEPENDENT_REVIEW_AND_FOCUSED_PASS_ROOT_GATE10_PENDING",
+    "manifest": "final-client-fixes-applied.json",
+    "sourceSha256": {
+      "apps/frontend/src/components/agents/agent.copy.ts": "c4eecd76068e94adce5df6bced897f18593708c5d20b1911b373a6532f79ac21",
+      "tests/agent-screen.w2-recheck.test.cjs": "cb7c7caf33e643a4a8971074442d32f990114e95213ff09e97d7a60118a1789d",
+      "apps/frontend/src/components/agents/agent.contract.ts": "452debdfc80866782e022b996b1bb331fe7d1158ab11cb90a86ca8a42b7066b7"
+    },
+    "reviews": {
+      "provider-payment-client-review.json": "a1b63ab06f6fcf2fe40338e4d3eff80643bfce625215f1043f1742abd3efe80a",
+      "legacy-paid-copy-review.json": "d3b7285fb3e58c93d1957239472e987a8391692dca4891a40cc3f4b068cf4990"
+    },
+    "openFindings": 0,
+    "focused": {
+      "exitCode": 0,
+      "suites": 3,
+      "tests": 94,
+      "elapsedSeconds": 24.773,
+      "log": "evidence/final-client-fixes-applied.log",
+      "logSha256": "df84fab8ea5331a48abb2316fb444c51080d16157818238d3fc93070b245b671"
+    },
+    "cleanup": "Delegated reviewer finished; no app/test/runtime/model actions. Root applied exact reviewed candidates only after Gate9 finished. Owned frontend8139/8155 stopped; backend4924 and foreign workloads preserved."
+  },
+  "gate10": {
+    "status": "PASS",
+    "rootSession": 35939,
+    "sourceFrozen": true,
+    "types3AndBuild": "PASS",
+    "buildId": "tmvBVorjTll4eVz0CthsG",
+    "backendPid": 4924,
+    "frontendPid": 59308,
+    "compiledPaymentError": "PASS controlled HTTP402 before-start/refused draft preserved/no raw diagnostic",
+    "browserReceipt": "root-current-browser-acceptance.json",
+    "priorRealBrowserReuse": "attempt-9/root-current-browser-acceptance.json; exact unchanged backend/UI functions, only mirrored literal and legacy words changed",
+    "currentCompiledSavedHistory": "PASS6exactmessages/providertexts/80DOMitems/completed0pending/0POST/enabled composer",
+    "currentCompiledSavedHistoryReceipt": "root-current-compiled-saved-history.json",
+    "rootChecksPassed": 10,
+    "sourceChangedDuringChecks": false,
+    "jestSuitesPassed": 733,
+    "jestTestsPassed": 12922,
+    "jestTestsSkipped": 70,
+    "nodeTestsPassed": 127,
+    "nodeTestsSkipped": 4,
+    "pythonTestsPassed": 50
+  },
+  "finalDeliveryRemaining": "No application/acceptance/tracker work remains. Source delivery is local only; owned commit and preserved-file proof complete the root closeout.",
+  "canonicalTaskAcceptance": {
+    "receipt": "canonical-done.json",
+    "at": "2026-10-21T16:12:36.668722+00:00",
+    "allEightDone": true,
+    "historicalConflictPreserved": true
+  }
+}

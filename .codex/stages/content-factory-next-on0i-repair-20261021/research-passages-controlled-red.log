@@ -1,0 +1,203 @@
+FAIL tests/intake.research-reuse.test.cjs
+  ✕ a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again (13 ms)
+  ✕ a stale passage is refused before any model or new source write (13 ms)
+  ✕ a foreign-url passage is refused before any model or new source write (6 ms)
+  ✕ a invented-quote passage is refused before any model or new source write (6 ms)
+  ✕ another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot (7 ms)
+  ✕ a selected late quote still requires sufficient input and an uncertain derived write cannot replay (5 ms)
+  ○ skipped piece.create preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped piece.create.from-research preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped another person in the same organization and an unknown selection are refused before any model or write
+  ○ skipped a quote from a different source and unknown claim body never become confirmed through an id
+  ○ skipped an uncertain standalone write cannot replay the writer or silently fall back to creating another piece
+  ○ skipped two passages from the same URL retain independent evidence instead of reusing an old URL excerpt
+  ○ skipped a material requirement for human fact selection is not replaced with model consent
+  ○ skipped query-only reuse keeps the supported fallback and labels it as the research task
+  ○ skipped selection person cannot turn standalone research reuse into human consent or claim a writer
+  ○ skipped selection person cannot replay a completed model-origin standalone write as an answered human card
+
+  ● a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 232068
+    Received: 6000
+
+      168 |   const saved = unwrap(searched.output);
+      169 |   expect(JSON.stringify(searched.output).length).toBeLessThan(4_000);
+    > 170 |   expect(saved.sources[0].totalCharacters).toBe(found.sources[0].fullText.length);
+          |                                            ^
+      171 |   const badRead = await run('piece.read', { researchId: saved.snapshotKey, part: 'research_source', sourceIndex: 999 }, built);
+      172 |   expect(badRead.output).toMatchObject({ ok: false, code: 'MATERIAL_NOT_AVAILABLE', canReviseInput: true });
+      173 |   const read = await run('piece.read', { researchId: saved.snapshotKey, part: 'research_source', sourceUrl: urlA,
+
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:170:44)
+
+  ● a stale passage is refused before any model or new source write
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  -  2
+    + Received  + 21
+
+      Object {
+    -   "canReviseInput": true,
+    -   "ok": false,
+    +   "error": true,
+    +   "message": "Tool input validation failed for piece_create_from-research. Please fix the following errors and try again:
+    + - factKeys: Required
+    +
+    + Provided arguments: {
+    +   \"text\": \"  Подготовь полный обзор двух независимых изменений.\\nСтарый пример — только пример структуры.  \",
+    +   \"snapshotKey\": \"res_88a32629-3019-449b-b62b-27b620753b15\",
+    +   \"passages\": [
+    +     {
+    +      ... (truncated)",
+    +   "validationErrors": Object {
+    +     "errors": Array [],
+    +     "fields": Object {
+    +       "factKeys": Object {
+    +         "errors": Array [
+    +           "Required",
+    +         ],
+    +         "fields": Object {},
+    +       },
+    +     },
+    +   },
+      }
+
+      203 |   if (kind === 'invented-quote') selected.quote = 'The manual supports an invented unrelated claim.';
+      204 |   const result = await run('piece.create.from-research', { text: input, snapshotKey: saved.snapshotKey, passages: [selected] }, built);
+    > 205 |   expect(result.output).toMatchObject({ ok: false, canReviseInput: true });
+          |                         ^
+      206 |   expect(built.accepted).toHaveLength(acceptedBefore);
+      207 |   expect(calls).toEqual([]);
+      208 |   expect(built.writes).not.toHaveBeenCalled();
+
+      at tests/intake.research-reuse.test.cjs:205:25
+
+  ● a foreign-url passage is refused before any model or new source write
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  -  2
+    + Received  + 21
+
+      Object {
+    -   "canReviseInput": true,
+    -   "ok": false,
+    +   "error": true,
+    +   "message": "Tool input validation failed for piece_create_from-research. Please fix the following errors and try again:
+    + - factKeys: Required
+    +
+    + Provided arguments: {
+    +   \"text\": \"  Подготовь полный обзор двух независимых изменений.\\nСтарый пример — только пример структуры.  \",
+    +   \"snapshotKey\": \"res_1adc2a0e-a837-46f4-8b05-d85c6db6386a\",
+    +   \"passages\": [
+    +     {
+    +      ... (truncated)",
+    +   "validationErrors": Object {
+    +     "errors": Array [],
+    +     "fields": Object {
+    +       "factKeys": Object {
+    +         "errors": Array [
+    +           "Required",
+    +         ],
+    +         "fields": Object {},
+    +       },
+    +     },
+    +   },
+      }
+
+      203 |   if (kind === 'invented-quote') selected.quote = 'The manual supports an invented unrelated claim.';
+      204 |   const result = await run('piece.create.from-research', { text: input, snapshotKey: saved.snapshotKey, passages: [selected] }, built);
+    > 205 |   expect(result.output).toMatchObject({ ok: false, canReviseInput: true });
+          |                         ^
+      206 |   expect(built.accepted).toHaveLength(acceptedBefore);
+      207 |   expect(calls).toEqual([]);
+      208 |   expect(built.writes).not.toHaveBeenCalled();
+
+      at tests/intake.research-reuse.test.cjs:205:25
+
+  ● a invented-quote passage is refused before any model or new source write
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  -  2
+    + Received  + 21
+
+      Object {
+    -   "canReviseInput": true,
+    -   "ok": false,
+    +   "error": true,
+    +   "message": "Tool input validation failed for piece_create_from-research. Please fix the following errors and try again:
+    + - factKeys: Required
+    +
+    + Provided arguments: {
+    +   \"text\": \"  Подготовь полный обзор двух независимых изменений.\\nСтарый пример — только пример структуры.  \",
+    +   \"snapshotKey\": \"res_97a8ae8c-20c5-4fc3-9b1c-32298ed4d844\",
+    +   \"passages\": [
+    +     {
+    +      ... (truncated)",
+    +   "validationErrors": Object {
+    +     "errors": Array [],
+    +     "fields": Object {
+    +       "factKeys": Object {
+    +         "errors": Array [
+    +           "Required",
+    +         ],
+    +         "fields": Object {},
+    +       },
+    +     },
+    +   },
+      }
+
+      203 |   if (kind === 'invented-quote') selected.quote = 'The manual supports an invented unrelated claim.';
+      204 |   const result = await run('piece.create.from-research', { text: input, snapshotKey: saved.snapshotKey, passages: [selected] }, built);
+    > 205 |   expect(result.output).toMatchObject({ ok: false, canReviseInput: true });
+          |                         ^
+      206 |   expect(built.accepted).toHaveLength(acceptedBefore);
+      207 |   expect(calls).toEqual([]);
+      208 |   expect(built.writes).not.toHaveBeenCalled();
+
+      at tests/intake.research-reuse.test.cjs:205:25
+
+  ● another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: undefined
+
+      216 |   const args = { text: input, snapshotKey: saved.snapshotKey, passages: [{ sourceUrl: urlA, revision: read.revision, quote: quoteA }] };
+      217 |   const foreign = await run('piece.create.from-research', args, built, { userId: 'another-person' });
+    > 218 |   expect(foreign.output.ok).toBe(false);
+          |                             ^
+      219 |   expect(calls).toEqual([]);
+      220 |   expect(built.writes).not.toHaveBeenCalled();
+      221 |   const derived = await built.service.selectStoredResearchPassages(IDENTITY.organizationId, IDENTITY.userId, saved.snapshotKey, args.passages);
+
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:218:29)
+
+  ● a selected late quote still requires sufficient input and an uncertain derived write cannot replay
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: undefined
+
+      240 |     if (uncertain) built.writes.mockRejectedValue(new Error('Uncertain writer receipt'));
+      241 |     const first = await run('piece.create.from-research', args, built);
+    > 242 |     expect(first.output.ok).toBe(false);
+          |                             ^
+      243 |     if (!uncertain) expect(first.output.code).toBe('INTAKE_INPUT_INSUFFICIENT');
+      244 |     const callsBefore = calls.length;
+      245 |     expect((await run('piece.create.from-research', args, built)).output.ok).toBe(false);
+
+      at Object.<anonymous> (tests/intake.research-reuse.test.cjs:242:29)
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 10 skipped, 16 total
+Snapshots:   0 total
+Time:        3.428 s, estimated 4 s
+Ran all test suites matching /tests\/intake.research-reuse.test.cjs/i with tests matching "compact native|a (stale|foreign-url|invented-quote) passage|another person cannot capture|selected late quote".

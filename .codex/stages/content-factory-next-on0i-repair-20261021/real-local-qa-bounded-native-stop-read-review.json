@@ -1,0 +1,92 @@
+{
+  "schema": "on0i-independent-bounded-source-review/1",
+  "at": "2026-10-21T11:07:20.091Z",
+  "reviewer": "real_local_qa",
+  "status": "BOUNDED_SOURCE_REVIEW_AND_FOCUSED_CHECKS_ACCEPTED_BY_ROOT",
+  "scope": {
+    "stop": "AgentThreadsService.stopTurn only; logical Stop identity retained through native cancellation awaits",
+    "history": "conversationHistoryTool requireApproval callback + read-only MCP annotations only",
+    "autonomy": "schedule_followup_list read callback/annotations; set_objective get-only read verdict/mixed mutation metadata only"
+  },
+  "findings": [],
+  "observations": {
+    "stop": {
+      "ownershipBeforeCancellation": true,
+      "activeOwnerCapturedBeforeAwait": true,
+      "nativeFallbackOnlyNonemptyRunAndLogicalIdentity": true,
+      "activeHandleWinsStaleNativePointer": true,
+      "successorCannotReplaceReturnedRequestIdentity": true,
+      "cancellationRejectionRetained": true,
+      "frontendConfirmationNotRelaxed": true,
+      "billingAndUnknownCostUntouched": true
+    },
+    "history": {
+      "requireApproval": "function returning false, authoritative native per-call decision",
+      "identityFromServerRequestContext": true,
+      "reservedThreadAndResourceChecked": true,
+      "exactNativeThreadOwnerChecked": true,
+      "inputCannotOverrideThreadOrResource": true,
+      "boundedRead": true,
+      "remoteAttachmentsNotFetched": true,
+      "historyNotFreshConsent": true
+    },
+    "scheduleList": {
+      "scope": "native agent+resource+optional thread AND filters plus response postfilter",
+      "allThreads": "same authenticated resource only",
+      "writesUnchanged": true
+    },
+    "objective": {
+      "onlyActionGetSkipsApproval": true,
+      "setAndClearRequireApproval": true,
+      "schemaDefault": "set",
+      "roleUserMutationDenialRetained": true,
+      "threadOwnershipCheckRetained": true
+    },
+    "otherTools": {
+      "noWildcardPermission": true,
+      "noBlanketWriteApproval": true,
+      "workingMemoryMutationUnchanged": true,
+      "scheduleCreateAndCancelUnchanged": true,
+      "notificationReadSideEffectsRemainGated": true
+    }
+  },
+  "nativeApiProof": {
+    "version": "@mastra/core1.78.0",
+    "declaration": "tools/tool.d.ts requireApproval function becomes needsApprovalFn authoritative per-tool verdict",
+    "runtime": "create-durable-agent-v9Cu4dSm.cjs toolRequiresApproval: per-tool predicate overrides global boolean seed; thrown predicate requires approval",
+    "sdkSourceSha256": "c3f0e7b19aa117e5810806aaa01ed959303da24467474002492f09cf248d2495"
+  },
+  "sourceHashes": {
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "c0cd24188c27a73c89907153ce034826ce5d5f77f77d46a0a47b204e140fb8cf",
+    "libraries/nestjs-libraries/src/chat/conductor/conversation-history.ts": "212f8d072417e68c5546c2fad024e39dd5fdaf2e09da024ab523e9f023634cb3",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "847d8fea8a6f763bb45fd94e4ffb9c8c5bbc6e8f80bf4cb34cb1e1864265d845",
+    "tests/agent-native-stop-identity.test.cjs": "b306c37a5293c6234ae237de8dc47e917c5df97b25fd4a89195dcc0c3aa094f0",
+    "tests/helpers/agent-native-stop-identity.cjs": "1ba6ac93af38ca25e6559c29ad9ce18d2070a209de151245a7e0bc9128d9fff5",
+    "tests/helpers/agent-native-stop-flow.probe.cjs": "4f91460accf22dc9ee4f9398560bf000c285d785bd94bba11c185d7ffac70ce1"
+  },
+  "verificationByThisReviewer": "read-only source/contracts/evidence review only; no duplicate tests, provider calls, restarts or app edits",
+  "ownerFocusedReceipts": {
+    "sameReviewedAppSource": true,
+    "acceptedAt": "2026-10-21T11:42:24.360203+00:00",
+    "stopFocusedLog": "evidence/native-stop-identity-green.log",
+    "stopFocusedSuites": 3,
+    "stopFocusedTests": 15,
+    "nativeReadAndHistoryFocused": "evidence/fixture-pool-lifecycle-parity-20261021.json",
+    "nativeReadAndHistorySuites": 4,
+    "nativeReadAndHistoryTests": 7,
+    "rootVerdict": "ACCEPTED_BOUNDED_SOURCE_AND_FOCUSED_EVIDENCE",
+    "wholeEpic": "PENDING_CURRENT_BROWSER_REAL_OUTPUT_AND_FULL_SUITE"
+  },
+  "rootCompletion": {
+    "sameReviewedAppSource": true,
+    "acceptedAt": "2026-10-21T11:42:24.360203+00:00",
+    "stopFocusedLog": "evidence/native-stop-identity-green.log",
+    "stopFocusedSuites": 3,
+    "stopFocusedTests": 15,
+    "nativeReadAndHistoryFocused": "evidence/fixture-pool-lifecycle-parity-20261021.json",
+    "nativeReadAndHistorySuites": 4,
+    "nativeReadAndHistoryTests": 7,
+    "rootVerdict": "ACCEPTED_BOUNDED_SOURCE_AND_FOCUSED_EVIDENCE",
+    "wholeEpic": "PENDING_CURRENT_BROWSER_REAL_OUTPUT_AND_FULL_SUITE"
+  }
+}

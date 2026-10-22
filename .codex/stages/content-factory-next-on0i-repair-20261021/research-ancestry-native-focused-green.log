@@ -1,0 +1,35 @@
+PASS tests/intake.research-reuse.test.cjs
+  ✓ intake-origin snapshots retain full sources with actor authority and can feed late passages to the same writer (95 ms)
+  ✓ a retained descendant cannot outlive its immediate parent or bypass a terminal root when the native claim expires (63 ms)
+  ✓ native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=false) (25 ms)
+  ✓ native passage continuation preserves the captured plan, private answers and source/profile binding (mixed keys=true) (19 ms)
+  ○ skipped piece.create preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped piece.create.from-research preserves two owned facts and late quotes into the saved brief without fetching again
+  ○ skipped another person in the same organization and an unknown selection are refused before any model or write
+  ○ skipped a quote from a different source and unknown claim body never become confirmed through an id
+  ○ skipped an uncertain standalone write cannot replay the writer or silently fall back to creating another piece
+  ○ skipped two passages from the same URL retain independent evidence instead of reusing an old URL excerpt
+  ○ skipped a compact native tool result retains a full 224k source, repairs a bad read and writes its late selected passage once without searching again
+  ○ skipped a stale passage is refused before any model or new source write
+  ○ skipped a foreign-url passage is refused before any model or new source write
+  ○ skipped a invented-quote passage is refused before any model or new source write
+  ○ skipped another person cannot capture a retained passage and an expired parent cannot authorize a derived snapshot
+  ○ skipped an uncertain derived write cannot replay through another passage or the legacy selection
+  ○ skipped a safe insufficient initial selection can read later evidence and revise without another search or a poisoned writer claim
+  ○ skipped a lost claim acknowledgement cannot reopen the existing writer scope
+  ○ skipped a lost completed-result acknowledgement cannot reopen the existing writer scope
+  ○ skipped an uncertain legacy write also fences a newly selected retained passage
+  ○ skipped passage captures are canonical across source order and keep multi-source evidence separate
+  ○ skipped retained source selection preserves the original person-policy
+  ○ skipped retained source selection preserves the original human-requirement
+  ○ skipped an existing piece research read uses the public scoped service only with both explicit ids
+  ○ skipped a material requirement for human fact selection is not replaced with model consent
+  ○ skipped query-only reuse keeps the supported fallback and labels it as the research task
+  ○ skipped selection person cannot turn standalone research reuse into human consent or claim a writer
+  ○ skipped selection person cannot replay a completed model-origin standalone write as an answered human card
+
+Test Suites: 1 passed, 1 total
+Tests:       24 skipped, 4 passed, 28 total
+Snapshots:   0 total
+Time:        2.935 s, estimated 3 s
+Ran all test suites matching /tests\/intake.research-reuse.test.cjs/i with tests matching "retained descendant|native passage continuation|intake-origin snapshots".

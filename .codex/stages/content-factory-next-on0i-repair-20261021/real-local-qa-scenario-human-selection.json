@@ -1,0 +1,632 @@
+{
+  "schema": "on0i-real-local-scenario/1",
+  "id": "human-selection",
+  "at": "2026-10-21T13:24:11.672Z",
+  "elapsedMs": 38563,
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "scriptSha256": "a25fbd78f646bee3d432b527c3267e47d81b1fad160b01efed43829b3d83c26e",
+  "backendLaunchReceipt": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-backend-start.json",
+  "backendLaunch": {
+    "at": "2026-10-21T13:18:54.122Z",
+    "result": "STARTED",
+    "pid": 91997,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "782dcbb3b5fa6944f39f3f1027a853c58627f4849481eaba6f1d344df1ca3fa7",
+    "sourceSha256": {
+      "libraries/nestjs-libraries/src/chat/capabilities/capability.types.ts": "0759daec00bb3f1e37557a88065be3138510d27b97706f602ca1c89eac56d942",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.instructions.ts": "ec3e0928c8ebbda6bdbd7f091108b75ab91887f8560f7e0025e4006f10b0dccc",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v12.ts": "58a66004f5f8c4c04aa34f68bb0e4c74678081bfbf48c30ac59d724227245579",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/request-understanding.ts": "4abf4bdaf2bc02b1ef9c0effe8f256811249c83605e3803a029254f06ea56ca2",
+      "libraries/nestjs-libraries/src/chat/mastra.store.ts": "4d60b39f00aec034fadd993d30b407efefd19b57c1f06cd718dcd953959e8160",
+      "libraries/nestjs-libraries/src/chat/conductor/native-observability.ts": "b0cc768caa8c9d53ca2ffe3935aa6f367e0f13b33993bf4592a27f7029fccd08",
+      "libraries/nestjs-libraries/src/chat/conductor/native-run-observer.ts": "bd7edeba03bfbb3a0945bc24d76f39d80aea971c1242cbd38c55796c9d8f5934",
+      "libraries/nestjs-libraries/src/chat/conductor/conversation-history.ts": "212f8d072417e68c5546c2fad024e39dd5fdaf2e09da024ab523e9f023634cb3",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "847d8fea8a6f763bb45fd94e4ffb9c8c5bbc6e8f80bf4cb34cb1e1864265d845",
+      "libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts": "63f04546c1e44bf0aa2771a2545e0da16625d4f76e3e20f05d30118ee329df66",
+      "libraries/nestjs-libraries/src/openai/web.research.service.ts": "8ed1cfdefae0fe9953b86984a952479fd7d16b525081431c6dee4a57c95c8c1b",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts": "98bd4772671e133ed96e5906e888cab81122f9f2353e91984bf62ab672bd4c90",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+      "libraries/nestjs-libraries/src/chat/capabilities/catalogue/piece.capabilities.ts": "202cdb21249d0ae1aee6af85cc04d591fb88d324d7603dead08afd986ad93de4",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts": "1799e202dd04e8b7697489bb833699dc4ab266b60e0c08db0cfcd46f8950d1ca",
+      "libraries/nestjs-libraries/src/content-intelligence/intake/research-reuse.ts": "863de27b578898f75ae620f778a26bff783998d97529c8459e80c8808addf3b1",
+      "libraries/nestjs-libraries/src/content-intelligence/research/retained-source.ts": "33a954574bfcb164b480db586cf297a40f9b0b0173cd31b0c1dca8eba0ad1cd9",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.skills.ts": "3d838c65c4dc934195676decfe18b8bcd4c4463fe1cd338946eededa8b2a4690",
+      "apps/backend/src/api/routes/agent.controller.ts": "0842745fe8117d3c2273f9e15cefb63c4b97d0f39e8aaa0cd8e8a817f88f521d",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "b716d544505db827ecc4ab99ffe9958af332f8d8cd6a868d9754725be179741f",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "fb912699889e903b8498ffbeef27837ca571128ba39673602e8ea701e70182d6",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "396286a3fbf4609ee00a8f57d36a3b1061bb8f481d2795a1f61e5ee46db93159",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "745fac15558ef53c38548cc53203cfc1de65ed1b24d5e3c2014108908cca4870",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "providerRequestsDuringBootstrap": [],
+    "paidCallsByBootstrap": 0
+  },
+  "kind": "REAL_LOCAL_HTTP_MODEL_SEARCH",
+  "requestId": "c452dc65-68b8-465a-8de7-265b864f052b",
+  "threadId": "9fc49853-104d-4211-af29-f9ef1989654a",
+  "httpStatus": 200,
+  "streamDone": true,
+  "observerDetachedForPending": false,
+  "streamTransportError": null,
+  "observationResponses": [],
+  "nativeContinuations": [],
+  "streamErrors": [],
+  "assistantText": [
+    "Нашли в официальной документации SQLite такие факты для выбора:\n\n1. В режиме WAL изменения дописываются в отдельный файл журнала, а исходный файл базы остаётся нетронутым. Фиксация транзакции происходит при добавлении записи о commit в WAL.\n2. Когда чтение начинается, читатель запоминает последнюю действующую запись о commit — свою «конечную отметку». Она не меняется до конца транзакции, поэтому читатель видит согласованный снимок базы.\n3. При чтении страницы SQLite ищет её последнюю версию в WAL до этой отметки. Если такой версии нет, читает страницу из основного файла базы.\n4. Писатель дописывает изменения в конец WAL, поэтому чтение и запись могут идти одновременно. Но одновременно может работать только один писатель.\n5. Контрольная запись (checkpoint) может идти параллельно с чтением, но останавливается, прежде чем затронуть данные за отметкой активного читателя.\n\nИсточник: [официальная документация SQLite о WAL](https://sqlite.org/wal.html), разделы «How WAL Works» и «Concurrency».\n\nВыберите номера фактов, которые хотите включить. Заготовку пока не создавали и ничего не публиковали."
+  ],
+  "pending": [],
+  "execution": {
+    "requestId": "af72946b-9695-4748-8d45-3f58bad03612",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "960a71e8-31c3-40c7-bb15-08691111dc4f"
+  },
+  "changedPieces": [],
+  "usage": [
+    {
+      "id": "c4a5808b-0f62-4b5d-b0c7-9d0ab6b5fd01",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 194739,
+      "completionTokens": 1097,
+      "reasoningTokens": 446,
+      "cachedTokens": 158870,
+      "costUsd": "0.00655417",
+      "possiblyBilled": null,
+      "attempt": 6
+    },
+    {
+      "id": "161422a2-f45b-4036-9863-34ae9998b941",
+      "operation": "web_research",
+      "role": "research",
+      "provider": "openrouter",
+      "model": "exa",
+      "status": "succeeded",
+      "promptTokens": null,
+      "completionTokens": null,
+      "reasoningTokens": null,
+      "cachedTokens": null,
+      "costUsd": "0.014",
+      "possiblyBilled": null,
+      "attempt": null
+    }
+  ],
+  "usageTotals": {
+    "operations": 2,
+    "knownCostUsd": 0.02055417,
+    "unknownCostOperations": 0,
+    "pendingOperations": 0,
+    "possiblyBilledOperations": 0
+  },
+  "unattributedNewOrganizationUsageRows": [],
+  "wholeRunCostKnown": true,
+  "providerReceipts": [
+    {
+      "id": "96a9b2de-c27d-4932-9033-e6b075b40284",
+      "at": "2026-10-21T13:24:12.056Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "96a9b2de-c27d-4932-9033-e6b075b40284",
+      "at": "2026-10-21T13:24:12.056Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589052-13oOfj8aLu5jfJQMXlNd",
+      "usage": {
+        "promptTokens": 29329,
+        "completionTokens": 17,
+        "totalTokens": 29346,
+        "reasoningTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.0036378045
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "textChars": 0,
+        "numberedLabels": [],
+        "finishReason": "tool_calls",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "textChars": 0,
+            "numberedLabels": [],
+            "finishReason": "tool_calls"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/96a9b2de-c27d-4932-9033-e6b075b40284.json"
+      },
+      "elapsedMs": 2483
+    },
+    {
+      "id": "80e92740-a742-4552-9741-f754b1cbdbf6",
+      "at": "2026-10-21T13:24:15.477Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "80e92740-a742-4552-9741-f754b1cbdbf6",
+      "at": "2026-10-21T13:24:15.477Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589055-bsNWrEXRAvzz3cjm9dwk",
+      "usage": {
+        "promptTokens": 30906,
+        "completionTokens": 14,
+        "totalTokens": 30920,
+        "reasoningTokens": 0,
+        "cachedTokens": 29326,
+        "costUsd": 0.00049270815
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "textChars": 0,
+        "numberedLabels": [],
+        "finishReason": "tool_calls",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "textChars": 0,
+            "numberedLabels": [],
+            "finishReason": "tool_calls"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/80e92740-a742-4552-9741-f754b1cbdbf6.json"
+      },
+      "elapsedMs": 2833
+    },
+    {
+      "id": "c0942e9c-4a8a-449f-b51e-507a05df1102",
+      "at": "2026-10-21T13:24:19.177Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "de90c2b3-e078-4723-9f14-a6005396c5b8",
+      "at": "2026-10-21T13:24:20.266Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "c0942e9c-4a8a-449f-b51e-507a05df1102",
+      "at": "2026-10-21T13:24:19.177Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589059-UML7MPppnOdRY2oraZTA",
+      "usage": {
+        "promptTokens": 31268,
+        "completionTokens": 136,
+        "totalTokens": 31404,
+        "reasoningTokens": 0,
+        "cachedTokens": 30903,
+        "costUsd": 0.0004183542
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "textChars": 0,
+        "numberedLabels": [],
+        "finishReason": "tool_calls",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "textChars": 0,
+            "numberedLabels": [],
+            "finishReason": "tool_calls"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/c0942e9c-4a8a-449f-b51e-507a05df1102.json"
+      },
+      "elapsedMs": 4583
+    },
+    {
+      "id": "cdda50e8-5599-459e-9034-908c2afbb25b",
+      "at": "2026-10-21T13:24:23.926Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "50463441-ec71-469e-9262-ca01de9e399f",
+      "at": "2026-10-21T13:24:23.926Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "de90c2b3-e078-4723-9f14-a6005396c5b8",
+      "at": "2026-10-21T13:24:20.266Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589060-aMpHtykGahaOm8Cu6qh8",
+      "usage": {
+        "promptTokens": 30690,
+        "completionTokens": 60,
+        "totalTokens": 30750,
+        "reasoningTokens": 38,
+        "cachedTokens": 29245,
+        "costUsd": 0.00049797
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "80fa7eafc8b00517a3a02eb13505aba0d9484775c4656afeb76780a86e6a7705",
+        "textChars": 72,
+        "numberedLabels": [],
+        "finishReason": "stop",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "80fa7eafc8b00517a3a02eb13505aba0d9484775c4656afeb76780a86e6a7705",
+            "textChars": 72,
+            "numberedLabels": [],
+            "finishReason": "stop"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/de90c2b3-e078-4723-9f14-a6005396c5b8.json"
+      },
+      "elapsedMs": 3878
+    },
+    {
+      "id": "cdda50e8-5599-459e-9034-908c2afbb25b",
+      "at": "2026-10-21T13:24:23.926Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": "a8a5de1efce1c3277738d84627418359",
+      "servedModel": null,
+      "generationId": null,
+      "usage": {
+        "searchCostUsd": 0.007
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 1398
+    },
+    {
+      "id": "50463441-ec71-469e-9262-ca01de9e399f",
+      "at": "2026-10-21T13:24:23.926Z",
+      "provider": "exa",
+      "path": "/search",
+      "model": null,
+      "stream": false,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": "c0c0575199417b2eba6389c7cb72b1d0",
+      "servedModel": null,
+      "generationId": null,
+      "usage": {
+        "searchCostUsd": 0.007
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 1461
+    },
+    {
+      "id": "b5924551-1dce-4785-89ca-32c83a7d8932",
+      "at": "2026-10-21T13:24:26.887Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "b5924551-1dce-4785-89ca-32c83a7d8932",
+      "at": "2026-10-21T13:24:26.887Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589066-m7oY4V4Q62rEATssGgnt",
+      "usage": {
+        "promptTokens": 33609,
+        "completionTokens": 180,
+        "totalTokens": 33789,
+        "reasoningTokens": 72,
+        "cachedTokens": 31265,
+        "costUsd": 0.00068861925
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "textChars": 0,
+        "numberedLabels": [],
+        "finishReason": "tool_calls",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "textChars": 0,
+            "numberedLabels": [],
+            "finishReason": "tool_calls"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/b5924551-1dce-4785-89ca-32c83a7d8932.json"
+      },
+      "elapsedMs": 5953
+    },
+    {
+      "id": "4119e8ca-a65b-494d-a2a2-211a4b132552",
+      "at": "2026-10-21T13:24:33.834Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "4119e8ca-a65b-494d-a2a2-211a4b132552",
+      "at": "2026-10-21T13:24:33.834Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589073-OotvUTQMs00OSYxQfYlZ",
+      "usage": {
+        "promptTokens": 33773,
+        "completionTokens": 130,
+        "totalTokens": 33903,
+        "reasoningTokens": 28,
+        "cachedTokens": 33606,
+        "costUsd": 0.0004176414
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "textChars": 0,
+        "numberedLabels": [],
+        "finishReason": "tool_calls",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "textChars": 0,
+            "numberedLabels": [],
+            "finishReason": "tool_calls"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/4119e8ca-a65b-494d-a2a2-211a4b132552.json"
+      },
+      "elapsedMs": 6973
+    },
+    {
+      "id": "5f2d0f90-bd32-4044-9e00-ac1910bc629f",
+      "at": "2026-10-21T13:24:41.869Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "5f2d0f90-bd32-4044-9e00-ac1910bc629f",
+      "at": "2026-10-21T13:24:41.869Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792589082-1UU0GL2B9XLDCid2EdWH",
+      "usage": {
+        "promptTokens": 35854,
+        "completionTokens": 620,
+        "totalTokens": 36474,
+        "reasoningTokens": 346,
+        "cachedTokens": 33770,
+        "costUsd": 0.00089904375
+      },
+      "providerErrorCode": null,
+      "observedOutput": {
+        "index": 0,
+        "sha256": "b861391d63cf831baefd7c2d19c2c4055b4233c4d04005ee914e52aeff59f8de",
+        "textChars": 1104,
+        "numberedLabels": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "finishReason": "stop",
+        "complete": true,
+        "completionMeaning": "FULL_SSE_CAPTURE_ONLY",
+        "choiceCount": 1,
+        "choices": [
+          {
+            "index": 0,
+            "sha256": "b861391d63cf831baefd7c2d19c2c4055b4233c4d04005ee914e52aeff59f8de",
+            "textChars": 1104,
+            "numberedLabels": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "finishReason": "stop"
+          }
+        ],
+        "readReachedEof": true,
+        "sawDone": true,
+        "parseErrors": 0,
+        "unsupportedContentDeltas": 0,
+        "persisted": true,
+        "privateFile": "/tmp/on0i-real-local-qa-s2nihQ/provider-output/5f2d0f90-bd32-4044-9e00-ac1910bc629f.json"
+      },
+      "elapsedMs": 7334
+    }
+  ],
+  "providerReceiptAttribution": "Time-window receipts may include concurrent browser calls; the ledger is isolated by synthetic HTTP caller.",
+  "semanticAcceptanceCriteria": [
+    "Actual official-source search",
+    "Native person question with relevant facts",
+    "No writing or saved CORE before the requested personal choice"
+  ],
+  "semanticVerdict": "REQUIRES_HUMAN_ROOT_REVIEW",
+  "privateEvidenceFile": "/tmp/on0i-real-local-qa-s2nihQ/scenario-human-selection-2026-10-21T13-24-11-672Z.json",
+  "localOnly": true,
+  "productionMutations": 0,
+  "noSocialIntegrationRows": true,
+  "lifecycleVerdict": "PASS",
+  "expectedSavedCore": 0,
+  "artifactVerdict": "PASS",
+  "scenarioVerdict": "PASS",
+  "rootSemanticVerdict": "PASS_EXPLICIT_HUMAN_SELECTION_BOUNDARY",
+  "rootSemanticReason": "Actual official SQLite WAL search returned five sourced facts, asks the person for chosen numbers and saves no CORE. Model used a persisted conversational question; there is no typed native question card or waiting pending run. This proves the requested human boundary, not an extracted humanFactSelection:true value or native ask_user card. Those contracts have separate deterministic/native-card evidence.",
+  "typedNativeQuestionCardObserved": false
+}

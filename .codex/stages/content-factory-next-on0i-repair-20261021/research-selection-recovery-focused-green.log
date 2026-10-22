@@ -1,0 +1,9 @@
+[Nest] 63578  - 10/21/2026, 3:51:09 PM   ERROR [IntakeService] The piece could not be recorded: Writer result is unknown.
+PASS tests/intake.research-reuse.test.cjs
+PASS tests/agent-capabilities.adapters.test.cjs
+
+Test Suites: 2 passed, 2 total
+Tests:       62 skipped, 21 passed, 83 total
+Snapshots:   0 total
+Time:        5.864 s
+Ran all test suites within paths "tests/intake.research-reuse.test.cjs", "tests/agent-capabilities.adapters.test.cjs".

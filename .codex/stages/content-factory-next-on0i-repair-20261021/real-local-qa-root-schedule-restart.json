@@ -1,0 +1,31 @@
+{
+  "state": "PASS",
+  "created": {
+    "id": "agent_0a0d3f33-6c7b-48f0-be49-04ea4418e0f2",
+    "title": "ON0I local schedule persistence",
+    "prompt": "Локальная синтетическая проверка сохранности расписания. Ничего не публиковать.",
+    "cron": "0 0 1 1 *",
+    "timeZone": "Europe/Moscow",
+    "timezoneAssumed": false,
+    "threadId": "e690dbe1-09ad-4ce1-b02b-6d659e8a423e",
+    "enabled": true,
+    "nextRunAt": "2026-12-31T21:00:00.000Z"
+  },
+  "reloadedAfterOwnedBackendRestart": {
+    "id": "agent_0a0d3f33-6c7b-48f0-be49-04ea4418e0f2",
+    "title": "ON0I local schedule persistence",
+    "prompt": "Локальная синтетическая проверка сохранности расписания. Ничего не публиковать.",
+    "cron": "0 0 1 1 *",
+    "timeZone": "Europe/Moscow",
+    "timezoneAssumed": false,
+    "threadId": "e690dbe1-09ad-4ce1-b02b-6d659e8a423e",
+    "enabled": true,
+    "nextRunAt": "2026-12-31T21:00:00.000Z",
+    "lastRunAt": null
+  },
+  "cancelled": true,
+  "activeAfterCancel": false,
+  "providerRequests": 0,
+  "localOnly": true,
+  "scriptSha256": "ce7386de18e1aaa2a0f00e426399ea56fbc6afcc327953307728ddb6224f3ee9"
+}

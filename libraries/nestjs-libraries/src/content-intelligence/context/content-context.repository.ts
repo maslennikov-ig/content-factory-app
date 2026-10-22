@@ -4,6 +4,8 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { ContentContextError } from './content-context.errors';
+import { canonicalizeSourceUrl } from '../source-registry/network-policy';
+import { PIECE_EVIDENCE_MAX_ITEMS } from './piece-evidence-projection';
 import type {
   ContentContextBuildInputV1,
   ContentContextCandidatesV1,
@@ -33,6 +35,28 @@ function assertIdBudget(values: string[]) {
       'Too many explicit context identifiers'
     );
   }
+}
+
+function canonicalCitationUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2_000) return null;
+  try { return canonicalizeSourceUrl(value); } catch { return null; }
+}
+
+/** URL lookup is candidate discovery; the builder repeats its final admission. */
+function usableCoreSource(row: any, organizationId: string, asOf: Date) {
+  if (row.organizationId !== organizationId || row.snapshot?.organizationId !== organizationId ||
+      row.exposure !== 'PUBLIC' || row.tombstone || row.snapshot.purgedAt ||
+      typeof row.excerpt !== 'string' || row.excerpt.length > 256_000 ||
+      !row.excerpt.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/gu, '').trim() ||
+      row.assessment?.status === 'REJECTED' || row.assessment?.trustTier === 'BLOCKED') return false;
+  const source = row.snapshot.source;
+  if (source) return source.organizationId === organizationId && !source.archivedAt && !source.purgedAt &&
+    source.usagePurpose !== 'STYLE_REFERENCE' && source.desiredState === 'ACTIVE' &&
+    source.rightsState === 'CONFIRMED' && ['ALLOWED', 'NOT_APPLICABLE'].includes(source.robotsState) &&
+    source.currentSnapshotId === row.sourceSnapshotId && source.freshUntil >= asOf &&
+    row.assessment?.status === 'ACCEPTED';
+  return row.snapshot.kind === 'SEARCH_PROVIDER_RESULT' && row.freshnessStatus === 'FRESH' &&
+    (row.freshUntil || row.snapshot.freshUntil) >= asOf;
 }
 
 function asEvidence(row: any, explicit = false): EvidenceCandidateV1 {
@@ -191,6 +215,46 @@ export class ContentContextRepository {
       ...evidenceIds,
       ...sourceEvidence.map((row: any) => row.id),
     ]);
+    if (request.pieceEvidence?.sourceUrls?.length) {
+      const sourceUrls = [...new Set(request.pieceEvidence.sourceUrls
+        .map(canonicalCitationUrl).filter((url): url is string => url !== null))];
+      assertIdBudget(sourceUrls);
+      const explicitSupports = explicitFacts.flatMap((fact: any) => (fact.evidenceLinks || [])
+        .filter((link: any) => link.stance === 'SUPPORTS' && link.reviewStatus === 'ACCEPTED')
+        .map((link: any) => link.evidence));
+      const representedIds = new Set([...explicitEvidenceIds, ...explicitSupports.map((row: any) => row.id),
+        ...request.pieceEvidence.quotes.map(quote => quote.evidenceId)]);
+      const representedUrls = new Set([...standaloneById.values(), ...explicitSupports]
+        .map(row => canonicalCitationUrl(row.snapshot?.finalCanonicalUrl)).filter(Boolean));
+      for (const quote of request.pieceEvidence.quotes) {
+        const url = canonicalCitationUrl(quote.sourceUrl); if (url) representedUrls.add(url);
+      }
+      const asOf = new Date(request.asOf);
+      for (const url of sourceUrls.filter(url => !representedUrls.has(url)).slice(0, PIECE_EVIDENCE_MAX_ITEMS)) {
+        if (representedIds.size >= PIECE_EVIDENCE_MAX_ITEMS) break;
+        if (representedUrls.has(url)) continue;
+        const rows = await this.client().sourceEvidence.findMany({
+          where: { organizationId, exposure: 'PUBLIC', tombstone: null, excerpt: { not: null },
+            snapshot: { organizationId, finalCanonicalUrl: url, purgedAt: null },
+            AND: [
+              { OR: [{ assessment: { is: null } }, { assessment: { is: { status: { not: 'REJECTED' }, trustTier: { not: 'BLOCKED' } } } }] },
+              { OR: [{ freshUntil: { gte: asOf } }, { snapshot: { freshUntil: { gte: asOf } } },
+                { snapshot: { source: { is: { freshUntil: { gte: asOf } } } } }] },
+            ],
+          },
+          orderBy: [{ observedAt: 'desc' }, { id: 'asc' }], take: 8, include: evidenceInclude,
+        });
+        // Prefer the most complete actual retained passage within this bounded
+        // URL history, with stable recency/id ties. Never replace chosen proof.
+        const row = rows.filter((candidate: any) => canonicalCitationUrl(candidate.snapshot?.finalCanonicalUrl) === url &&
+          usableCoreSource(candidate, organizationId, asOf))
+          .sort((a: any, b: any) => b.excerpt.length - a.excerpt.length ||
+            b.observedAt.getTime() - a.observedAt.getTime() || a.id.localeCompare(b.id))[0];
+        if (!row) continue;
+        standaloneById.set(row.id, row);
+        explicitEvidenceIds.add(row.id); representedIds.add(row.id); representedUrls.add(url);
+      }
+    }
     return {
       facts: [...factsById.values()].map((row) => asFact(row, explicitFactIds)),
       evidence: [...standaloneById.values()].map((row) =>
@@ -247,6 +311,7 @@ export class ContentContextRepository {
               inclusionReason: item.inclusionReason,
               statementHash: item.statementHash,
               excerptHash: item.excerptHash,
+              ...(item.evidenceProjection ? { evidenceProjection: item.evidenceProjection } : {}),
               factStatement: item.factStatement,
               factTemporalKind: item.factTemporalKind,
               factVerifiedAt: item.factVerifiedAt,

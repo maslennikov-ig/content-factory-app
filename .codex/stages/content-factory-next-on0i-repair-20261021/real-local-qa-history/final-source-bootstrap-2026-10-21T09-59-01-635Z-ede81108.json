@@ -1,0 +1,307 @@
+{
+  "at": "2026-10-21T09:58:38.068Z",
+  "result": "PASS_FINAL_SOURCE_BOOTSTRAP",
+  "scope": "Restart only the owned local QA backend; authenticated readback, no model/search prompt or observer/replay execution.",
+  "previousPid": 89221,
+  "pid": 63308,
+  "execSessionId": 92780,
+  "bootstrap": {
+    "at": "2026-10-21T09:57:29.176Z",
+    "result": "STARTED",
+    "pid": 63308,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "d4b8191199d6f8991c898dae27575915dca29708fa7f8d664b9dcd7768c6c830",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "64bacce685a962436bb29955e96221ec8b73ecde70de4c2c26805eb600211795",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c32994a5d9ec74abd6403ac0e2879178c07cd9ca5eea6e56dec0df83ac9066ef",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "bd4aa1f40ee3b385121ed2863cfb33f3990c289a20fa0d5334b836e434149f69",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "providerRequestsDuringBootstrap": [],
+    "paidCallsByBootstrap": 0
+  },
+  "sourceManifestBefore": {
+    "apps/backend/src/api/routes/agent.controller.ts": "64bacce685a962436bb29955e96221ec8b73ecde70de4c2c26805eb600211795",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c32994a5d9ec74abd6403ac0e2879178c07cd9ca5eea6e56dec0df83ac9066ef",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "bd4aa1f40ee3b385121ed2863cfb33f3990c289a20fa0d5334b836e434149f69",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+    "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "scripts/evidence/on0i-real-local-qa-network.cjs": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+    "scripts/evidence/on0i-real-local-qa-backend.cjs": "d4b8191199d6f8991c898dae27575915dca29708fa7f8d664b9dcd7768c6c830",
+    "libraries/nestjs-libraries/src/chat/mastra.store.ts": "fb77c89fbfd30514ee561ca6ce4b16d8ca892b0ccd21a703c0b0cd901da0446b"
+  },
+  "sourceManifestAfter": {
+    "apps/backend/src/api/routes/agent.controller.ts": "64bacce685a962436bb29955e96221ec8b73ecde70de4c2c26805eb600211795",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "c32994a5d9ec74abd6403ac0e2879178c07cd9ca5eea6e56dec0df83ac9066ef",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "4c5c7e94d3849aa4a775b572910ae01618a8681a90888fb92006308fd68c6328",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "2098bc16f79a0ae4db3634947ae97977f83986a0f7f5c0d77b543154343d8aba",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "bd4aa1f40ee3b385121ed2863cfb33f3990c289a20fa0d5334b836e434149f69",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+    "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45",
+    "scripts/evidence/on0i-real-local-qa-network.cjs": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+    "scripts/evidence/on0i-real-local-qa-backend.cjs": "d4b8191199d6f8991c898dae27575915dca29708fa7f8d664b9dcd7768c6c830",
+    "libraries/nestjs-libraries/src/chat/mastra.store.ts": "fb77c89fbfd30514ee561ca6ce4b16d8ca892b0ccd21a703c0b0cd901da0446b"
+  },
+  "sourceChangesDuringOwnedRestart": [],
+  "loadedSourceMismatches": [],
+  "networkObserverLoaded": true,
+  "loadedNetworkObserverSha256": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+  "actualAuthenticatedReadbacks": [
+    {
+      "actor": "primary",
+      "selfHttp": 200,
+      "selfIdMatches": true,
+      "listHttp": 200,
+      "threadCount": 5,
+      "pagination": {
+        "page": 0,
+        "perPage": 100,
+        "total": 5,
+        "hasMore": false
+      }
+    },
+    {
+      "actor": "http-runner",
+      "selfHttp": 200,
+      "selfIdMatches": true,
+      "listHttp": 200,
+      "threadCount": 11,
+      "pagination": {
+        "page": 0,
+        "perPage": 100,
+        "total": 11,
+        "hasMore": false
+      }
+    },
+    {
+      "actor": "other-tenant",
+      "selfHttp": 200,
+      "selfIdMatches": true,
+      "listHttp": 200,
+      "threadCount": 0,
+      "pagination": {
+        "page": 0,
+        "perPage": 100,
+        "total": 0,
+        "hasMore": false
+      }
+    }
+  ],
+  "ownedHistoriesChecked": 16,
+  "activeTasksBefore": [],
+  "activeTasksAfter": [],
+  "focusedThreadReadbacks": [
+    {
+      "actor": "primary",
+      "threadId": "0e68c770-4838-44eb-b4d2-7868e068eab6",
+      "httpStatus": 200,
+      "execution": {
+        "requestId": "67316142-a2aa-46a2-b817-d83f5f09c2a3",
+        "state": "settled",
+        "outcome": "completed",
+        "runId": "9ae998e9-21b5-4b91-9cf1-9cc8b36b13c5"
+      },
+      "pending": [],
+      "messages": [
+        {
+          "id": "E5gEGHD6Zj287yFd",
+          "role": "user",
+          "textChars": 162,
+          "textSha256": "1b6fee83202c99c5ea823a8c55c75cdfc623d34e5949cc5c8e839d4f061bef84"
+        },
+        {
+          "id": "e0bd5d13-365e-4331-8182-e3f551616002",
+          "role": "assistant",
+          "textChars": 1278,
+          "textSha256": "86923dfede81ead0eda6b63adaf25dfef8cd2318de88e3f583dfde43c4eb16b7"
+        }
+      ]
+    },
+    {
+      "actor": "primary",
+      "threadId": "9b1c3615-dd5c-4e3a-8a65-1a9d8e21108d",
+      "httpStatus": 200,
+      "execution": {
+        "requestId": "7b7af1b1-26da-44a1-a355-3d3f55fc83fa",
+        "state": "settled",
+        "outcome": "interrupted",
+        "runId": "88e269a8-0775-482a-9e53-71f2b578927c"
+      },
+      "pending": [],
+      "messages": [
+        {
+          "id": "fbCt8U4EcZRNSN9Z",
+          "role": "user",
+          "textChars": 230,
+          "textSha256": "cdbec8d3235f57061e0c677662edbd67e9b386febe83f3f4d7ecf8270f411854"
+        },
+        {
+          "id": "71d1056a-4bab-4814-9639-3d98cdf04b5b",
+          "role": "assistant",
+          "textChars": 1685,
+          "textSha256": "22b730ef48e22a9f130fb3c561ac898a433f7d1a39f828026ead89c6a59b2b50"
+        },
+        {
+          "id": "Y3SMCSDbnIHExZ8C",
+          "role": "user",
+          "textChars": 177,
+          "textSha256": "37599381797810bcf2aa0e1c2a222a4a27ced94818b082e866eef6cfdb395238"
+        },
+        {
+          "id": "a7fcb07b-e85a-4445-998c-0a2684410043",
+          "role": "assistant",
+          "textChars": 113,
+          "textSha256": "0c7f61f285f476e381a60ec22236fb87cfb0fd4ab5beb7e6af786ded0aedbdae"
+        }
+      ]
+    },
+    {
+      "actor": "http-runner",
+      "threadId": "8603ca5a-681e-4183-934b-2aaf2a6b9643",
+      "httpStatus": 200,
+      "execution": {
+        "requestId": "496dc8fe-3c3d-49a3-b686-8797964a89fc",
+        "state": "settled",
+        "outcome": "interrupted",
+        "runId": "0d8d9541-f873-46f9-bdd9-413c26fa75bb"
+      },
+      "pending": [],
+      "messages": [
+        {
+          "id": "53130f32-e4c5-446f-9d5b-67bc137f517c",
+          "role": "user",
+          "textChars": 441,
+          "textSha256": "bc0c6608c9866287a47d8c1adcb5fd2159a4070fc4606fd840c4c05844dc65cf"
+        },
+        {
+          "id": "7e436a81-aa71-44ea-9dc3-0c6af36bda6c",
+          "role": "assistant",
+          "textChars": 0,
+          "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  ],
+  "allThreadStatesMessagesAndPendingUnchanged": true,
+  "changedThreadIds": [],
+  "noResurrection": true,
+  "ledgerUnchanged": true,
+  "ledgerRows": 28,
+  "unknownCostRowsPreserved": [
+    {
+      "id": "7c0242ea-0142-4c7c-903b-95f380ef0b9a",
+      "userId": "7080fbba-4518-4b19-9a95-9edc641ad2e8",
+      "status": "admitted",
+      "model": "openai/gpt-6-luna",
+      "costUsd": null,
+      "possiblyBilled": null,
+      "attempt": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "createdAt": "2026-10-21T07:31:07.490Z",
+      "updatedAt": "2026-10-21T07:31:07.490Z"
+    },
+    {
+      "id": "b23b5510-aa7d-492f-837f-8aecaa2fa667",
+      "userId": "c130d1da-3bf0-4ab3-b47c-a85e082a775d",
+      "status": "failed",
+      "model": "openai/gpt-6-luna",
+      "costUsd": null,
+      "possiblyBilled": true,
+      "attempt": 1,
+      "promptTokens": null,
+      "completionTokens": null,
+      "createdAt": "2026-10-21T08:58:11.537Z",
+      "updatedAt": "2026-10-21T08:58:16.020Z"
+    }
+  ],
+  "providerReceiptBaselineRows": 106,
+  "providerReceiptsDuringRestartAndReadback": [],
+  "providerRequestsDuringRestartAndReadback": [],
+  "paidCallsByInspector": 0,
+  "requestsReplayed": 0,
+  "observerRequestsByInspector": 0,
+  "manualLedgerMutation": false,
+  "existingFailedCompiledOutputRetained": true,
+  "privateFileModes": [
+    {
+      "file": "/tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "mode": "600"
+    },
+    {
+      "file": "/tmp/on0i-real-local-qa-s2nihQ/server-effective-ai.json",
+      "mode": "600"
+    },
+    {
+      "file": "/home/me/.config/content-factory/local-ai.json",
+      "mode": "600"
+    }
+  ],
+  "privateDirectoryModes": [
+    {
+      "file": "/tmp/on0i-real-local-qa-s2nihQ",
+      "mode": "700"
+    },
+    {
+      "file": "/home/me/.config/content-factory",
+      "mode": "700"
+    }
+  ],
+  "privateReadbacks": {
+    "before": "/tmp/on0i-real-local-qa-s2nihQ/final-source-bootstrap-before.json",
+    "after": "/tmp/on0i-real-local-qa-s2nihQ/final-source-bootstrap-after.json"
+  },
+  "commands": [
+    {
+      "command": "Owned PID/cwd/argv/owner marker guard then process.kill(89221, SIGTERM); wait for exit and port3478 free",
+      "exitCode": 0
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node scripts/evidence/on0i-real-local-qa-backend.cjs --stand /tmp/on0i-real-local-qa-s2nihQ/stand.json",
+      "status": "RUNNING",
+      "pid": 63308,
+      "sessionId": 92780
+    },
+    {
+      "command": "Actual authenticated GET /user/self, GET /agent/threads?page=0&perPage=100, GET each exact synthetic /agent/threads/:id for three actors; read-only Prisma ledger and file manifests",
+      "exitCode": 0
+    }
+  ]
+}

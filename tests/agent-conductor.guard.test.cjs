@@ -42,21 +42,28 @@ const withoutComments = (source) =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
 describe('the web agent is the conductor, with the hooks', () => {
-  test('the only Mastra agent of the backend is built by buildConductorAgent with createCapabilityHooks', () => {
+  test('the web conductor retains capability hooks and only its explicit native auxiliaries exist', () => {
     const agentFile = `${CHAT}/conductor/conductor.agent.ts`;
     const code = withoutComments(read(agentFile));
     expect(code).toMatch(/hooks:\s*createCapabilityHooks\(capabilities,\s*deps\.gate,\s*deps\.services\)/);
     expect(code).toMatch(/requestContextSchema:\s*conductorContextSchema/);
     expect(code).toMatch(/maxRetries:\s*CONDUCTOR_MAX_RETRIES/);
-    expect(code).toMatch(/defaultOptions:\s*\{\s*maxSteps:\s*CONDUCTOR_MAX_STEPS,\s*stopWhen:\s*stopAfterOpenProposalRefusal\b[^}]*\}/);
+    expect(code).toMatch(/defaultOptions:\s*\([^)]*\)\s*=>\s*\(\{\s*maxSteps:\s*CONDUCTOR_MAX_STEPS,\s*stopWhen:\s*stopAfterOpenProposalRefusal\b[^}]*\}/);
 
     const mastraAgents = [...sourceFiles('libraries/nestjs-libraries/src'), ...sourceFiles('apps/backend/src')]
       .filter((relative) => /from '@mastra\/core\/agent'/.test(read(relative)))
       .filter((relative) => /new Agent\(/.test(withoutComments(read(relative))));
-    expect(mastraAgents).toEqual([agentFile]);
+    expect(mastraAgents.sort()).toEqual([
+      agentFile,
+      `${CHAT}/conductor/conductor.autonomy.ts`,
+      'libraries/nestjs-libraries/src/openai/ai.clients.ts',
+    ].sort());
 
     const service = withoutComments(read(`${CHAT}/mastra.service.ts`));
-    expect(service).toMatch(/\[CONDUCTOR_AGENT_ID\]:\s*buildConductorAgent\(/);
+    expect(service).toMatch(/const backingAgent\s*=\s*buildConductorAgent\(/);
+    expect(service).toMatch(/createDurableAgent\(\{\s*agent:\s*backingAgent/);
+    expect(service).toMatch(/\[CONDUCTOR_AGENT_ID\]:\s*durableAgent/);
+    expect(service).toMatch(/buildConductorController\(\s*agents\[CONDUCTOR_AGENT_ID\]/);
     expect(service).toMatch(/gate:\s*this\.gate\(\)/);
     expect(service).toMatch(/prepareModelExecution\(\s*organizationId,\s*'agent'/);
     expect(service).toMatch(/getModelForRole\(organizationId, 'agent'\)/);

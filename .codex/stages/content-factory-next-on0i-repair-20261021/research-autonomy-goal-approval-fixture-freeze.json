@@ -1,0 +1,66 @@
+{
+  "schema": "autonomy-goal-approval-fixture-freeze/v1",
+  "at": "2026-10-21T14:04:33.521079+00:00",
+  "status": "FROZEN_FOR_ROOT_REVIEW",
+  "authorization": "Parent APPLY GO for exact stage patch9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4 and only the two fixture paths",
+  "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture.patch",
+  "patchSha256": "9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4",
+  "testSha256": {
+    "tests/helpers/agent-native-autonomy.probe.cjs": "8f14e1be756d87dd8baf2689cc06889c49f837ce4821bbb4fff00ea10ee405cd",
+    "tests/agent-native-autonomy.test.cjs": "f82eac35ccda34c6542b16c8feb69986bd30fdca5f9e3d27a212f2d4b549973b"
+  },
+  "beforeTestSha256": {
+    "tests/helpers/agent-native-autonomy.probe.cjs": "3ef18c552e58e936c459e051ed0e5e505b5eb8f01ce8d1fbf71804a155abef95",
+    "tests/agent-native-autonomy.test.cjs": "d9ceee2771afa843d37f8dbd1e8fe166575993a83d639ec3122b09ffba1e0f8a"
+  },
+  "priorResearchAppFreeze": {
+    "path": ".codex/stages/content-factory-next-on0i-repair-20261021/research-person-selection-final-freeze.json",
+    "sha256": "9a25a315d86725d988042d2b0943562fe08f0e9123ce8e9f06d3ceed1498e74d",
+    "all12AppHashesStillMatch": true
+  },
+  "verification": {
+    "focused": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/agent-native-autonomy.test.cjs",
+      "suites": 1,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    "scopedDiffCheck": {
+      "command": "git diff --check -- tests/helpers/agent-native-autonomy.probe.cjs tests/agent-native-autonomy.test.cjs",
+      "exitCode": 0
+    },
+    "exactCandidateHashCheck": true
+  },
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture.patch": "9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture-proposal.json": "762ae80c5eb705dea4f3aa836d64f515ea46a87fc17b2557c0ddeba33186839f",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-detailed-readonly-probe.json": "a07b67fb26bfa6183c9c0bba1cd94c59d327ebc4a6b647da29b8da5ac6052cf5",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approved-readonly-probe.json": "f221504395e67b96e5f1bb1e16fde83f6602786913bdabc1f4031fb70a7cfd01",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-focused.log": "5e25fd546780c8eb67bb698331d6a6564a049f5551dbf7e4bd3e859a3b50f977",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-outcome.md": "e4a15237de0008ac2ed8f35e541b68ec234e2265263b920e43e0a703dfda659c"
+  },
+  "boundaries": {
+    "appWrites": 0,
+    "testFilesChanged": 2,
+    "assertionsRemoved": 0,
+    "paidCalls": 0,
+    "runtimeStandCalls": 0,
+    "standRestarts": 0,
+    "build": false,
+    "fullSuite": false,
+    "deployment": false,
+    "push": false,
+    "sourceAndTestsFrozen": true
+  },
+  "remaining": [
+    "Independent exact-byte fixture review",
+    "Root Gate8 acceptance"
+  ],
+  "cleanup": {
+    "probeProcessesExited": true,
+    "persistentResourcesStarted": 0,
+    "stageProofRetained": true
+  }
+}

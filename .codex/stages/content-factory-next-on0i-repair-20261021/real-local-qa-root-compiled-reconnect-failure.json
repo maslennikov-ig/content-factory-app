@@ -1,0 +1,330 @@
+{
+  "at": "2026-10-21T09:23:06.301Z",
+  "result": "FAIL_ACTUAL_COMPILED_RECONNECT",
+  "threadId": "0e68c770-4838-44eb-b4d2-7868e068eab6",
+  "httpStatus": 200,
+  "execution": {
+    "requestId": "67316142-a2aa-46a2-b817-d83f5f09c2a3",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "9ae998e9-21b5-4b91-9cf1-9cc8b36b13c5"
+  },
+  "pending": [],
+  "rootBrowserObservation": {
+    "source": "Parent root actual compiled browser run",
+    "visibleScope": "getByRole(log,{name:Разговор})",
+    "beforeReload": "10 visible numbered items and visible Stop control from the current 45-item response",
+    "actualReloadExecuted": true,
+    "requests": [
+      {
+        "index": 269,
+        "method": "GET",
+        "purpose": "observe",
+        "status": 200
+      },
+      {
+        "index": 270,
+        "method": "GET",
+        "purpose": "final thread history",
+        "status": 200
+      },
+      {
+        "index": 271,
+        "method": "GET",
+        "purpose": "final thread history",
+        "status": 200
+      }
+    ],
+    "afterReload": {
+      "visibleLogEmpty": true,
+      "error": "Не получилось"
+    },
+    "selectorFalseAlarm": false
+  },
+  "messageCounts": {
+    "total": 2,
+    "user": 1,
+    "assistant": 1
+  },
+  "messages": [
+    {
+      "id": "E5gEGHD6Zj287yFd",
+      "role": "user",
+      "threadId": "0e68c770-4838-44eb-b4d2-7868e068eab6",
+      "createdAt": "2026-10-21T09:14:29.380Z",
+      "textChars": 162,
+      "textPreview": "Контроль восстановления текущего чата: напиши 45 коротких советов о ведении рабочих заметок нумерованным списком. Без поиска, инструментов, сохранения и вопросов.",
+      "completeNumberedItems": 0,
+      "numberedLabels": []
+    },
+    {
+      "id": "e0bd5d13-365e-4331-8182-e3f551616002",
+      "role": "assistant",
+      "threadId": "0e68c770-4838-44eb-b4d2-7868e068eab6",
+      "createdAt": "2026-10-21T09:14:36.685Z",
+      "textChars": 1278,
+      "textPreview": "1. Записывайте мысль сразу.\n2. Фиксируйте дату заметки.\n3. Добавляйте короткий заголовок.\n4. Одна заметка — одна тема.\n5. Пишите простыми словами.\n6. Отделяйте факты от идей.\n7. Помечайте непроверенные сведения.\n8. Указывайте источник данны",
+      "completeNumberedItems": 36,
+      "numberedLabels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45
+      ]
+    }
+  ],
+  "allMessageMetadataThreadIdsMatch": true,
+  "savedOutput": {
+    "verdict": "FAIL_MISSING_NUMBERED_ITEMS_AND_MID_SENTENCE_GAP",
+    "requestedItems": 45,
+    "savedNumberedItems": 36,
+    "missingLabels": [
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25
+    ],
+    "gapFragment": "15. Сохраняйте важный контекст.\n16. Записывайте решения и п. Ссылайтесь на связанные заметки.\n26. Храните заметки в одном месте.\n",
+    "fullTextRetainedPrivately": true
+  },
+  "providerObservationWindow": {
+    "from": "2026-10-21T09:14:27.337Z",
+    "to": "2026-10-21T09:17:18.217Z"
+  },
+  "actualModelRequests": 1,
+  "actualSearchRequests": 0,
+  "scriptedRequests": 0,
+  "providerReceipts": [
+    {
+      "id": "f854704e-9a1d-4045-b85d-ab4ec92f85c6",
+      "at": "2026-10-21T09:14:29.608Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "started"
+    },
+    {
+      "id": "f854704e-9a1d-4045-b85d-ab4ec92f85c6",
+      "at": "2026-10-21T09:14:29.608Z",
+      "provider": "openrouter",
+      "path": "/api/v1/chat/completions",
+      "model": "openai/gpt-6-luna",
+      "stream": true,
+      "scripted": false,
+      "phase": "completed",
+      "status": 200,
+      "requestId": null,
+      "servedModel": "openai/gpt-6-luna",
+      "generationId": "gen-1792574070-KpLsGg4I3DAPe4037wFy",
+      "usage": {
+        "promptTokens": 28560,
+        "completionTokens": 523,
+        "totalTokens": 29083,
+        "reasoningTokens": 47,
+        "cachedTokens": 0,
+        "costUsd": 0.00379311075
+      },
+      "providerErrorCode": null,
+      "elapsedMs": 7071
+    }
+  ],
+  "ledger": [
+    {
+      "id": "ad6aa7db-7853-4efc-9215-c79adecf3981",
+      "operation": "agent",
+      "role": "agent",
+      "provider": "openrouter",
+      "model": "openai/gpt-6-luna",
+      "status": "succeeded",
+      "promptTokens": 28560,
+      "completionTokens": 523,
+      "reasoningTokens": 47,
+      "costUsd": "0.00379311",
+      "attempt": 1,
+      "possiblyBilled": null,
+      "createdAt": "2026-10-21T09:14:29.286Z",
+      "updatedAt": "2026-10-21T09:14:37.360Z"
+    }
+  ],
+  "ledgerProviderTupleMatches": true,
+  "accountingVerdict": "KNOWN_COST_DOES_NOT_ESTABLISH_RESPONSE_OR_RECONNECT_QUALITY",
+  "ledgerAttribution": "One exact primary-actor ledger row in the bounded window matches the provider model and both token counts; ledger schema has no thread foreign key.",
+  "replayAssessment": {
+    "actualModelRequestsInWholeObservedWindow": 1,
+    "extraProviderReplayRequestsObserved": 0,
+    "originalProviderTextCaptured": false,
+    "cause": "UNKNOWN_MODEL_OUTPUT_VS_NATIVE_STREAM_OR_PERSISTENCE_BOUNDARY",
+    "noExtraModelCallIsNotProofOfChunkCompleteness": true
+  },
+  "observerCapture": {
+    "file": "/tmp/on0i-compiled-observe-sse.txt",
+    "observedAt": "2026-10-21T09:23:06.298Z",
+    "chars": 1,
+    "bytes": 1,
+    "dataLines": 0,
+    "verdict": "UNKNOWN_CAPTURE_EMPTY",
+    "limitation": "A newline-only capture does not establish the actual HTTP observer response body."
+  },
+  "bootstrap": {
+    "at": "2026-10-21T08:56:38.068Z",
+    "result": "STARTED",
+    "pid": 89221,
+    "head": "e74e059ea104593d2fac831eb989714a5b151263",
+    "scriptSha256": "d4b8191199d6f8991c898dae27575915dca29708fa7f8d664b9dcd7768c6c830",
+    "sourceSha256": {
+      "apps/backend/src/api/routes/agent.controller.ts": "1aa20494a77b61e30c0b109015ea2f7bee1b0aeeca93308e9c6ac2a724c62d73",
+      "libraries/nestjs-libraries/src/chat/mastra.service.ts": "61cd7d65debfc77d04eeb90e146f52b20a67ff3ff5f5413c450f48fe4228a925",
+      "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+      "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e",
+      "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+      "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+      "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+      "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+      "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+      "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+    },
+    "sourceChangedDuringBootstrap": false,
+    "networkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "backendUrl": "http://localhost:3478",
+    "actualApiModule": true,
+    "realAuthMiddleware": true,
+    "realPoliciesGuard": true,
+    "realPrisma": true,
+    "realMastraStore": true,
+    "omittedApplicationModules": [
+      "TemporalRegisterMissingSearchAttributesModule",
+      "InfiniteWorkflowRegisterModule",
+      "AnalyticsScheduleRegisterModuleV1",
+      "NewsletterDeliveryRetryModuleV1",
+      "VoiceRetentionModule"
+    ],
+    "temporalAddressUnreachable": true,
+    "productionAccess": false,
+    "providerRequestsDuringBootstrap": [],
+    "paidCallsByBootstrap": 0
+  },
+  "runtimeAlive": true,
+  "currentSources": {
+    "apps/backend/src/api/routes/agent.controller.ts": "1f38b95e8e5685fe11e3d71eff1c1d69b0ab40e7afdff15acccac1a69bbc0cf0",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "61cd7d65debfc77d04eeb90e146f52b20a67ff3ff5f5413c450f48fe4228a925",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts": "b64365322c315c736ca2c874da5718df694c101f5f37ef030f37618598f7cd7f",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts": "60b0b117021902a986c386d89f3f1c076fd2b81961540844db551463f54e06b5",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts": "59b843d6a075757530824c09d956389d275eca6f62b4e77ea194cd5e4c1d6d85",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "a70659abc48645fbf4a2781c06ac0dc672a4bebaa08e5809182a18337d0c926e",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "4578e453586e09a3ab244c3b296a3a7ff7baa4c418af6cf43e34c8fa71f82f71",
+    "libraries/nestjs-libraries/src/chat/conductor/native-model-availability.ts": "fc25eae82015f6e7645d761522f553a93e3cce213efa1990da809dbcda1c5ceb",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "b7dcd6008aa0b1818e13fa1128f3999d7e687a39987bd2a34af53f232df40720",
+    "libraries/nestjs-libraries/src/openai/ai.clients.ts": "2b075bd05668d0475104fa2179cc1ad124e57265fb187ebec339beaa974a2c51",
+    "libraries/nestjs-libraries/src/openai/ai.text-chain.ts": "cd7e8311e4a3dc996eccb38ab9196da44e1fdbf0bfd7a28238b712db1702fe52",
+    "libraries/nestjs-libraries/src/openai/ai.native-retries.ts": "089d90bcec97e2fa2405e4daeaa4ffd87ccd848ccb334c15359dfa52f0f26e45"
+  },
+  "changedSinceBoot": [
+    "apps/backend/src/api/routes/agent.controller.ts"
+  ],
+  "privateRawEvidence": "/tmp/on0i-real-local-qa-s2nihQ/root-compiled-reconnect-evidence.json",
+  "readOnlySources": [
+    {
+      "file": "/tmp/on0i-real-local-qa-s2nihQ/root-compiled-reconnect-history.json",
+      "sha256": "d812cd35be5f537645fae41da52f77707158be08777b13da4eb388dedb00c3c4"
+    },
+    {
+      "file": "/tmp/on0i-real-local-qa-s2nihQ/root-compiled-reconnect-cost.json",
+      "sha256": "0a7e84f86a2de8444f737f23ea8926b1258d8b7816f009a123281229f8ebad76"
+    }
+  ],
+  "paidCallsByThisInspector": 0,
+  "observerRequestsByThisInspector": 0,
+  "requestsReplayed": 0,
+  "backendRestarted": false,
+  "sourceFilesEdited": false,
+  "nativeReadback": {
+    "artifact": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/.codex/stages/content-factory-next-on0i-repair-20261021/real-local-qa-root-compiled-reconnect-native.json",
+    "rawPrivateFile": "/tmp/on0i-real-local-qa-s2nihQ/root-compiled-reconnect-native-raw.json",
+    "nativeMessageCount": 2,
+    "nativeAndPublicHistoryTextsAllMatch": true,
+    "assistantPartsAndContentStringMatch": true,
+    "assistantNumberedLabels": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45
+    ],
+    "cacheEventCount": 0,
+    "redisStreamType": "none",
+    "redisStreamEntryCount": 0,
+    "eventCacheLimitation": "No history entries or stream remain available at this post-terminal read; this observation does not identify whether lifecycle cleanup or another path removed them."
+  }
+}

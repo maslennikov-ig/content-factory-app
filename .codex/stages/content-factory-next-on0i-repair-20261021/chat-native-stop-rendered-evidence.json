@@ -1,0 +1,34 @@
+{
+  "schema": "worker-focused-evidence/1",
+  "cwd": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "head": "e74e059ea104593d2fac831eb989714a5b151263",
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1"
+  },
+  "checks": [
+    {
+      "command": "pnpm exec jest --runInBand --no-coverage tests/agent-native-conversation-flow.test.cjs",
+      "exitCode": 0,
+      "suites": 1,
+      "tests": 11,
+      "log": "chat-native-stop-rendered.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": {
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "4c2c747165b70598ac8e61c1a5dd55bf8ada5ca94bc00ea8cbaa47343d5f3b5d",
+    "apps/frontend/src/components/agents/agent.screen.tsx": "7328c9c3e5b97000f18919b1fa77855835835d7a35442b054395f6bcefb8d485",
+    "tests/agent-native-conversation-flow.test.cjs": "9bfbebef46d511ab7cabb8b3eed2c4b14691eb6c096e5cffdb15119abe0fb4dd"
+  },
+  "logSha256": {
+    "chat-native-stop-rendered.log": "29a186370172aab32894557d56efa104c85b60f95ac4ffbf7ce6a194a586de79"
+  },
+  "scope": "Rendered Stop reconciliation: server-saved new human plus partial assistant remain once after /stop and aborted observer. No production source change. Hidden cached-session DOM counts were separately confirmed as a root browser-probe false alarm; preserve native panel cache.",
+  "earlierEvidence": [
+    "chat-native-final-scope-evidence.json"
+  ]
+}

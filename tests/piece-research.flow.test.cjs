@@ -942,3 +942,77 @@ test('an empty core without any supplied or retained task refuses before search'
   expect(research.research).not.toHaveBeenCalled();
   expect(modelCalls).toEqual([]);
 });
+
+describe('read-only CORE research snapshots', () => {
+  const keyFor = (org = 'org', actor = 'user', id = 'p', snapshot = 'saved') =>
+    `piece:research:${org}:${actor}:${id}:${snapshot}`;
+  const read = (org = 'org', id = 'p', actor = 'user', snapshot = 'saved') =>
+    service.readCoreResearchSnapshot(org, id, actor, snapshot);
+  const now = new Date('2026-10-21T12:00:00.000Z');
+  const saved = () => ({ version: 'piece-research/v2', organizationId: 'org', actorUserId: 'user', pieceId: 'p',
+    body: 'Original saved CORE body.', expiresAt: now.getTime() + 60_000,
+    state: { resumePlan: { input: 'Original saved research input.' }, summary: { status: 'complete' },
+      evidence: [{ evidenceId: 'retained', url, excerpt, fullText: `${excerpt}\n${'Retained source passage. '.repeat(3000)}Last complete passage.` }],
+      filled: { brief: { facts: [{ factKey: 'retained-fact', statement: excerpt, evidenceId: 'retained' }] } } },
+  });
+  beforeEach(() => { service.now = () => now; });
+
+  test.each(['piece-research/v1', 'piece-research/v2'])('reads complete %s evidence without accepting or refreshing the research', async version => {
+    const fullText = `${excerpt}\n${'Retained source passage. '.repeat(3000)}Last complete passage.`;
+    research.research.mockResolvedValue({ provider: 'exa', facts: [{ text: excerpt, sourceUrl: url }],
+      sources: [{ url, title: 'Study', provider: 'exa', text: 'Bounded source preview.', fullText }] });
+    const preview = await start();
+    const key = keyFor('org', 'user', 'p', preview.snapshotKey);
+    const stored = JSON.parse(storage.get(key));
+    stored.version = version;
+    storage.set(key, JSON.stringify(stored));
+    const before = [...storage.entries()];
+    piece.body = 'The current piece has been edited since research; read only.';
+    const result = await read('org', 'p', 'user', preview.snapshotKey);
+    expect(result).toEqual({ snapshotKey: preview.snapshotKey, input: stored.state.resumePlan.input,
+      summary: stored.state.summary, evidence: stored.state.evidence, facts: stored.state.filled.brief.facts });
+    expect(result.evidence[0].fullText).toBe(fullText);
+    expect([...storage.entries()]).toEqual(before);
+    expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+    expect(research.research).toHaveBeenCalledTimes(1);
+    expect(modelCalls).toHaveLength(1);
+  });
+
+  test('requires a current tenant piece and exact scoped key, including after deletion', async () => {
+    storage.set(keyFor(), JSON.stringify(saved()));
+    await expect(read('other')).resolves.toBeNull();
+    await expect(read('org', 'other')).resolves.toBeNull();
+    await expect(read('org', 'p', 'other')).resolves.toBeNull();
+    await expect(read('org', 'p', 'user', 'missing')).resolves.toBeNull();
+    repo.getPiece.mockResolvedValueOnce(null);
+    await expect(read()).resolves.toBeNull();
+    service.snapshots = null;
+    await expect(read()).resolves.toBeNull();
+    expect(research.research).not.toHaveBeenCalled();
+    expect(modelCalls).toEqual([]);
+  });
+
+  test.each([
+    ['organizationId', 'other'], ['actorUserId', 'other'], ['pieceId', 'other'],
+    ['version', 'piece-research/future'], ['expiresAt', now.getTime()],
+    ['expiresAt', now.getTime() - 1], ['expiresAt', null], ['expiresAt', '1792584000000'],
+  ])('refuses mismatched or invalid saved %s %p even at the requested scoped key', async (field, value) => {
+    storage.set(keyFor(), JSON.stringify({ ...saved(), [field]: value }));
+    await expect(read()).resolves.toBeNull();
+    expect(research.research).not.toHaveBeenCalled();
+    expect(repo.acceptCoreReview).not.toHaveBeenCalled();
+  });
+
+  test('refuses malformed JSON or state, and falls back only to the saved body for legacy provenance', async () => {
+    for (const raw of ['{', 'null', '3', JSON.stringify({ ...saved(), state: null }),
+      JSON.stringify({ ...saved(), state: { ...saved().state, evidence: {} } }),
+      JSON.stringify({ ...saved(), state: { ...saved().state, filled: { brief: { facts: {} } } } })]) {
+      storage.set(keyFor(), raw);
+      await expect(read()).resolves.toBeNull();
+    }
+    const legacy = saved();
+    delete legacy.state.resumePlan;
+    storage.set(keyFor(), JSON.stringify(legacy));
+    await expect(read()).resolves.toMatchObject({ input: legacy.body, evidence: legacy.state.evidence });
+  });
+});

@@ -30,7 +30,10 @@ beforeAll(() => {
   report = JSON.parse(
     execFileSync(
       process.execPath,
-      [path.join(__dirname, 'helpers', 'agent-scenarios.runner.cjs')],
+      [path.join(__dirname, 'helpers', 'agent-scenarios.runner.cjs'),
+        // Pair with Jest's testNamePattern for a bounded scenario rerun. The
+        // ordinary suite still plays and asserts every scenario by default.
+        ...(process.env.CF_AGENT_SCENARIO_IDS ? [process.env.CF_AGENT_SCENARIO_IDS] : [])],
       { encoding: 'utf8', timeout: 900_000, maxBuffer: 64 * 1024 * 1024 }
     )
   );
@@ -88,8 +91,12 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
   test('each request opens exactly one `agent` operation, and every operation is closed', () => {
     const played = run();
     for (const turn of answeredTurns(played)) {
+      expect(turn.execution).toEqual(expect.objectContaining({ state: 'settled' }));
+      if (incompleteAt.has(played.turns.indexOf(turn))) {
+        expect(turn.execution.outcome).toBe('failed');
+      }
       expect(turn.admissions.filter(([operation]) => operation === 'agent')).toEqual([
-        ['agent', 'agent', 'user-1', incompleteAt.has(played.turns.indexOf(turn)) ? 'failed' : 'succeeded'],
+        ['agent', 'agent', 'user-1', turn.execution.outcome === 'completed' ? 'succeeded' : 'failed'],
       ]);
     }
     for (const [, , , status] of played.admissions) expect(status).not.toBe('admitted');

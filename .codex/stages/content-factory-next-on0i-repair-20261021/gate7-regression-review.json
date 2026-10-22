@@ -1,0 +1,465 @@
+{
+  "schema": "gate7-regression-independent-review/1",
+  "at": "2026-10-21T14:08:45.174870+00:00",
+  "status": "APPROVED_EXACT_APPLIED_PATCHES_ROOT_ACCEPTANCE_PENDING",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "branch": "codex/on0i-native-repair-20261021",
+  "baseline": "e74e059ea104593d2fac831eb989714a5b151263",
+  "openFindings": [],
+  "candidates": [
+    {
+      "id": "queued-response",
+      "verdict": "APPROVE_EXACT_PATCH",
+      "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response.candidate.patch",
+      "patchSha256": "b143b5ab1655e4ad5c41401a5ad1df408d557a17d8705dbfafb59a902b5d01b3",
+      "files": [
+        {
+          "path": "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts",
+          "beforeSha256": "eedacbbf52642af0128a8641789d91e15f2851fe1053016684f1110455b814e3",
+          "candidateSha256": "0263a8ab71c3d0a8c38169304c07da03b6dd2bbdf630158541843fa0e3228aa9",
+          "sourceSha256AtRead": "0263a8ab71c3d0a8c38169304c07da03b6dd2bbdf630158541843fa0e3228aa9",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 6,
+          "exactContextAndHashMatch": true
+        },
+        {
+          "path": "libraries/nestjs-libraries/src/chat/mastra.service.ts",
+          "beforeSha256": "fb7f9b9896c1f642d8adcd837ea2564b4587bd4cf68d19975304b3b3cfd6bd11",
+          "candidateSha256": "ce142fa1db17803d9baa5817adc5b94aaf41f3a6a31d9a24ad0c1ff8375b877e",
+          "sourceSha256AtRead": "ce142fa1db17803d9baa5817adc5b94aaf41f3a6a31d9a24ad0c1ff8375b877e",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 2,
+          "exactContextAndHashMatch": true
+        }
+      ]
+    },
+    {
+      "id": "durable-held-stop",
+      "verdict": "APPROVE_EXACT_PATCH",
+      "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-held-stop.patch",
+      "patchSha256": "5ae1864e8d80726bbbf19ab0d96f30544aeec0c8b52b1f968c545558de80609f",
+      "files": [
+        {
+          "path": "tests/helpers/agent-durable-recovery.probe.cjs",
+          "beforeSha256": "aec5f6443f13c2cfc43ac5a8fb0dad8701b115225e495255955504a078ef7604",
+          "candidateSha256": "f8b21e68767821914bfb1b68a851036246817bf8b20f74a7d6b7d4e0f76197ac",
+          "sourceSha256AtRead": "f8b21e68767821914bfb1b68a851036246817bf8b20f74a7d6b7d4e0f76197ac",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 2,
+          "exactContextAndHashMatch": true
+        }
+      ]
+    },
+    {
+      "id": "goal-approval",
+      "verdict": "APPROVE_EXACT_PATCH",
+      "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture.patch",
+      "patchSha256": "9703cf74c39f738f4a05d831eeb39b09ebd48c7d592faba09b34a7133e9c81c4",
+      "files": [
+        {
+          "path": "tests/helpers/agent-native-autonomy.probe.cjs",
+          "beforeSha256": "3ef18c552e58e936c459e051ed0e5e505b5eb8f01ce8d1fbf71804a155abef95",
+          "candidateSha256": "8f14e1be756d87dd8baf2689cc06889c49f837ce4821bbb4fff00ea10ee405cd",
+          "sourceSha256AtRead": "8f14e1be756d87dd8baf2689cc06889c49f837ce4821bbb4fff00ea10ee405cd",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 3,
+          "exactContextAndHashMatch": true
+        },
+        {
+          "path": "tests/agent-native-autonomy.test.cjs",
+          "beforeSha256": "d9ceee2771afa843d37f8dbd1e8fe166575993a83d639ec3122b09ffba1e0f8a",
+          "candidateSha256": "f82eac35ccda34c6542b16c8feb69986bd30fdca5f9e3d27a212f2d4b549973b",
+          "sourceSha256AtRead": "f82eac35ccda34c6542b16c8feb69986bd30fdca5f9e3d27a212f2d4b549973b",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 1,
+          "exactContextAndHashMatch": true
+        }
+      ]
+    },
+    {
+      "id": "media-source",
+      "verdict": "APPROVE_EXACT_PATCH",
+      "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/root-media-source-fixtures.patch",
+      "patchSha256": "50e333362c2e4585a8203b8a96f9f37661a7a30a69546ad24d5c9351fb542024",
+      "files": [
+        {
+          "path": "apps/frontend/src/components/agents/agent.copy.ts",
+          "beforeSha256": "e924dd65cbb165f8c6a4dc7d991ed587564ff3ddb29842efd4e52e9f676186e0",
+          "candidateSha256": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+          "sourceSha256AtRead": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 2,
+          "exactContextAndHashMatch": true
+        },
+        {
+          "path": "tests/agent-media.test.cjs",
+          "beforeSha256": "9fa745f4984608b81036d99e1d0fc1d22bb9016078baae8db7694b6ad16e6e52",
+          "candidateSha256": "f4f008395e9c78be78fee0cc6c35ff171c0b314954a6719b4d0c316eb7f09372",
+          "sourceSha256AtRead": "f4f008395e9c78be78fee0cc6c35ff171c0b314954a6719b4d0c316eb7f09372",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 1,
+          "exactContextAndHashMatch": true
+        },
+        {
+          "path": "tests/web.research.source-admission.test.cjs",
+          "beforeSha256": "b185a25afdc30710d0bf024a3252f2d4a5b0f9bc6bd25f260ef3936d6aece71f",
+          "candidateSha256": "60614005bd8cf93e11c3782826c3caf328e7a4f7822f4464ea175542669e15bd",
+          "sourceSha256AtRead": "60614005bd8cf93e11c3782826c3caf328e7a4f7822f4464ea175542669e15bd",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "hunks": 1,
+          "exactContextAndHashMatch": true
+        }
+      ]
+    },
+    {
+      "id": "queued-response-permanent-tests",
+      "verdict": "APPROVE_EXACT_PATCH",
+      "patch": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response.tests.candidate.patch",
+      "patchSha256": "c4d228ab4e91d7e0863adfa24f09ddc089f097f3fc718dbe5394cc31da360570",
+      "files": [
+        {
+          "path": "tests/helpers/agent-native-session-queued.probe.cjs",
+          "beforeSha256": "22f1f5515a856012f6142386bcd8cbea46cd3d7bc819664a82d2756d2ddbdb3f",
+          "candidateSha256": "1815279e13d40267579793dae9e2ab8fcd04c6391ac7805f32afdbe29ccd40db",
+          "sourceSha256AtRead": "1815279e13d40267579793dae9e2ab8fcd04c6391ac7805f32afdbe29ccd40db",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "exactContextAndHashMatch": true
+        },
+        {
+          "path": "tests/agent-native-session-queued.test.cjs",
+          "beforeSha256": "8783a1c1dad0975e26791906418a5cb62762f5f7f4d77dcd81d25bce50c69c3b",
+          "candidateSha256": "1a564e9fbc620b164af65d101e3aeb04ef77d083c7298d93706b9c5bf08a46a2",
+          "sourceSha256AtRead": "1a564e9fbc620b164af65d101e3aeb04ef77d083c7298d93706b9c5bf08a46a2",
+          "stateAtRead": "EXACT_CANDIDATE_APPLIED_AT_READ",
+          "exactContextAndHashMatch": true
+        }
+      ]
+    }
+  ],
+  "evidenceSha256": {
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response.candidate.json": "ec0c9c9ce1c246be2f6584f2b7feffae75f1a49ea4aad8d63b902d43dbbd8a30",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/stop-queued-response-candidate-checks.json": "73cba4ae9d259a917dc9e27bf58d9f64f1c5b54103e0ecc118818748341054e2",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/stop-queued-response-proposal.json": "4d411ad802150196d16891e12f6092f3b67ca42ce3fb700061aa95c93bf28703",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-diagnostic.red.log": "b56f8bd31c7e6b85e0f045362d1b1f3b1b995c443f578230346ec7ff14e0c11c",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate.queued.log": "783a2955534cb4124578d6b825ec57fccb227476ef43fc226a6a097440ca71fa",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate.proof.log": "5ab817a9c7380ad146ad69d331d653e0c0a79e783f40909ca2c5ec354729929b",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate-probe.cjs": "cf34b68e4816f65f81adbd41cd042bd4b4aebb137a4a5ab0279f47c89e84dc2e",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-held-stop-manifest.json": "1360ca2096c15e9e70ee78a83460d61f2c340892deee11282273e6543c96aa24",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-held-stop-final-inmemory.log": "b4c0ec841a04566eab8ec58910643976c2154add1f6e5859d841241953537aad",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-held-stop-inmemory.log": "fadea6b46b2fc92656afe5a209ce235ec5147d7496217c5ccab58a7524b90ccf",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-inmemory-validation.log": "f22de49ed21b8621980e940b9ea19435ac88d52a28d496cb53170917db45991e",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture-proposal.json": "762ae80c5eb705dea4f3aa836d64f515ea46a87fc17b2557c0ddeba33186839f",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-readonly-probe.json": "ab5559374ad664c5cb421c87c36684adb50dee7726ae8aea20acd6120cc1eda7",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-detailed-readonly-probe.json": "a07b67fb26bfa6183c9c0bba1cd94c59d327ebc4a6b647da29b8da5ac6052cf5",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approved-readonly-probe.json": "f221504395e67b96e5f1bb1e16fde83f6602786913bdabc1f4031fb70a7cfd01",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/root-media-source-fixtures-candidate.json": "3ea5530dab5e321588872178802b7e8e5d3b94a6819691900191bcc337e9d29b",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/root-media-source-fixtures-inmemory.log": "6c4dd1333b08b4d3fcad2ecfdb9c4f63ad204740281b2665b7e8137c0d7853cd",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/attempt-7/root-suite.log": "0397f4ac512e7652d57b4cc4776b1af50bfc51d924fba14a6d723525a312f48d",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/attempt-7/root-suite-halves.log": "35d1e80071bf123534de72d284008083db1dc4dbd7ebaa62f559ec868842d976",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response.tests.candidate.json": "3d14f80f9b5dfc77ed4df706e5664a7769e8259b794c87f086a17489c62a9ff1",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response.tests.candidate.patch": "c4d228ab4e91d7e0863adfa24f09ddc089f097f3fc718dbe5394cc31da360570",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-focused.final.log": "fcb89b03e563566049e9973ecf1215171c1e2d50fab70cb830b64141ad24bf09",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-backend-types.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/agent-durable-recovery-final-focused.log": "429b7765d84ff14d3b65c25df954587ea97d3bfc03935e18d06aee172a3ce360",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/root-media-source-fixtures-applied.log": "81cd7fe0937c717a25b4cac4625b431c12b1e11e89df78ccd453e740be9d6fe3",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-focused.log": "5e25fd546780c8eb67bb698331d6a6564a049f5551dbf7e4bd3e859a3b50f977",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/research-autonomy-goal-approval-fixture-freeze.json": "3414122608ecf823e5697964c5e2013b43930767b1b4d4cc74e35047e728c437",
+    ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-source-freeze.json": "1cac1f6532365f33e7b80caad6fd337f42c51d3850f7c5bf687b2359f065890a"
+  },
+  "gate7FailedBaseline": {
+    "artifact": ".codex/stages/content-factory-next-on0i-repair-20261021/attempt-7/root-suite.log",
+    "jest": {
+      "suitesPassed": 728,
+      "suitesFailed": 5,
+      "suitesSkipped": 7,
+      "testsPassed": 12888,
+      "testsFailed": 9,
+      "testsSkipped": 70
+    },
+    "nodeTestHalfExecuted": false,
+    "pythonHalfExecuted": false,
+    "result": "FAILED_NOT_WAIVED",
+    "sourceStableDuringChecks": "Parent reports false sourceChangedDuringChecks; source changes occurred only after full run ended."
+  },
+  "conclusions": {
+    "queued-response": [
+      "Real application regression: existing queue producer saved its assistant but did not persist matching response identity, so strict Stop returned 503.",
+      "Optional callback uses native start runId/messageId from existing original fullStream or existing child observation only; no new observer/poll/retry/private SDK API.",
+      "Trusted resource/marker/request/current run/state guard prevents predecessor/successor/stopped/settled proof adoption at updater callback; same-run initializer retains exact response, different owner/run clears it.",
+      "Strict Stop saved-assistant and frontend proof remain unchanged; failed proof persistence keeps 503.",
+      "Public metadata updater serializes updater callers in one store instance; no cross-process transaction guarantee or full exclusion of direct metadata writers is claimed."
+    ],
+    "durable-held-stop": [
+      "Fixture previously awaited settling Stop before releasing noncooperative work; final candidate starts Stop, observes actual capability abort, asserts it remains pending while held, releases, then awaits receipt.",
+      "Actual DurableAgent and public controller/session replace legacy undefined session path, enabling real saved-response proof rather than inventing pointer metadata.",
+      "All prior final lifecycle, zero-write, admission and late-callback rejection assertions retained."
+    ],
+    "goal-approval": [
+      "Native set_objective mutation requires approval by current application contract.",
+      "Fixture finds exact initial run in owned thread/resource and exact set_objective toolCallId, verifies suspended pre-effects state, resumes approved through public API, retains all old post-approval assertions.",
+      "Only fixtures change; no runtime automatic approval or application guard relaxation."
+    ],
+    "media-source": [
+      "RU/EN required-snapshot copy fills an actual missing error message without fee or effect claims.",
+      "Obsolete static package/observability prohibition is removed; current production configuration and existing actual producer/exporter/PostgreSQL privacy consumer were inspected.",
+      "Native privacy check exercises raw secrets/image/PDF/instructions/tool descriptions/provider error sentinels, omitted span inputs/outputs, actor/thread boundaries and external request restrictions; already PASS in full Gate7 and 92-test candidate run.",
+      "All source metadata assertions retained while fullText is separately compared with complete provider fixture body for intake level; summary/fact/search/model/cost assertions retained."
+    ],
+    "queuePermanentTests": [
+      "Existing three positive queued cases now require the exact saved assistant ID; all original admission, domain-call and repeat-answer assertions remain.",
+      "Actual PG negative/held-init proof from stage probe is retained permanently in existing helper and wrapper; provider/admission calls stay zero in that proof scenario."
+    ]
+  },
+  "verificationEvidence": {
+    "queued": [
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node .codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate-probe.cjs queued",
+        "exit": 0,
+        "log": "evidence/stop-queued-response-candidate.queued.log",
+        "logSha256": "783a2955534cb4124578d6b825ec57fccb227476ef43fc226a6a097440ca71fa",
+        "result": "Existing native queue HTTP scenarios approval/question/Stop each keep one original admission,0HTTP admissions; Stop domaincalls0, repeatedanswerrefused."
+      },
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node .codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-candidate-probe.cjs proof",
+        "exit": 0,
+        "log": "evidence/stop-queued-response-candidate.proof.log",
+        "logSha256": "5ab817a9c7380ad146ad69d331d653e0c0a79e783f40909ca2c5ec354729929b",
+        "result": "Actual public PG metadata write held while model init queues; exact same-run response retained. Other owner/run clears proof; lateA/wrongrun/stopped/settled callbacks cannot write. Actual failed proofwrite rejects; strictStop still503.0provider/admission calls."
+      }
+    ],
+    "durable": {
+      "method": "exact patch applied to source string via diff.applyPatch; Module._compile at original helper filename; no source file writes",
+      "node": "v22.23.2",
+      "exit": 0,
+      "cases": {
+        "A11": "PASS",
+        "A12": "PASS (simulated crash worker exit 99 expected)",
+        "A13": "PASS",
+        "A14": "PASS"
+      },
+      "surviving_handles": false,
+      "external_model_or_provider_calls": false,
+      "postgres": "existing local scripted fixture with unique owned schema cleanup"
+    },
+    "goal": {
+      "method": "Native InMemory approval diagnostics plus applied exact 7-test wrapper receipt; all original and new assertions executed.",
+      "before": {
+        "createdPiecesCount": 0,
+        "mainModelCalls": 1,
+        "judgeEvalCount": 0
+      },
+      "after": {
+        "createdPiecesCount": 1,
+        "mainModelCalls": 4,
+        "judgeEvalCount": 2
+      },
+      "allOldAssertionsRetained": true
+    },
+    "mediaSource": {
+      "status": "PASS",
+      "suitesPassed": 3,
+      "testsPassed": 92,
+      "log": "evidence/root-media-source-fixtures-inmemory.log",
+      "logSha256": "6c4dd1333b08b4d3fcad2ecfdb9c4f63ad204740281b2665b7e8137c0d7853cd"
+    },
+    "applied": {
+      "queue": {
+        "log": "evidence/stop-queued-response-focused.final.log",
+        "suites": 6,
+        "passed": 19,
+        "failed": 0,
+        "seconds": 85.907,
+        "backendTypesExit": 0,
+        "typesLog": "evidence/stop-queued-response-backend-types.final.log"
+      },
+      "durable": {
+        "log": "evidence/agent-durable-recovery-final-focused.log",
+        "suites": 1,
+        "passed": 4,
+        "failed": 0
+      },
+      "autonomy": {
+        "focused": {
+          "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --runTestsByPath tests/agent-native-autonomy.test.cjs",
+          "suites": 1,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "exitCode": 0
+        },
+        "scopedDiffCheck": {
+          "command": "git diff --check -- tests/helpers/agent-native-autonomy.probe.cjs tests/agent-native-autonomy.test.cjs",
+          "exitCode": 0
+        },
+        "exactCandidateHashCheck": true
+      },
+      "autonomyFreezeSha256": "3414122608ecf823e5697964c5e2013b43930767b1b4d4cc74e35047e728c437",
+      "mediaSource": {
+        "log": "evidence/root-media-source-fixtures-applied.log",
+        "suites": 3,
+        "passed": 92,
+        "failed": 0
+      }
+    }
+  },
+  "correctedEvidenceReference": {
+    "initiallySupplied": "evidence/agent-durable-recovery-held-stop-inmemory.log",
+    "meaning": "Earlier RED for ea855 candidate; not evidence against final candidate.",
+    "supersededEquivalentGreen": "evidence/agent-durable-recovery-inmemory-validation.log",
+    "acceptedExactFinal": "evidence/agent-durable-recovery-held-stop-final-inmemory.log",
+    "finalPatchSha256": "5ae1864e8d80726bbbf19ab0d96f30544aeec0c8b52b1f968c545558de80609f",
+    "status": "REFERENCE_CORRECTED_NO_OPEN_SOURCE_DEFECT"
+  },
+  "reviewedSupportingSourceSha256": {
+    "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "fb912699889e903b8498ffbeef27837ca571128ba39673602e8ea701e70182d6",
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.autonomy.ts": "847d8fea8a6f763bb45fd94e4ffb9c8c5bbc6e8f80bf4cb34cb1e1864265d845",
+    "libraries/nestjs-libraries/src/chat/conductor/native-observability.ts": "b0cc768caa8c9d53ca2ffe3935aa6f367e0f13b33993bf4592a27f7029fccd08",
+    "tests/agent-native-observability.test.cjs": "413d6e60d8a6d24e4e26e0f0db8ad17694d8786ec270b03abcd5f7097ed120a1",
+    "tests/helpers/agent-native-observability.probe.cjs": "e137a54b44f802edc6a5299754eabc9b3f8843ed6ae503bcdc8e60cb864f439d",
+    "node_modules/@mastra/core/dist/storage/domains/memory/base.d.ts": "dd5494407a8eb465057063108c8ce1c186e9110c8d2eeb99a97a5ebdea38c16f",
+    "node_modules/@mastra/core/dist/storage-QXk21hX-.js": "4fcd03e75b9209606a6f388e323fbc2fe945e12141edc3f80d6cbcaf4b728a19",
+    "node_modules/@mastra/pg/dist/index.js": "d26ab852521b45098a87a422d9d0a187f431ca658c364363fe6b369e81072098"
+  },
+  "preservedPriorReviewSha256": {
+    "research-final-review.md": "39faac11c8d418039c5870b72f58915de2454df66312affa2bff64792e87eb60",
+    "research-final-review.json": "261547cd8f7322d3860b6426c8990342dfd8c46f7251a2a3e68910c189043fa6",
+    "final-native-tail-recovery-review.md": "445f994da618a56e36fcce55f12d232a059797236f54f747b7de531c4eacfe03",
+    "final-native-tail-recovery-review.json": "cf816b9a1b45679f737d24a324b389b30f0ea3741dfe094f17f50b2fedb60149",
+    "request-intent-selection-review.md": "4dea01524e008327f11cf4cf3eede4452e18b745fef66b77cef452cca4077134",
+    "request-intent-selection-review.json": "f67a159bc3d03ecf687307e65f261c7eae75b8c1c01b70220aa77e6ff845a048"
+  },
+  "reviewerActions": {
+    "sourceEdits": 0,
+    "testEdits": 0,
+    "testsRun": 0,
+    "acceptanceRuns": 0,
+    "paidCalls": 0,
+    "providerCalls": 0,
+    "browserActions": 0,
+    "runtimeActions": 0,
+    "storeCommands": 0,
+    "restart": 0,
+    "commit": 0,
+    "push": 0,
+    "deployment": 0
+  },
+  "remainingBounds": [
+    "Root Gate8 final applied backend/frontend/orchestrator types and compiled/UI acceptance.",
+    "Root final complete three-part suite must pass; failed Gate7 receipt and unexecuted Node/Python halves are not waived.",
+    "Synthetic local fixtures do not establish real provider quality or cross-process storage atomicity.",
+    "Any additional app/test delta requires its own scoped review; no production/client acceptance."
+  ],
+  "completionEvent": "Five exact patches across ten applied files approved; all hashes read back, no open findings; root Gate8/full three-part acceptance remains pending.",
+  "appliedSourceReadback": {
+    "filesCompared": 10,
+    "mismatches": []
+  },
+  "queueFinalSourceFreeze": {
+    "manifest": ".codex/stages/content-factory-next-on0i-repair-20261021/evidence/stop-queued-response-source-freeze.json",
+    "manifestSha256": "1cac1f6532365f33e7b80caad6fd337f42c51d3850f7c5bf687b2359f065890a",
+    "entriesCompared": 34,
+    "groupsCompared": [
+      "appSha256",
+      "ownedTestSha256",
+      "unchangedStopGuardSha256",
+      "focusedTestDependencySha256",
+      "publicSdkContractSha256",
+      "evidenceSha256"
+    ],
+    "mismatches": [],
+    "content": {
+      "schema": "queued-native-stop-response-source-freeze/1",
+      "at": "2026-10-21T14:07:12.194Z",
+      "status": "APPLIED_REVIEWED_SOURCE_AND_FOCUSED_CHECKS_GREEN_ROOT_GATE8_PENDING",
+      "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+      "branch": "codex/on0i-native-repair-20261021",
+      "head": "e74e059ea104593d2fac831eb989714a5b151263",
+      "toolchain": {
+        "node": "v22.23.2",
+        "pnpm": "10.6.1"
+      },
+      "appSha256": {
+        "libraries/nestjs-libraries/src/chat/mastra.service.ts": "ce142fa1db17803d9baa5817adc5b94aaf41f3a6a31d9a24ad0c1ff8375b877e",
+        "libraries/nestjs-libraries/src/chat/conductor/native-queued-input.ts": "0263a8ab71c3d0a8c38169304c07da03b6dd2bbdf630158541843fa0e3228aa9"
+      },
+      "ownedTestSha256": {
+        "tests/helpers/agent-native-session-queued.probe.cjs": "1815279e13d40267579793dae9e2ab8fcd04c6391ac7805f32afdbe29ccd40db",
+        "tests/agent-native-session-queued.test.cjs": "1a564e9fbc620b164af65d101e3aeb04ef77d083c7298d93706b9c5bf08a46a2"
+      },
+      "unchangedStopGuardSha256": {
+        "apps/backend/src/api/routes/agent.controller.ts": "0842745fe8117d3c2273f9e15cefb63c4b97d0f39e8aaa0cd8e8a817f88f521d",
+        "libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts": "fb912699889e903b8498ffbeef27837ca571128ba39673602e8ea701e70182d6",
+        "apps/frontend/src/components/agents/agent.conversation.tsx": "489f1160c3fb5d4c4ec9b3a6f2e1831267c6ca5fa032ddc3ca6b1d54c7e972a9"
+      },
+      "focusedTestDependencySha256": {
+        "tests/native-queued-input.test.cjs": "d91568567e7b0c34e0159a30b80b59467d1cd8edb4a35acf59f614d983fed0e7",
+        "tests/helpers/native-queued-input.probe.cjs": "5fd1c71bb07561595f96b4ec9977d5f5d2c1cc893e3ae944278d3f9935c770e4",
+        "tests/agent-native-stop-tail.test.cjs": "62c3a13b2ba53d29f4e2483aecd3844c664f940896b111cdf0d13a7662cf3a70",
+        "tests/helpers/agent-native-stop-tail.probe.cjs": "806c745ded28d1d73136eb6e053cb481da45e8e070552ca7bd13976ce837d511",
+        "tests/agent-native-stop-settlement.test.cjs": "4cb5ea258df8326b237d4b2ae479d76c0c07afb51dee6b203092817096a3d7b2",
+        "tests/helpers/agent-native-stop-settlement.probe.cjs": "a3998a10a568711da0ab8d653ec4e219ec59a0ce44c7f8333e94ff00c9fea5d5",
+        "tests/agent-native-stop-identity.test.cjs": "b306c37a5293c6234ae237de8dc47e917c5df97b25fd4a89195dcc0c3aa094f0",
+        "tests/helpers/agent-native-stop-identity.cjs": "1ba6ac93af38ca25e6559c29ad9ce18d2070a209de151245a7e0bc9128d9fff5",
+        "tests/agent-native-stop-flow.test.cjs": "8aa91dbd9e5eabd31f0f5fff7e1348d7a6f503208d306bc94b912a584d823b32",
+        "tests/helpers/agent-native-stop-flow.probe.cjs": "7db2596eb94f00279de53854b70f7dffe98348a7f85c9d161aea73fa85b341cf",
+        "tests/helpers/mastra-service-native-integration.probe.cjs": "d745ae5149d5fd2df63b218a9baf93b65590832018a3717ce71a339d300f7ba7",
+        "tests/helpers/agent-native-session-http.probe.cjs": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82"
+      },
+      "publicSdkContractSha256": {
+        "node_modules/@mastra/core/package.json": "69df237dfc36bceb2f4ea4dd1b272e755a0aa69ae9fba499f0ecc75cf0ca8fce",
+        "node_modules/@mastra/core/dist/stream/types.d.ts": "26b218ba23a8f2eb157990811a71dcb37867b7a374d809b40a8e11c3d6702f02",
+        "node_modules/@mastra/core/dist/stream/base/output.d.ts": "d31843be48240b5166e8e8f85b5ed0e7348b204fb8d0f54e4f67cecbfe09748a",
+        "node_modules/@mastra/core/dist/storage/domains/memory/base.d.ts": "dd5494407a8eb465057063108c8ce1c186e9110c8d2eeb99a97a5ebdea38c16f",
+        "node_modules/@mastra/core/dist/storage-Bmsozj2D.cjs": "52f3657f62f9be90590dd6c76383d7b0fd81d08a2c21c1dfaa5e4925de369c2b",
+        "node_modules/@mastra/core/dist/create-durable-agent-CdL_GpVq.js": "406101e51c83eb077a0595f932247fef4ea7e72fc6433c1906bea99e34387b71"
+      },
+      "evidenceSha256": {
+        "evidence/stop-queued-response-diagnostic.cjs": "03397347940a01727951ec5376636bee2c3ebcf71a1d01af2eb93a74f22d5113",
+        "evidence/stop-queued-response-diagnostic.red.log": "b56f8bd31c7e6b85e0f045362d1b1f3b1b995c443f578230346ec7ff14e0c11c",
+        "evidence/stop-queued-response.candidate.patch": "b143b5ab1655e4ad5c41401a5ad1df408d557a17d8705dbfafb59a902b5d01b3",
+        "evidence/stop-queued-response.tests.candidate.patch": "c4d228ab4e91d7e0863adfa24f09ddc089f097f3fc718dbe5394cc31da360570",
+        "evidence/stop-queued-response-candidate.queued.log": "783a2955534cb4124578d6b825ec57fccb227476ef43fc226a6a097440ca71fa",
+        "evidence/stop-queued-response-candidate.proof.log": "5ab817a9c7380ad146ad69d331d653e0c0a79e783f40909ca2c5ec354729929b",
+        "evidence/stop-queued-response-focused.final.log": "fcb89b03e563566049e9973ecf1215171c1e2d50fab70cb830b64141ad24bf09",
+        "evidence/stop-queued-response-backend-types.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "evidence/stop-queued-response-diff-check.final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reviewedAppPatchSha256": "b143b5ab1655e4ad5c41401a5ad1df408d557a17d8705dbfafb59a902b5d01b3",
+      "testPatchSha256": "c4d228ab4e91d7e0863adfa24f09ddc089f097f3fc718dbe5394cc31da360570",
+      "checks": [
+        {
+          "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec jest --runInBand --no-coverage tests/agent-native-session-queued.test.cjs tests/native-queued-input.test.cjs tests/agent-native-stop-tail.test.cjs tests/agent-native-stop-settlement.test.cjs tests/agent-native-stop-identity.test.cjs tests/agent-native-stop-flow.test.cjs",
+          "exit": 0,
+          "log": "evidence/stop-queued-response-focused.final.log",
+          "result": {
+            "suites": 6,
+            "tests": 19,
+            "seconds": 85.907
+          },
+          "details": [
+            "Queued original native approval/question/Stop retains one owner admission and requires exact savedassistantID.",
+            "Permanent actualPG proof race/owner/run/stopped/failedwrite cases.",
+            "Native queued input FIFO, SIGKILL, approval, honest uncertainty and cross-process Stop witness checks.",
+            "All prior critical HTTP Stop tail, metadata, requestidentity and actual installed useChat20modes."
+          ]
+        },
+        {
+          "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+          "exit": 0,
+          "log": "evidence/stop-queued-response-backend-types.final.log"
+        },
+        {
+          "command": "git diff --check",
+          "exit": 0,
+          "log": "evidence/stop-queued-response-diff-check.final.log"
+        }
+      ],
+      "limits": [
+        "Root final compiled build/browser/full-suite Gate8 remains a separate acceptance gate.",
+        "All providers synthetic; worker made0paidcalls and no owner stand actions, restart, deploy, push or commit.",
+        "Public updateThreadMetadata serializes metadata updates within one storageinstance; no PostgreSQL cross-process transaction claim. Existing native workflow ownership, generation filtering and queue Stop witness remain authority."
+      ],
+      "cleanup": "All executed focused fixture helpers exited0 with their finally cleanup. Private proposed source copies remain0600 in the worker-owned0700 /tmp directory referenced by candidate metadata for review reproducibility."
+    }
+  }
+}

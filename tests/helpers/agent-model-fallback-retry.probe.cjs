@@ -301,7 +301,7 @@ async function runA16AndA17ModelSelectionAndAbstention() {
 /**
  * A17, A30, A31: Native ModelWithRetries[] fallback chain + StreamErrorRetryProcessor + TextUsageLedger + Stop during retry.
  */
-async function runA30AndA31FallbackRetryStopAndAccounting() {
+async function runA30AndA31FallbackRetryStopAndAccounting(options = {}) {
   const textChainMod = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/ai.text-chain.ts'
   );
@@ -311,11 +311,14 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
 
   let currentProviderRow = {
     usageMode: 'workspace_key',
-    provider: 'openrouter',
+    provider: options.provider ?? 'openrouter',
     apiKey: 'sk-or-test',
     textModel: 'openai/gpt-5.4-primary',
     roleModels: {
-      __textChain: JSON.stringify({
+      ...(options.auxiliaryRole ? { [options.auxiliaryRole]: `openai/gpt-5.4-${options.auxiliaryRole}` } : {}),
+      __textChain: options.explicitDefaultFallback ? textChainMod.serializeTextFallbackColumn({
+        textFallbackModels: ['z-ai/glm-5.3'], textMaxRetries: 0,
+      }) : JSON.stringify({
         version: 1,
         models: ['openai/gpt-5.4-backup-1', 'anthropic/claude-4-sonnet'],
         disabled: false,
@@ -345,6 +348,7 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
   configMod.setInstanceAiDefaultsReader(async () => null);
 
   const httpCalls = [];
+  const backoffStop = new AbortController();
   const sseSuccessBody = (text, model) => {
     const chunks = [
       `data: ${JSON.stringify({
@@ -374,11 +378,29 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
     });
   };
 
-  const fetchBehavior = (model) => {
+  const fetchBehavior = (model, streaming = true) => {
+    if (options.allUnavailable) {
+      return new Response(JSON.stringify({ error: { message: options.errorMessage ?? 'all providers unavailable' } }), {
+        status: options.status ?? 503,
+        headers: { 'content-type': 'application/json', ...(options.retryAfter ? { 'retry-after': options.retryAfter } : {}) },
+      });
+    }
+    if (options.classifierSuccess) {
+      const text = JSON.stringify({ answers: { route: {
+        type: 'choice', choice: 'classify', probabilities: { agent: 0, classify: 1 },
+      } } });
+      return streaming
+        ? new Response(sseSuccessBody(text, model), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+        : new Response(JSON.stringify({
+          id: 'classifier-completion', object: 'chat.completion', created: 1700000000, model,
+          choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 15, completion_tokens: 9, total_tokens: 24 },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
     if (model === 'openai/gpt-5.4-primary') {
       return new Response(
         JSON.stringify({ error: { message: 'primary overloaded' } }),
-        { status: 503, headers: { 'content-type': 'application/json' } }
+        { status: options.status ?? 503, headers: { 'content-type': 'application/json' } }
       );
     }
     if (model === 'openai/gpt-5.4-backup-1') {
@@ -407,18 +429,22 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
       '@contentfactory/nestjs-libraries/openai/ai.roles': rolesMod,
       '@contentfactory/nestjs-libraries/openai/ai.text-chain': {
         ...textChainMod,
-        createTextChainFetch: (source, _baseFetch, options) =>
+        createTextChainFetch: (source, _baseFetch, chainOptions) =>
           textChainMod.createTextChainFetch(
             source,
             async (_url, init) => {
               const parsed = JSON.parse(String(init.body));
               httpCalls.push({
                 model: parsed.model,
+                time: performance.now(),
                 serviceTier: parsed.service_tier ?? 'standard',
               });
-              return fetchBehavior(parsed.model);
+              if (options.stopDuringBackoff && httpCalls.length === 1) {
+                setTimeout(() => backoffStop.abort(new Error('user_stopped')), 30);
+              }
+              return fetchBehavior(parsed.model, parsed.stream === true);
             },
-            options
+            chainOptions
           ),
       },
     }
@@ -445,6 +471,65 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
   });
 
   const entries = await clientsMod.getMastraAgentModelEntries('org-1', 'agent');
+  if (options.modelOverride) {
+    try {
+      const selected = await clientsMod.getMastraAgentModelEntries('org-1', 'agent', { modelId: options.modelOverride });
+      return { primaryModel: selected.primaryModel, models: selected.entries.map(entry => entry.model.modelId) };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+  if (options.auxiliaryRole) {
+    const ledger = new textChainMod.TextUsageLedger();
+    let failure;
+    let choice;
+    await textChainMod.runWithUsageLedger(ledger, async () => {
+      try {
+        if (options.auxiliaryRole === 'classify') {
+          const decision = await clientsMod.getClassifyDecisionModel('org-1');
+          const { Classifier } = require('@mastra/core/classifier');
+          const result = await new Classifier({ id: 'outer-routing-classifier', model: decision, questions: {
+            route: { type: 'choice', criteria: { agent: 'Complex', classify: 'Simple' } },
+          } }).decide({ state: { request: 'Simple status request.' } });
+          choice = result.answers.route.choice;
+        } else if (options.auxiliaryRole === 'review') {
+          const rc = makeConductorRequestContext('thread-judge-outage');
+          const goal = conductorModule.buildConductorGoalConfig({
+            capabilities: [capability], services: () => ({}),
+            gate: { check: async () => ({ allowed: true, policies: [] }) },
+            judgeModel: async (_identity, context) => {
+              const resolved = await clientsMod.getMastraAgentModelEntries('org-1', 'review');
+              conductorModule.setConductorModelMaxRetries(context, resolved.policy.maxRetries);
+              return resolved.entries;
+            },
+          });
+          await goal.judge({ requestContext: rc });
+          await goal.scorer.run({ input: {
+            resourceId: 'org-1:user-1', threadId: 'thread-judge-outage', originalTask: 'Verify draft.', messages: [],
+          }, output: 'Draft is ready.' });
+        } else {
+          const agent = conductorModule.buildConductorAgent({
+            services: () => ({}), gate: { check: async () => ({ allowed: true, policies: [] }) },
+            model: async () => entries.entries,
+            subagentModel: async (_identity, _type, context) => {
+              const resolved = await clientsMod.getMastraAgentModelEntries('org-1', options.auxiliaryRole);
+              conductorModule.setConductorModelMaxRetries(context, resolved.policy.maxRetries);
+              return resolved.entries;
+            },
+            capabilities: [capability], snapshot: async () => ({ channels: [] }),
+          });
+          const rc = makeConductorRequestContext('thread-subagent-outage');
+          const tools = await agent.listTools({ requestContext: rc });
+          const result = await tools.subagent.execute({ agentType: 'research', task: 'Inspect facts.' }, { requestContext: rc });
+          if (!result.ok) failure = result.error?.code ?? 'subagent_failed';
+        }
+      } catch (error) {
+        failure = error.message;
+        if (options.debug) console.error(error);
+      }
+    });
+    return { httpAttemptModels: httpCalls.map(call => call.model), ledgerAttemptCount: ledger.calls.length, failure: failure ?? null, ...(choice ? { choice } : {}) };
+  }
   const agent = conductorModule.buildConductorAgent({
     services: () => ({}),
     gate: { check: async () => ({ allowed: true, policies: [] }) },
@@ -458,6 +543,26 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
       }
       return resolved.entries;
     },
+    ...(options.routingChoice ? {
+      modelSelection: async () => conductorModule.createConductorModelSelectionProcessor({
+        model: {
+          specificationVersion: 'v4', provider: 'test', modelId: 'classifier',
+          supportedQuestionTypes: ['choice'],
+          async doDecide({ questions }) {
+            return { answers: Object.fromEntries(Object.keys(questions).map(id => [id, {
+              type: 'choice', choice: options.routingChoice,
+              probabilities: { agent: options.routingChoice === 'agent' ? 1 : 0, classify: options.routingChoice === 'classify' ? 1 : 0 },
+            }])), usage: {}, warnings: [] };
+          },
+          doEvaluate(args) { return this.doDecide(args); },
+        },
+        minProbability: 0.85,
+        choices: [
+          { name: 'agent', model: (await clientsMod.getMastraAiSdkProvider('org-1')).chat(entries.primaryModel), criteria: 'Complex request.' },
+          { name: 'classify', model: (await clientsMod.getMastraAiSdkProvider('org-1')).chat('openai/gpt-5.4-classify'), criteria: 'Simple request.' },
+        ],
+      }),
+    } : {}),
     memory,
     capabilities: [capability],
     snapshot: async () => ({ channels: [] }),
@@ -477,6 +582,7 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
       [{ role: 'user', content: 'Проверь резервную цепочку моделей' }],
       {
         requestContext: rc,
+        ...(options.stopDuringBackoff ? { abortSignal: backoffStop.signal } : {}),
         maxSteps: 2,
         memory: {
           thread: { id: 'thread-fallback-1' },
@@ -491,6 +597,26 @@ async function runA30AndA31FallbackRetryStopAndAccounting() {
     }
     return ledger.calls;
   });
+
+  if (options.explicitDefaultFallback) {
+    await mastra.shutdown();
+    return {
+      httpAttemptModels: httpCalls.map(call => call.model),
+      ledgerAttemptCount: ledgerResult.length,
+      configuredMaxRetries: entries.policy.maxRetries,
+      nativeModels: entries.entries.map(entry => entry.model.modelId),
+      text: streamOutputText,
+    };
+  }
+
+  if (options.allUnavailable) {
+    await mastra.shutdown();
+    return {
+      httpAttemptModels: httpCalls.map(call => call.model),
+      intervalsMs: httpCalls.slice(1).map((call, index) => call.time - httpCalls[index].time),
+      ledgerAttemptCount: ledgerResult.length,
+    };
+  }
 
   // Verify A31: Stop / abortSignal during retry immediately stops further retries/fallbacks
   const abortController = new AbortController();
@@ -707,7 +833,10 @@ async function main() {
   console.log(JSON.stringify({ a16AndA17, a30AndA31, a29 }));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = { runA30AndA31FallbackRetryStopAndAccounting, loadConductorStack };
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

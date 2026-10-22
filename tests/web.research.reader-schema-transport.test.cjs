@@ -647,6 +647,8 @@ describe('scoped reader deadline through the installed SDK and usage transport',
 
   test('a fast grounded reader keeps its original two calls and cache hit without leaking a deadline', async () => {
     const output = {
+      scopeQuote: null,
+      scopeStatus: 'not_temporal',
       answer: 'Synthetic context from the source.',
       references: [{ id: 'S1', relevance: 'relevant' }],
       gaps: [],

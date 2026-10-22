@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-21T08:56:18.604Z",
+  "result": "TERMINAL_RECHECKED_BEFORE_FINAL_SCOPE_SIGTERM",
+  "threadId": "9b1c3615-dd5c-4e3a-8a65-1a9d8e21108d",
+  "pid": 75266,
+  "execution": {
+    "requestId": "70b41d7e-6d97-4c25-a0b2-07bde3349bb3",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "431e243e-ff5e-447c-aa17-c04943232542"
+  },
+  "pending": [],
+  "providerCallsByReadback": 0,
+  "availabilityFreezeServiceSha": "61cd7d65debfc77d04eeb90e146f52b20a67ff3ff5f5413c450f48fe4228a925"
+}

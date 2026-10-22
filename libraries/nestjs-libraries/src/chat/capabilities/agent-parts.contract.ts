@@ -414,6 +414,8 @@ export const AGENT_ERROR_CODES = [
   'AGENT_FAILED',
   /** The workspace has no model key in the chosen mode. */
   'AI_PROVIDER_UNAVAILABLE',
+  /** The model provider requires available credits or a higher key limit. */
+  'AI_PROVIDER_PAYMENT_REQUIRED',
   /** The included allowance of the month is spent. */
   'AI_ALLOWANCE_EXHAUSTED',
   /** The provider refused for load or rate; trying later helps. */
@@ -651,6 +653,7 @@ export type AgentPendingRunV1 = {
  */
 export type AgentThreadExecutionV1 = {
   requestId: string | null;
+  runId?: string;
   state: 'running' | 'settled' | 'unknown';
   /** Settled means no started work remains; it does not imply a successful write. */
   outcome?: 'completed' | 'failed' | 'interrupted';
@@ -664,6 +667,8 @@ export type AgentThreadHistoryV1 = {
   workspace?: AgentWorkspaceV1;
   /** Absent for threads that have never started a tracked request. */
   execution?: AgentThreadExecutionV1;
+  /** UI acceptance receipts; native Session/workflow owns execution. */
+  signalReceipts?: Array<{ id: string; text: string; kind: string; durability: 'native' | 'process'; state?: 'unknown' }>;
 };
 
 /** `PATCH /agent/threads/:id`. */

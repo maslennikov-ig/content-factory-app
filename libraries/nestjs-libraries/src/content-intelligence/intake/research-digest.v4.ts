@@ -67,6 +67,9 @@ export const researchDigestPromptV4 = (input: ResearchDigestInputV4,
 export const exactResearchSourceSpan = (quote: string, material: string): string | null => {
   const needle = normalizeForMatch(quote);
   if (!needle) return null;
+  // Literal source bytes need no Unicode normalization or offset recovery.
+  const literalAt = material.indexOf(quote);
+  if (literalAt >= 0) return material.slice(literalAt, literalAt + quote.length);
   let normalized = '';
   const offsets: Array<{ start: number; end: number }> = [];
   let position = 0;

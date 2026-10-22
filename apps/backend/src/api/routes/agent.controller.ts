@@ -22,6 +22,7 @@ import { randomUUID } from 'crypto';
 import type { Response } from 'express';
 import type { Organization, User } from '@prisma/client';
 import { handleChatStream } from '@mastra/ai-sdk';
+import { AGENT_NATIVE_CONTINUATION_PART, streamNativeSession } from '@contentfactory/nestjs-libraries/chat/conductor/native-session-stream';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
@@ -81,6 +82,7 @@ import {
   closingLineWatch,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.steps';
 import { AgentChatThrottleGuard } from './agent-chat.throttle';
+import { isRejectedAdaptationReviewProgress } from '@contentfactory/nestjs-libraries/chat/conductor/adaptation-review-progress';
 
 /**
  * The agent chat's doors (`content-factory-next-kcxz.8`, spec §4.4, §4.8,
@@ -164,7 +166,8 @@ const threadPageQuery = (query: unknown, maximum: number) => {
 
 /**
  * An `error` part never carries more than a code (premortem S6). Progress is
- * transient on the wire as the contract says: Mastra 1.71 drops the flag a
+ * transient on the wire, except the bounded rejected-adaptation diagnostic.
+ * Mastra 1.71 drops the flag a
  * capability writes, so the browser would keep every stage in the message
  * (review W1).
  */
@@ -172,8 +175,9 @@ const sanitisedPart = (part: any) => {
   if (part?.type === 'error' && !KNOWN_ERRORS.includes(part.errorText)) {
     return { ...part, errorText: 'AGENT_FAILED' };
   }
-  if (part?.type === PROGRESS_PART_TYPE && part.transient !== true) {
-    return { ...part, transient: true };
+  if (part?.type === PROGRESS_PART_TYPE) {
+    if (isRejectedAdaptationReviewProgress(part)) return { ...part, transient: false };
+    if (part.transient !== true) return { ...part, transient: true };
   }
   return part;
 };
@@ -190,7 +194,9 @@ const closingLine = (language: 'ru' | 'en', message?: string) => {
 
 const failedPart = (part: any) =>
   part?.type === 'error' ||
-  (part?.type === 'finish' && part?.finishReason === 'error');
+  // Only the terminal UI finish reaches this boundary. Native intermediate
+  // length retries remain eligible; an exhausted truncated answer is incomplete.
+  (part?.type === 'finish' && ['error', 'length'].includes(part?.finishReason));
 
 @ApiTags('Agent')
 @Controller('/agent')
@@ -226,12 +232,20 @@ export class AgentController {
     let reader: ReadableStreamDefaultReader<any> | undefined;
     let turn: AgentTurnLifecycle | undefined;
     let execution: ConductorExecution | undefined;
-    const forceAbort = () => {
+    let session: any;
+    let drainStoppedNative = false;
+    const forceAbort = (fromExplicitStop = false) => {
+      if (!explicitlyStopped) {
+        // A live native producer still owns its message flush. Parked gates
+        // already persisted their suspension and use native cancellation.
+        drainStoppedNative = fromExplicitStop && durableTurn &&
+          !(session?.approval?.isArmed?.() || session?.suspensions?.hasPending?.());
+      }
       explicitlyStopped = true;
       execution?.stop('AGENT_TASK_STOPPED');
       turn?.stop();
       abort.abort();
-      void reader?.cancel().catch(() => undefined);
+      if (!drainStoppedNative) void reader?.cancel().catch(() => undefined);
     };
     // `res` closes when the person leaves (and after the end, when `finished`
     // is already set); `req` closes as soon as the body was read. When the
@@ -264,6 +278,8 @@ export class AgentController {
         | { runId: string; toolCallId: string; resumeData: Record<string, unknown> }
         | undefined;
       let newThreadTitleFrom: string | undefined;
+      let nativeResumeRequestId: string | undefined;
+      let nativeResumeRunId: string | undefined;
       /** System lines of this request only, never stored (review F9). */
       let stepNotes: string[] = [];
       /** Texts whose card of proposed changes waits in the thread (kcxz.32, N2). */
@@ -352,11 +368,53 @@ export class AgentController {
         }
       }
 
+      // A native Session keeps the admitted run alive while its approval or
+      // question is parked. Answer that exact gate within the original task;
+      // acquiring another turn/admission here would deadlock its owner.
+      if (input.mode !== 'message' && await this.threads.isDurableConductor?.()) {
+        const pointer = await this.threads.readNativeRun(identity, threadId);
+        if (pointer?.runId === answered?.runId && pointer.logicalRequestId) {
+          const context = buildConductorContext({ identity, threadId, requestId: pointer.logicalRequestId,
+            trackExecution: true, approvals: fingerprints, openProposals,
+            workContext: await this.threads.workContextForTurn(identity, threadId),
+          });
+          const live = await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext: context });
+          const armed = input.mode === 'approval'
+            ? input.approvals.every(answer => live?.approval.isArmed({ runId: answered!.runId, toolCallId: answer.toolCallId, threadId }))
+            : live?.suspensions.has({ runId: answered!.runId, toolCallId: resume!.toolCallId, threadId, resourceId });
+          const owner = await this.threads.activeTurnFor(identity, threadId);
+          const queuedOwner = owner?.requestId !== pointer.logicalRequestId &&
+            this.mastraService.hasNativeTaskOwner?.(identity, threadId, pointer.logicalRequestId);
+          if (armed && (owner?.requestId === pointer.logicalRequestId || queuedOwner)) {
+            const dispatch = async () => streamNativeSession({ session: live as any,
+              agent: await this.mastraService.conductor() as any, threadId, resourceId, requestContext: context,
+              ...(resume ? { resume } : {}),
+              ...(input.mode === 'approval' ? { approvals: { runId: answered!.runId, answers: input.approvals } } : {}),
+              onRunId: async () => undefined,
+              onMessageId: (runId, messageId) => this.threads.rememberNativeResponse(identity, threadId, runId, messageId),
+              nextRunId: async () => (await this.threads.readNativeRun(identity, threadId))?.runId,
+              onError: error => conductorOnError(error, { picturesInStep: () => false }),
+            });
+            const stream = queuedOwner
+              ? await this.mastraService.runInNativeTaskScope(identity, threadId, pointer.logicalRequestId, dispatch)
+              : await dispatch();
+            await this.threads.markAnswered(answered!.runId, answered!.calls);
+            await this.pipeNativeAnswer(stream, identity, threadId, live, res);
+            return;
+          }
+          if (live) {
+            nativeResumeRequestId = pointer.logicalRequestId;
+            nativeResumeRunId = answered!.runId;
+          }
+        }
+      }
+
       // This request's own id: the pictures it carries are held under it,
       // never under the thread (review W4-25 vision F3).
-      const requestId = randomUUID();
-      execution = createConductorExecution({ requestId, signal: abort.signal });
-      releaseThread = await this.threads.claimThreadTurn(identity, threadId);
+      const requestId = nativeResumeRequestId ?? randomUUID();
+      durableTurn = (await this.threads.isDurableConductor?.()) ?? false;
+      execution = createConductorExecution({ requestId, signal: abort.signal, native: durableTurn, initialStepNotes: stepNotes });
+      releaseThread = await this.threads.claimThreadTurn(identity, threadId, nativeResumeRunId ? { nativeResumeRunId } : undefined);
       // Resolve tenant, role, deletion and revision before an admission or any
       // model call. An answered card cannot inject a different work target.
       const workContext = await this.threads.workContextForTurn(identity, threadId, input.mode === 'message' ? input.workContext : undefined);
@@ -369,6 +427,9 @@ export class AgentController {
         requestId,
         trackExecution: true,
         workContext,
+        ...(input.mode === 'message' ? {
+          originalAuthorRequest: { messageId: input.message.id, text: input.text },
+        } : {}),
       });
       const mastra = await this.mastraService.mastra();
 
@@ -386,10 +447,12 @@ export class AgentController {
           } else if (input.mode === 'message' && (input.workContext !== undefined || workContext)) {
             await this.threads.rememberWorkContext(identity, threadId, workContext);
           }
-          await this.threads.sessionFor(identity, threadId, {
-            bindThread: true,
-            requestContext,
-          });
+          if (input.mode !== 'message') {
+            session = await this.threads.sessionFor(identity, threadId, {
+              bindThread: true,
+              requestContext,
+            });
+          }
         } catch (error) {
           await admission.finish(false, error);
           throw error;
@@ -419,11 +482,18 @@ export class AgentController {
       // A provider refusal of the step that carried them is about the picture.
       const errorScope = { picturesInStep: pictures.lastStepShown };
       durableTurn = (await this.threads.isDurableConductor?.()) ?? false;
+      let settleActiveTurn!: (failure?: unknown) => void;
+      const turnSettlement = new Promise<void>((resolve, reject) => {
+        settleActiveTurn = (failure) => failure ? reject(failure) : resolve();
+      });
+      // Most tasks finish without a Stop reader awaiting this receipt.
+      void turnSettlement.catch(() => undefined);
       const activeTurn = this.threads.registerActiveTurn?.({
         identity,
         threadId,
         requestId,
-        onStop: forceAbort,
+        onStop: () => forceAbort(true),
+        settled: turnSettlement,
       });
       try {
         turn = await this.threads.startTurn(identity, threadId, requestId, releaseThread);
@@ -431,7 +501,27 @@ export class AgentController {
         await execution.run(() => turn!.run(() => admission.run(async () => {
           let stream: ReadableStream<any>;
           try {
-            stream = (await handleChatStream({
+            if (input.mode === 'message') {
+              // A cached idle Session can retain a finished task's subscriber
+              // scope. Bind a fresh driver inside this task's existing owners;
+              // manual gate answers retain their original Session binding.
+              session = durableTurn && typeof this.mastraService.bindNativeTaskSession === 'function'
+                ? await this.mastraService.bindNativeTaskSession(identity, threadId, requestContext)
+                : await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext });
+            }
+            stream = session?.sendSignal && durableTurn
+              ? await streamNativeSession({
+                session, agent: await this.mastraService.conductor() as any,
+                threadId, resourceId, requestContext: requestContext as any,
+                ...(input.mode === 'message' ? { message: messages[0] as any } : {}),
+                ...(resume ? { resume } : {}),
+                ...(input.mode === 'approval' ? { approvals: { runId: input.mode === 'approval' ? answered!.runId : '', answers: input.approvals } } : {}),
+                onRunId: (nativeRunId) => this.threads.rememberNativeRun(identity, threadId, nativeRunId, requestId),
+                onMessageId: (nativeRunId, messageId) => this.threads.rememberNativeResponse(identity, threadId, nativeRunId, messageId),
+                nextRunId: async () => (await this.threads.readNativeRun(identity, threadId))?.runId,
+                onError: (error) => conductorOnError(error, errorScope),
+              })
+              : (await handleChatStream({
               mastra,
               agentId: CONDUCTOR_AGENT_ID,
               version: AGENT_STREAM_VERSION,
@@ -477,7 +567,6 @@ export class AgentController {
           const silence = closingLineWatch(answered?.calls.map((call) => call.toolCallId));
           const write = (part: unknown) => {
             const clean = sanitisedPart(part);
-            activeTurn?.emitPart(clean);
             if (!detached && !res.writableEnded) {
               res.write(`data: ${JSON.stringify(clean)}\n\n`);
             }
@@ -496,10 +585,21 @@ export class AgentController {
             held = null;
             write(await this.withApprovalReason(part, identity, threadId, calls));
           };
-          while (!abort.signal.aborted) {
+          while (!abort.signal.aborted || drainStoppedNative) {
             const { done, value } = await reader.read();
             if (done) break;
             if (failedPart(value)) failed = true;
+            // Explicit native Stop suppresses display work, while this same
+            // reader awaits native FINISH/EOF after the actual Memory flush.
+            if (abort.signal.aborted) continue;
+            if (value?.type === AGENT_NATIVE_CONTINUATION_PART) {
+              write(value);
+              if (!detached && !res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); }
+              // Keep the logical task/admission draining the native successor;
+              // the UI attaches with a fresh SDK response for its new message.
+              detached = true;
+              continue;
+            }
             if (value?.type === 'data-tool-call-approval' && value.data) {
               const data = value.data as { toolCallId?: unknown; toolName?: unknown; args?: unknown };
               if (typeof data.toolCallId === 'string' && !calls.has(data.toolCallId)) {
@@ -533,6 +633,13 @@ export class AgentController {
                 ? await this.withApprovalReason(value, identity, threadId, calls)
                 : this.withToolTitle(value, identity)
             );
+            if (session && this.nativeInputWait(value, session, threadId)) {
+              write({ type: 'data-native-input-wait', data: { runId: (value as any).data?.runId }, transient: true });
+              if (!detached && !res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); }
+              // The native Session and this task's ledger keep owning the run
+              // while the UI becomes free to answer its specific parked gate.
+              detached = true;
+            }
           }
           if (!abort.signal.aborted) await flushHeld();
         })));
@@ -545,7 +652,6 @@ export class AgentController {
         if (stopped && execution) {
           for (const part of closingLine(identity.language, execution.closing(identity.language))) {
             const clean = sanitisedPart(part);
-            activeTurn?.emitPart(clean);
             if (!detached && !res.writableEnded) {
               res.write(`data: ${JSON.stringify(clean)}\n\n`);
             }
@@ -554,24 +660,29 @@ export class AgentController {
         const code = conductorErrorCode(error, errorScope);
         this.logger.warn(`Agent turn failed after the stream opened: ${stopped ?? code}`);
         const errorPart = { type: 'error', errorText: code };
-        activeTurn?.emitPart(errorPart);
         if (!detached && !res.writableEnded) {
           res.write(`data: ${JSON.stringify(errorPart)}\n\n`);
         }
       } finally {
-        activeTurn?.finishStream();
         if (failedExecution()) failed = true;
         finished = true;
         // UI cancellation can finish before a non-cancellable service write.
         // Hold both claims and the unknown-result guard until those actual
         // capability Promises settle, including failures.
         try {
-          await turn?.finish(failed ? 'failed' : abort.signal.aborted ? 'interrupted' : 'completed');
-        } catch {
+          const settled = await turn?.finish(failed ? 'failed' : abort.signal.aborted ? 'interrupted' : 'completed');
+          if (settled === 'failed') failed = true;
+          settleActiveTurn(settled ? undefined : new Error('Agent turn settlement was not started.'));
+        } catch (error) {
           // No terminal receipt: history stays running/unknown and refuses
           // a retry. A failed store write must never fabricate success.
           failed = true;
+          settleActiveTurn(error ?? new Error('Agent turn outcome could not be recorded.'));
           this.logger.warn('Agent turn outcome could not be recorded.');
+        } finally {
+          // Retain the captured completion while a terminal store write is
+          // pending, so a Stop entering during that write can await it too.
+          activeTurn?.finishStream();
         }
         if (execution) this.logger.log?.(JSON.stringify({ event: 'agent_task_execution', ...execution.snapshot() }));
         pictures.release();
@@ -594,6 +705,53 @@ export class AgentController {
       res.off?.('close', onClose);
       await release?.();
       await releaseThread?.();
+    }
+  }
+
+  private nativeInputWait(part: any, session: any, threadId: string) {
+    if (part?.type === 'data-native-input-wait') return true;
+    if (part?.data?.resumed === true) return false;
+    const address = { runId: part?.data?.runId, toolCallId: part?.data?.toolCallId, threadId };
+    if (part?.type === 'data-tool-call-suspended') return session?.suspensions.has(address);
+    return part?.type === 'data-tool-call-approval' &&
+      session?.resolveToolApproval(part.data?.toolName, threadId) === 'ask' && session.approval.isArmed(address);
+  }
+
+  private async pipeNativeAnswer(stream: ReadableStream<any>, identity: CapabilityIdentity,
+    threadId: string, session: any, res: Response) {
+    res.status(200);
+    res.setHeader('content-type', 'text/event-stream');
+    res.setHeader('cache-control', 'no-cache, no-transform');
+    res.setHeader('connection', 'keep-alive');
+    res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
+    res.setHeader('x-accel-buffering', 'no');
+    res.setHeader(AGENT_THREAD_HEADER, threadId);
+    res.flushHeaders?.();
+    const reader = stream.getReader();
+    let detached = false;
+    const detach = () => { detached = true; void reader.cancel().catch(() => undefined); };
+    res.on?.('close', detach);
+    const calls = new Map<string, { toolName: string; input: unknown }>();
+    try {
+      while (!detached) {
+        const part = await reader.read();
+        if (part.done) break;
+        const value = part.value;
+        if (value?.type === 'tool-input-available') calls.set(value.toolCallId, { toolName: value.toolName, input: value.input });
+        if (value?.data?.resumed === true && ['data-tool-call-approval', 'data-tool-call-suspended'].includes(value.type)) continue;
+        const shown = value?.type === 'tool-approval-request'
+          ? await this.withApprovalReason(value, identity, threadId, calls) : this.withToolTitle(value, identity);
+        res.write(`data: ${JSON.stringify(sanitisedPart(shown))}\n\n`);
+        if (this.nativeInputWait(value, session, threadId)) {
+          res.write(`data: ${JSON.stringify({ type: 'data-native-input-wait', data: { runId: value.data?.runId }, transient: true })}\n\n`);
+          break;
+        }
+        if (value?.type === AGENT_NATIVE_CONTINUATION_PART) break;
+      }
+    } finally {
+      res.off?.('close', detach);
+      await reader.cancel().catch(() => undefined);
+      if (!res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); }
     }
   }
 
@@ -842,6 +1000,94 @@ export class AgentController {
     );
   }
 
+  @Post('/threads/:id/signals')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  @UseGuards(AgentChatThrottleGuard)
+  async signalThread(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers(AGENT_TIMEZONE_HEADER) timeZone?: string
+  ) {
+    const identity = agentIdentity(organization, user, timeZone);
+    const threadId = threadIdParam(id);
+    await this.threads.threadForAnswer(identity, threadId, { bindSession: false });
+    const value = body && typeof body === 'object' ? body as Record<string, any> : {};
+    const kind = value.kind ?? 'deliver';
+    if (!['deliver', 'queue', 'follow-up', 'steer'].includes(kind)) {
+      throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Invalid signal kind.');
+    }
+    const parsed = parseAgentChatBody({ threadId, messages: [value.message], workContext: value.workContext });
+    if (parsed.mode !== 'message' || parsed.pictures?.length) {
+      throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Send pictures in a new turn after the active response.');
+    }
+    if (parsed.samplesAvatarId !== undefined && (!isOrganizationEditor(identity.role) ||
+      parsed.samplesAvatarId && !await this.mastraService.samplesAvatarKnown(identity, parsed.samplesAvatarId))) throw samplesReceiptRefused();
+    let message = parsed.message;
+    if (parsed.mediaIds) {
+      if (!isOrganizationEditor(identity.role)) throw mediaReceiptRefused();
+      const media = await this.mastraService.mediaReceipt(identity, parsed.mediaIds);
+      if (!media || parsed.mediaPart === undefined) throw mediaReceiptRefused();
+      message = withMediaReceipt(message, parsed.mediaPart, media);
+    }
+    const pointer = await this.threads.readNativeRun(identity, threadId);
+    const requestId = kind === 'deliver' && pointer?.logicalRequestId ? pointer.logicalRequestId : randomUUID();
+    const workContext = await this.threads.workContextForTurn(identity, threadId, parsed.workContext);
+    const context = buildConductorContext({ identity, threadId, requestId, trackExecution: true,
+      openProposals: openProposalTargets(await this.threads.pendingRuns(identity, threadId)),
+      workContext,
+    });
+    // Explicit queued input is driven by its native workflow's admitted scope.
+    // Creating its Session subscription here would capture this HTTP scope.
+    const queued = kind === 'queue' || kind === 'follow-up';
+    const session = queued ? undefined : await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext: context });
+    if (!queued && !session?.sendSignal) throw new HttpException({ code: 'AGENT_FAILED' }, 503);
+    const contents = message.parts.filter(part => part.type === 'text').map(part => ({ type: 'text' as const, text: String(part.text) }));
+    let accepted: Record<string, unknown> = {};
+    if (kind === 'deliver') {
+      accepted = await session!.sendSignal({ id: message.id, type: 'user', contents, author: { id: identity.userId },
+        ...(parsed.workContext !== undefined || workContext ? { attributes: { workContext: JSON.stringify(workContext?.context ?? null) } } : {}),
+      }, {
+        requestContext: context as any, requireDelivery: true,
+        ifActive: { behavior: 'deliver' }, ifIdle: { behavior: 'discard' },
+      }).accepted;
+      // A finishing run can become idle after the browser chose /signals.
+      // Native discard proves these exact words were neither delivered nor
+      // saved; the caller can submit the same message as an ordinary turn.
+      if (accepted.action === 'discard') return { accepted: false, id: message.id, kind,
+        code: 'AGENT_SIGNAL_IDLE', durability: 'native' };
+      if (accepted.action === 'blocked') throw notPending();
+      if (accepted.action !== 'deliver') throw new HttpException({ code: 'AGENT_FAILED' }, 503);
+    } else if (kind === 'queue' || kind === 'follow-up') {
+      try {
+        accepted = await this.mastraService.queueNativeInput({ identity, threadId, requestId,
+          previousRunId: pointer?.runId,
+          ...(parsed.workContext !== undefined || workContext ? { workContext: workContext?.context ?? null } : {}),
+          signal: { id: message.id, contents: contents.map(part => part.text).join('\n'),
+            createdAt: new Date().toISOString(), author: { id: identity.userId } },
+        });
+      } catch (error) {
+        const uncertain = error as { code?: string; receipt?: unknown };
+        if (uncertain.code !== 'QUEUED_INPUT_ACCEPTANCE_UNCERTAIN') throw error;
+        await this.threads.rememberSignalReceipt(identity, threadId, { id: message.id, text: parsed.text, kind, durability: 'native', state: 'unknown' }).catch(() => undefined);
+        // Durable dispatch may have succeeded. Keep the exact original id in
+        // the receipt; neither caller nor server should invent a retry input.
+        return { accepted: 'unknown', id: message.id, kind, durability: 'native',
+          code: uncertain.code, receipt: uncertain.receipt };
+      }
+    } else {
+      await session!.steer({ content: contents.map(part => part.text).join('\n'), requestContext: context as any, author: { id: identity.userId } });
+    }
+    const durability = 'native' as const;
+    await this.threads.rememberSignalReceipt(identity, threadId, { id: message.id, text: parsed.text, kind, durability }).catch(() => {
+      // The native admission is already authoritative. A failed UI projection
+      // must not turn it into an apparent rejection and invite another input.
+      this.logger.warn('Native signal accepted; its display receipt could not be recorded.');
+    });
+    return { accepted: true, id: message.id, kind, durability, ...accepted };
+  }
+
   @Post('/threads/:id/stop')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async stopThread(
@@ -865,42 +1111,11 @@ export class AgentController {
   ) {
     const identity = agentIdentity(organization, user);
     const threadId = threadIdParam(id);
-    const active = await this.threads.activeTurnFor(identity, threadId);
-    res.status(200);
-    res.setHeader('content-type', 'text/event-stream');
-    res.setHeader('cache-control', 'no-cache, no-transform');
-    res.setHeader('connection', 'keep-alive');
-    res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
-    res.setHeader('x-accel-buffering', 'no');
-    res.setHeader(AGENT_THREAD_HEADER, threadId);
-    res.flushHeaders?.();
-    if (!active) {
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return;
-    }
-    await new Promise<void>((resolve) => {
-      let unsubscribe: () => void = () => undefined;
-      const done = () => {
-        unsubscribe();
-        res.off?.('close', done);
-        if (!res.writableEnded) {
-          res.write('data: [DONE]\n\n');
-          res.end();
-        }
-        resolve();
-      };
-      res.on?.('close', done);
-      unsubscribe = active.subscribe((event) => {
-        if (event.done) {
-          done();
-          return;
-        }
-        if (event.part !== undefined && !res.writableEnded) {
-          res.write(`data: ${JSON.stringify(event.part)}\n\n`);
-        }
-      });
-    });
+    const stream = await this.threads.observeTurn(identity, threadId,
+      (error) => conductorOnError(error, { picturesInStep: () => false }));
+    if (!stream) { res.status(204); res.end(); return; }
+    const session = await this.threads.sessionFor(identity, threadId, { bindThread: true });
+    await this.pipeNativeAnswer(stream, identity, threadId, session, res);
   }
 
   @Get('/threads/:id/objective')

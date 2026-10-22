@@ -7,6 +7,23 @@ import type {
 
 export type ContentContextBuildInputV1 = ContentContextBuildRequestV1 & {
   provider?: string;
+  /** Server-only saved piece input; HTTP context callers cannot select this policy. */
+  pieceEvidence?: PieceEvidenceInputV1;
+};
+
+export type PieceEvidenceInputV1 = {
+  version: 'piece-evidence/v1';
+  core: string;
+  /** Server-extracted citations from the saved core and explicit post wish; never claim confirmation. */
+  sourceUrls?: string[];
+  quotes: Array<{ evidenceId: string; sourceUrl: string; quote: string; statement?: string }>;
+};
+
+export type EvidenceProjectionV1 = {
+  version: 'evidence-projection/v1';
+  /** SHA-256 of the unchanged raw SourceEvidence.excerpt. */
+  sourceHash: string;
+  spans: Array<{ start: number; end: number }>;
 };
 
 export type ContentContextEnvelopeResultV1 = ContentContextEnvelopeV1 & {
@@ -91,6 +108,7 @@ export type StoredContextItemV1 = {
   inclusionReason: string;
   statementHash: string | null;
   excerptHash: string | null;
+  evidenceProjection?: EvidenceProjectionV1 | null;
   factStatement: string | null;
   factTemporalKind: string | null;
   factVerifiedAt: Date | null;

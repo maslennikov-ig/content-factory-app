@@ -16,6 +16,8 @@ const prepare = (fixture, language = 'Russian') =>
     language
   );
 const output = (fixture, gaps = []) => ({
+  scopeQuote: null,
+  scopeStatus: 'not_temporal',
   answer: fixture.answer,
   references: fixture.sources.map(({ id }) => ({ id, relevance: 'relevant' })),
   gaps,
@@ -108,6 +110,8 @@ test('off-topic and garbled 1C recordings remain evidence only, never accepted r
   const fixture = require('./fixtures/search-reader-recorded5818-neutral.json')
     .cases['1c'];
   const result = simple.compileReaderSummary(prepare(fixture), {
+    scopeQuote: null,
+    scopeStatus: 'not_temporal',
     answer: '',
     references: fixture.sources.map((_, i) => ({
       id: `S${i + 1}`,
@@ -200,6 +204,8 @@ test('a broken reference does not remove readable text or the other validated so
     'Маркировка сохраняется; подробные суммы штрафов здесь не приведены.'
   );
   const result = simple.compileReaderSummary(prepare(fixture), {
+    scopeQuote: null,
+    scopeStatus: 'not_temporal',
     answer: fixture.answer,
     gaps: [],
     references: [
@@ -247,14 +253,8 @@ test('preparation keeps the original provenance and exact serialized input limit
   expect(
     simple.prepareReaderSummary('x'.repeat(5001), [], [], 'Russian')
   ).toBeNull();
-  expect(
-    simple.prepareReaderSummary(
-      'По состоянию на неопределенную дату',
-      [],
-      [],
-      'Russian'
-    )
-  ).toBeNull();
+  expect(simple.prepareReaderSummary('По состоянию на неопределенную дату', [], [], 'Russian').evidence.requestedDate).toBeNull();
+  expect(legacy.packReaderReview('По состоянию на неопределенную дату', [], [], 'Russian')).toBeNull();
 });
 
 test('the installed SDK serializes the simple contract and makes exactly one offline invocation', async () => {
@@ -277,7 +277,8 @@ test('the installed SDK serializes the simple contract and makes exactly one off
         );
         expect(
           Object.keys(body.response_format.json_schema.schema.properties)
-        ).toEqual(['answer', 'references', 'gaps']);
+        ).toEqual(['scopeQuote', 'scopeStatus', 'answer', 'references', 'gaps']);
+        expect(body.response_format.json_schema.schema.required).toEqual(['scopeQuote','scopeStatus','answer','references','gaps']);
         return new Response(
           JSON.stringify({
             id: 'offline',
@@ -307,4 +308,69 @@ test('the installed SDK serializes the simple contract and makes exactly one off
   expect(calls).toHaveLength(1);
   expect(calls[0].max_tokens).toBe(1200);
   expect(simple.compileReaderSummary(input, raw).summary).toBe(fixture.answer);
+});
+
+test('current semantic reader preserves a reporting range and prior-reference dates instead of requiring one as-of day', () => {
+  const subject='Prepare a new overview from 9 October 2026 through 20 October 2026. The previous reference covered 6–8 October 2026, with an example dated 7 October 2026.';
+  const fixture=article('The documented capability shipped on 15 October 2026.',undefined,subject);
+  expect(legacy.requestedDate(subject).ambiguous).toBe(true);
+  expect(legacy.packReaderReview(subject,fixture.sources,fixture.sources.map(source=>({sourceUrl:source.url,text:source.excerpt})),'English')).toBeNull();
+  const input=prepare(fixture,'English');
+  expect(input).not.toBeNull();
+  expect(input.evidence.subject).toBe(subject);
+  expect(input.evidence.requestedDate).toBeNull();
+  expect(input.prompt).toContain(subject);
+  const result=simple.compileReaderSummary(input,output(fixture));
+  expect(result.assessment.status).toBe('supported');
+  expect(result.facts).toHaveLength(1);
+  const unsupported=simple.compileReaderSummary(input,{...output(fixture),answer:'The documented capability shipped on 19 October 2026.'});
+  expect(unsupported.assessment.status).toBe('partial');
+  expect(unsupported.facts).toEqual([]);
+});
+
+test.each([
+  ['English','From 9 October 2026 through 20 October 2026','The capability shipped on 15 October 2026.'],
+  ['Russian','За период с 9 октября 2026 года по 20 октября 2026 года','Функция появилась 15 октября 2026 года.'],
+  ['English','From 09/10/2026 through 20/10/2026','The capability shipped on 15 October 2026.'],
+])('separate request scope is preserved as context without laundering event dates in %s: %s',(language,scopeQuote,passage)=>{
+  const subject=`${scopeQuote}. Previous reference: 7 October 2026. Explain the capability.`;
+  const fixture=article(passage,passage,subject);
+  const input=prepare(fixture,language);
+  expect(input).not.toBeNull();
+  expect(input.evidence.subject).toBe(subject);
+  expect(input.evidence.requestedDate).toBeNull();
+  const wire={...output(fixture),scopeQuote,scopeStatus:'resolved'};
+  const result=simple.compileReaderSummary(input,wire);
+  expect(result.summary).toContain(scopeQuote);
+  expect(result.summary).toContain(passage);
+  expect(result.assessment.status).toBe('supported');
+  expect(result.facts).toHaveLength(1);
+  for(const date of ['19','20']){
+    const forged=simple.compileReaderSummary(input,{...wire,answer:passage.replace('15',date)});
+    expect(forged.facts).toEqual([]);
+    expect(forged.assessment.status).toBe('partial');
+  }
+});
+
+test('scope fields are required and their context quote never grants evidence authority',()=>{
+  const subject='From 09/10/2026 through 20/10/2026. Explain the capability.';
+  const fixture=article('The capability shipped on 15 October 2026.',undefined,subject);
+  const input=prepare(fixture,'English');
+  const wire={...output(fixture),scopeQuote:'From 09/10/2026 through 20/10/2026',scopeStatus:'resolved'};
+  const {scopeQuote,scopeStatus,...missing}=wire;
+  expect(simple.compileReaderSummary(input,missing)).toBeNull();
+  expect(simple.compileReaderSummary(input,{...wire,scopeQuote:'A scope invented outside the request.'})).toBeNull();
+  const unresolved=simple.compileReaderSummary(input,{...wire,scopeStatus:'needs_clarification',gaps:['The requested timing needs clarification.']});
+  expect(unresolved.assessment.status).toBe('insufficient_evidence');
+  expect(unresolved.facts).toEqual([]);
+});
+
+test('even one recognized as-of hint remains request context and cannot certify an event date',()=>{
+  const subject='As of 20 October 2026, explain the capability.';
+  const fixture=article('The capability shipped on 15 October 2026.',undefined,subject);
+  const input=prepare(fixture,'English');
+  expect(input.evidence.requestedDate).toBe('2026-10-20');
+  const outputValue={...output(fixture),scopeQuote:'As of 20 October 2026',scopeStatus:'resolved'};
+  expect(simple.compileReaderSummary(input,outputValue).facts).toHaveLength(1);
+  expect(simple.compileReaderSummary(input,{...outputValue,answer:'The capability shipped on 20 October 2026.'}).facts).toEqual([]);
 });

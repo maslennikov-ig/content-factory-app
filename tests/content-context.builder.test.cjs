@@ -431,6 +431,265 @@ if (fs.existsSync(builderPath)) {
     assert.equal(old.evidence.find(item => item.evidenceId === 'selected').excerpt.length, 800);
   });
 
+  function pieceProofFixture() {
+    const quotes = Array.from({ length: 7 }, (_, index) => ({
+      evidenceId: `piece-${index % 4}`,
+      sourceUrl: `https://example.com/piece-${index % 4}`,
+      quote: `Release ${index} preserves its dated qualification and source meaning.`,
+      statement: `Selected claim ${index}`,
+    }));
+    const pages = Array.from({ length: 9 }, (_, index) => {
+      const support = quotes.filter(item => item.evidenceId === `piece-${index}`)
+        .map(item => item.quote).join('\n\n');
+      return evidence(`piece-${index}`, { excerpt:
+        `${'Unrelated page navigation. '.repeat(70)}\n\n${support}\n\n${'Background. '.repeat(70)}\n\nReleaseAnchor${index} changed this week.\n\n${'Footer. '.repeat(200)}` });
+    });
+    return { quotes, pages, input: request({
+      userMaterialEvidenceIds: pages.map(item => item.id),
+      pieceEvidence: {
+        version: 'piece-evidence/v1',
+        core: pages.map((_, index) => `ReleaseAnchor${index}`).join(' '),
+        quotes: [...quotes, ...pages.map(item => ({
+          evidenceId: item.id, sourceUrl: `https://example.com/${item.id}`,
+          quote: item.excerpt, statement: item.excerpt,
+        }))],
+      },
+    }) };
+  }
+
+  test('piece proof packing keeps all seven late semantic quotes and nine sources beside a 7k voice, including after reload', async () => {
+    const { pages, quotes, input } = pieceProofFixture();
+    const profile = { ...neutralProfile, effectiveVoice: { examples: ['v'.repeat(7_000)] } };
+    const repository = new MemoryRepository([], pages);
+    const builder = makeBuilder(repository, profile);
+    const built = await builder.build('org-a', input);
+    const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
+    assert.equal(built.evidence.length, 9);
+    for (const quote of quotes) assert.ok(materialSupport(quote, built), quote.statement);
+    assert.ok(built.evidence.some(item => item.excerpt.includes('ReleaseAnchor8')));
+    assert.ok(built.evidence.every(item => item.literalSpans?.length));
+    assert.ok(JSON.stringify(profile.effectiveVoice).length + built.evidence.reduce((n, item) => n + item.excerpt.length, 0) <= 64_000);
+    assert.equal(repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`).selectionAlgorithmVersion, 3);
+    const reread = await builder.get('org-a', built.contentContextSnapshotId);
+    assert.deepEqual(reread.evidence, built.evidence);
+    for (const quote of quotes) assert.ok(materialSupport(quote, reread));
+    assert.deepEqual(pages, repository.standaloneEvidence, 'raw evidence remains unchanged');
+  });
+
+  test('piece proof preflight rejects forged quotes, wrong URLs and foreign evidence before any snapshot is saved', async () => {
+    for (const mismatch of [
+      { quote: 'A fabricated date and opposite outcome.' },
+      { sourceUrl: 'https://other.example/wrong-source' },
+      { evidenceId: 'foreign-evidence' },
+    ]) {
+      const { pages, input } = pieceProofFixture();
+      input.pieceEvidence.quotes[0] = { ...input.pieceEvidence.quotes[0], ...mismatch };
+      const repository = new MemoryRepository([], pages);
+      await assert.rejects(makeBuilder(repository).build('org-a', input), error =>
+        error.code === 'CONTENT_EVIDENCE_REQUIRED' && error.missingRequirements?.length > 0);
+      assert.equal(repository.snapshots.size, 0);
+    }
+  });
+
+  function completeCorpusFixture(count) {
+    const quotes = Array.from({ length: count }, (_, index) => ({
+      evidenceId: `complete-${String(index).padStart(2, '0')}`,
+      sourceUrl: `https://example.com/complete-${String(index).padStart(2, '0')}`,
+      quote: `Essential proof ${index} preserves the selected claim.`,
+      statement: `Selected claim ${index}`,
+    }));
+    const pages = quotes.map((quote, index) => evidence(quote.evidenceId, { excerpt:
+      (`PageAnchor${index}\u0000\n`.padEnd(2_000, 'x') + quote.quote).padEnd(4_800, 'y')
+        .concat(`\nRemote qualification ${index}: only eligible managed accounts in the stated region.\n`).padEnd(5_100, 'z'),
+    }));
+    const profile = { ...neutralProfile, effectiveVoice: { examples: ['v'.repeat(7_000)] } };
+    return { pages, quotes, profile, input: request({
+      userMaterialEvidenceIds: pages.map(page => page.id),
+      pieceEvidence: { version: 'piece-evidence/v1', core: 'PageAnchor0 selected changes', quotes },
+    }) };
+  }
+
+  test('an entire selected corpus fitting the piece budget retains every full source and distant qualifier after reload', async () => {
+    const { pages, quotes, profile, input } = completeCorpusFixture(11);
+    const repository = new MemoryRepository([], pages);
+    const builder = makeBuilder(repository, profile);
+    const built = await builder.build('org-a', input);
+    const stored = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+    assert.equal(built.evidence.length, pages.length);
+    for (const page of pages) {
+      const rendered = built.evidence.find(item => item.evidenceId === page.id);
+      const sanitized = page.excerpt.replace(/\u0000/g, '');
+      assert.ok(rendered.excerpt === sanitized, `${page.id} should retain the entire source, including its distant qualifier`);
+      assert.deepEqual(rendered.literalSpans, [sanitized]);
+      assert.deepEqual(stored.items.find(item => item.evidenceId === page.id).evidenceProjection.spans,
+        [{ start: 0, end: page.excerpt.length }]);
+    }
+    assert.equal(stored.maxRenderedCharacters, 64_000);
+    assert.ok(built.renderedCharacterCount <= 64_000);
+    assert.deepEqual((await builder.get('org-a', built.contentContextSnapshotId)).evidence, built.evidence);
+    const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
+    for (const quote of quotes) assert.ok(materialSupport(quote, built));
+    assert.deepEqual(repository.standaloneEvidence, pages, 'whole source projections must leave raw evidence unchanged');
+  });
+
+  test('an oversized selected corpus keeps bounded fair windows and every mandatory quote instead of full pages', async () => {
+    const { pages, quotes, profile, input } = completeCorpusFixture(16);
+    assert.ok(JSON.stringify(profile.effectiveVoice).length + pages.reduce((n, page) => n + page.excerpt.length, 0) > 64_000);
+    const repository = new MemoryRepository([], pages);
+    const built = await makeBuilder(repository, profile).build('org-a', input);
+    const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
+    assert.equal(built.evidence.length, 16);
+    for (const quote of quotes) assert.ok(materialSupport(quote, built));
+    for (const item of built.evidence) {
+      assert.ok(item.excerpt.length <= 2_600, 'the existing 2400-character background and essential spans remain bounded');
+      assert.ok(item.excerpt.length < pages.find(page => page.id === item.evidenceId).excerpt.length);
+    }
+    assert.ok(built.renderedCharacterCount <= 64_000);
+    assert.deepEqual((await makeBuilder(repository, profile).get('org-a', built.contentContextSnapshotId)).evidence, built.evidence);
+  });
+
+  test('long semantic quotes remain mandatory when the stored registry excerpt is exactly that quote', async () => {
+    const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
+    for (const length of [1025, 1600, 2000]) {
+      const quote = 'A documented release preserves this important qualification. '.repeat(40).slice(0, length);
+      const hint = { evidenceId: 'semantic-quote', sourceUrl: 'https://example.com/semantic-quote', quote, statement: 'A short semantic paraphrase.' };
+      const repository = new MemoryRepository([], [evidence('semantic-quote', { excerpt: quote })]);
+      const built = await makeBuilder(repository).build('org-a', request({
+        userMaterialEvidenceIds: [hint.evidenceId],
+        pieceEvidence: { version: 'piece-evidence/v1', core: hint.statement, quotes: [hint] },
+      }));
+      assert.ok(materialSupport(hint, built), `the complete ${length}-character semantic quote is required`);
+    }
+  });
+
+  test('a complete selected page whose statement is the page is compacted into relevant literal background', async () => {
+    const raw = `${'Navigation. '.repeat(710)}SourceFactAnchor changed this week. ${'Footer. '.repeat(80)}`;
+    assert.ok(raw.length > 8_000, 'the page must exceed the existing per-source limit to require compaction');
+    const page = evidence('whole-page', { excerpt: raw });
+    const repository = new MemoryRepository([], [page]);
+    const built = await makeBuilder(repository).build('org-a', request({
+      userMaterialEvidenceIds: [page.id], pieceEvidence: { version: 'piece-evidence/v1', core: 'SourceFactAnchor',
+        quotes: [{ evidenceId: page.id, sourceUrl: 'https://example.com/whole-page', quote: raw, statement: raw }] },
+    }));
+    assert.ok(built.evidence[0].excerpt.includes('SourceFactAnchor'));
+    assert.ok(built.evidence[0].excerpt.length < raw.length);
+    assert.equal(page.excerpt, raw);
+  });
+
+  test('a short source fitting its fair allocation is retained whole instead of cropped to an 800-character window', async () => {
+    const raw = `A release heading. ${'Background context. '.repeat(70)}Final qualification remains available.`;
+    const page = evidence('short-complete', { excerpt: raw });
+    const built = await makeBuilder(new MemoryRepository([], [page])).build('org-a', request({
+      userMaterialEvidenceIds: [page.id], pieceEvidence: { version: 'piece-evidence/v1', core: 'release qualification',
+        quotes: [{ evidenceId: page.id, sourceUrl: 'https://example.com/short-complete', quote: raw, statement: raw }] },
+    }));
+    assert.ok(raw.length > 1024 && raw.length < 2400);
+    assert.equal(built.evidence[0].excerpt, raw);
+  });
+
+  test('larger fair source windows retain separated dated headings with their associated release details', async () => {
+    const first = '## 14 October\nAuroraBoard adds shared notes.';
+    const second = '## 16 October\nLumenDeck adds presentation slides.';
+    const raw = `${'Navigation. '.repeat(30)}${first}\n${'Unrelated context. '.repeat(60)}${second}\n${'Footer. '.repeat(1_100)}`;
+    assert.ok(raw.length > 8_000, 'the page must require a bounded background window');
+    const page = evidence('dated-releases', { excerpt: raw });
+    const repository = new MemoryRepository([], [page]);
+    const built = await makeBuilder(repository).build('org-a', request({
+      userMaterialEvidenceIds: [page.id], pieceEvidence: { version: 'piece-evidence/v1', core: 'AuroraBoard and LumenDeck changes',
+        quotes: [{ evidenceId: page.id, sourceUrl: 'https://example.com/dated-releases', quote: raw, statement: raw }] },
+    }));
+    assert.ok(built.evidence[0].literalSpans.some(span => span.includes(first) && span.includes(second)));
+    assert.ok(built.evidence[0].excerpt.length <= 2400);
+    assert.deepEqual((await makeBuilder(repository).get('org-a', built.contentContextSnapshotId)).evidence, built.evidence);
+  });
+
+  test('a tampered stored piece projection fails closed on offsets or raw evidence digest', async () => {
+    for (const tamper of ['digest', 'bounds', 'valid-bounds']) {
+      const { pages, input } = pieceProofFixture();
+      const repository = new MemoryRepository([], pages);
+      const builder = makeBuilder(repository);
+      const built = await builder.build('org-a', input);
+      const stored = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+      const selected = stored.items.find(item => item.evidenceId);
+      if (tamper === 'digest') selected.evidence.excerpt += 'tampered';
+      else if (tamper === 'valid-bounds') selected.evidenceProjection.spans[0].start += 1;
+      else selected.evidenceProjection.spans[0].end = selected.evidence.excerpt.length + 1;
+      await assert.rejects(builder.get('org-a', built.contentContextSnapshotId), error =>
+        error.code === 'CONTENT_CONTEXT_INVALIDATED');
+    }
+  });
+
+  test('the Prisma repository persists projections and renders identical proof from the original full registry pages', async () => {
+    const { pages, quotes, input } = pieceProofFixture();
+    let header, savedItems = [];
+    const client = {
+      contentFact: { findMany: async () => [] },
+      sourceEvidence: { findMany: async () => structuredClone(pages) },
+      contentContextItem: { createMany: async ({ data }) => { savedItems = structuredClone(data); } },
+      contentContextSnapshot: {
+        create: async ({ data }) => { header = { ...structuredClone(data), id: 'stored-piece-proof' }; return header; },
+        findFirst: async () => header ? { ...header, items: savedItems.map(item => ({
+          ...item, evidence: structuredClone(pages.find(page => page.id === item.evidenceId)),
+        })) } : null,
+      },
+    };
+    const repository = new ContentContextRepository({ model: client }, { model: { $transaction: async work => work(client) } });
+    const builder = makeBuilder(repository, { ...neutralProfile, effectiveVoice: { examples: ['v'.repeat(7_000)] } });
+    const built = await builder.build('org-a', input);
+    assert.equal(savedItems.length, 9);
+    assert.ok(savedItems.every(item => item.evidenceProjection?.sourceHash));
+    const reread = await builder.get('org-a', built.contentContextSnapshotId);
+    assert.deepEqual(reread.evidence, built.evidence);
+    const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
+    for (const quote of quotes) assert.ok(materialSupport(quote, reread));
+  });
+
+  test('essential proof exceeding the caller budget refuses with a concrete deficit before snapshot creation', async () => {
+    const { pages, input } = pieceProofFixture();
+    const repository = new MemoryRepository([], pages);
+    const builder = makeBuilder(repository, { ...neutralProfile, effectiveVoice: { examples: ['v'.repeat(63_900)] } });
+    await assert.rejects(builder.build('org-a', input), error => error.code === 'CONTENT_EVIDENCE_REQUIRED' &&
+      error.missingRequirements?.[0].includes('Essential source proof needs'));
+    assert.equal(repository.snapshots.size, 0);
+  });
+
+  test('draft finalization revalidates every projected source, including one outside the chosen citations', async () => {
+    const { pages, input } = pieceProofFixture();
+    const repository = new MemoryRepository([], pages);
+    const builder = makeBuilder(repository);
+    const built = await builder.build('org-a', input);
+    const stored = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+    const { validateContentContextForDraft } = loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/context/content-context.finalize.ts');
+    const client = { contentContextSnapshot: { findFirst: async () => structuredClone(stored) } };
+    const save = () => validateContentContextForDraft(client, { organizationId: 'org-a',
+      contentContextSnapshotId: stored.id, usedCitationIds: ['E1'], now });
+    assert.equal((await save()).usedCitationIds[0], 'E1');
+    stored.items.find(item => item.citationId === 'E2').evidence.excerpt += ' changed during generation';
+    await assert.rejects(save(), error => error.code === 'CONTENT_CONTEXT_INVALIDATED');
+  });
+
+  test('v3 draft finalization accepts actual E9 and E16, rejects E17 and F9, and keeps the legacy citation limit', async () => {
+    const { pages, input } = pieceProofFixture();
+    for (let index = 9; index < 16; index += 1) pages.push(evidence(`piece-${index}`));
+    input.userMaterialEvidenceIds = pages.map(page => page.id);
+    const repository = new MemoryRepository([], pages);
+    const built = await makeBuilder(repository).build('org-a', input);
+    const stored = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+    const { validateContentContextForDraft } = loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/context/content-context.finalize.ts');
+    const client = { contentContextSnapshot: { findFirst: async () => structuredClone(stored) } };
+    const save = usedCitationIds => validateContentContextForDraft(client, { organizationId: 'org-a',
+      contentContextSnapshotId: stored.id, usedCitationIds, now });
+    assert.deepEqual((await save(['E9', 'E16'])).usedCitationIds, ['E16', 'E9']);
+    for (const citation of ['E17', 'F9']) await assert.rejects(save([citation]), error =>
+      error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' && error.message === 'Citation identifiers are invalid');
+    stored.items = stored.items.filter(item => item.citationId !== 'E12');
+    await assert.rejects(save(['E12']), error => error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' &&
+      error.message === 'Citation does not belong to the resolved context');
+    stored.selectionAlgorithmVersion = 2;
+    await assert.rejects(save(['E9']), error => error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' &&
+      error.message === 'Citation identifiers are invalid');
+  });
+
   test('build is deterministic, tenant-scoped and bounded to 8 facts, 8 evidence and 12k chars', async () => {
     const corpus = Array.from({ length: 12 }, (_, index) =>
       fact(String(index + 1).padStart(2, '0'), {

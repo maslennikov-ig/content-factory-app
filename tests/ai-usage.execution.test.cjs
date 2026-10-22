@@ -38,7 +38,7 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
 const actingUser = new AsyncLocalStorage();
 const asMember = (userId, callback) => actingUser.run(userId, callback);
 
-function loadUsage({ transaction, create, update, config }) {
+function loadUsage({ transaction, create, update, deleteMany, config }) {
   const active = new AsyncLocalStorage();
   const loaded = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/ai.usage.service.ts',
@@ -81,12 +81,13 @@ function loadUsage({ transaction, create, update, config }) {
         ),
       '@contentfactory/nestjs-libraries/user/acting.user': {
         getActingUserId: () => actingUser.getStore(),
+        runAsActingUser: asMember,
       },
     }
   );
   const service = new loaded.AiUsageService({
     $transaction: transaction,
-    aiUsageRecord: { create, update },
+    aiUsageRecord: { create, update, deleteMany },
   });
   return Object.assign(service, {
     aiBillingPeriodStart: loaded.aiBillingPeriodStart,
@@ -998,7 +999,7 @@ describe('AI operation usage seam', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
-  test('a copilot model executed after the agent context closes keeps the single agent admission', async () => {
+  test('a deferred model executed after its admission closes gets a new usage row', async () => {
     const create = jest.fn(async ({ data }) => ({
       id: `usage-${create.mock.calls.length}`,
       ...data,
@@ -1032,10 +1033,87 @@ describe('AI operation usage seam', () => {
       content: [],
     });
 
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ operation: 'agent' }),
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenNthCalledWith(1, { data: expect.objectContaining({ operation: 'agent' }) });
+    expect(create).toHaveBeenNthCalledWith(2, { data: expect.objectContaining({ operation: 'copilot_chat' }) });
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  test('a native queued successor inheriting a finished async context opens a fresh admission', async () => {
+    const create = jest.fn(async ({ data }) => ({ id: `usage-${create.mock.calls.length}`, ...data }));
+    const update = jest.fn(async () => ({}));
+    const usage = loadUsage({ transaction: jest.fn(), create, update,
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    let release;
+    const queued = new Promise(resolve => { release = resolve; });
+    let successor;
+    await usage.executeAiOperation('organization-a', 'agent', async () => {
+      // Created inside the parent async context, exactly like native queue handoff.
+      successor = queued.then(async () => {
+        const model = await usage.prepareModelExecution('organization-a', 'agent', async () => ({
+          doGenerate: async () => ({ content: [] }), doStream: jest.fn(),
+        }));
+        return model.doGenerate({ prompt: [] });
+      });
     });
+    expect(create).toHaveBeenCalledTimes(1);
+    release();
+    await successor;
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  test('a recovered native model retains its trusted member outside an HTTP async context', async () => {
+    const create = jest.fn(async ({ data }) => ({ id: 'usage-recovered', ...data }));
+    const usage = loadUsage({ transaction: jest.fn(), create, update: jest.fn(async () => ({})),
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    const model = await usage.prepareModelExecution('organization-a', 'agent', async () => ({
+      doGenerate: async () => ({ content: [] }), doStream: jest.fn(),
+    }), { userId: 'trusted-recovered-member' });
+    await model.doGenerate({ prompt: [] });
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({
+      organizationId: 'organization-a', userId: 'trusted-recovered-member', operation: 'agent',
+    }) });
+  });
+
+  test('a native ownership loser voids its unstarted admission without charging an operation', async () => {
+    const deleteMany = jest.fn(async () => ({ count: 1 }));
+    const update = jest.fn();
+    const usage = loadUsage({ transaction: jest.fn(), update, deleteMany,
+      create: jest.fn(async ({ data }) => ({ id: 'observer-admission', ...data })),
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    const admission = await usage.beginAiOperation('organization-a', 'agent');
+    await admission.voidUnstarted();
+    await admission.voidUnstarted();
+    await admission.finish(false);
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany).toHaveBeenCalledWith({ where: { id: 'observer-admission', organizationId: 'organization-a' } });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  test('provider uncertainty cannot be erased through unstarted admission cleanup', async () => {
+    const deleteMany = jest.fn();
+    const usage = loadUsage({ transaction: jest.fn(), update: jest.fn(async () => ({})), deleteMany,
+      create: jest.fn(async ({ data }) => ({ id: 'started-admission', ...data })),
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    const admission = await usage.beginAiOperation('organization-a', 'agent');
+    admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({
+      model: 'managed-text', attempt: 1, failed: true, possiblyBilled: true, costUsd: null,
+    }));
+    await expect(admission.voidUnstarted()).rejects.toThrow('provider attempts');
+    expect(deleteMany).not.toHaveBeenCalled();
+    await admission.finish(false);
+  });
+
+  test('failed unstarted admission deletion remains retryable and is not reported as closed', async () => {
+    const deleteMany = jest.fn().mockRejectedValueOnce(new Error('database unavailable')).mockResolvedValueOnce({ count: 1 });
+    const usage = loadUsage({ transaction: jest.fn(), update: jest.fn(), deleteMany,
+      create: jest.fn(async ({ data }) => ({ id: 'observer-delete', ...data })),
+      config: { ...included, usageMode: 'workspace_key', apiKey: 'workspace' } });
+    const admission = await usage.beginAiOperation('organization-a', 'agent');
+    await expect(admission.voidUnstarted()).rejects.toThrow('database unavailable');
+    await admission.voidUnstarted();
+    expect(deleteMany).toHaveBeenCalledTimes(2);
   });
 
   test('an active operation cannot switch tenant context', async () => {

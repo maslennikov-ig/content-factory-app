@@ -1,0 +1,63 @@
+{
+  "schema": "on0i-legacy-paid-copy-review/1",
+  "verdict": "APPROVE_EXACT_COPY_CANDIDATE_ROOT_ACCEPTANCE_PENDING",
+  "worktree": "/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018",
+  "scope": "Two legacy paidCapNote translations and one existing rendered-test expected literal; previous payment-client review remains separate.",
+  "findings": [],
+  "checks": [
+    "Before early approval, exact unified diff was reconstructed in memory from both current originals and staged full-file candidates; patch matched byte for byte.",
+    "Russian and English copy describe a limit in an older assistant version and ask to check saved results; no current one-paid-step rule, charging claim, or assertion that no effects happened.",
+    "agent.conversation.tsx:1434 retains the same PAID_CAP_REACHED neutral history rendering; title prefix and named legacy error semantics preserved.",
+    "tests/agent-screen.w2-recheck.test.cjs:879 retains real rendered neutral-note and no-error-card assertions; only expected literal changed.",
+    "No execution, retry, consent, model prompt, schema, error-code, or native adapter changes.",
+    "Read-only PAID_CAP_REACHED search in libraries/nestjs-libraries/src and apps/backend/src found only the shared legacy contract declaration; this is source evidence, not a universal runtime proof.",
+    "Previously approved payment-client report hashes preserved.",
+    "After early approval, root applied both accepted deltas while this report was being finalized. Final disk hashes of both legacy files and the separate payment mirror match their exact approved after hashes."
+  ],
+  "files": {
+    "apps/frontend/src/components/agents/agent.copy.ts": {
+      "beforeSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e",
+      "afterSha256": "c4eecd76068e94adce5df6bced897f18593708c5d20b1911b373a6532f79ac21",
+      "candidate": "evidence/legacy-paid-copy-agent.copy.ts.candidate"
+    },
+    "tests/agent-screen.w2-recheck.test.cjs": {
+      "beforeSha256": "4dd067f2888b15a81384bb02dc83591099ac5317a5646e8d15cf88110dd52801",
+      "afterSha256": "cb7c7caf33e643a4a8971074442d32f990114e95213ff09e97d7a60118a1789d",
+      "candidate": "evidence/legacy-paid-copy-agent-screen.w2-recheck.test.cjs.candidate"
+    }
+  },
+  "artifactSha256": {
+    "evidence/legacy-paid-copy.patch": "dd6e4371bc7b72615d0b31e11cb402d7edb6edc9fbfa907fc46fc33bd101a1cf",
+    "legacy-paid-copy-candidate.json": "40b40de7021a7a4c2587382a6eed81d474a76c744fb4b725d618e97d707e5bef",
+    "evidence/legacy-paid-copy-candidate.log": "74efa5633d76ae5ac679ad7e9d0d604acd6cbc3502640ff01d0665c8f3360b0a",
+    "evidence/legacy-paid-copy-candidate.cjs": "286deb3c7501d48bf7524e95aa3ee091a091a84d8d7342c8855f883972ce1dd1",
+    "provider-payment-client-candidate.json": "ddc81449f74c919ee20ae1517885bb0f871d6d126ca488d4af1ccec67d9031bf"
+  },
+  "preservedPriorReviews": {
+    "provider-payment-client-review.md": "2bf98dbf539ef740ef762a6116ef8b56ecf5cc82a803f7c67c833e46ec46cac7",
+    "provider-payment-client-review.json": "a1b63ab06f6fcf2fe40338e4d3eff80643bfce625215f1043f1742abd3efe80a"
+  },
+  "existingVerification": {
+    "exitCode": 0,
+    "suites": 3,
+    "tests": 94,
+    "mode": "exact source substitutions in memory; all disk source hashes unchanged",
+    "log": "evidence/legacy-paid-copy-candidate.log",
+    "logSha256": "74efa5633d76ae5ac679ad7e9d0d604acd6cbc3502640ff01d0665c8f3360b0a",
+    "session": 49638,
+    "seconds": 24.821,
+    "combinedWithPreviouslyApprovedPaymentClientCandidate": true,
+    "reviewerReran": false
+  },
+  "reviewerActions": {
+    "sourceOrTestEdits": 0,
+    "testBuildOrRuntimeExecutions": 0,
+    "providerCalls": 0,
+    "browserActions": 0,
+    "newStageReportsOnly": true
+  },
+  "remainingBounds": [
+    "Root reports Gate9 ended with the known payment mirror failure; Node/Python did not run after Jest failure. This bounded approval does not turn that run green.",
+    "Root owns Gate10 acceptance on the applied bytes; no additional live UI or provider evidence is claimed."
+  ]
+}

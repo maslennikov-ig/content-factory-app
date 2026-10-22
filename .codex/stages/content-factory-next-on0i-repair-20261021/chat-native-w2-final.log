@@ -1,0 +1,62 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-screen.w2-recheck.test.cjs (15.866 s)
+  assistant context and interrupted response recovery
+    ✓ transport reads current context at send time and first-turn artifacts are announced before thread assignment (737 ms)
+    ✓ stop preserves uncertainty through successful intermediate history reads until the work settles (584 ms)
+    ✓ Stop during proven local preparation needs no nonexistent server execution marker (496 ms)
+    ✓ network failure cannot offer automatic regeneration of an uncertain write (522 ms)
+    ✓ a failed observer remains blocked until native history verifies its resumable owner (519 ms)
+    ✓ a proven pre-start contextual refusal refreshes a first legacy history without trapping the composer (501 ms)
+    ✓ a headerless contextual error stays uncertain after a successful legacy history GET (502 ms)
+    ✓ stop before receiving a thread identifier offers explicit new-conversation recovery with uncertainty intact (501 ms)
+    ✓ a native busy instruction retains its selected object while ordinary send-time context can change (525 ms)
+    ✓ history refresh updates the same target revision and ignores a different persisted selection (528 ms)
+  retained assistant foreground reads
+    ✓ one tab return refreshes the active detail AND revision; messages and model calls stay untouched (499 ms)
+    ✓ same-tab hidden to shown refreshes once without reselecting; ordinary rerender and hidden events do not read (522 ms)
+    ✓ focus during a stream defers the read; terminal foreground history cannot unlock Stop or replay (536 ms)
+    ✓ a delayed foreground response cannot replace a newly selected object context (496 ms)
+  N1 — an approval card further up sends its answer, once
+    ✓ «Нет» on the earlier card: answered natively, then one request for that card’s message (525 ms)
+    ✓ the door says it no longer waits (409): the card says so, sends nothing more, no error card (488 ms)
+    ✓ a request that failed on the way waits for terminal reconciliation before its approval can be retried (544 ms)
+  D2 — «больше не ждёт ответа» is drawn for a card that no longer waits
+    ✓ an approval card the server no longer holds: no buttons, the words, and nothing sent (499 ms)
+    ✓ the last message’s approval card also closes once the server’s list no longer holds it (494 ms)
+    ✓ pending on the server, the earlier card is live (496 ms)
+    ✓ the contract’s rule: the approval id is `<runId>::<toolCallId>` of a pending approval
+    ✓ a question card answered from further up reads «отвечено», not «больше не ждёт ответа» (545 ms)
+  kcxz.34 — a question card after a stale tab and after a reload
+    ✓ F3: answered from a stale tab (409 not pending) — «больше не ждёт ответа», no error card, nothing to retry (506 ms)
+    ✓ F4: an answered changes card still reads «Выбор: … — отвечено» after a reload (495 ms)
+    ✓ F4: which stored outputs were an answered card (1 ms)
+  N1, D2 — the body for a card further up, and the stream that answers it
+    ✓ `buildChatBody` sends the message the SDK names when it answers an approval
+    ✓ a step with two cards goes when both are answered
+    ✓ a refused answer puts the card back — asked, or closed (1 ms)
+    ✓ a question answered further up names its call first in the message that takes the stream
+  N2 — a proposal applied after its text changed
+    ✓ the stream’s `outcome: stale` reads as «правка устарела», not «Готово» (2 ms)
+    ✓ a second proposal refused while the card is open is a neutral note, not «Не получилось» (500 ms)
+  W3 recheck R-5 — the paid limit is a stop, not a failure
+    ✓ `PAID_CAP_REACHED` is a neutral line under its step, not the red «Не получилось» card (496 ms)
+  N5 — «Сразу в канал» says «не снять» once
+    ✓ the publish-now card: the server’s line says what happens, the footnote the limit (4 ms)
+  kcxz.38 — a stale tab keeps its card and reads the other tab’s outcome (R2, P3-10)
+    ✓ the card stays, folded into «больше не ждёт ответа», and the thread is read again with the other tab’s outcome (500 ms)
+    ✓ the thread cannot be read again: the card still stays as its line, not a vanished block (543 ms)
+    ✓ a card the server listed earlier and dropped keeps its question with the call that has no output (1 ms)
+    ✓ P3-10: a new piece’s facts card folds by `factsCard`, older histories by `factsKept`
+  kcxz.38 release check P3-a — one folded line per card right after «Решите за меня»
+    ✓ the card further up folds into «отвечено», the continued message keeps its result, not a second line (602 ms)
+    ✓ the rule: a later answered line of the same call or card goes; a live card never does (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       39 passed, 39 total
+Snapshots:   0 total
+Time:        16.019 s
+Ran all test suites matching /tests\/agent-screen.w2-recheck.test.cjs/i.

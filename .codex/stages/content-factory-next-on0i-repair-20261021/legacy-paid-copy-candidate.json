@@ -1,0 +1,26 @@
+{
+  "schema": "on0i-legacy-paid-copy/1",
+  "status": "STAGE_ONLY_NOT_APPLIED_GATE9_SOURCE_FROZEN",
+  "files": {
+    "apps/frontend/src/components/agents/agent.copy.ts": {
+      "beforeSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e",
+      "afterSha256": "c4eecd76068e94adce5df6bced897f18593708c5d20b1911b373a6532f79ac21",
+      "candidate": "evidence/legacy-paid-copy-agent.copy.ts.candidate"
+    },
+    "tests/agent-screen.w2-recheck.test.cjs": {
+      "beforeSha256": "4dd067f2888b15a81384bb02dc83591099ac5317a5646e8d15cf88110dd52801",
+      "afterSha256": "cb7c7caf33e643a4a8971074442d32f990114e95213ff09e97d7a60118a1789d",
+      "candidate": "evidence/legacy-paid-copy-agent-screen.w2-recheck.test.cjs.candidate"
+    }
+  },
+  "patchSha256": "dd6e4371bc7b72615d0b31e11cb402d7edb6edc9fbfa907fc46fc33bd101a1cf",
+  "scope": "Only legacy history rendering words and existing rendered test expectation; no execution limit, model prompt or consent changes.",
+  "verification": {
+    "exitCode": 0,
+    "suites": 3,
+    "tests": 94,
+    "mode": "exact source substitutions in memory; all disk source hashes unchanged",
+    "log": "evidence/legacy-paid-copy-candidate.log",
+    "logSha256": "74efa5633d76ae5ac679ad7e9d0d604acd6cbc3502640ff01d0665c8f3360b0a"
+  }
+}

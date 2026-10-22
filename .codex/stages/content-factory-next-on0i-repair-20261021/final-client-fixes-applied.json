@@ -1,0 +1,40 @@
+{
+  "schema": "on0i-final-client-fixes-applied/1",
+  "status": "APPLIED_EXACT_REVIEWED_BYTES_FOCUSED_PASS_FROZEN",
+  "gate9Preserved": "attempt-9/root-command-acceptance.json",
+  "files": {
+    "apps/frontend/src/components/agents/agent.copy.ts": {
+      "beforeSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e",
+      "afterSha256": "c4eecd76068e94adce5df6bced897f18593708c5d20b1911b373a6532f79ac21",
+      "candidate": "evidence/legacy-paid-copy-agent.copy.ts.candidate"
+    },
+    "tests/agent-screen.w2-recheck.test.cjs": {
+      "beforeSha256": "4dd067f2888b15a81384bb02dc83591099ac5317a5646e8d15cf88110dd52801",
+      "afterSha256": "cb7c7caf33e643a4a8971074442d32f990114e95213ff09e97d7a60118a1789d",
+      "candidate": "evidence/legacy-paid-copy-agent-screen.w2-recheck.test.cjs.candidate"
+    },
+    "apps/frontend/src/components/agents/agent.contract.ts": {
+      "beforeSha256": "6d8d8211d94ee168a17eff68986493acc136d6764b65ee554a313f94ad4d333b",
+      "afterSha256": "452debdfc80866782e022b996b1bb331fe7d1158ab11cb90a86ca8a42b7066b7",
+      "candidate": "evidence/provider-payment-client-candidate.ts"
+    }
+  },
+  "reviews": [
+    "provider-payment-client-review.json",
+    "legacy-paid-copy-review.json"
+  ],
+  "scope": "One mirrored payment code plus only RU/EN legacy paid-step wording and existing rendered expectation; no runtime model policy changes",
+  "focused": {
+    "exitCode": 0,
+    "suites": 3,
+    "tests": 94,
+    "elapsedSeconds": 24.773,
+    "log": "evidence/final-client-fixes-applied.log",
+    "logSha256": "df84fab8ea5331a48abb2316fb444c51080d16157818238d3fc93070b245b671"
+  },
+  "diffCheckExitCode": 0,
+  "reviewSha256": {
+    "provider-payment-client-review.json": "a1b63ab06f6fcf2fe40338e4d3eff80643bfce625215f1043f1742abd3efe80a",
+    "legacy-paid-copy-review.json": "d3b7285fb3e58c93d1957239472e987a8391692dca4891a40cc3f4b068cf4990"
+  }
+}

@@ -297,12 +297,14 @@ export interface WebResearchSource {
   /** The engine's own relevance score, 0–1, when it gives one. */
   score?: number;
   /**
-   * The page itself, cleaned and capped, kept only for an explicit paid level
+   * A cleaned, bounded model preview, kept only for an explicit paid level
    * (`content-factory-next-75xn.29`). Both engines already send the page
    * inside the search answer; throwing it away and buying it again elsewhere
    * was the one thing the owner refused. Absent for the free lanes.
    */
   text?: string;
+  /** Complete provider-returned page for owned snapshot reads; never a prompt preview. */
+  fullText?: string;
 }
 
 export interface WebResearchFact {
@@ -1290,7 +1292,7 @@ const providerSnippetExcerpt = (value: string | undefined) => {
 };
 
 /**
- * The page as material for the digest that turns findings into claims
+ * The page preview for the digest that turns findings into claims
  * (`content-factory-next-75xn.29`): cleaned of chrome the same way an excerpt
  * is, cut at a paragraph, and capped so five deep-level pages stay inside one
  * prompt. Kept only on an explicit paid level.
@@ -1763,7 +1765,7 @@ export class WebResearchService {
       const model = await getChatModel(
         organizationId,
         0,
-        RESEARCH_SUMMARY_MAX_TOKENS,
+        Math.min(4_096, RESEARCH_SUMMARY_MAX_TOKENS + 40 * Math.max(0, input.evidence.sources.length - 8)),
         'classify'
       );
       readerDeadline?.check();
@@ -1937,9 +1939,8 @@ Untrusted research data: {evidence}`
     const scopedReader =
       options.readerResponse === true &&
       !!options.language &&
-      !callerQueries(options, level).length &&
       task !== 'discovery';
-    const key = `${organizationId}|${searchRouteFingerprint(
+    const key = `${organizationId}|retained-source-v1|${searchRouteFingerprint(
       config.search
     )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${JSON.stringify(options.researchIntent ?? null)}${options.researchIntent?.eventInterval ? '|event-material-v2' : ''}|${
       options.language ?? ''
@@ -1966,9 +1967,9 @@ Untrusted research data: {evidence}`
       throw new WebSearchNotConfigured();
     }
 
-    type UsageScope = Awaited<
+    type UsageScope = Pick<Awaited<
       ReturnType<AiUsageService['beginAiOperationWithConfig']>
-    >;
+    >, 'run' | 'track' | 'finish'>;
     const scopes = new Map<
       SearchCredentialSource,
       { scope: UsageScope; succeeded: boolean; error?: unknown }
@@ -2208,7 +2209,6 @@ Untrusted research data: {evidence}`
     const scopedReader =
       options.readerResponse === true &&
       !!options.language &&
-      !supplied.length &&
       task !== 'discovery';
     const dateConstraint =
       scopedReader && subject.length <= CLASSIFIER_SUBJECT_CHARS
@@ -2627,14 +2627,15 @@ Untrusted research data: {evidence}`
     );
     const providerCap = Math.max(1, preset.maxSources - reservedForLane);
 
-    // Event retrieval must select useful sections and share the existing
+    // Explicit event retrieval and reader multi-query work share the existing
     // material budget before FIFO admission can consume it. Round-robin rows
-    // keep one locale/query from occupying the source cap by itself.
+    // keep one locale/query from occupying the source cap by itself. The full
+    // original page remains available to the semantic reader and private reuse.
     let materialResponses = responses;
     const eventIntent = options.researchIntent?.eventInterval
       ? options.researchIntent
       : undefined;
-    if (eventIntent) {
+    if (eventIntent || (scopedReader && responses.length > 1)) {
       const candidates: Array<{
         provider: SearchProvider;
         keySource: SearchCredentialSource;
@@ -2654,8 +2655,8 @@ Untrusted research data: {evidence}`
           const raw = item.rawContent
             ? cleanExcerpt(item.rawContent.slice(0, PAGE_TEXT_SCAN_LIMIT)).text
             : undefined;
-          const dated = researchEventMaterial(raw, eventIntent, PAGE_TEXT_SCAN_LIMIT)
-            ?? researchEventMaterial(snippet, eventIntent, PAGE_TEXT_SCAN_LIMIT);
+          const dated = eventIntent ? researchEventMaterial(raw, eventIntent, PAGE_TEXT_SCAN_LIMIT)
+            ?? researchEventMaterial(snippet, eventIntent, PAGE_TEXT_SCAN_LIMIT) : undefined;
           const excerpt = dated ?? snippet ?? wholePageExcerpt(item.rawContent);
           const candidate = { provider, keySource, item, excerpt, dated: !!dated };
           const previous = seen.get(url);
@@ -2715,7 +2716,7 @@ Untrusted research data: {evidence}`
           : paragraph;
         return {
           provider: row.provider, keySource: row.keySource,
-          response: { results: [{ ...row.item, content: excerpt, rawContent: excerpt }] },
+          response: { results: [{ ...row.item, content: excerpt }] },
         };
       });
     }
@@ -2758,7 +2759,7 @@ Untrusted research data: {evidence}`
             ? item.score
             : undefined;
         const text = options.levelWasExplicit
-          ? pageText(item.rawContent)
+          ? pageText(eventIntent ? item.content : item.rawContent)
           : undefined;
         sources.set(url, {
           url,
@@ -2767,6 +2768,7 @@ Untrusted research data: {evidence}`
           provider,
           ...(score !== undefined ? { score } : {}),
           ...(text ? { text } : {}),
+          ...(options.levelWasExplicit && item.rawContent ? { fullText: item.rawContent } : {}),
         });
         if (!excerpt || remainingContent <= 0) {
           countProvider(!excerpt ? 'noUsableExcerpt' : 'contentExhausted');

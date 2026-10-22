@@ -5,8 +5,10 @@ import {
   Injectable,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { MastraDBMessage } from '@mastra/core/memory';
+import { isDurableAgent } from '@mastra/core/agent/durable';
 import { toAISdkMessages } from '@mastra/ai-sdk/ui';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import type {
@@ -53,6 +55,7 @@ import {
   agentCallAnswered,
   approvalContentShown,
   claimAgentRun,
+  agentRunClaimKey,
   inProcessRunClaimStore,
   markAgentCallsAnswered,
   rememberApprovalContent,
@@ -66,6 +69,8 @@ import {
   writeAgentThreadExecution,
 } from './agent-turn-lifecycle';
 import { redactSecretShapes } from './secret-shapes';
+import { AGENT_NATIVE_RUN_METADATA_KEY, observeNativeRun } from './native-session-stream';
+import { NativeReplayCompleteError } from './native-run-observer';
 
 const redactObservabilityValue = (value: unknown, depth = 0): unknown => {
   if (depth > 4) return '[truncated]';
@@ -171,24 +176,12 @@ const normalizeObjectiveRecord = (
 
 export type ActiveThreadTurnHandle = {
   requestId: string;
-  threadId: string;
-  resourceId: string;
-  emitPart: (part: unknown) => void;
-  finishStream: () => void;
-  subscribe: (
-    listener: (event: { part?: unknown; done?: boolean }) => void
-  ) => () => void;
   stop: () => Promise<void>;
+  finishStream: () => void;
+  settled?: Promise<void>;
 };
 
-const isDurableConductorLike = (agent: unknown): boolean =>
-  Boolean(
-    agent &&
-      typeof agent === 'object' &&
-      'runRegistry' in agent &&
-      typeof (agent as { recover?: unknown }).recover === 'function' &&
-      typeof (agent as { observe?: unknown }).observe === 'function'
-  );
+const isDurableConductorLike = (agent: unknown): boolean => isDurableAgent(agent);
 
 /**
  * Personal threads (`content-factory-next-kcxz.8`, spec §1.6, §4.7; premortem
@@ -374,53 +367,20 @@ export class AgentThreadsService {
     threadId: string;
     requestId: string;
     onStop: () => void | Promise<void>;
+    settled?: Promise<void>;
   }): ActiveThreadTurnHandle {
     const resourceId = conductorResourceId(
       args.identity.organizationId,
       args.identity.userId
     );
     const key = `${resourceId}:${args.threadId}`;
-    const bufferedParts: unknown[] = [];
-    const listeners = new Set<(event: { part?: unknown; done?: boolean }) => void>();
-    let finished = false;
     const handle: ActiveThreadTurnHandle = {
       requestId: args.requestId,
-      threadId: args.threadId,
-      resourceId,
-      emitPart: (part) => {
-        if (finished) return;
-        bufferedParts.push(part);
-        for (const listener of listeners) {
-          listener({ part });
-        }
-      },
+      settled: args.settled,
       finishStream: () => {
-        if (finished) return;
-        finished = true;
-        if (this.activeTurns.get(key) === handle) {
-          this.activeTurns.delete(key);
-        }
-        for (const listener of listeners) {
-          listener({ done: true });
-        }
-        listeners.clear();
+        if (this.activeTurns.get(key) === handle) this.activeTurns.delete(key);
       },
-      subscribe: (listener) => {
-        for (const part of bufferedParts) {
-          listener({ part });
-        }
-        if (finished) {
-          listener({ done: true });
-          return () => undefined;
-        }
-        listeners.add(listener);
-        return () => {
-          listeners.delete(listener);
-        };
-      },
-      stop: async () => {
-        await args.onStop();
-      },
+      stop: async () => { await args.onStop(); },
     };
     this.activeTurns.set(key, handle);
     return handle;
@@ -435,6 +395,93 @@ export class AgentThreadsService {
     return this.activeTurns.get(`${resourceId}:${threadId}`) ?? null;
   }
 
+  async readNativeRun(identity: CapabilityIdentity, threadId: string) {
+    const thread = await this.requireOwnThread(identity, threadId);
+    const value = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY];
+    return value && typeof value === 'object' && typeof (value as any).runId === 'string'
+      ? value as { runId: string; logicalRequestId?: string; state?: string; [key: string]: unknown }
+      : null;
+  }
+
+  async rememberNativeRun(identity: CapabilityIdentity, threadId: string, runId: string, logicalRequestId: string) {
+    await this.writeWorkspace(threadId, async () => {
+      const saved = await this.readNativeRun(identity, threadId);
+      await (await this.memory()).updateThread({ id: threadId, metadata: {
+        [AGENT_NATIVE_RUN_METADATA_KEY]: {
+          ...(saved?.logicalRequestId === logicalRequestId ? saved : {}),
+          runId, logicalRequestId, state: 'running',
+        },
+      } });
+    });
+  }
+
+  async rememberNativeResponse(identity: CapabilityIdentity, threadId: string, runId: string, messageId: string) {
+    await this.writeWorkspace(threadId, async () => {
+      const thread = await this.requireOwnThread(identity, threadId);
+      const pointer = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown> | undefined;
+      if (pointer?.runId !== runId || pointer.state === 'stopped') return;
+      await (await this.memory()).updateThread({ id: threadId, metadata: {
+        [AGENT_NATIVE_RUN_METADATA_KEY]: { ...pointer, response: { runId, messageId } },
+      } });
+    });
+  }
+
+  /** Only the exact native response and its settled owner can replace expired replay. */
+  async completedNativeResponse(identity: CapabilityIdentity, threadId: string, runId: string): Promise<boolean> {
+    const thread = await this.requireOwnThread(identity, threadId);
+    const pointer = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, any> | undefined;
+    const marker = thread.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+    if (pointer?.runId !== runId || !pointer.logicalRequestId || pointer.state === 'stopped' || marker?.stopRequested === true ||
+      pointer.response?.runId !== runId || typeof pointer.response.messageId !== 'string') return false;
+    const execution = await readAgentThreadExecution(this.claims, thread.metadata).catch(refusedWhenUnavailable);
+    if (execution?.requestId !== pointer.logicalRequestId || execution.state !== 'settled' || execution.outcome !== 'completed') return false;
+    const { messages } = await this.readMessages(identity, threadId, { page: 0, perPage: AGENT_HISTORY_MESSAGES });
+    if (!messages.some(message => message.role === 'assistant' && message.id === pointer.response.messageId)) return false;
+    // Stop or a successor can commit while Memory is being read. Its newer
+    // pointer must win over this reader's earlier completed snapshot.
+    const latest = await this.requireOwnThread(identity, threadId);
+    const current = latest.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, any> | undefined;
+    const latestMarker = latest.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+    if (current?.runId !== runId || current.logicalRequestId !== pointer.logicalRequestId || current.state === 'stopped' ||
+      latestMarker?.stopRequested === true || current.response?.runId !== runId || current.response.messageId !== pointer.response.messageId) return false;
+    const terminal = await readAgentThreadExecution(this.claims, latest.metadata).catch(refusedWhenUnavailable);
+    return terminal?.requestId === pointer.logicalRequestId && terminal.state === 'settled' && terminal.outcome === 'completed';
+  }
+
+  async rememberSignalReceipt(identity: CapabilityIdentity, threadId: string, receipt: {
+    id: string; text: string; kind: string; durability: 'native' | 'process'; state?: 'unknown';
+  }) {
+    await this.writeWorkspace(threadId, async () => {
+      const thread = await this.requireOwnThread(identity, threadId);
+      const previous = Array.isArray(thread.metadata?.assistantSignalReceipts)
+        ? thread.metadata!.assistantSignalReceipts as any[] : [];
+      await (await this.memory()).updateThread({ id: threadId, metadata: {
+        // UI acceptance receipts only. Native Session owns the actual queue.
+        assistantSignalReceipts: [...previous.filter(item => item.id !== receipt.id), {
+          ...receipt, text: receipt.text.slice(0, 2000), acceptedAt: new Date().toISOString(),
+        }].slice(-16),
+      } });
+    });
+  }
+
+  async observeTurn(identity: CapabilityIdentity, threadId: string, onError: (error: unknown) => string) {
+    const pointer = await this.readNativeRun(identity, threadId);
+    if (!pointer) return null;
+    const agent = await this.conductor() as any;
+    if (typeof agent.observe !== 'function') return null;
+    try {
+      return await observeNativeRun({
+        agent, runId: pointer.runId, follow: false, onError,
+        isComplete: () => this.completedNativeResponse(identity, threadId, pointer.runId),
+        onMessageId: (runId, messageId) => this.rememberNativeResponse(identity, threadId, runId, messageId),
+        nextRunId: async () => (await this.readNativeRun(identity, threadId))?.runId,
+      });
+    } catch (error) {
+      if (error instanceof NativeReplayCompleteError) return null;
+      throw error;
+    }
+  }
+
   /**
    * Explicitly stops an in-flight turn on the caller's thread (`on0i.3`, `A13`).
    */
@@ -446,6 +493,15 @@ export class AgentThreadsService {
     );
     const key = `${resourceId}:${threadId}`;
     const active = this.activeTurns.get(key);
+    const pointer = await this.readNativeRun(identity, threadId);
+    // Native cancellation may finish/remove the HTTP owner before it returns.
+    // Keep this Stop tied to its owned task, including after a process restart.
+    const requestId = active?.requestId ?? (
+      pointer?.runId.trim() && typeof pointer.logicalRequestId === 'string' && pointer.logicalRequestId.trim()
+        ? pointer.logicalRequestId : null
+    );
+    await this.mastraService.cancelNativeQueuedInputs?.(threadId);
+    if (pointer) await this.mastraService.cancelModelAvailability?.(pointer.runId, threadId);
     if (active) {
       await active.stop();
     }
@@ -456,6 +512,7 @@ export class AgentThreadsService {
             threadId: string;
             clearPendingSignals?: boolean;
           }) => boolean;
+          abortRunStream?: (runId: string) => void;
         })
       | null;
     const abortedNative =
@@ -464,16 +521,45 @@ export class AgentThreadsService {
         threadId,
         clearPendingSignals: true,
       }) ?? false;
+    if (pointer) conductor?.abortRunStream?.(pointer.runId);
     const session = await this.sessionFor(identity, threadId).catch((): undefined => undefined);
     try {
       await session?.abort?.();
     } catch {
       // Best-effort session abort.
     }
+    // Abort requests and HTTP reader teardown can precede the real service
+    // Promises and terminal Memory write. Await only this captured owner;
+    // a successor must never replace the task acknowledged by this Stop.
+    await active?.settled;
+    if (isDurableAgent(conductor)) {
+      const captured = pointer?.logicalRequestId === requestId ? pointer : null;
+      const latest = await this.readNativeRun(identity, threadId);
+      // onMessageId can still be committing when Stop captures the task. Read
+      // its proof after drain, without adopting another request or native run.
+      const owned = latest?.logicalRequestId === requestId && (!captured || latest.runId === captured.runId)
+        ? latest : captured;
+      const response = owned?.response && typeof owned.response === 'object'
+        ? owned.response as { runId?: unknown; messageId?: unknown } : undefined;
+      // Native save queues may swallow storage failures before FINISH. An
+      // exact saved response, rather than EOF alone, acknowledges its tail.
+      if (abortedNative && !owned) {
+        throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+      }
+      if (owned) {
+        if (response?.runId !== owned.runId || typeof response.messageId !== 'string' || !response.messageId) {
+          throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+        }
+        const saved = await this.readMessages(identity, threadId);
+        if (!saved.messages.some(message => message.role === 'assistant' && message.id === response.messageId)) {
+          throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+        }
+      }
+    }
     return {
-      stopped: Boolean(active || abortedNative),
+      stopped: Boolean(active || abortedNative || pointer),
       threadId,
-      requestId: active?.requestId ?? null,
+      requestId,
     };
   }
 
@@ -493,9 +579,20 @@ export class AgentThreadsService {
   }
 
   /** One web turn per private thread, including work left running by Stop. */
-  async claimThreadTurn(identity: CapabilityIdentity, threadId: string) {
+  async claimThreadTurn(identity: CapabilityIdentity, threadId: string, options?: { nativeResumeRunId: string }) {
     await this.ownThread(identity, threadId);
     const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    if (options?.nativeResumeRunId) {
+      const pointer = await this.readNativeRun(identity, threadId);
+      const pending = await this.pendingRuns(identity, threadId);
+      if (!await this.isDurableConductor() || pointer?.runId !== options.nativeResumeRunId ||
+        !pending.some(run => run.runId === options.nativeResumeRunId)) throw notPending();
+      // A positively suspended native checkpoint owns this continuation;
+      // the former process's app lease cannot delay its public fenced resume.
+      // Durable operation receipts still reject uncertain writes. Retire the
+      // obsolete app lease only after the resumed task's real work settles.
+      return async () => { await this.claims.del(agentRunClaimKey(`thread:${resourceId}:${threadId}`)); };
+    }
     const release = await this.claimRun(`thread:${resourceId}:${threadId}`, {
       renewIntervalMs: AGENT_RUN_CLAIM_RENEW_INTERVAL_MS,
     });
@@ -795,10 +892,10 @@ export class AgentThreadsService {
   }
 
   /** The thread an answer on a card continues: it must exist and be the caller's. */
-  async threadForAnswer(identity: CapabilityIdentity, threadId: string) {
+  async threadForAnswer(identity: CapabilityIdentity, threadId: string, options?: { bindSession?: boolean }) {
     const thread = await this.ownThread(identity, threadId);
     if (!thread) throw notYours();
-    await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
+    if (options?.bindSession !== false) await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
     return thread;
   }
 
@@ -875,6 +972,7 @@ export class AgentThreadsService {
     // Read before the snapshot: a write unfinished when this GET began must
     // remain unfinished in its response even if it completes during recall.
     const execution = await readAgentThreadExecution(this.claims, thread.metadata).catch(refusedWhenUnavailable);
+    const nativeRun = await this.readNativeRun(identity, threadId);
     const [{ messages, pagination }, runs] = await Promise.all([
       this.readMessages(identity, threadId, options),
       this.pendingRuns(identity, threadId),
@@ -889,8 +987,16 @@ export class AgentThreadsService {
         }
       }
     }
+    const visibleMessages = messages.map((message: any) => {
+      // Native Session stores human turns as user signals. Render them as the
+      // person's message while preserving signal metadata for native replay.
+      if (message.role === 'signal' && message.content?.metadata?.signal?.type === 'user') {
+        return { ...message, role: 'user' };
+      }
+      return message;
+    });
     const uiMessages = (
-      toAISdkMessages(messages as any, {
+      toAISdkMessages(visibleMessages as any, {
         version: AGENT_STREAM_VERSION,
       }) as unknown[]
     ).map((item) => {
@@ -930,7 +1036,8 @@ export class AgentThreadsService {
       pending: await pendingView(runs, (toolName, args) =>
         this.describeApproval(identity, toolName, args)
       ),
-      ...(execution ? { execution } : {}),
+      ...(execution ? { execution: { ...execution, ...(nativeRun ? { runId: nativeRun.runId } : {}) } } : {}),
+      ...(Array.isArray(thread.metadata?.assistantSignalReceipts) ? { signalReceipts: thread.metadata!.assistantSignalReceipts } : {}),
     };
   }
 
@@ -1170,8 +1277,8 @@ export class AgentThreadsService {
   }
 
   private async goalStore() {
-    const mastra = await this.mastraService.mastra().catch(() => null);
-    const memory = await this.memory().catch(() => null);
+    const mastra = await this.mastraService.mastra().catch((): null => null);
+    const memory = await this.memory().catch((): null => null);
     return resolveConductorGoalStore({ mastra, memory });
   }
 
@@ -1402,8 +1509,8 @@ export class AgentThreadsService {
   }
 
   /**
-   * Native Mastra 1.78 observability query (`querySpans`, `aggregateTraces`,
-   * `listTraces`) scoped to an owned thread (`on0i.7`, Section 4 row 25).
+   * Native Mastra 1.78 legacy PostgreSQL `listTraces` / `getTrace` queries
+   * scoped to an owned thread (`on0i.7`, Section 4 row 25).
    * Redacts secret shapes across span names, previews, attributes, and errors,
    * and returns coverage-aware usage metrics (`isInvoice: false`).
    */
@@ -1432,66 +1539,71 @@ export class AgentThreadsService {
       .getStorage?.()
       ?.getStore?.('observability')) as
       | {
-          querySpans?: (args: Record<string, unknown>) => Promise<unknown>;
-          aggregateTraces?: (args: Record<string, unknown>) => Promise<unknown>;
-          listTraces?: (args: Record<string, unknown>) => Promise<unknown>;
+          listTraces?: (args: {
+            filters: { threadId: string; resourceId: string };
+            pagination: { page: number; perPage: number };
+          }) => Promise<{ spans: any[]; pagination?: { hasMore?: boolean } }>;
+          getTrace?: (args: { traceId: string }) => Promise<{ spans: any[] } | null>;
         }
       | undefined;
 
-    let rawSpans: any[] = [];
-    let rawAggregate: Record<string, unknown> | null = null;
-    if (observability?.querySpans) {
-      const queried = (await observability.querySpans({
-        filters: { threadId, resourceId },
-      })) as any;
-      rawSpans = Array.isArray(queried)
-        ? queried
-        : Array.isArray(queried?.spans)
-          ? queried.spans
-          : Array.isArray(queried?.items)
-            ? queried.items
-            : [];
-    } else if (observability?.listTraces) {
-      const listed = (await observability.listTraces({
+    const scopeValues = (span: any, key: 'threadId' | 'resourceId') =>
+      [span?.[key], span?.attributes?.[key], span?.metadata?.[key]]
+        .filter(value => value !== null && value !== undefined && value !== '');
+    const conflicts = (span: any) =>
+      scopeValues(span, 'threadId').some(value => value !== threadId) ||
+      scopeValues(span, 'resourceId').some(value => value !== resourceId);
+    const spanKey = (span: any) =>
+      `${String(span?.traceId ?? '')}:${String(span?.spanId ?? span?.id ?? '')}`;
+    const roots: any[] = [];
+    const rawSpans: any[] = [];
+    let tracesTruncated = false;
+    // Legacy PostgresStore supports these public APIs. Inherited querySpans /
+    // aggregateTraces methods exist but throw; method presence is not capability.
+    if (observability?.listTraces) {
+      const listed = await observability.listTraces({
         filters: { threadId, resourceId },
         pagination: { page: 0, perPage: 50 },
-      })) as any;
-      const traces = Array.isArray(listed)
-        ? listed
-        : Array.isArray(listed?.traces)
-          ? listed.traces
-          : [];
-      for (const trace of traces) {
-        if (Array.isArray(trace?.spans)) {
-          rawSpans.push(...trace.spans);
-        } else if (trace && typeof trace === 'object') {
-          rawSpans.push(trace);
+      });
+      tracesTruncated = listed.pagination?.hasMore === true;
+      roots.push(...(Array.isArray(listed.spans) ? listed.spans : []).filter(span =>
+        !conflicts(span) && scopeValues(span, 'threadId').length > 0 &&
+        scopeValues(span, 'resourceId').length > 0
+      ));
+      rawSpans.push(...roots);
+      if (observability.getTrace) {
+        for (const traceId of new Set(roots.map(span => String(span.traceId || '')).filter(Boolean))) {
+          const trace = await observability.getTrace({ traceId });
+          if (Array.isArray(trace?.spans)) rawSpans.push(...trace.spans);
         }
       }
     }
 
-    if (observability?.aggregateTraces) {
-      const agg = await observability.aggregateTraces({
-        filters: { threadId, resourceId },
-      });
-      if (agg && typeof agg === 'object') {
-        rawAggregate = redactObservabilityValue(agg) as Record<string, unknown>;
+    const byId = new Map<string, any>();
+    for (const span of rawSpans) byId.set(spanKey(span), { ...byId.get(spanKey(span)), ...span });
+    const anchors = new Set(roots.map(spanKey));
+    const ownership = new Map<string, boolean>();
+    const belongsToOwner = (span: any) => {
+      const path: string[] = [];
+      const seen = new Set<string>();
+      let current = span;
+      let owned = false;
+      while (current) {
+        const key = spanKey(current);
+        if (ownership.has(key)) { owned = ownership.get(key)!; break; }
+        if (seen.has(key) || conflicts(current)) break;
+        seen.add(key);
+        path.push(key);
+        if (anchors.has(key)) { owned = true; break; }
+        if (!current.parentSpanId) break;
+        current = byId.get(`${String(current.traceId || '')}:${String(current.parentSpanId)}`);
       }
-    }
-
-    const scopedSpans = rawSpans.filter((span) => {
-      const spanThread =
-        span?.threadId ??
-        span?.attributes?.threadId ??
-        span?.metadata?.threadId;
-      const spanResource =
-        span?.resourceId ??
-        span?.attributes?.resourceId ??
-        span?.metadata?.resourceId;
-      if (spanThread && spanThread !== threadId) return false;
-      if (spanResource && spanResource !== resourceId) return false;
-      return true;
-    });
+      for (const key of path) ownership.set(key, owned);
+      return owned;
+    };
+    // A scope-less child inherits only through a verified native root/parent
+    // chain; an explicit conflict anywhere in that chain is never inherited.
+    const scopedSpans = [...byId.values()].filter(belongsToOwner);
 
     const spans = scopedSpans.map((span) => {
       const spanId = String(span?.spanId ?? span?.id ?? '');
@@ -1542,10 +1654,19 @@ export class AgentThreadsService {
       threadId,
       spans,
       linkedSpans,
-      aggregate: rawAggregate ?? {
+      aggregate: {
         totalTraces: traceIds.size,
         totalSpans: spans.length,
         errorCount,
+      },
+      nativeQueries: {
+        listTraces: Boolean(observability?.listTraces),
+        getTrace: Boolean(observability?.getTrace),
+        querySpans: 'unsupported' as const,
+        aggregateTraces: 'unsupported' as const,
+        metrics: 'unsupported' as const,
+        rootTraceLimit: 50,
+        tracesTruncated,
       },
       execution: await readAgentThreadExecution(
         this.claims,
@@ -1645,7 +1766,7 @@ export class AgentThreadsService {
             resourceId,
             limit,
           })
-          .catch(() => []);
+          .catch((): any[] => []);
         if (Array.isArray(items)) {
           for (const item of items) {
             if (
@@ -1708,7 +1829,7 @@ export class AgentThreadsService {
           page: 0,
           perPage: limit,
         })
-        .catch(() => ({ tasks: [] }));
+        .catch((): { tasks: any[] } => ({ tasks: [] }));
       const tasks = Array.isArray(taskResult?.tasks)
         ? taskResult.tasks
         : Array.isArray(taskResult)
@@ -1806,7 +1927,7 @@ export class AgentThreadsService {
     for (const tid of candidateThreadIds) {
       const existing = await store
         .getNotification?.({ threadId: tid, id: notificationId })
-        .catch(() => null);
+        .catch((): null => null);
       if (existing) {
         if (existing.resourceId && existing.resourceId !== resourceId) {
           throw notYours();
@@ -1875,7 +1996,7 @@ export class AgentThreadsService {
           resourceId,
           status: ['pending', 'delivered'],
         })
-        .catch(() => []);
+        .catch((): any[] => []);
       const ids = Array.isArray(list)
         ? list
             .filter(
@@ -1894,13 +2015,13 @@ export class AgentThreadsService {
               ids,
               status: 'seen',
             })
-            .catch(() => []);
+            .catch((): any[] => []);
           markedCount += Array.isArray(updated) ? updated.length : ids.length;
         } else if (typeof store.updateNotification === 'function') {
           for (const id of ids) {
             await store
               .updateNotification({ id, threadId: tid, status: 'seen' })
-              .catch(() => null);
+              .catch((): null => null);
             markedCount += 1;
           }
         }

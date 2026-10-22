@@ -100,7 +100,10 @@ describe('assistant context and interrupted response recovery', () => {
     expect(chat.messages).toEqual([person, saved]);
     expect(chat.sent).toEqual([]);
     expect(chat.regenerated ?? 0).toBe(0);
-    expect(reads.every((read) => read.method === 'GET')).toBe(true);
+    expect(reads.filter(read => read.method === 'POST')).toEqual([
+      { url: contract.AGENT_DOORS.stopThread('t1'), method: 'POST' },
+    ]);
+    expect(reads.filter(read => read.method !== 'POST').every(read => read.method === 'GET')).toBe(true);
   });
 
   test('Stop during proven local preparation needs no nonexistent server execution marker', async () => {
@@ -119,11 +122,46 @@ describe('assistant context and interrupted response recovery', () => {
   });
 
   test('network failure cannot offer automatic regeneration of an uncertain write', async () => {
-    const { chat, view, redraw } = await drawConversation({ messages: [person, laterReply], pending: [] });
+    const pendingReads = [];
+    const { chat, view, redraw } = await drawConversation({ messages: [person, laterReply], pending: [],
+      request: async () => new Promise(resolve => pendingReads.push(resolve)),
+    });
     chat.status = 'error'; chat.error = new TypeError('Failed to fetch');
+    // The installed SDK emits both callbacks before its asynchronous history
+    // check can finish. An unknown write must already be blocked then.
+    await act(async () => {
+      chat.options.onError(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: true });
+    });
+    await redraw();
+    try {
+      expect(document.querySelector('fieldset').disabled).toBe(true);
+      expect(view.getByText('Check saved result')).not.toBeNull();
+      await act(async () => chat.submit({ text: 'Repeat the uncertain write', files: [] }));
+      expect(chat.regenerated ?? 0).toBe(0);
+      expect(chat.sent).toEqual([]);
+    } finally {
+      await act(async () => { for (const resolve of pendingReads) resolve({ ok: false }); });
+    }
+  });
+  test('a failed observer remains blocked until native history verifies its resumable owner', async () => {
+    const pendingReads = [];
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [],
+      request: async () => new Promise(resolve => pendingReads.push(resolve)),
+    });
+    chat.status = 'error'; chat.error = new TypeError('Failed to fetch');
+    await act(async () => {
+      chat.options.onError(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: true });
+    });
     await redraw();
     expect(document.querySelector('fieldset').disabled).toBe(true);
-    expect(view.getByText('Check saved result')).not.toBeNull();
+    expect(chat.resumed ?? 0).toBe(0);
+    await act(async () => { for (const resolve of pendingReads) resolve({ ok: true, json: async () => ({
+      messages: [person], pending: [], execution: { requestId: 'active-native', runId: 'native-running-owner', state: 'running' },
+    }) }); });
+    await redraw();
+    expect(chat.resumed).toBe(1);
     expect(chat.regenerated ?? 0).toBe(0);
     expect(chat.sent).toEqual([]);
   });
@@ -183,18 +221,29 @@ describe('assistant context and interrupted response recovery', () => {
     expect(chat.sent).toEqual([]);
     expect(chat.regenerated ?? 0).toBe(0);
   });
-  test('a queued instruction retains its selected object while ordinary send-time context can change', async () => {
+  test('a native busy instruction retains its selected object while ordinary send-time context can change', async () => {
     const first = { version: 'assistant-work-context/v1', kind: 'piece', id: 'p1' };
     const next = { ...first, id: 'p2' };
-    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], extra: { workContext: first } });
+    const signals = [];
+    const { chat, redraw } = await drawConversation({ messages: [person], pending: [], extra: { workContext: first },
+      request: async (url, init) => {
+        if (url.endsWith('/signals')) {
+          signals.push(JSON.parse(init.body));
+          return { ok: true, json: async () => ({ accepted: true, durability: 'native' }) };
+        }
+        return { ok: false };
+      },
+    });
     chat.status = 'streaming';
     await redraw();
     await act(async () => chat.submit({ text: 'Shorten this text', files: [] }));
     await redraw({ workContext: next });
     chat.status = 'ready';
     await redraw();
-    expect(chat.sent).toHaveLength(1);
-    expect(chat.sent[0][1].body.workContext).toEqual(first);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toMatchObject({ kind: 'deliver', workContext: first,
+      message: { role: 'user', parts: [{ type: 'text', text: 'Shorten this text' }] } });
+    expect(chat.sent).toEqual([]);
     expect(chat.transport.currentContext()).toEqual(next);
   });
   test('history refresh updates the same target revision and ignores a different persisted selection', async () => {
@@ -289,6 +338,7 @@ const loadConversation = (chat, request) =>
             chat.status = 'submitted';
           },
           stop: () => { chat.stops = (chat.stops ?? 0) + 1; chat.status = 'ready'; },
+          resumeStream: async () => { chat.resumed = (chat.resumed ?? 0) + 1; },
           clearError: () => {
             chat.cleared += 1;
             if (chat.status === 'error') {
@@ -429,9 +479,16 @@ describe('retained assistant foreground reads', () => {
     await act(async () => fireEvent.click(view.getByText('Fixture stop')));
     await redraw();
     await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
-    expect(request).toHaveBeenCalledTimes(1);
+    // Explicit Stop reaches the native owner and hydrates its saved result;
+    // the deferred foreground refresh is still only one read of its own.
+    expect(request.mock.calls.filter(([, init]) => init?.method === 'POST')).toEqual([
+      [contract.AGENT_DOORS.stopThread('t1'), { method: 'POST' }],
+    ]);
+    expect(request.mock.calls.filter(([, init]) => !init?.method || init.method === 'GET')).toHaveLength(2);
     expect(document.querySelector('fieldset').disabled).toBe(true);
-    expect(chat.messages).toEqual([person]);
+    // Stop may read a bounded/lagging snapshot before its new human commits.
+    // Keep the already visible human while adopting the saved native reply.
+    expect(chat.messages).toEqual([person, laterReply]);
     expect(chat.sent).toEqual([]);
     expect(chat.regenerated ?? 0).toBe(0);
   });
@@ -518,6 +575,10 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     });
     chat.status = 'error';
     chat.error = new TypeError('Failed to fetch');
+    await act(async () => {
+      chat.options.onError(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: true });
+    });
     await redraw();
     await redraw();
     expect(approvalOnScreen().getAttribute('data-agent-approval')).toBeNull();
@@ -837,7 +898,7 @@ describe('W3 recheck R-5 — the paid limit is a stop, not a failure', () => {
     expect(document.body.textContent).not.toContain(ru.error.kind);
     expect(document.body.textContent).toContain(ru.error.paidCapNote('Адаптировать под канал'));
     expect(ru.error.paidCapNote('Адаптировать под канал')).toBe(
-      'Адаптировать под канал — следующим сообщением: за одно сообщение один платный шаг.'
+      'Адаптировать под канал — шаг остановлен ограничением старой версии помощника. Проверьте сохранённые результаты перед продолжением.'
     );
     expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.next).toBe('Check saved results before continuing.');
   });

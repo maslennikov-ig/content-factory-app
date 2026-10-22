@@ -1,0 +1,14 @@
+{
+  "schema": "on0i-staged-artifact-format/1",
+  "scope": "Only this repair stage; no application/test/QA-helper changes",
+  "patches": "Native Git whitespace attribute disables only blank-at-eol for unified diff artifacts; context prefix spaces and review SHA bytes preserved",
+  "historicalNote": "Removed one unbound trailing blank line; historical wording/claims unchanged",
+  "historicalNoteBeforeSha256": "3282be5022c53101f64115f1d6927a701e452fbbc4622ef774c083cafdeff0f5",
+  "historicalNoteAfterSha256": "dea2c9127a6c0af8b372251f748810c334244a2ae625a7d2f7d6154cccffb5b0",
+  "stagedDiffWasInitiallyBlocked": true,
+  "privateScanScopeFix": "Include git diff --cached --name-only as well as working-tree changes so all indexed sources remain checked after staging.",
+  "nativeGitDocs": "Installed /usr/share/man/man5/gitattributes.5.gz, Checking whitespace errors",
+  "status": "PASS_FORMAT_SCOPED_NATIVE_GIT",
+  "stagedDiffCheckExitCode": 0,
+  "applicationWhitespaceAttribute": "unspecified; normal source checks preserved"
+}

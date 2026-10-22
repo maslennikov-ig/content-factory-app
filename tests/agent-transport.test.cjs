@@ -34,6 +34,16 @@ beforeAll(() => {
 }, 90_000);
 
 describe('the chat transport through the product fetch', () => {
+  test('SDK reconnect consumes the authenticated native thread observer', () => {
+    expect(report['native-reconnect'].error).toBeUndefined();
+    expect(report['native-reconnect'].seen).toEqual([{ method: 'GET', path: `/agent/threads/${THREAD}/observe` }]);
+    expect(report['native-reconnect'].parts).toEqual([{ type: 'start', messageId: 'replayed' }, { type: 'finish', finishReason: 'stop' }]);
+  });
+  test('released native replay refreshes authoritative history without a synthetic stream or a new chat POST', () => {
+    expect(report['native-replay-released'].error).toBeUndefined();
+    expect(report['native-replay-released'].seen).toEqual([{ method: 'GET', path: `/agent/threads/${THREAD}/observe` }]);
+    expect(report['native-replay-released'].parts).toEqual({ streamAbsent: true, hydrated: 1 });
+  });
   test.each(['pre-start-context', 'pre-start-allowance'])('%s retains explicit server pre-start proof as a typed refusal', (name) => {
     expect(report[name].notStarted).toBe(true);
     expect(report[name].status).toBe(name === 'pre-start-context' ? 400 : 402);

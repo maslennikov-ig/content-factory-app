@@ -11,6 +11,11 @@ import { stopAfterOpenProposalRefusal, stepNotes } from './conductor.steps';
 /** Technical fuses, not a definition of a completed task or a financial allowance. */
 export const CONDUCTOR_MAX_TASK_DURATION_MS = 24 * 60 * 60 * 1_000;
 
+// Bound each native answer/tool payload independently of the optional total
+// task accounting. An omitted ceiling can reserve the provider's entire output
+// window and reject an affordable short turn before it starts.
+const CONDUCTOR_OUTPUT_TOKEN_CEILING = 16_384;
+
 export const CONDUCTOR_EXECUTION_DEFAULTS = {
   maxDurationMs: 6 * AGENT_RUN_CLAIM_TTL_SECONDS * 1_000,
   emergencyMaxSteps: 64,
@@ -112,28 +117,38 @@ export class ConductorExecution {
   private unknownCostCalls = 0;
   private possiblyBilled = false;
   private providerCalls = 0;
+  private readonly seenResults = new Set<string>();
   private readonly results = new Map<string, number>();
   private notes: readonly string[] = [];
+  private readonly timeLimited: boolean;
+  private readonly stepLimited: boolean;
+  private readonly progressLimited: boolean;
 
   constructor(private readonly options: {
     requestId: string;
     policy?: ConductorExecutionPolicy;
     signal?: AbortSignal;
     now?: () => number;
+    native?: boolean;
+    initialStepNotes?: readonly string[];
   }) {
+    this.notes = [...(options.initialStepNotes ?? [])];
     this.policy = options.policy ?? readConductorExecutionPolicy();
+    this.timeLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_MAX_DURATION_MS;
+    this.stepLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_EMERGENCY_MAX_STEPS;
+    this.progressLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_MAX_IDENTICAL_TOOL_RESULTS;
     this.startedAt = this.now();
     this.signal = AbortSignal.any([
       ...(options.signal ? [options.signal] : []),
       this.halt.signal,
-      ...(options.now ? [] : [AbortSignal.timeout(this.policy.maxDurationMs)]),
+      ...(options.now || !this.timeLimited ? [] : [AbortSignal.timeout(this.policy.maxDurationMs)]),
     ]);
   }
 
   private now() { return (this.options.now ?? Date.now)(); }
 
   private check() {
-    if (!this.stopCode && this.now() - this.startedAt >= this.policy.maxDurationMs) this.stopCode = 'AGENT_TASK_TIME_BUDGET';
+    if (this.timeLimited && !this.stopCode && this.now() - this.startedAt >= this.policy.maxDurationMs) this.stopCode = 'AGENT_TASK_TIME_BUDGET';
     if (!this.stopCode && this.signal.aborted) {
       this.stopCode = this.signal.reason?.name === 'TimeoutError' ? 'AGENT_TASK_TIME_BUDGET' : 'AGENT_TASK_STOPPED';
     }
@@ -175,7 +190,10 @@ export class ConductorExecution {
     // A lost provider result is not permission to buy the same work again.
     if (call.possiblyBilled) {
       this.possiblyBilled = true;
-      this.stop('AGENT_TASK_UNCERTAIN');
+      // Native inference retries may repeat a possibly billed text/search
+      // attempt. Preserve that accounting uncertainty; domain-write and paid
+      // operation uncertainty is fenced by durable operation receipts.
+      if (!this.options.native || 'final' in call && call.final) this.stop('AGENT_TASK_UNCERTAIN');
     }
     if (this.policy.maxCostUsd !== undefined) {
       if (this.unknownCostCalls) this.stop('AGENT_TASK_COST_UNKNOWN');
@@ -188,8 +206,10 @@ export class ConductorExecution {
     return current.run(this, () => runWithAiExecutionUsage({
       researchAdmission: 'operation-allowance',
       signal: this.signal,
-      maxDurationMs: this.policy.maxDurationMs,
-      remainingMs: () => this.policy.maxDurationMs - (this.now() - this.startedAt),
+      ...(this.timeLimited ? {
+        maxDurationMs: this.policy.maxDurationMs,
+        remainingMs: () => this.policy.maxDurationMs - (this.now() - this.startedAt),
+      } : {}),
       beforeProviderCall: this.assertCanSpend,
       text: (call) => this.observe(call),
       search: (call) => this.observe(call),
@@ -197,24 +217,33 @@ export class ConductorExecution {
   }
 
   recordToolResult(toolName: string, input: unknown, output: unknown) {
+    if (!this.progressLimited) return;
     if (output === undefined) return; // Native suspension is an effective human boundary.
     const key = digest([toolName, input, output]);
+    if (!this.seenResults.has(key)) {
+      this.seenResults.add(key);
+      // New information resets repetition counts, while remembered digests
+      // prevent alternating old results from starting another window.
+      this.results.clear();
+    }
     const repeated = (this.results.get(key) ?? 0) + 1;
     this.results.set(key, repeated);
     if (repeated >= this.policy.maxIdenticalToolResults) this.stop('AGENT_TASK_NO_PROGRESS');
   }
 
   /** Native Mastra options; the model keeps all tools until a real fuse stops. */
-  streamOptions(notes: readonly string[] = []) {
+  streamOptions(notes: readonly string[] = this.notes) {
     this.notes = [...notes];
     const remaining = Math.max(1, this.policy.maxDurationMs - (this.now() - this.startedAt));
     const prepareNotes = stepNotes(notes);
     return {
-      maxSteps: this.policy.emergencyMaxSteps,
+      ...(this.stepLimited ? { maxSteps: this.policy.emergencyMaxSteps } : {}),
       toolCallConcurrency: 1,
       modelSettings: {
-        timeout: { totalMs: remaining },
-        ...(this.policy.maxTokens !== undefined ? { maxOutputTokens: Math.max(1, this.policy.maxTokens - this.tokens) } : {}),
+        ...(this.timeLimited ? { timeout: { totalMs: remaining } } : {}),
+        maxOutputTokens: this.policy.maxTokens === undefined
+          ? CONDUCTOR_OUTPUT_TOKEN_CEILING
+          : Math.min(CONDUCTOR_OUTPUT_TOKEN_CEILING, Math.max(1, this.policy.maxTokens - this.tokens)),
       },
       prepareStep: (args: Parameters<typeof prepareNotes>[0]) => {
         const active = current.getStore() ?? this;
@@ -227,8 +256,8 @@ export class ConductorExecution {
         active.steps += 1;
         // The transport already owns its one bounded length retry. A still
         // truncated native result cannot establish completed work.
-        if (step.finishReason === 'length') active.stop('AGENT_TASK_OPERATION_FAILED');
-        if (active.steps >= active.policy.emergencyMaxSteps && (step.toolCalls?.length || step.finishReason === 'tool-calls')) {
+        if (!active.options.native && step.finishReason === 'length') active.stop('AGENT_TASK_OPERATION_FAILED');
+        if (active.stepLimited && active.steps >= active.policy.emergencyMaxSteps && (step.toolCalls?.length || step.finishReason === 'tool-calls')) {
           active.stop('AGENT_TASK_EMERGENCY_FUSE');
         }
       },

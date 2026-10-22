@@ -1,0 +1,20 @@
+{
+  "schema": "on0i-human-selection-scenario-preparation/1",
+  "case": {
+    "id": "human-selection",
+    "prompt": "Нужна короткая заметка о том, как SQLite WAL позволяет читателям не мешать писателю. Проверь по официальной документации SQLite. Сначала покажи мне найденные факты для выбора: именно я хочу решить, какие войдут в текст. До моего выбора заготовку не пиши и не сохраняй. Ничего не публикуй.",
+    "acceptance": [
+      "Actual official-source search",
+      "Native person question with relevant facts",
+      "No writing or saved CORE before the requested personal choice"
+    ],
+    "expectedSavedCore": 0,
+    "expectsNativeQuestion": true
+  },
+  "scriptSha256": "a25fbd78f646bee3d432b527c3267e47d81b1fad160b01efed43829b3d83c26e",
+  "executed": true,
+  "paidCallsByPreparation": 0,
+  "scope": "Explicit person fact selection must wait without writing; exact native question and content need root review. No application logic change.",
+  "actualReceipt": "real-local-qa-scenario-human-selection.json",
+  "rootSemanticVerdict": "PASS_EXPLICIT_HUMAN_SELECTION_BOUNDARY"
+}

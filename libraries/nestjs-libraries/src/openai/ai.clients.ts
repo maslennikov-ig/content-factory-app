@@ -33,10 +33,15 @@ import {
   textChainBudgetMs,
   textChainFingerprint,
   maxTextChainBudgetMs,
+  isModelCompatibleWithProvider,
   withReasoningHeadroom,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import type { MastraDecisionModelInterface } from '@mastra/core/classifier';
 import { AISDKTranscription } from '@mastra/core/voice';
+import { Agent } from '@mastra/core/agent';
+import { RequestContext } from '@mastra/core/request-context';
+import { z } from 'zod';
+import { createNativeTextRetryConfig, nativeTextAbortSignal, setNativeTextMaxRetries } from './ai.native-retries';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -327,6 +332,32 @@ export interface MastraModelEntry {
 const mastraPrimarySdkMemo = memo<ReturnType<typeof createOpenAI>>();
 const mastraFallbackSdkMemo = memo<ReturnType<typeof createOpenAI>>();
 
+/** Every native-selected model uses exactly one metered HTTP attempt. */
+export const getMastraAiSdkProvider = async (
+  organizationId: string,
+  options?: { fallback?: boolean }
+) => {
+  const config = await requireActiveAiConfig(organizationId);
+  const fallback = options?.fallback === true;
+  const cache = fallback ? mastraFallbackSdkMemo : mastraPrimarySdkMemo;
+  return cache(identity(organizationId, config, fallback ? 'mastra-fallback' : 'mastra-primary'), () =>
+    createOpenAI({
+      apiKey: config.apiKey,
+      ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+      fetch: createTextChainFetch({
+        ...chainSourceOf(config),
+        ...(fallback ? {
+          textChain: config.textChain
+            ? { ...config.textChain, flex: false }
+            : { flex: false, fallbackModel: '', fallbackModels: [], fallbackDisabled: true },
+        } : {}),
+        profile: 'interactive',
+        singleModelAttempt: true,
+      }),
+    })
+  );
+};
+
 /**
  * Resolves the effective ordered fallback and retry policy for an organization
  * and role (`on0i.5`, `A16`, `A29`).
@@ -360,7 +391,8 @@ export const getOrderedTextChainPolicy = async (
  */
 export const getMastraAgentModelEntries = async (
   organizationId: string,
-  role?: AiRole
+  role?: AiRole,
+  options?: { modelId?: string }
 ): Promise<{
   entries: MastraModelEntry[];
   policy: OrderedTextChainPolicy;
@@ -369,42 +401,21 @@ export const getMastraAgentModelEntries = async (
 }> => {
   const config = await requireActiveAiConfig(organizationId);
   const chosen = activeRole(role);
-  const primaryModel = modelFor(chosen, config);
+  const override = options?.modelId?.trim();
+  if (override && (override.length > 200 || !isModelCompatibleWithProvider(override, config.provider))) {
+    throw new Error('The selected model is incompatible with the configured AI provider.');
+  }
+  const primaryModel = override || modelFor(chosen, config);
   const policy = resolveOrderedTextChainPolicy(config.textChain, {
     provider: config.provider,
     usageMode: config.usageMode,
     primaryModel,
     hasKey: Boolean(config.apiKey),
   });
-  const primaryProvider = mastraPrimarySdkMemo(
-    identity(organizationId, config, 'mastra-primary'),
-    () =>
-      createOpenAI({
-        apiKey: config.apiKey,
-        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
-        fetch: createTextChainFetch({
-          ...chainSourceOf(config),
-          profile: 'interactive',
-          singleModelAttempt: true,
-        }),
-      })
-  );
-  const fallbackProvider = mastraFallbackSdkMemo(
-    identity(organizationId, config, 'mastra-fallback'),
-    () =>
-      createOpenAI({
-        apiKey: config.apiKey,
-        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
-        fetch: createTextChainFetch({
-          ...chainSourceOf(config),
-          textChain: config.textChain
-            ? { ...config.textChain, flex: false }
-            : { flex: false, fallbackModel: '', fallbackModels: [], fallbackDisabled: true },
-          profile: 'interactive',
-          singleModelAttempt: true,
-        }),
-      })
-  );
+  const [primaryProvider, fallbackProvider] = await Promise.all([
+    getMastraAiSdkProvider(organizationId),
+    getMastraAiSdkProvider(organizationId, { fallback: true }),
+  ]);
   const chainModels =
     policy.effectiveChain.length > 0
       ? policy.effectiveChain.map((entry) => entry.model)
@@ -426,11 +437,16 @@ export const getMastraAgentModelEntries = async (
 /**
  * Builds a metered `MastraDecisionModel` V4 adapter backed by the `classify`
  * role for `ModelSelectionProcessor` (`on0i.5`, `A16`, `A17`). Calls flow
- * through `getOpenAiClient(organizationId)` so token usage, cost, and failed
- * or possibly-billed attempts are recorded in the active operation ledger.
+ * through a native agent on the same single-attempt transport as the main
+ * model. The classifier's outer SDK must not replay an exhausted native chain.
  */
 export const getClassifyDecisionModel = async (
-  organizationId: string
+  organizationId: string,
+  execution?: {
+    prepareModels: (
+      factory: () => Promise<MastraModelEntry[]>
+    ) => Promise<MastraModelEntry[]>;
+  }
 ): Promise<MastraDecisionModelInterface> => {
   const config = await requireActiveAiConfig(organizationId);
   const classifyModelId = modelFor('classify', config);
@@ -443,13 +459,26 @@ export const getClassifyDecisionModel = async (
       return this.doDecide(options);
     },
     doDecide: async (options) => {
-      const client = await getOpenAiClient(organizationId);
-      const completion = await client.chat.completions.create(
-        {
-          model: classifyModelId,
-          temperature: 0,
-          response_format: { type: 'json_object' },
-          messages: [
+      let maxRetries = 0;
+      const resolve = async () => {
+        const selection = await getMastraAgentModelEntries(organizationId, 'classify');
+        maxRetries = selection.policy.maxRetries;
+        return selection.entries;
+      };
+      const entries = await (execution?.prepareModels ? execution.prepareModels(resolve) : resolve());
+      const requestContext = new RequestContext();
+      setNativeTextMaxRetries(requestContext, maxRetries);
+      const classifier = new Agent({
+        id: 'content-factory-routing-classifier',
+        name: 'Routing classifier',
+        instructions: 'You are a deterministic routing classifier. Return JSON with top-level key "answers" mapping each questionId to its decision object.',
+        model: entries as any,
+        ...createNativeTextRetryConfig(),
+      });
+      let completion;
+      try {
+        completion = await classifier.generate(
+          [
             {
               role: 'system',
               content:
@@ -463,11 +492,21 @@ export const getClassifyDecisionModel = async (
               }),
             },
           ],
-        },
-        options.abortSignal ? { signal: options.abortSignal } : undefined
-      );
-      const rawText = completion.choices?.[0]?.message?.content ?? '{}';
-      const parsed = JSON.parse(rawText) as {
+          {
+            requestContext,
+            abortSignal: nativeTextAbortSignal(options.abortSignal),
+            maxSteps: 1,
+            modelSettings: { temperature: 0, maxRetries: 0 },
+            structuredOutput: { schema: z.object({ answers: z.record(z.string(), z.any()) }), jsonPromptInjection: 'inline' },
+          }
+        );
+        if (!completion.object?.answers) throw new Error('Routing classifier returned no usable decision.');
+      } catch (error) {
+        // Native Classifier.decide() defaults to two retries for APICallError.
+        // Its inner native agent has already exhausted the one owned budget.
+        throw Object.assign(new Error('Routing classifier unavailable.'), { cause: error });
+      }
+      const parsed = completion.object as {
         answers?: Record<string, Record<string, unknown>>;
       };
       const rawAnswers = parsed.answers ?? (parsed as Record<string, Record<string, unknown>>);
@@ -527,14 +566,13 @@ export const getClassifyDecisionModel = async (
       return {
         answers: answers as any,
         usage: {
-          inputTokens: completion.usage?.prompt_tokens ?? 0,
-          outputTokens: completion.usage?.completion_tokens ?? 0,
+          inputTokens: completion.usage?.inputTokens ?? 0,
+          outputTokens: completion.usage?.outputTokens ?? 0,
         },
         warnings: [],
         response: {
-          id: completion.id,
           timestamp: new Date(),
-          modelId: completion.model || classifyModelId,
+          modelId: classifyModelId,
         },
       };
     },
@@ -621,10 +659,10 @@ export const getMastraVoice = async (
     const text = (completion.choices?.[0]?.message?.content ?? '').trim();
     return {
       text,
-      segments: [],
+      segments: [] as never[],
       language: options?.language,
-      durationInSeconds: undefined,
-      warnings: [],
+      durationInSeconds: undefined as number | undefined,
+      warnings: [] as never[],
       response: {
         timestamp: new Date(),
         modelId: completion.model || extractModelId,

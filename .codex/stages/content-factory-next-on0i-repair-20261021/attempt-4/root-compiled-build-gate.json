@@ -1,0 +1,37 @@
+{
+  "schema": "on0i-compiled-build-browser-gate/1",
+  "attempt": 4,
+  "localOnly": true,
+  "buildId": "FRi1t4LomC3tU1Ql0N_a0",
+  "checks": [
+    {
+      "name": "types-backend",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "types-frontend",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "types-orchestrator",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "logSha256": "707072d339be6fc31f193e53a4dc90b653b89d021ff67fedf5da57b35d2a2e89"
+    }
+  ],
+  "sourceMatchesRootBuild": true,
+  "browserStatus": "RECONNECT_PASS_EXACT_POSITIVE_STOP_ACK_BUT_COMPOSER_LOCK_FAILED",
+  "fullSuiteStarted": false,
+  "frontendPid": 22373,
+  "backendPid": 17393,
+  "frontendURL": "http://localhost:4278",
+  "coldBootstrapEvidence": "root-current-cold-bootstrap.json",
+  "freshResearchStatus": "FAILED_REPEATED_INSUFFICIENT_LONG_SOURCE_EVIDENCE_NO_CORE",
+  "rootRunnerStatus": "ABORTED_BEFORE_SUITE"
+}

@@ -1,0 +1,119 @@
+AssertionError [ERR_ASSERTION]: The original admitted consumer must receive every model delta.
++ actual - expected
+
+  'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
+    'note005: Preserve the complete content of this public numbered note.\n' +
++   'note006: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+-   'note006: Preserve the complete content of this public numbered note.\n' +
+-   'note007: Preserve the complete content of this public numbered note.\n' +
+-   'note008: Preserve the complete content of this public numbered note.\n' +
+-   'note009: Preserve the complete content of this public numbered note.\n' +
+-   'note010: Preserve the complete content of this public numbered note.\n' +
+    'note011: Preserve the complete content of this public numbered note.\n' +
+    'note012: Preserve the complete content of this public numbered note.\n' +
+    'note013: Preserve the complete content of this public numbered note.\n' +
+    'note014: Preserve the complete content of this public numbered note.\n' +
+    'note015: Preserve the complete content of this public numbered note.\n' +
+
+    at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-observe.probe.cjs:72:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
+    'note005: Preserve the complete content of this public numbered note.\n' +
+    'note006: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+    'note011: Preserve the complete content of this public numbered note.\n' +
+    'note012: Preserve the complete content of this public numbered note.\n' +
+    'note013: Preserve the complete content of this public numbered note.\n' +
+    'note014: Preserve the complete content of this public numbered note.\n' +
+    '...',
+  expected: 'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
+    'note005: Preserve the complete content of this public numbered note.\n' +
+    'note006: Preserve the complete content of this public numbered note.\n' +
+    'note007: Preserve the complete content of this public numbered note.\n' +
+    'note008: Preserve the complete content of this public numbered note.\n' +
+    'note009: Preserve the complete content of this public numbered note.\n' +
+    'note010: Preserve the complete content of this public numbered note.\n' +
+    '...',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+FAIL tests/agent-native-session-observe.test.cjs (5.236 s)
+  ✕ native HTTP observers replay complete deltas without stealing model output or clearing shared history on detach (5149 ms)
+
+  ● native HTTP observers replay complete deltas without stealing model output or clearing shared history on detach
+
+    Command failed: /home/me/.nvm/versions/node/v22.23.2/bin/node /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-observe.probe.cjs
+    AssertionError [ERR_ASSERTION]: The original admitted consumer must receive every model delta.
+    + actual - expected
+
+      'note001: Preserve the complete content of this public numbered note.\n' +
+        'note002: Preserve the complete content of this public numbered note.\n' +
+        'note003: Preserve the complete content of this public numbered note.\n' +
+        'note004: Preserve the complete content of this public numbered note.\n' +
+        'note005: Preserve the complete content of this public numbered note.\n' +
+    +   'note006: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+    -   'note006: Preserve the complete content of this public numbered note.\n' +
+    -   'note007: Preserve the complete content of this public numbered note.\n' +
+    -   'note008: Preserve the complete content of this public numbered note.\n' +
+    -   'note009: Preserve the complete content of this public numbered note.\n' +
+    -   'note010: Preserve the complete content of this public numbered note.\n' +
+        'note011: Preserve the complete content of this public numbered note.\n' +
+        'note012: Preserve the complete content of this public numbered note.\n' +
+        'note013: Preserve the complete content of this public numbered note.\n' +
+        'note014: Preserve the complete content of this public numbered note.\n' +
+        'note015: Preserve the complete content of this public numbered note.\n' +
+
+      70 |     release();
+      71 |     await deadline(Promise.all([ownerTask, secondTask]), 'original owner and remaining observer');
+    > 72 |     assert.equal(text(owner), tokens.join(''), 'The original admitted consumer must receive every model delta.');
+         |            ^
+      73 |     assert.equal(text(second), tokens.join(''), 'A midstream observer must replay and follow every delta after another detaches.');
+      74 |     const history = await handler.getThread(ORG, USER, threadId);
+      75 |     const saved = history.messages.find(message => message.role === 'assistant');
+
+      at tests/helpers/agent-native-session-observe.probe.cjs:72:12
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+        generatedMessage: false,
+        code: 'ERR_ASSERTION',
+        actual: 'note001: Preserve the complete content of this public numbered note.\n' +
+          'note002: Preserve the complete content of this public numbered note.\n' +
+          'note003: Preserve the complete content of this public numbered note.\n' +
+          'note004: Preserve the complete content of this public numbered note.\n' +
+          'note005: Preserve the complete content of this public numbered note.\n' +
+          'note006: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+          'note011: Preserve the complete content of this public numbered note.\n' +
+          'note012: Preserve the complete content of this public numbered note.\n' +
+          'note013: Preserve the complete content of this public numbered note.\n' +
+          'note014: Preserve the complete content of this public numbered note.\n' +
+          '...',
+        expected: 'note001: Preserve the complete content of this public numbered note.\n' +
+          'note002: Preserve the complete content of this public numbered note.\n' +
+          'note003: Preserve the complete content of this public numbered note.\n' +
+          'note004: Preserve the complete content of this public numbered note.\n' +
+          'note005: Preserve the complete content of this public numbered note.\n' +
+          'note006: Preserve the complete content of this public numbered note.\n' +
+          'note007: Preserve the complete content of this public numbered note.\n' +
+          'note008: Preserve the complete content of this public numbered note.\n' +
+          'note009: Preserve the complete content of this public numbered note.\n' +
+          'note010: Preserve the complete content of this public numbered note.\n' +
+          '...',
+        operator: 'strictEqual',
+        diff: 'simple'
+      }
+      at Object.<anonymous> (tests/agent-native-session-observe.test.cjs:6:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        5.413 s, estimated 14 s
+Ran all test suites matching /tests\/agent-native-session-observe.test.cjs/i.

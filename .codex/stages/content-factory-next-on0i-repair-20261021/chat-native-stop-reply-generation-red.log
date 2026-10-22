@@ -1,0 +1,52 @@
+🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+{
+  "reports": [
+    {
+      "mode": "late-stop-reply",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "GACxyC0KvKywNLrr",
+        "stopped-native-answer",
+        "rp2Fskomio7VFFFj",
+        "next-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 2,
+      "finish": 2,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled",
+        "sdk-send",
+        "stop-ack",
+        "history-read:4:settled",
+        "sdk-finish:false:false",
+        "history-read:6:settled"
+      ],
+      "lateStopIgnored": false,
+      "status": "ready",
+      "toolStates": [],
+      "callsAfterBlockedSubmit": 2
+    }
+  ]
+}
+AssertionError [ERR_ASSERTION]: an old Stop reply must not read or change a newer task
+
+false !== true
+
+    at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-stop-flow.probe.cjs:160:49 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

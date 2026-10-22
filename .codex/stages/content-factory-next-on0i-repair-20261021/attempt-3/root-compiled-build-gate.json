@@ -1,0 +1,36 @@
+{
+  "schema": "on0i-compiled-build-browser-gate/1",
+  "localOnly": true,
+  "buildId": "y0M4GIJnYzMuuEBFURymC",
+  "checks": [
+    {
+      "name": "types-backend",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "types-frontend",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "types-orchestrator",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "logSha256": "03bffd4f13aeb8afe42be2d5f8e02f395ebaffef359f331069c98d12d6564878"
+    }
+  ],
+  "sourceMatchesRootBuild": true,
+  "browserStatus": "RECONNECT_PASS_STOP_COMPOSER_LOCK_FAILED",
+  "fullSuiteStarted": false,
+  "frontendPid": 86254,
+  "frontendURL": "http://localhost:4278",
+  "freshResearchStatus": "REAL_SEARCH_PASSED_NATIVE_HISTORY_READ_WRONGLY_ASKED",
+  "rootRunnerStatus": "ABORTED_BEFORE_SUITE",
+  "reason": "Actual current native readonly permission gate and explicit Stop composer lock must be repaired; no expensive full test run on known failing UX",
+  "sourcesStillMatchBuildAtAbort": true
+}

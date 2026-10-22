@@ -1,0 +1,237 @@
+🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+{
+  "reports": [
+    {
+      "mode": "lag",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "5g6Kizc0CAtvFHhl",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "sdk-finish:true:false",
+        "history-read:2:running",
+        "history-read:2:running",
+        "sdk-reader-cancel",
+        "stop-ack",
+        "history-read:2:running",
+        "old-history-response"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "shorter",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "AMWf5qM8YsPxj8is",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "terminal",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "zs5FTkLTsTAMULej",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "mismatch",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "ysJNAOqSFql5KLEv",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "unknown",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "1e7fj0ltnMaIAxNk",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:unknown",
+        "history-read:4:unknown",
+        "sdk-reader-cancel",
+        "history-read:4:unknown"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "failed",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "v06iLMvv1C1OrkP8",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "uncertain",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "uu0gZEyi7EZ9b413",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "no-ack",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "s6hfcSFqOwePEl89",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    },
+    {
+      "mode": "network",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "jchBlwca70oMHmj3",
+        "stopped-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": true,
+      "calls": 1,
+      "finish": 1,
+      "errors": 1,
+      "trace": [
+        "sdk-send",
+        "sdk-error",
+        "sdk-finish:false:true",
+        "history-read:4:settled",
+        "history-read:4:settled"
+      ],
+      "callsAfterBlockedSubmit": 1
+    }
+  ]
+}

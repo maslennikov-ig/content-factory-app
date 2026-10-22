@@ -134,6 +134,12 @@ describe('Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up 
 
   test('A18: set_objective and native goal judge reject prose-only completion until workspace artifact exists, and hide internal threads', () => {
     const { goal } = probe;
+    expect(goal.beforeObjectiveApproval).toEqual({
+      finishReason: 'suspended',
+      createdPiecesCount: 0,
+      mainModelCalls: 1,
+      judgeEvalCount: 0,
+    });
     expect(goal.createdPiecesCount).toBe(1);
     expect(goal.judgeEvalCount).toBe(2);
     expect(goal.mainModelCalls).toBe(4);

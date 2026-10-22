@@ -376,7 +376,7 @@ const statedInterval = (
 
 // Rank bounded verbatim windows, not facts. Relevance/date admission remains
 // the reader's job. Ties/no lexical evidence retain the exact original prefix.
-const readerSourceWindow = (
+export const readerSourceWindow = (
   original: string,
   subject: string,
   asOf: string | null,

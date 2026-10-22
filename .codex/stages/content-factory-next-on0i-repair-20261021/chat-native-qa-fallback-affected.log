@@ -1,0 +1,294 @@
+[ModelSelectionProcessor:model-selection] Classifier evaluation failed, using the configured model: classifier provider 503
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: primary overloaded
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"primary overloaded"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '8758f397-d439-4be6-b49e-311b76154bb3'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: primary overloaded
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-primary',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 503,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"primary overloaded"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '8758f397-d439-4be6-b49e-311b76154bb3'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: backup-1 rate limited
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 429,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"backup-1 rate limited"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '8758f397-d439-4be6-b49e-311b76154bb3'
+}
+Error processing LLM stream {
+  error: APICallError [AI_APICallError]: backup-1 rate limited
+      at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:1108:14
+      at async postToApi (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.js:953:28)
+      at async OpenAIChatLanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@ai-sdk/openai/dist/index.js:879:50)
+      at async AISDKV5LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/model-BoiH2uj3.cjs:220:10) {
+    cause: undefined,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    requestBodyValues: {
+      model: 'openai/gpt-5.4-backup-1',
+      logit_bias: undefined,
+      logprobs: undefined,
+      top_logprobs: undefined,
+      user: undefined,
+      parallel_tool_calls: undefined,
+      max_tokens: undefined,
+      temperature: undefined,
+      top_p: undefined,
+      frequency_penalty: undefined,
+      presence_penalty: undefined,
+      response_format: undefined,
+      stop: undefined,
+      seed: undefined,
+      verbosity: undefined,
+      max_completion_tokens: undefined,
+      store: undefined,
+      metadata: undefined,
+      prediction: undefined,
+      reasoning_effort: undefined,
+      service_tier: undefined,
+      prompt_cache_key: undefined,
+      prompt_cache_retention: undefined,
+      safety_identifier: undefined,
+      messages: [Array],
+      tools: [Array],
+      tool_choice: 'auto',
+      stream: true,
+      stream_options: [Object]
+    },
+    statusCode: 429,
+    responseHeaders: { 'content-type': 'application/json' },
+    responseBody: '{"error":{"message":"backup-1 rate limited"}}',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  runId: '8758f397-d439-4be6-b49e-311b76154bb3'
+}
+Stream captured error {
+  error: Error: user_stopped
+      at doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-model-fallback-retry.probe.cjs:628:29)
+      at MockLanguageModelV3.doStream (file:///home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/ai/dist/test/index.js:171:22)
+      at AISDKV6LanguageModel.doStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/llm-C9M1xYBO.cjs:107:28)
+      at retryResult.default.retries (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:29225:110)
+      at Module.pRetry (file:///home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/p-retry/index.js:197:25)
+      at createStream (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:29216:64)
+      at async Object.start (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/trip-wire-EvtO_3wL.cjs:3259:20),
+  runId: 'f9c04f5b-1690-4cb6-9fcd-170428a7f48a'
+}
+PASS tests/agent-model-fallback-retry.test.cjs
+PASS tests/agent-native-retry-routing.test.cjs (48.349 s)
+PASS tests/ai-text-chain.test.cjs
+  ● Console
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, HTTP 429, 2 ms): flex capacity
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:153:22)
+
+    console.warn
+      AI text chain: attempt 2/3 skipped (model openai/gpt-6-luna, tier standard, HTTP 502, 0 ms): bad gateway
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:153:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, TypeError, 0 ms): fetch failed
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:184:22)
+
+    console.warn
+      AI text chain: attempt 2/3 skipped (model openai/gpt-6-luna, tier standard, HTTP 429, 1 ms): error in a 200 body: Rate limit exceeded
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:184:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, HTTP 503, 0 ms): down
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:192:22)
+
+    console.warn
+      AI text chain: attempt 2/3 skipped (model openai/gpt-6-luna, tier standard, HTTP 503, 0 ms): down
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:192:22)
+
+    console.warn
+      AI text chain: attempt 1/2 skipped (model openai/gpt-6-luna, tier standard, HTTP 500, 0 ms): x
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:203:5)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, AttemptTimeout, 60000 ms): no answer within 60000 ms
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, HTTP 429, 0 ms): stream error before the first token: flex capacity
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:299:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, AttemptTimeout, 60000 ms): no answer within 60000 ms
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+
+    console.warn
+      AI text chain: attempt 1/3 skipped (model openai/gpt-6-luna, tier flex, HTTP 429, 0 ms): capacity
+
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1307:29)
+      at eval (eval at compileFile (tests/helpers/load-ts-module.cjs:39:14), <anonymous>:1137:22)
+      at Object.<anonymous> (tests/ai-text-chain.test.cjs:358:5)
+
+
+Test Suites: 3 passed, 3 total
+Tests:       84 passed, 84 total
+Snapshots:   0 total
+Time:        53.031 s
+Ran all test suites matching /tests\/ai-text-chain.test.cjs|tests\/agent-model-fallback-retry.test.cjs|tests\/agent-native-retry-routing.test.cjs/i.

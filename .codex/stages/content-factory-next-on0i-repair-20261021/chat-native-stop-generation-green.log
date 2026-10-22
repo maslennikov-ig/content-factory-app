@@ -1,0 +1,40 @@
+🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+{
+  "reports": [
+    {
+      "mode": "successor",
+      "messages": [
+        "old-human",
+        "old-answer",
+        "7Q9PVUuYOV4ih2S1",
+        "stopped-native-answer",
+        "jdsaMl95PhaEGAfa",
+        "next-native-answer"
+      ],
+      "humanPreserved": true,
+      "partialPreserved": true,
+      "blocked": false,
+      "calls": 2,
+      "finish": 2,
+      "errors": 0,
+      "trace": [
+        "sdk-send",
+        "stop-request",
+        "stop-ack",
+        "sdk-finish:true:false",
+        "history-read:4:settled",
+        "old-finish-history-held",
+        "history-read:4:settled",
+        "sdk-reader-cancel",
+        "history-read:4:settled",
+        "sdk-send",
+        "old-finish-history-delivered-after-new-send",
+        "sdk-finish:false:false",
+        "history-read:6:settled"
+      ],
+      "status": "ready",
+      "toolStates": [],
+      "callsAfterBlockedSubmit": 2
+    }
+  ]
+}

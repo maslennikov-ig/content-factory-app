@@ -1,0 +1,33 @@
+{
+  "schema": "on0i-current-compiled-browser/1",
+  "localOnly": true,
+  "phase": "followup",
+  "cliExitCode": 0,
+  "probeSha256": "b9253c1e937367e4b2e5f6298b40befe0e9d627ffd8b13cec066bd0fa37f1e2c",
+  "cliLog": "evidence/root-current-compiled-followup-cli.log",
+  "cliLogSha256": "31a896559bf907194e285da6d9f5f7d854aae2331fb59a8484ba9bdb53e65cfc",
+  "result": {
+    "url": "http://localhost:4278/agents/b4c778cb-12ec-46dc-a966-ec92085ee204",
+    "assistantMessages": 3,
+    "humanMessages": 3,
+    "exactLatestHuman": 1,
+    "answer": "98\nCf\nИИ-помощник:\n\nЧтобы знать, кто принял решение и к кому обращаться за уточнениями.\n\nОтветвить отсюда",
+    "prior80Unchanged": true,
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/agent/chat"
+      },
+      {
+        "method": "GET",
+        "path": "/agent/threads/b4c778cb-12ec-46dc-a966-ec92085ee204"
+      },
+      {
+        "method": "GET",
+        "path": "/agent/threads"
+      }
+    ],
+    "status": "UI_PASS_SERVER_READBACK_PENDING"
+  },
+  "status": "UI_PASS_SERVER_READBACK_PENDING"
+}

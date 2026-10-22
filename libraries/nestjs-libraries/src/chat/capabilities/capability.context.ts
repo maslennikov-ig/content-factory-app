@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { RequestContext } from '@mastra/core/request-context';
-import type { CapabilityIdentity } from './capability.types';
+import type { CapabilityIdentity, OriginalAuthorRequest } from './capability.types';
 import { currentConductorExecution } from '../conductor/conductor.execution';
 
 /**
@@ -21,6 +21,8 @@ export const CAPABILITY_CONTEXT_KEYS = {
   language: 'cf.language',
   /** The person's time zone (IANA or offset), resolved by the door. */
   timeZone: 'cf.timeZone',
+  /** One author record from the current chat ingress, serialized for snapshots. */
+  originalAuthorRequest: 'cf.originalAuthorRequest',
   /** Paid capability calls already admitted in this turn. */
   paidCalls: 'cf.paidCalls',
   /** Legacy snapshot field, no longer a per-message completion rule. */
@@ -46,6 +48,22 @@ export const CAPABILITY_CONTEXT_KEYS = {
 
 const K = CAPABILITY_CONTEXT_KEYS;
 
+/** Same text ceiling as the chat door; a single record, never the transcript. */
+export const originalAuthorRequestSchema = z.object({
+  messageId: z.string().min(1).max(128),
+  text: z.string().max(20_000),
+}).strict();
+
+const parseAuthorRequest = (value: unknown): OriginalAuthorRequest | null => {
+  if (typeof value !== 'string' || value.length > 122_000) return null;
+  try {
+    const parsed = originalAuthorRequestSchema.safeParse(JSON.parse(value));
+    return parsed.success ? { messageId: parsed.data.messageId, text: parsed.data.text } : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * `requestContextSchema` for every generated tool: Mastra validates it before
  * `execute`, so a run without a server-built identity fails before any
@@ -59,19 +77,26 @@ export const capabilityContextSchema = z
     [K.role]: z.enum(['USER', 'EDITOR', 'ADMIN', 'SUPERADMIN']),
     [K.language]: z.enum(['ru', 'en']),
     [K.timeZone]: z.string().min(1).max(64),
+    [K.originalAuthorRequest]: z.string().max(122_000)
+      .refine(value => parseAuthorRequest(value) !== null).optional(),
   })
   .passthrough();
 
 type AnyRequestContext = Pick<RequestContext<unknown>, 'get' | 'set'>;
-type ReadableRequestContext = AnyRequestContext | Readonly<Record<string, unknown>>;
+export type ReadableRequestContext = AnyRequestContext | Readonly<Record<string, unknown>>;
 
-const read = (context: ReadableRequestContext | undefined, key: string) => {
+export const readCapabilityContextValue = (context: ReadableRequestContext | undefined, key: string) => {
   if (!context) return undefined;
   if (typeof (context as AnyRequestContext).get === 'function') {
     return (context as AnyRequestContext).get(key as never) as unknown;
   }
   return (context as Readonly<Record<string, unknown>>)[key];
 };
+
+const read = readCapabilityContextValue;
+
+export const readOriginalAuthorRequest = (context: ReadableRequestContext | undefined) =>
+  parseAuthorRequest(read(context, K.originalAuthorRequest));
 
 /** Writes the identity; the caller owns the rest of the context. */
 export const seedCapabilityContext = (

@@ -1,6 +1,46 @@
 # Развёртывание на сервере
 
-## Текущий выпуск 20.10.2026: 86008cab0c46
+## Текущий выпуск 20.10.2026: 9be03b5c4132
+
+Эпик `content-factory-next-bxeb` (`bxeb.1`–`bxeb.6`, решения `A1`–`A4`): нативные
+пользовательские функции Mastra `1.78.0` — голосовой диктофон в чате
+(`AISDKTranscription`, `POST /agent/voice/transcribe`, режимы «В текст» и
+«Отправить сразу»), ветвление и клонирование диалогов (`POST /agent/threads/:id/fork`,
+`Session.thread.clone`, `memory.cloneThread`), детерминированный скорер голоса
+бренда и фактов с нулевым расходом квоты (`MastraScorer`, `mastra_scores`,
+`GET /agent/threads/:id/scores`, плашки `VoiceScoreBadge` в `ArtifactLine` и
+`PlanCard`), фоновые поручения и колокольчик уведомлений (`BackgroundTaskManager`,
+`NotificationsStorage`, `createNotificationInboxTool`, `GET /agent/notifications`,
+`POST /agent/notifications/:id/read`, `POST /agent/notifications/read-all`),
+двусторонний Telegram-чат с ИИ-помощником (`@mastra/core/channels` поверх
+единого `TelegramUpdatesService` с сохранением `support-relay` для `/support` и
+непривязанных пользователей) и документация архитектуры (`docs/architecture/mastra-native-integration.md`).
+
+Проверенный приватный источник `66cace3eaa3a7c4d07775078731e746d13724264`
+(после выравнивания DI `TelegramUpdatesService` для `apps/commands` и обновления
+счётчика дверей `/agent` в `docs/product/roles-matrix.md` поверх `0fc592ed4bfa`),
+публичный коммит `9be03b5c4132ebf8c1ccc15c69b2a3a6bfb8e8aa`, образ
+`ghcr.io/maslennikov-ig/content-factory-next:9be03b5c4132`.
+Registry digest `sha256:8f63ce66f8278cff4a00b9044683f4005db3495ee00ecfef5e853f316d6c857f`,
+runtime config `sha256:6e2233c0b8aeec29edbe837bb76296a9b41048be3430b546bea5d80ebb67c26a`.
+Полный архив исходников из production (`/api/public/source/archive`):
+`13 176 071` байт, SHA-256 `57439c703fe1426038826d36f1e6cfc4af868e6acf452715f232a8a8a7179387`,
+совпал с проверенным образом. Все корневые проверки и публичные проверки
+GitHub Actions (`Build` и `Code Quality Analysis`) прошли: Jest 712 наборов /
+12 723 теста / 70 пропусков, Node 127 / 0 ошибок / 4 пропуска окружения,
+Python 50 OK. Проверки `nginx -t` и `apps/commands --help` (код 0, 5 команд) в образе прошли.
+
+Схема Prisma и таблицы Mastra (`47` таблиц `@mastra/pg` `1.31.2`, отпечаток
+`a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0`) не менялись
+(`diffExitCode: 0`, `sqlLines: 0`). После переключения `cf-next-app` `healthy`,
+перезапусков 0, 3 процесса PM2 `online`; 17 соседних контейнеров и 21 том
+сохранены. Штатный `retain-host-artifacts.sh` оставил `9be03b5c4132` и
+проверенный откат `0ca38ed190f3` (config `sha256:1a48c3f37e4f3be9d87d878f1badd84fe6ad37d6466024633914b1a70ea92f21`),
+удалив устаревшие собственные теги `86008cab0c46`, `dd89af1b4a29` и старые копии `.env.bak`/`app.env.bak`;
+свободно `24 740 466 688` байт (`70%` занято).
+Откат: `CF_DEPLOY_HOST=helixa-prod scripts/release/switch-host-image.sh 0ca38ed190f3`.
+
+## Предыдущий выпуск 20.10.2026: 86008cab0c46
 
 Эпик `content-factory-next-on0i` (`on0i.1`–`on0i.7`, `A1`–`A31`) и задача
 `content-factory-next-rafo`: переход на Mastra `1.78.0` (`@mastra/core` `1.78.0`,

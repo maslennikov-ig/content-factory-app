@@ -1,33 +1,4 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const ts = require('typescript');
-
-function loadTypeScriptModule(relativePath, mocks = {}) {
-  const filename = path.resolve(__dirname, '..', relativePath);
-  const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      experimentalDecorators: true,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-  new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports;
-}
+const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const built = {
   openai: [],
@@ -146,6 +117,16 @@ const clients = loadTypeScriptModule(
       OPENROUTER_BASE_URL: 'https://openrouter.example/api/v1',
     },
     '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles,
+  },
+  {
+    // Both native retry helpers and these assertions use the same real ALS
+    // transport module, whether imported through its alias or as a sibling.
+    resolve(request) {
+      if (request === './ai.text-chain' ||
+          request === '@contentfactory/nestjs-libraries/openai/ai.text-chain') {
+        return require('@contentfactory/nestjs-libraries/openai/ai.text-chain');
+      }
+    },
   }
 );
 
@@ -245,7 +226,7 @@ describe('per-organization AI clients', () => {
     expect(typeof built.aiSdk[0].fetch).toBe('function');
   });
 
-  test('review F8: the copilot chat walks one short flex attempt, then standard, then GLM', async () => {
+  test('review F8: chat walks Luna Flex, Luna Standard, then discounted Sol6.1', async () => {
     const organization = register({ ...openrouter, usageMode: 'included' });
     await clients.getAiSdkProvider(organization);
     const bodies = [];
@@ -279,10 +260,14 @@ describe('per-organization AI clients', () => {
     expect(bodies.map((body) => body.model)).toEqual([
       'openai/gpt-5.6-luna',
       'openai/gpt-5.6-luna',
-      'z-ai/glm-5.3',
+      'openai/gpt-6.1-sol',
     ]);
     expect(JSON.stringify(bodies[0])).toMatch(/flex/);
     expect(JSON.stringify(bodies[1])).not.toMatch(/flex/);
+    expect(bodies[2]).toMatchObject({
+      service_tier: 'flex', reasoning: { effort: 'medium' },
+      provider: { only: ['openai/flex'], allow_fallbacks: false },
+    });
   });
 
   test('a provider without a base URL is left pointing at its own API', async () => {

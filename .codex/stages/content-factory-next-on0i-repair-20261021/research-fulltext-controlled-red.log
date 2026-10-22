@@ -1,0 +1,4 @@
+[Nest] 29664  - 10/21/2026, 2:56:10 PM     LOG [WebResearchService] Web research classification: subject="Read the reference manual" scope=global subjectLanguage=en country=none queries=1 source=caller.
+[Nest] 29664  - 10/21/2026, 2:56:10 PM     LOG [WebResearchService] Web research answered via exa.
+{"kind":"CONTROLLED_OFFLINE_REAL_RESEARCH_SERVICE","rawCharacters":225088,"previewCharacters":5967,"retainedCharacters":5967,"lateEvidenceRetained":false,"providerCalls":1,"modelCalls":0,"actualNetworkCalls":0,"paidCalls":0}
+Complete owned source must retain evidence beyond preview and scan caps

@@ -1,0 +1,11 @@
+{
+  "schema": "on0i-ownership-preflight/1",
+  "status": "PASS",
+  "modifiedOwned": 80,
+  "preservedUntracked": 120,
+  "preservedExact": true,
+  "newRepairStageFilesNotYetAddedToManifest": 58,
+  "unexpectedSourceFiles": [],
+  "indexEmpty": true,
+  "scope": "Read-only preflight during frozen Gate10; no staging or cleanup."
+}

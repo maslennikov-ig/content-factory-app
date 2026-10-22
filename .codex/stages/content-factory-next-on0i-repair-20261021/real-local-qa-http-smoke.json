@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-21T08:30:20.718Z",
+  "result": "PASS",
+  "authSelf": 200,
+  "threadList": 200,
+  "providerCalls": 0,
+  "actor": "synthetic-http-runner"
+}

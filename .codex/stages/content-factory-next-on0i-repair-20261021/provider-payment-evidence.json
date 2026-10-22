@@ -1,0 +1,46 @@
+{
+  "schema": "on0i-provider-payment-adapter/1",
+  "status": "APPLIED_FOCUSED_GREEN_REVIEW_PENDING",
+  "patch": "evidence/provider-payment.patch",
+  "patchSha256": "ee44454a085fbdaf836475145e5c91b9f82377146fefef4f2ca67debcc326f0a",
+  "files": {
+    "libraries/nestjs-libraries/src/chat/conductor/conductor.errors.ts": {
+      "beforeSha256": "40b2456a76989b2cb1028887511afeb1bb6a80350739f5b6f9790aa660e2a2d1",
+      "afterSha256": "abbe0eae43e2114a22547be8ba471d4d33e9e8aa65116688231924db3e588b7d"
+    },
+    "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": {
+      "beforeSha256": "c2b723ea81adaad48cbbe50bf0961513575cc982a18d0434575016195f357ed2",
+      "afterSha256": "3d7ecfd83909b1dd85857181dd45523b035517ff35d02d29c3a29c713b1a6b59"
+    },
+    "apps/frontend/src/components/agents/agent.copy.ts": {
+      "beforeSha256": "c1670ab88aada648b798616357d001622d62cd42ef8657ad43d847b9007cac26",
+      "afterSha256": "b69e0ec48e90887911bd0cad215c25831e1f29cd08d26f0e549136394d7e822e"
+    },
+    "tests/agent-conductor.unit.test.cjs": {
+      "beforeSha256": "2898611a2da0c96dd8d8d9608b5e0088958d6ca61a79963ddd3a18d4bd295a4f",
+      "afterSha256": "6035279263f781b195d97ffcad7e88204ba81fec3b82f14f3a269ba414f47ea2"
+    },
+    "tests/agent-native-session-http.test.cjs": {
+      "beforeSha256": "900661bf0255a1d52d4e85e3bb1d83983b21e842e90db5dfc3e1d9579e790a7f",
+      "afterSha256": "7a58081e1499b40d372f8d95997d9367234ed22df85a81801611c1a94a90efed"
+    },
+    "tests/helpers/agent-native-session-http.probe.cjs": {
+      "beforeSha256": "a886866bf2cbdfe8db7fffaa91e594dfc164a51131d763f9fdfdb19f6e38eb82",
+      "afterSha256": "a0abbb99db7ca0cf588950e104361610112d3ea2d8c52296f11f2520b139a79d"
+    }
+  },
+  "red": {
+    "log": "evidence/provider-payment-red.log",
+    "failed": 3,
+    "passed": 101
+  },
+  "green": {
+    "log": "evidence/provider-payment-green.log",
+    "suites": 3,
+    "tests": 158,
+    "exitCode": 0,
+    "logSha256": "f97547cd3ff6dac6613ddb50f473440b7bbd208932cb658898d14ff6615d4ec5"
+  },
+  "nativeContract": "actual installed OpenAI provider V2, native Session/DurableAgent/Memory, real product HTTP handler; scripted fetch402, public safe code,1request/0writes/1false admission/no pending/failed outcome; no paid calls",
+  "remaining": "Independent review, current compiled/browser gate and all-three-parts suite; provider-specific transient in-flight402 adaptation owned separately by stop_settlement_debug"
+}

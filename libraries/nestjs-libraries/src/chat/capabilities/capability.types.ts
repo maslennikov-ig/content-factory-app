@@ -88,10 +88,18 @@ export type CapabilityIdentity = {
 /** Where the call came from. MCP has no approval card and no question card. */
 export type CapabilityEntrance = 'chat' | 'mcp';
 
+/** Exact text accepted by the chat door, not a model's reconstruction. */
+export type OriginalAuthorRequest = { messageId: string; text: string };
+
 export type CapabilityRunContext = CapabilityIdentity & {
   entrance: CapabilityEntrance;
   /** The Nest provider the door itself uses, resolved by class. */
   service: <T>(token: Type<T>) => T;
+  /** Native chat only; provenance does not grant approval or change permissions. */
+  resolveAuthorRequest?: (input: {
+    requestMessageId?: string;
+    text?: string;
+  }) => Promise<OriginalAuthorRequest | null>;
   abortSignal?: AbortSignal;
   /** A question's capability: the person's answer when the call is resumed. */
   resumeData?: unknown;
@@ -299,12 +307,27 @@ export const WEB_ONLY_RISKS: readonly RiskClass[] = ['confirm', 'input', 'secret
  * A refusal the model reads as the tool's result. The hooks and the adapters
  * use the same shape, so the model learns one way to hear «no».
  */
+export type ResearchSelectionRecovery = {
+  kind: 'research_selection';
+  snapshotKey: string;
+  /** At most twenty ids; the total remains explicit for larger selections. */
+  selectedFactKeys: string[];
+  selectedFactCount: number;
+  evidenceScope: 'captured_quotes_only';
+  currentCall: { mode: 'reuse_only'; newSearch: 'not_started' };
+  globalSearchAvailability: 'not_assessed';
+  sourceRead: { tool: 'piece.read'; part: 'research_source'; find: true; ranges: true };
+  selection: { tool: 'piece.create'; input: 'passages'; fields: ['sourceUrl', 'revision', 'quote'] };
+  artifactWritten: false;
+};
+
 export type CapabilityRefusal = {
   ok: false;
   code: string;
   reason: string;
   /** Server proof of no artifact write; permits revision, never replay of an uncertain write. */
   canReviseInput?: true;
+  inputRecovery?: ResearchSelectionRecovery;
 };
 
 export type CapabilityToolOutput =

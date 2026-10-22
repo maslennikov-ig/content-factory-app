@@ -1,5 +1,8 @@
 # Native Mastra 1.78 Harness Implementation & Root Acceptance (`content-factory-next-on0i`)
 
+> **Superseded acceptance, 2026-10-21.** Independent review reproduced R1–R6 and found nonexistent test/API references in this historical report. Its all-A1–A31 completion claim is rejected. Historical delivery claims below were not reverified during the local-only repair. Current implementation and acceptance: [verified local repair](../content-factory-next-on0i-repair-20261021/outcome.md); [independent findings](../content-factory-next-on0i-review-20261021/review.md). The epic and children were reopened, then repaired and locally accepted in the linked21Oct stage; fresh canonical8Done follows that new acceptance. Historical failures/delivery claims below remain historical. No repair deployment is authorized.
+
+
 ## Summary
 
 All seven tasks of epic `content-factory-next-on0i` (`on0i.1` through `on0i.7`) and all acceptance criteria (`A1`–`A31`) are locally implemented and verified on branch `codex/on0i-native-harness-implementation-20261019` in worktree `/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018` in accordance with [the native Mastra harness plan](../../../docs/superpowers/plans/2026-10-19-native-mastra-harness.md).

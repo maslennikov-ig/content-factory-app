@@ -246,11 +246,11 @@ describe('default native Mastra 1.78 product path and acceptance matrix (on0i.7)
     );
 
     const queriedFilters = [];
+    let storedSpans = [];
     const fakeObservabilityStore = {
-      querySpans: async ({ filters }) => {
+      listTraces: async ({ filters }) => {
         queriedFilters.push(filters);
-        return {
-          spans: [
+        storedSpans = [
             {
               spanId: 'span-root',
               parentSpanId: null,
@@ -291,15 +291,13 @@ describe('default native Mastra 1.78 product path and acceptance matrix (on0i.7)
               name: 'other.user.run',
               status: 'ok',
             },
-          ],
-        };
+          ];
+        return { spans: storedSpans.filter(span => span.parentSpanId === null),
+          pagination: { total: 2, page: 0, perPage: 50, hasMore: false } };
       },
-      aggregateTraces: async ({ filters }) => ({
-        totalTraces: 1,
-        totalSpans: 2,
-        errorCount: 1,
-        note: `filtered for ${filters.threadId} with sk-secret-999999999999999999`,
-      }),
+      getTrace: async ({ traceId }) => ({ spans: storedSpans.filter(span => span.traceId === traceId) }),
+      querySpans: async () => { throw new Error('Legacy PG does not support span queries.'); },
+      aggregateTraces: async () => { throw new Error('Legacy PG does not support trace aggregation.'); },
     };
 
     const fakeMemory = {
@@ -456,7 +454,7 @@ describe('default native Mastra 1.78 product path and acceptance matrix (on0i.7)
     });
   });
 
-  test('all A1–A31 acceptance criteria have owned test suites in the repository', () => {
+  test('the acceptance suite inventory resolves to repository files (not scenario acceptance)', () => {
     const requiredSuites = [
       'tests/agent-conductor.agent.test.cjs',
       'tests/agent-conductor.unit.test.cjs',

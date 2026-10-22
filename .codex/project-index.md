@@ -1,6 +1,10 @@
 # Content Factory Project Index
 
-- Native-harness epic `content-factory-next-on0i`: [native capability coverage, integration/replacement plan and A1–A31 acceptance](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [implementation outcome](stages/content-factory-next-on0i-native-harness-20261019/implementation-outcome.md), [root acceptance](stages/content-factory-next-on0i-native-harness-20261019/root-acceptance.json). All seven tasks (`on0i.1`–`on0i.7`) implemented and verified locally on `codex/on0i-native-harness-implementation-20261019` (`@mastra/core@1.78.0`, isolated `AgentController` sessions, `toModelOutput` compact evidence + full UI/DB sources, durable runs/signals/reconnect, native `ModelWithRetries[]` routing/fallbacks, autonomy/goals/subagents/schedules, UI controls, observability, and A1–A31 matrix). Earlier [audit2512](stages/content-factory-next-2512-native-harness-20261019/audit.md) distinguishes API probes from product integration. Latest owner boundary: local work only, no publication/deployment.
+Current source integration, delivery status, local preview and recovery locations live in [handoff](handoff.md).
+The21Oct native Mastra/Telegram/model-policy integration is preserved in [integration and recovery](../docs/maintenance/integration-cleanup-2026-10-21.md).
+Linear is canonical; Beads is the agent interface. Live authority and publisher rules are in `AGENTS.md`.
+
+- Native-harness epic `content-factory-next-on0i`: [plan/A1–A31](../docs/superpowers/plans/2026-10-19-native-mastra-harness.md), [rejected original acceptance R1–R6](stages/content-factory-next-on0i-review-20261021/review.md), [local repair result](stages/content-factory-next-on0i-repair-20261021/outcome.md), [behavioral evidence](stages/content-factory-next-on0i-repair-20261021/acceptance-map.md). Native Session execution, retry/fallback ownership, durable availability/receipts and consumer/quality repairs are implemented; local Gate10 all10checks passed (Jest12922/Node127/Python50) and epic+7tasks are canonicallyDone21Oct. Branch `codex/on0i-native-repair-20261021`; local only, no push/deploy/production mutation. Owner-authorized scoped credential read completed into private local files; no full production environment or JWT copied.
 - Assistant chat sidebar follow-up `content-factory-next-rafo`: `new-layout/assistant-menu.tsx` uses the shared `AgentThreadList` in `agents/agent.threads.tsx`; the primary rail/mobile drawer holds the expandable list and new-chat plus. The toolbar has no permanent history block. Local verification and screenshots: [outcome](stages/content-factory-next-rafo-chat-sidebar-20261019/outcome.md). Latest owner instruction holds all publication and deployment; published j9p5 below remains current.
 - Model-led assistant successor `content-factory-next-j9p5`: generic task/material semantics and actual research outcomes use `intake/request-understanding.ts`, versioned briefV13/digestV5/coreV19+V20 and explicit-boundary intentV2 and existing native services; no semantic phrase routing. `chat/conductor/conversation-history.ts` extends native Memory tools, and `catalogue/material-read.capabilities.ts` reads authorized full material by revision/range. Native chat pagination/navigation remains `AgentThreadsService` + `components/agents/`. Runtime controls: `conductor.execution.ts`, [execution budget](../docs/operations/agent-execution-budget.md); product contract: [model-led assistant](../docs/product/model-led-assistant.md). Integration evidence: `stages/content-factory-next-j9p5-implementation-20261018/implementation.md`. Accepted productiondd89af1b4a29 (private sourceadb43f973576), rollback888; [delivery and exact-source/provider/runtime proof](stages/content-factory-next-j9p5-implementation-20261018/production-delivery.md).
 ## Current Programme
@@ -64,13 +68,8 @@
 - `apps/frontend/src/components/channels/` — список карточками/таблицей и страница канала с четырьмя панелями; общие поля письма в `content-intelligence/intake/writing-profile.fields.tsx`; чтение последних постов — `GET /integrations/:id/posts`.
 - `scripts/evidence/liveness-report.cjs` — локальный read-only замер дословного переноса слов автора, без модели; явно различает отсутствие адаптаций и нулевой перенос.
 - `apps/frontend/src/components/content-intelligence/` — Settings-поверхности профиля, источников и provenance; local-only review routes покрывают полные состояния без API, модели и внешней сети.
-- `apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts` — новая
-  draft-only AutoPost-версия с закреплённым профилем и точным provenance;
-  upstream AutoPost V1 не менялся.
-- `apps/backend/src/api/routes/public-growth-events.controller.ts` и
-  `libraries/nestjs-libraries/src/database/prisma/public-growth/` — закрытый
-  privacy-safe контракт суточных агрегатов конверсии без PII и постоянного
-  visitor id.
+- `apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts` — новая draft-only AutoPost-версия с закреплённым профилем и точным provenance; upstream AutoPost V1 не менялся.
+- `apps/backend/src/api/routes/public-growth-events.controller.ts` и `libraries/nestjs-libraries/src/database/prisma/public-growth/` — закрытый privacy-safe контракт суточных агрегатов конверсии без PII и постоянного visitor id.
 - `libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts` и Prisma
   `organizations/organization.repository.ts` — совместимые `workspaceName`/`company`,
   ADMIN создателя и стартовые метки по умолчанию. Access compatibility: `docs/operations/access-token-migration.md`. Выбор `starterTemplate` снят
@@ -121,7 +120,7 @@
 
 - Runtime product state lives in Postgres through Prisma; Mastra uses its separate database, Redis holds coordination state, and Temporal owns durable execution.
 - Git owns code, schemas, migrations, configuration examples, durable decisions, and public-safe export fixtures.
-- Beads owns task and status history; `.codex/handoff.md` owns only current operational state.
+- Linear owns canonical task/status history; Beads is the agent interface; `.codex/handoff.md` owns only current operational state.
 - История Postiz сохранена в Git; remote `upstream` удалён по решению владельца.
 - AGPL-3.0 governs the fork and the chosen Content Factory product model. Preserve notices and provide the exact corresponding source before external network use or distribution; see `docs/adr/0005-release-content-factory-next-under-agpl.md`.
 - Existing Content Factory Git artifacts remain donor evidence until an explicit migration maps them into product records and exports.

@@ -1,0 +1,51 @@
+{"phase":"after-joined-observers","providerCalls":1,"expectedChars":2760,"ownerChars":2435,"observerChars":2504,"savedChars":2434,"ownerNotes":["note001","note002","note003","note004","note005","note010","note011","note012","note013","note014","note015","note016","note017","note018","note019","note020","note021","note022","note023","note024","note025","note026","note027","note028","note029","note030","note031","note032","note033","note034","note035","note036","note037","note038","note039","note040"],"observerNotes":["note009","note001","note002","note003","note004","note005","note010","note011","note012","note013","note014","note015","note016","note017","note018","note019","note020","note021","note022","note023","note024","note025","note026","note027","note028","note029","note030","note031","note032","note033","note034","note035","note036","note037","note038","note039","note040"],"savedNotes":["note001","note002","note003","note004","note005","note010","note011","note012","note013","note014","note015","note016","note017","note018","note019","note020","note021","note022","note023","note024","note025","note026","note027","note028","note029","note030","note031","note032","note033","note034","note035","note036","note037","note038","note039","note040"]}
+Mastra shutdown completed
+AssertionError [ERR_ASSERTION]: The original admitted consumer must receive every model delta.
++ actual - expected
+
+  'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
++   'note005: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+-   'note005: Preserve the complete content of this public numbered note.\n' +
+-   'note006: Preserve the complete content of this public numbered note.\n' +
+-   'note007: Preserve the complete content of this public numbered note.\n' +
+-   'note008: Preserve the complete content of this public numbered note.\n' +
+-   'note009: Preserve the complete content of this public numbered note.\n' +
+-   'note010: Preserve the complete content of this public numbered note.\n' +
+    'note011: Preserve the complete content of this public numbered note.\n' +
+    'note012: Preserve the complete content of this public numbered note.\n' +
+    'note013: Preserve the complete content of this public numbered note.\n' +
+    'note014: Preserve the complete content of this public numbered note.\n' +
+    'note015: Preserve the complete content of this public numbered note.\n' +
+
+    at /home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/agent-native-session-observe.probe.cjs:80:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
+    'note005: Preserve thnote010: Preserve the complete content of this public numbered note.\n' +
+    'note011: Preserve the complete content of this public numbered note.\n' +
+    'note012: Preserve the complete content of this public numbered note.\n' +
+    'note013: Preserve the complete content of this public numbered note.\n' +
+    'note014: Preserve the complete content of this public numbered note.\n' +
+    'note015: Preserve the complete content of this public numbered note.\n' +
+    '...',
+  expected: 'note001: Preserve the complete content of this public numbered note.\n' +
+    'note002: Preserve the complete content of this public numbered note.\n' +
+    'note003: Preserve the complete content of this public numbered note.\n' +
+    'note004: Preserve the complete content of this public numbered note.\n' +
+    'note005: Preserve the complete content of this public numbered note.\n' +
+    'note006: Preserve the complete content of this public numbered note.\n' +
+    'note007: Preserve the complete content of this public numbered note.\n' +
+    'note008: Preserve the complete content of this public numbered note.\n' +
+    'note009: Preserve the complete content of this public numbered note.\n' +
+    'note010: Preserve the complete content of this public numbered note.\n' +
+    '...',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

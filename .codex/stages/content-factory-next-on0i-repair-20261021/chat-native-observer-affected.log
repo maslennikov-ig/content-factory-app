@@ -1,0 +1,40 @@
+PASS tests/agent-screen.w2-recheck.test.cjs (18.357 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-native-session-observe.test.cjs (5.625 s)
+PASS tests/agent-native-session-cold.test.cjs (18.061 s)
+[WORKFLOW] Error executing step workflow.content-factory-queued-input-v1.step.run-queued-turn: AbortError: Queued input was stopped.
+    at abortError (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:62:40)
+    at stop (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:235:23)
+    at eval (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:385:32)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async eval (eval at compileFile (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:634:36)
+    at async engine.executeStepWithRetry.retries.retries (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5038:18)
+    at async DefaultExecutionEngine.executeStepWithRetry (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5458:14)
+    at async executeStep (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:4921:26)
+    at async executeEntry (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:3889:50)
+    at async DefaultExecutionEngine.execute (/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018/node_modules/@mastra/core/dist/agent-DpTPjdjR.cjs:5791:17)
+PASS tests/agent-native-session-queued.test.cjs (8.814 s)
+PASS tests/agent-native-session-owner.test.cjs (8.753 s)
+PASS tests/agent-native-conversation-flow.test.cjs (7.549 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-native-session-http.test.cjs
+PASS tests/agent-native-signal-boundary.test.cjs
+PASS tests/agent-transport.test.cjs
+
+Test Suites: 9 passed, 9 total
+Tests:       85 passed, 85 total
+Snapshots:   0 total
+Time:        75.59 s
+Ran all test suites matching /tests\/agent-screen.w2-recheck.test.cjs|tests\/agent-native-conversation-flow.test.cjs|tests\/agent-transport.test.cjs|tests\/agent-native-session-http.test.cjs|tests\/agent-native-session-cold.test.cjs|tests\/agent-native-session-queued.test.cjs|tests\/agent-native-session-owner.test.cjs|tests\/agent-native-session-observe.test.cjs|tests\/agent-native-signal-boundary.test.cjs/i.

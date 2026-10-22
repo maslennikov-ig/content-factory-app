@@ -1,0 +1,131 @@
+{
+  "at": "2026-10-21T09:45:22.449Z",
+  "result": "PASS_OFFLINE_PROVIDER_OUTPUT_OBSERVER",
+  "scope": "QA evidence observer only; current backend was not restarted and has not loaded this file change.",
+  "source": "scripts/evidence/on0i-real-local-qa-network.cjs",
+  "sourceSha256": "33a0396d907eafb5cb51ce22dbda19a8c29caf7196c1010e0311ee7c4563af11",
+  "nodeVersion": "v22.23.2",
+  "captureContract": {
+    "source": "Only choices[].delta.content strings parsed from the existing response.clone() SSE observer branch",
+    "originalStreamReadOrModified": false,
+    "providersFilterChanged": false,
+    "perChoiceAccumulation": true,
+    "receiptField": "observedOutput",
+    "receiptFields": [
+      "sha256",
+      "textChars",
+      "numberedLabels",
+      "complete",
+      "persisted",
+      "privateFile",
+      "choiceCount",
+      "choices",
+      "readReachedEof",
+      "sawDone",
+      "parseErrors",
+      "unsupportedContentDeltas"
+    ],
+    "privateFilePattern": "/tmp/on0i-real-local-qa-*/provider-output/RECEIPT_UUID.json",
+    "privateFileMode": "0600",
+    "privateDirectoryMode": "0700",
+    "privatePayload": "Response text per choice plus provider receipt metadata only; no request, auth header, tool arguments, or credentials.",
+    "completionMeaning": "Full SSE capture: EOF and DONE with successful HTTP, no body error, provider error, parse error or unsupported content delta. This flag does not assert requested item count or useful output.",
+    "partialStopBehavior": "Any AbortError leaves complete=false; available text is retained. No fixed expected item count.",
+    "persistenceFailure": "Recorded as observedOutput.persisted=false/privateFileWriteError; original response still returned."
+  },
+  "verification": {
+    "fixture": "/tmp/on0i-real-local-qa-s2nihQ/verify-network-output.cjs",
+    "fixtureSha256": "10a11ef579c9322dd75f929ae0006a5c7e4160a1d741f0b14e761c899456d2c9",
+    "network": "Entirely stubbed synthetic fetch; zero provider/network execution",
+    "red": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node --test /tmp/on0i-real-local-qa-s2nihQ/verify-network-output.cjs",
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 4,
+      "reason": "Original observer did not expose observedOutput."
+    },
+    "green": {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node --test /tmp/on0i-real-local-qa-s2nihQ/verify-network-output.cjs",
+      "exitCode": 0,
+      "passed": 4,
+      "failed": 0,
+      "log": "real-local-qa-network-output-observer-test.log",
+      "logSha256": "0e1f483df2c0cef5698a5c6c3feb7d226da0d95ce96667bcfc7f499eabc7220d"
+    },
+    "checks": [
+      {
+        "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH node --check scripts/evidence/on0i-real-local-qa-network.cjs",
+        "exitCode": 0
+      },
+      {
+        "command": "git diff --no-index --check /dev/null scripts/evidence/on0i-real-local-qa-network.cjs",
+        "rawExitCode": 1,
+        "diagnostics": "",
+        "interpretation": "New-file diff has status1; no whitespace diagnostics."
+      }
+    ],
+    "cases": [
+      "Original byte-for-byte SSE unchanged with split UTF8/CRLF/final un-newlined DONE, separate choices, unchanged usage, hash/labels/private modes",
+      "AbortError captures partial text and complete=false",
+      "EOF without DONE is incomplete even if finish_reason=stop",
+      "Malformed SSE capture remains incomplete while original bytes stay unchanged"
+    ],
+    "forbiddenSyntheticFieldsVerifiedAbsent": [
+      "request prompt",
+      "authorization header",
+      "tool-call arguments"
+    ]
+  },
+  "originalAcceptedScenarios": [
+    {
+      "artifact": "real-local-qa-scenario-direct-no-search.json",
+      "expectedSha256": "72e9d081215fc5c5b5309d6d97f661faba5c8889714b2e236362eed0c4818dbf",
+      "actualSha256": "72e9d081215fc5c5b5309d6d97f661faba5c8889714b2e236362eed0c4818dbf"
+    },
+    {
+      "artifact": "real-local-qa-scenario-reference.json",
+      "expectedSha256": "694732dacc4e76c999a943981891f560fbba0af4f42f26068c358ea51edbeaeb",
+      "actualSha256": "694732dacc4e76c999a943981891f560fbba0af4f42f26068c358ea51edbeaeb"
+    },
+    {
+      "artifact": "real-local-qa-scenario-fresh-research.json",
+      "expectedSha256": "23dc430f52707b24a7881709d80ea9c0d53ca118760999ae9af273ae692cd163",
+      "actualSha256": "23dc430f52707b24a7881709d80ea9c0d53ca118760999ae9af273ae692cd163"
+    },
+    {
+      "artifact": "real-local-qa-research-reuse-resume.json",
+      "expectedSha256": "dc6f58fefb197756ba3e382e36153aae559256c4af0326ee031caa60193ab969",
+      "actualSha256": "dc6f58fefb197756ba3e382e36153aae559256c4af0326ee031caa60193ab969"
+    },
+    {
+      "artifact": "real-local-qa-scenario-private-question.json",
+      "expectedSha256": "cafe56b468c125b0b52b350f18acb986b6b504699ab2fc8d09c36a2a10f2f884",
+      "actualSha256": "cafe56b468c125b0b52b350f18acb986b6b504699ab2fc8d09c36a2a10f2f884"
+    },
+    {
+      "artifact": "real-local-qa-scenario-unknown-sources.json",
+      "expectedSha256": "a357c575dd0f0b03449beb9b7861f8b478df73e96bb86f29ee009e938621e6c5",
+      "actualSha256": "a357c575dd0f0b03449beb9b7861f8b478df73e96bb86f29ee009e938621e6c5"
+    },
+    {
+      "artifact": "real-local-qa-private-question-resume.json",
+      "expectedSha256": "594bc5eaa6792df29dcc1a60c0a06c603a8b5dc443a69c68ce75f912d1cf64d0",
+      "actualSha256": "594bc5eaa6792df29dcc1a60c0a06c603a8b5dc443a69c68ce75f912d1cf64d0"
+    },
+    {
+      "artifact": "real-local-qa-scenario-real-fallback-scripted-primary.json",
+      "expectedSha256": "d5b3726157784257c78048a8c4327b219ed17b3c2814982456e90302ba16701a",
+      "actualSha256": "d5b3726157784257c78048a8c4327b219ed17b3c2814982456e90302ba16701a"
+    }
+  ],
+  "originalAcceptedScenarioHashesUnchanged": true,
+  "currentRuntime": {
+    "pid": 89221,
+    "alive": true,
+    "loadedNetworkObserverSha256": "b2a16eda3b87c9bcaab2eee94fef7fed05b4d3cd0924e527d7047b9044191dca",
+    "newObserverNotYetLoaded": true
+  },
+  "paidCallsByThisWork": 0,
+  "backendRestarted": false,
+  "productSourceEdited": false
+}
