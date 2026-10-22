@@ -68,6 +68,7 @@ const providerRequests = new WeakMap();
 async function providerModel(first) {
   const chain = require('./ai-text-chain.cjs');
   let requests = 0;
+  const attemptsByModel = new Map();
   const calls = [];
   const config = { usageMode: 'workspace_key', provider: 'openrouter', apiKey: 'synthetic-v2-key', textModel: 'synthetic-v2', roleModels: {},
     search: { enabled: false, provider: 'tavily', apiKey: '', topic: 'general', depth: 'advanced' },
@@ -76,13 +77,20 @@ async function providerModel(first) {
     '@contentfactory/nestjs-libraries/openai/ai.provider.config': { requireActiveAiConfig: async () => config, getActiveAiRole: () => 'agent' },
     '@contentfactory/nestjs-libraries/openai/ai.text-chain': { ...chain,
       createTextChainFetch: (source, _fetch, options) => chain.createTextChainFetch(source, async (_url, init) => {
-        const tool = requests++ === 0;
+        const requestNumber = requests++;
+        const tool = requestNumber === 0;
         const request = JSON.parse(init.body);
+        const modelAttempt = attemptsByModel.get(request.model) ?? 0;
+        attemptsByModel.set(request.model, modelAttempt + 1);
         calls.push(request);
         if (first[0] === 'payment') {
           return new global.Response(JSON.stringify({ error: {
             code: 402, message: 'Provider balance or key limit is insufficient. private-payment-detail',
           } }), { status: 402, headers: { 'content-type': 'application/json' } });
+        }
+        if (first[0] === 'terminal-tripwire' && request.model === 'synthetic-terminal-primary' && modelAttempt === 0) {
+          return new global.Response(JSON.stringify({ error: { code: 401, message: 'invalid_api_key' } }),
+            { status: 401, headers: { 'content-type': 'application/json' } });
         }
         const model = request.model;
         const chunk = (delta, finish_reason = null) => ({ id: 'provider-v2-response', object: 'chat.completion.chunk', created: 1700000000, model,
@@ -105,10 +113,14 @@ async function providerModel(first) {
     },
   });
   const provider = await clients.getMastraAiSdkProvider('synthetic-v2-org');
-  const model = provider.chat('synthetic-v2');
-  assert.equal(model.specificationVersion, 'v2', 'Exercise the actual installed OpenAI provider V2 bridge.');
-  providerRequests.set(model, calls);
-  return model;
+  const modelIds = first[0] === 'terminal-tripwire'
+    ? ['synthetic-terminal-primary', 'synthetic-terminal-backup'] : ['synthetic-v2'];
+  const models = modelIds.map(modelId => provider.chat(modelId));
+  for (const model of models) {
+    assert.equal(model.specificationVersion, 'v2', 'Exercise the actual installed OpenAI provider V2 bridge.');
+    providerRequests.set(model, calls);
+  }
+  return modelIds.length === 1 ? models[0] : models.map(model => ({ model, maxRetries: 0 }));
 }
 
 async function scenario(kind) {
@@ -122,7 +134,8 @@ async function scenario(kind) {
     describeApproval: async () => 'Изменить тестовую запись.',
     run: async () => { writes++; return { saved: true }; }, summarize: () => ({ saved: true }),
   };
-  const first = mode === 'payment' ? ['payment'] : mode === 'skill' ? ['tool', 'skill', { name: 'content' }] : mode === 'approval'
+  const first = mode === 'payment' ? ['payment'] : mode === 'terminal-tripwire' ? ['terminal-tripwire']
+    : mode === 'skill' ? ['tool', 'skill', { name: 'content' }] : mode === 'approval'
     ? ['tool', 'test_confirm', { value: 'confirmed' }]
     : ['tool', 'ask_user', { question: 'Что выбрать?', options: [{ label: 'Первое' }, { label: 'Второе' }] }];
   const model = kind.startsWith('provider-') ? await providerModel(first) : scripted([[first], [['text', 'Нативная задача завершена.']]]).model;
@@ -162,6 +175,30 @@ async function scenario(kind) {
     assert.equal(providerRequests.get(model).length, 1, 'A terminal provider payment refusal must not retry or fall back.');
     await mastra.shutdown();
     return { kind, admissions, writes, errorCode: 'AI_PROVIDER_PAYMENT_REQUIRED', providerCalls: 1, outcome: 'failed', safeWire: true };
+  }
+  if (mode === 'terminal-tripwire') {
+    await firstTask;
+    const saved = await handler.getThread(ORG, USER, threadId);
+    const parts = firstResponse.parts();
+    const tripwires = parts.filter(part => part.type === 'data-tripwire');
+    const finish = parts.find(part => part.type === 'finish');
+    const text = parts.filter(part => part.type === 'text-delta').map(part => part.delta).join('');
+    const modelCalls = (providerRequests.get(model[0].model) ?? [])
+      .filter(call => ['synthetic-terminal-primary', 'synthetic-terminal-backup'].includes(call.model));
+    assert.equal(saved.execution.state, 'settled');
+    assert.equal(text, '', 'A terminal native tripwire must not persist an empty response as a successful answer.');
+    assert.equal(finish?.finishReason, 'other');
+    assert.equal(tripwires.some(part => part.data?.metadata?.terminalModelError === true), true,
+      'A real native input-processor tripwire must carry the terminal model marker to the HTTP UI stream.');
+    assert.equal(saved.execution.outcome, 'failed');
+    assert.deepEqual(finished, [false]);
+    assert.equal(modelCalls.some(call => call.model === 'synthetic-terminal-primary'), true);
+    assert.equal(modelCalls.some(call => call.model === 'synthetic-terminal-backup'), false,
+      'A terminal model error must stop before trying the backup model.');
+    await mastra.shutdown();
+    return { kind, outcome: saved.execution.outcome, finishReason: finish.finishReason,
+      terminalMarker: tripwires.some(part => part.data?.metadata?.terminalModelError === true),
+      textEmpty: text === '' };
   }
   if (mode === 'skill') {
     await firstTask;
@@ -244,6 +281,6 @@ module.exports = { Response, HttpController, AgentThreadsService, until, mocks, 
 
 if (require.main === module) (async () => {
   const result = [];
-  for (const kind of ['approval', 'question', 'provider-skill', 'provider-approval', 'provider-payment']) result.push(await scenario(kind));
+  for (const kind of ['provider-terminal-tripwire', 'approval', 'question', 'provider-skill', 'provider-approval', 'provider-payment']) result.push(await scenario(kind));
   console.log(JSON.stringify(result));
 })().catch(error => { console.error(error); process.exitCode = 1; });

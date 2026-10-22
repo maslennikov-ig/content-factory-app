@@ -459,6 +459,166 @@ describe('OpenRouter in-flight credit reservation', () => {
   );
 });
 
+describe('native OpenRouter HTTP 200 error envelopes', () => {
+  const source = { ...included, singleModelAttempt: true };
+  const refusal = (code) => ({ error: { code,
+    message: code === 502 ? 'Flex processing is temporarily unavailable.' : 'Provider refused the request.',
+    metadata: { error_type: 'provider_unavailable' } } });
+
+  test.each([false, true])('surfaces the provider status before the SDK, stream=%s', async stream => {
+    const body = ` ${JSON.stringify(refusal(502))}\n`;
+    const { fetch, calls } = scripted(new Response(body, { status: 200,
+      headers: { 'content-type': 'application/json', 'retry-after': '1', 'x-request-id': 'fixture-envelope' } }));
+    const ledger = new chain.TextUsageLedger();
+    const response = await chain.runWithUsageLedger(ledger, () =>
+      chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, stream })));
+    expect(response.status).toBe(502);
+    expect(await response.text()).toBe(body);
+    expect(response.headers.get('retry-after')).toBe('1');
+    expect(response.headers.get('x-request-id')).toBe('fixture-envelope');
+    expect(calls).toHaveLength(1);
+    expect(ledger.calls).toEqual([expect.objectContaining({ failed: true })]);
+    expect(ledger.calls[0].possiblyBilled).not.toBe(true);
+  });
+
+  test('a successful JSON body remains unchanged for a streaming request', async () => {
+    const body = JSON.stringify(completion());
+    const { fetch, calls } = scripted(new Response(body, { headers: { 'content-type': 'application/json' } }));
+    const response = await chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, stream: true }));
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(body);
+    expect(calls).toHaveLength(1);
+  });
+
+  test.each([false, true])('native SSE retains its bytes and accounting, error=%s', async failed => {
+    const event = failed ? refusal(502) : completion();
+    const body = `data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`;
+    const { fetch, calls } = scripted(new Response(body, { headers: { 'content-type': 'text/event-stream' } }));
+    const ledger = new chain.TextUsageLedger();
+    const response = await chain.runWithUsageLedger(ledger, () =>
+      chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, stream: true })));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    expect(await response.text()).toBe(body);
+    expect(calls).toHaveLength(1);
+    expect(ledger.calls).toHaveLength(1);
+    expect(ledger.calls[0].failed === true).toBe(failed);
+    if (!failed) expect(ledger.calls[0].costUsd).toBe(completion().usage.cost);
+  });
+
+  test('a native call to another provider retains its original status', async () => {
+    const body = JSON.stringify(refusal(502));
+    const { fetch } = scripted(new Response(body, { headers: { 'content-type': 'application/json' } }));
+    const response = await chain.createTextChainFetch(source, fetch)('https://api.openai.com/v1/chat/completions', post(request));
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(body);
+  });
+
+  test('Stop interrupts an unfinished JSON envelope without another native attempt', async () => {
+    const abort = new AbortController();
+    let canceled = false;
+    const { fetch, calls } = scripted(new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new TextEncoder().encode('{"error":')); },
+      cancel() { canceled = true; },
+    }), { headers: { 'content-type': 'application/json' } }));
+    const pending = chain.createTextChainFetch(source, fetch)(URL_, post({ ...request, stream: true }, { signal: abort.signal }));
+    const rejected = expect(pending).rejects.toThrow('stop-envelope-read');
+    await new Promise(resolve => setImmediate(resolve));
+    abort.abort(new Error('stop-envelope-read'));
+    await rejected;
+    expect(calls).toHaveLength(1);
+    expect(canceled).toBe(true);
+  });
+
+  test.each([[502, 0], [502, 1], [401, 0], [402, 0]])(
+    'the durable native SDK handles envelope %s with maxRetries=%s after one committed tool', (code, maxRetries) => {
+      const { execFileSync } = require('node:child_process');
+      const output = execFileSync(process.execPath, ['-e', `
+        const { loadTypeScriptModule } = require('./tests/helpers/load-ts-module.cjs');
+        const chain = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.text-chain.ts');
+        const retry = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.native-retries.ts', { './ai.text-chain': chain });
+        const { Agent } = require('@mastra/core/agent');
+        const { Mastra } = require('@mastra/core/mastra');
+        const { InMemoryStore } = require('@mastra/core/storage');
+        const { Memory } = require('@mastra/memory');
+        const { RequestContext } = require('@mastra/core/request-context');
+        const { createTool } = require('@mastra/core/tools');
+        const { createOpenAI } = require('@ai-sdk/openai');
+        const { z } = require('zod');
+        const calls = [], errors = [];
+        let toolCalls = 0;
+        const models = ['fixture-envelope-primary', 'fixture-envelope-backup'];
+        const config = retry.createNativeTextRetryConfig({ defaultMaxRetries: ${maxRetries}, delayMs: 0 });
+        const handleError = config.errorProcessors[0].processAPIError;
+        config.errorProcessors[0].processAPIError = args => {
+          errors.push(args.error.statusCode ?? null);
+          return handleError(args);
+        };
+        const stream = (model, tool) => {
+          const chunks = [
+            { id: 'fixture', object: 'chat.completion.chunk', created: 0, model, choices: [{ index: 0,
+              delta: tool ? { role: 'assistant', tool_calls: [{ index: 0, id: 'fixture-save', type: 'function',
+                function: { name: 'fixture_persist', arguments: '{}' } }] } : { role: 'assistant', content: 'recovered' }, finish_reason: null }] },
+            { id: 'fixture', object: 'chat.completion.chunk', created: 0, model, choices: [{ index: 0, delta: {},
+              finish_reason: tool ? 'tool_calls' : 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4, cost: 0.0001 } },
+          ];
+          return new Response(chunks.map(chunk => 'data: ' + JSON.stringify(chunk) + '\\n\\n').join('') + 'data: [DONE]\\n\\n',
+            { headers: { 'content-type': 'text/event-stream' } });
+        };
+        const provider = createOpenAI({ apiKey: 'synthetic', baseURL: ${JSON.stringify(URL_.replace('/chat/completions', ''))},
+          fetch: chain.createTextChainFetch({ provider: 'openrouter', usageMode: 'included', singleModelAttempt: true,
+            textChain: { flex: false, fallbackDisabled: true, fallbackModels: [] } }, async (_url, init) => {
+            const body = JSON.parse(init.body);
+            calls.push(body.model);
+            if (toolCalls === 0) return stream(body.model, true);
+            if (body.model === models[0]) return new Response(${JSON.stringify(JSON.stringify(refusal(code)))},
+              { headers: { 'content-type': 'application/json' } });
+            return stream(body.model, false);
+          }) });
+        const storage = new InMemoryStore({ id: 'fixture-envelope-store' });
+        const agent = new Agent({ id: 'fixture-envelope', name: 'Envelope fixture', instructions: 'Save once, then answer.',
+          durable: { cleanupTimeoutMs: 0 }, memory: new Memory({ storage }),
+          model: models.map(model => ({ model: provider.chat(model), maxRetries: 0 })), ...config,
+          tools: { fixture_persist: createTool({ id: 'fixture-persist', description: 'Commit the fixture once.',
+            inputSchema: z.object({}), outputSchema: z.object({ saved: z.boolean() }),
+            execute: async () => { toolCalls++; return { saved: true }; } }) } });
+        const mastra = new Mastra({ agents: { fixture: agent }, storage, logger: false });
+        const context = new RequestContext();
+        retry.setNativeTextMaxRetries(context, ${maxRetries}, models);
+        const ledger = new chain.TextUsageLedger();
+        chain.runWithUsageLedger(ledger, async () => {
+          let text = '', failure = false;
+          try {
+            const output = await mastra.getAgent('fixture').stream('Run the fixture.', {
+              maxSteps: 3, maxRetries: 0, requestContext: context,
+              memory: { thread: 'fixture-envelope-thread', resource: 'fixture-envelope-resource' },
+            });
+            for await (const chunk of output.fullStream) {
+              if (chunk.type === 'text-delta') text += chunk.payload?.text ?? chunk.textDelta ?? '';
+              if (chunk.type === 'tripwire' || chunk.type === 'error') failure = true;
+            }
+          } catch { failure = true; }
+          await mastra.shutdown();
+          console.log('RESULT=' + JSON.stringify({ text, failure, calls, toolCalls, errors,
+            ledger: ledger.calls.map(call => ({ failed: call.failed === true, possiblyBilled: call.possiblyBilled === true })) }));
+        }).catch(() => { process.exitCode = 1; });
+      `], { cwd: require('node:path').join(__dirname, '..'), encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] });
+      const result = JSON.parse(output.split('\n').find(line => line.startsWith('RESULT=')).slice(7));
+      const expected = code === 502
+        ? ['fixture-envelope-primary', ...Array(maxRetries + 1).fill('fixture-envelope-primary'), 'fixture-envelope-backup']
+        : ['fixture-envelope-primary', 'fixture-envelope-primary'];
+      expect(result.calls).toEqual(expected);
+      expect(result.toolCalls).toBe(1);
+      expect(result.errors).toEqual(Array(code === 502 ? maxRetries + 1 : 1).fill(code));
+      expect(result.text).toBe(code === 502 ? 'recovered' : '');
+      if (code === 502) expect(result.failure).toBe(false);
+      expect(result.ledger).toHaveLength(expected.length);
+      expect(result.ledger.filter(call => call.failed)).toEqual(Array(code === 502 ? maxRetries + 1 : 1)
+        .fill({ failed: true, possiblyBilled: false }));
+    }, 20_000
+  );
+});
+
 describe('streaming through the chain', () => {
   const chunk = (content, extra = {}) => ({
     id: 's',

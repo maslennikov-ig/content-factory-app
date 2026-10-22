@@ -194,6 +194,9 @@ const closingLine = (language: 'ru' | 'en', message?: string) => {
 
 const failedPart = (part: any) =>
   part?.type === 'error' ||
+  // Mastra converts a terminal model tripwire to finishReason "other".
+  // Ordinary tripwires retain their existing user/retry handling.
+  (part?.type === 'data-tripwire' && part?.data?.metadata?.terminalModelError === true) ||
   // Only the terminal UI finish reaches this boundary. Native intermediate
   // length retries remain eligible; an exhausted truncated answer is incomplete.
   (part?.type === 'finish' && ['error', 'length'].includes(part?.finishReason));

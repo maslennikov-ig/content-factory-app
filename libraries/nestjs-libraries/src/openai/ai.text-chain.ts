@@ -2016,12 +2016,19 @@ const runAttempt = async (
       deadline.rearm(bodyWindowMs - (Date.now() - startedAt));
     }
     const headers = copyHeaders(response.headers);
-    const rebuild = (content: BodyInit | null) =>
-      new Response(content, {
-        status: response.status,
-        statusText: response.statusText,
+    const rebuild = (content: BodyInit | null, providerErrorStatus?: number) => {
+      // Native retries need the provider status before the SDK validates JSON
+      // or interprets a JSON error body as an empty SSE stream.
+      const status = singleModelAttempt && isOpenRouterChatUrl(urlOf(input)) &&
+        typeof providerErrorStatus === 'number' && Number.isInteger(providerErrorStatus) &&
+        providerErrorStatus >= 400 && providerErrorStatus <= 599
+        ? providerErrorStatus : response.status;
+      return new Response(content, {
+        status,
+        statusText: status === response.status ? response.statusText : undefined,
         headers,
       });
+    };
 
     if (!response.ok) {
       let text = '';
@@ -2065,7 +2072,7 @@ const runAttempt = async (
             message: `error in a ${response.status} body: ${error.message}`,
           });
         ledger?.record(failedCall(attempt, false));
-        return rebuild(text);
+        return rebuild(text, error.status);
       }
       ledger?.record(readUsage(payload, attempt));
       return rebuild(text);
@@ -2090,6 +2097,16 @@ const runAttempt = async (
       }
       held.push(chunk.value);
       observer.push(chunk.value);
+    }
+    if (singleModelAttempt && ended && observer.first === undefined && isOpenRouterChatUrl(urlOf(input))) {
+      const decoder = new TextDecoder();
+      const text = held.map(bytes => decoder.decode(bytes, { stream: true })).join('') + decoder.decode();
+      let error: ReturnType<typeof errorOf>;
+      try { error = errorOf(JSON.parse(text)); } catch { /* Not a provider error envelope. */ }
+      if (error) {
+        ledger?.record(failedCall(attempt, false));
+        return rebuild(text, error.status);
+      }
     }
     const early = ended
       ? // An empty stream is the gateway's failure, not an answer.
