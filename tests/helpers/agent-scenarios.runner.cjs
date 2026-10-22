@@ -439,6 +439,9 @@ const stand = (scenario) => {
     {
       // The door builds its turn from the very conductor module the agent runs.
       resolve: (request) => {
+        // This validator belongs to the merged adaptation stream, rather than
+        // the conductor barrel whose lifecycle instances are shared below.
+        if (request.endsWith('/adaptation-review-progress')) return undefined;
         const prefix = '@contentfactory/nestjs-libraries/chat/conductor/';
         return request.startsWith(prefix) && !request.endsWith('agent-threads.service')
           ? conductor

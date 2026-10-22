@@ -21,7 +21,7 @@ module.exports = {
       say: 'Сделай картинку к посту и напиши пост из мысли: повестка экономит час',
       model: [
         [['tool', 'media_generate', { pieceId: 'p1', adaptationId: 'a1' }]],
-        [['tool', 'piece_create', { text: 'Повестка экономит час' }]],
+        [['tool', 'piece_create', {}]],
         [['text', 'На картинку не хватило лимита. Заготовка готова.']],
       ],
     },

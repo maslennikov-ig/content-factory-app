@@ -23,7 +23,7 @@ module.exports = {
   turns: [
     {
       say: `${TASK}, поищи глубоко`,
-      model: [[['tool', 'piece_create', { selection: 'person', text: TASK, inputKind: 'instruction', research: 'deep' }]]],
+      model: [[['tool', 'piece_create', { selection: 'person', inputKind: 'instruction', research: 'deep' }]]],
     },
     {
       resume: { factKeys: ['f1', 'f2'] },
@@ -64,7 +64,7 @@ module.exports = {
     // The two bodies the screen sends: the task, then the kept rows with the
     // first pass's snapshot.
     const screen = {
-      input: TASK,
+      input: `${TASK}, поищи глубоко`,
       language: 'ru', timeZone: '+03:00',
       materialKind: 'instruction',
       options: { researchEnabled: true, researchLevel: 'deep' },

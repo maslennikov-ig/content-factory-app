@@ -17,7 +17,7 @@ module.exports = {
     {
       say: `Переработай этот пост:\n${POST}`,
       model: [
-        [['tool', 'piece_create', { text: POST, inputKind: 'foreign_post' }]],
+        [['tool', 'piece_create', { inputKind: 'foreign_post' }]],
         [['text', 'Заготовка cnt-9 из чужого поста готова.']],
       ],
     },
@@ -28,7 +28,7 @@ module.exports = {
       [
         'intake',
         screenIntakeBody({
-          input: POST,
+          input: `Переработай этот пост:\n${POST}`,
           language: 'ru', timeZone: '+03:00',
           materialKind: 'foreign_post',
           options: { researchEnabled: false, researchLevel: 'standard' },
@@ -37,7 +37,7 @@ module.exports = {
     ]);
     expect(run.world.pieces.find((piece) => piece.id === 'p9')).toMatchObject({
       inputKind: 'foreign_post',
-      body: POST,
+      body: `Переработай этот пост:\n${POST}`,
     });
     expect(turn.data.filter((part) => part.type === 'data-progress').map((part) => part.data.stage)).toContain('claims');
     // Nothing of the pasted text comes back to the model, and nothing it

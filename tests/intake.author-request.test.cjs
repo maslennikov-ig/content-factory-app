@@ -1,5 +1,6 @@
 'use strict';
 require('reflect-metadata');
+const { MASTRA_THREAD_ID_KEY, MASTRA_RESOURCE_ID_KEY } = require('@mastra/core/request-context');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { loadRegistry, loadCapabilityModule, requestContextFor, servicesFrom, executeTool, IDENTITY } = require('./helpers/agent-capabilities.cjs');
 const registry = loadRegistry({ mocks: {
@@ -120,6 +121,28 @@ test.each([undefined, 'current'])('current author text can be resolved without m
   const result = await run(built, { ...(requestMessageId ? { requestMessageId } : {}) });
   expect(result.output).toMatchObject({ ok: true, summary: { requestBasis: 'original_request' } });
   expect(built.writes.mock.calls[0][1].brief.inputText).toBe(original);
+  expect(built.memory.recall).not.toHaveBeenCalled();
+});
+
+test('native subagent inherits the exact server-held author record without sharing parent Memory', async () => {
+  const built = await build();
+  const context = contextFor();
+  context.delete(MASTRA_THREAD_ID_KEY);
+  expect(context.get(MASTRA_THREAD_ID_KEY)).toBeUndefined();
+  const result = await run(built, { material }, context);
+  expect(result.output).toMatchObject({ ok: true, summary: { requestBasis: 'original_request' } });
+  expect(built.writes.mock.calls[0][1].brief.inputText).toBe(original);
+  expect(built.memory.recall).not.toHaveBeenCalled();
+});
+
+test.each(['changed author text', 'another resource', 'another message id'])('native subagent refuses %s before any write', async mode => {
+  const built = await build();
+  const context = contextFor();
+  context.delete(MASTRA_THREAD_ID_KEY);
+  const input = mode === 'changed author text' ? { text: original + '\n' + added }
+    : mode === 'another message id' ? { requestMessageId: 'other-message' } : {};
+  if (mode === 'another resource') context.set(MASTRA_RESOURCE_ID_KEY, 'other:person');
+  expectUnspent(await run(built, input, context), built, context);
   expect(built.memory.recall).not.toHaveBeenCalled();
 });
 

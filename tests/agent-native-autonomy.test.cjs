@@ -141,6 +141,7 @@ describe('Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up 
       judgeEvalCount: 0,
     });
     expect(goal.createdPiecesCount).toBe(1);
+    expect(goal.authorRequestPreserved).toBe(true);
     expect(goal.judgeEvalCount).toBe(2);
     expect(goal.mainModelCalls).toBe(4);
     expect(goal.finalText).toContain('Заготовка «Итоги релиза» создана');
@@ -176,6 +177,7 @@ describe('Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up 
       { agentType: 'review', billingRole: 'review' },
     ]);
     expect(subagents.createdPiecesByWritingSubagent).toBe(1);
+    expect(subagents.authorRequestPreserved).toBe(true);
     expect(subagents.toolResults).toHaveLength(4);
     expect(subagents.toolResults[0]).toMatchObject({
       ok: true,

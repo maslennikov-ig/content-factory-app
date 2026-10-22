@@ -105,8 +105,8 @@ module.exports = {
     });
     const piece = run.world.pieces.find((one) => one.id === 'p9');
     expect(piece.leadSource).toEqual({ leadId: 'lead-4', url: FOUND.url, title: FOUND.title });
-    // The intake text is the screen's: title, excerpt, address.
-    expect(piece.body).toBe(`${FOUND.title}\n\n${FOUND.excerpt}\n\n${FOUND.url}`);
+    // The owned lead and the complete author request reach intake unchanged.
+    expect(piece.body).toBe(`${FOUND.title}\n\n${FOUND.excerpt}\n\n${FOUND.url}\n\nВозьми его в работу`);
     const intake = run.requests.find(([name]) => name === 'intake')[1];
     expect(intake).toMatchObject({ sourceLeadId: 'lead-4', inputKind: 'thought', language: 'ru' });
     expect(run.world.leads.find((one) => one.id === 'lead-4').status).toBe('ACCEPTED');

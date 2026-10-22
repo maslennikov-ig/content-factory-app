@@ -17,7 +17,7 @@ module.exports = {
       say: 'Посмотри, что у нас есть, и напиши заготовку про созвоны',
       model: [
         [['tool', 'workspace_snapshot', {}]],
-        [['tool', 'piece_create', { text: 'Мысль про созвоны', inputKind: 'thought' }]],
+        [['tool', 'piece_create', { inputKind: 'thought' }]],
         [['text', 'Готово: заготовка про созвоны.']],
       ],
     },

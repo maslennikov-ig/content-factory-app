@@ -12,7 +12,7 @@ module.exports = {
     {
       say: 'Напиши заготовку: мысль про созвоны без повестки',
       model: [
-        [['tool', 'piece_create', { text: 'Мысль про созвоны без повестки', inputKind: 'thought' }]],
+        [['tool', 'piece_create', { inputKind: 'thought' }]],
         [['text', 'Заготовка cnt-9 готова, у неё два вопроса — ответьте на них в карточке.']],
       ],
     },
@@ -24,7 +24,7 @@ module.exports = {
     expect(run.writes).toEqual([['piece.created', 'p9']]);
     expect(run.world.pieces.find((piece) => piece.id === 'p9')).toMatchObject({
       code: 'cnt-9',
-      body: 'Мысль про созвоны без повестки',
+      body: 'Напиши заготовку: мысль про созвоны без повестки',
       language: 'ru',
       research: false,
       createdBy: 'user-1',

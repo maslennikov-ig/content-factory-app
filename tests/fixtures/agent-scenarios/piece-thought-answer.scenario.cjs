@@ -16,7 +16,7 @@ module.exports = {
     {
       say: 'Напиши заготовку: созвоны без повестки съедают день',
       model: [
-        [['tool', 'piece_create', { text: 'Созвоны без повестки съедают день' }]],
+        [['tool', 'piece_create', {}]],
         [['text', 'Заготовка cnt-9 готова, у неё два вопроса. Ответим здесь?']],
       ],
     },
@@ -53,7 +53,7 @@ module.exports = {
       [
         'intake',
         screenIntakeBody({
-          input: 'Созвоны без повестки съедают день',
+          input: 'Напиши заготовку: созвоны без повестки съедают день',
           language: 'ru', timeZone: '+03:00',
           materialKind: 'thought',
           options: { researchEnabled: false, researchLevel: 'standard' },

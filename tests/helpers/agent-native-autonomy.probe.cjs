@@ -437,6 +437,7 @@ const probeTasksAndTaskStateProcessor = async () => {
  *    - Internal `goalJudge: true` and `forkedSubagent: true` threads are hidden from thread listing.
  */
 const probeObjectiveAndGoalJudge = async () => {
+  const authorRequest = 'Поставь цель создать заготовку «Итоги релиза» и выполни её';
   const { services, createdPieces } = buildFakeServices();
   const storage = new InMemoryStore();
   const memory = conductor.createConductorMemory(storage);
@@ -462,7 +463,7 @@ const probeObjectiveAndGoalJudge = async () => {
         [
           'tool',
           'piece_create',
-          { text: 'Итоги релиза: ключевые результаты недели.' },
+          { material: 'Итоги релиза: ключевые результаты недели.' },
         ],
       ],
       [['text', 'Заготовка «Итоги релиза» создана и сохранена в пространстве.']],
@@ -541,12 +542,13 @@ const probeObjectiveAndGoalJudge = async () => {
   });
 
   const initial = await registered.generate(
-    'Поставь цель создать заготовку «Итоги релиза» и выполни её',
+    authorRequest,
     {
       requestContext: conductor.buildConductorContext({
         identity: IDENTITY,
         threadId,
         paidLimit: 3,
+        originalAuthorRequest: { messageId: 'goal-author-message', text: authorRequest },
       }),
       memory: { thread: threadId, resource: resourceId },
     }
@@ -576,6 +578,7 @@ const probeObjectiveAndGoalJudge = async () => {
       identity: IDENTITY,
       threadId,
       paidLimit: 3,
+      originalAuthorRequest: { messageId: 'goal-author-message', text: authorRequest },
     }),
     memory: { thread: threadId, resource: resourceId },
   });
@@ -605,6 +608,7 @@ const probeObjectiveAndGoalJudge = async () => {
     finalText: result.text,
     beforeObjectiveApproval,
     createdPiecesCount: createdPieces.length,
+    authorRequestPreserved: createdPieces[0]?.[1]?.input === authorRequest,
     mainModelCalls: mainSeen.calls.length,
     judgeModelCalls: judgeSeen.calls.length,
     judgeEvalCount,
@@ -621,6 +625,7 @@ const probeObjectiveAndGoalJudge = async () => {
  *    `forked: true` refusal, and `USER` role restriction.
  */
 const probeSubagentDelegation = async () => {
+  const authorRequest = 'Запусти исследование, написание и ревью';
   const { services, createdPieces } = buildFakeServices();
   const storage = new InMemoryStore();
   const memory = conductor.createConductorMemory(storage);
@@ -683,7 +688,7 @@ const probeSubagentDelegation = async () => {
   );
   const writingModel = scriptedModel(
     [
-      [['tool', 'piece_create', { text: 'Черновик от субагента writing.' }]],
+      [['tool', 'piece_create', { material: 'Черновик от субагента writing.' }]],
       [['text', 'Черновик создан: cnt-2.']],
     ],
     'sub-writing'
@@ -735,13 +740,14 @@ const probeSubagentDelegation = async () => {
     requestId: 'subagent-probe',
   });
   const result = await execution.run(() =>
-    registered.generate('Запусти исследование, написание и ревью', {
+    registered.generate(authorRequest, {
       ...execution.streamOptions(),
       abortSignal: execution.signal,
       requestContext: conductor.buildConductorContext({
         identity: IDENTITY,
         threadId,
         paidLimit: 4,
+        originalAuthorRequest: { messageId: 'subagent-author-message', text: authorRequest },
       }),
       memory: { thread: threadId, resource: resourceId },
     })
@@ -750,6 +756,7 @@ const probeSubagentDelegation = async () => {
   return {
     subagentRolesCalled,
     createdPiecesByWritingSubagent: createdPieces.length,
+    authorRequestPreserved: createdPieces[0]?.[1]?.input === authorRequest,
     stepSummaries: (result.steps || []).map((s) => ({
       toolCalls: s.toolCalls,
       toolResults: s.toolResults,

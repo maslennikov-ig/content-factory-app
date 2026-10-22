@@ -27,12 +27,16 @@ export const authorRequestResolver = (
 
   let history: Promise<OriginalAuthorRequest[]> | undefined;
   return async ({ requestMessageId, text }) => {
-    if (typeof threadId !== 'string' || !threadId || resourceId !== `${identity.organizationId}:${identity.userId}`) return null;
+    if (resourceId !== `${identity.organizationId}:${identity.userId}`) return null;
+    // Native subagents drop the parent's Memory thread binding but retain its
+    // authenticated RequestContext. Its exact server-held author record is
+    // still valid; an owned thread is required only for looking up older text.
     if (current && (!requestMessageId || requestMessageId === current.messageId)) {
       if (text === undefined || text === current.text) return current;
       // An explicit current id cannot be rescued by a different stored record.
       if (requestMessageId === current.messageId) return null;
     }
+    if (typeof threadId !== 'string' || !threadId) return null;
     if (!requestMessageId && text === undefined) return null;
     history ??= (async () => {
       try {
