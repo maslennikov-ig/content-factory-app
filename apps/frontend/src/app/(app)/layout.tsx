@@ -1,6 +1,7 @@
 
 export const dynamic = 'force-dynamic';
 import '../global.scss';
+import 'katex/dist/katex.min.css';
 import 'react-tooltip/dist/react-tooltip.css';
 import LayoutContext from '@contentfactory/frontend/components/layout/layout.context';
 import { ReactNode } from 'react';

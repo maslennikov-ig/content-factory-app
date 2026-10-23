@@ -1,19 +1,20 @@
 'use client';
 
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, type ReactNode } from 'react';
+import katex from 'katex';
 
 /**
  * The agent's words as markdown, drawn as React elements
  * (`content-factory-next-kcxz.10`).
  *
  * The agent answers in markdown: paragraphs, **bold**, *italic*, `code`,
- * lists, short headings, links. A markdown library would bring its own HTML
- * path; the text of a turn can quote a stranger's post, so nothing here ever
- * becomes HTML. Every node is an element built below, never
+ * lists, short headings, links. A turn can quote a stranger's post, so source
+ * markup stays text. Markdown uses React elements, never
  * `dangerouslySetInnerHTML`, and a link is kept only when it is `http(s)` or
  * `mailto`; anything else stays as its own text.
  *
- * The subset is the one the agent's instructions ask for. What it does not
+ * TeX is rendered by KaTeX's DOM API with untrusted commands disabled;
+ * source text is never treated as HTML. Code stays literal. What it does not
  * know (tables, images, raw HTML) is shown as the characters that were sent.
  */
 
@@ -22,12 +23,53 @@ type Block =
   | { kind: 'heading'; level: 1 | 2 | 3; text: string }
   | { kind: 'list'; ordered: boolean; start: number; items: string[] }
   | { kind: 'quote'; lines: string[] }
-  | { kind: 'code'; text: string };
+  | { kind: 'code'; text: string }
+  | { kind: 'math'; text: string };
 
 const LIST_ITEM = /^\s{0,3}([-*+•]|\d{1,3}[.)])\s+(.*)$/;
 const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
 const FENCE = /^\s{0,3}(```|~~~)/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
+const DISPLAY_MATH = /^\s{0,3}(\\\[|\$\$)\s*$/;
+
+function AgentMath({
+  text,
+  display = false,
+}: {
+  text: string;
+  display?: boolean;
+}) {
+  const target = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!target.current) return;
+    try {
+      katex.render(text, target.current, {
+        displayMode: display,
+        output: 'htmlAndMathml',
+        trust: false,
+        throwOnError: false,
+        strict: 'ignore',
+        errorColor: 'currentColor',
+        maxSize: 10,
+        maxExpand: 1000,
+      });
+    } catch {
+      target.current.textContent = text;
+    }
+  }, [text, display]);
+  return (
+    <span
+      ref={target}
+      className={
+        display
+          ? 'block max-w-full overflow-x-auto py-[4px] [&_.katex-display]:m-0'
+          : 'inline-block max-w-full overflow-x-auto align-middle'
+      }
+    >
+      {text}
+    </span>
+  );
+}
 
 export const parseBlocks = (source: string): Block[] => {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
@@ -46,13 +88,32 @@ export const parseBlocks = (source: string): Block[] => {
     if (fence) {
       const body: string[] = [];
       index += 1;
-      while (index < lines.length && !lines[index].trim().startsWith(fence[1])) {
+      while (
+        index < lines.length &&
+        !lines[index].trim().startsWith(fence[1])
+      ) {
         body.push(lines[index]);
         index += 1;
       }
       index += 1;
       blocks.push({ kind: 'code', text: body.join('\n') });
       continue;
+    }
+
+    const math = DISPLAY_MATH.exec(line);
+    if (math) {
+      const closing = math[1] === '\\[' ? '\\]' : '$$';
+      const end = lines.findIndex(
+        (candidate, offset) => offset > index && candidate.trim() === closing
+      );
+      if (end !== -1) {
+        blocks.push({
+          kind: 'math',
+          text: lines.slice(index + 1, end).join('\n'),
+        });
+        index = end + 1;
+        continue;
+      }
     }
 
     const heading = HEADING.exec(line);
@@ -103,6 +164,7 @@ export const parseBlocks = (source: string): Block[] => {
     while (
       index < lines.length &&
       lines[index].trim() &&
+      !(paragraph.length > 0 && DISPLAY_MATH.test(lines[index])) &&
       !FENCE.test(lines[index]) &&
       !HEADING.test(lines[index]) &&
       !QUOTE.test(lines[index]) &&
@@ -129,7 +191,7 @@ export const safeHref = (href: string): string | null => {
  * again for the marks inside it (not inside code).
  */
 const INLINE =
-  /(`[^`\n]+`)|(\*\*[^*\n]+\*\*|__[^_\n]+__)|(\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)|(\[[^\]\n]+\]\([^)\s]+\))|(https?:\/\/[^\s<>()«»"]+[^\s<>()«»".,;:!?])/;
+  /(`[^`\n]+`)|(\*\*[^*\n]+\*\*|__[^_\n]+__)|(\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)|(\[[^\]\n]+\]\([^)\s]+\))|(https?:\/\/[^\s<>()«»"]+[^\s<>()«»".,;:!?])|(\\\([^\n]*?\\\)|\\\[[^\n]*?\\\]|\$\$[^\n]*?\$\$|(?<![\\\w$])\$(?![\s$])(?:\\.|[^$\\\n])+?(?<!\s)\$(?![\w$]))/;
 
 export const renderInline = (text: string, keyPrefix = 'i'): ReactNode[] => {
   const nodes: ReactNode[] = [];
@@ -179,6 +241,16 @@ export const renderInline = (text: string, keyPrefix = 'i'): ReactNode[] => {
           token
         )
       );
+    } else if (match[6]) {
+      const display = token.startsWith('\\[') || token.startsWith('$$');
+      const width = token.startsWith('$') && !display ? 1 : 2;
+      nodes.push(
+        <AgentMath
+          key={key}
+          text={token.slice(width, -width)}
+          display={display}
+        />
+      );
     } else {
       const safe = safeHref(token);
       nodes.push(
@@ -218,9 +290,14 @@ export function AgentMarkdown({ text }: { text: string }) {
       {blocks.map((block, index) => {
         const key = `b-${index}`;
         switch (block.kind) {
+          case 'math':
+            return <AgentMath key={key} text={block.text} display />;
           case 'heading':
             return (
-              <p key={key} className="cf-label-md text-cf-ink [text-wrap:balance]">
+              <p
+                key={key}
+                className="cf-label-md text-cf-ink [text-wrap:balance]"
+              >
                 {renderInline(block.text, key)}
               </p>
             );

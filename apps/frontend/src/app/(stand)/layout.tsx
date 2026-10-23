@@ -1,4 +1,5 @@
 import '../global.scss';
+import 'katex/dist/katex.min.css';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import {
