@@ -47,10 +47,7 @@ export async function observeConductorRun(
   // A numeric offset skips lifecycle markers too. Preserve the native floor
   // from those skipped events so a superseded owner's terminal cannot end this
   // reader. With no offset, the adapter learns each generation during replay.
-  let replayFloor: Pick<
-    StreamAdapterOptions,
-    'minGeneration' | 'rereadMinGeneration'
-  > = {};
+  let replayFloor: Pick<StreamAdapterOptions, 'minGeneration'> = {};
   if (options.offset) {
     try {
       const skipped = (
@@ -70,7 +67,10 @@ export async function observeConductorRun(
         replayFloor = { minGeneration: await readGeneration() };
       }
     } catch {
-      replayFloor = { rereadMinGeneration: readGeneration };
+      // Terminal-time claim reads are asynchronous: a stale delta can arrive
+      // while that read is pending. Seed Mastra's native filter before the
+      // subscription starts; propagate storage failures rather than leak text.
+      replayFloor = { minGeneration: await readGeneration() };
     }
   }
 

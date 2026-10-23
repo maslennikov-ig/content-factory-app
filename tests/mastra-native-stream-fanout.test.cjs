@@ -12,7 +12,7 @@ test('native PG/Redis observers isolate text state, detach locally, and preserve
   expect(report).toEqual(expect.objectContaining({
     passed: true, providerCalls: 1, providerAborts: 0, produced: 80,
     cachePreservedAfterDetach: true, persistedLength: 479,
-    fencing: { publicStorageClaims: true, staleGenerationDropped: true, modes: 4, toolPairsPreserved: 4, terminalProofRequired: true, terminalReadFailuresPropagated: true },
+    fencing: { publicStorageClaims: true, staleGenerationDropped: true, modes: 4, toolPairsPreserved: 4, terminalProofRequired: true, terminalReadFailuresPropagated: true, unknownFloorRejected: true },
   }));
   for (const index of [0, 2]) {
     expect(report.observerLengths[index].length).toBe(480);

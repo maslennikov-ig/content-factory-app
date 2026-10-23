@@ -1,3 +1,8 @@
+// The Markdown ecosystem is ESM-only. Use the same module-syntax conversion
+// as the SDK dependencies so UI tests exercise the real renderer and plugins.
+const markdownEsm =
+  '(?:react-markdown|markdown-table|remark-[^/]+|micromark[^/]*|mdast-util-[^/]+|hast-util-[^/]+|unist-util-[^/]+|vfile[^/]*|unified|bail|trough|devlop|decode-named-character-reference|character-entities[^/]*|character-reference-invalid|property-information|space-separated-tokens|comma-separated-tokens|html-url-attributes|is-(?:plain-obj|alphabetical|alphanumerical|decimal|hexadecimal)|longest-streak|parse-entities|stringify-entities|estree-util-is-identifier-name|trim-lines|html-void-elements|ccount|escape-string-regexp|zwitch)';
+
 /** @type {import('jest').Config} */
 module.exports = {
   clearMocks: true,
@@ -11,12 +16,14 @@ module.exports = {
   // real sources for Jest's CJS runtime; native SDK subprocess probes keep
   // using Node's unchanged loader. Include nested/pnpm package locations.
   transform: {
+    [`[/\\\\]node_modules[/\\\\](?:.*[/\\\\]node_modules[/\\\\])?${markdownEsm}[/\\\\].+\\.js$`]:
+      '<rootDir>/tests/helpers/esm-dependencies.transform.cjs',
     '[/\\\\]node_modules[/\\\\](?:.*[/\\\\]node_modules[/\\\\])?(?:@ai-sdk[/\\\\]provider(?:-utils)?(?:-v7)?|@workflow[/\\\\]serde)[/\\\\].+\\.js$':
       '<rootDir>/tests/helpers/esm-dependencies.transform.cjs',
     '^.+\\.[jt]sx?$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(?:\\.pnpm/|@ai-sdk/provider(?:-utils)?(?:-v7)?/|@workflow/serde/))',
+    `node_modules/(?!(?:\\.pnpm/|@ai-sdk/provider(?:-utils)?(?:-v7)?/|@workflow/serde/|${markdownEsm}/))`,
   ],
   // One ESM-only package sits behind the compose modal, which several suites
   // now reach through the Content section. Stubbed here so no suite has to

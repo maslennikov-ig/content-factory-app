@@ -155,34 +155,67 @@ async function verifyFencedReplay(runtime) {
     let observed;
     try { observed = await observeConductorRun(runtime.agent, runId, { offset }); }
     finally { runtime.agent.pubsub.getHistory = history; }
+    const getOwnership = workflows.getRunOwnership.bind(workflows);
+    let releaseClaimRead = () => {};
+    if (floor === 'retry-storage') {
+      const gate = new Promise(resolve => { releaseClaimRead = resolve; });
+      workflows.getRunOwnership = async (...args) => { await gate; return getOwnership(...args); };
+    }
     const reader = observed.fullStream.getReader();
     const chunks = [];
     const drained = (async () => { while (true) { const next = await reader.read(); if (next.done) return; chunks.push(next.value); } })();
-    // For storage fallback the intentionally missing earlier event index must
-    // still be consumed before fresh live data begins at numeric offset 1.
-    if (floor === 'storage' || floor === 'retry-storage') await publish(AgentStreamEventTypes.OWNERSHIP_CLAIMED, {});
-    // Native failed-read protection retries the claim before a terminal event.
-    // It deliberately does not add a storage read to every ordinary delta.
-    if (floor === 'retry-storage') await publish(AgentStreamEventTypes.FINISH, finish, first.record.generation);
-    await publish(AgentStreamEventTypes.CHUNK, { type: 'text-delta', payload: { id: 'stale', text: 'STALE' } }, first.record.generation);
-    if (floor !== 'retry-storage') await publish(AgentStreamEventTypes.FINISH, finish, first.record.generation);
-    for (const chunk of [
-      { type: 'text-start', payload: { id: 'fenced-text' } },
-      { type: 'text-delta', payload: { id: 'fenced-text', text: 'Current owner.' } },
-      { type: 'text-end', payload: { id: 'fenced-text' } },
-      { type: 'tool-call', payload: { toolCallId: 'fenced-tool', toolName: 'fixture_persist', args: {} } },
-      { type: 'tool-result', payload: { toolCallId: 'fenced-tool', toolName: 'fixture_persist', result: { id: 'once' } } },
-    ]) await publish(AgentStreamEventTypes.CHUNK, { runId, from: 'AGENT', ...chunk });
-    await publish(AgentStreamEventTypes.FINISH, finish);
-    await drained;
-    observed.detach();
-    assert.equal(chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.payload.text).join(''), 'Current owner.', floor);
-    assert.equal(chunks.filter(chunk => chunk.type === 'finish').length, 1, floor);
-    assert.equal(chunks.filter(chunk => chunk.type === 'tool-call').length, 1, floor);
-    assert.equal(chunks.filter(chunk => chunk.type === 'tool-result').length, 1, floor);
-    verifiedTools++;
-    await workflows.releaseRunOwnership({ runId, ownerId: 'second', generation: second.record.generation });
-    await runtime.agent.pubsub.clearTopic(topic);
+    try {
+      // For storage fallback the intentionally missing earlier event index must
+      // still be consumed before fresh live data begins at numeric offset 1.
+      if (floor === 'storage' || floor === 'retry-storage') await publish(AgentStreamEventTypes.OWNERSHIP_CLAIMED, {});
+      // Hold terminal-time claim reads until live tool data has reached the
+      // reader. A safe replay floor must already be known before subscribing.
+      if (floor === 'retry-storage') await publish(AgentStreamEventTypes.FINISH, finish, first.record.generation);
+      await publish(AgentStreamEventTypes.CHUNK, { type: 'text-delta', payload: { id: 'stale', text: 'STALE' } }, first.record.generation);
+      if (floor !== 'retry-storage') await publish(AgentStreamEventTypes.FINISH, finish, first.record.generation);
+      for (const chunk of [
+        { type: 'text-start', payload: { id: 'fenced-text' } },
+        { type: 'text-delta', payload: { id: 'fenced-text', text: 'Current owner.' } },
+        { type: 'text-end', payload: { id: 'fenced-text' } },
+        { type: 'tool-call', payload: { toolCallId: 'fenced-tool', toolName: 'fixture_persist', args: {} } },
+        { type: 'tool-result', payload: { toolCallId: 'fenced-tool', toolName: 'fixture_persist', result: { id: 'once' } } },
+      ]) await publish(AgentStreamEventTypes.CHUNK, { runId, from: 'AGENT', ...chunk });
+      await publish(AgentStreamEventTypes.FINISH, finish);
+      if (floor === 'retry-storage') {
+        await until(() => chunks.some(chunk => chunk.type === 'tool-result'), Boolean, 'live tool data behind stale terminal');
+      }
+      releaseClaimRead();
+      await drained;
+      observed.detach();
+      assert.equal(chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.payload.text).join(''), 'Current owner.', floor);
+      assert.equal(chunks.filter(chunk => chunk.type === 'finish').length, 1, floor);
+      assert.equal(chunks.filter(chunk => chunk.type === 'tool-call').length, 1, floor);
+      assert.equal(chunks.filter(chunk => chunk.type === 'tool-result').length, 1, floor);
+      verifiedTools++;
+      await workflows.releaseRunOwnership({ runId, ownerId: 'second', generation: second.record.generation });
+      await runtime.agent.pubsub.clearTopic(topic);
+    } finally {
+      releaseClaimRead();
+      workflows.getRunOwnership = getOwnership;
+      observed.detach();
+    }
+  }
+  const originalHistory = runtime.agent.pubsub.getHistory.bind(runtime.agent.pubsub);
+  const originalOwnership = workflows.getRunOwnership.bind(workflows);
+  let historyFailed = false;
+  runtime.agent.pubsub.getHistory = async (...args) => {
+    if (!historyFailed) { historyFailed = true; throw new Error('Synthetic replay read failed'); }
+    return originalHistory(...args);
+  };
+  workflows.getRunOwnership = async () => { throw new Error('Synthetic claim storage unavailable'); };
+  try {
+    await assert.rejects(
+      observeConductorRun(runtime.agent, `${runtime.schemaName}-unknown-floor`, { offset: 1 }),
+      /Synthetic claim storage unavailable/
+    );
+  } finally {
+    runtime.agent.pubsub.getHistory = originalHistory;
+    workflows.getRunOwnership = originalOwnership;
   }
   const emptyRunId = `${runtime.schemaName}-empty-replay`;
   await assert.rejects(
@@ -210,7 +243,7 @@ async function verifyFencedReplay(runtime) {
       /Synthetic post-subscription history read failed/
     );
   } finally { runtime.agent.pubsub.getHistory = history; }
-  return { publicStorageClaims: true, staleGenerationDropped: true, modes: verifiedTools, toolPairsPreserved: verifiedTools, terminalProofRequired: true, terminalReadFailuresPropagated: true };
+  return { publicStorageClaims: true, staleGenerationDropped: true, modes: verifiedTools, toolPairsPreserved: verifiedTools, terminalProofRequired: true, terminalReadFailuresPropagated: true, unknownFloorRejected: true };
 }
 
 main().then(report => { console.log(JSON.stringify(report)); process.exit(0); }, error => { console.error(error); process.exit(1); });
