@@ -34,6 +34,7 @@ import {
   errorCodeOf,
   pendingCardId,
   pieceTouchesOf,
+  videoTouchesOf,
   provisionalTitle,
   questionWaits,
   readThreadHistory,
@@ -1104,6 +1105,17 @@ export function AgentConversation({
     for (const pieceId of again) void mutate(PIECES_API.detail(pieceId));
   }, [mutate, touches]);
 
+  const videoTouches = useMemo(() => videoTouchesOf(messages), [messages]);
+  const touchedVideos = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!touchedVideos.current) { touchedVideos.current = new Set(videoTouches.map(touch => touch.key)); return; }
+    for (const touch of videoTouches) {
+      if (touchedVideos.current.has(touch.key)) continue;
+      touchedVideos.current.add(touch.key);
+      revalidateArtifact(touch.artifact);
+    }
+  }, [videoTouches, revalidateArtifact]);
+
   // A finished action of a group re-reads the screen beside the chat
   // (`useRevalidateWhenCountGrows`); what the thread loaded with is already
   // current. Channels (`kcxz.19`): the channel screen and a connect card.
@@ -1224,6 +1236,7 @@ export function AgentConversation({
             reason={block.reason}
             irreversible={block.irreversible}
             toolName={block.toolName}
+            videoApproval={block.videoApproval}
             state={state}
             busy={busy || interrupted}
             sending={sending ?? null}

@@ -77,6 +77,9 @@ module.exports = {
   // and transpiled module fixtures), so the root test script runs them in a
   // separate, explicit zero-concurrency step.
   testPathIgnorePatterns: [
+    '/tests/video-provider-v1.contract.test.cjs$',
+    '/tests/video-higgsfield-subscription.contract.test.cjs$',
+    '/tests/video-heygen-subscription.contract.test.cjs$',
     '/tests/brand-profile.contract.test.cjs$',
     '/tests/content-context.builder.test.cjs$',
     '/tests/content-intelligence.consumer-backend.test.cjs$',

@@ -1,3 +1,5 @@
+import { VideoConnectionsController } from './routes/video-connections.controller';
+import { VideoAccessController } from './routes/video-access.controller';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AuthController } from '@contentfactory/backend/api/routes/auth.controller';
 import { AuthService } from '@contentfactory/backend/services/auth/auth.service';
@@ -89,6 +91,8 @@ const authenticatedController = [
   IntegrationsController,
   SettingsController,
   PostsController,
+  VideoConnectionsController,
+  VideoAccessController,
   MediaController,
   BillingController,
   NotificationsController,

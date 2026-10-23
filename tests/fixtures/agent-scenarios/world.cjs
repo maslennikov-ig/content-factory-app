@@ -17,6 +17,7 @@
 
 const { loadTypeScriptModule } = require('../../helpers/load-ts-module.cjs');
 const { HttpException } = require('@nestjs/common');
+const { videoServices } = require('./video-world.cjs');
 
 /**
  * The real count behind «С чего начать» and the agent's snapshot
@@ -1270,6 +1271,7 @@ const createWorld = (overrides = {}) => {
   const pieceRepository = new PieceRepository(mediaTable, null, null);
 
   const servicesFor = ({ usage, outsideTurn }) => ({
+    ...videoServices({ rows, requests, writes, scoped }),
     ContentLeadService: leadService(usage, outsideTurn),
     WebResearchService: {
       research: async (organizationId, query, options) => {

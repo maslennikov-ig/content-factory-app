@@ -1,0 +1,48 @@
+PASS tests/video-media-v1.test.cjs
+  ✓ committed CC0 fixture is intact and valid without codecs or network at test runtime (4 ms)
+  ✓ unsafe initial URL is rejected before transport: http://media.example/video.mp4 (2 ms)
+  ✓ unsafe initial URL is rejected before transport: https://localhost/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://127.0.0.1/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://10.0.0.1/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://172.16.0.1/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://192.168.1.1/video.mp4
+  ✓ unsafe initial URL is rejected before transport: https://169.254.169.254/latest/meta-data/ (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://[::1]/video.mp4 (3 ms)
+  ✓ unsafe initial URL is rejected before transport: https://[fe80::1]/video.mp4
+  ✓ unsafe initial URL is rejected before transport: https://[fe90::1]/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: https://[fd00::1]/video.mp4 (8 ms)
+  ✓ unsafe initial URL is rejected before transport: https://[::ffff:127.0.0.1]/video.mp4
+  ✓ unsafe initial URL is rejected before transport: https://[::ffff:169.254.169.254]/video.mp4
+  ✓ unsafe initial URL is rejected before transport: https://user:password@media.example/video.mp4 (1 ms)
+  ✓ unsafe initial URL is rejected before transport: not a url
+  ✓ hostname with any private DNS result is rejected before transport (1 ms)
+  ✓ each redirect target is checked before following: http://next.example/file.mp4 (2 ms)
+  ✓ each redirect target is checked before following: https://169.254.169.254/file.mp4 (1 ms)
+  ✓ each redirect target is checked before following: https://[fe80::1]/file.mp4 (1 ms)
+  ✓ each redirect target is checked before following: https://127.0.0.1/file.mp4
+  ✓ relative and public cross-host redirects are followed manually with pinned DNS on every fetch (2 ms)
+  ✓ a later redirect hostname resolving privately is blocked, even after a safe first redirect (1 ms)
+  ✓ redirect loops are bounded and redirect bodies are released (2 ms)
+  ✓ DNS rebinding to 10.1.2.3 is rejected by actual connection lookup despite env optout (3 ms)
+  ✓ DNS rebinding to 169.254.169.254 is rejected by actual connection lookup despite env optout (1 ms)
+  ✓ DNS rebinding to ::1 is rejected by actual connection lookup despite env optout
+  ✓ DNS rebinding to fe80::1 is rejected by actual connection lookup despite env optout (1 ms)
+  ✓ DNS rebinding to fe90::1 is rejected by actual connection lookup despite env optout
+  ✓ DNS rebinding to ::ffff:7f00:1 is rejected by actual connection lookup despite env optout (1 ms)
+  ✓ valid public connection DNS is the transport set used, also with env optout (1 ms)
+  ✓ Content-Length above the budget rejects and cancels before reading
+  ✓ streaming limit holds when length is missing or dishonest: {} (1 ms)
+  ✓ streaming limit holds when length is missing or dishonest: {"content-length": "1"}
+  ✓ download at the exact budget boundary succeeds and empty body fails
+  ✓ download timeout signal is propagated to transport, including its exact reason (1 ms)
+  ✓ stream timeout releases reader and preserves failure
+  ✓ HTML disguised by an MP4 URL or declared MIME is rejected by real sniffing before storage (1 ms)
+  ✓ PNG disguised by an MP4 URL or declared MIME is rejected by real sniffing before storage
+  ✓ truncated MP4 is rejected even when its signature identifies MP4 (1 ms)
+  ✓ valid real MP4 import writes the downloaded bytes once to the owned storage boundary (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       41 passed, 41 total
+Snapshots:   0 total
+Time:        1.379 s
+Ran all test suites matching /tests\/video-media-v1.test.cjs/i.

@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "boundary": "Actual dedicated Temporal worker restart + V1 versioned subscription workflow/activity + real Prisma/storage + local HTTP OAuth/MCP; provider schema, quality and billing synthetic",
+  "address": "127.0.0.1:7329",
+  "workerRestart": true,
+  "opaqueWorkflowPayloads": true,
+  "jobs": [
+    {
+      "id": "a6a1a021-8818-40aa-a203-e429b359ffa6",
+      "state": "completed",
+      "receipt": {
+        "id": "fixture_heygen_b3beb47566864e50a835c952a1fa7627"
+      },
+      "resultMediaId": "97f6baa6-445c-4272-9fbc-2defa3360744",
+      "submitAttempts": 1
+    },
+    {
+      "id": "b636e2f6-c281-4348-81e6-f4428dd003c4",
+      "state": "completed",
+      "receipt": {
+        "id": "fixture_higgsfield_fe0adef1b5094329a212c7ec16c07c1f"
+      },
+      "resultMediaId": "317813cc-b635-4bdf-8c7f-e1f04c59440b",
+      "submitAttempts": 1
+    }
+  ],
+  "lost": {
+    "id": "2560355e-00f8-43b4-b35e-13ea50f654b9",
+    "state": "submission_unknown",
+    "submitAttempts": 1
+  },
+  "providerCounters": {
+    "submits": 3,
+    "quotes": 3,
+    "polls": 2
+  },
+  "noReplayAfterRestart": true
+}

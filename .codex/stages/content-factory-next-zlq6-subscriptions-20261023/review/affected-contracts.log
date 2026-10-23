@@ -1,0 +1,172 @@
+TAP version 13
+# Subtest: synthetic HeyGen exact-script MCP keeps dates/numbers/negations, explicit renderer, voice/locale and captions
+ok 1 - synthetic HeyGen exact-script MCP keeps dates/numbers/negations, explicit renderer, voice/locale and captions
+  ---
+  duration_ms: 632.724113
+  type: 'test'
+  ...
+# Subtest: HeyGen unknown trial eligibility, API key requirement and unavailable asset fail without video generation
+ok 2 - HeyGen unknown trial eligibility, API key requirement and unavailable asset fail without video generation
+  ---
+  duration_ms: 143.768616
+  type: 'test'
+  ...
+# Subtest: HeyGen implicit/unknown renderer, non-exact script or unsupported settings cannot be submitted
+ok 3 - HeyGen implicit/unknown renderer, non-exact script or unsupported settings cannot be submitted
+  ---
+  duration_ms: 135.459877
+  type: 'test'
+  ...
+# Subtest: HeyGen unreviewed/missing quote schema and unknown/expired price never borrow API USD prices
+ok 4 - HeyGen unreviewed/missing quote schema and unknown/expired price never borrow API USD prices
+  ---
+  duration_ms: 159.195598
+  type: 'test'
+  ...
+# Subtest: HeyGen lost/malformed/failed create response is one mutation; data receipt envelope is checked
+ok 5 - HeyGen lost/malformed/failed create response is one mutation; data receipt envelope is checked
+  ---
+  duration_ms: 124.140453
+  type: 'test'
+  ...
+# Subtest: HeyGen completed data envelope preserves only same-job/same-unit charge and result URL
+ok 6 - HeyGen completed data envelope preserves only same-job/same-unit charge and result URL
+  ---
+  duration_ms: 37.230562
+  type: 'test'
+  ...
+# Subtest: synthetic Higgsfield OAuth-authorized MCP quote and submit use exact Wan/Kling arguments over HTTP
+ok 7 - synthetic Higgsfield OAuth-authorized MCP quote and submit use exact Wan/Kling arguments over HTTP
+  ---
+  duration_ms: 689.978959
+  type: 'test'
+  ...
+# Subtest: Higgsfield unknown schema or unsupported option makes zero quotes/submits
+ok 8 - Higgsfield unknown schema or unsupported option makes zero quotes/submits
+  ---
+  duration_ms: 136.076513
+  type: 'test'
+  ...
+# Subtest: Higgsfield missing, expired, wrong-unit, generating or malformed quote is unavailable without submit
+ok 9 - Higgsfield missing, expired, wrong-unit, generating or malformed quote is unavailable without submit
+  ---
+  duration_ms: 155.125832
+  type: 'test'
+  ...
+# Subtest: Higgsfield lost/malformed/error submit response has exactly one HTTP mutation and no hidden retry
+ok 10 - Higgsfield lost/malformed/error submit response has exactly one HTTP mutation and no hidden retry
+  ---
+  duration_ms: 101.455365
+  type: 'test'
+  ...
+# Subtest: Higgsfield charge evidence must match receipt job ID and credit unit
+ok 11 - Higgsfield charge evidence must match receipt job ID and credit unit
+  ---
+  duration_ms: 36.032805
+  type: 'test'
+  ...
+# Subtest: Higgsfield malformed status and missing completed file never become success
+ok 12 - Higgsfield malformed status and missing completed file never become success
+  ---
+  duration_ms: 50.376212
+  type: 'test'
+  ...
+# Subtest: Wan exact account quote uses same immutable explicit JSON as paid submit
+ok 13 - Wan exact account quote uses same immutable explicit JSON as paid submit
+  ---
+  duration_ms: 2.239933
+  type: 'test'
+  ...
+# Subtest: all three Higgsfield image routes use image_url and no array; Kling preserves reference framing
+ok 14 - all three Higgsfield image routes use image_url and no array; Kling preserves reference framing
+  ---
+  duration_ms: 0.450403
+  type: 'test'
+  ...
+# Subtest: invalid Higgsfield combinations stop before any request
+ok 15 - invalid Higgsfield combinations stop before any request
+  ---
+  duration_ms: 0.728101
+  type: 'test'
+  ...
+# Subtest: lost submit is one network call; provider-specific uncertainty and retryability survive
+ok 16 - lost submit is one network call; provider-specific uncertainty and retryability survive
+  ---
+  duration_ms: 0.480762
+  type: 'test'
+  ...
+# Subtest: Higgsfield schema and paid request guards reject arbitrary restored endpoint/body
+ok 17 - Higgsfield schema and paid request guards reject arbitrary restored endpoint/body
+  ---
+  duration_ms: 0.23725
+  type: 'test'
+  ...
+# Subtest: HeyGen v3 script, locale, explicit engine and caption fields come from validated public assets
+ok 18 - HeyGen v3 script, locale, explicit engine and caption fields come from validated public assets
+  ---
+  duration_ms: 7.556629
+  type: 'test'
+  ...
+# Subtest: HeyGen unsupported locale or unavailable engine never submits
+ok 19 - HeyGen unsupported locale or unavailable engine never submits
+  ---
+  duration_ms: 0.62424
+  type: 'test'
+  ...
+# Subtest: HeyGen pagination does not silently omit later available account assets or loop forever
+ok 20 - HeyGen pagination does not silently omit later available account assets or loop forever
+  ---
+  duration_ms: 0.249133
+  type: 'test'
+  ...
+# Subtest: receipt URLs cannot send credentials to another host/path/redirect
+ok 21 - receipt URLs cannot send credentials to another host/path/redirect
+  ---
+  duration_ms: 0.975396
+  type: 'test'
+  ...
+# Subtest: provider lifecycle and reported duration are normalized; missing cost remains unknown
+ok 22 - provider lifecycle and reported duration are normalized; missing cost remains unknown
+  ---
+  duration_ms: 0.638708
+  type: 'test'
+  ...
+# Subtest: HeyGen v3 creation unwraps the documented data envelope and preserves the paid receipt
+ok 23 - HeyGen v3 creation unwraps the documented data envelope and preserves the paid receipt
+  ---
+  duration_ms: 0.547481
+  type: 'test'
+  ...
+# Subtest: cancel acceptance has no JSON and actual state is checked separately
+ok 24 - cancel acceptance has no JSON and actual state is checked separately
+  ---
+  duration_ms: 0.287041
+  type: 'test'
+  ...
+# Subtest: provider HTTP rejection, throttle and 5xx never trigger a hidden submit retry
+ok 25 - provider HTTP rejection, throttle and 5xx never trigger a hidden submit retry
+  ---
+  duration_ms: 0.51586
+  type: 'test'
+  ...
+# Subtest: HeyGen unavailable speech engines or unsupported avatar renderer cause zero video submits
+ok 26 - HeyGen unavailable speech engines or unsupported avatar renderer cause zero video submits
+  ---
+  duration_ms: 0.402611
+  type: 'test'
+  ...
+# Subtest: HeyGen speech engine metadata remains distinct from the selected avatar renderer
+ok 27 - HeyGen speech engine metadata remains distinct from the selected avatar renderer
+  ---
+  duration_ms: 0.320581
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3052.820074

@@ -11,7 +11,7 @@ import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { ErrorState, SkeletonRows } from '@contentfactory/frontend/components/ui/surface';
 import { AgentAvailabilityGate } from './agent.availability';
 import {
-  AGENT_DOORS, AGENT_TIMEZONE_HEADER, artifactHref, artifactKey, artifactRefOf,
+  AGENT_DOORS, AGENT_TIMEZONE_HEADER, artifactHref, artifactKey, artifactRefOf, artifactContextOf,
   artifactsOf, readAgentWorkspace, readThreadHistory, refToArtifact,
   type AgentArtifact, type AgentThreadHistory, type AgentWorkContextV1,
 } from './agent.contract';
@@ -46,17 +46,7 @@ const routeThread = (id: string | string[] | undefined) => {
   if (!value || value === 'new') return null;
   try { return decodeURIComponent(value); } catch { return null; }
 };
-const contextFor = (artifact: AgentArtifact): AgentWorkContextV1 => {
-  const ref = artifactRefOf(artifact);
-  const section = ['workspace', 'channels', 'ideas', 'facts', 'media'].includes(ref.kind);
-  return {
-    version: 'assistant-work-context/v1', kind: ref.kind === 'channels' ? 'workspace' : ref.kind,
-    ...(!section ? { id: ref.id } : {}),
-    ...(ref.pieceId ? { pieceId: ref.pieceId } : {}),
-    ...(ref.channelId ? { channelId: ref.channelId } : {}),
-    ...(ref.adaptationId ? { adaptationId: ref.adaptationId } : {}),
-  };
-};
+const contextFor = artifactContextOf;
 
 /** The authenticated host keeps this one session mounted across manual routes. */
 export function AgentScreen({ contextual = false }: { contextual?: boolean }) {

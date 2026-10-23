@@ -5,6 +5,13 @@ import type { AgentArtifact } from './agent.contract';
 
 /** Existing readers of this object only; neighbouring ids and other avatars stay untouched. */
 export const artifactReadMatches = (artifact: AgentArtifact, key: unknown): boolean => {
+  if (artifact.kind === 'media' && (artifact.data.videoDraftId || artifact.data.videoJobId)) {
+    const path = Array.isArray(key) ? key[0] : key;
+    return typeof path === 'string' && (
+      !!artifact.data.videoDraftId && path === `/media/video-prompts/${encodeURIComponent(String(artifact.data.videoDraftId))}` ||
+      !!artifact.data.videoJobId && (path === `/media/video-jobs/${encodeURIComponent(String(artifact.data.videoJobId))}` || path === `/media/video-v2/jobs/${encodeURIComponent(String(artifact.data.videoJobId))}` || Array.isArray(key) && (key[0] === 'video-job-v1' && key[2] === artifact.data.videoJobId || key[0] === 'video-job-v2' && key[3] === artifact.data.videoJobId))
+    );
+  }
   if (typeof key !== 'string') return false;
   const [path, query = ''] = key.split('?');
   const under = (root: string) => path === root || path.startsWith(`${root}/`);

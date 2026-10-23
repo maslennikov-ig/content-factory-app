@@ -1,0 +1,23 @@
+{
+  "schema": "video-v1-temporal-acceptance/v1",
+  "result": "PASS",
+  "boundary": "Dedicated loopback Temporal server and real SDK worker/workflow/activity/service/PostgreSQL/storage; synthetic provider/text HTTP",
+  "workerRestartedAfter": "both provider receipts persisted, state queued",
+  "workflowCount": 3,
+  "modes": [
+    "clip",
+    "presenter"
+  ],
+  "submitCountBeforeRestart": 2,
+  "submitCountAfterRestart": 2,
+  "unchangedProviderReceipts": true,
+  "ownedMedia": 2,
+  "downloadBytesMatch": true,
+  "busyLeaseAtDeadline": {
+    "continuedAsNew": true,
+    "terminalStateAfterLeaseRelease": "uncertain",
+    "extraSubmits": 0
+  },
+  "providerQuality": "UNKNOWN",
+  "providerActualCost": "UNKNOWN"
+}

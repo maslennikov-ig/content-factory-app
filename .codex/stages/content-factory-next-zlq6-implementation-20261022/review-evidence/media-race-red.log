@@ -1,0 +1,44 @@
+FAIL tests/video-domain-v1.postgres.test.cjs
+  ○ skipped real video fixtures refuse every unmarked, remote, redirected or different database target
+  Video V1 real Prisma domain integration (isolated PostgreSQL; synthetic paid transport)
+    ✕ an importer that loses its lease rolls back Media instead of replacing the winning result (2737 ms)
+    ○ skipped prepare/save/reopen preserves source revision, sourced date/decimal/negation and selected output locale
+    ○ skipped optimistic edits invalidate preflight; concurrent stale edits never overwrite the winner
+    ○ skipped preparing a new variant preserves saved fact choices and forbidden implications without changing the source draft
+    ○ skipped a short edited output remains saveable with a long untouched source fact (presenter=false)
+    ○ skipped a short edited output remains saveable with a long untouched source fact (presenter=true)
+    ○ skipped changed source and unsupported route/options stop before a provider submit
+    ○ skipped missing video key and missing monetary policy submit nothing despite configured text settings
+    ○ skipped cross-tenant drafts/jobs/references/read/cancel never disclose or invoke a provider
+    ○ skipped concurrent same intent and same immutable preflight create one durable job and one submit
+    ○ skipped concurrent monetary reservations serialize; uncertainty retains its reservation and actual overspend blocks new launch
+    ○ skipped restart resumes persisted provider ID with no replay, ingests owned bytes once and reopens the same Media
+    ○ skipped a crash after durable submitting stays uncertain on restart and never submits a fresh request
+    ○ skipped Higgsfield ambiguous response permits one immediate replay with identical endpoint/body/key only
+    ○ skipped HeyGen lost submit response stays uncertain without paid replay or provider fallback
+    ○ skipped save failure retries download/status only, and duplicate completion produces one owned Media
+
+  ● Video V1 real Prisma domain integration (isolated PostgreSQL; synthetic paid transport) › an importer that loses its lease rolls back Media instead of replacing the winning result
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: undefined
+
+      323 |         const winner = await f.db.videoGenerationJob.findUnique({where: {id: job.id}});
+      324 |         resume();
+    > 325 |         await expect(pending).rejects.toThrow('VIDEO_JOB_LEASE_LOST');
+          |               ^
+      326 |         expect(await f.db.media.count({where: {organizationId: f.org.id, type: 'video'}})).toBe(1);
+      327 |         expect((await f.db.videoGenerationJob.findUnique({where: {id: job.id}})).resultMediaId).toBe(winner.resultMediaId);
+      328 |         expect(f.transport.submits).toHaveLength(0);
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at tests/video-domain-v1.postgres.test.cjs:325:15
+      at withFixture (tests/video-domain-v1.postgres.test.cjs:18:16)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 16 skipped, 17 total
+Snapshots:   0 total
+Time:        3.903 s
+Ran all test suites matching /tests\/video-domain-v1.postgres.test.cjs/i with tests matching "loses its lease".

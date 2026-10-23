@@ -9,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import {
+  VideoProviderSettingsDto,
   IsAiRoleModels,
   IsSearchApiKeys,
   IsSearchTaskProviders,
@@ -24,7 +25,7 @@ import type { AiModelRoutingSettings } from '@contentfactory/nestjs-libraries/op
  * rather than restating them: the engines, the roles and the key shapes are the
  * same facts, and a second copy of that list is the copy that goes stale.
  */
-export class InstanceAiDefaultsDto {
+export class InstanceAiDefaultsDto extends VideoProviderSettingsDto {
   @IsString()
   @IsOptional()
   @IsIn(['openai', 'openrouter'])

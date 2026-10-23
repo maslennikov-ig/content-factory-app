@@ -56,6 +56,9 @@ describe('orchestrator autopost activity registration', () => {
     class AnalyticsActivityV1 {}
     class NewsletterActivityV1 {}
     class ContentLeadCheckActivity {}
+    class VideoSubscriptionActivityV1 {}
+    class VideoGenerationActivityV1 {}
+    class VideoModule {}
     class DatabaseModule {}
     class HealthController {}
     class WorkerReadinessService {}
@@ -63,6 +66,9 @@ describe('orchestrator autopost activity registration', () => {
 
     loadTypeScriptModule('apps/orchestrator/src/app.module.ts', {
       '@nestjs/common': { Module: () => (target) => target },
+      './activities/video-subscription.activity.v1': { VideoSubscriptionActivityV1 },
+      './activities/video-generation.activity.v1': { VideoGenerationActivityV1 },
+      '@contentfactory/nestjs-libraries/videos/video.module': { VideoModule },
       '@contentfactory/orchestrator/activities/post.activity': { PostActivity },
       '@contentfactory/orchestrator/activities/post.activity.v106': {
         PostActivityV106,
@@ -117,6 +123,8 @@ describe('orchestrator autopost activity registration', () => {
     expect(registeredActivities).toContain(AutopostActivity);
     expect(registeredActivities).toContain(AutopostDraftV2Activity);
     expect(registeredActivities).toContain(PostActivityV108);
+    expect(registeredActivities).toContain(VideoSubscriptionActivityV1);
+    expect(registeredActivities).toContain(VideoGenerationActivityV1);
     expect(registeredActivities).not.toContain(AutopostService);
   });
 

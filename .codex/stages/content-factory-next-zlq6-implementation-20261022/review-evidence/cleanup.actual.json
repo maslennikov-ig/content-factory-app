@@ -1,0 +1,69 @@
+{
+  "result": "PASS",
+  "removed": [
+    {
+      "id": "8fd457c10ec080004b3b298b3d6e8ba55e19e70c4aec0b4438240c20ff02107b",
+      "name": "/cf-video-v1-review-postgres",
+      "image": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+      "labels": {
+        "desktop.docker.io/wsl-distro": "Ubuntu",
+        "ru.content-factory.owner": "01a163ff-780a-75d1-ba29-9bec4a963e41",
+        "ru.content-factory.task": "zlq6-video-v1-review"
+      },
+      "mounts": [
+        {
+          "Type": "volume",
+          "Name": "47a8000df71a279386d753494719c278e48823a4d4dc28543f6bf9914102ef84",
+          "Source": "/var/lib/docker/volumes/47a8000df71a279386d753494719c278e48823a4d4dc28543f6bf9914102ef84/_data",
+          "Destination": "/var/lib/postgresql/data",
+          "Driver": "local",
+          "Mode": "",
+          "RW": true,
+          "Propagation": ""
+        }
+      ],
+      "ports": {
+        "5432/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "51513"
+          }
+        ]
+      }
+    },
+    {
+      "id": "501362a26fff75e7951364dee2fcde568ac4dfa8f847afe2847169d4b550e65a",
+      "name": "/cf-video-v1-review-temporal",
+      "image": "sha256:cf86707827fac99e4d1c4a47dc11b105382d796199c7bd41fb3213fb0471628e",
+      "labels": {
+        "desktop.docker.io/wsl-distro": "Ubuntu",
+        "org.opencontainers.image.created": "2026-07-31T15:24:10Z",
+        "org.opencontainers.image.description": "Temporal CLI",
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "release/1.8.x",
+        "org.opencontainers.image.source": "https://github.com/temporalio/cli",
+        "org.opencontainers.image.title": "temporal",
+        "org.opencontainers.image.url": "https://github.com/temporalio/cli",
+        "ru.content-factory.owner": "01a163ff-780a-75d1-ba29-9bec4a963e41",
+        "ru.content-factory.task": "zlq6-video-v1-review"
+      },
+      "mounts": [],
+      "ports": {
+        "7233/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "51475"
+          }
+        ]
+      }
+    }
+  ],
+  "taskProcessesStopped": [
+    30581,
+    45081
+  ],
+  "earlierTurbopackProcessStopped": 30608,
+  "generatedNextInstructionFilesRemoved": true,
+  "sourceAndWorktreeRetained": true,
+  "noOtherResourcesTargeted": true
+}

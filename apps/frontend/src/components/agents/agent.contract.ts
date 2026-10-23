@@ -1,4 +1,5 @@
 import type { UIMessage } from 'ai';
+import { videoApprovalScopeV1, videoWorkspacePath, type VideoApprovalScopeV1 } from '../videos/video-ui.v1';
 
 /**
  * The agent screen's contract with `POST /agent/chat` and `/agent/threads`,
@@ -394,6 +395,8 @@ export type AgentWorkContextV1 = {
   pieceId?: string;
   channelId?: string;
   adaptationId?: string;
+  videoJobId?: string;
+  videoDraftId?: string;
   from?: string;
   to?: string;
   revision?: string;
@@ -405,6 +408,8 @@ export type AgentArtifactRef = {
   pieceId?: string;
   channelId?: string;
   adaptationId?: string;
+  videoDraftId?: string;
+  videoJobId?: string;
 };
 
 export type AgentWorkspaceV1 = {
@@ -421,7 +426,7 @@ export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null 
   const row = recordOf(value);
   if (row.version !== 'assistant-work-context/v1' || typeof row.kind !== 'string' || !WORK_CONTEXT_KINDS.includes(row.kind)) return null;
   const result: AgentWorkContextV1 = { version: 'assistant-work-context/v1', kind: row.kind as AgentWorkContextV1['kind'] };
-  for (const key of ['id', 'pieceId', 'channelId', 'adaptationId'] as const) {
+  for (const key of ['id', 'pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId'] as const) {
     if (row[key] !== undefined) {
       if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
       result[key] = row[key] as string;
@@ -433,6 +438,7 @@ export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null 
       result[key] = row[key] as string;
     }
   }
+  if ((result.videoDraftId || result.videoJobId) && (result.kind !== 'media' || result.id && result.id !== 'library')) return null;
   return result;
 };
 
@@ -440,7 +446,7 @@ const readArtifactRef = (value: unknown): AgentArtifactRef | null => {
   const row = recordOf(value);
   if (!isArtifactKind(row.kind) || typeof row.id !== 'string' || !WORK_ID.test(row.id)) return null;
   const ref: AgentArtifactRef = { kind: row.kind, id: row.id };
-  for (const key of ['pieceId', 'channelId', 'adaptationId'] as const) {
+  for (const key of ['pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId'] as const) {
     if (row[key] !== undefined) {
       if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
       ref[key] = row[key] as string;
@@ -459,7 +465,7 @@ export const readAgentWorkspace = (value: unknown): AgentWorkspaceV1 | null => {
     version: 'assistant-workspace/v1',
     workContext: readAgentWorkContext(row.workContext),
     artifacts,
-    activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId) ? active : null,
+    activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId && ref.videoJobId === active.videoJobId && ref.videoDraftId === active.videoDraftId) ? active : null,
   };
 };
 
@@ -471,7 +477,20 @@ export const artifactRefOf = (artifact: AgentArtifact): AgentArtifactRef => ({
   ...(typeof artifact.data.pieceId === 'string' ? { pieceId: artifact.data.pieceId } : {}),
   ...(artifactChannelId(artifact) ? { channelId: artifactChannelId(artifact) as string } : {}),
   ...(['adaptation', 'plan'].includes(artifact.kind) ? { adaptationId: artifact.id } : {}),
+  ...(artifact.kind === 'media' && typeof artifact.data.videoDraftId === 'string' ? { videoDraftId: artifact.data.videoDraftId } : {}),
+  ...(artifact.kind === 'media' && typeof artifact.data.videoJobId === 'string' ? { videoJobId: artifact.data.videoJobId } : {}),
 });
+
+/** The selected video keeps its identity when it becomes a server-read context. */
+export const artifactContextOf = (artifact: AgentArtifact): AgentWorkContextV1 => {
+  const ref = artifactRefOf(artifact);
+  const video = ref.kind === 'media' && !!(ref.videoDraftId || ref.videoJobId);
+  const section = ['workspace', 'channels', 'ideas', 'facts', 'media'].includes(ref.kind) && !video;
+  return {version: 'assistant-work-context/v1', kind: ref.kind === 'channels' ? 'workspace' : ref.kind,
+    ...(!section ? {id: ref.id} : {}), ...(ref.pieceId ? {pieceId: ref.pieceId} : {}),
+    ...(ref.channelId ? {channelId: ref.channelId} : {}), ...(ref.adaptationId ? {adaptationId: ref.adaptationId} : {}),
+    ...(ref.videoDraftId ? {videoDraftId: ref.videoDraftId} : {}), ...(ref.videoJobId ? {videoJobId: ref.videoJobId} : {})};
+};
 
 /**
  * The channel an adaptation card is about: `channel.id` of the card
@@ -518,8 +537,11 @@ export const artifactHref = (artifact: {
       return '/content?tab=leads';
     case 'facts':
       return '/content?tab=provenance';
-    case 'media':
-      return '/media';
+    case 'media': {
+      const jobId = stringOf(artifact.data?.videoJobId);
+      const draftId = stringOf(artifact.data?.videoDraftId);
+      return jobId || draftId ? videoWorkspacePath({ jobId: jobId ?? undefined, draftId: draftId ?? undefined, pieceId: stringOf(artifact.data?.pieceId) ?? undefined }) : '/media';
+    }
     case 'workspace':
     default:
       return '/onboarding';
@@ -1657,6 +1679,7 @@ export type AgentBlock =
       /** Deleting cannot be taken back; connecting can. */
       irreversible: boolean;
       state: AgentApprovalState;
+      videoApproval?: VideoApprovalScopeV1;
     }
   | {
       type: 'question';
@@ -1892,6 +1915,26 @@ export const pieceTouchesOf = (
       if (!pieceId) return;
       const call = stringOf(part.toolCallId) ?? String(index);
       touches.push({ key: `${message.id}:${call}`, pieceId });
+    });
+  }
+  return touches;
+};
+
+/** One native completed call refreshes the exact retained video reader once. */
+export const videoTouchesOf = (messages: readonly AgentMessage[]): Array<{key: string; artifact: AgentArtifact}> => {
+  const touches: Array<{key: string; artifact: AgentArtifact}> = [];
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    (message.parts as unknown as Part[]).forEach((part, index) => {
+      const name = toolNameOfPart(part);
+      if (!name?.startsWith('video_') || part.state !== 'output-available' || refusalCode(part.output)) return;
+      const output = recordOf(part.output);
+      const card = recordOf(output.card);
+      const draftId = stringOf(card.videoDraftId) ?? stringOf(recordOf(part.input).draftId);
+      const jobId = stringOf(card.videoJobId) ?? stringOf(recordOf(part.input).jobId);
+      if (!draftId && !jobId) return;
+      touches.push({key: `${message.id}:${stringOf(part.toolCallId) ?? index}`, artifact: {kind: 'media', id: 'library', title: null, code: null,
+        data: {...(draftId ? {videoDraftId: draftId} : {}), ...(jobId ? {videoJobId: jobId} : {})}}});
     });
   }
   return touches;
@@ -2447,6 +2490,7 @@ export const readMessageBlocks = (
       reason,
       irreversible: irreversibleTool(toolName),
       state: approvalState,
+      ...(['video_launch', 'video_launch_v2'].includes(toolName) && videoApprovalScopeV1(part.input) ? {videoApproval: {...videoApprovalScopeV1(part.input)!, ...(toolName === 'video_launch_v2' ? {accessVersion: 2 as const} : {})}} : {}),
     });
 
     // Native built-ins can first request tool permission and then suspend
@@ -2622,8 +2666,13 @@ export const artifactsOf = (
 const NOTHING_REMOVED: ReadonlySet<string> = new Set();
 
 /** `kind:id` of an artifact, as `removedArtifactsOf` names it. */
-export const artifactKey = (artifact: { kind: string; id: string }) =>
-  `${artifact.kind}:${artifact.id}`;
+export const artifactKey = (artifact: { kind: string; id: string; data?: Readonly<Record<string, unknown>>; videoDraftId?: string; videoJobId?: string }) => {
+  const jobId = artifact.videoJobId ?? stringOf(artifact.data?.videoJobId);
+  const draftId = artifact.videoDraftId ?? stringOf(artifact.data?.videoDraftId);
+  return artifact.kind === 'media' && (jobId || draftId)
+    ? `${artifact.kind}:${artifact.id}:video:${jobId ?? ''}:${draftId ?? ''}`
+    : `${artifact.kind}:${artifact.id}`;
+};
 
 /**
  * What the conversation deleted (kcxz.29, D6): a `<kind>_delete` action that

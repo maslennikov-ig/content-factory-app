@@ -87,6 +87,8 @@ const ContentFactsShowcase = dynamic(
   { ssr: false, loading: () => <SkeletonRows rows={4} /> }
 );
 
+const VideoWorkspace = dynamic(() => import('../videos/video.workspace').then(module => module.VideoWorkspace), { ssr: false, loading: () => <SkeletonRows rows={4} /> });
+
 const MediaBox = dynamic(
   () =>
     import('@contentfactory/frontend/components/media/media.component').then(
@@ -177,6 +179,9 @@ export function ArtifactEditor({
     return <ContentFactsShowcase />;
   }
   if (artifact.kind === 'media') {
+    const videoJobId = textOf(artifact.data.videoJobId);
+    const videoDraftId = textOf(artifact.data.videoDraftId);
+    if (videoJobId || videoDraftId) return <VideoWorkspace embedded key={`${videoJobId ?? ''}:${videoDraftId ?? ''}`} jobId={videoJobId ?? undefined} draftId={videoDraftId ?? undefined} pieceId={textOf(artifact.data.pieceId) ?? undefined} />;
     // «Медиатека» itself (`kcxz.25`), as its page shows it: newest first, so a
     // picture the chat generated or the composer uploaded is the first one.
     return <MediaBox standalone setMedia={keepMedia} closeModal={keepMedia} />;

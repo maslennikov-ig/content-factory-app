@@ -110,6 +110,8 @@ import {
   planSchedule,
   planUnschedule,
 } from './catalogue/plan.capabilities';
+import { VIDEO_ACCESS_CAPABILITIES_V2 } from './catalogue/video-access.capabilities.v2';
+import { VIDEO_CAPABILITIES_V1 } from './catalogue/video.capabilities';
 import { mediaGenerate, mediaKeep, mediaLibrary } from './catalogue/media.capabilities';
 import {
   pieceAnswer,
@@ -133,6 +135,8 @@ import {
  * media library and generating a picture).
  */
 export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
+  ...VIDEO_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
+  ...VIDEO_ACCESS_CAPABILITIES_V2 as readonly CapabilityDeclaration[],
   workspaceSnapshot as CapabilityDeclaration,
   channelsList as CapabilityDeclaration,
   pieceList as CapabilityDeclaration,
@@ -295,7 +299,8 @@ export const assertCapabilityRegistry = (
     // write action; a confirm one always asks.
     // Asking in the web chat (kcxz.45) is a guard on a write action; a
     // confirm one always asks.
-    if (capability.asksInWebChat && capability.risk !== 'write') {
+    if (capability.asksInWebChat && capability.risk !== 'write' &&
+        !(['video.launch', 'video.launch_v2'].includes(capability.id) && capability.risk === 'paid')) {
       throw new Error(
         `Capability ${id}: only a write capability asks in the web chat on top of its class.`
       );

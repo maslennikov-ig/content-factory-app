@@ -1,6 +1,8 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import useSWR from 'swr';
+import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
@@ -26,6 +28,11 @@ import { AgentGlyph, type AgentGlyphName } from './agent.icons';
 import { AgentMarkdown } from './agent.markdown';
 import { pictureAvailable } from './agent.media';
 import { usePieceArtifact } from './agent.piece-data';
+import { useUser } from '../layout/user.context';
+import { ErrorState, SkeletonRows } from '../ui/surface';
+import { useVideoWords } from '../videos/video.copy';
+import { videoWorkspacePath, type VideoApprovalScopeV1, type VideoDraftUiV1 } from '../videos/video-ui.v1';
+import { SavedVideoApprovalV2 } from '../videos/video-access-approval';
 
 /**
  * The chat's cards (`content-factory-next-kcxz.10`, spec §6.2, canvas
@@ -35,8 +42,8 @@ import { usePieceArtifact } from './agent.piece-data';
  * title, an optional body and a footer of actions. A card that needs the
  * person (approval, question, key) is a full card; a thing the turn produced
  * is one line in the conversation (`ArtifactLine`) and opens beside the chat.
- * Nothing here talks to the network: answers go back through callbacks, so
- * the frame and the cards render in any state for a test or a review scene.
+ * Answers go back through callbacks. The video approval additionally reads
+ * its saved draft so the person can inspect the exact text before paying.
  */
 
 export type AgentCardTone = 'neutral' | 'warning' | 'danger';
@@ -468,14 +475,16 @@ type LeadNote = (typeof LEAD_NOTES)[keyof typeof LEAD_NOTES];
 export const approvalNoteOf = (
   toolName: string | null | undefined,
   irreversible: boolean
-): 'delete' | 'publish' | 'schedule' | 'undo' | LeadNote =>
+): 'delete' | 'publish' | 'schedule' | 'undo' | 'video' | LeadNote =>
   irreversible
     ? 'delete'
-    : toolName === 'plan_publish_now'
-      ? 'publish'
-      : toolName && SCHEDULE_TOOLS.includes(toolName)
-        ? 'schedule'
-        : (toolName && LEAD_NOTES[toolName as keyof typeof LEAD_NOTES]) || 'undo';
+    : toolName === 'video_launch' || toolName === 'video_launch_v2'
+      ? 'video'
+      : toolName === 'plan_publish_now'
+        ? 'publish'
+        : toolName && SCHEDULE_TOOLS.includes(toolName)
+          ? 'schedule'
+          : (toolName && LEAD_NOTES[toolName as keyof typeof LEAD_NOTES]) || 'undo';
 
 export function ApprovalCard({
   title,
@@ -487,6 +496,7 @@ export function ApprovalCard({
   sending = null,
   onAnswer,
   words,
+  videoApproval,
 }: {
   title: string | null;
   reason: string | null;
@@ -503,12 +513,16 @@ export function ApprovalCard({
   sending?: boolean | null;
   onAnswer: (approved: boolean) => void;
   words: AgentWords;
+  videoApproval?: VideoApprovalScopeV1;
 }) {
   const w = words.approval;
   const action = title ?? w.fallbackAction;
   const [picked, setAnswer] = useState<boolean | null>(null);
   const answer = sending ?? picked;
   const settled = state !== 'asked';
+  const [reviewedVideo, setReviewedVideo] = useState<string | null>(null);
+  const videoScope = videoApproval ? JSON.stringify(videoApproval) : null;
+  const videoReady = !['video_launch', 'video_launch_v2'].includes(toolName ?? '') || videoScope !== null && reviewedVideo === videoScope;
 
   if (settled) {
     const word =
@@ -558,7 +572,7 @@ export function ApprovalCard({
             type="button"
             density="dense"
             variant={irreversible ? 'destructive' : 'primary'}
-            disabled={busy || answer !== null}
+            disabled={busy || answer !== null || !videoReady}
             loading={answer === true}
             loadingLabel={w.sending}
             onClick={() => answerWith(true)}
@@ -580,6 +594,7 @@ export function ApprovalCard({
       }
     >
       {reason ? <Facts rows={[[w.what, reason]]} /> : null}
+      {note === 'video' && (videoApproval?.accessVersion === 2 ? <SavedVideoApprovalV2 scope={videoApproval} onReady={setReviewedVideo} /> : <VideoApprovalSnapshot scope={videoApproval} onReady={setReviewedVideo} />)}
       {note === 'delete' ? (
         <Note tone="warning">
           <strong>{w.irreversible}:</strong> {w.irreversibleNote}
@@ -588,7 +603,7 @@ export function ApprovalCard({
         <Note tone="warning">
           <strong>{w.publishHeading}:</strong> {w.publishNote}
         </Note>
-      ) : (
+      ) : note === 'video' ? null : (
         <Note tone="neutral">
           {note === 'schedule'
             ? w.scheduleNote
@@ -603,6 +618,40 @@ export function ApprovalCard({
       )}
     </AgentCard>
   );
+}
+
+/** Read the existing saved draft door; only the version bound to this approval can enable Yes. */
+function VideoApprovalSnapshot({scope, onReady}: {scope?: VideoApprovalScopeV1; onReady: (scope: string | null) => void}) {
+  const words = useVideoWords();
+  const request = useFetch();
+  const user = useUser();
+  const path = scope ? `/media/video-prompts/${encodeURIComponent(scope.draftId)}` : null;
+  const snapshot = useSWR<VideoDraftUiV1>(path ? [path, user?.orgId] : null, async () => {
+    const response = await request(path!);
+    if (!response.ok) throw new Error('VIDEO_APPROVAL_UNAVAILABLE');
+    return response.json();
+  });
+  const draft = snapshot.data;
+  const matches = !snapshot.error && !snapshot.isValidating && !!scope && draft?.id === scope.draftId && draft.version === scope.version && draft.preflightId === scope.preflightId;
+  const scopeKey = scope ? JSON.stringify(scope) : null;
+  useEffect(() => { onReady(matches ? scopeKey : null); }, [onReady, matches, scopeKey]);
+  if (!scope || snapshot.error) return <ErrorState title={words.failed} action={<Button variant="secondary" onClick={() => snapshot.mutate()}>{words.refresh}</Button>} />;
+  if (!draft || snapshot.isValidating) return <SkeletonRows rows={3} label={words.loading} />;
+  if (!matches) return <ErrorState title={words.approvalChanged} action={<><Button variant="secondary" onClick={() => snapshot.mutate()}>{words.refresh}</Button><ButtonLink href={videoWorkspacePath({draftId: scope.draftId, pieceId: draft.pieceId})} variant="quiet">{words.reopen}</ButtonLink></>} />;
+  const settings = draft.settings;
+  return <section className="flex min-w-0 flex-col gap-[12px]" aria-label={words.reviewSnapshot}>
+    <p className="cf-label-md">{words.reviewSnapshot}</p>
+    <Facts rows={[
+      [words.route, `${settings.provider} / ${settings.model}`], [words.locale, settings.locale], [words.ratio, settings.aspectRatio],
+      [words.duration, String(settings.duration)], ...(settings.resolution ? [[words.resolution, settings.resolution] as [string, string]] : []),
+      ...(settings.avatarId ? [[words.avatar, settings.avatarId] as [string, string]] : []), ...(settings.voiceId ? [[words.voice, settings.voiceId] as [string, string]] : []),
+      ...(settings.engine ? [[words.engine, settings.engine] as [string, string]] : []), [words.scriptPolicy, draft.brief.scriptPolicy === 'exact' ? words.exact : words.adaptable],
+    ]} />
+    <div className="flex flex-wrap gap-[16px]"><CheckboxField disabled label={words.audio} checked={settings.audio} /><CheckboxField disabled label={words.captions} checked={settings.captions} /></div>
+    <p className="break-words whitespace-pre-wrap cf-body-sm">{settings.mode === 'presenter' ? draft.brief.script : draft.brief.prompt}</p>
+    {!!draft.brief.referenceMediaIds.length && <p className="break-all cf-caption">{words.references}: {draft.brief.referenceMediaIds.join(', ')}</p>}
+    <Note tone="warning">{words.paymentNote}</Note>
+  </section>;
 }
 
 /* ---- Question --------------------------------------------------------------- */

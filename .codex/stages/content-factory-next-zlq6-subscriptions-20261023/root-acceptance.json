@@ -1,0 +1,627 @@
+{
+  "status": "PASS_LOCAL_ENGINEERING",
+  "recordedAtUtc": "2026-10-23T08:28:33.438123+00:00",
+  "sourceCommit": "2fb9812b070a4d2c351f7c61879f936aa4760000",
+  "sourceBase": "e18afdc3b2a39d90349c05dd2d947c5e615a307f",
+  "branch": "codex/video-v1-api",
+  "worktree": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "scope": "A1-A10 / content-factory-next-zlq6.8-.12; original API rev3 preserved",
+  "sourceInputs": [
+    {
+      "path": "apps/backend/src/api/api.module.ts",
+      "sha256": "e58a399e6d698edafd2040cbdce911f6f72b6fa820f017829b14f51f11d41e64"
+    },
+    {
+      "path": "apps/backend/src/api/routes/video-access.controller.ts",
+      "sha256": "f34f5e3dfdbe01b0b5f64b99b06d052fe3947874069a7feab0cf1c074abb4041"
+    },
+    {
+      "path": "apps/backend/src/api/routes/video-connections.controller.ts",
+      "sha256": "4e8bf6d2a1294e58c6cfcaa271657278616193c3797f2c75ac78199968d3013b"
+    },
+    {
+      "path": "apps/backend/src/services/auth/auth.middleware.ts",
+      "sha256": "f58274ce398cc3db52a01c9f4ec1599efffd0ab6ca127c06b2d51474828b8dae"
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.cards.tsx",
+      "sha256": "1d0929d3f211c8da60f728c2c94d7c286522cec8abaa57ba1050b31fab1f4829"
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.contract.ts",
+      "sha256": "bdd6f11095f97d1780a63eeee9c487bcf9917921593612ee81028b433505e547"
+    },
+    {
+      "path": "apps/frontend/src/components/agents/agent.revalidate.ts",
+      "sha256": "b32bf8988e71baf19583f4a5ae2e23eb2657dacd4e1565022c79289666b786af"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-access-approval.tsx",
+      "sha256": "8cf38de4386f9d79db885296f9855ca0edb93410da66ca11cd834732954a2d28"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-access.copy.ts",
+      "sha256": "dd77e9044af4610227baec7a180dc15684a022a8b713265b46673892355053c9"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-manual.tsx",
+      "sha256": "5f5130008953b53e89b9a6fe7892251c44c20750af51e05b9de5a6779184118c"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-provider-settings.tsx",
+      "sha256": "28e780cb61c76ff30df922794c76cf5af7148239f603aa17da7ccb03a17b9a9a"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-subscriptions.tsx",
+      "sha256": "d2056f7648dcbb580c1f900d3b7b1f604d5624c2a249dcc66cc54ec01b5f5fde"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-ui.v1.ts",
+      "sha256": "a1cd74111ff6bdf28289ec3a519e66bb3e3354aac916182f69e396f6914e9a52"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video-ui.v2.ts",
+      "sha256": "cbf5d82d83f523c3b295f924368c9c456820882020072c8a77cbdee0a65570c8"
+    },
+    {
+      "path": "apps/frontend/src/components/videos/video.workspace.tsx",
+      "sha256": "155f484d08f83be3258f6757cfcb429fcd7fa5585a7708f54357edec8ca990ab"
+    },
+    {
+      "path": "apps/orchestrator/src/activities/video-subscription.activity.v1.ts",
+      "sha256": "564b7183e502640b37ca17b095af2bb5f765dfa1c4d36c1880bc35ca37e8f8ce"
+    },
+    {
+      "path": "apps/orchestrator/src/app.module.ts",
+      "sha256": "ceb5b0c9bbc964e6a04acfd84614cf201e886761b64cbba92db7cfb83f660290"
+    },
+    {
+      "path": "apps/orchestrator/src/workflows/index.ts",
+      "sha256": "0809b23ecdfa6f54c7a736733833ac06f6de883652b19fc1bb4995f506263b1e"
+    },
+    {
+      "path": "apps/orchestrator/src/workflows/video-subscription.workflow.v1.ts",
+      "sha256": "1415982463f7caf698f198056a1573d66c074532fd6c4cce1618368453d37968"
+    },
+    {
+      "path": "jest.config.cjs",
+      "sha256": "52eb5f455a1ec52355df58bd1e97967049a624fcc892cb9cd1b665d7ed272362"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts",
+      "sha256": "c245bbc402a9d16cad32dcfd27d418226d9639d474b123cc292d59ef1c7738ba"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/chat/capabilities/approval-summary.ts",
+      "sha256": "22fe8e8ca62d420ba84bfcdeed406c85c9c47651194b875e3003370f7a445ed5"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/chat/capabilities/capability.registry.ts",
+      "sha256": "4dc393f0aa1d8bc61b4e248260da1b032dd834eceba892491464c255eca9e073"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/chat/capabilities/catalogue/video-access.capabilities.v2.ts",
+      "sha256": "caebc0e6fe10b40ed847c2aa9dcad57193a09384d631ff1f22f5bb2b048e2950"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/chat/conductor/work-context.resolver.ts",
+      "sha256": "171a5f0f80836c3560d1d7aee3a0f278ea5e088cff46b82e3f87768d2493f6e6"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/database/prisma/migrations/20261023100000_video_subscription_connections/migration.sql",
+      "sha256": "4930f9fde5d37e448a6eb5e49083b0f3e564c90e9474b531a4d34d8a60853920"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/database/prisma/migrations/20261023101000_video_subscription_execution/migration.sql",
+      "sha256": "a7d23c15eefd667aa09fb888f2d8425e6f9dcb8482a857ca2fb2ff39578fa3aa"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+      "sha256": "63d4a338bfa7887b13445336317b252bd8be68a45022abcd1c295f94edf372c5"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts",
+      "sha256": "030558b74ab6f64425b6094f18f8b61a1e9712c8431b4b43e87d6324701ecfd3"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/database/prisma/video-subscription/video-subscription.repository.ts",
+      "sha256": "a59c2896b347f445750de81f8bb1595692e5f3f1bccf1b2206714047fed5ab3e"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/user/authenticated.session.ts",
+      "sha256": "2c6b664d6b68516fb226a6aad5d634b35f7e5ce295cb1cb68fef29597e61b431"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/providers/heygen-subscription.provider.ts",
+      "sha256": "9ac1dd9668971fba28d92bc7aa3759adf8740fc8917e89dc41bcacb17babbbb2"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/providers/higgsfield-subscription.provider.ts",
+      "sha256": "4f6d4086f905fefca6ef2a0d144c03394f647d2866e9567704c9522ed4edd84b"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-connection.service.ts",
+      "sha256": "58d8f45d40b3bdc23b38d66a0e97f688d7da7e9c1a25777f8a769fc7bf89f640"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-credit-policy.ts",
+      "sha256": "f60ccca1264e9fca8d3f537c8f6925355919ba59cdde00f164dda45fc886b2ca"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-mcp-client.ts",
+      "sha256": "f1e439f663199767e7ecf7efa2f6b01b88cadffa827ac11968b0703631ec0ef3"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-oauth-client.ts",
+      "sha256": "52d70fd6018ccdaa83a4335ab614e7ce18ad739788ac8e7cab5f45ef4bf95eae"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-provider-registry.ts",
+      "sha256": "a27ed2e4c1df38a3f0bcf7723744af5672536c526fc18d31db34f40a7abeac31"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-subscription-execution.ts",
+      "sha256": "4db292d485a3082da857461b2cec8b5be59fc392b537ae1b196c8258bd82e493"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/subscriptions/video-subscription-job.service.ts",
+      "sha256": "813c89d95638f490b7d21f918723dc95f4be5c77f25770232f1d9fd7a7f3dfb3"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/video-access.service.ts",
+      "sha256": "83e9605b55995905b74e1be7fa85d06255ff72a859a347ac909d1f75f7ee5373"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/video-access.v2.ts",
+      "sha256": "843010c5aa3a359493cbe9dd54a45095b0410dbc16b4691eef1c2239b23472bf"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/video-media.v1.ts",
+      "sha256": "bfdbae355a448c3d649be7326ffb5d94dac148aa6c568a142658b5b9eb7c02ec"
+    },
+    {
+      "path": "libraries/nestjs-libraries/src/videos/video.module.ts",
+      "sha256": "334b36bd77409ed923807500377ae9468c7d40d9b93c1beab560749d86a00768"
+    },
+    {
+      "path": "package.json",
+      "sha256": "3cf647596886c58842f387226f5b6157fb8f16434874fcb2fe316d84b7ef5266"
+    },
+    {
+      "path": "scripts/development/video-subscription-browser-acceptance.cjs",
+      "sha256": "21210467bdaed8cb05af6471c2d1a8c1ba08d156674c7d435745946ccbc18785"
+    },
+    {
+      "path": "scripts/development/video-subscription-local-fixture.cjs",
+      "sha256": "c2e53cf7e39fbe3596b1b8158ddadac5146c33b42d53c4771abb7351cf48308b"
+    },
+    {
+      "path": "scripts/development/video-subscription-temporal-acceptance.cjs",
+      "sha256": "bf5d20d8ce2cb73d660aa6f733b7d3de1aa32fd31969ad714d9013349f591d59"
+    },
+    {
+      "path": "tests/admin-account-delete.test.cjs",
+      "sha256": "2f7f8103499a92b00fd354553b594d10236c6e7bc1c54537522054719b689c11"
+    },
+    {
+      "path": "tests/fixtures/video-subscription/README.md",
+      "sha256": "9a01110848a8bafe1ae566d2a2c8c1a74c7e3bd7e5821ab51012c04c4a6af200"
+    },
+    {
+      "path": "tests/fixtures/video-subscription/heygen/tools.synthetic.json",
+      "sha256": "b142403b33d43e24ac90360ee95bfd84dbf266c4a083513c9cc85c38ace61d93"
+    },
+    {
+      "path": "tests/fixtures/video-subscription/higgsfield/tools.synthetic.json",
+      "sha256": "856369f59ed101014840ce59230aef603d5f147f79781f31ce5bb549b855f073"
+    },
+    {
+      "path": "tests/helpers/video-subscription-domain.fixture.cjs",
+      "sha256": "53eeb0e38495877cf3cdbb6edadeeddda5d77dac8c01ec047787bc0437f3a872"
+    },
+    {
+      "path": "tests/helpers/video-subscription-provider-fixture.cjs",
+      "sha256": "43fa6dd3acf7b94ee88a5dad01a33d24709b61ac8ddb63fb9c49d408fbe149f3"
+    },
+    {
+      "path": "tests/video-heygen-subscription.contract.test.cjs",
+      "sha256": "030ee745c5c96d222a75f5cbdde649dda1a6481afffca585dcf7296d8e2991df"
+    },
+    {
+      "path": "tests/video-higgsfield-subscription.contract.test.cjs",
+      "sha256": "1be5ac22f12826ac1e470bf094c08ca10260937a6738dc4667a1c96ffd70660b"
+    },
+    {
+      "path": "tests/video-manual-attachment.postgres.test.cjs",
+      "sha256": "52dda2bed331bfe3ef920799fddbe20f4401a09a7a3fdec6acc936baffa635cd"
+    },
+    {
+      "path": "tests/video-subscription-chat.test.cjs",
+      "sha256": "b7efe650630db680905dda0ae3d09dac8bb5728eae48f0f20be25ed268620a06"
+    },
+    {
+      "path": "tests/video-subscription-connections.postgres.test.cjs",
+      "sha256": "12a4398e50f1ad8d422e000669829e12e03d678aa72befdd641cbf6854853081"
+    },
+    {
+      "path": "tests/video-subscription-domain.postgres.test.cjs",
+      "sha256": "4d56fb0980dc305b251e88c6b594a077538ffd769ef89847f66591dac220194c"
+    },
+    {
+      "path": "tests/video-subscription-execution.test.cjs",
+      "sha256": "bdc161845ad9e5e067de333cbbcb5979a135f28df17c8431654ab8e71c05ff7b"
+    },
+    {
+      "path": "tests/video-subscription-oauth.test.cjs",
+      "sha256": "dbd5b515ad48a0cead1e1f7ae8201324d76314e7fb705ab45a1794bd55b5df97"
+    },
+    {
+      "path": "tests/video-subscription-ui.test.cjs",
+      "sha256": "147a52fa5c62a25023edba6d44d5433aedeb41da0b33835632e29a2b1161f6a1"
+    },
+    {
+      "path": "tests/video-ui-v1.test.cjs",
+      "sha256": "7485e1162bf39412d07931a96b6d2328999e3d8888f58d050c74f4c4148b03a6"
+    },
+    {
+      "path": "var/docker/nginx.conf",
+      "sha256": "856731a97108feef43e8ef71208b05a20c6e0ecacaa4118a023e948d2e4687eb"
+    }
+  ],
+  "checks": [
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-subscription-oauth.test.cjs",
+        "tests/video-subscription-connections.postgres.test.cjs",
+        "tests/video-subscription-domain.postgres.test.cjs",
+        "tests/video-subscription-execution.test.cjs",
+        "tests/video-subscription-chat.test.cjs",
+        "tests/video-manual-attachment.postgres.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "subscriptions-final.log",
+      "logSha256": "58fa238d8027a03b94c3ab9962c47b9e235697d1de6c80241d221be9446f64a4",
+      "summary": [
+        "Test Suites: 6 passed, 6 total",
+        "Tests:       44 passed, 44 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-subscription-domain.postgres.test.cjs",
+        "tests/video-subscription-execution.test.cjs",
+        "tests/video-subscription-chat.test.cjs",
+        "tests/video-manual-attachment.postgres.test.cjs",
+        "tests/video-media-v1.test.cjs",
+        "tests/video-domain-v1.postgres.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "domain-final.log",
+      "logSha256": "b0582e4caf88e3e3396200205511502584f7594d92b2f514d862a4663a7048e5",
+      "summary": [
+        "Test Suites: 6 passed, 6 total",
+        "Tests:       89 passed, 89 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-ui-v1.test.cjs",
+        "tests/video-subscription-ui.test.cjs",
+        "tests/video-manual-attachment.postgres.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "ui-final.log",
+      "logSha256": "48c52c1f3051833b9f9bb1b53c42e13f8626216a86c67c469efd4ea964c68442",
+      "summary": [
+        "Test Suites: 3 passed, 3 total",
+        "Tests:       31 passed, 31 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-ui-v1.test.cjs",
+        "tests/video-subscription-ui.test.cjs",
+        "tests/design.guard.test.cjs",
+        "tests/design.contrast.test.cjs",
+        "tests/foundation.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "ui-design-final.log",
+      "logSha256": "789133e9797b3afa8f283fc50e8aeb1d92d5f1f9903a56e495313a9882c12bcc",
+      "summary": [
+        "Test Suites: 5 passed, 5 total",
+        "Tests:       86 passed, 86 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-subscription-chat.test.cjs",
+        "tests/agent-parts.mirror.guard.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "chat-native.log",
+      "logSha256": "b409cffa5f69c401d581a59cb168bc1e77469de155de1e6c71dd3e6a9852eddd",
+      "summary": [
+        "Test Suites: 2 passed, 2 total",
+        "Tests:       40 passed, 40 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "--runInBand",
+        "tests/video-subscription-execution.test.cjs",
+        "tests/video-subscription-chat.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "execution-affected.log",
+      "logSha256": "598e1c9eb6119442aaab8527e515f69fee7e9e8c955d4c17164d9af5ee1e1771",
+      "summary": [
+        "Test Suites: 2 passed, 2 total",
+        "Tests:       14 passed, 14 total"
+      ],
+      "overlapsOtherRuns": true
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "node",
+        "--test",
+        "tests/video-higgsfield-subscription.contract.test.cjs",
+        "tests/video-heygen-subscription.contract.test.cjs",
+        "tests/video-provider-v1.contract.test.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "node-contracts.log",
+      "logSha256": "bce656c962b9968fd8ed5fa2fd554d3930bbb14b0d018e9da5b52332e24bcf70",
+      "testsPassed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--project",
+        "apps/backend/tsconfig.json"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "backend-tsc.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--project",
+        "apps/orchestrator/tsconfig.json"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "orchestrator-tsc.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit",
+        "--project",
+        "apps/frontend/tsconfig.json"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "frontend-tsc.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "/home/me/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/operations/validate-prisma-migration-sql.cjs",
+        "--diff",
+        "/home/me/code/content-factory-next-worktrees/video-v1-api/.codex/stages/content-factory-next-zlq6-subscriptions-20261023/schema.diff.sql",
+        "--selected",
+        "/home/me/code/content-factory-next-worktrees/video-v1-api/.codex/stages/content-factory-next-zlq6-subscriptions-20261023/schema.selected.sql",
+        "--mode",
+        "update",
+        "--allow-table",
+        "VideoSubscriptionConnection",
+        "--allow-table",
+        "VideoSubscriptionGrant",
+        "--allow-table",
+        "VideoSubscriptionWorkspacePolicy",
+        "--allow-table",
+        "VideoSubscriptionOAuthAttempt",
+        "--allow-table",
+        "VideoSubscriptionRegistration",
+        "--allow-table",
+        "VideoAccessPreflight",
+        "--allow-table",
+        "VideoRouteIntent",
+        "--allow-table",
+        "VideoSubscriptionJob",
+        "--allow-table",
+        "VideoManualAttachment"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "migration-guard.log",
+      "logSha256": "638e6e5ab829ef2909cccf4a9c55f4ec3d7fd9af9f29205909ea37edfb100157",
+      "allowedTables": [
+        "VideoSubscriptionConnection",
+        "VideoSubscriptionGrant",
+        "VideoSubscriptionWorkspacePolicy",
+        "VideoSubscriptionOAuthAttempt",
+        "VideoSubscriptionRegistration",
+        "VideoAccessPreflight",
+        "VideoRouteIntent",
+        "VideoSubscriptionJob",
+        "VideoManualAttachment"
+      ]
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "node",
+        "scripts/development/video-subscription-browser-acceptance.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "browser.log",
+      "logSha256": "a33092320e2d8bca848f43cf0b9f89573f865eb37ff84058767ffc3659a451c5",
+      "receipt": "browser/browser.actual.json",
+      "logNormalization": "Trailing whitespace removed for Git diff hygiene; assertions/results unchanged."
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "node",
+        "scripts/development/video-subscription-temporal-acceptance.cjs"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "temporal.log",
+      "logSha256": "31cf9570ac018a1b491be2cf6700efb6d2136af1cd25c600d3abb13845824b57",
+      "receipt": "temporal.actual.json"
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/docs/check_docs.py"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "docs.log",
+      "logSha256": "9c0d402367390c66eebac104fd4be2c8ad0cbd08479aad693e76d6de92993d5d"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "exitCode": 0,
+      "log": "diff-check.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "acceptedJestFiles": {
+    "tests/admin-account-delete.test.cjs": "jest.log",
+    "tests/design.coherence.guard.test.cjs": "jest.log",
+    "tests/choice-control.contract.test.cjs": "jest.log",
+    "tests/mail-video-log-privacy.test.cjs": "jest.log",
+    "tests/video-subscription-connections.postgres.test.cjs": "subscriptions-final.log",
+    "tests/video-subscription-domain.postgres.test.cjs": "domain-final.log",
+    "tests/video-subscription-execution.test.cjs": "domain-final.log",
+    "tests/video-subscription-oauth.test.cjs": "subscriptions-final.log",
+    "tests/auth-middleware-membership.test.cjs": "jest.log",
+    "tests/video-subscription-chat.test.cjs": "domain-final.log",
+    "tests/video-subscription-ui.test.cjs": "ui-design-final.log",
+    "tests/video-chat-domain-v1.postgres.test.cjs": "jest.log",
+    "tests/video-domain-v1.postgres.test.cjs": "domain-final.log",
+    "tests/agent-work-context.test.cjs": "jest.log",
+    "tests/video-reference-domain-v1.postgres.test.cjs": "jest.log",
+    "tests/design.guard.test.cjs": "ui-design-final.log",
+    "tests/video-module-v1.postgres.test.cjs": "jest.log",
+    "tests/video-media-v1.test.cjs": "domain-final.log",
+    "tests/video-settings-concurrency-v1.postgres.test.cjs": "jest.log",
+    "tests/video-chat-execution-v1.test.cjs": "jest.log",
+    "tests/video-credentials-v1.test.cjs": "jest.log",
+    "tests/design.contrast.test.cjs": "ui-design-final.log",
+    "tests/foundation.test.cjs": "ui-design-final.log",
+    "tests/video-ui-v1.test.cjs": "ui-design-final.log",
+    "tests/video-manual-attachment.postgres.test.cjs": "ui-final.log",
+    "tests/agent-parts.mirror.guard.test.cjs": "chat-native.log"
+  },
+  "initialIntegration": {
+    "log": "jest.log",
+    "exitCode": 1,
+    "passedIndividualFiles": 23,
+    "failedSuites": [
+      "tests/video-manual-attachment.postgres.test.cjs",
+      "tests/video-ui-v1.test.cjs"
+    ],
+    "supersededByPassingAffectedReruns": true,
+    "aggregateAccepted": false
+  },
+  "unchangedCompatibilityInputs": [
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "docs/superpowers/plans/2026-10-22-video-generation.md",
+    "apps/orchestrator/src/workflows/video-generation.workflow.v1.ts",
+    "apps/orchestrator/src/activities/video-generation.activity.v1.ts",
+    "tests/fixtures/video-v1/flower.mp4"
+  ],
+  "evidenceBoundary": {
+    "database": "Actual disposable PostgreSQL/Prisma, not production",
+    "browser": "Actual Next/Nest/policies/storage; synthetic sessions, provider identity, schemas and text; loopback HTTP OAuth/MCP",
+    "chat": "Actual native Mastra tool, authored request, approval requirement and persisted facade job; no LLM/provider quality claim",
+    "durability": "Actual dedicated Temporal SDK worker/service restart and same persisted provider receipts",
+    "video": "Unchanged public CC0 fixture, not provider-generated output"
+  },
+  "notRun": [
+    "full repository build/suite/release gate",
+    "real registration/login/credentials",
+    "real paid/text/video/subscription credit call",
+    "provider quality/language or billing acceptance",
+    "push/merge/deploy/production migration",
+    "fresh canonical Linear publication check"
+  ],
+  "realProviderGate": {
+    "task": "content-factory-next-zlq6.7",
+    "state": "UNKNOWN_REQUIRES_SEPARATE_AUTHORITY",
+    "epicRemainsOpen": true,
+    "productionSubscriptionProfilesEnabled": false
+  },
+  "cleanup": "cleanup.actual.json",
+  "tracking": "beads.actual.json",
+  "graphReviewed": "Read-only main dd67538d orientation; exact current files checked, additions not indexed, no rebuild"
+}

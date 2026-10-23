@@ -11,6 +11,7 @@ import {
   ValidationOptions,
   registerDecorator,
 } from 'class-validator';
+import { isVideoApiKeysV1, isVideoSpendPolicyV1, VideoSettingsInputV1 } from '@contentfactory/nestjs-libraries/videos/video-settings.v1';
 import type { SearchProvider } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
   AI_ROLES,
@@ -185,7 +186,28 @@ export const IsSearchTaskProviders = (options?: ValidationOptions) =>
     });
   };
 
-export class AiProviderDto {
+export const IsVideoApiKeysV1 = (options?: ValidationOptions) =>
+  function decorate(object: object, propertyName: string) {
+    registerDecorator({ name: 'isVideoApiKeysV1', target: object.constructor, propertyName, options,
+      validator: { validate: isVideoApiKeysV1, defaultMessage: () => 'Invalid video provider keys.' } });
+  };
+export const IsVideoSpendPolicyV1 = (options?: ValidationOptions) =>
+  function decorate(object: object, propertyName: string) {
+    registerDecorator({ name: 'isVideoSpendPolicyV1', target: object.constructor, propertyName, options,
+      validator: { validate: isVideoSpendPolicyV1, defaultMessage: () => 'Positive per-job and monthly monetary limits are required.' } });
+  };
+
+export class VideoProviderSettingsDto implements VideoSettingsInputV1 {
+  @IsOptional()
+  @IsVideoApiKeysV1()
+  videoApiKeys?: VideoSettingsInputV1['videoApiKeys'];
+
+  @IsOptional()
+  @IsVideoSpendPolicyV1()
+  videoSpendPolicy?: VideoSettingsInputV1['videoSpendPolicy'];
+}
+
+export class AiProviderDto extends VideoProviderSettingsDto {
   @IsString()
   @IsOptional()
   @IsIn(['included', 'workspace_key'])

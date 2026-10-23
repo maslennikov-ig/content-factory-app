@@ -1,0 +1,68 @@
+{
+  "containers": [
+    {
+      "kind": "postgres",
+      "id": "c07a11131fb44c749f79695d651b103d4533add8fe4b3ee51b83e2daa71afefb",
+      "name": "/cf-video-reaccept-pg-20261023",
+      "image": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+      "ports": {
+        "5432/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "44621"
+          }
+        ]
+      },
+      "mounts": [],
+      "storage": {
+        "/var/lib/postgresql/data": "rw"
+      },
+      "removed": true
+    },
+    {
+      "kind": "temporal",
+      "id": "531ce4ffbb07b8d892894f42f4c12faea393e32bdd774c92fcc617630e37b7cb",
+      "name": "/cf-video-reaccept-temporal-20261023",
+      "image": "sha256:cf86707827fac99e4d1c4a47dc11b105382d796199c7bd41fb3213fb0471628e",
+      "ports": {
+        "7233/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "46013"
+          }
+        ]
+      },
+      "mounts": [],
+      "storage": "Temporal in-memory dev storage; no host mounts",
+      "removed": true
+    }
+  ],
+  "databaseRowsAfterFixtureCleanup": {
+    "organization": 0,
+    "user": 0,
+    "videoSubscriptionJob": 0,
+    "videoGenerationJob": 0,
+    "videoManualAttachment": 0,
+    "media": 0
+  },
+  "browser": {
+    "pids": [
+      16339,
+      17546
+    ],
+    "nextServerChild": 17579,
+    "uploadDirectory": "/tmp/cf-video-v1-fixture-AUHOwz",
+    "processesExited": true,
+    "uploadDirectoryRemoved": true
+  },
+  "closedLoopbackPorts": [
+    43320,
+    43321,
+    44621,
+    46013
+  ],
+  "foreignResourcesTouched": false,
+  "worktreePreserved": true,
+  "temporaryControlDirectory": "/tmp/cf-video-reaccept-20261023",
+  "temporaryControlDirectoryRemoved": true
+}

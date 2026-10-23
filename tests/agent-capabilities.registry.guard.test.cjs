@@ -426,29 +426,28 @@ describe('U1: every paid capability goes through the paid adapter', () => {
       const seen = [];
       const observe = (where) =>
         seen.push([where, aiConfig.getActiveAiConfig(IDENTITY.organizationId) ?? null]);
-      // Wrap every function of the fixture's services with the observation.
-      const services = Object.fromEntries(
-        Object.entries(all[capability.id].services).map(([name, service]) => [
-          name,
-          Object.fromEntries(
-            Object.entries(service).map(([method, fn]) => [
-              method,
-              fn.constructor.name === 'AsyncGeneratorFunction'
-                ? async function* (...args) {
-                    observe(`${method}:start`);
-                    for await (const item of fn(...args)) {
-                      observe(`${method}:pull`);
-                      yield item;
-                    }
-                  }
-                : async (...args) => {
-                    observe(method);
-                    return fn(...args);
-                  },
-            ])
-          ),
-        ])
-      );
+      // Observe nested repository calls as well as top-level service methods.
+      const observed = (value, method = '') => {
+        if (typeof value === 'function') {
+          return value.constructor.name === 'AsyncGeneratorFunction'
+            ? async function* (...args) {
+                observe(`${method}:start`);
+                for await (const item of value(...args)) {
+                  observe(`${method}:pull`);
+                  yield item;
+                }
+              }
+            : async (...args) => {
+                observe(method);
+                return value(...args);
+              };
+        }
+        if (value && typeof value === 'object') {
+          return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, observed(child, `${method}.${key}`)]));
+        }
+        return value;
+      };
+      const services = observed(all[capability.id].services);
       const tool = local.buildCapabilityTool(capability, {
         services: servicesFrom(services),
         language: 'ru',

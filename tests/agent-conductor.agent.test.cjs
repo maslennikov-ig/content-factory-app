@@ -77,6 +77,15 @@ describe('what the model is offered', () => {
   test('a USER is not shown write tools only to be refused by them (spec §4.2)', () => {
     expect([...report.userTurn.tools].sort()).toEqual(
       [
+        // Video catalogue, drafts, jobs and access are read by every member.
+        'video_catalog',
+        'video_drafts',
+        'video_draft',
+        'video_jobs',
+        'video_status',
+        'video_access_v2',
+        'video_jobs_v2',
+        'video_status_v2',
         // Avatars are read by every member (kcxz.18); nothing that changes one.
         'avatar_learning',
         'avatar_list',

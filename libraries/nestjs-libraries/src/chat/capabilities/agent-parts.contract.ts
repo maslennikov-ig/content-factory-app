@@ -22,6 +22,9 @@
  */
 
 /** The AI SDK UI stream contract. Pinned, never the library default. */
+/** Video access V2 keeps media entity IDs and adds a versioned launch tool.
+ * video_launch remains API V1; video_launch_v2 approval input binds
+ * draftId/version/preflightId. The full snapshot is read through the actor door. */
 export const AGENT_STREAM_VERSION = 'v7' as const;
 
 /**
@@ -56,6 +59,8 @@ export type AgentWorkContextV1 = {
   pieceId?: string;
   channelId?: string;
   adaptationId?: string;
+  videoJobId?: string;
+  videoDraftId?: string;
   from?: string;
   to?: string;
   revision?: string;
@@ -68,6 +73,8 @@ export type AgentArtifactRef = {
   pieceId?: string;
   channelId?: string;
   adaptationId?: string;
+  videoJobId?: string;
+  videoDraftId?: string;
 };
 
 export type AgentWorkspaceV1 = {
@@ -179,7 +186,7 @@ export type AgentCardPayloads = {
    * the screen's own — newest first, so a picture the chat generated is the
    * first one there. `id` is always `library`: there is one.
    */
-  media: { kind: 'media'; id: string };
+  media: { kind: 'media'; id: string; videoJobId?: string; videoDraftId?: string; pieceId?: string };
   /**
    * Connecting a channel (`kcxz.19`, spec §6.2 «Channel connect»): `id` is
    * the platform (`telegram`, `linkedin`…). `flow` says what the card draws:

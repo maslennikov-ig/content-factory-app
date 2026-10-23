@@ -1,6 +1,9 @@
+import { sanitizedVideoSettingsV1, videoSettingsUpdateV1 } from '@contentfactory/nestjs-libraries/videos/video-credentials.service';
+import type { VideoSettingsInputV1 } from '@contentfactory/nestjs-libraries/videos/video-settings.v1';
 import { Injectable } from '@nestjs/common';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
+import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 import {
   AiProvider,
   INSTANCE_AI_DEFAULTS_ID,
@@ -169,6 +172,7 @@ export class InstanceAiDefaultsService {
     });
 
     return {
+      video: sanitizedVideoSettingsV1(row),
       provider: (row?.provider as AiProvider) ?? null,
       textModel: row?.textModel ?? null,
       imageModel: row?.imageModel ?? null,
@@ -230,7 +234,7 @@ export class InstanceAiDefaultsService {
    */
   async update(
     userId: string,
-    body: {
+    body: VideoSettingsInputV1 & {
       provider?: AiProvider;
       apiKey?: string;
       textModel?: string;
@@ -248,10 +252,28 @@ export class InstanceAiDefaultsService {
       textMaxRetries?: number;
     }
   ) {
-    const current = await this._prisma.instanceAiDefaults?.findUnique({
+    const save = (prisma: Pick<PrismaService, 'instanceAiDefaults'>) =>
+      this.writeSettings(userId, body, prisma);
+    if (body.videoApiKeys !== undefined || body.videoSpendPolicy !== undefined) {
+      await serializableWithRetry(this._prisma, save, 'Video settings are busy; retry the same update.');
+    } else {
+      await save(this._prisma);
+    }
+    resetAiConfigCache();
+    return this.read();
+  }
+
+  private async writeSettings(
+    userId: string,
+    body: Parameters<InstanceAiDefaultsService['update']>[1],
+    prisma: Pick<PrismaService, 'instanceAiDefaults'>
+  ) {
+    const current = await prisma.instanceAiDefaults?.findUnique({
       where: { id: INSTANCE_AI_DEFAULTS_ID },
       select: {
         searchApiKeys: true,
+        videoApiKeys: true,
+        videoSpendPolicy: true,
         monthlyOperations: true,
         textFallbackModel: true,
         roleModels: true,
@@ -275,6 +297,7 @@ export class InstanceAiDefaultsService {
     });
 
     const data = {
+      ...videoSettingsUpdateV1(current, body),
       ...(body.provider ? { provider: body.provider } : {}),
       ...(body.apiKey
         ? { apiKey: AuthService.fixedEncryption(body.apiKey) }
@@ -323,13 +346,11 @@ export class InstanceAiDefaultsService {
       updatedByUserId: userId,
     };
 
-    await this._prisma.instanceAiDefaults.upsert({
+    await prisma.instanceAiDefaults.upsert({
       where: { id: INSTANCE_AI_DEFAULTS_ID },
       create: { id: INSTANCE_AI_DEFAULTS_ID, ...data },
       update: data,
     });
-    resetAiConfigCache();
-    return this.read();
   }
 
   /** Remove the generation key, dropping the instance back to its variables. */

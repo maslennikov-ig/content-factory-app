@@ -52,8 +52,12 @@ const leadsFake = (extra = {}) => {
 describe('always a card in the web chat, never one of ours over MCP', () => {
   const tools = registry.buildMastraCapabilityTools(catalogue, { services: servicesFrom({}), language: 'ru' });
 
-  test('the three ask, as `confirm` does; feed add and check do not (decided for the owner)', () => {
-    expect(catalogue.filter((one) => one.asksInWebChat).map((one) => one.id)).toEqual(ASKING);
+  test('the three and paid video launches ask; feed add and check do not (decided for the owner)', () => {
+    expect(catalogue.filter((one) => one.asksInWebChat).map((one) => one.id)).toEqual([
+      'video.launch',
+      'video.launch_v2',
+      ...ASKING,
+    ]);
     const inputs = { 'ideas.archive': { subscriptionId: 'sub-1' }, 'ideas.dismiss': { leadIds: ['lead-1'] }, 'ideas.take': { leadId: 'lead-1' } };
     for (const id of ASKING) {
       expect(tools[registry.toolNameOf(id)].requireApproval(inputs[id])).toBe(true);

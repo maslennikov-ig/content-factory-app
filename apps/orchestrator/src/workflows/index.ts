@@ -24,3 +24,6 @@ export * from './streak.workflow';
 export * from './integration.analytics.snapshot.workflow.v1';
 export * from './newsletter.subscription.retry.workflow.v1';
 export * from './content-lead-check.workflow';
+export * from './video-generation.workflow.v1';
+
+export * from './video-subscription.workflow.v1';

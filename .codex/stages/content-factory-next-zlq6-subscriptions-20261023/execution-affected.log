@@ -1,0 +1,8 @@
+PASS tests/video-subscription-execution.test.cjs (6.666 s)
+PASS tests/video-subscription-chat.test.cjs
+
+Test Suites: 2 passed, 2 total
+Tests:       14 passed, 14 total
+Snapshots:   0 total
+Time:        8.82 s, estimated 9 s
+Ran all test suites matching /tests\/video-subscription-execution.test.cjs|tests\/video-subscription-chat.test.cjs/i.

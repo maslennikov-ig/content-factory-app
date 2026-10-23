@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "scope": "Final localized labels, job-only reopening and saved result screenshots; main browser receipt remains valid",
+  "labels": [
+    "Сохранить лимиты",
+    "Фактический расход кредитов",
+    "Фактический расход кредитов",
+    "Внешняя стоимость неизвестна"
+  ],
+  "readOnlyProviderCalls": true,
+  "countersBefore": {
+    "quotes": 2,
+    "submits": 2,
+    "polls": 2,
+    "apiSubmits": 1,
+    "downloads": 3,
+    "registrations": 2,
+    "refreshes": 0
+  },
+  "countersAfter": {
+    "quotes": 2,
+    "submits": 2,
+    "polls": 2,
+    "apiSubmits": 1,
+    "downloads": 3,
+    "registrations": 2,
+    "refreshes": 0
+  }
+}

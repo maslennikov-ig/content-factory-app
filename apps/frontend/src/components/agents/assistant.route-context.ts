@@ -8,7 +8,14 @@ export function assistantRouteContext(pathname: string, search: string): AgentWo
     const kind = object[1] === 'content/pieces' ? 'piece' : object[1] === 'content/avatars' ? 'avatar' : 'channel';
     try { return { version, kind, id: decodeURIComponent(object[2]) }; } catch { return null; }
   }
-  if (pathname === '/media') return { version, kind: 'media' };
+  if (pathname === '/media') {
+    const query = new URLSearchParams(search);
+    const draftId = query.get('draftId'), jobId = query.get('jobId'), pieceId = query.get('pieceId');
+    if (query.get('video') === '1' && (draftId || jobId) && [draftId, jobId, pieceId].every(id => !id || /^[A-Za-z0-9_-]{1,128}$/.test(id))) {
+      return {version, kind: 'media', id: 'library', ...(draftId ? {videoDraftId: draftId} : {}), ...(jobId ? {videoJobId: jobId} : {}), ...(pieceId ? {pieceId} : {})};
+    }
+    return { version, kind: 'media' };
+  }
   if (pathname === '/content') {
     const tab = new URLSearchParams(search).get('tab');
     return { version, kind: tab === 'leads' ? 'ideas' : tab === 'provenance' ? 'facts' : 'workspace' };
@@ -22,6 +29,7 @@ export const assistantContextKey = (context: AgentWorkContextV1 | null) =>
     version: context.version, kind: context.kind, id: context.id,
     pieceId: context.pieceId, channelId: context.channelId,
     adaptationId: context.adaptationId, from: context.from, to: context.to,
+    videoDraftId: context.videoDraftId, videoJobId: context.videoJobId,
   } : null);
 
 export const linkedAssistantThread = (value: unknown, key: string): string | null => {

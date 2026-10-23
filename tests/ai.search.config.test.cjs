@@ -1,35 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');
-
-function loadTypeScriptModule(relativePath, mocks = {}) {
-  const filename = path.resolve(__dirname, '..', relativePath);
-  const source = fs.readFileSync(filename, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      experimentalDecorators: true,
-      emitDecoratorMetadata: true,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-  new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports;
-}
+const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const rows = {
   'organization-a': {

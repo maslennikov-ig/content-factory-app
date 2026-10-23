@@ -1,0 +1,1585 @@
+PASS tests/admin-account-delete.test.cjs
+PASS tests/design.coherence.guard.test.cjs
+PASS tests/choice-control.contract.test.cjs
+PASS tests/mail-video-log-privacy.test.cjs
+PASS tests/video-subscription-connections.postgres.test.cjs
+PASS tests/video-subscription-domain.postgres.test.cjs
+PASS tests/video-subscription-execution.test.cjs (5.102 s)
+PASS tests/video-subscription-oauth.test.cjs
+PASS tests/auth-middleware-membership.test.cjs
+FAIL tests/video-manual-attachment.postgres.test.cjs
+  ● manual upload attaches actual owned MP4 bytes through the shared Prisma facade › foreign media, image metadata, false MP4 bytes, stale draft and reader mutation all fail before attachment
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "VIDEO_OWNED_FILE_UNAVAILABLE"
+    Received: null
+
+      30 |     const attempt = async (mediaId, actor = f.user.id, version = draft.version) => { try { await f.access.attach(f.org.id, actor, {draftId: draft.id, version, mediaId}); } catch (error) { return codeOf(error); } return null; };
+      31 |     expect(await attempt(foreign.id)).toBe('VIDEO_OWNED_FILE_UNAVAILABLE');
+    > 32 |     expect(await attempt(image.id)).toBe('VIDEO_OWNED_FILE_UNAVAILABLE');
+         |                                     ^
+      33 |     expect(await attempt(own.id, f.user.id, draft.version + 1)).toBe('VIDEO_DRAFT_CHANGED');
+      34 |     await f.db.userOrganization.updateMany({where: {organizationId: f.org.id, userId: f.otherUser.id}, data: {role: 'USER'}});
+      35 |     expect(await attempt(own.id, f.otherUser.id)).toBe('VIDEO_ACCESS_DENIED');
+
+      at tests/video-manual-attachment.postgres.test.cjs:32:37
+      at withFixture (tests/video-manual-attachment.postgres.test.cjs:8:94)
+
+PASS tests/video-subscription-chat.test.cjs
+PASS tests/video-subscription-ui.test.cjs
+PASS tests/video-chat-domain-v1.postgres.test.cjs (14.233 s)
+PASS tests/video-domain-v1.postgres.test.cjs (16.792 s)
+PASS tests/agent-work-context.test.cjs
+[Nest] 70233  - 10/23/2026, 10:49:00 AM     LOG [AgentController] {"event":"agent_task_execution","requestId":"fd7111bd-e371-499c-b527-e85c9fc57098","elapsedMs":2,"steps":0,"knownCostUsd":0,"tokens":0,"unknownCostCalls":0,"possiblyBilled":false,"providerCalls":0}
+[Nest] 70233  - 10/23/2026, 10:49:00 AM     LOG [AgentController] {"event":"agent_task_execution","requestId":"4be707de-37f7-49ba-aba6-85d25c939a90","elapsedMs":1,"steps":0,"knownCostUsd":0,"tokens":0,"unknownCostCalls":0,"possiblyBilled":false,"providerCalls":0}
+PASS tests/video-reference-domain-v1.postgres.test.cjs
+PASS tests/design.guard.test.cjs
+FAIL tests/video-ui-v1.test.cjs (6.476 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+  ● editing invalidates preflight; save preserves content and a fresh quote is required
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● unknown price keeps generation disabled and visible
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● lost submit response retains one intent; an explicit retry sends the identical request
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● clip completed job reopens an owned player and download without a new generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "/owned/fixture.mp4"
+    Received: undefined
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<section[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+            [33mdata-video-access-kind[39m=[32m"api"[39m
+            [33mdata-video-workspace[39m=[32m"v2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+                [36m>[39m
+                  [0mVideo from a piece[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+                [36m>[39m
+                  [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+                [33mhref[39m=[32m"/media"[39m
+              [36m>[39m
+                [0mClose[0m
+              [36m</a>[39m
+            [36m</div>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Video access"[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-access-method"[39m
+                  [36m>[39m
+                    [0mVideo access[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-access-method"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose an access method[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"subscription"[39m
+                  [36m>[39m
+                    [0mUse my subscription[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"api"[39m
+                  [36m>[39m
+                    [0mUse API[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"manual"[39m
+                  [36m>[39m
+                    [0mCreate at provider and upload[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+              [36m>[39m
+                [0mPaid by[0m
+                [0m: [0m
+                [0mIncluded allowance[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                    [33mdata-field-label[39m=[32m"true"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                      [33mfor[39m=[32m"video-source-piece"[39m
+                    [36m>[39m
+                      [0mSource piece[0m
+                    [36m</label>[39m
+                  [36m</span>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mid[39m=[32m"video-source-piece"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0mChoose a piece[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                    [36m>[39m
+                      [0mOriginal article[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                      [33mdata-field-label[39m=[32m"true"[39m
+                    [36m>[39m
+                      [36m<label[39m
+                        [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                        [33mfor[39m=[32m"video-draft-picker"[39m
+                      [36m>[39m
+                        [0mReopen[0m
+                      [36m</label>[39m
+                    [36m</span>[39m
+                    [36m<select[39m
+                      [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visi...
+
+      109 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', snapshot: { settings: { ...settings, mode } }, result: { id: 'owned-media', path: '/owned/fixture.mp4', name: 'saved.mp4' } };
+      110 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 111 |   await waitFor(() => expect(view.container.querySelector('video')?.getAttribute('src')).toBe('/owned/fixture.mp4'));
+          |                                                                                          ^
+      112 |   const createUrl = jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:owned-download');
+      113 |   const revokeUrl = jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      114 |   let clicked;
+
+      at tests/video-ui-v1.test.cjs:111:90
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at MutationObserver.checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at MutationObserver.invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/living/generated/MutationCallback.js:19:26)
+      at notifyMutationObservers (node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:160:22)
+      at node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:133:5
+
+  ● presenter completed job reopens an owned player and download without a new generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "/owned/fixture.mp4"
+    Received: undefined
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<section[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+            [33mdata-video-access-kind[39m=[32m"api"[39m
+            [33mdata-video-workspace[39m=[32m"v2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+                [36m>[39m
+                  [0mVideo from a piece[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+                [36m>[39m
+                  [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+                [33mhref[39m=[32m"/media"[39m
+              [36m>[39m
+                [0mClose[0m
+              [36m</a>[39m
+            [36m</div>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Video access"[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-access-method"[39m
+                  [36m>[39m
+                    [0mVideo access[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-access-method"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose an access method[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"subscription"[39m
+                  [36m>[39m
+                    [0mUse my subscription[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"api"[39m
+                  [36m>[39m
+                    [0mUse API[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"manual"[39m
+                  [36m>[39m
+                    [0mCreate at provider and upload[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+              [36m>[39m
+                [0mPaid by[0m
+                [0m: [0m
+                [0mIncluded allowance[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                    [33mdata-field-label[39m=[32m"true"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                      [33mfor[39m=[32m"video-source-piece"[39m
+                    [36m>[39m
+                      [0mSource piece[0m
+                    [36m</label>[39m
+                  [36m</span>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mid[39m=[32m"video-source-piece"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0mChoose a piece[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                    [36m>[39m
+                      [0mOriginal article[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                      [33mdata-field-label[39m=[32m"true"[39m
+                    [36m>[39m
+                      [36m<label[39m
+                        [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                        [33mfor[39m=[32m"video-draft-picker"[39m
+                      [36m>[39m
+                        [0mReopen[0m
+                      [36m</label>[39m
+                    [36m</span>[39m
+                    [36m<select[39m
+                      [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visi...
+
+      109 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', snapshot: { settings: { ...settings, mode } }, result: { id: 'owned-media', path: '/owned/fixture.mp4', name: 'saved.mp4' } };
+      110 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 111 |   await waitFor(() => expect(view.container.querySelector('video')?.getAttribute('src')).toBe('/owned/fixture.mp4'));
+          |                                                                                          ^
+      112 |   const createUrl = jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:owned-download');
+      113 |   const revokeUrl = jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      114 |   let clicked;
+
+      at tests/video-ui-v1.test.cjs:111:90
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at MutationObserver.checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at MutationObserver.invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/living/generated/MutationCallback.js:19:26)
+      at notifyMutationObservers (node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:160:22)
+      at node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:133:5
+
+  ● failed ingestion retries only saving, never generation; unsupported cancel is absent
+
+    Unable to find role="button" and name "Retry saving the same video"
+
+    Ignored nodes: comments, script, style
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+        [33mdata-video-access-kind[39m=[32m"api"[39m
+        [33mdata-video-workspace[39m=[32m"v2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+            [36m>[39m
+              [0mVideo from a piece[0m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+            [36m>[39m
+              [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<a[39m
+            [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+            [33mhref[39m=[32m"/media"[39m
+          [36m>[39m
+            [0mClose[0m
+          [36m</a>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Video access"[39m
+          [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+              [33mdata-field-label[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                [33mfor[39m=[32m"video-access-method"[39m
+              [36m>[39m
+                [0mVideo access[0m
+              [36m</label>[39m
+            [36m</span>[39m
+            [36m<select[39m
+              [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+              [33mid[39m=[32m"video-access-method"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m""[39m
+              [36m>[39m
+                [0mChoose an access method[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"subscription"[39m
+              [36m>[39m
+                [0mUse my subscription[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"api"[39m
+              [36m>[39m
+                [0mUse API[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"manual"[39m
+              [36m>[39m
+                [0mCreate at provider and upload[0m
+              [36m</option>[39m
+            [36m</select>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+          [36m>[39m
+            [0mPaid by[0m
+            [0m: [0m
+            [0mIncluded allowance[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                [33mdata-field-label[39m=[32m"true"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                  [33mfor[39m=[32m"video-source-piece"[39m
+                [36m>[39m
+                  [0mSource piece[0m
+                [36m</label>[39m
+              [36m</span>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mid[39m=[32m"video-source-piece"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0mChoose a piece[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                [36m>[39m
+                  [0mOriginal article[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-draft-picker"[39m
+                  [36m>[39m
+                    [0mReopen[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-draft-picker"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose a piece[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"22222222-2222-4222-8222-222222222222"[39m
+                  [36m>[39m
+                    [0mLaunch facts[0m
+                    [0m · v[0m
+                    [0m1...
+
+      125 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'save_failed', canCancel: false, result: null };
+      126 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 127 |   await waitFor(() => expect(button(view, 'retrySave')).toBeTruthy());
+          |         ^
+      128 |   expect(within(view.container).queryByRole('button', { name: en.video_v1_cancel })).toBeNull();
+      129 |   await act(async () => fireEvent.click(button(view, 'retrySave')));
+      130 |   await waitFor(() => expect(view.container.querySelector('video')).not.toBeNull());
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:127:9)
+
+  ● failed authenticated download leaves the owned player and can be retried without generation
+
+    Unable to find role="button" and name "Download video"
+
+    Ignored nodes: comments, script, style
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+        [33mdata-video-access-kind[39m=[32m"api"[39m
+        [33mdata-video-workspace[39m=[32m"v2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+            [36m>[39m
+              [0mVideo from a piece[0m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+            [36m>[39m
+              [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<a[39m
+            [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+            [33mhref[39m=[32m"/media"[39m
+          [36m>[39m
+            [0mClose[0m
+          [36m</a>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Video access"[39m
+          [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+              [33mdata-field-label[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                [33mfor[39m=[32m"video-access-method"[39m
+              [36m>[39m
+                [0mVideo access[0m
+              [36m</label>[39m
+            [36m</span>[39m
+            [36m<select[39m
+              [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+              [33mid[39m=[32m"video-access-method"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m""[39m
+              [36m>[39m
+                [0mChoose an access method[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"subscription"[39m
+              [36m>[39m
+                [0mUse my subscription[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"api"[39m
+              [36m>[39m
+                [0mUse API[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"manual"[39m
+              [36m>[39m
+                [0mCreate at provider and upload[0m
+              [36m</option>[39m
+            [36m</select>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+          [36m>[39m
+            [0mPaid by[0m
+            [0m: [0m
+            [0mIncluded allowance[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                [33mdata-field-label[39m=[32m"true"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                  [33mfor[39m=[32m"video-source-piece"[39m
+                [36m>[39m
+                  [0mSource piece[0m
+                [36m</label>[39m
+              [36m</span>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mid[39m=[32m"video-source-piece"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0mChoose a piece[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                [36m>[39m
+                  [0mOriginal article[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-draft-picker"[39m
+                  [36m>[39m
+                    [0mReopen[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-draft-picker"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose a piece[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"22222222-2222-4222-8222-222222222222"[39m
+                  [36m>[39m
+                    [0mLaunch facts[0m
+                    [0m · v[0m
+                    [0m1...
+
+      137 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', result: { id: 'owned', path: 'https://owned.example/media.mp4', name: 'video.mp4' } };
+      138 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 139 |   await waitFor(() => expect(button(view, 'download')).toBeTruthy());
+          |         ^
+      140 |   await act(async () => fireEvent.click(button(view, 'download')));
+      141 |   expect(within(view.container).getByRole('alert').textContent).toContain(en.video_v1_failed);
+      142 |   expect(view.container.querySelector('video').getAttribute('src')).toBe('https://owned.example/media.mp4');
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:139:9)
+
+  ● embedded save, draft selection and launch retain the conversation URL
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+PASS tests/video-module-v1.postgres.test.cjs
+PASS tests/video-media-v1.test.cjs
+PASS tests/video-settings-concurrency-v1.postgres.test.cjs
+PASS tests/video-chat-execution-v1.test.cjs
+[Nest] 70233  - 10/23/2026, 10:49:12 AM    WARN [VideoExecutionRecoveryV1] VIDEO_EXECUTION_DISPATCH_UNAVAILABLE
+PASS tests/video-credentials-v1.test.cjs
+PASS tests/design.contrast.test.cjs
+PASS tests/foundation.test.cjs
+
+Summary of all failing tests
+FAIL tests/video-manual-attachment.postgres.test.cjs
+  ● manual upload attaches actual owned MP4 bytes through the shared Prisma facade › foreign media, image metadata, false MP4 bytes, stale draft and reader mutation all fail before attachment
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "VIDEO_OWNED_FILE_UNAVAILABLE"
+    Received: null
+
+      30 |     const attempt = async (mediaId, actor = f.user.id, version = draft.version) => { try { await f.access.attach(f.org.id, actor, {draftId: draft.id, version, mediaId}); } catch (error) { return codeOf(error); } return null; };
+      31 |     expect(await attempt(foreign.id)).toBe('VIDEO_OWNED_FILE_UNAVAILABLE');
+    > 32 |     expect(await attempt(image.id)).toBe('VIDEO_OWNED_FILE_UNAVAILABLE');
+         |                                     ^
+      33 |     expect(await attempt(own.id, f.user.id, draft.version + 1)).toBe('VIDEO_DRAFT_CHANGED');
+      34 |     await f.db.userOrganization.updateMany({where: {organizationId: f.org.id, userId: f.otherUser.id}, data: {role: 'USER'}});
+      35 |     expect(await attempt(own.id, f.otherUser.id)).toBe('VIDEO_ACCESS_DENIED');
+
+      at tests/video-manual-attachment.postgres.test.cjs:32:37
+      at withFixture (tests/video-manual-attachment.postgres.test.cjs:8:94)
+
+FAIL tests/video-ui-v1.test.cjs (6.476 s)
+  ● editing invalidates preflight; save preserves content and a fresh quote is required
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● unknown price keeps generation disabled and visible
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● lost submit response retains one intent; an explicit retry sends the identical request
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+  ● clip completed job reopens an owned player and download without a new generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "/owned/fixture.mp4"
+    Received: undefined
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<section[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+            [33mdata-video-access-kind[39m=[32m"api"[39m
+            [33mdata-video-workspace[39m=[32m"v2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+                [36m>[39m
+                  [0mVideo from a piece[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+                [36m>[39m
+                  [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+                [33mhref[39m=[32m"/media"[39m
+              [36m>[39m
+                [0mClose[0m
+              [36m</a>[39m
+            [36m</div>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Video access"[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-access-method"[39m
+                  [36m>[39m
+                    [0mVideo access[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-access-method"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose an access method[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"subscription"[39m
+                  [36m>[39m
+                    [0mUse my subscription[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"api"[39m
+                  [36m>[39m
+                    [0mUse API[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"manual"[39m
+                  [36m>[39m
+                    [0mCreate at provider and upload[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+              [36m>[39m
+                [0mPaid by[0m
+                [0m: [0m
+                [0mIncluded allowance[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                    [33mdata-field-label[39m=[32m"true"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                      [33mfor[39m=[32m"video-source-piece"[39m
+                    [36m>[39m
+                      [0mSource piece[0m
+                    [36m</label>[39m
+                  [36m</span>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mid[39m=[32m"video-source-piece"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0mChoose a piece[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                    [36m>[39m
+                      [0mOriginal article[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                      [33mdata-field-label[39m=[32m"true"[39m
+                    [36m>[39m
+                      [36m<label[39m
+                        [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                        [33mfor[39m=[32m"video-draft-picker"[39m
+                      [36m>[39m
+                        [0mReopen[0m
+                      [36m</label>[39m
+                    [36m</span>[39m
+                    [36m<select[39m
+                      [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visi...
+
+      109 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', snapshot: { settings: { ...settings, mode } }, result: { id: 'owned-media', path: '/owned/fixture.mp4', name: 'saved.mp4' } };
+      110 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 111 |   await waitFor(() => expect(view.container.querySelector('video')?.getAttribute('src')).toBe('/owned/fixture.mp4'));
+          |                                                                                          ^
+      112 |   const createUrl = jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:owned-download');
+      113 |   const revokeUrl = jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      114 |   let clicked;
+
+      at tests/video-ui-v1.test.cjs:111:90
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at MutationObserver.checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at MutationObserver.invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/living/generated/MutationCallback.js:19:26)
+      at notifyMutationObservers (node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:160:22)
+      at node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:133:5
+
+  ● presenter completed job reopens an owned player and download without a new generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "/owned/fixture.mp4"
+    Received: undefined
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body>[39m
+        [36m<div>[39m
+          [36m<section[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+            [33mdata-video-access-kind[39m=[32m"api"[39m
+            [33mdata-video-workspace[39m=[32m"v2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+                [36m>[39m
+                  [0mVideo from a piece[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+                [36m>[39m
+                  [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+                [33mhref[39m=[32m"/media"[39m
+              [36m>[39m
+                [0mClose[0m
+              [36m</a>[39m
+            [36m</div>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Video access"[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-access-method"[39m
+                  [36m>[39m
+                    [0mVideo access[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-access-method"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose an access method[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"subscription"[39m
+                  [36m>[39m
+                    [0mUse my subscription[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"api"[39m
+                  [36m>[39m
+                    [0mUse API[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"manual"[39m
+                  [36m>[39m
+                    [0mCreate at provider and upload[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+              [36m>[39m
+                [0mPaid by[0m
+                [0m: [0m
+                [0mIncluded allowance[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                    [33mdata-field-label[39m=[32m"true"[39m
+                  [36m>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                      [33mfor[39m=[32m"video-source-piece"[39m
+                    [36m>[39m
+                      [0mSource piece[0m
+                    [36m</label>[39m
+                  [36m</span>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mid[39m=[32m"video-source-piece"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0mChoose a piece[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                    [36m>[39m
+                      [0mOriginal article[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                      [33mdata-field-label[39m=[32m"true"[39m
+                    [36m>[39m
+                      [36m<label[39m
+                        [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                        [33mfor[39m=[32m"video-draft-picker"[39m
+                      [36m>[39m
+                        [0mReopen[0m
+                      [36m</label>[39m
+                    [36m</span>[39m
+                    [36m<select[39m
+                      [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visi...
+
+      109 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', snapshot: { settings: { ...settings, mode } }, result: { id: 'owned-media', path: '/owned/fixture.mp4', name: 'saved.mp4' } };
+      110 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 111 |   await waitFor(() => expect(view.container.querySelector('video')?.getAttribute('src')).toBe('/owned/fixture.mp4'));
+          |                                                                                          ^
+      112 |   const createUrl = jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:owned-download');
+      113 |   const revokeUrl = jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      114 |   let clicked;
+
+      at tests/video-ui-v1.test.cjs:111:90
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at MutationObserver.checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at MutationObserver.invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/living/generated/MutationCallback.js:19:26)
+      at notifyMutationObservers (node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:160:22)
+      at node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:133:5
+
+  ● failed ingestion retries only saving, never generation; unsupported cancel is absent
+
+    Unable to find role="button" and name "Retry saving the same video"
+
+    Ignored nodes: comments, script, style
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+        [33mdata-video-access-kind[39m=[32m"api"[39m
+        [33mdata-video-workspace[39m=[32m"v2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+            [36m>[39m
+              [0mVideo from a piece[0m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+            [36m>[39m
+              [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<a[39m
+            [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+            [33mhref[39m=[32m"/media"[39m
+          [36m>[39m
+            [0mClose[0m
+          [36m</a>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Video access"[39m
+          [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+              [33mdata-field-label[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                [33mfor[39m=[32m"video-access-method"[39m
+              [36m>[39m
+                [0mVideo access[0m
+              [36m</label>[39m
+            [36m</span>[39m
+            [36m<select[39m
+              [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+              [33mid[39m=[32m"video-access-method"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m""[39m
+              [36m>[39m
+                [0mChoose an access method[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"subscription"[39m
+              [36m>[39m
+                [0mUse my subscription[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"api"[39m
+              [36m>[39m
+                [0mUse API[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"manual"[39m
+              [36m>[39m
+                [0mCreate at provider and upload[0m
+              [36m</option>[39m
+            [36m</select>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+          [36m>[39m
+            [0mPaid by[0m
+            [0m: [0m
+            [0mIncluded allowance[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                [33mdata-field-label[39m=[32m"true"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                  [33mfor[39m=[32m"video-source-piece"[39m
+                [36m>[39m
+                  [0mSource piece[0m
+                [36m</label>[39m
+              [36m</span>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mid[39m=[32m"video-source-piece"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0mChoose a piece[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                [36m>[39m
+                  [0mOriginal article[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-draft-picker"[39m
+                  [36m>[39m
+                    [0mReopen[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-draft-picker"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose a piece[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"22222222-2222-4222-8222-222222222222"[39m
+                  [36m>[39m
+                    [0mLaunch facts[0m
+                    [0m · v[0m
+                    [0m1...
+
+      125 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'save_failed', canCancel: false, result: null };
+      126 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 127 |   await waitFor(() => expect(button(view, 'retrySave')).toBeTruthy());
+          |         ^
+      128 |   expect(within(view.container).queryByRole('button', { name: en.video_v1_cancel })).toBeNull();
+      129 |   await act(async () => fireEvent.click(button(view, 'retrySave')));
+      130 |   await waitFor(() => expect(view.container.querySelector('video')).not.toBeNull());
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:127:9)
+
+  ● failed authenticated download leaves the owned player and can be retried without generation
+
+    Unable to find role="button" and name "Download video"
+
+    Ignored nodes: comments, script, style
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33mclass[39m=[32m"split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink"[39m
+        [33mdata-video-access-kind[39m=[32m"api"[39m
+        [33mdata-video-workspace[39m=[32m"v2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-[12px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"cf-heading-lg [text-wrap:balance]"[39m
+            [36m>[39m
+              [0mVideo from a piece[0m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted [text-wrap:pretty]"[39m
+            [36m>[39m
+              [0mThe source stays unchanged. Save your prompt and review the price before launching.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<a[39m
+            [33mclass[39m=[32m"relative inline-flex items-center justify-center gap-[8px] rounded-[8px] text-[14px] font-[600] whitespace-nowrap transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none h-[40px] px-[16px] cf-hit-area before:absolute before:content-[''] md:before:inset-0 before:-inset-y-0.5 before:inset-x-0 [.flex-col>.cf-hit-area+&]:before:top-0 bg-transparent text-cf-ink border border-transparent hover:bg-cf-surface-subtle cf-pressed"[39m
+            [33mhref[39m=[32m"/media"[39m
+          [36m>[39m
+            [0mClose[0m
+          [36m</a>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Video access"[39m
+          [33mclass[39m=[32m"flex min-w-0 flex-col gap-[12px] border-b border-cf-border pb-[20px]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+              [33mdata-field-label[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                [33mfor[39m=[32m"video-access-method"[39m
+              [36m>[39m
+                [0mVideo access[0m
+              [36m</label>[39m
+            [36m</span>[39m
+            [36m<select[39m
+              [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+              [33mid[39m=[32m"video-access-method"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m""[39m
+              [36m>[39m
+                [0mChoose an access method[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"subscription"[39m
+              [36m>[39m
+                [0mUse my subscription[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"api"[39m
+              [36m>[39m
+                [0mUse API[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"manual"[39m
+              [36m>[39m
+                [0mCreate at provider and upload[0m
+              [36m</option>[39m
+            [36m</select>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"cf-body-sm text-cf-ink-muted"[39m
+          [36m>[39m
+            [0mPaid by[0m
+            [0m: [0m
+            [0mIncluded allowance[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid min-w-0 gap-[24px] lg:split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex min-w-0 flex-col gap-[20px]"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px]"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                [33mdata-field-label[39m=[32m"true"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                  [33mfor[39m=[32m"video-source-piece"[39m
+                [36m>[39m
+                  [0mSource piece[0m
+                [36m</label>[39m
+              [36m</span>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mid[39m=[32m"video-source-piece"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0mChoose a piece[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"11111111-1111-4111-8111-111111111111"[39m
+                [36m>[39m
+                  [0mOriginal article[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap items-center gap-[8px]"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex min-w-0 flex-col gap-[8px] min-w-0 flex-1"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex min-w-0 items-center gap-[4px]"[39m
+                  [33mdata-field-label[39m=[32m"true"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"cf-label-md text-cf-ink"[39m
+                    [33mfor[39m=[32m"video-draft-picker"[39m
+                  [36m>[39m
+                    [0mReopen[0m
+                  [36m</label>[39m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mclass[39m=[32m"h-[40px] cf-field-chevron bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus border-cf-border-control"[39m
+                  [33mid[39m=[32m"video-draft-picker"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0mChoose a piece[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"22222222-2222-4222-8222-222222222222"[39m
+                  [36m>[39m
+                    [0mLaunch facts[0m
+                    [0m · v[0m
+                    [0m1...
+
+      137 |   currentJob = { id: 'job-1', draftId, pieceId, state: 'completed', result: { id: 'owned', path: 'https://owned.example/media.mp4', name: 'video.mp4' } };
+      138 |   const view = draw({ jobId: 'job-1' }); await loaded(view);
+    > 139 |   await waitFor(() => expect(button(view, 'download')).toBeTruthy());
+          |         ^
+      140 |   await act(async () => fireEvent.click(button(view, 'download')));
+      141 |   expect(within(view.container).getByRole('alert').textContent).toContain(en.video_v1_failed);
+      142 |   expect(view.container.querySelector('video').getAttribute('src')).toBe('https://owned.example/media.mp4');
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:139:9)
+
+  ● embedded save, draft selection and launch retain the conversation URL
+
+    TypeError: Cannot read properties of undefined (reading 'amount')
+
+      at videoApprovalCurrentV2 (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:24:61)
+      at VideoWorkspace (eval at evaluate (tests/helpers/load-ts-with-mocks.cjs:100:3), <anonymous>:347:14256)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+      at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16583:35)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at recursivelyFlushAsyncActWork (node_modules/react/cjs/react.development.js:566:13)
+      at Immediate.<anonymous> (node_modules/react/cjs/react.development.js:849:32)
+
+
+Test Suites: 2 failed, 23 passed, 25 total
+Tests:       9 failed, 318 passed, 327 total
+Snapshots:   0 total
+Time:        70.589 s
+Ran all test suites matching /tests\/video-subscription-oauth.test.cjs|tests\/video-subscription-connections.postgres.test.cjs|tests\/video-subscription-domain.postgres.test.cjs|tests\/video-subscription-execution.test.cjs|tests\/video-subscription-ui.test.cjs|tests\/video-subscription-chat.test.cjs|tests\/video-manual-attachment.postgres.test.cjs|tests\/video-credentials-v1.test.cjs|tests\/video-settings-concurrency-v1.postgres.test.cjs|tests\/video-domain-v1.postgres.test.cjs|tests\/video-chat-domain-v1.postgres.test.cjs|tests\/video-reference-domain-v1.postgres.test.cjs|tests\/video-module-v1.postgres.test.cjs|tests\/video-chat-execution-v1.test.cjs|tests\/video-media-v1.test.cjs|tests\/video-ui-v1.test.cjs|tests\/design.guard.test.cjs|tests\/design.contrast.test.cjs|tests\/foundation.test.cjs|tests\/design.coherence.guard.test.cjs|tests\/choice-control.contract.test.cjs|tests\/mail-video-log-privacy.test.cjs|tests\/admin-account-delete.test.cjs|tests\/auth-middleware-membership.test.cjs|tests\/agent-work-context.test.cjs/i.

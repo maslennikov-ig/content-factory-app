@@ -1,0 +1,16 @@
+PASS tests/video-ui-v1.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/video-manual-attachment.postgres.test.cjs
+PASS tests/video-subscription-ui.test.cjs
+
+Test Suites: 3 passed, 3 total
+Tests:       31 passed, 31 total
+Snapshots:   0 total
+Time:        5.829 s
+Ran all test suites matching /tests\/video-ui-v1.test.cjs|tests\/video-subscription-ui.test.cjs|tests\/video-manual-attachment.postgres.test.cjs/i.

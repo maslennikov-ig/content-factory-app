@@ -169,8 +169,7 @@ function schemaWithoutNewsletterDeliveryState() {
 // `--allow-enum` those two had to be applied by a separate `psql` outside the
 // guard. It was fifteen until `saas.2.1` gave `AiUsageRecord` its `userId`,
 // which adds the member index and the foreign key that nulls on delete.
-function schemaWithoutSaasSlice() {
-  let schema = fs.readFileSync(schemaPath, 'utf8');
+function schemaWithoutSaasSlice(schema) {
   schema = removeRelationField(schema, 'AiUsageRecord');
   schema = removeModel(schema, 'AiUsageRecord');
   schema = removeModel(schema, 'PublicGrowthDaily');
@@ -314,10 +313,19 @@ describe('Prisma production SQL apply guard against real migrate diff output', (
 
     beforeAll(() => {
       const probe = path.join(workspace, 'pre-saas-slice-schema.prisma');
-      fs.writeFileSync(probe, schemaWithoutSaasSlice());
+      const target = path.join(workspace, 'saas-slice-schema.prisma');
+      // Video jobs are a later consumer of AiUsageMode. Exclude that unrelated
+      // model from both sides of this historical slice; bootstrap above still
+      // validates real SQL for the entire current schema, including video.
+      const current = removeModel(
+        removeRelationField(fs.readFileSync(schemaPath, 'utf8'), 'VideoGenerationJob'),
+        'VideoGenerationJob'
+      );
+      fs.writeFileSync(target, current);
+      fs.writeFileSync(probe, schemaWithoutSaasSlice(current));
       printed = migrateDiff(
         ['--from-schema-datamodel', probe],
-        ['--to-schema-datamodel', schemaPath]
+        ['--to-schema-datamodel', target]
       );
     });
 

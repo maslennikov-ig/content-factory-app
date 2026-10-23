@@ -713,6 +713,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         next: 'Проверьте соединение и попробуйте ещё раз.',
       },
       codes: {
+        VIDEO_PREFLIGHT_STALE: {
+          what: 'Согласование видео устарело или сценарий изменился.',
+          next: 'Откройте сохранённый сценарий и заново проверьте параметры и цену.',
+        },
+        VIDEO_REQUEST_NOT_AUTHORED: {
+          what: 'Не удалось подтвердить ваше сообщение с запросом на видео.',
+          next: 'Отправьте запрос на создание видео в этом чате и подтвердите сохранённый сценарий.',
+        },
         AGENT_FAILED: {
           what: 'Не получилось довести до конца.',
           next: 'Попробуйте ещё раз — обычно этого хватает.',
@@ -1500,6 +1508,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         next: 'Check the connection and try again.',
       },
       codes: {
+        VIDEO_PREFLIGHT_STALE: {
+          what: 'The video approval expired or the script changed.',
+          next: 'Open the saved script and review the settings and price again.',
+        },
+        VIDEO_REQUEST_NOT_AUTHORED: {
+          what: 'Your message requesting the video could not be verified.',
+          next: 'Request the video in this chat and approve the saved script.',
+        },
         AGENT_FAILED: {
           what: 'We could not finish this.',
           next: 'Try again — that usually does it.',

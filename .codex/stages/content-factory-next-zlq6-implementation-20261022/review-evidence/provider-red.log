@@ -1,0 +1,47 @@
+TAP version 13
+# Subtest: provider lifecycle and reported duration are normalized; missing cost remains unknown
+not ok 1 - provider lifecycle and reported duration are normalized; missing cost remains unknown
+  ---
+  duration_ms: 2.06466
+  type: 'test'
+  location: '/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:122:1'
+  failureType: 'testCodeFailure'
+  error: 'video_receipt_mismatch'
+  code: 'video_receipt_mismatch'
+  name: 'VideoProviderErrorV1'
+  stack: |-
+    failV1 (eval at compileFile (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:33:31)
+    HeygenProviderV1.poll (eval at compileFile (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:107:43)
+    async /home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:127:20
+    async network (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:15:16)
+    async TestContext.<anonymous> (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:126:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: HeyGen v3 creation unwraps the documented data envelope and preserves the paid receipt
+not ok 2 - HeyGen v3 creation unwraps the documented data envelope and preserves the paid receipt
+  ---
+  duration_ms: 0.472466
+  type: 'test'
+  location: '/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:132:1'
+  failureType: 'testCodeFailure'
+  error: 'video_invalid_submit_receipt'
+  code: 'video_invalid_submit_receipt'
+  name: 'VideoProviderErrorV1'
+  stack: |-
+    HeygenProviderV1.submit (eval at compileFile (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/helpers/load-ts-module.cjs:39:14), <anonymous>:98:19)
+    async /home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:140:22
+    async network (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:15:16)
+    async TestContext.<anonymous> (/home/me/code/content-factory-next-worktrees/video-v1-api/tests/video-provider-v1.contract.test.cjs:139:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 331.773844

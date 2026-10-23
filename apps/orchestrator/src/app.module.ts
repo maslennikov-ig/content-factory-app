@@ -1,3 +1,4 @@
+import { VideoSubscriptionActivityV1 } from './activities/video-subscription.activity.v1';
 import { Module } from '@nestjs/common';
 import { PostActivity } from '@contentfactory/orchestrator/activities/post.activity';
 import { PostActivityV106 } from '@contentfactory/orchestrator/activities/post.activity.v106';
@@ -16,7 +17,12 @@ import { AnalyticsActivityV1 } from '@contentfactory/orchestrator/activities/ana
 import { NewsletterActivityV1 } from '@contentfactory/orchestrator/activities/newsletter.activity.v1';
 import { ContentLeadCheckActivity } from '@contentfactory/orchestrator/activities/content-lead-check.activity';
 
+import { VideoModule } from '@contentfactory/nestjs-libraries/videos/video.module';
+import { VideoGenerationActivityV1 } from './activities/video-generation.activity.v1';
+
 const activities = [
+  VideoSubscriptionActivityV1,
+  VideoGenerationActivityV1,
   PostActivity,
   PostActivityV106,
   PostActivityV107,
@@ -33,6 +39,7 @@ const activities = [
 @Module({
   imports: [
     DatabaseModule,
+    VideoModule,
     getTemporalModule(true, require.resolve('./workflows'), activities),
   ],
   controllers: [HealthController],

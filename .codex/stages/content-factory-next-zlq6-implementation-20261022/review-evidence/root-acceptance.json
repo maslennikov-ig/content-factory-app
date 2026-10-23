@@ -1,0 +1,313 @@
+{
+  "schema": "independent-video-review-acceptance/v1",
+  "verdict": "LOCAL_REVIEW_CORRECTIONS_PASS",
+  "reviewedCommit": "00ffac5dc0a562f063b0c1713f6157169d05c312",
+  "branch": "codex/video-v1-api",
+  "planRevision": 3,
+  "reviewers": [
+    "fresh-context video_review_persistence",
+    "fresh-context video_review_product"
+  ],
+  "independence": "Original read-only review used the named commit and no implementation history; subsequent scoped correction work was separately assigned.",
+  "findings": {
+    "P1": 2,
+    "P2": 9,
+    "additionalApprovalImprovement": 1,
+    "confirmedOriginalFindingsUnfixed": 0,
+    "report": "../review.md"
+  },
+  "boundary": {
+    "real": "Prisma/PostgreSQL, actual new controller/policies, Next browser, domain/storage, dedicated Temporal server/SDK worker/workflow/activity",
+    "synthetic": "provider/text HTTP, browser identity and unrelated shell API fixtures"
+  },
+  "authority": {
+    "paidCalls": false,
+    "realCredentialRetrievalOrWiring": false,
+    "push": false,
+    "merge": false,
+    "deployment": false
+  },
+  "environment": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "database": "owned disposable PostgreSQL17 on loopback, guarded /cf_video_v1_test",
+    "temporal": "owned loopback temporalio/temporal dev server",
+    "browser": "local headless Chrome/Playwright, actual Next16.3.8 Webpack dev"
+  },
+  "acceptedJestSuites": [
+    {
+      "suite": "tests/video-domain-v1.postgres.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/video-reference-domain-v1.postgres.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/video-module-v1.postgres.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/video-settings-concurrency-v1.postgres.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/video-credentials-v1.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/ai-provider.key-anchor.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/instance-ai-defaults.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/ai-usage.execution.test.cjs",
+      "result": "PASS",
+      "log": "backend-final.log"
+    },
+    {
+      "suite": "tests/video-chat-execution-v1.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/video-chat-domain-v1.postgres.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-work-context.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-screen.adapter.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-native-conversation-flow.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-workspace-browser.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-parts.mirror.guard.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-native-stop-flow.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/agent-operation-receipts.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/design.guard.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/design.contrast.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/foundation.test.cjs",
+      "result": "PASS",
+      "log": "product-final.log"
+    },
+    {
+      "suite": "tests/video-ui-v1.test.cjs",
+      "result": "PASS",
+      "log": "ui-corrected.log"
+    },
+    {
+      "suite": "tests/video-media-v1.test.cjs",
+      "result": "PASS",
+      "log": "media-final.log"
+    }
+  ],
+  "uniqueJestCounts": {
+    "suites": 22,
+    "tests": 368,
+    "failed": 0
+  },
+  "nodeContracts": {
+    "command": "pnpm exec node --test tests/video-provider-v1.contract.test.cjs",
+    "tests": 15,
+    "passed": 15,
+    "failed": 0,
+    "log": "provider-final.log"
+  },
+  "reuseAndCorrections": [
+    "backend-final.log:8 suites/118 tests PASS on final backend input files.",
+    "product-final.log:NOT whole-batch PASS. Twelve passing suites/188 tests reused; its one failed UI case exposed cached default/draft settings race.",
+    "ui-corrected.log:all21 UI tests PASS after loading/default race correction; 2 benign SWR loading timers in approval-only harnesses identified.",
+    "approval-clean.log:exact2 affected approval tests PASS with irrelevant SWR loadingTimeout=0 and no open-handle report; other19 UI results reused for unchanged product behavior.",
+    "media-final.log:41 ingestion/SSRF/type/size/storage tests PASS.",
+    "chat-context-focused.log is a red regression for a long old snapshot exhausting context budget. Final real-PG chat-domain suite PASS with current editable content prioritized and old snapshot excluded.",
+    "Failed root reproductions for long source, expiry and Media lease race are retained alongside narrow green proofs; final acceptance includes their complete affected suites."
+  ],
+  "commands": {
+    "backend": "pnpm exec jest --runInBand --coverage=false tests/video-domain-v1.postgres.test.cjs tests/video-reference-domain-v1.postgres.test.cjs tests/video-module-v1.postgres.test.cjs tests/video-settings-concurrency-v1.postgres.test.cjs tests/video-credentials-v1.test.cjs tests/ai-provider.key-anchor.test.cjs tests/instance-ai-defaults.test.cjs tests/ai-usage.execution.test.cjs",
+    "product": "pnpm exec jest --runInBand --coverage=false tests/video-ui-v1.test.cjs tests/video-chat-execution-v1.test.cjs tests/video-chat-domain-v1.postgres.test.cjs tests/agent-work-context.test.cjs tests/agent-screen.adapter.test.cjs tests/agent-native-conversation-flow.test.cjs tests/agent-workspace-browser.test.cjs tests/agent-parts.mirror.guard.test.cjs tests/agent-native-stop-flow.test.cjs tests/agent-operation-receipts.test.cjs tests/design.guard.test.cjs tests/design.contrast.test.cjs tests/foundation.test.cjs",
+    "uiCorrection": "pnpm exec jest --runInBand --coverage=false --detectOpenHandles tests/video-ui-v1.test.cjs",
+    "approvalHarnessCorrection": "pnpm exec jest --runInBand --coverage=false --detectOpenHandles tests/video-ui-v1.test.cjs -t 'paid video approval|paid approval refuses'",
+    "media": "pnpm exec jest --runInBand --coverage=false tests/video-media-v1.test.cjs",
+    "provider": "pnpm exec node --test tests/video-provider-v1.contract.test.cjs",
+    "browser": "pnpm exec node scripts/development/video-v1-browser-acceptance.cjs",
+    "temporal": "pnpm exec node scripts/development/video-v1-temporal-acceptance.cjs"
+  },
+  "disposableDatabaseMarker": "CF_VIDEO_DATABASE_DISPOSABLE=1; only CF_VIDEO_DATABASE_URL pointing to the owned loopback /cf_video_v1_test database",
+  "browser": {
+    "result": "PASS",
+    "receipt": "browser-acceptance.actual.json",
+    "checks": [
+      "real Media link",
+      "same document witness for client navigation",
+      "back/forward",
+      "both modes edit/reopen/preflight/one submit",
+      "decoded playback",
+      "exact-byte authenticated download",
+      "no submit on reload",
+      "reader403",
+      "foreign404",
+      "390px no overflow",
+      "zero page errors"
+    ]
+  },
+  "browserDiagnostics": {
+    "initial": "DB job completed/file imported while UI stalled; Next reported Turbopack HMR internal panic. Also corrected independent cached-draft/default race exposed by UI tests.",
+    "coldWebpack": "First navigation timeout30s; dev route response31.7s, compilation30.8s.",
+    "final": "Warm Webpack route PASS; no product bundler/config change, no production performance claim."
+  },
+  "localTemporal": {
+    "result": "PASS",
+    "receipt": "temporal.actual.json",
+    "workflows": 3,
+    "generationModes": 2,
+    "submitCountBeforeAndAfterRestart": [
+      2,
+      2
+    ],
+    "ownedFilesAndMatchingDownloads": 2,
+    "busyDeadlineExpiryContinuedAsNew": true,
+    "extraSubmitsForExpiry": 0
+  },
+  "checks": [
+    {
+      "command": "pnpm exec tsc -p apps/backend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "backend-types.log"
+    },
+    {
+      "command": "pnpm exec tsc -p apps/frontend/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "frontend-types-corrected.log"
+    },
+    {
+      "command": "pnpm exec tsc -p apps/orchestrator/tsconfig.json --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "orchestrator-types.log"
+    }
+  ],
+  "staticChecks": {
+    "docs": "PASS:220 files; docs-final.log",
+    "diffCheck": "PASS:git diff --cached --check on task-owned review correction set",
+    "migration": "Unchanged schema/migration hashes match initial accepted13-statement additive SQL guard; no repeated apply and no production mutation."
+  },
+  "changedFileDigests": {
+    "apps/frontend/src/components/agents/agent.cards.tsx": "86f6d1c251de8534bf5d200f2d9cef0320f6a4abe418defde41e7e05a849c326",
+    "apps/frontend/src/components/agents/agent.contract.ts": "c090eda8aca5bf41fcd9af78a69aa055fcf528c73c2dfc249f596222c3237028",
+    "apps/frontend/src/components/agents/agent.conversation.tsx": "d2efc16056198a72025ece3405eb3aace1d886b6f9e097a59b4fd16279de0204",
+    "apps/frontend/src/components/agents/agent.panel.tsx": "edc9a97b147ec2a5a4ffd8fdf06dc26ef7f7677f9daa322c69525b6aaf7bccb3",
+    "apps/frontend/src/components/agents/agent.revalidate.ts": "5ebf9f9cb71a2d5a3cf01dc57b6d9b728671146b3ebe25f74748bf635b38c4f8",
+    "apps/frontend/src/components/agents/agent.screen.tsx": "d96b8bd818b59e560dd5bf4ab56e635aa48d87af64934b7c5f3b5ee67fc564f9",
+    "apps/frontend/src/components/agents/assistant.route-context.ts": "1f0e52fe15f5c65fa6e6357744106b65e7c85ff55e14f401dc12cd554cb4c2d1",
+    "apps/frontend/src/components/new-layout/layout.media.component.tsx": "3de67e1d3789f7c99baba2f4d039d5ac1e53c40b8d9a8dd2f5ad4a5c53af5d07",
+    "apps/frontend/src/components/videos/video-ui.v1.ts": "7f528fc3bfaf09bcecc8fce00d00b91beb676efd3a82e7d6cbd7b714b35fbe40",
+    "apps/frontend/src/components/videos/video.copy.ts": "85b035beb3488900768739e9af66caa11061479a08aac8b5e1b399f4ced51493",
+    "apps/frontend/src/components/videos/video.workspace.tsx": "1196e1c8c7b164d9ad8ce14ce432c7bbe3d1185c2e513d0141bbeeb5ef600104",
+    "apps/orchestrator/src/workflows/video-generation.workflow.v1.ts": "81f15d9c628a41a6249749b44cee64fb51f8613209d4210f80eff9941ea5bcf9",
+    "docs/design/component-inventory.md": "7f77b26bbc5033ff9c283a3023517a63be60170a4a1e5c7a7c44dbfc437baed0",
+    "docs/operations/video-v1-local-acceptance.md": "925bfa4e8be5a4f45826878dce10a68a698e476d10cae7bdbc00166270b3eda6",
+    "docs/research/video-v1-api-contracts.md": "84ed31c40c1c69af219ad0a9f81072faaca8d9ae3e202c562767dec2903041b5",
+    "libraries/nestjs-libraries/src/chat/capabilities/agent-parts.contract.ts": "dfb694fc22e4c41b974e62d6562cfe88d3bd09d51e5452bfd1e2dad8f7b961d5",
+    "libraries/nestjs-libraries/src/chat/capabilities/catalogue/video.capabilities.ts": "224f619686f7566054d6db40c3dbb769644c559cdae07477d45498d80783f9e4",
+    "libraries/nestjs-libraries/src/chat/conductor/work-context.resolver.ts": "ee145b281c03819ec980e09938f1b2de677d80bc482a8ab6e425442c064d3fc3",
+    "libraries/nestjs-libraries/src/chat/conductor/work-context.ts": "98e32ccc795e3cda95857ae4031f1c24df8cefaf46942b2b92d7f3e40d5bd920",
+    "libraries/nestjs-libraries/src/database/prisma/video-generation/video-generation.repository.ts": "d6a6208f04a5080508e68f43205e1af86bf6743bbf90c3d220c9e57874a291d2",
+    "libraries/nestjs-libraries/src/openai/ai.provider.service.ts": "264d272345c23631e6c8e2ce69fc9bda0b739d789a163fac2c38ee4b685eab41",
+    "libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts": "8e86fbe32049812353b7082f11b865f72d43eaf560489839adaad5e61b3a5acc",
+    "libraries/nestjs-libraries/src/videos/providers/heygen.provider.ts": "d861408cfa858a45b4fcc9e2872a80986d2689dd0a82fc23e8394acc28b99b02",
+    "libraries/nestjs-libraries/src/videos/video-brief.v1.ts": "647e8ce3275275e3078406fb9bbe5f350719d8c74199e577ee695b594a50983e",
+    "libraries/nestjs-libraries/src/videos/video-credentials.service.ts": "1127d323e4444bb683da677dd77ef8640ebdea2faac0a52b91abcc0f468dc984",
+    "libraries/react-shared-libraries/src/translation/locales/ar/translation.json": "f2a85a4c6c5782a51c0b3de16b85125a8c014c730269ca62c482b97ae6d08592",
+    "libraries/react-shared-libraries/src/translation/locales/bn/translation.json": "5744b17d28e71ad8eea51430751cbf3f213f9ff150740eed652998171cec1e2e",
+    "libraries/react-shared-libraries/src/translation/locales/de/translation.json": "1739ac857ff3b668689d2094ce3cd3361c1cde985a0035785d48564a371ffa0a",
+    "libraries/react-shared-libraries/src/translation/locales/en/translation.json": "6a75d72975b7d9ae48e94e2a43134b50d5583095e7030ab227c6bf1a51144e10",
+    "libraries/react-shared-libraries/src/translation/locales/es/translation.json": "9ca0f4a71bbe25fa3ce288ae7faa74abf4c91014b67b4b147b1e8a8843e1310c",
+    "libraries/react-shared-libraries/src/translation/locales/fr/translation.json": "887dacb63dc9524358360ba9a7d531ed260d54dcc84db1ae44a1388dcf555b91",
+    "libraries/react-shared-libraries/src/translation/locales/he/translation.json": "f090babdb5fe8835de66904e0c1427914cec88f5723c45359446d95a1eee7ed9",
+    "libraries/react-shared-libraries/src/translation/locales/it/translation.json": "a72e507adbe0a6701b78e09d8cdedb4eb787605652b598d080fbba286c8c2c14",
+    "libraries/react-shared-libraries/src/translation/locales/ja/translation.json": "ad5158ed7514eae33dbb9bc8e49391b7d3b9644ac9abb065c758dc56f38b8d1c",
+    "libraries/react-shared-libraries/src/translation/locales/ka_ge/translation.json": "beb860adf50589dc8ca0adb1e2a06bfd78e0593fba2bc145520f6c0c9465c93d",
+    "libraries/react-shared-libraries/src/translation/locales/ko/translation.json": "c6aafc1607a57e1e07fcc6a3054011bef3c44714652bef4c7faa20db50f115b3",
+    "libraries/react-shared-libraries/src/translation/locales/pt/translation.json": "fdf122259709d76195e00d1d8c5249fec553830592bf7fc0110b61df33103bfb",
+    "libraries/react-shared-libraries/src/translation/locales/ru/translation.json": "10d62ae49027ccc0e0cd34f9d71b944202a971f28a20f374b7bebea1661d41fa",
+    "libraries/react-shared-libraries/src/translation/locales/tr/translation.json": "862a0274b8e53f9d8656b1d30fb4f60c76e4e40b0f7bf7b2bc65ef3338c902c3",
+    "libraries/react-shared-libraries/src/translation/locales/vi/translation.json": "039f66c352a18d7040bf619662ab74e113c3d8f2cb90427beede699f7b00315c",
+    "libraries/react-shared-libraries/src/translation/locales/zh/translation.json": "8e101a890feee98ef1e06497587f79bff920dfa78f2510245df8f5cbb32645e9",
+    "scripts/development/video-v1-browser-acceptance.cjs": "999c4fe13e460d0d69f730d673e29c751d5c859852bab7bad5ee4d2e6f3dea2d",
+    "scripts/development/video-v1-temporal-acceptance.cjs": "7ce487d0f024ceb330b0efee4da03620ea212b66d7b3fba92a19e34e3b5ef672",
+    "tests/helpers/video-domain-v1.fixture.cjs": "60da9077fac9fa42f974e9c82cb68e36f66ef3e9f6347ce74bf6ecd3e49362b4",
+    "tests/video-chat-domain-v1.postgres.test.cjs": "06427e8b9d284ce29cba1dbac037fdb87a4bbac5fd0c0bea347c84576071258f",
+    "tests/video-chat-execution-v1.test.cjs": "fa0cc7fb2b1426cbe9d633c63ff0ecdc1890b90c412540d078fabb274b3d3d6a",
+    "tests/video-credentials-v1.test.cjs": "80c2390bf55b0eb5ae5002898cadc15ef397315bbe51156e2b3cbd03424aa61c",
+    "tests/video-domain-v1.postgres.test.cjs": "c2b37f82013bc9efe2dec74ce266dbc3c65601ba850090fdf574b5fe5284f21e",
+    "tests/video-provider-v1.contract.test.cjs": "42fcfd7e1dea66cb14b21d7a0402da60848cf41aa7e998979d4f786eedd7fc6a",
+    "tests/video-settings-concurrency-v1.postgres.test.cjs": "ac3be946790a965cd67a3aeb19dead0089f24bdeea76c3f5703d318d22ce6826",
+    "tests/video-ui-v1.test.cjs": "0d3f9d96328be64ac28e167843534e2f957aa203ce755a3af3da685744943685"
+  },
+  "digestScope": "Changed task source/docs/tests against reviewedCommit; .codex excluded to avoid self-reference. Audit manifest, not a full-dependency cache.",
+  "notRun": [
+    "full repository build/suite",
+    "live paid provider/text generation",
+    "live LLM tool selection",
+    "real provider quality/speech/account/terms/billing/prompt pilot",
+    "production migration/runtime validation"
+  ],
+  "remaining": {
+    "epic": "content-factory-next-zlq6",
+    "providerTask": "content-factory-next-zlq6.7",
+    "status": "OPEN_FOR_REAL_PROVIDER_GATES",
+    "providerQuality": "UNKNOWN",
+    "languageQuality": "UNKNOWN",
+    "actualCost": "UNKNOWN",
+    "rawPreparedPromptBenefit": "UNKNOWN"
+  },
+  "cleanup": {
+    "receipt": "cleanup.actual.json",
+    "worktreePreserved": true
+  },
+  "tracker": "Existing IDs/dependencies retained; .2/.3/.5/.6 reaccepted through Beads, epic and .7 remain open. Latest read-only canonical bridge status returned: Another bridge process holds the state lock. Linear propagation unverified."
+}

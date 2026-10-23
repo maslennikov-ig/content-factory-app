@@ -1,4 +1,5 @@
 'use client';
+import { VideoProviderSettings } from '../videos/video-provider-settings';
 
 import React, {
   ReactNode,
@@ -1789,6 +1790,7 @@ const AiProviderComponent = () => {
           </span>
         </div>
       </SettingsSection>
+      <VideoProviderSettings />
     </>
   );
 };

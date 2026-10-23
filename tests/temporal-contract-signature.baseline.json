@@ -163,6 +163,22 @@
         "input:{ localPostId: string; organizationId: string; integrationId: string; }"
       ],
       "PostActivityV108.searchForMissingThreeHoursPostsV108": []
+    },
+    "apps/orchestrator/src/activities/video-generation.activity.v1.ts": {
+      "VideoGenerationActivityV1.stepVideoGenerationV1": [
+        "input:VideoGenerationInputV1"
+      ],
+      "VideoGenerationActivityV1.expireVideoGenerationV1": [
+        "input:VideoGenerationInputV1"
+      ]
+    },
+    "apps/orchestrator/src/activities/video-subscription.activity.v1.ts": {
+      "VideoSubscriptionActivityV1.stepVideoSubscriptionV1": [
+        "input:VideoSubscriptionInputV1"
+      ],
+      "VideoSubscriptionActivityV1.expireVideoSubscriptionV1": [
+        "input:VideoSubscriptionInputV1"
+      ]
     }
   },
   "workflows": {
@@ -282,6 +298,18 @@
     "apps/orchestrator/src/workflows/send.email.workflow.v3.ts": {
       "sendEmailWorkflowV3": [
         "{ queue = [], }:{ queue: SendEmail[]; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/video-generation.workflow.v1.ts": {
+      "videoGenerationWorkflowV1": [
+        "input:VideoGenerationInputV1",
+        "deadlineAt?"
+      ]
+    },
+    "apps/orchestrator/src/workflows/video-subscription.workflow.v1.ts": {
+      "videoSubscriptionWorkflowV1": [
+        "input:VideoSubscriptionInputV1",
+        "deadlineAt?"
       ]
     }
   }

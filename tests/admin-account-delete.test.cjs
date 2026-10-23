@@ -169,6 +169,9 @@ function deletionRepository({
     count: async ({ where }) => countFor(model, where.organizationId),
   });
   const tx = {
+    videoSubscriptionOAuthAttempt: {updateMany: async () => ({count: 0})},
+    videoSubscriptionConnection: {updateMany: async () => ({count: 0}), findMany: async () => []},
+    videoSubscriptionGrant: {updateMany: async () => ({count: 0})},
     post: counter('post'),
     integration: counter('integration'),
     contentPiece: counter('contentPiece'),

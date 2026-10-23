@@ -29,6 +29,7 @@ const EXEMPT = [
   ['apps/frontend/src/app/manifest.ts', 'Plan, draft, review and publish content across channels in one workspace.', 'Web app manifest read by the browser.'],
   ['apps/frontend/src/components/layout/new-modal.tsx', 'body, html { overflow: hidden !important; }', 'CSS injected while a modal is open.'],
   ['apps/frontend/src/components/admin/admin-errors.component.tsx', 'user@example.com', 'Example address in a placeholder; the format is the point.'],
+  ['apps/frontend/src/components/videos/video.workspace.tsx', 'ru-RU, en-US, de-DE…', 'BCP 47 locale code examples; these identifiers keep their spelling in every interface language.'],
   // Deliberately foreign content.
   ['apps/frontend/src/components/public-saas/home-shots.tsx', 'Short-form video benchmarks, 2026', 'Sample source titles on the landing page, one per language on purpose.'],
   ['apps/frontend/src/components/public-saas/home-shots.tsx', 'B2B-Content im Wandel: Formate und Kanäle', 'Sample source titles on the landing page, one per language on purpose.'],

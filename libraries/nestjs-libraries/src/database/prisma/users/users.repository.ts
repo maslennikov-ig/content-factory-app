@@ -73,6 +73,8 @@ const EMPTY_ORGANIZATION_RELATIONS: Prisma.OrganizationWhereInput = {
   oauthAuthorizations: { none: {} },
   mcpOAuthGrants: { none: {} },
   aiUsageRecords: { none: {} },
+  videoPromptDrafts: { none: {} },
+  videoGenerationJobs: { none: {} },
   subscription: { is: null },
   brandProfile: { none: {} },
   brandProfileVersions: { none: {} },
@@ -838,6 +840,10 @@ export class UsersRepository {
           );
         }
 
+        // Keep minimal wallet/job audit, but no deleted owner retains a usable token.
+        await tx.videoSubscriptionOAuthAttempt.updateMany({where: {actorId: user.id}, data: {encryptedVerifier: '', consumedAt: new Date()}});
+        await tx.videoSubscriptionConnection.updateMany({where: {ownerId: user.id}, data: {state: 'owner_deleted', encryptedTokens: null, generation: {increment: 1}, tokenVersion: {increment: 1}, refreshOwner: null, refreshUntil: null}});
+        await tx.videoSubscriptionGrant.updateMany({where: {connectionId: {in: (await tx.videoSubscriptionConnection.findMany({where: {ownerId: user.id}, select: {id: true}})).map(row => row.id)}}, data: {enabled: false}});
         await tx.userOrganization.deleteMany({ where: { userId: user.id } });
         const deletedUser = await tx.user.deleteMany({
           where: { id: user.id, isSuperAdmin: false },

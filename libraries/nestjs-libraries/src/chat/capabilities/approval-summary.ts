@@ -92,7 +92,7 @@ export const approvalContentDigest = async (
   const capability = capabilities.find(
     (candidate) => toolNameOf(candidate.id) === toolName
   );
-  if (!capability || capability.risk !== 'confirm' || !capability.approvalContent) {
+  if (!capability || (capability.risk !== 'confirm' && !['video.launch', 'video.launch_v2'].includes(capability.id)) || !capability.approvalContent) {
     return null;
   }
   const parsed = capability.input.safeParse(args ?? {});

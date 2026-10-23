@@ -28,6 +28,7 @@ import {
 export type AiOperation =
   | 'text_generation'
   | 'image_generation'
+  | 'video_generation'
   | 'web_research'
   /**
    * Legacy: the post editor's CopilotKit helper, removed with `kcxz.28`. Kept
@@ -52,6 +53,12 @@ export type AiOperation =
    * (`ai.roles.ts`): здесь из данного текста достают то, что в нём уже есть.
    */
   | 'intake';
+
+/** Video admissions carry their own provider/key and never replace text context. */
+export type VideoAiAdmissionConfig = Omit<AiConfig, 'provider'> & {
+  provider: 'higgsfield' | 'heygen';
+};
+export type AiAdmissionConfig = AiConfig | VideoAiAdmissionConfig;
 
 /**
  * Admission is a count-then-insert against one organization's ledger, both
@@ -414,7 +421,7 @@ export class AiUsageService {
   private async createAdmission(
     organizationId: string,
     operation: AiOperation,
-    config: AiConfig,
+    config: AiAdmissionConfig,
     role: AiRole
   ) {
     // A task fuse refuses before a row or a provider request is created.
@@ -684,7 +691,7 @@ export class AiUsageService {
   async beginAiOperationWithConfig(
     organizationId: string,
     operation: AiOperation,
-    config: AiConfig,
+    config: AiAdmissionConfig,
     role?: AiRole
   ) {
     this.assertTenant(organizationId);
@@ -698,9 +705,12 @@ export class AiUsageService {
     let closed = false;
     const ledger = new TextUsageLedger();
     return {
+      get id(): string { return admission.id; },
       run: <T>(callback: () => T): T =>
         runWithUsageLedger(ledger, () =>
-          withActiveAiConfig(organizationId, config, callback, role)
+          config.provider === 'higgsfield' || config.provider === 'heygen'
+            ? callback()
+            : withActiveAiConfig(organizationId, config as AiConfig, callback, role)
         ),
       /**
        * Bills calls to this row without taking its configuration

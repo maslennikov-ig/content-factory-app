@@ -1,0 +1,109 @@
+{
+  "schema": "video-subscription-reacceptance/v1",
+  "status": "PASS",
+  "applicationCommit": "c06d6e3d7a0b017746e18d87e36fe26bc5797be1",
+  "branch": "codex/video-v1-api",
+  "worktree": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+  "applicationSourceUnchanged": true,
+  "all12ReviewedSourceHashesMatch": true,
+  "onlyExecutableChange": "scripts/development/video-subscription-temporal-acceptance.cjs",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "chrome": "149.0.7827.53",
+  "environment": {
+    "postgres": "owned loopback 127.0.0.1:44621/cf_video_v1_test; current Prisma schema on empty disposable DB",
+    "temporal": "owned loopback 127.0.0.1:46013; dev server 1.31.2, CLI 1.8.2; sequential runners, dedicated main queue",
+    "frontend": "http://localhost:43320; actual Next dev --webpack",
+    "backend": "http://127.0.0.1:43321; actual Nest controllers/policy/Prisma/storage",
+    "providerSessionsText": "synthetic; local HTTP OAuth/MCP; browser public navigation intercepted/aborted"
+  },
+  "sourceHashes": {
+    "apps/backend/src/services/auth/auth.middleware.ts": "a9551ea0680bce6190a4fd72f40807a5d067ad744b3bff6e1f12e4cd14330c92",
+    "apps/orchestrator/src/activities/video-generation.activity.v1.ts": "099c717cf4502808f8e507a1e0b1b94d4e827ced3f280ad1e3436f3f08ee35ee",
+    "apps/orchestrator/src/activities/video-subscription.activity.v1.ts": "564b7183e502640b37ca17b095af2bb5f765dfa1c4d36c1880bc35ca37e8f8ce",
+    "apps/orchestrator/src/workflows/video-generation.workflow.v1.ts": "81f15d9c628a41a6249749b44cee64fb51f8613209d4210f80eff9941ea5bcf9",
+    "apps/orchestrator/src/workflows/video-subscription.workflow.v1.ts": "1415982463f7caf698f198056a1573d66c074532fd6c4cce1618368453d37968",
+    "libraries/nestjs-libraries/src/database/prisma/migrations/20261023110000_video_subscription_recovery_deadline/migration.sql": "61ce33f5a0595110bc41bb3e0f8f109396a10885225e7499744b7f8b2180b202",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7e6f9734d37195b783bfb2aafa1902d1e55248fd994e949642d8476ed05ac8c8",
+    "libraries/nestjs-libraries/src/videos/providers/heygen-subscription.provider.ts": "8f90fcb2ef94b3747449301bf0b14b7d946959c01d77fa16b8dc12904bc54516",
+    "libraries/nestjs-libraries/src/videos/providers/higgsfield-subscription.provider.ts": "cb091a2636b26a2faaf3fb2d85019149cf8756c2ca729fccc5caaea1f35d3334",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-connection.service.ts": "e0838e6afd723d93244d4343e1e03a24c4a28665928b73da3a0d3d7935b343c9",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-mcp-client.ts": "c3133b48f3a66cbc1631b36cdb4ff054bcab8f0dabeac31d1a3727c066aed131",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-subscription-execution.ts": "4db292d485a3082da857461b2cec8b5be59fc392b537ae1b196c8258bd82e493",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-subscription-job.service.ts": "6fdabfbfc2e09adb050215b4f81fc20b93b4010e12550fccd46f183ddf1fcde2",
+    "libraries/nestjs-libraries/src/videos/video-access.service.ts": "ac345307fb2c1d74c2aac7c9ad33a84b980124c84a65e9e144c86eb40f489f2b",
+    "libraries/nestjs-libraries/src/videos/video-execution.v1.ts": "966bdd684561ad491d04ed82ef54c5c4bb0ee7d87b64f1230fd334e22b3d1238",
+    "libraries/nestjs-libraries/src/videos/video-job.service.ts": "f4de7fcaf92dd4a1161ad91f3d3cabcc41b60e07e5039253af649877ee865eeb",
+    "package.json": "3cf647596886c58842f387226f5b6157fb8f16434874fcb2fe316d84b7ef5266",
+    "pnpm-lock.yaml": "210f2efefae8865b154d50f1d7ec1f68a5436b507149755879ed0f90fdc31524",
+    "scripts/development/video-subscription-browser-acceptance.cjs": "21210467bdaed8cb05af6471c2d1a8c1ba08d156674c7d435745946ccbc18785",
+    "scripts/development/video-subscription-local-fixture.cjs": "c2e53cf7e39fbe3596b1b8158ddadac5146c33b42d53c4771abb7351cf48308b",
+    "scripts/development/video-subscription-temporal-acceptance.cjs": "8436eab0f7a6ea541c07dc6fb7ec6c30500b34674205257f8c77934b1514f449",
+    "scripts/development/video-v1-temporal-acceptance.cjs": "7ce487d0f024ceb330b0efee4da03620ea212b66d7b3fba92a19e34e3b5ef672",
+    "tests/helpers/video-domain-v1.fixture.cjs": "60da9077fac9fa42f974e9c82cb68e36f66ef3e9f6347ce74bf6ecd3e49362b4",
+    "tests/helpers/video-subscription-domain.fixture.cjs": "a8de839372030d8cef89bd209dd50781ffbf1e41629d2133cef6aae6d1f4a9f6",
+    "tests/helpers/video-subscription-provider-fixture.cjs": "43fa6dd3acf7b94ee88a5dad01a33d24709b61ac8ddb63fb9c49d408fbe149f3",
+    "tests/video-subscription-connections.postgres.test.cjs": "37dd8c690f17030b26068ebf5f966ba03bb3fa28d20f88653d108f5fcd154d7c",
+    "tests/video-subscription-execution.test.cjs": "2bba2a7774e8c6ee3278d47c829bd9026cb9ad0ec09a8538675d6c32650a6776"
+  },
+  "checks": [
+    {
+      "command": "CF_VIDEO_BROWSER_EVIDENCE=.codex/stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance/browser pnpm exec node scripts/development/video-subscription-browser-acceptance.cjs",
+      "exitCode": 0,
+      "log": "browser.log",
+      "receipt": "browser/browser.actual.json"
+    },
+    {
+      "command": "CF_VIDEO_DATABASE_DISPOSABLE=1 CF_VIDEO_DATABASE_URL=<owned loopback database> CF_VIDEO_TEMPORAL_DISPOSABLE=1 CF_VIDEO_TEMPORAL_ADDRESS=127.0.0.1:46013 CF_VIDEO_TEMPORAL_EVIDENCE=.codex/stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance/subscription-temporal.actual.json pnpm exec node scripts/development/video-subscription-temporal-acceptance.cjs",
+      "exitCode": 0,
+      "log": "subscription-temporal.log",
+      "receipt": "subscription-temporal.actual.json"
+    },
+    {
+      "command": "CF_VIDEO_DATABASE_DISPOSABLE=1 CF_VIDEO_DATABASE_URL=<owned loopback database> CF_VIDEO_TEMPORAL_DISPOSABLE=1 CF_VIDEO_TEMPORAL_ADDRESS=127.0.0.1:46013 CF_VIDEO_TEMPORAL_EVIDENCE=.codex/stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance/api-temporal.actual.json pnpm exec node scripts/development/video-v1-temporal-acceptance.cjs",
+      "exitCode": 0,
+      "log": "api-temporal.log",
+      "receipt": "api-temporal.actual.json"
+    },
+    {
+      "command": "pnpm exec node --check scripts/development/video-subscription-temporal-acceptance.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exitCode": 0,
+      "log": "docs.log",
+      "filesChecked": 226
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "reused": "review/acceptance.json: unchanged application and all 12 declared source hashes; 102 Jest, 27 contracts, backend/orchestrator typechecks",
+  "notRun": [
+    "full repository suite",
+    "full build",
+    "frontend typecheck",
+    "additional chat journey/live LLM",
+    "real provider acceptance",
+    "Temporal production or server restart"
+  ],
+  "realProviderEvidence": "UNKNOWN; .7 and epic stay open",
+  "externalDelivery": false,
+  "logNormalization": "Trailing whitespace removed only; all lines and results retained.",
+  "artifacts": {
+    "api-temporal.actual.json": "4bb36187fc2a411cb1303211c3297420517c569233706e305d6854097a2dc113",
+    "api-temporal.log": "03b25a6d2d45c5ffd3d56083d5372c2ef63983a8c77b0aa3945f784d030e4b92",
+    "browser/browser.actual.json": "c4084d803420d0349fdb5560dc4fd4d0ca7904553931076c815e7268c4225ba7",
+    "browser/heygen.png": "dc20b47d7c8b3a9441413179cbbcbd05b9bfdd4e24cf6e6eb01b27776534eca5",
+    "browser/higgsfield.png": "058c93904863b5530ae7b5c6fad1e41c7b92fc18058e45f2b1eb43e1552f4452",
+    "browser/manual-mobile.png": "3045ba1109653bd34968a4eacd4b337e24bac0dafb33df8e31e2f66e8c644c9a",
+    "browser.log": "7f34c3a66dc61289033970af396e20a42199dc19b3d6615eda770c08a91ce1af",
+    "cleanup.json": "1f3d64b41a76f3b4cd828860bb5a345e582996a317d9d02b7f8df95000cdf757",
+    "schema-apply.log": "df2f9c37ba39fedee9dfb3fa48f111e20824642fc5fc545753f2ff5dc500fd84",
+    "subscription-temporal.actual.json": "e22ec81d20cd0d20ab6b2b0ce3ed1844cafd57d61c8362bbdbe6417576653d42",
+    "subscription-temporal.log": "423e47a8911ff8122187896a514f4b8f7adb8d8ddb221cb0ee97d0c343693fb3",
+    "docs.log": "9c0d402367390c66eebac104fd4be2c8ad0cbd08479aad693e76d6de92993d5d"
+  }
+}

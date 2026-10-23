@@ -1,0 +1,33 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/video-ui-v1.test.cjs
+  ✓ paid video approval shows the exact saved script/settings and never promises cancellation (826 ms)
+  ✓ paid approval refuses a changed saved draft while leaving decline and refresh available (458 ms)
+  ○ skipped saved facts and exact script survive reopening; mounting makes no write or paid request
+  ○ skipped editing invalidates preflight; save preserves content and a fresh quote is required
+  ○ skipped unknown price keeps generation disabled and visible
+  ○ skipped lost submit response retains one intent; an explicit retry sends the identical request
+  ○ skipped reloading with an unresolved local intent never resubmits automatically
+  ○ skipped clip completed job reopens an owned player and download without a new generation
+  ○ skipped presenter completed job reopens an owned player and download without a new generation
+  ○ skipped failed ingestion retries only saving, never generation; unsupported cancel is absent
+  ○ skipped failed authenticated download leaves the owned player and can be retried without generation
+  ○ skipped readers cannot prepare, edit, preflight, launch, or retry a paid request
+  ○ skipped all interface locales supply every video label without falling back to English
+  ○ skipped quotes bind exact draft/version, expiry, known price and limit; route choice makes presenter audio explicit
+  ○ skipped blob download releases its temporary URL and rejects a non-video attachment
+  ○ skipped chat video artifacts stay distinct from the library and each other after persistence
+  ○ skipped embedded save, draft selection and launch retain the conversation URL
+  ○ skipped a completed chat edit refreshes the retained saved draft through its exact SWR reader
+  ○ skipped a concurrent chat edit preserves dirty manual text and offers an explicit current-version reload
+  ○ skipped media query changes and back navigation switch the existing page between library and exact video
+  ○ skipped video selection, route, native edit completion and approval projection keep exact identities
+
+Test Suites: 1 passed, 1 total
+Tests:       19 skipped, 2 passed, 21 total
+Snapshots:   0 total
+Time:        2.523 s, estimated 4 s
+Ran all test suites matching /tests\/video-ui-v1.test.cjs/i with tests matching "paid video approval|paid approval refuses".

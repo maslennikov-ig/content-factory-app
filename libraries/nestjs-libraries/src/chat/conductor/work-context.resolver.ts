@@ -4,6 +4,8 @@ import { VoiceService } from '@contentfactory/nestjs-libraries/content-intellige
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { ContentFactService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service';
 import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service';
+import { VideoJobService } from '@contentfactory/nestjs-libraries/videos/video-job.service';
+import type { VideoAccessService as UnifiedVideoAccessService } from '@contentfactory/nestjs-libraries/videos/video-access.service';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import type { AgentArtifactRef, AgentWorkContextV1 } from '../capabilities/agent-parts.contract';
@@ -38,6 +40,17 @@ export class AgentWorkContextResolver {
   private async allow(identity: CapabilityIdentity, capabilityId: string) {
     const capability = this.deps.capabilities.find((one) => one.id === capabilityId);
     if (!capability || !(await this.deps.gate.check(capability.door, identity)).allowed) throw forbiddenWorkContext();
+  }
+
+  private async videoJob(identity: CapabilityIdentity, id: string): Promise<any> {
+    await this.allow(identity, 'video.status');
+    try { return await this.deps.services(VideoJobService).get(identity.organizationId, id); }
+    catch (error: any) {
+      if (error?.getResponse?.()?.code !== 'VIDEO_JOB_NOT_FOUND' || !this.deps.capabilities.some(c => c.id === 'video.status_v2')) throw error;
+      await this.allow(identity, 'video.status_v2');
+      const {VideoAccessService} = require('@contentfactory/nestjs-libraries/videos/video-access.service');
+      return this.deps.services<UnifiedVideoAccessService>(VideoAccessService).get(identity.organizationId, identity.userId, id);
+    }
   }
 
   private async channel(identity: CapabilityIdentity, id: string) {
@@ -150,6 +163,27 @@ export class AgentWorkContextResolver {
           break;
         }
         case 'media': {
+          if (target.videoJobId || target.videoDraftId) {
+            const videos = this.deps.services(VideoJobService);
+            let job: Awaited<ReturnType<VideoJobService['get']>> | undefined;
+            if (target.videoJobId) {
+              job = await this.videoJob(identity, target.videoJobId);
+              if (target.pieceId && job.pieceId !== target.pieceId || target.videoDraftId && job.draftId !== target.videoDraftId) throw missingWorkContext();
+            }
+            const draftId = target.videoDraftId ?? job?.draftId;
+            let draft: Awaited<ReturnType<VideoJobService['readDraft']>> | undefined;
+            if (draftId) {
+              await this.allow(identity, 'video.draft');
+              draft = await videos.readDraft(identity.organizationId, draftId);
+              if (target.pieceId && draft.pieceId !== target.pieceId || job && draft.pieceId !== job.pieceId) throw missingWorkContext();
+            }
+            canonical = {...canonical, id: 'library', pieceId: draft?.pieceId ?? job?.pieceId};
+            // Current editable content gets the bounded context budget before
+            // job metadata; an old submitted script must not consume it first.
+            const jobState = job ? Object.fromEntries(Object.entries(job).filter(([key]) => key !== 'snapshot')) : undefined;
+            data = {section: 'media', ...(draft ? {videoDraft: draft} : {}), ...(jobState ? {videoJob: jobState} : {})};
+            break;
+          }
           await this.allow(identity, 'media.library');
           if (!target.id || target.id === 'library') { data = { section: 'media' }; break; }
           const media = (await this.deps.services(MediaService).mediaInWorkspace(identity.organizationId, [target.id])).find((one) => one.id === target.id);
@@ -181,6 +215,19 @@ export class AgentWorkContextResolver {
   }
 
   async validateArtifact(identity: CapabilityIdentity, ref: AgentArtifactRef): Promise<AgentArtifactRef> {
+    if (ref.kind === 'media' && (ref.videoJobId || ref.videoDraftId)) {
+      const jobs = this.deps.services(VideoJobService);
+      if (ref.videoJobId) {
+        const job = await this.videoJob(identity, ref.videoJobId);
+        if (ref.pieceId && job.pieceId !== ref.pieceId) throw missingWorkContext();
+        if (ref.videoDraftId && job.draftId !== ref.videoDraftId) throw missingWorkContext();
+      }
+      if (ref.videoDraftId) {
+        await this.allow(identity, 'video.draft');
+        const draft = await jobs.readDraft(identity.organizationId, ref.videoDraftId);
+        if (ref.pieceId && draft.pieceId !== ref.pieceId) throw missingWorkContext();
+      }
+    }
     await this.resolve(identity, workContextForArtifact(ref));
     return ref;
   }

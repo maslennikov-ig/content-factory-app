@@ -24,6 +24,17 @@ const {
 const registry = loadRegistry();
 const catalogue = registry.CAPABILITY_CATALOGUE;
 const find = (id) => catalogue.find((capability) => capability.id === id);
+const VIDEO_TOOLS = [
+  'video_catalog', 'video_prepare', 'video_drafts', 'video_draft',
+  'video_edit', 'video_preflight', 'video_launch', 'video_jobs',
+  'video_status', 'video_cancel', 'video_retry-save', 'video_access_v2',
+  'video_preflight_v2', 'video_launch_v2', 'video_jobs_v2', 'video_status_v2',
+  'video_manual_v2', 'video_retry_save_v2', 'video_resume_v2',
+];
+const VIDEO_READ_TOOLS = [
+  'video_catalog', 'video_drafts', 'video_draft', 'video_jobs',
+  'video_status', 'video_access_v2', 'video_jobs_v2', 'video_status_v2',
+];
 const build = (id, services, options = {}) =>
   registry.buildCapabilityTool(find(id), {
     services: servicesFrom(services),
@@ -228,6 +239,7 @@ describe('native Mastra tools', () => {
 
   test('one tool per capability, named after its id', () => {
     expect(Object.keys(tools)).toEqual([
+      ...VIDEO_TOOLS,
       'workspace_snapshot',
       'channels_list',
       'piece_list',
@@ -804,6 +816,7 @@ describe('MCP tools from the same registry', () => {
   test('confirm, input and secret never reach MCP — but scheduling and moving, asked in the conversation (kcxz.49)', () => {
     const names = Object.keys(mcpTools('ADMIN'));
     expect(names).toEqual([
+      ...VIDEO_TOOLS,
       'workspace_snapshot',
       'channels_list',
       'piece_list',
@@ -902,6 +915,7 @@ describe('MCP tools from the same registry', () => {
 
   test('a USER token lists only the reads', () => {
     expect(Object.keys(mcpTools('USER'))).toEqual([
+      ...VIDEO_READ_TOOLS,
       'workspace_snapshot',
       'channels_list',
       'piece_list',

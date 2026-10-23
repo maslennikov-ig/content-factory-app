@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "boundary": "actual Next /media UI + authenticated local Nest MediaController/PoliciesGuard + real Prisma/services/storage; synthetic identity and paid/Temporal transport; valid CC0 fixture is not provider quality",
+  "results": [
+    {
+      "mode": "clip",
+      "jobId": "d72f2d72-485b-48fd-8eb4-a8fe2ad982cd",
+      "mediaClientEntry": true,
+      "clientNavigationWithoutReload": true,
+      "backForwardNavigation": true,
+      "sourceFactsPreserved": true,
+      "savedEditsReopened": true,
+      "oneSubmit": true,
+      "noSubmitOnReload": true,
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.012421,
+        "readyState": 4
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451"
+    },
+    {
+      "mode": "presenter",
+      "jobId": "2f8c4806-aa8c-41ae-9db3-b0e905e66ea1",
+      "mediaClientEntry": true,
+      "clientNavigationWithoutReload": true,
+      "backForwardNavigation": true,
+      "sourceFactsPreserved": true,
+      "savedEditsReopened": true,
+      "oneSubmit": true,
+      "noSubmitOnReload": true,
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.00761,
+        "readyState": 4
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451"
+    }
+  ],
+  "readerLaunch": 403,
+  "foreignJob": 404,
+  "mobileOverflow": false,
+  "pageErrors": []
+}

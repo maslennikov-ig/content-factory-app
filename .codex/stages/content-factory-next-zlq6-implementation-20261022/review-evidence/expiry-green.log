@@ -1,0 +1,22 @@
+PASS tests/video-chat-execution-v1.test.cjs
+  ✓ workflow keeps durable expiry pending after busy lease (44 ms)
+  ✓ workflow keeps durable expiry pending after temporary storage failure (2 ms)
+  ○ skipped video chat launch binds one intent to one immutable preflight across tool replays
+  ○ skipped video launch refuses fabricated author provenance before entering the domain
+  ○ skipped video approval uses stored preflight, checks version and binds script/settings/cost
+  ○ skipped status and retry-save call tenant-scoped shared doors and return media references
+  ○ skipped starter uses stable workflow IDs and opaque args; explicit saving gets a separate cycle
+  ○ skipped recovery dispatches persisted pending jobs and isolates a temporary dispatch failure
+  ○ skipped workflow durable polling stops at owned-media completion and tolerates storage interruption
+  ○ skipped workflow 24h cutoff persists uncertainty through domain expiry without another submit
+  ○ skipped paid video launch binds native approval to immutable preflight content
+  ○ skipped starter accepts a running duplicate and propagates outages for the recovery scanner
+  ○ skipped workflow resets history after 100 steps without resetting its original deadline
+  ○ skipped video media artifact IDs persist distinctly and cannot decorate unrelated card kinds
+  ○ skipped workspace validates video artifact through tenant-scoped job reads and rejects mismatched pieces
+
+Test Suites: 1 passed, 1 total
+Tests:       13 skipped, 2 passed, 15 total
+Snapshots:   0 total
+Time:        0.488 s, estimated 1 s
+Ran all test suites matching /tests\/video-chat-execution-v1.test.cjs/i with tests matching "durable expiry pending".

@@ -1,0 +1,12 @@
+PASS tests/video-subscription-execution.test.cjs (5.608 s)
+PASS tests/video-subscription-domain.postgres.test.cjs
+PASS tests/video-subscription-connections.postgres.test.cjs
+PASS tests/video-manual-attachment.postgres.test.cjs
+PASS tests/video-subscription-chat.test.cjs
+PASS tests/video-subscription-oauth.test.cjs
+
+Test Suites: 6 passed, 6 total
+Tests:       44 passed, 44 total
+Snapshots:   0 total
+Time:        16.807 s, estimated 21 s
+Ran all test suites matching /tests\/video-subscription-oauth.test.cjs|tests\/video-subscription-connections.postgres.test.cjs|tests\/video-subscription-domain.postgres.test.cjs|tests\/video-subscription-execution.test.cjs|tests\/video-subscription-chat.test.cjs|tests\/video-manual-attachment.postgres.test.cjs/i.

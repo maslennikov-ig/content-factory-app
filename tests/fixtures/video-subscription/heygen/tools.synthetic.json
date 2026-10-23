@@ -1,0 +1,7 @@
+[
+  {"name":"create_video","inputSchema":{"type":"object","additionalProperties":false,"required":["script","engine","avatar_id","voice_id","locale","aspect_ratio","resolution","captions"],"properties":{"script":{"type":"string"},"engine":{"type":"string","enum":["avatar_iii","avatar_iv"]},"avatar_id":{"type":"string"},"voice_id":{"type":"string"},"locale":{"type":"string"},"aspect_ratio":{"type":"string","enum":["9:16","16:9","1:1"]},"resolution":{"type":"string","enum":["720p","1080p"]},"captions":{"type":"boolean"}}}},
+  {"name":"get_video","inputSchema":{"type":"object","additionalProperties":false,"required":["video_id"],"properties":{"video_id":{"type":"string"}}}},
+  {"name":"quote_video","inputSchema":{"type":"object","additionalProperties":false,"required":["script","engine","avatar_id","voice_id","locale","aspect_ratio","resolution","captions"],"properties":{"script":{"type":"string"},"engine":{"type":"string","enum":["avatar_iii","avatar_iv"]},"avatar_id":{"type":"string"},"voice_id":{"type":"string"},"locale":{"type":"string"},"aspect_ratio":{"type":"string"},"resolution":{"type":"string"},"captions":{"type":"boolean"}}}},
+  {"name":"list_avatars","inputSchema":{"type":"object","additionalProperties":false,"properties":{}}},
+  {"name":"list_voices","inputSchema":{"type":"object","additionalProperties":false,"properties":{}}}
+]

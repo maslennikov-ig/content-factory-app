@@ -19,7 +19,7 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   pretendToBeVisual: true,
   url: 'http://localhost/content/pieces/piece-1',
 });
-for (const key of ['window', 'document', 'navigator'])
+for (const key of ['window', 'document', 'navigator', 'self'])
   Object.defineProperty(global, key, {
     configurable: true,
     value: key === 'window' ? dom.window : dom.window[key],

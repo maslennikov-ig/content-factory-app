@@ -1,0 +1,16 @@
+PASS tests/video-domain-v1.postgres.test.cjs (16.852 s)
+PASS tests/video-chat-domain-v1.postgres.test.cjs (13.821 s)
+PASS tests/video-subscription-execution.test.cjs (9.625 s)
+PASS tests/video-subscription-domain.postgres.test.cjs (5.541 s)
+PASS tests/video-subscription-connections.postgres.test.cjs
+PASS tests/video-manual-attachment.postgres.test.cjs
+PASS tests/video-subscription-chat.test.cjs
+PASS tests/admin-account-delete.test.cjs
+PASS tests/video-subscription-oauth.test.cjs
+PASS tests/auth-middleware-membership.test.cjs
+
+Test Suites: 10 passed, 10 total
+Tests:       102 passed, 102 total
+Snapshots:   0 total
+Time:        53.901 s, estimated 56 s
+Ran all test suites matching /tests\/auth-middleware-membership.test.cjs|tests\/video-subscription-oauth.test.cjs|tests\/video-subscription-connections.postgres.test.cjs|tests\/video-subscription-domain.postgres.test.cjs|tests\/video-subscription-execution.test.cjs|tests\/video-subscription-chat.test.cjs|tests\/video-manual-attachment.postgres.test.cjs|tests\/video-domain-v1.postgres.test.cjs|tests\/video-chat-domain-v1.postgres.test.cjs|tests\/admin-account-delete.test.cjs/i.

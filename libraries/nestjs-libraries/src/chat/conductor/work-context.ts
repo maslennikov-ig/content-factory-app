@@ -41,6 +41,8 @@ const contextSchema = z.object({
   pieceId: id.optional(),
   channelId: id.optional(),
   adaptationId: id.optional(),
+  videoJobId: id.optional(),
+  videoDraftId: id.optional(),
   from: date.optional(),
   to: date.optional(),
   revision: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/).optional(),
@@ -52,7 +54,9 @@ const contextSchema = z.object({
   if (value.kind === 'adaptation' && (!value.pieceId || !(value.id || value.adaptationId))) invalid();
   if (value.kind === 'plan' && (value.id || value.adaptationId) && !value.pieceId) invalid();
   if (value.kind === 'plan' && value.pieceId && !(value.id || value.adaptationId)) invalid();
-  if (value.pieceId && !['piece', 'adaptation', 'plan'].includes(value.kind)) invalid();
+  const video = !!(value.videoJobId || value.videoDraftId);
+  if (video && (value.kind !== 'media' || value.id && value.id !== 'library')) invalid();
+  if (value.pieceId && !['piece', 'adaptation', 'plan'].includes(value.kind) && !(value.kind === 'media' && video)) invalid();
   if (value.adaptationId && !['adaptation', 'plan'].includes(value.kind)) invalid();
   if (value.channelId && !['channel', 'adaptation', 'plan', 'calendar'].includes(value.kind)) invalid();
   if ((value.from || value.to) && !['calendar', 'plan'].includes(value.kind)) invalid();
@@ -66,10 +70,14 @@ const artifactSchema = z.object({
   pieceId: id.optional(),
   channelId: id.optional(),
   adaptationId: id.optional(),
+  videoJobId: id.optional(),
+  videoDraftId: id.optional(),
 }).strict().superRefine((value, ctx) => {
+  if ((value.videoJobId || value.videoDraftId) && value.kind !== 'media') ctx.addIssue({ code: 'custom', message: 'Unexpected video scope.' });
+  if (value.kind === 'media' && value.pieceId && !value.videoJobId && !value.videoDraftId) ctx.addIssue({ code: 'custom', message: 'Video scope is required.' });
   if ((value.kind === 'adaptation' || value.kind === 'plan') && !value.pieceId) ctx.addIssue({ code: 'custom', message: 'A variant names its piece.' });
   if (value.adaptationId && value.adaptationId !== value.id) ctx.addIssue({ code: 'custom', message: 'Conflicting variant ids.' });
-  if (value.pieceId && !['piece', 'adaptation', 'plan'].includes(value.kind)) ctx.addIssue({ code: 'custom', message: 'Unexpected piece scope.' });
+  if (value.pieceId && !['piece', 'adaptation', 'plan', 'media'].includes(value.kind)) ctx.addIssue({ code: 'custom', message: 'Unexpected piece scope.' });
   if (value.kind === 'piece' && value.pieceId && value.pieceId !== value.id) ctx.addIssue({ code: 'custom', message: 'Conflicting piece ids.' });
   if (value.channelId && !['channel', 'adaptation', 'plan'].includes(value.kind)) ctx.addIssue({ code: 'custom', message: 'Unexpected channel scope.' });
   if (value.kind === 'channel' && value.channelId && value.channelId !== value.id) ctx.addIssue({ code: 'custom', message: 'Conflicting channel ids.' });
@@ -124,7 +132,8 @@ export const readStoredAgentWorkspace = (metadata: Record<string, unknown> | und
 };
 
 export const sameAgentArtifact = (left: AgentArtifactRef, right: AgentArtifactRef) =>
-  left.kind === right.kind && left.id === right.id && left.pieceId === right.pieceId;
+  left.kind === right.kind && left.id === right.id && left.pieceId === right.pieceId &&
+  left.videoJobId === right.videoJobId && left.videoDraftId === right.videoDraftId;
 
 export const workContextForArtifact = (ref: AgentArtifactRef): AgentWorkContextV1 => ({
   version: AGENT_WORK_CONTEXT_VERSION,
@@ -133,12 +142,14 @@ export const workContextForArtifact = (ref: AgentArtifactRef): AgentWorkContextV
   ...(ref.pieceId ? { pieceId: ref.pieceId } : {}),
   ...(ref.channelId ? { channelId: ref.channelId } : {}),
   ...(ref.adaptationId ? { adaptationId: ref.adaptationId } : {}),
+  ...(ref.videoJobId ? { videoJobId: ref.videoJobId } : {}),
+  ...(ref.videoDraftId ? { videoDraftId: ref.videoDraftId } : {}),
 });
 
 export const artifactForWorkContext = (context: AgentWorkContextV1): AgentArtifactRef | null => {
-  const id = context.id ?? (context.kind === 'piece' ? context.pieceId : context.kind === 'channel' ? context.channelId : context.adaptationId);
+  const id = context.id ?? (context.videoJobId || context.videoDraftId ? 'library' : context.kind === 'piece' ? context.pieceId : context.kind === 'channel' ? context.channelId : context.adaptationId);
   if (!id || context.kind === 'calendar') return null;
-  return { kind: context.kind, id, ...(context.pieceId && context.kind !== 'piece' ? { pieceId: context.pieceId } : {}), ...(context.channelId && context.kind !== 'channel' ? { channelId: context.channelId } : {}) };
+  return { kind: context.kind, id, ...(context.pieceId && context.kind !== 'piece' ? { pieceId: context.pieceId } : {}), ...(context.channelId && context.kind !== 'channel' ? { channelId: context.channelId } : {}), ...(context.videoJobId ? {videoJobId: context.videoJobId} : {}), ...(context.videoDraftId ? {videoDraftId: context.videoDraftId} : {}) };
 };
 
 /** Snapshot budgets count strings across the tree, not only individual leaves. */

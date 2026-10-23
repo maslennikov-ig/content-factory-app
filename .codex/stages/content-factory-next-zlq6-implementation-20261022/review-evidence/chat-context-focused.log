@@ -1,0 +1,30 @@
+FAIL tests/video-chat-domain-v1.postgres.test.cjs
+  Video V1 shared chat capability -> Prisma domain -> owned media
+    ✕ selected job resolves the current editable draft even after a long old snapshot; foreign context is denied (1543 ms)
+    ○ skipped clip prepares, accepts one preflight, creates one job, reopens and downloads owned media
+    ○ skipped presenter prepares, accepts one preflight, creates one job, reopens and downloads owned media
+    ○ skipped the real launch door metadata and PermissionsService deny USER before any launch
+
+  ● Video V1 shared chat capability -> Prisma domain -> owned media › selected job resolves the current editable draft even after a long old snapshot; foreign context is denied
+
+    expect(received).toMatchObject(expected)
+
+    Matcher error: received value must be a non-null object
+
+    Received has value: null
+
+      103 |       const result = await resolver.resolve(contextFor(f), target);
+      104 |       expect(result.context.videoJobId).toBe(job.id);
+    > 105 |       expect(result.data.videoDraft).toMatchObject({id: current.id, version: current.version, brief: {script: fixture.SOURCE_TEXT}});
+          |                                      ^
+      106 |       expect(result.data.videoDraft.brief.prompt).toBe(fixture.SOURCE_TEXT);
+      107 |       expect(result.truncated).toBe(true);
+      108 |       await expect(resolver.resolve(contextFor(f, {foreign: true}), target)).rejects.toMatchObject({status: 404});
+
+      at Object.<anonymous> (tests/video-chat-domain-v1.postgres.test.cjs:105:38)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 3 skipped, 4 total
+Snapshots:   0 total
+Time:        2.591 s, estimated 14 s
+Ran all test suites matching /tests\/video-chat-domain-v1.postgres.test.cjs/i with tests matching "long old snapshot".

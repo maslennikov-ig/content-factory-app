@@ -51,7 +51,7 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'http://localhost/',
   virtualConsole,
 });
-for (const key of ['window', 'document', 'navigator']) {
+for (const key of ['window', 'document', 'navigator', 'self']) {
   Object.defineProperty(global, key, {
     configurable: true,
     value: key === 'window' ? dom.window : dom.window[key],

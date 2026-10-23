@@ -4196,6 +4196,29 @@ exit 0 и действительно пустой diff. Ошибка не явл
 пустого diff, `2` для непустого и `1` при ошибке. При `0` развёртывание схемы
 завершено: сообщите «изменений нет» и не переходите к выбору или применению.
 
+Видео V1 и личные подписки используют тот же единственный путь применения.
+Справочный SQL: [API](video-generation-v1-schema-apply.sql),
+[соединения](video-subscription-connections-schema-apply.sql),
+[исполнение](video-subscription-execution-schema-apply.sql),
+[срок восстановления](video-subscription-recovery-deadline-schema-apply.sql).
+При первом выпуске отбирать фактический diff для `InstanceAiDefaults`,
+`AiProviderSetting`, `VideoPromptDraft`, `VideoGenerationJob`,
+`VideoSubscriptionConnection`, `VideoSubscriptionGrant`,
+`VideoSubscriptionWorkspacePolicy`, `VideoSubscriptionOAuthAttempt`,
+`VideoSubscriptionRegistration`, `VideoAccessPreflight`, `VideoRouteIntent`,
+`VideoSubscriptionJob`, `VideoManualAttachment`; новых enum нет.
+Сначала резервная копия, SQL guard и транзакционное применение owner-ролью,
+затем пустой diff и проверка runtime-прав на 11 новых таблицах. Справочные
+файлы не следует последовательно накладывать поверх полного live diff:
+новая таблица уже содержит `statusDeadlineAt` из актуальной схемы.
+
+При выпуске без разрешения на расходы проверить пустые таблицы видеозаданий
+и отсутствие видеоключей/включённых политик до переключения. Восстановление
+сохранённых заданий запускается автоматически; выключенный registry сам по себе
+не запрещает опрос ранее принятых заданий. Для проверки интерфейса не нажимать
+подготовку с ИИ, подключение OAuth или запуск генерации. Подробности:
+[локальный runbook и граница реальных провайдеров](video-subscription-local-acceptance.md).
+
 Готовые точечные миграции, если требуются, лежат в `docs/operations/`:
 
 - [`content-leads-schema-apply.sql`](./content-leads-schema-apply.sql) — две таблицы для отслеживания источников идей, включая nullable `sourceRefsJson` для чистой установки

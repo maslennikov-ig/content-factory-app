@@ -36,7 +36,12 @@ const component = loadWithMocks(
     ),
     swr: {
       __esModule: true,
-      default: () => ({ data: settings, mutate: jest.fn() }),
+      default: (key) => ({
+        // Nested video panels have their own SWR contracts; an AI settings
+        // response must never masquerade as a video/provider response.
+        data: key && !(Array.isArray(key) && ['video-provider-settings-v1', 'video-access-v2'].includes(key[0])) ? settings : undefined,
+        mutate: jest.fn(),
+      }),
     },
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => fetchMock },
     '@contentfactory/react/toaster/toaster': {

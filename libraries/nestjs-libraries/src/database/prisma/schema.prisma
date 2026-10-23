@@ -46,6 +46,8 @@ model Organization {
   mcpOAuthGrants             McpOAuthGrant[]
   aiProvider                 AiProviderSetting?
   aiUsageRecords             AiUsageRecord[]
+  videoPromptDrafts          VideoPromptDraft[]
+  videoGenerationJobs        VideoGenerationJob[]
   productEvents              ProductEvent[]
   /// Avatars, plural since 2026-08-25. One of them is the default.
   brandProfile               ProjectBrandProfile[]
@@ -706,6 +708,8 @@ model InstanceAiDefaults {
   roleModels          Json?
   /// Зашифрованный ключ на каждый поисковый движок.
   searchApiKeys       Json?
+  videoApiKeys        Json?
+  videoSpendPolicy    Json?
   /// Движок на задачу поиска. Пусто — продукт решает сам
   /// (`DEFAULT_SEARCH_TASK_PROVIDERS`).
   searchTaskProviders Json?
@@ -2101,6 +2105,8 @@ model AiProviderSetting {
   /// values are dropped on read (`ai.search-tasks.ts`), so a row written by an
   /// older or newer build is never a request with a broken key.
   searchApiKeys  Json?
+  videoApiKeys   Json?
+  videoSpendPolicy Json?
   /// Which engine each search task gets, as `{ "research": "exa" }`.
   ///
   /// Empty routes nothing and every task lands on `searchProvider`, which is
@@ -2110,6 +2116,71 @@ model AiProviderSetting {
   searchDepth    String       @default("advanced")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+}
+
+/// Editable source-backed brief. A launch copies it into an immutable job snapshot.
+model VideoPromptDraft {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  pieceId        String
+  pieceRevision  String
+  version        Int      @default(1)
+  brief          Json
+  settings       Json
+  preflight      Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, pieceId, updatedAt])
+}
+
+/// One explicit video intent; status observation and file retries never create another.
+model VideoGenerationJob {
+  id                  String   @id @default(uuid())
+  organizationId      String
+  userId              String
+  pieceId             String
+  pieceRevision       String
+  draftId             String
+  draftVersion        Int
+  preflightId         String
+  intentId            String
+  snapshot            Json
+  request             Json
+  provider            String
+  model               String
+  payer               AiUsageMode
+  credentialReference String
+  state               String   @default("accepted")
+  idempotencyKey      String   @unique
+  receipt             Json?
+  providerResult      Json?
+  estimate            Json
+  reservedUsd         Decimal  @db.Decimal(14, 8)
+  costUsd             Decimal? @db.Decimal(14, 8)
+  usageRecordId       String?
+  resultMediaId       String?
+  storedFile          Json?
+  errorCode           String?
+  submitAttempts      Int      @default(0)
+  pollAttempts        Int      @default(0)
+  saveAttempts        Int      @default(0)
+  runCycle            Int      @default(0)
+  leaseOwner          String?
+  leaseUntil          DateTime?
+  submittedAt         DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, intentId])
+  @@unique([organizationId, preflightId])
+  @@index([organizationId, pieceId, createdAt])
+  @@index([organizationId, provider, payer, createdAt])
+  @@index([state, leaseUntil])
 }
 
 /// Privacy-safe admission ledger. It records only which bounded product
@@ -2309,4 +2380,150 @@ model ContentLead {
   @@unique([organizationId, subscriptionId, externalId])
   @@index([organizationId, status, observedAt])
   @@index([organizationId, subscriptionId, status])
+}
+
+// Personal wallet audit survives owner/workspace removal. Every use rechecks live membership.
+model VideoSubscriptionConnection {
+  id String @id @default(uuid())
+  ownerId String
+  provider String
+  issuer String
+  resource String
+  walletDigest String
+  generation Int @default(1)
+  state String @default("connected")
+  encryptedTokens String?
+  expiresAt DateTime?
+  tokenVersion Int @default(1)
+  refreshOwner String?
+  refreshUntil DateTime?
+  unit String
+  perJob Decimal? @db.Decimal(20, 6)
+  perMonth Decimal? @db.Decimal(20, 6)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([provider, walletDigest])
+  @@index([ownerId, provider])
+}
+model VideoSubscriptionGrant {
+  id String @id @default(uuid())
+  connectionId String
+  organizationId String
+  enabled Boolean @default(true)
+  @@unique([connectionId, organizationId])
+}
+model VideoSubscriptionWorkspacePolicy {
+  organizationId String @id
+  enabled Boolean @default(false)
+}
+model VideoSubscriptionOAuthAttempt {
+  id String @id @default(uuid())
+  stateHash String @unique
+  sessionDigest String
+  actorId String
+  organizationId String
+  provider String
+  issuer String
+  resource String
+  redirectUri String
+  returnPath String
+  encryptedVerifier String
+  expiresAt DateTime
+  consumedAt DateTime?
+  @@index([expiresAt])
+}
+model VideoSubscriptionRegistration {
+  id String @id
+  issuer String
+  redirectUri String
+  encryptedClient String?
+  leaseOwner String?
+  leaseUntil DateTime?
+}
+
+model VideoAccessPreflight {
+  id String @id @default(uuid())
+  organizationId String
+  actorId String
+  draftId String
+  draftVersion Int
+  draftDigest String
+  access Json
+  snapshot Json
+  request Json
+  quote Json
+  connectionId String?
+  generation Int?
+  schemaDigest String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([organizationId, actorId])
+}
+model VideoRouteIntent {
+  id String @id @default(uuid())
+  organizationId String
+  actorId String
+  intentId String
+  preflightId String
+  accessDigest String
+  createdAt DateTime @default(now())
+  @@unique([organizationId, intentId])
+}
+model VideoSubscriptionJob {
+  id String @id @default(uuid())
+  organizationId String
+  actorId String
+  pieceId String
+  pieceRevision String
+  draftId String
+  draftVersion Int
+  preflightId String @unique
+  intentId String
+  connectionId String
+  walletDigest String
+  generation Int
+  provider String
+  unit String
+  snapshot Json
+  request Json
+  quote Json
+  state String @default("accepted")
+  reserved Decimal @db.Decimal(20, 6)
+  actualCost Decimal? @db.Decimal(20, 6)
+  costCertainty String @default("unknown")
+  reconciledBy String?
+  reconciliationEvidence String?
+  period String
+  receipt Json?
+  providerResult Json?
+  storedFile Json?
+  resultMediaId String? @unique
+  submitAttempts Int @default(0)
+  pollAttempts Int @default(0)
+  saveAttempts Int @default(0)
+  runCycle Int @default(0)
+  leaseOwner String?
+  leaseUntil DateTime?
+  errorCode String?
+  submittedAt DateTime?
+  statusDeadlineAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  finishedAt DateTime?
+  @@unique([organizationId, intentId])
+  @@index([connectionId, period])
+  @@index([state, updatedAt])
+}
+model VideoManualAttachment {
+  id String @id @default(uuid())
+  organizationId String
+  actorId String
+  pieceId String
+  pieceRevision String
+  draftId String
+  draftVersion Int
+  mediaId String
+  snapshot Json
+  createdAt DateTime @default(now())
+  @@unique([organizationId, draftId, draftVersion, mediaId])
 }

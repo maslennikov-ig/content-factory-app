@@ -1,0 +1,9 @@
+{
+  "container": "be2c9122ea057da6ae8505926ee53572e03f59e159b89251a989678e0bb67e43",
+  "removed": true,
+  "loopbackPort": 46325,
+  "storage": "task-owned tmpfs",
+  "foreignResourcesTouched": false,
+  "failedPortAllocationContainer": "67ba49b90027bd324de5484ca22e7c5e16f99b56e9a0c30222a7524468be8b89",
+  "failedContainerRemoved": true
+}

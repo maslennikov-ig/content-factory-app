@@ -1,3 +1,5 @@
+import { VideoCredentialsService, videoSettingsUpdateV1 } from '@contentfactory/nestjs-libraries/videos/video-credentials.service';
+import type { VideoSettingsInputV1 } from '@contentfactory/nestjs-libraries/videos/video-settings.v1';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {
   KEY_OWNER_NAMES,
@@ -5,6 +7,7 @@ import {
 } from '@contentfactory/nestjs-libraries/chat/conductor/secret-shapes';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
+import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 import {
   AiProvider,
   INSTANCE_AI_DEFAULTS_ID,
@@ -200,6 +203,7 @@ export class AiProviderService {
     });
 
     return {
+      video: await new VideoCredentialsService(this._prisma).getSettings(organizationId),
       usageMode: config.usageMode,
       provider: config.provider,
       /**
@@ -284,7 +288,7 @@ export class AiProviderService {
 
   async updateSettings(
     organizationId: string,
-    body: {
+    body: VideoSettingsInputV1 & {
       usageMode?: 'included' | 'workspace_key';
       /** Absent: leave the stored provider (a mode switch, a search key). */
       provider?: AiProvider;
@@ -306,8 +310,25 @@ export class AiProviderService {
       searchDepth?: 'basic' | 'advanced';
     }
   ) {
+    const save = (prisma: Pick<PrismaService, 'aiProviderSetting'>) =>
+      this.writeSettings(organizationId, body, prisma);
+    if (body.videoApiKeys !== undefined || body.videoSpendPolicy !== undefined) {
+      await serializableWithRetry(this._prisma, save, 'Video settings are busy; retry the same update.');
+    } else {
+      await save(this._prisma);
+    }
+    // Return settings only after the write commits and cached clients are reset.
+    resetAiConfigCache(organizationId);
+    return this.getSettings(organizationId);
+  }
+
+  private async writeSettings(
+    organizationId: string,
+    body: Parameters<AiProviderService['updateSettings']>[1],
+    prisma: Pick<PrismaService, 'aiProviderSetting'>
+  ) {
     const workspaceSettings = body.usageMode !== 'included';
-    const current = await this._prisma.aiProviderSetting?.findUnique?.({
+    const current = await prisma.aiProviderSetting?.findUnique?.({
       where: { organizationId },
       select: {
         provider: true,
@@ -316,6 +337,8 @@ export class AiProviderService {
         searchProvider: true,
         searchApiKeys: true,
         searchApiKey: true,
+        videoApiKeys: true,
+        videoSpendPolicy: true,
       },
     });
     /**
@@ -449,6 +472,7 @@ export class AiProviderService {
     // saves sections independently. An absent field means "leave it"; an
     // explicitly emptied one means "clear it".
     const data = {
+      ...videoSettingsUpdateV1(current, body),
       ...(body.usageMode ? { usageMode: body.usageMode } : {}),
       ...(provider && provider !== storedProvider ? { provider } : {}),
       ...(clearsModels
@@ -492,17 +516,19 @@ export class AiProviderService {
       ...(body.searchDepth ? { searchDepth: body.searchDepth } : {}),
     };
 
-    await this._prisma.aiProviderSetting.upsert({
+    await prisma.aiProviderSetting.upsert({
       where: { organizationId },
-      create: { organizationId, searchDepth: 'advanced', ...data },
+      create: {
+        organizationId,
+        searchDepth: 'advanced',
+        // A video settings save does not opt a new workspace into its own keys.
+        ...(body.videoApiKeys !== undefined || body.videoSpendPolicy !== undefined
+          ? { usageMode: 'included' as const }
+          : {}),
+        ...data,
+      },
       update: data,
     });
-
-    // Without this the running process would keep the clients it built from
-    // the previous configuration until the cache expired.
-    resetAiConfigCache(organizationId);
-
-    return this.getSettings(organizationId);
   }
 
   async clearKey(organizationId: string) {

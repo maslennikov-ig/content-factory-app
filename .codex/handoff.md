@@ -1,5 +1,31 @@
 # Content Factory current handoff — 23 October 2026
 
+## Video release preparation — 23 October 2026
+
+Owner now authorizes merge to main, push and deploy with release checks.
+Real provider registration/login, credentials, paid calls and credit consumption
+remain prohibited. Candidate combines origin/main `d81a12ab5` with reviewed
+video `29b96ba9c`; release worktree is `release-video-20261023`. The primary
+checkout's unrelated dirty files and existing local previews are preserved.
+The candidate has not yet been deployed; current production remains recorded
+below until fresh release evidence is accepted.
+
+Video API, personal subscriptions and manual upload are locally implemented.
+Independent review fixed identity/credential fencing, public OAuth callback,
+bounded receipt recovery and save-after-reconnect. Fresh actual browser plus
+Temporal acceptance passes for subscriptions, API, manual upload and recovery;
+no duplicate generation, actual owned playback/download. Production subscription
+profiles remain disabled pending verified live contracts. Additive Prisma changes
+require guarded application before switching the image; existing workflow
+contracts and legal notices stay intact. `.8`–`.12` are locally complete;
+`.7` and epic remain open for real account/schema/billing/output/quality evidence.
+
+[Runbook](../docs/operations/video-subscription-local-acceptance.md),
+[implementation](stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md),
+[review](stages/content-factory-next-zlq6-subscriptions-20261023/review.md),
+[browser/Temporal](stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance.md).
+Private release evidence: `~/.local/state/content-factory-next/release-video-20261023/`.
+
 ## Table release preflight corrections — 23 October 2026
 
 Owner requested production delivery of the table fix. The full gate caught an off-token header weight: follow-up86938c73d uses `cf-label-md`; typography/Markdown/adapter37tests and frontend types PASS. A later native PG/Redis replay test exposed a real race (`content-factory-next-z2nz`): after a replay-floor read failed, a terminal-only asynchronous ownership lookup let an older generation's text through. `observeConductorRun` now loads the native storage generation before subscribing and passes Mastra's existing `minGeneration`; unavailable ownership storage propagates instead of opening an unfenced reader. No custom event filter, buffering or retry loop was added. A deterministic claim-read barrier reproduced the stale text before the fix; real PG/Redis fanout, tool pairs, detach, unknown-floor rejection and session-observe checks PASS, backend types PASS. Production delivery remains pending the full corrected source gate; site still runs eb26f53a52a1. Failed/cancelled attempts are retained privately in `~/.local/state/content-factory-next/release-tables-20261023/`. Foreign root files/index are preserved; no new model call is required for this release.

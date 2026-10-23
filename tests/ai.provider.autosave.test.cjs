@@ -62,6 +62,8 @@ const Passthrough = ({
 const component = loadWithMocks(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
+    // Video uses its own settings contract and acceptance fixtures.
+    '../videos/video-provider-settings': { VideoProviderSettings: () => null },
     swr: {
       __esModule: true,
       default: () => ({ data: settings, mutate: async () => settings }),

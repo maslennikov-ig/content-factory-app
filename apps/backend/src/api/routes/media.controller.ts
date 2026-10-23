@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -31,6 +32,9 @@ import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.fa
 import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/media/save.media.information.dto';
 import { VideoDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.function.dto';
+import { VideoJobService } from '@contentfactory/nestjs-libraries/videos/video-job.service';
+import { VideoCredentialsService } from '@contentfactory/nestjs-libraries/videos/video-credentials.service';
+import { VideoProviderSettingsDto } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
 import {
   ImagePromptBodyDto,
   SaveMediaBodyDto,
@@ -41,7 +45,63 @@ import {
 @Controller('/media')
 export class MediaController {
   private storage = UploadFactory.createStorage();
-  constructor(private _mediaService: MediaService) {}
+  constructor(private _mediaService: MediaService, private readonly videos: VideoJobService, private readonly videoCredentials: VideoCredentialsService) {}
+
+  @Get('/video-catalog')
+  videoCatalog(@GetOrgFromRequest() org: Organization) { return this.videos.catalog(org.id); }
+
+  @Get('/video-provider-settings')
+  @CheckPolicies([AuthorizationActions.Read, Sections.ADMIN])
+  videoProviderSettings(@GetOrgFromRequest() org: Organization) { return this.videoCredentials.getSettings(org.id); }
+
+  @Post('/video-provider-settings')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  saveVideoProviderSettings(@GetOrgFromRequest() org: Organization, @Body() body: VideoProviderSettingsDto) { return this.videoCredentials.saveWorkspace(org.id, body); }
+
+  @Get('/video-prompts')
+  listVideoPrompts(@GetOrgFromRequest() org: Organization, @Query('pieceId') pieceId?: string) { return this.videos.listDrafts(org.id, pieceId); }
+
+  @Get('/video-prompts/:id')
+  getVideoPrompt(@GetOrgFromRequest() org: Organization, @Param('id') id: string) { return this.videos.readDraft(org.id, id); }
+
+  @Post('/video-prompts')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  prepareVideoPrompt(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Body() body: unknown) { return this.videos.prepare(org.id, user.id, body); }
+
+  @Put('/video-prompts/:id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  updateVideoPrompt(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string, @Body() body: unknown) { return this.videos.updateDraft(org.id, user.id, id, body); }
+
+  @Post('/video-prompts/:id/preflight')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  preflightVideoPrompt(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.videos.preflight(org.id, user.id, id); }
+
+  @Post('/video-jobs')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  launchVideoJob(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Body() body: unknown) { return this.videos.launch(org.id, user.id, body); }
+
+  @Get('/video-jobs')
+  listVideoJobs(@GetOrgFromRequest() org: Organization, @Query('pieceId') pieceId?: string) { return this.videos.list(org.id, pieceId); }
+
+  @Get('/video-jobs/:id')
+  getVideoJob(@GetOrgFromRequest() org: Organization, @Param('id') id: string) { return this.videos.get(org.id, id); }
+
+  @Get('/video-jobs/:id/download')
+  async downloadVideoJob(@GetOrgFromRequest() org: Organization, @Param('id') id: string, @Res() res: Response) {
+    const file = await this.videos.download(org.id, id);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(file.bytes);
+  }
+
+  @Post('/video-jobs/:id/cancel')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  cancelVideoJob(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.videos.cancel(org.id, user.id, id); }
+
+  @Post('/video-jobs/:id/retry-save')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  retrySaveVideoJob(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.videos.retrySave(org.id, user.id, id); }
 
   /*
    * Media is what the workspace publishes, so every door that adds, changes

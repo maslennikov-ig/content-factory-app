@@ -208,10 +208,17 @@ describe('the member line and the administrator screen count one allowance', () 
       ),
       'utf8'
     );
-    expect(source).toMatch(/includedUsageFilter\(organizationId, periodStart\)/);
+    const ts = require('typescript');
+    const parsed = ts.createSourceFile('ai.provider.service.ts', source, ts.ScriptTarget.Latest, true);
+    const service = parsed.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'AiProviderService');
+    const settings = service.members.find(node => ts.isMethodDeclaration(node) && node.name.getText(parsed) === 'getSettings');
+    const readSettings = settings.body.getText(parsed);
+    expect(readSettings).toMatch(/includedUsageFilter\(organizationId, periodStart\)/);
     // Собранный руками `where` со всеми тремя полями — ровно та копия, которую
     // рецензия и нашла; вернуться она может только молча.
-    expect(source).not.toMatch(/usageMode:\s*'included'/);
+    // A new settings row may default to included mode; only the allowance
+    // reader must not duplicate the admission predicate.
+    expect(readSettings).not.toMatch(/usageMode:\s*'included'/);
   });
 
   test('a failed review returns allowance while other terminal attempts still count', () => {

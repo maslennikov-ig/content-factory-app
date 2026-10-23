@@ -28,6 +28,7 @@ import {
   type WorkspaceChannel,
 } from './pieces.adapter';
 import { WorkspaceMenu } from './workspace-menu';
+import { VideoPieceEntry } from '../../videos/video.entry';
 
 /**
  * Страница заготовки — одно рабочее место с вкладками (`97dq.37`, вариант A).
@@ -306,6 +307,7 @@ export function PieceScreen({
           >
             {t.newPiece}
           </a>
+          <VideoPieceEntry pieceId={piece.id} canWrite={canWrite} />
           {!piece.archivedAt ? (
             <Button
               type="button"

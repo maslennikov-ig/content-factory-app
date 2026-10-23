@@ -374,6 +374,79 @@ const planFixtures = () => {
   };
 };
 
+/** Saved video drafts and receipts; no provider, database or model transport. */
+const videoFixtures = () => {
+  const pieceId = '11111111-1111-4111-8111-111111111111';
+  const draftId = '22222222-2222-4222-8222-222222222222';
+  const jobId = '33333333-3333-4333-8333-333333333333';
+  const preflightId = '44444444-4444-4444-8444-444444444444';
+  const mediaId = '55555555-5555-4555-8555-555555555555';
+  const requestMessageId = '66666666-6666-4666-8666-666666666666';
+  const settings = {provider: 'higgsfield', model: 'wan-2.5', mode: 'clip', locale: 'ru', duration: 5, aspectRatio: '9:16', audio: false, captions: false};
+  const brief = {prompt: INJECTION, script: INJECTION};
+  const draft = {id: draftId, pieceId, version: 1, settings, brief};
+  const access = {kind: 'api', payer: 'included'};
+  const job = {id: jobId, pieceId, draftId, state: 'completed', access, snapshot: {brief, settings}, result: {id: mediaId, name: INJECTION}};
+  const apiApproval = {id: draftId, version: 1, preflightId, brief, settings, payer: 'included', estimate: {usd: 0.25}, maxCostUsd: 1};
+  const approval = {id: preflightId, preflightId, draftId, version: 1, brief, settings, access, quote: {amount: '0.25', unit: 'USD'}, perJob: '1'};
+  const own = (org) => { if (org !== IDENTITY.organizationId) throw new Error('not found'); };
+  const services = {
+    VideoJobService: {
+      catalog: async (org) => { own(org); return {routes: [{...settings, label: INJECTION}]}; },
+      prepare: async (org) => { own(org); return draft; },
+      listDrafts: async (org) => { own(org); return [draft]; },
+      readDraft: async (org) => { own(org); return draft; },
+      updateDraft: async (org) => { own(org); return draft; },
+      preflight: async (org) => { own(org); return apiApproval; },
+      getPreflight: async (org) => { own(org); return apiApproval; },
+      launch: async (org) => { own(org); return job; },
+      list: async (org) => { own(org); return [job]; },
+      get: async (org) => { own(org); return job; },
+      cancel: async (org) => { own(org); return {...job, state: 'canceled'}; },
+      retrySave: async (org) => { own(org); return job; },
+    },
+    VideoAccessService: {
+      choices: async (org) => { own(org); return {workspaceEnabled: false, connections: [], providers: []}; },
+      preflight: async (org) => { own(org); return approval; },
+      approval: async (org) => { own(org); return approval; },
+      repository: {db: {videoAccessPreflight: {findFirst: async ({where}) =>
+        where.id === preflightId && where.organizationId === IDENTITY.organizationId && where.actorId === IDENTITY.userId
+          ? {id: preflightId, draftId, draftVersion: 1} : null}}},
+      launch: async (org) => { own(org); return job; },
+      list: async (org) => { own(org); return [job]; },
+      get: async (org) => { own(org); return job; },
+      attach: async (org) => { own(org); return {...job, access: {kind: 'manual'}, cost: {amount: null, certainty: 'external_unknown'}}; },
+      action: async (org) => { own(org); return job; },
+    },
+  };
+  const call = (input) => ({input, services});
+  const launch = () => ({
+    ...call({draftId, version: 1, preflightId, requestMessageId}),
+    originalAuthorRequest: {messageId: requestMessageId, text: 'Создай видео по сохранённому сценарию.'},
+  });
+  return {
+    'video.catalog': call({}),
+    'video.prepare': call({pieceId, settings, intent: INJECTION, prepareWithAi: true}),
+    'video.drafts': call({pieceId}),
+    'video.draft': call({draftId}),
+    'video.edit': call({draftId, version: 1, prompt: INJECTION}),
+    'video.preflight': call({draftId}),
+    'video.launch': launch(),
+    'video.jobs': call({pieceId}),
+    'video.status': call({jobId}),
+    'video.cancel': call({jobId}),
+    'video.retry-save': call({jobId}),
+    'video.access_v2': call({}),
+    'video.preflight_v2': call({draftId, version: 1, access}),
+    'video.launch_v2': launch(),
+    'video.jobs_v2': call({pieceId}),
+    'video.status_v2': call({jobId}),
+    'video.manual_v2': call({draftId, version: 1, mediaId}),
+    'video.retry_save_v2': call({jobId}),
+    'video.resume_v2': call({jobId}),
+  };
+};
+
 /**
  * One working call per capability: the services it reaches, what they answer
  * (with `INJECTION` in every field a stranger could fill), the input the model
@@ -381,6 +454,7 @@ const planFixtures = () => {
  * a fixture here fails the guard, so a new one arrives with its proof.
  */
 const fixtures = () => ({
+  ...videoFixtures(),
   'workspace.snapshot': {
     input: {},
     services: {
@@ -1252,6 +1326,12 @@ const executeTool = async (tool, input, { requestContext, resumeData, suspendPay
  * payload it suspended with, as Mastra resumes it. The last call is returned.
  */
 const executeFixture = async (tool, fixture, { requestContext }) => {
+  if (fixture.originalAuthorRequest) {
+    const { MASTRA_RESOURCE_ID_KEY, MASTRA_THREAD_ID_KEY } = require('@mastra/core/request-context');
+    requestContext.set(MASTRA_RESOURCE_ID_KEY, `${IDENTITY.organizationId}:${IDENTITY.userId}`);
+    requestContext.set(MASTRA_THREAD_ID_KEY, 'video-fixture-thread');
+    requestContext.set('cf.originalAuthorRequest', JSON.stringify(fixture.originalAuthorRequest));
+  }
   if (fixture.resumeData === undefined) {
     return executeTool(tool, fixture.input, { requestContext });
   }

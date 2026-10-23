@@ -1,0 +1,25 @@
+PASS tests/video-domain-v1.postgres.test.cjs
+  ○ skipped real video fixtures refuse every unmarked, remote, redirected or different database target
+  Video V1 real Prisma domain integration (isolated PostgreSQL; synthetic paid transport)
+    ✓ an importer that loses its lease rolls back Media instead of replacing the winning result (2146 ms)
+    ○ skipped prepare/save/reopen preserves source revision, sourced date/decimal/negation and selected output locale
+    ○ skipped optimistic edits invalidate preflight; concurrent stale edits never overwrite the winner
+    ○ skipped preparing a new variant preserves saved fact choices and forbidden implications without changing the source draft
+    ○ skipped a short edited output remains saveable with a long untouched source fact (presenter=false)
+    ○ skipped a short edited output remains saveable with a long untouched source fact (presenter=true)
+    ○ skipped changed source and unsupported route/options stop before a provider submit
+    ○ skipped missing video key and missing monetary policy submit nothing despite configured text settings
+    ○ skipped cross-tenant drafts/jobs/references/read/cancel never disclose or invoke a provider
+    ○ skipped concurrent same intent and same immutable preflight create one durable job and one submit
+    ○ skipped concurrent monetary reservations serialize; uncertainty retains its reservation and actual overspend blocks new launch
+    ○ skipped restart resumes persisted provider ID with no replay, ingests owned bytes once and reopens the same Media
+    ○ skipped a crash after durable submitting stays uncertain on restart and never submits a fresh request
+    ○ skipped Higgsfield ambiguous response permits one immediate replay with identical endpoint/body/key only
+    ○ skipped HeyGen lost submit response stays uncertain without paid replay or provider fallback
+    ○ skipped save failure retries download/status only, and duplicate completion produces one owned Media
+
+Test Suites: 1 passed, 1 total
+Tests:       16 skipped, 1 passed, 17 total
+Snapshots:   0 total
+Time:        2.766 s, estimated 4 s
+Ran all test suites matching /tests\/video-domain-v1.postgres.test.cjs/i with tests matching "loses its lease".

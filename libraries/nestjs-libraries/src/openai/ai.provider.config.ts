@@ -322,6 +322,8 @@ export interface StoredAiProviderSetting {
   searchApiKey?: string | null;
   /** JSON columns, on the same terms as `roleModels`. */
   searchApiKeys?: unknown;
+  videoApiKeys?: unknown;
+  videoSpendPolicy?: unknown;
   searchTaskProviders?: unknown;
   searchTopic?: string | null;
   searchDepth?: string | null;
@@ -342,6 +344,8 @@ export interface StoredInstanceAiDefaults {
   imageModel?: string | null;
   roleModels?: unknown;
   searchApiKeys?: unknown;
+  videoApiKeys?: unknown;
+  videoSpendPolicy?: unknown;
   searchTaskProviders?: unknown;
   monthlyOperations?: number | null;
   /** NULL — flex on (`DEFAULT_TEXT_FLEX_ENABLED`). */

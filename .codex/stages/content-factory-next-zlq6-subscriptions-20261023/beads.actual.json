@@ -1,0 +1,228 @@
+{
+  "status": "PASS",
+  "sourceCommit": "2fb9812b070a4d2c351f7c61879f936aa4760000",
+  "operations": [
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.8",
+        "Local engineering accepted on 2fb9812b070a4d2c351f7c61879f936aa4760000. Session-bound one-use PKCE OAuth; encrypted issuer registration/tokens; verified synthetic wallet dedup; explicit personal grants; refresh/disconnect race and actual user-deletion audit tested with Prisma + real loopback HTTP. Actual wallet/issuer/client eligibility remains .7. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md. No real registration/login/credentials, paid/credit use, push, merge or deployment. Existing API plan revision 3 and .1-.7 preserved; epic/.7 remain open."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "close",
+        "content-factory-next-zlq6.8",
+        "--reason",
+        "Complete local engineering accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000; actual provider evidence remains .7. See docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.9",
+        "Local engineering accepted on 2fb9812b070a4d2c351f7c61879f936aa4760000. Separate Decimal wallet reservations, cross-workspace serializable admission, immutable actor approvals and access intent aliases; one submit marker, uncertain delivery, receipt-only resume/save and actual dedicated Temporal worker restart accepted. API USD and old histories preserved. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md. No real registration/login/credentials, paid/credit use, push, merge or deployment. Existing API plan revision 3 and .1-.7 preserved; epic/.7 remain open."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "close",
+        "content-factory-next-zlq6.9",
+        "--reason",
+        "Complete local engineering accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000; actual provider evidence remains .7. See docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "update",
+        "content-factory-next-zlq6.10",
+        "--status",
+        "in_progress"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.10",
+        "Local engineering accepted on 2fb9812b070a4d2c351f7c61879f936aa4760000. Higgsfield native MCP adapter complete against explicitly synthetic pinned schema: quote-only counters, allowed Wan/Kling mapping, receipt polling and owned MP4 import. Unsupported variants/options fail closed. Live exact models/schema/quote/non-generation/credit cost still .7; production disabled. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md. No real registration/login/credentials, paid/credit use, push, merge or deployment. Existing API plan revision 3 and .1-.7 preserved; epic/.7 remain open."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "close",
+        "content-factory-next-zlq6.10",
+        "--reason",
+        "Complete local engineering accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000; actual provider evidence remains .7. See docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "update",
+        "content-factory-next-zlq6.11",
+        "--status",
+        "in_progress"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.11",
+        "Local engineering accepted on 2fb9812b070a4d2c351f7c61879f936aa4760000. HeyGen exact-script MCP adapter complete against explicitly synthetic pinned schema: eligible trial assets, explicit avatar renderer, separate quote, create_video/get_video, no Video Agent or engine fallback. Native HTTP fixtures + Prisma/import accepted; live trial/schema/billing/quality stays .7. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md. No real registration/login/credentials, paid/credit use, push, merge or deployment. Existing API plan revision 3 and .1-.7 preserved; epic/.7 remain open."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "close",
+        "content-factory-next-zlq6.11",
+        "--reason",
+        "Complete local engineering accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000; actual provider evidence remains .7. See docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "update",
+        "content-factory-next-zlq6.12",
+        "--status",
+        "in_progress"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.12",
+        "Local engineering accepted on 2fb9812b070a4d2c351f7c61879f936aa4760000. Three-route UI, personal limits/grants, immutable approval, native Mastra shared facade and manual existing uploader/owned result accepted. Actual Next/Nest browser: both subscription providers, retained API, job-only chat-style reopening, play/download, manual no quote/submit, reader403/foreign404/four viewports. Real SWR timer regression fixed. No live LLM/provider quality claim. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md. No real registration/login/credentials, paid/credit use, push, merge or deployment. Existing API plan revision 3 and .1-.7 preserved; epic/.7 remain open."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "close",
+        "content-factory-next-zlq6.12",
+        "--reason",
+        "Complete local engineering accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000; actual provider evidence remains .7. See docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md."
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6.7",
+        "Local implementation .8-.12 accepted at 2fb9812b070a4d2c351f7c61879f936aa4760000. Keep this task and epic open. Separately authorize read-only real DCR/OAuth: verified issuer/stable wallet, grants/revoke/reconnect, exact MCP tool/input schemas, provider models/options, Higgsfield quote-only/no-generation and reachable owned references, HeyGen trial/avatar/voice/locale eligibility and regular-use fit. Then separately approve exact account/tool/settings/attempt and provider-credit ceiling before samples. Observe every receipt, failed/uncertain attempt, actual unit/charges, owned playable/downloadable output, language/facts/negations and competent quality assessment. Synthetic fixtures, counters and CC0 MP4 prove local engineering only. API $10/$25 packet is not subscription authority. No production enablement/push/merge/deploy authorized. Evidence: docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "content-factory-next-zlq6",
+        "Local engineering tasks .8-.12 completed at 2fb9812b070a4d2c351f7c61879f936aa4760000. Shared subscription/API/manual UI/chat/storage and durable execution acceptance passed; .7 remains open for actual account, billing, language and quality evidence. No external delivery. docs/operations/video-subscription-local-acceptance.md; .codex/stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.7",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.8",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.9",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.10",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.11",
+        "--json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "args": [
+        "show",
+        "content-factory-next-zlq6.12",
+        "--json"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "statuses": [
+    {
+      "id": "content-factory-next-zlq6",
+      "status": "in_progress"
+    },
+    {
+      "id": "content-factory-next-zlq6.7",
+      "status": "in_progress"
+    },
+    {
+      "id": "content-factory-next-zlq6.8",
+      "status": "closed"
+    },
+    {
+      "id": "content-factory-next-zlq6.9",
+      "status": "closed"
+    },
+    {
+      "id": "content-factory-next-zlq6.10",
+      "status": "closed"
+    },
+    {
+      "id": "content-factory-next-zlq6.11",
+      "status": "closed"
+    },
+    {
+      "id": "content-factory-next-zlq6.12",
+      "status": "closed"
+    }
+  ],
+  "canonicalLinearPublication": "UNVERIFIED asynchronous server bridge; no direct Linear/GitHub sync run"
+}

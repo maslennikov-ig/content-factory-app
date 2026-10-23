@@ -1,6 +1,6 @@
-import type { AgentArtifact, AgentWorkspaceV1 } from './agent.contract';
+import { artifactKey, type AgentArtifact, type AgentWorkspaceV1 } from './agent.contract';
 
-const keyOf = (artifact: AgentArtifact) => `${artifact.kind}:${artifact.id}`;
+const keyOf = artifactKey;
 
 export type ArtifactWorkspaceState = {
   artifacts: AgentArtifact[];
@@ -59,7 +59,7 @@ export function artifactWorkspaceReducer(state: ArtifactWorkspaceState, action: 
     const artifacts = distinctArtifacts([...action.artifacts, ...state.artifacts]);
     if (state.interacted) return { ...state, artifacts, ready: true };
     const saved = action.workspace?.activeArtifact;
-    const active = saved ? `${saved.kind}:${saved.id}` : action.workspace ? null : artifacts.at(-1) ? keyOf(artifacts.at(-1)!) : null;
+    const active = saved ? artifactKey(saved) : action.workspace ? null : artifacts.at(-1) ? keyOf(artifacts.at(-1)!) : null;
     return { ...state, artifacts, active, activeSource: 'restored', hidden: !!action.workspace && !saved, ready: true };
   }
   const incoming = action.type === 'select' ? [action.artifact] : action.artifacts;

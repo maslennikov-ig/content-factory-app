@@ -1,0 +1,133 @@
+FAIL tests/video-subscription-execution.test.cjs (6.823 s)
+  ● subscription persisted execution and service restart over real MCP/Prisma/storage › explicit receipt recovery renews a bounded poll cycle after age exhaustion without resubmission
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      19 |     await f.access.action(r.org, r.actor, job.id, 'resume');
+      20 |     // A late expiry call from the previous workflow cannot end this new cycle.
+    > 21 |     expect((await f.subscriptions.expire(r.org, job.id)).done).toBe(false);
+         |                                                                ^
+      22 |     f.restartSubscriptions();
+      23 |     expect((await f.runSubscriptionToTerminal(job.id)).state).toBe('completed');
+      24 |     const after = await f.db.videoSubscriptionJob.findUniqueOrThrow({where: {id: job.id}});
+
+      at tests/video-subscription-execution.test.cjs:21:64
+      at withFixture (tests/video-subscription-execution.test.cjs:6:94)
+
+  ● subscription persisted execution and service restart over real MCP/Prisma/storage › explicit receipt recovery renews a bounded poll cycle after poll-limit exhaustion without resubmission
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      19 |     await f.access.action(r.org, r.actor, job.id, 'resume');
+      20 |     // A late expiry call from the previous workflow cannot end this new cycle.
+    > 21 |     expect((await f.subscriptions.expire(r.org, job.id)).done).toBe(false);
+         |                                                                ^
+      22 |     f.restartSubscriptions();
+      23 |     expect((await f.runSubscriptionToTerminal(job.id)).state).toBe('completed');
+      24 |     const after = await f.db.videoSubscriptionJob.findUniqueOrThrow({where: {id: job.id}});
+
+      at tests/video-subscription-execution.test.cjs:21:64
+      at withFixture (tests/video-subscription-execution.test.cjs:6:94)
+
+  ● subscription persisted execution and service restart over real MCP/Prisma/storage › retry-save after reconnect refreshes the same receipt with the new wallet generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "completed"
+    Received: "save_failed"
+
+      38 |     f.transport.downloadFailures = 1;
+      39 |     await f.access.action(r.org, r.actor, job.id, 'retry-save'); f.restartSubscriptions();
+    > 40 |     expect((await f.runSubscriptionToTerminal(job.id)).state).toBe('completed');
+         |                                                               ^
+      41 |     const after = await f.db.videoSubscriptionJob.findUniqueOrThrow({where: {id: job.id}});
+      42 |     expect(after.generation).toBeGreaterThan(before.generation); expect(after.receipt).toEqual(before.receipt);
+      43 |     expect(after.submitAttempts).toBe(1); expect(f.provider.state.submits).toHaveLength(1);
+
+      at tests/video-subscription-execution.test.cjs:40:63
+      at withFixture (tests/video-subscription-execution.test.cjs:6:94)
+
+FAIL tests/video-subscription-connections.postgres.test.cjs
+  ● personal subscriptions with actual Prisma and rotating loopback OAuth › browser OAuth callbacks use the public backend base, preserving its path and normalizing its slash
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "https://content.example.invalid/api/media/video-connections/higgsfield/callback"
+    Received: "http://backend:3000/media/video-connections/higgsfield/callback"
+
+      17 |     const start = await f.connections.start(f.org.id, f.user.id, 'higgsfield');
+      18 |     const expected = 'https://content.example.invalid/api/media/video-connections/higgsfield/callback';
+    > 19 |     expect(new URL(start.authorizationUrl).searchParams.get('redirect_uri')).toBe(expected);
+         |                                                                              ^
+      20 |     const attempt = await f.db.videoSubscriptionOAuthAttempt.findFirstOrThrow({where: {organizationId: f.org.id}});
+      21 |     expect(attempt.redirectUri).toBe(expected);
+      22 |     expect(f.provider.state.registrations[0].redirect_uris).toEqual([expected]);
+
+      at tests/video-subscription-connections.postgres.test.cjs:19:78
+      at withFixture (tests/video-subscription-connections.postgres.test.cjs:8:94)
+
+  ● personal subscriptions with actual Prisma and rotating loopback OAuth › actual impersonation middleware retains the original principal and rejects personal wallet writes
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "f91f140d-8d35-4175-a7c2-855d7614de3d"
+    Received: undefined
+
+      47 |     });
+      48 |     const results = await operations;
+    > 49 |     expect(session?.actorId).toBe(f.otherUser.id);
+         |                              ^
+      50 |     expect(results.map(result => result.status === 'rejected' ? codeOf(result.reason) : 'allowed')).toEqual(Array(4).fill('VIDEO_ACCESS_DENIED'));
+      51 |     expect(await f.db.videoSubscriptionJob.count({where: {organizationId: f.org.id}})).toBe(0);
+      52 |     expect(f.provider.state.submits).toHaveLength(0);
+
+      at tests/video-subscription-connections.postgres.test.cjs:49:30
+      at withFixture (tests/video-subscription-connections.postgres.test.cjs:8:94)
+
+  ● personal subscriptions with actual Prisma and rotating loopback OAuth › assets stops new MCP requests after disconnect or member removal during an earlier request
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rejected"
+    Received: "fulfilled"
+
+      74 |       : f.access.preflight(f.org.id, f.user.id, {draftId: draft.id, version: draft.version, access: {kind: 'subscription', connectionId: connection.id}})]);
+      75 |     expect(revoked).toBe(true);
+    > 76 |     expect(result[0].status).toBe('rejected');
+         |                              ^
+      77 |     expect(f.provider.state.rpc).toHaveLength(requestsAtRevocation);
+      78 |     expect(f.provider.state.quotes).toHaveLength(0); expect(f.provider.state.submits).toHaveLength(0);
+      79 |   }));
+
+      at tests/video-subscription-connections.postgres.test.cjs:76:30
+      at withFixture (tests/video-subscription-connections.postgres.test.cjs:8:94)
+
+  ● personal subscriptions with actual Prisma and rotating loopback OAuth › preflight stops new MCP requests after disconnect or member removal during an earlier request
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rejected"
+    Received: "fulfilled"
+
+      74 |       : f.access.preflight(f.org.id, f.user.id, {draftId: draft.id, version: draft.version, access: {kind: 'subscription', connectionId: connection.id}})]);
+      75 |     expect(revoked).toBe(true);
+    > 76 |     expect(result[0].status).toBe('rejected');
+         |                              ^
+      77 |     expect(f.provider.state.rpc).toHaveLength(requestsAtRevocation);
+      78 |     expect(f.provider.state.quotes).toHaveLength(0); expect(f.provider.state.submits).toHaveLength(0);
+      79 |   }));
+
+      at tests/video-subscription-connections.postgres.test.cjs:76:30
+      at withFixture (tests/video-subscription-connections.postgres.test.cjs:8:94)
+
+Test Suites: 2 failed, 2 total
+Tests:       7 failed, 19 passed, 26 total
+Snapshots:   0 total
+Time:        10.688 s
+Ran all test suites matching /tests\/video-subscription-connections.postgres.test.cjs|tests\/video-subscription-execution.test.cjs/i.

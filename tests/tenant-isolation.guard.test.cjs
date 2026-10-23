@@ -275,6 +275,18 @@ const CI = 'libraries/nestjs-libraries/src/content-intelligence';
  */
 const ALLOWED = new Map([
   [
+    `${PRISMA}/users/users.repository.ts videoSubscriptionOAuthAttempt.updateMany in deleteAccount`,
+    'Account deletion revokes pending personal OAuth verifiers in every workspace, filtered by the deleted actorId. Limiting this to one organisation would leave another workspace holding the deleted person\'s verifier.',
+  ],
+  [
+    `${PRISMA}/users/users.repository.ts videoSubscriptionGrant.updateMany in deleteAccount`,
+    'Account deletion revokes every grant of the deleted person\'s wallets. Connection ids are selected by ownerId: user.id inside the same transaction; another owner\'s connections cannot enter this set.',
+  ],
+  [
+    `${LIBRARY}/videos/subscriptions/video-connection.service.ts videoSubscriptionGrant.updateMany in disconnect`,
+    'Disconnect revokes one personal wallet across all its workspace grants. repository.connection first checks live membership, ownerId and the current workspace grant; only that verified connectionId is used. The multi-workspace refresh/disconnect test proves every grant is fenced.',
+  ],
+  [
     `${PRISMA}/users/users.repository.ts userOrganization.deleteMany in deleteAccount`,
     'Account deletion by the instance administrator (`content-factory-next-fn33.23`): the subject is the person, not a workspace, so their membership rows go from every organisation at once; the rejection path in the same file keeps its `organizationId`.',
   ],

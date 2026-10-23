@@ -1,0 +1,14 @@
+PASS tests/video-reference-domain-v1.postgres.test.cjs
+PASS tests/video-domain-v1.postgres.test.cjs (19.851 s)
+PASS tests/video-settings-concurrency-v1.postgres.test.cjs
+PASS tests/video-credentials-v1.test.cjs
+PASS tests/ai-usage.execution.test.cjs
+PASS tests/video-module-v1.postgres.test.cjs
+PASS tests/ai-provider.key-anchor.test.cjs
+PASS tests/instance-ai-defaults.test.cjs
+
+Test Suites: 8 passed, 8 total
+Tests:       118 passed, 118 total
+Snapshots:   0 total
+Time:        27.946 s
+Ran all test suites matching /tests\/video-domain-v1.postgres.test.cjs|tests\/video-reference-domain-v1.postgres.test.cjs|tests\/video-module-v1.postgres.test.cjs|tests\/video-settings-concurrency-v1.postgres.test.cjs|tests\/video-credentials-v1.test.cjs|tests\/ai-provider.key-anchor.test.cjs|tests\/instance-ai-defaults.test.cjs|tests\/ai-usage.execution.test.cjs/i.

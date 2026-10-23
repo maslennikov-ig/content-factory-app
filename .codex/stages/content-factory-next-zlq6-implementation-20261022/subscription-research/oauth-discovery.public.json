@@ -1,0 +1,211 @@
+{
+  "schema": "public-oauth-discovery-research/v1",
+  "checkedDate": "2026-10-23",
+  "dateZone": "Europe/Moscow",
+  "method": "Unauthenticated GET of public .well-known documents only",
+  "clientRegistered": false,
+  "loginOrConsentPerformed": false,
+  "accountOrBalanceRead": false,
+  "credentialReadOrStored": false,
+  "generationInvoked": false,
+  "proves": "Metadata advertises OAuth, S256 and client-registration endpoints; neither successful client registration, account access, billing eligibility, tool schema parity nor production use is proven.",
+  "observations": [
+    {
+      "url": "https://mcp.higgsfield.ai/.well-known/oauth-protected-resource",
+      "status": 200,
+      "metadata": {
+        "resource": "https://mcp.higgsfield.ai/mcp",
+        "authorization_servers": [
+          "https://clerk.higgsfield.ai"
+        ],
+        "scopes_supported": [
+          "openid",
+          "email",
+          "offline_access"
+        ]
+      }
+    },
+    {
+      "url": "https://mcp.higgsfield.ai/.well-known/oauth-protected-resource/mcp",
+      "status": 200,
+      "metadata": {
+        "resource": "https://mcp.higgsfield.ai/mcp",
+        "authorization_servers": [
+          "https://clerk.higgsfield.ai"
+        ],
+        "scopes_supported": [
+          "openid",
+          "email",
+          "offline_access"
+        ]
+      }
+    },
+    {
+      "url": "https://mcp.higgsfield.ai/.well-known/oauth-authorization-server",
+      "status": 200,
+      "metadata": {
+        "issuer": "https://mcp.higgsfield.ai",
+        "authorization_endpoint": "https://mcp.higgsfield.ai/oauth2/authorize",
+        "token_endpoint": "https://mcp.higgsfield.ai/oauth2/token",
+        "registration_endpoint": "https://mcp.higgsfield.ai/oauth2/register",
+        "client_id_metadata_document_supported": true,
+        "response_types_supported": [
+          "code"
+        ],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "none",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": [
+          "S256"
+        ],
+        "scopes_supported": [
+          "openid",
+          "email",
+          "offline_access"
+        ]
+      }
+    },
+    {
+      "url": "https://mcp.heygen.com/.well-known/oauth-protected-resource",
+      "status": 200,
+      "metadata": {
+        "resource": "https://mcp.heygen.com",
+        "authorization_servers": [
+          "https://api2.heygen.com"
+        ],
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "browser:handoff"
+        ]
+      }
+    },
+    {
+      "url": "https://mcp.heygen.com/.well-known/oauth-protected-resource/mcp/v1",
+      "status": 200,
+      "metadata": {
+        "resource": "https://mcp.heygen.com/mcp/v1",
+        "authorization_servers": [
+          "https://api2.heygen.com"
+        ],
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email"
+        ]
+      }
+    },
+    {
+      "url": "https://mcp.heygen.com/.well-known/oauth-authorization-server",
+      "status": 200,
+      "metadata": {
+        "authorization_endpoint": "https://api2.heygen.com/v1/oauth/authorize",
+        "client_id_metadata_document_supported": true,
+        "code_challenge_methods_supported": [
+          "S256"
+        ],
+        "grant_types_supported": [
+          "authorization_code",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "issuer": "https://api2.heygen.com",
+        "registration_endpoint": "https://api2.heygen.com/v1/oauth/register",
+        "response_types_supported": [
+          "code"
+        ],
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "browser:handoff"
+        ],
+        "token_endpoint": "https://api2.heygen.com/v1/oauth/token",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "url": "https://clerk.higgsfield.ai/.well-known/oauth-authorization-server",
+      "status": 200,
+      "metadata": {
+        "issuer": "https://clerk.higgsfield.ai",
+        "authorization_endpoint": "https://clerk.higgsfield.ai/oauth/authorize",
+        "token_endpoint": "https://clerk.higgsfield.ai/oauth/token",
+        "registration_endpoint": "https://clerk.higgsfield.ai/oauth/register",
+        "response_types_supported": [
+          "code"
+        ],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "none",
+          "client_secret_post"
+        ],
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "public_metadata",
+          "private_metadata",
+          "offline_access",
+          "user:org:read"
+        ],
+        "code_challenge_methods_supported": [
+          "S256"
+        ],
+        "client_id_metadata_document_supported": true
+      }
+    },
+    {
+      "url": "https://api2.heygen.com/.well-known/oauth-authorization-server",
+      "status": 200,
+      "metadata": {
+        "authorization_endpoint": "https://api2.heygen.com/v1/oauth/authorize",
+        "client_id_metadata_document_supported": true,
+        "code_challenge_methods_supported": [
+          "S256"
+        ],
+        "grant_types_supported": [
+          "authorization_code",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "issuer": "https://api2.heygen.com",
+        "registration_endpoint": "https://api2.heygen.com/v1/oauth/register",
+        "response_types_supported": [
+          "code"
+        ],
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "browser:handoff"
+        ],
+        "token_endpoint": "https://api2.heygen.com/v1/oauth/token",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    }
+  ]
+}

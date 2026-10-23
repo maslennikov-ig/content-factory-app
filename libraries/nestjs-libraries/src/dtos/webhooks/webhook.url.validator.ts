@@ -28,15 +28,25 @@ export function isBlockedIPv4(ip: string): boolean {
 }
 
 export function isBlockedIPv6(ip: string): boolean {
-  const normalized = ip.toLowerCase();
+  let normalized: string;
+  try { normalized = new URL(`https://[${ip}]/`).hostname.slice(1, -1).toLowerCase(); }
+  catch { return true; }
+  // WHATWG URL canonicalizes ::ffff:127.0.0.1 to ::ffff:7f00:1.
+  // Check the embedded IPv4 after normalization in both the preflight and DNS pin.
+  const mapped = normalized.match(/^::ffff:([a-f0-9]{1,4}):([a-f0-9]{1,4})$/);
+  if (mapped) {
+    const high = parseInt(mapped[1], 16), low = parseInt(mapped[2], 16);
+    return isBlockedIPv4(`${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`);
+  }
+  const first = parseInt(normalized.split(':')[0] || '0', 16);
 
   return (
     normalized === '::1' ||          // loopback
     normalized === '::' ||           // unspecified
-    normalized.startsWith('fe80:') || // link-local
-    normalized.startsWith('fc') ||   // unique local fc00::/7
-    normalized.startsWith('fd') ||   // unique local fd00::/7
-    normalized.startsWith('ff')      // multicast
+    (first & 0xffc0) === 0xfe80 ||   // all of link-local fe80::/10
+    (first & 0xffc0) === 0xfec0 ||   // deprecated site-local fec0::/10
+    (first & 0xfe00) === 0xfc00 ||   // unique local fc00::/7
+    (first & 0xff00) === 0xff00      // multicast
   );
 }
 

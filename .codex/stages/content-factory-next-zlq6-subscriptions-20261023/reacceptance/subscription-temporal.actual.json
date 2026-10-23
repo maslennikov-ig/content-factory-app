@@ -1,0 +1,85 @@
+{
+  "status": "PASS",
+  "boundary": "Actual dedicated Temporal worker restarts + V1 versioned subscription workflow/activity + real Prisma/storage + local HTTP OAuth/MCP; provider schema, quality and billing synthetic",
+  "address": "127.0.0.1:46013",
+  "workerRestart": true,
+  "opaqueWorkflowPayloads": true,
+  "jobs": [
+    {
+      "id": "3c57a01e-6edc-42f3-ae5a-a957b9b1a6db",
+      "state": "completed",
+      "receipt": {
+        "id": "fixture_heygen_75e54aacd72543b29f67e57a038e729f"
+      },
+      "resultMediaId": "d67cb3bb-fcbb-4673-a9c7-ef3096ab4867",
+      "submitAttempts": 1
+    },
+    {
+      "id": "9dbde64c-a878-4587-b658-1f3e50e65525",
+      "state": "completed",
+      "receipt": {
+        "id": "fixture_higgsfield_2c22e89592ce4850a858c975c5a38ad9"
+      },
+      "resultMediaId": "315e1578-f587-44b2-82c9-606df901874f",
+      "submitAttempts": 1
+    }
+  ],
+  "lost": {
+    "id": "40236a67-fe0e-476a-8cc7-7f1ecd2fbd21",
+    "state": "submission_unknown",
+    "submitAttempts": 1
+  },
+  "recovery": {
+    "exhausted": [
+      {
+        "id": "025c2314-cf34-417f-bc7e-532e656c6008",
+        "provider": "heygen",
+        "cause": "poll_budget",
+        "state": "completed",
+        "runCycle": 1,
+        "submitAttempts": 1,
+        "pollAttempts": 1,
+        "statusDeadlineAt": "2026-10-24T10:51:44.590Z",
+        "receipt": {
+          "id": "fixture_heygen_3a10d7f076a84321bc6150100135e241"
+        },
+        "resultMediaId": "b42ebb24-b8a6-473d-8b3d-89004b162905"
+      },
+      {
+        "id": "daf2e76a-1827-491a-b319-3f41166cb5d5",
+        "provider": "higgsfield",
+        "cause": "24h_deadline",
+        "state": "completed",
+        "runCycle": 1,
+        "submitAttempts": 1,
+        "pollAttempts": 1,
+        "statusDeadlineAt": "2026-10-24T10:51:44.590Z",
+        "receipt": {
+          "id": "fixture_higgsfield_1bb54c9a4119408c95f13c2bb186eeb2"
+        },
+        "resultMediaId": "33312369-6fbc-4198-904f-bae4cbe8b953"
+      }
+    ],
+    "reconnectSave": {
+      "id": "d59b57f1-2966-4192-b2be-cda106326003",
+      "state": "completed",
+      "generationBefore": 4,
+      "generationAfter": 6,
+      "runCycle": 1,
+      "submitAttempts": 1,
+      "receipt": {
+        "id": "fixture_higgsfield_320798d3b4ab48558bbc532bf9240c9a"
+      },
+      "resultMediaId": "6760cff9-bbe1-4391-aed3-beab8c34730e",
+      "refreshedExistingReceipt": true
+    },
+    "extraSubmits": 0,
+    "ownedDownloadsMatch": true
+  },
+  "providerCounters": {
+    "submits": 6,
+    "quotes": 6,
+    "polls": 7
+  },
+  "noReplayAfterRestart": true
+}

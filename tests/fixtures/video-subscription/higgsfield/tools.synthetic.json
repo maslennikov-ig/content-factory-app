@@ -1,0 +1,4 @@
+[
+  {"name":"generate_clip","inputSchema":{"type":"object","additionalProperties":false,"required":["model","prompt","duration","aspect_ratio","resolution","locale","audio","get_cost"],"properties":{"model":{"type":"string","enum":["wan-3.0","kling-3.0"]},"prompt":{"type":"string"},"duration":{"type":"integer","enum":[5,10]},"aspect_ratio":{"type":"string","enum":["9:16","16:9"]},"resolution":{"type":"string","enum":["720p","1080p"]},"locale":{"type":"string"},"audio":{"type":"boolean","const":false},"image_url":{"type":"string"},"get_cost":{"type":"boolean"}}}},
+  {"name":"jobs_wait","inputSchema":{"type":"object","additionalProperties":false,"required":["job_id","timeout_seconds"],"properties":{"job_id":{"type":"string"},"timeout_seconds":{"type":"integer","const":1}}}}
+]

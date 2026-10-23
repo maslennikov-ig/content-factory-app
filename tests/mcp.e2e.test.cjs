@@ -163,6 +163,14 @@ describe('the tools', () => {
   test('a member demoted to USER sees only the reads on their next request', () => {
     const run = noError('demotion');
     expect(run.tools).toEqual([
+      'video_catalog',
+      'video_drafts',
+      'video_draft',
+      'video_jobs',
+      'video_status',
+      'video_access_v2',
+      'video_jobs_v2',
+      'video_status_v2',
       'workspace_snapshot',
       'channels_list',
       'piece_list',

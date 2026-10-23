@@ -1,0 +1,53 @@
+PASS tests/video-chat-domain-v1.postgres.test.cjs (20.724 s)
+PASS tests/agent-native-conversation-flow.test.cjs (11.49 s)
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/agent-work-context.test.cjs
+[Nest] 35710  - 10/22/2026, 7:12:55 PM     LOG [AgentController] {"event":"agent_task_execution","requestId":"065beb68-2b96-4d34-8090-351820aad48a","elapsedMs":2,"steps":0,"knownCostUsd":0,"tokens":0,"unknownCostCalls":0,"possiblyBilled":false,"providerCalls":0}
+[Nest] 35710  - 10/22/2026, 7:12:55 PM     LOG [AgentController] {"event":"agent_task_execution","requestId":"38547707-d003-4dde-832d-cffe355ff6f7","elapsedMs":0,"steps":0,"knownCostUsd":0,"tokens":0,"unknownCostCalls":0,"possiblyBilled":false,"providerCalls":0}
+PASS tests/agent-screen.adapter.test.cjs
+PASS tests/agent-native-stop-flow.test.cjs (19.149 s)
+PASS tests/agent-operation-receipts.test.cjs (15.7 s)
+PASS tests/design.guard.test.cjs
+PASS tests/agent-workspace-browser.test.cjs
+FAIL tests/video-ui-v1.test.cjs
+  ● Console
+
+    console.info
+      🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+  ● saved facts and exact script survive reopening; mounting makes no write or paid request
+
+    TypeError: Cannot read properties of null (reading 'value')
+
+      59 |   stored.settings = { ...helper.videoSettingsForRoute(presenter, 'ru-RU'), avatarId: 'stock-avatar', voiceId: 'stock-voice', engine: 'avatar_iii' };
+      60 |   const view = draw(); await loaded(view);
+    > 61 |   expect(view.container.querySelector('#video-script').value).toBe(fact);
+         |                                                       ^
+      62 |   expect(view.container.querySelector('input[name="video-output-locale"]').value).toBe('ru-RU');
+      63 |   expect(calls.every(call => call.method === 'GET')).toBe(true);
+      64 | });
+
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:61:55)
+
+PASS tests/video-chat-execution-v1.test.cjs
+[Nest] 35710  - 10/22/2026, 7:13:39 PM    WARN [VideoExecutionRecoveryV1] VIDEO_EXECUTION_DISPATCH_UNAVAILABLE
+PASS tests/agent-parts.mirror.guard.test.cjs
+PASS tests/design.contrast.test.cjs
+PASS tests/foundation.test.cjs
+
+Test Suites: 1 failed, 12 passed, 13 total
+Tests:       1 failed, 208 passed, 209 total
+Snapshots:   0 total
+Time:        80.431 s
+Ran all test suites matching /tests\/video-ui-v1.test.cjs|tests\/video-chat-execution-v1.test.cjs|tests\/video-chat-domain-v1.postgres.test.cjs|tests\/agent-work-context.test.cjs|tests\/agent-screen.adapter.test.cjs|tests\/agent-native-conversation-flow.test.cjs|tests\/agent-workspace-browser.test.cjs|tests\/agent-parts.mirror.guard.test.cjs|tests\/agent-native-stop-flow.test.cjs|tests\/agent-operation-receipts.test.cjs|tests\/design.guard.test.cjs|tests\/design.contrast.test.cjs|tests\/foundation.test.cjs/i.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.

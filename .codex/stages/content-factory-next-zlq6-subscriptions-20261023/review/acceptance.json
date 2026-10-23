@@ -1,0 +1,94 @@
+{
+  "reviewBase": "e18afdc3b2a39d90349c05dd2d947c5e615a307f",
+  "reviewedHead": "e8060aabd6eecf84746b95b6dab85e49e2bb5b15",
+  "branch": "codex/video-v1-api",
+  "node": "22.23.2",
+  "pnpm": "10.6.1",
+  "findingsFixed": {
+    "P1": 1,
+    "P2": 4
+  },
+  "changedSourceHashes": {
+    "apps/backend/src/services/auth/auth.middleware.ts": "a9551ea0680bce6190a4fd72f40807a5d067ad744b3bff6e1f12e4cd14330c92",
+    "libraries/nestjs-libraries/src/database/prisma/migrations/20261023110000_video_subscription_recovery_deadline/migration.sql": "61ce33f5a0595110bc41bb3e0f8f109396a10885225e7499744b7f8b2180b202",
+    "libraries/nestjs-libraries/src/database/prisma/schema.prisma": "7e6f9734d37195b783bfb2aafa1902d1e55248fd994e949642d8476ed05ac8c8",
+    "libraries/nestjs-libraries/src/videos/providers/heygen-subscription.provider.ts": "8f90fcb2ef94b3747449301bf0b14b7d946959c01d77fa16b8dc12904bc54516",
+    "libraries/nestjs-libraries/src/videos/providers/higgsfield-subscription.provider.ts": "cb091a2636b26a2faaf3fb2d85019149cf8756c2ca729fccc5caaea1f35d3334",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-connection.service.ts": "e0838e6afd723d93244d4343e1e03a24c4a28665928b73da3a0d3d7935b343c9",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-mcp-client.ts": "c3133b48f3a66cbc1631b36cdb4ff054bcab8f0dabeac31d1a3727c066aed131",
+    "libraries/nestjs-libraries/src/videos/subscriptions/video-subscription-job.service.ts": "6fdabfbfc2e09adb050215b4f81fc20b93b4010e12550fccd46f183ddf1fcde2",
+    "libraries/nestjs-libraries/src/videos/video-access.service.ts": "ac345307fb2c1d74c2aac7c9ad33a84b980124c84a65e9e144c86eb40f489f2b",
+    "tests/helpers/video-subscription-domain.fixture.cjs": "a8de839372030d8cef89bd209dd50781ffbf1e41629d2133cef6aae6d1f4a9f6",
+    "tests/video-subscription-connections.postgres.test.cjs": "37dd8c690f17030b26068ebf5f966ba03bb3fa28d20f88653d108f5fcd154d7c",
+    "tests/video-subscription-execution.test.cjs": "2bba2a7774e8c6ee3278d47c829bd9026cb9ad0ec09a8538675d6c32650a6776"
+  },
+  "logs": {
+    "red-complete.log": "612dce43036dfb8ff3e1ef153bc8826a20d6e84a88541d3479ece826cc2c5468",
+    "affected-jest.log": "e7fd747d7bfa4f0fce7a1b81ce8c3a4d0b5c9fe783cfa73d30476832dffa8d26",
+    "affected-contracts.log": "2b12c1db8e244df012bf9fe50023a2741fcb228ba31ac3f7f0796e4f5e5de368",
+    "typecheck-backend.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typecheck-orchestrator.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "migration-guard.log": "51fddc71d612bc86713fb19a2d7b04733aa442addbef4091ded25607ff942950",
+    "migration-apply.log": "2f3ea809dd6ab08b3759423ecc8eed3099bc85e680461ed0321c3bf9dfa0fe78",
+    "recovery.diff.sql": "61ce33f5a0595110bc41bb3e0f8f109396a10885225e7499744b7f8b2180b202",
+    "cleanup.json": "90ecb8c784dc60eb3b41f28daef22743560bb0751c3e466bc439bafbcda809f2",
+    "docs.log": "9c0d402367390c66eebac104fd4be2c8ad0cbd08479aad693e76d6de92993d5d"
+  },
+  "checks": [
+    {
+      "command": "CF_VIDEO_DATABASE_DISPOSABLE=1 CF_VIDEO_DATABASE_URL=<owned loopback database> pnpm exec jest --runInBand --coverage=false tests/auth-middleware-membership.test.cjs tests/video-subscription-oauth.test.cjs tests/video-subscription-connections.postgres.test.cjs tests/video-subscription-domain.postgres.test.cjs tests/video-subscription-execution.test.cjs tests/video-subscription-chat.test.cjs tests/video-manual-attachment.postgres.test.cjs tests/video-domain-v1.postgres.test.cjs tests/video-chat-domain-v1.postgres.test.cjs tests/admin-account-delete.test.cjs",
+      "exitCode": 0,
+      "suites": 10,
+      "tests": 102,
+      "skipped": 0,
+      "log": "affected-jest.log"
+    },
+    {
+      "command": "pnpm exec node --test --test-concurrency=1 tests/video-provider-v1.contract.test.cjs tests/video-higgsfield-subscription.contract.test.cjs tests/video-heygen-subscription.contract.test.cjs",
+      "exitCode": 0,
+      "tests": 27,
+      "skipped": 0,
+      "log": "affected-contracts.log"
+    },
+    {
+      "command": "pnpm exec tsc --project apps/backend/tsconfig.json --noEmit --incremental false --pretty false",
+      "exitCode": 0,
+      "log": "typecheck-backend.log"
+    },
+    {
+      "command": "pnpm exec tsc --project apps/orchestrator/tsconfig.json --noEmit --incremental false --pretty false",
+      "exitCode": 0,
+      "log": "typecheck-orchestrator.log"
+    },
+    {
+      "command": "pnpm exec node scripts/operations/validate-prisma-migration-sql.cjs --diff .codex/stages/content-factory-next-zlq6-subscriptions-20261023/review/recovery.diff.sql --selected libraries/nestjs-libraries/src/database/prisma/migrations/20261023110000_video_subscription_recovery_deadline/migration.sql --allow-table VideoSubscriptionJob",
+      "exitCode": 0,
+      "log": "migration-guard.log"
+    },
+    {
+      "command": "python3 scripts/docs/check_docs.py",
+      "exitCode": 0,
+      "log": "docs.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "historicalFailingProof": {
+    "log": "red-complete.log",
+    "exitCode": 1,
+    "failed": 7,
+    "passed": 19
+  },
+  "notRerun": [
+    "browser journey",
+    "Temporal transport restart",
+    "frontend typecheck",
+    "full build",
+    "full repository suite"
+  ],
+  "realProviderEvidence": "UNKNOWN; .7 and epic stay open",
+  "externalDelivery": false,
+  "normalization": "Removed generated trailing blank lines from SQL only; migration statement unchanged; guard rerun passed."
+}

@@ -1,0 +1,120 @@
+  console.info
+    🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+      at I18n.init (node_modules/i18next/dist/cjs/i18next.js:1772:90)
+
+PASS tests/video-ui-v1.test.cjs
+  ✓ saved facts and exact script survive reopening; mounting makes no write or paid request (123 ms)
+  ✓ editing invalidates preflight; save preserves content and a fresh quote is required (218 ms)
+  ✓ unknown price keeps generation disabled and visible (92 ms)
+  ✓ lost submit response retains one intent; an explicit retry sends the identical request (175 ms)
+  ✓ reloading with an unresolved local intent never resubmits automatically (33 ms)
+  ✓ clip completed job reopens an owned player and download without a new generation (60 ms)
+  ✓ presenter completed job reopens an owned player and download without a new generation (55 ms)
+  ✓ failed ingestion retries only saving, never generation; unsupported cancel is absent (101 ms)
+  ✓ failed authenticated download leaves the owned player and can be retried without generation (83 ms)
+  ✓ readers cannot prepare, edit, preflight, launch, or retry a paid request (55 ms)
+  ✓ all interface locales supply every video label without falling back to English (94 ms)
+  ✓ quotes bind exact draft/version, expiry, known price and limit; route choice makes presenter audio explicit (2 ms)
+  ✓ blob download releases its temporary URL and rejects a non-video attachment (5 ms)
+  ✓ chat video artifacts stay distinct from the library and each other after persistence (111 ms)
+  ✓ embedded save, draft selection and launch retain the conversation URL (139 ms)
+  ✓ a completed chat edit refreshes the retained saved draft through its exact SWR reader (70 ms)
+  ✓ a concurrent chat edit preserves dirty manual text and offers an explicit current-version reload (55 ms)
+  ✓ media query changes and back navigation switch the existing page between library and exact video (39 ms)
+  ✓ paid video approval shows the exact saved script/settings and never promises cancellation (617 ms)
+  ✓ paid approval refuses a changed saved draft while leaving decline and refresh available (406 ms)
+  ✓ video selection, route, native edit completion and approval projection keep exact identities (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       21 passed, 21 total
+Snapshots:   0 total
+Time:        4.126 s
+Ran all test suites matching /tests\/video-ui-v1.test.cjs/i.
+
+Jest has detected the following 2 open handles potentially keeping Jest from exiting:
+
+  ●  Timeout
+
+      283 |   stored.settings = { ...helper.videoSettingsForRoute(presenter, 'ru'), avatarId: 'stock-avatar', voiceId: 'stock-voice', engine: 'avatar_iii' };
+      284 |   const answer = jest.fn();
+    > 285 |   const view = render(React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0, errorRetryCount: 0 } }, React.createElement(ApprovalCard, {
+          |                ^
+      286 |     title: 'Launch video', reason: 'Estimate 0.50 USD; reservation 1 USD', irreversible: false, toolName: 'video_launch', state: 'asked', busy: false, words, onAnswer: answer,
+      287 |     videoApproval: { draftId, version: 1, preflightId: 'quote-1' },
+      288 |   })));
+
+      at node_modules/swr/dist/index/index.js:393:21
+      at node_modules/swr/dist/index/index.js:582:21
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13213:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13951:13)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14065:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14065:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14165:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14031:11)
+      at flushLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18138:15)
+      at commitRoot (node_modules/react-dom/cjs/react-dom-client.development.js:17954:9)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:47:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:190:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:292:10)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:285:16)
+
+
+  ●  Timeout
+
+      307 |   const words = agentWordsFor('en');
+      308 |   stored.version = 2; stored.preflightId = 'quote-2';
+    > 309 |   const view = render(React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0, errorRetryCount: 0 } }, React.createElement(ApprovalCard, {
+          |                ^
+      310 |     title: 'Launch video', reason: 'Estimate 0.50 USD; reservation 1 USD', irreversible: false, toolName: 'video_launch', state: 'asked', busy: false, words, onAnswer: jest.fn(),
+      311 |     videoApproval: { draftId, version: 1, preflightId: 'quote-1' },
+      312 |   })));
+
+      at node_modules/swr/dist/index/index.js:393:21
+      at node_modules/swr/dist/index/index.js:582:21
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13213:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13951:13)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14065:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14065:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14165:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:13949:11)
+      at recursivelyTraverseLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15159:11)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:14031:11)
+      at flushLayoutEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18138:15)
+      at commitRoot (node_modules/react-dom/cjs/react-dom-client.development.js:17954:9)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:47:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:190:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:292:10)
+      at Object.<anonymous> (tests/video-ui-v1.test.cjs:309:16)

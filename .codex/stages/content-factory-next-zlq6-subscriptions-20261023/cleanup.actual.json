@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "stoppedProcesses": [
+    {
+      "pid": 37639,
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api",
+      "command": "node scripts/development/video-subscription-local-fixture.cjs "
+    },
+    {
+      "pid": 37850,
+      "cwd": "/home/me/code/content-factory-next-worktrees/video-v1-api/apps/frontend",
+      "command": "next-server (v16.3.8)                                                                                                                                     "
+    }
+  ],
+  "closedPorts": [
+    43320,
+    43321
+  ],
+  "removedContainers": [
+    {
+      "id": "55f5c35a2ad5cb736f706bb50692385d2c2b428528e15d24c88f4ede57ea8bdc",
+      "name": "/cf-video-subscriptions-20261023",
+      "image": "postgres:17-alpine"
+    },
+    {
+      "id": "2efa9036724217349b230844df0ebc02cc9a41fc44e23b8d2751732acdad564c",
+      "name": "/cf-video-subscriptions-temporal-20261023",
+      "image": "temporalio/temporal:latest"
+    }
+  ],
+  "removedTaskOwnedAnonymousVolumes": [
+    "c98fdece917e16c9c7e04d980723fc4bbe219e551f3d2d5e08b9a4c29ab9c0fb"
+  ],
+  "removedGeneratedNextAgentFiles": [
+    "apps/frontend/AGENTS.md",
+    "apps/frontend/CLAUDE.md"
+  ],
+  "temporaryUploadsRemoved": true,
+  "foreignResourcesTouched": false,
+  "worktreePreserved": true
+}

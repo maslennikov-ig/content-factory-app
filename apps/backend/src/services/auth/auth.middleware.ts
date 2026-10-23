@@ -9,6 +9,7 @@ import { HttpForbiddenException } from '@contentfactory/nestjs-libraries/service
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import { runAsActingUser } from '@contentfactory/nestjs-libraries/user/acting.user';
 import { assertCookieMutationOrigin } from '@contentfactory/nestjs-libraries/auth/same-origin-mutation';
+import { withAuthenticatedSession } from '@contentfactory/nestjs-libraries/user/authenticated.session';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -39,6 +40,7 @@ export class AuthMiddleware implements NestMiddleware {
     }
     assertCookieMutationOrigin(req);
     let actingUserId: string | undefined;
+    let sessionActorId: string | undefined;
     try {
       // Verify the signature and session purpose. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
@@ -49,6 +51,7 @@ export class AuthMiddleware implements NestMiddleware {
       if (!payload?.id) {
         throw new HttpForbiddenException();
       }
+      sessionActorId = payload.id;
 
       let user = (await this._userService.getUserById(payload.id)) as User | null;
 
@@ -86,7 +89,7 @@ export class AuthMiddleware implements NestMiddleware {
           // The impersonated identity, not the superadmin behind it: what the
           // request does, it does as that person, and the ledger should read
           // the same way the organization's own screens do.
-          runAsActingUser(user.id, next);
+          withAuthenticatedSession(sessionActorId, String(auth), () => runAsActingUser(user!.id, next));
           return;
         }
       }
@@ -144,6 +147,6 @@ export class AuthMiddleware implements NestMiddleware {
     // Everything the request goes on to do runs as this person, so anything
     // that records who acted — the AI ledger first — can read it without a
     // parameter threaded through services that have no business with it.
-    runAsActingUser(actingUserId, next);
+    withAuthenticatedSession(sessionActorId!, String(auth), () => runAsActingUser(actingUserId!, next));
   }
 }

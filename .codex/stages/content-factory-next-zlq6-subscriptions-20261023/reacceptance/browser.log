@@ -1,0 +1,121 @@
+{
+  "status": "PASS",
+  "boundary": "Actual Next/Nest controllers+policy+Prisma/storage, real local OAuth/MCP; sessions/providers/text synthetic; standard Temporal transport covered separately",
+  "results": [
+    {
+      "provider": "higgsfield",
+      "jobId": "246fdb43-32fb-429b-817b-57650b97d4a4",
+      "connectionFixture": true,
+      "exactSavedEdits": true,
+      "threeRouteSwitchNoSubmit": true,
+      "oneSubmit": true,
+      "reloadNoSubmit": true,
+      "jobOnlyReopen": true,
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.012152
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451",
+      "savedUrl": "http://localhost:43320/media?video=1&pieceId=4fef46af-58eb-41d9-9f2f-dc81461cc08d&draftId=4295bd66-5a62-4807-bb19-09df5f543e94&jobId=246fdb43-32fb-429b-817b-57650b97d4a4"
+    },
+    {
+      "provider": "heygen",
+      "jobId": "1321972e-6ce2-4559-b5f9-cdbcf52f320c",
+      "connectionFixture": true,
+      "exactSavedEdits": true,
+      "threeRouteSwitchNoSubmit": true,
+      "oneSubmit": true,
+      "reloadNoSubmit": true,
+      "jobOnlyReopen": true,
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.012556
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451",
+      "savedUrl": "http://localhost:43320/media?video=1&pieceId=4fef46af-58eb-41d9-9f2f-dc81461cc08d&draftId=74191031-c8bb-4bb9-bf68-c4baf52b7e91&jobId=1321972e-6ce2-4559-b5f9-cdbcf52f320c"
+    },
+    {
+      "access": "api",
+      "jobId": "726bd506-51ce-412b-813b-03ec7615a78c",
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.017734
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451"
+    },
+    {
+      "access": "manual",
+      "jobId": "4591f050-a885-43be-bd6c-eb63aa032678",
+      "copy": true,
+      "export": true,
+      "providerLinkIntercepted": true,
+      "existingUploader": true,
+      "noGeneration": true,
+      "noQuote": true,
+      "playback": {
+        "width": 960,
+        "height": 540,
+        "duration": 5.055,
+        "currentTime": 0.015715
+      },
+      "downloadSha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451"
+    }
+  ],
+  "firstVisitExplicitChoice": true,
+  "backForward": true,
+  "readerLaunch": 403,
+  "foreignResult": 404,
+  "responsiveWidths": [
+    1440,
+    1024,
+    768,
+    390
+  ],
+  "pageErrors": [],
+  "interceptedExternalNavigation": [
+    "https://higgsfield.ai/"
+  ],
+  "persisted": {
+    "jobs": [
+      {
+        "id": "246fdb43-32fb-429b-817b-57650b97d4a4",
+        "state": "completed",
+        "submitAttempts": 1,
+        "receipt": {
+          "id": "fixture_higgsfield_97cb511870cf473082864edabebda1e1"
+        },
+        "resultMediaId": "d4e2c932-dae2-4b02-8e30-bb639b99f84b",
+        "actualCost": null,
+        "costCertainty": "unknown"
+      },
+      {
+        "id": "1321972e-6ce2-4559-b5f9-cdbcf52f320c",
+        "state": "completed",
+        "submitAttempts": 1,
+        "receipt": {
+          "id": "fixture_heygen_1e7e6a3c28614285a198dfc981fa5136"
+        },
+        "resultMediaId": "784bbd37-6810-4c45-bc8e-7d20a4d34577",
+        "actualCost": null,
+        "costCertainty": "unknown"
+      }
+    ],
+    "manual": 1,
+    "routeIntents": 3,
+    "counters": {
+      "quotes": 2,
+      "submits": 2,
+      "polls": 2,
+      "apiSubmits": 1,
+      "downloads": 3,
+      "registrations": 2,
+      "refreshes": 0
+    }
+  }
+}

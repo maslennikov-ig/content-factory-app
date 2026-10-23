@@ -671,7 +671,13 @@ describe('actual Nest wiring and public routes', () => {
     };
     const { ApiModule } = loadTypeScriptModule(
       'apps/backend/src/api/api.module.ts',
-      h.mocks,
+      {
+        ...h.mocks,
+        // As with aliased application controllers below, these relative
+        // imports are ports outside the monitor wiring under test.
+        './routes/video-connections.controller': { VideoConnectionsController: class VideoConnectionsController {} },
+        './routes/video-access.controller': { VideoAccessController: class VideoAccessController {} },
+      },
       {
         sources,
         resolve: (name) => {

@@ -25,6 +25,9 @@ const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 let response;
 let calls;
 const mocks = {
+  // The video panel has separate HTTP and browser acceptance; this fixture
+  // owns text routing and its autosave requests only.
+  '../videos/video-provider-settings': { VideoProviderSettings: () => null },
   swr: {
     __esModule: true,
     default: (key) => ({
