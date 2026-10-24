@@ -2,12 +2,12 @@
 
 ## Delivered: HONEY-5961 / HONEY-5962
 
-CI follow-up is active under reopened HONEY-5962. The first repaired Build
-exposed a reused test-worker OOM and a real native queued-continuation gap.
-The gap is reproduced with a 2.5-second successor-start delay; an exact native
-thread reservation now protects its original admission. Focused verification,
-new complete CI and exact-source release/deployment are pending; production
-still runs 4ba4c5a44225.
+CI follow-up is active under reopened HONEY-5962. Full local release checks
+passed for 4e50deb25efe and calendar CI passed, but full CI exposed an extra
+approval admission when persisted history precedes Session event delivery.
+A controlled native regression reproduces it; the exact live task owner now
+controls continuation without a new admission. New full acceptance/release
+is pending; production still runs 4ba4c5a44225.
 [CI diagnosis and verification](stages/agent-chat-5961/ci-followup.md).
 
 HONEY-5961 and all six children retain completed canonical local acceptance.

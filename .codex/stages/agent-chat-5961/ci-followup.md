@@ -72,6 +72,31 @@ shortcut, as the existing `stopRequested` guard already does. A deterministic
 prior-failed-observation case is added alongside the original running case;
 all no-provider/no-successor-checkpoint assertions remain mandatory.
 
+## Approval event/admission race
+
+Private `4e50deb25efe` / public `2eb9a58667b1` passed all nine local release
+checks: Jest 772 suites/13,484 tests, Node167, Python50, types/build/docs/process.
+Its calendar CI passed 763 suites/13,401 tests; build, Docker and Code Quality
+also passed. Full CI `40104708199` exposed one additional Session-owner race
+(`agent-native-session-owner`): a third admission was opened even though the
+resumed provider retained ledger `[0,1,1]` and the committed domain write stayed
+single. That CI run is failed and is not accepted for deployment.
+
+Read-only delegated diagnosis reproduced the exact assertion without changing
+repo files. Hold the queued Session's native `tool-call-approval` delivery until
+the answer reaches owner lookup: persisted approval is visible, `armed=false`,
+but the exact queued owner, scope and registry are all live. The cached `armed`
+condition incorrectly falls through to a fresh admission. Removing that
+condition passes the same controlled ordering with two admissions and one write;
+`scope.active()` remains unchanged because no defect in it was demonstrated.
+
+A root-owned native regression now controls that event delivery with promises,
+without sleeps/retries or weaker assertions. Both original HTTP/queue cases and
+the new held-delivery case retain original-ledger, live-execution, exact target,
+one-write and terminal-state assertions. Exact admitted owner controls the join;
+the existing adapter selects the live or persisted native gate response.
+Fresh focused/full/CI acceptance and release remain required for this source.
+
 ## Application and delivery boundary
 
 The initial test-only publication was private `19e27e183` / public `f7fb7794c`.

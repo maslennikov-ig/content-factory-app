@@ -12,6 +12,7 @@ const { TextUsageLedger, runWithUsageLedger } = require('./ai-text-chain.cjs');
 const ORG = { id: IDENTITY.organizationId, createdAt: IDENTITY.organizationCreatedAt, users: [{ role: 'EDITOR' }] };
 const USER = { id: IDENTITY.userId, language: 'ru' };
 const human = (id, text) => ({ id, role: 'user', parts: [{ type: 'text', text }] });
+const delayApprovalDelivery = process.argv.includes('--delay-approval-delivery');
 const withinDeadline = async (work, name) => {
   let timer;
   try { return await Promise.race([work, new Promise((_resolve, reject) => {
@@ -33,6 +34,30 @@ async function scenario(kind) {
     attempts.push({ execution: runtime.executionModule.currentConductorExecution(), admission, closedAtCall: admission?.closed,
       prompt: JSON.stringify(args.prompt) });
   } });
+  let releaseApproval;
+  let reportApprovalHeld;
+  const approvalHeld = new Promise(resolve => { reportApprovalHeld = resolve; });
+  if (delayApprovalDelivery && kind === 'queue') {
+    const subscribe = runtime.agent.subscribeToThread.bind(runtime.agent);
+    let held = false;
+    runtime.agent.subscribeToThread = async (...args) => {
+      const subscription = await subscribe(...args);
+      const stream = { async *[Symbol.asyncIterator]() {
+        for await (const chunk of subscription.stream) {
+          if (!held && chunk.type === 'tool-call-approval') {
+            held = true;
+            const delivered = new Promise(resolve => { releaseApproval = resolve; });
+            reportApprovalHeld();
+            await delivered;
+          }
+          yield chunk;
+        }
+      } };
+      return new Proxy(subscription, {
+        get(target, key) { return key === 'stream' ? stream : Reflect.get(target, key); },
+      });
+    };
+  }
   const originalBegin = runtime.aiUsage.beginAiOperation.bind(runtime.aiUsage);
   runtime.aiUsage.beginAiOperation = async (...args) => {
     const admitted = await originalBegin(...args);
@@ -49,6 +74,17 @@ async function scenario(kind) {
   });
   const threadId = `${runtime.schemaName}-${kind}`;
   const threads = new AgentThreadsService(runtime.service, runtime.redis);
+  if (delayApprovalDelivery && kind === 'queue') {
+    const activeTurn = threads.activeTurnFor.bind(threads);
+    threads.activeTurnFor = async (...args) => {
+      const owner = await activeTurn(...args);
+      // Stored approval is visible before Session consumes its native event.
+      // Release only after the answer has reached its actual owner lookup.
+      releaseApproval?.();
+      releaseApproval = undefined;
+      return owner;
+    };
+  }
   const handler = new AgentController(runtime.service, threads, runtime.aiUsage);
   let pendingRunId;
   let completed = false;
@@ -82,6 +118,9 @@ async function scenario(kind) {
     await until(async () => { history = await handler.getThread(ORG, USER, threadId); return history.pending.length > 0; }, 'current native approval');
     const pending = history.pending[0];
     pendingRunId = pending.runId;
+    if (delayApprovalDelivery && kind === 'queue') {
+      await withinDeadline(approvalHeld, 'held native approval delivery');
+    }
     const answer = { threadId, messages: [{ id: 'current-approval', role: 'assistant', parts: [{
       type: 'tool-fixture_persist', toolCallId: pending.toolCallId, state: 'approval-responded', input: {},
       approval: { id: `${pending.runId}::${pending.toolCallId}`, approved: true },
@@ -108,6 +147,7 @@ async function scenario(kind) {
     completed = true;
     return { kind, priorFinished: true, admissions: 2, currentScopeRetained: true, domainCalls: 1 };
   } finally {
+    releaseApproval?.();
     if (!completed && pendingRunId) {
       runtime.agent.abortRunStream(pendingRunId);
       await (await runtime.agent.getWorkflow().createRun({ runId: pendingRunId })).cancel().catch(() => undefined);
@@ -119,6 +159,6 @@ async function scenario(kind) {
 
 (async () => {
   const report = [];
-  for (const kind of ['http', 'queue']) report.push(await scenario(kind));
+  for (const kind of delayApprovalDelivery ? ['queue'] : ['http', 'queue']) report.push(await scenario(kind));
   console.log(JSON.stringify(report));
 })().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });

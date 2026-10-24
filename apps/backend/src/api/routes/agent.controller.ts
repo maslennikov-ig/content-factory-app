@@ -396,13 +396,13 @@ export class AgentController {
             workContext: await this.threads.workContextForTurn(identity, threadId),
           });
           const live = await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext: context });
-          const armed = input.mode === 'approval'
-            ? input.approvals.every(answer => live?.approval.isArmed({ runId: answered!.runId, toolCallId: answer.toolCallId, threadId }))
-            : live?.suspensions.has({ runId: answered!.runId, toolCallId: resume!.toolCallId, threadId, resourceId });
           const owner = await this.threads.activeTurnFor(identity, threadId);
           const queuedOwner = owner?.requestId !== pointer.logicalRequestId &&
             this.mastraService.hasNativeTaskOwner?.(identity, threadId, pointer.logicalRequestId);
-          if (armed && (owner?.requestId === pointer.logicalRequestId || queuedOwner)) {
+          // Stored gates can precede their local Session event. The exact
+          // admitted owner remains authoritative; the native adapter selects
+          // its live or persisted response path without opening another ledger.
+          if (owner?.requestId === pointer.logicalRequestId || queuedOwner) {
             const dispatch = async () => streamNativeSession({ session: live as any,
               agent: await this.mastraService.conductor() as any, threadId, resourceId, requestContext: context,
               ...(resume ? { resume } : {}),
