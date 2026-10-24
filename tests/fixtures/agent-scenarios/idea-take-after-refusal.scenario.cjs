@@ -48,8 +48,8 @@ module.exports = {
     const piece = run.world.pieces.find((one) => one.id === written.summary.pieceId);
     expect(piece.leadSource).toMatchObject({ leadId: 'lead-1', url: 'https://vc.ru/a/1' });
     expect(run.world.leads.find((one) => one.id === 'lead-1').status).toBe('ACCEPTED');
-    // One intake, one paid operation of its own.
+    // One intake request, with extraction and the completed core generation.
     expect(run.requests.filter(([name]) => name === 'intake')).toHaveLength(1);
-    expect(turn.admissions.filter(([operation]) => operation !== 'agent')).toHaveLength(1);
+    expect(turn.admissions.filter(([operation]) => operation !== 'agent').map(([operation]) => operation)).toEqual(['intake', 'intake']);
   },
 };

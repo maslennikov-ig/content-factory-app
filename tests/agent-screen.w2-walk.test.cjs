@@ -293,7 +293,7 @@ describe('D6 — a tool output about a piece makes its screen read it again', ()
     ]);
   });
 
-  test('what the thread loaded with is not re-read; what arrives is, by the piece’s key', async () => {
+  test('what the thread loaded with is not re-read; incoming changes refresh every exact saved piece reader', async () => {
     const keys = [];
     const { chat, view, props, AgentConversation } = await drawConversation({
       messages: [answered('m4')],
@@ -306,8 +306,11 @@ describe('D6 — a tool output about a piece makes its screen read it again', ()
     await act(async () => {
       view.rerender(h(AgentConversation, { ...props }));
     });
-    expect(keys).toContain('/content-intelligence/pieces/p2');
-    expect(keys).not.toContain('/content-intelligence/pieces/p1');
+    const matches = (path) => keys.some((key) => typeof key === 'function' ? key(path) : key === path);
+    expect(matches('/content-intelligence/pieces/p2')).toBe(true);
+    expect(matches('/content-intelligence/pieces/p2/revisions')).toBe(true);
+    expect(matches('/content-intelligence/pieces/p1')).toBe(false);
+    expect(matches('/content-intelligence/pieces/p20')).toBe(false);
   });
 });
 
@@ -571,7 +574,8 @@ describe('D7 — the approval footnote matches what the action does', () => {
       'До выхода пост можно снять с расписания — в чате или в календаре.'
     );
     expect(cards.approvalNoteOf('piece_delete', true)).toBe('delete');
-    expect(cards.approvalNoteOf('avatar_activate', false)).toBe('undo');
+    expect(cards.approvalNoteOf('avatar_activate', false)).toBe('none');
+    expect(await draw('avatar_activate')).not.toContain(ru.approval.reversibleNote);
   });
 
   test('W4 walk P3-E: lead actions never promise an undo the screen does not have', async () => {

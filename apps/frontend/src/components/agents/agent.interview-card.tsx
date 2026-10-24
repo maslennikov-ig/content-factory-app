@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   SuggestedQuestionsCard,
   type SuggestedAnswer,
+  type QuestionAnswers,
 } from '@contentfactory/frontend/components/content-intelligence/intake/questions.card';
 import {
   DECIDE_FOR_PERSON_ANSWER,
@@ -12,6 +13,7 @@ import {
 } from './agent.contract';
 import { AgentCard } from './agent.cards';
 import type { AgentWords } from './agent.copy';
+import { useQuestionDraft } from './agent.question-draft';
 
 /**
  * «Уточнение» before an adaptation (`kcxz.16`, `piece_adapt`'s pause): the
@@ -39,17 +41,40 @@ export function InterviewCard({
   busy,
   onAnswer,
   words,
+  draftStorageKey,
+  failure = false,
 }: {
   question: AgentInterviewQuestion;
   busy: boolean;
-  onAnswer: (resumeData: Record<string, unknown>) => void;
+  onAnswer: (resumeData: Record<string, unknown>) => void | Promise<void>;
   words: AgentWords;
+  draftStorageKey?: string;
+  failure?: boolean;
 }) {
   const w = words.interview;
   const [sent, setSent] = useState(false);
-  const send = (resumeData: Record<string, unknown>) => {
+  const sending = useRef(false);
+  const [draft, setDraft] = useQuestionDraft<QuestionAnswers>(
+    draftStorageKey,
+    {}
+  );
+  useEffect(() => {
+    if (failure) {
+      sending.current = false;
+      setSent(false);
+    }
+  }, [failure]);
+  const send = async (resumeData: Record<string, unknown>) => {
+    if (sending.current || busy) return;
+    sending.current = true;
     setSent(true);
-    onAnswer(resumeData);
+    try {
+      await onAnswer(resumeData);
+      if (draftStorageKey) try { window.sessionStorage.removeItem(draftStorageKey); } catch { /* Optional browser draft. */ }
+    } catch {
+      sending.current = false;
+      setSent(false);
+    }
   };
   const title = w.title(question.questions.length);
 
@@ -62,7 +87,9 @@ export function InterviewCard({
       label={`${w.badge}: ${title}`}
       aside={
         question.channel ? (
-          <span className="cf-caption text-cf-ink-muted">{question.channel.name}</span>
+          <span className="cf-caption text-cf-ink-muted">
+            {question.channel.name}
+          </span>
         ) : undefined
       }
     >
@@ -73,6 +100,9 @@ export function InterviewCard({
       ) : null}
       <SuggestedQuestionsCard
         framed={false}
+        requireExplicitAnswers
+        initialAnswers={draft}
+        onAnswersChange={setDraft}
         // The lead is the server's, drawn above; unframed, the card shows none.
         words={{ ...w, lead: question.text }}
         questions={question.questions.map((one) => ({
@@ -91,6 +121,11 @@ export function InterviewCard({
             : undefined
         }
       />
+      {failure ? (
+        <p role="status" className="cf-body-sm text-cf-warning">
+          {words.question.answerFailed}
+        </p>
+      ) : null}
     </AgentCard>
   );
 }

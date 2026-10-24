@@ -560,14 +560,14 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     expect(chat.sent).toHaveLength(1);
   });
 
-  test('a request that failed on the way waits for terminal reconciliation before its approval can be retried', async () => {
+  test.each([undefined, 'other-native-run'])('a lost approval waits for terminal reconciliation when the current run is %s', async (runId) => {
     let settled = false;
     const { chat, view, redraw } = await drawConversation({
       messages: [approvalCard(), person, laterReply],
       pending: PENDING_APPROVAL,
       request: async () => ({ ok: true, json: async () => ({
         thread: { id: 't1' }, messages: [approvalCard(), person, laterReply], pending: PENDING_APPROVAL,
-        execution: { requestId: 'approval-request', state: settled ? 'settled' : 'running', ...(settled ? { outcome: 'failed' } : {}) },
+        execution: { requestId: 'approval-request', ...(runId ? { runId } : {}), state: settled ? 'settled' : 'running', ...(settled ? { outcome: 'failed' } : {}) },
       }) }),
     });
     await act(async () => {
@@ -597,6 +597,33 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     expect(chat.sent).toHaveLength(1);
     await act(async () => fireEvent.click(button(ru.approval.yes)));
     expect(chat.sent).toHaveLength(2);
+  });
+
+  test.each(['running', 'unknown'])('a current native pending approval restores its unaccepted SDK answer when the execution marker is %s', async (state) => {
+    const { chat, redraw } = await drawConversation({
+      messages: [approvalCard(), person, laterReply],
+      pending: PENDING_APPROVAL,
+      request: async () => ({ ok: true, json: async () => ({
+        thread: { id: 't1' }, messages: [approvalCard(), person, laterReply], pending: PENDING_APPROVAL,
+        execution: { requestId: 'approval-request', runId: PENDING_APPROVAL[0].runId, state },
+      }) }),
+    });
+    await act(async () => fireEvent.click(button(ru.approval.yes)));
+    expect(chat.messages[0].parts[1].state).toBe('approval-responded');
+    chat.status = 'error';
+    chat.error = new TypeError('Failed to fetch');
+    await act(async () => {
+      chat.options.onError(chat.error);
+      chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: true });
+    });
+    await redraw();
+    expect(approvalOnScreen().getAttribute('data-agent-approval')).toBeNull();
+    expect(chat.messages[0].parts[1].state).toBe('approval-requested');
+    expect(button(ru.approval.yes).disabled).toBe(false);
+    expect(chat.sent).toHaveLength(1);
+    await act(async () => fireEvent.click(button(ru.approval.no)));
+    expect(chat.sent).toHaveLength(2);
+    expect(chat.answers.at(-1)).toEqual({ id: APPROVAL_ID, approved: false });
   });
 });
 

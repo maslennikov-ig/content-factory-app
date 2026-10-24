@@ -166,7 +166,7 @@ export const admitCapabilityCall = async (
   }
 
   const answering = capability.personQuestions?.answers?.(input as never);
-  if (answering && questionsOpenedHere(requestContext, answering)) {
+  if (answering && questionsOpenedHere(requestContext, answering) && !(options.webChat && capability.nativeDomainQuestions)) {
     return refusal(
       'INPUT_NEEDS_PERSON',
       'These questions were put to the person a moment ago, on the card in this very answer, and they have not replied yet; nothing was done or spent. Only the person answers them: ask them in one message to answer here or on the card, or to say «Решите за меня». Do not answer or decide for them now.'

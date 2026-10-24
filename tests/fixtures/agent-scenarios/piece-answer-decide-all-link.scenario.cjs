@@ -28,19 +28,23 @@ module.exports = {
       say: 'На вопросы cnt-1 решите за меня',
       model: [
         [['tool', 'piece_answer', { pieceId: 'p1' }]],
-        [['text', 'Суть обновлена, пост пойдёт без ссылки.']],
       ],
     },
+    {resume: {decideForPerson: true}, model: [[['text', 'Суть обновлена, пост пойдёт без ссылки.']]]},
     {
       say: 'И на вопросы cnt-2 тоже решите за меня',
       model: [
         [['tool', 'piece_answer', { pieceId: 'p2' }]],
-        [['text', 'Суть обновлена.']],
       ],
     },
+    {resume: {decideForPerson: true}, model: [[['text', 'Суть обновлена, заданная ссылка сохранена.']]]},
   ],
   check: (run) => {
-    const [first, second] = run.turns;
+    const [firstAsk, first, secondAsk, second] = run.turns;
+    expect(firstAsk.suspended[0].payload.kind).toBe('domain-questions');
+    expect(secondAsk.suspended[0].payload.kind).toBe('domain-questions');
+    expect(firstAsk.outputs).toEqual([]);
+    expect(secondAsk.outputs).toEqual([]);
     const piece = (id) => run.world.pieces.find((one) => one.id === id);
 
     // Handed over entirely: the link question is answered «Без ссылки»…

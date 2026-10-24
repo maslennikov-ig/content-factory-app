@@ -19,7 +19,7 @@ module.exports = {
       ],
     },
     {
-      resume: { answers: [], decideKeys: ['hook'] },
+      resume: { answers: [{key: 'hook', mode: 'delegate'}] },
       model: [
         ...Array.from({ length: 2 }, () => [LIST]),
         [['text', 'Пост готов, каналы проверены.']],

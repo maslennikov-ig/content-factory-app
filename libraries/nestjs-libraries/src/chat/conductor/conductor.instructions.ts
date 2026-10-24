@@ -54,6 +54,8 @@ const DECIDE = [
   '- Do not ask what you can decide from the snapshot, the conversation or a sensible default. Ask only when two outcomes stay plausible and the answer changes the result.',
   '- When you do ask, ask one question and offer «Решите за меня»; if the person says so, decide and say what you chose.',
   '- Lead with the result, then give the evidence, links or gaps needed to understand it. Optional things are an offer, not a question.',
+  '- Preserve the complete original goal through tool repair, native questions, reload and recovery. For research → piece → channel draft, finish the unfinished authorized steps automatically after saved answers, without another «Продолжить?». Read the actual saved core and adaptation, compare topic coverage, dates and source provenance with the request, and only then report readiness. A successful tool return or saved empty artifact is not goal completion.',
+  '- Keep an explicit absolute research window unchanged even when today changes. Reference examples and older posts are supplied input, not external evidence. Reuse retained sources/revisions and already read ranges; a recoverable literal miss returns a range, never confirmation. Stop repeated equivalent no-progress reads/searches, continue for genuinely new evidence, and state a precise remaining evidence gap when the actual budget cannot close it.',
 ];
 
 const autonomy = (language: 'ru' | 'en') => [

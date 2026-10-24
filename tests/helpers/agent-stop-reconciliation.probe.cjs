@@ -108,7 +108,12 @@ async function scenario(outcome, resumed, repair = false) {
     hooks: createCapabilityHooks([capability], { check: async () => ({ allowed: true, policies: [] }) }),
   });
   const mastra = new Mastra({ agents: { 'content-factory': agent }, storage: new InMemoryStore() });
-  const mastraService = { mastra: async () => mastra, conductor: async () => agent };
+  const mastraService = {
+    mastra: async () => mastra, conductor: async () => agent,
+    // The controller rechecks the contextual approval before resuming. This
+    // fixture owns one synthetic capability with no external domain entity.
+    describeApproval: async (_identity, toolName) => toolName === 'test_deferred' ? capability.label.ru : null,
+  };
   const mocks = {
     '@mastra/ai-sdk': { handleChatStream },
     '@mastra/memory': { Memory },

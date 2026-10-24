@@ -1,6 +1,56 @@
 # Развёртывание на сервере
 
-## Текущий выпуск 23.10.2026: eb26f53a52a1
+## Current release 23 October 2026: e819113f113e
+
+Video access (API, personal subscriptions and manual upload), including the
+preceding table/native-replay release. Tested private source `0852c9fe515a76a476ce973e8d65d06af1434cd6`;
+private main delivered through `181d2aa46`; public/runtime `e819113f113ea3c0c65ce00b76cafd2ccd1a8ac1`.
+Registry digest `sha256:71d4a58fd3656627b71541744e99dc522603606466cf19d4e9c4488f6c4d3fa7`.
+
+Full release checks PASS: Jest 763 suites/13424 tests (7 suites/70 existing skips),
+Node 167 PASS/4 environment skips, Python 50 OK; all 4 apps built both locally
+and in the release image, types/branding/docs/process/diff/nginx/commands-help PASS.
+Production read-only browser verified all three access choices, disabled provider
+connections, manual selection reload and mobile layout without errors. No new
+usage, provider connection or video job. Actual execution/recovery is established
+by the separate [local browser/Temporal acceptance](../../.codex/stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance.md).
+
+A guarded, backed-up transaction added 11 tables and 4 nullable settings columns;
+SQL SHA-256 `1d01b80459872bd358605c20a98e734d98f882b904d259392d52c073f3ffc80a`. Backup:
+`/var/backups/content-factory-next/postgres/20261023T130932Z-pre-e819113f113e-product-only` (725 readable TOC entries).
+Post-apply runtime grants and empty diff before/after switching PASS. Video tables
+remain empty, API credentials/spend policies unset; original settings, Mastra
+schema/4 suspended snapshots, 149 messages, foreign containers/volumes and live
+configuration are preserved. Runtime healthy, 3 PM2 processes online/0 restarts,
+worker ready. Source archive: 14744402 bytes,
+SHA-256 `9c32c47dbcdbcbafcc504db8ac636c6f57b3e58f36cf2bee2e09fcbc969e3f1d`.
+
+Canonical retention kept current + `e37c8dac4dbf` and removed only the old
+eb26 image and 2 old configuration copies. Six temporary schema helpers, owned
+local fixture containers/network and browser credential were removed; backup
+retained. Full evidence and the preceding chat-timestamp comparison are in
+[release outcome](../../.codex/stages/content-factory-next-video-release-20261023/outcome.md);
+private receipts: `~/.local/state/content-factory-next/release-video-20261023/`.
+
+Provider subscription profiles remain disabled; no real accounts, credential
+wiring, paid calls or credits. `.7` and epic remain open for real evidence.
+See [provider gates](video-subscription-local-acceptance.md). The documentation
+follow-up does not change the accepted application source.
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh e37c8dac4dbf`.
+Keep additive video records/schema; do not run a destructive down-migration.
+
+## Предыдущий выпуск 23.10.2026: e37c8dac4dbf
+
+Исправление таблиц `content-factory-next-t6ko`: штатный Markdown/GFM-рендерер вместо самописного парсера, с сохранением KaTeX и безопасного вывода. Проверенный приватный источник `d81a12ab5e93a02c93d8b5f379107bfde1e5748f`, публичный/runtime `e37c8dac4dbfb3ce6a9520c04bafbc2d305469a3`. Registry `sha256:2f68dc6fed43466eca8207ea8d3e2752e131b44abe0978522d11f411195bccf2`, config `sha256:369e309a088afb94475aeddd44b0b758e8709d2adab396e1b51a80de5b88efdc`. Полный gate дополнительно выявил и устранил гонку native replay `content-factory-next-z2nz`: при ошибке чтения истории текущее поколение теперь загружается до подписки и передаётся существующему фильтру Mastra `minGeneration`.
+
+Исправленный источник прошёл полный набор: Jest 747 наборов/13160 тестов (7 наборов/70 существующих пропусков), Node 140 PASS/4 пропуска окружения, Python 50 OK. Проверки исходников, сборка всех 4 приложений, nginx и commands-help прошли. В обычном production-браузере в том же сохранённом чате Sol проверены таблица 3 столбца/2 строки, 4 формулы в ячейках и все 22 исходные формулы, включая 3 блочные: обе темы, компьютер/телефон, прокрутка клавиатурой и перезагрузка. Новых обращений к модели не было. Все 149 сообщений и настройки ИИ точны; 27 остальных чатов не изменены. У открытого чата изменились только две служебные даты, что подтверждено сравнением всех столбцов без исправляющих записей в БД.
+
+Prisma diff пуст до/после, схема не применялась; схема Mastra и 4 приостановленных человеком задачи сохранены. Приложение healthy/0 restarts, 3 процесса PM2 online/0 restarts, worker ready. 21 соседний контейнер, их монтирования и 21 том сохранены. Архив `13486219` байт, SHA-256 `efda23ea1b44fbd1b9833b56057b302ffaa7a418fb52b72cd909668138f422f6`, совпал с образом. Штатная очистка оставила текущую версию и проверенный откат `eb26f53a52a1`, удалила только старый bf7-образ и 2 копии конфигурации. Временные файлы проверки и локальный браузерный токен удалены. Чужие локальные изменения, индекс Git и локальный стенд сохранены. Квитанции приватно: `~/.local/state/content-factory-next/release-tables-20261023/`.
+
+Откат: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh eb26f53a52a1`.
+
+## Предыдущий выпуск 23.10.2026: eb26f53a52a1
 
 Исправление формул в чате, `content-factory-next-xija`: KaTeX 0.19, безопасный DOM API, локальные стили/шрифты и MathML. Проверенный приватный источник `23efd3094c8bb56633a91ccf76f4acdab2f98224`, публичный/runtime `eb26f53a52a14c9144cb39f11c9a17e1308cf714`. Registry `sha256:96a401a62de87f5c87370794f1708959881aa5a85c4499ba7feacd02c87f308e`, config `sha256:3ffe4a192328f5c0cdeb91c8c2ba8959bd73da504e55dda13affcc8cdb9dd50a`. Все 9 проверок выпуска прошли: Jest 747 наборов/13155 тестов (7 наборов/70 существующих пропусков), Node 140 PASS/4 пропуска окружения, Python 50 OK; образ собрал все 4 приложения, nginx и commands-help прошли.
 

@@ -22,6 +22,7 @@
  *   `model` steps the scripted model plays for that request (a step is a list
  *   of `['tool', name, input]` / `['text', words]`);
  * - `check(run)`: jest assertions over what the runner recorded.
+ * - `endsPending`, or an exact `pending` count for multiple disabled gates.
  *
  * The runner (`agent-scenarios.runner.cjs`) plays them in a child process.
  */
@@ -31,6 +32,10 @@ const path = require('node:path');
 
 const SCENARIO_DIR = path.resolve(__dirname, '..', 'fixtures', 'agent-scenarios');
 const SUFFIX = '.scenario.cjs';
+const INTAKE_QUESTIONS = [
+  {field: 'audience', question: 'Для кого?'},
+  {field: 'facts', key: 'ask-1', question: 'Какой итог?'},
+];
 
 const loadScenarios = () =>
   fs
@@ -98,6 +103,7 @@ const screenPieces = () =>
   );
 
 module.exports = {
+  INTAKE_QUESTIONS,
   screenPieces,
   SCENARIO_DIR,
   loadScenarios,

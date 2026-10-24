@@ -110,14 +110,21 @@ describe('agent capability registry', () => {
       const found = keysOf(capability.input).filter((path) => SELECTION_KEY.test(path.at(-1)));
       expect({ id: capability.id, found: sortedPaths(found) }).toEqual({ id: capability.id, found: sortedPaths(modelInputs[capability.id] ?? []) });
     }
-    for (const id of ['piece.create.from-research', 'piece.research.apply']) {
+    // Applying model-owned fact selection itself still has no human-answer gate.
+    for (const id of ['piece.research.apply']) {
       const capability = catalogue.find(entry => entry.id === id);
       expect(capability.risk).toBe('paid');
       expect(capability.resumeSchema).toBeUndefined();
       expect(capability.suspendSchema).toBeUndefined();
     }
-    // Genuine requested review retains its signed human-answer schema.
-    for (const id of ['piece.research', 'piece.check_facts', 'piece.rewrite']) {
+    // Writing from research can suspend only for the saved domain manual
+    // questions after creation; it does not turn fact selection into human consent.
+    const fromResearch = catalogue.find(entry => entry.id === 'piece.create.from-research');
+    expect(fromResearch.suspendSchema.shape.kind.value).toBe('domain-questions');
+    expect(fromResearch.resumeSchema.shape.answers).toBeDefined();
+    expect(fromResearch.resumeSchema.shape.factKeys).toBeUndefined();
+    // Genuine requested review retains its signed human-answer schema too.
+    for (const id of ['piece.create.from-research', 'piece.research', 'piece.check_facts', 'piece.rewrite']) {
       const capability = catalogue.find((entry) => entry.id === id);
       expect({ id, risk: capability.risk, asks: !!capability.resumeSchema }).toEqual({ id, risk: 'paid', asks: true });
     }
@@ -274,11 +281,11 @@ describe('F1, F16: an approval card says what and where, for exactly the call (r
       /^Удалить заготовку p1 — в этом пространстве её нет/
     );
     // Arguments the schema refuses, a failing read and a non-confirm tool.
-    expect(await describe(IDENTITY, { pieceId: '' })).toBe(base.label.ru);
+    expect(await describe(IDENTITY, { pieceId: '' })).toBeNull();
     const failing = servicesFrom({ PieceService: { approvalSubject: async () => { throw new Error('db'); } } });
     expect(
       await registry.describeApprovalCall(catalogue, failing, IDENTITY, 'piece_delete', { pieceId: 'p1' })
-    ).toBe(base.label.ru);
+    ).toBeNull();
     expect(
       await registry.describeApprovalCall(catalogue, services, IDENTITY, 'piece_rename', { pieceId: 'p1', title: 'x' })
     ).toBeNull();

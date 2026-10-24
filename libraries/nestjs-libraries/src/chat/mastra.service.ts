@@ -15,7 +15,7 @@ import { createDurableAgent, isDurableAgent } from '@mastra/core/agent/durable';
 import { MASTRA_THREAD_ID_KEY } from '@mastra/core/request-context';
 import { RedisServerCache } from '@mastra/redis';
 import { RedisStreamsPubSub } from '@mastra/redis-streams';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import {
@@ -25,6 +25,7 @@ import {
 import { readAgentOperationRunGuard } from './conductor/agent-operation-receipts';
 import { observeConductorRun } from './conductor/native-run-observer';
 import { createNativeObservability } from './conductor/native-observability';
+import { NativeSessionCache } from './conductor/native-session-cache';
 import {
   createNativeQueuedInputWorkflow,
   enqueueNativeQueuedInput,
@@ -48,6 +49,7 @@ import {
   boundedRunClaimStore,
 } from './conductor/agent-run-claims';
 import { questionCardId } from './capabilities/question-card';
+import { assertDomainQuestionCurrent } from './capabilities/domain-questions';
 import {
   createNativeModelAvailabilityWorkflow,
   NativeModelAvailability,
@@ -135,6 +137,7 @@ export class MastraService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
   private instance?: Mastra;
+  private readonly nativeSessionBindingId = randomUUID();
   private shutdownPromise?: Promise<void>;
   private modelAvailability?: NativeModelAvailability;
   private queuedInputWorkflow?: ReturnType<
@@ -151,6 +154,11 @@ export class MastraService
       stop: () => void;
     }
   >();
+  private readonly nativeSessionCache = new NativeSessionCache({
+    hasActiveTask: ({ resourceId, scope }) =>
+      this.nativeTaskScopes.has(`${resourceId}:${scope}`),
+    onError: (error) => this.instance?.getLogger().error('Native idle session release failed.', { error }),
+  });
   private readonly fallbackNotifications = new InMemoryNotificationsStorage();
 
   constructor(
@@ -183,6 +191,7 @@ export class MastraService
   async onApplicationShutdown() {
     this.shutdownPromise ??= (async () => {
       try {
+        await this.nativeSessionCache.close();
         await Promise.allSettled(
           [...this.recoveryObservers.values()].map((detach) => detach())
         );
@@ -198,6 +207,10 @@ export class MastraService
 
   private service = <T>(token: Type<T>): T =>
     this.moduleRef.get(token, { strict: false });
+
+  assertDomainQuestionCurrent(identity: CapabilityIdentity, payload: unknown) {
+    return assertDomainQuestionCurrent({ ...identity, service: this.service }, payload);
+  }
 
   private workContextResolver() {
     return new AgentWorkContextResolver({
@@ -1464,7 +1477,10 @@ export class MastraService
       // Registering a bare Agent on the controller bypasses durable execution.
       const durableAgent = createDurableAgent({
         agent: backingAgent,
-        cleanupTimeoutMs: 86_400_000,
+        // Keep Mastra's30s completed-stream grace period. A day-long timer
+        // retained every finished run's MessageList and execution closures in
+        // the backend heap. Completed reconnects use saved native history;
+        // suspended gates keep their snapshots and are not auto-cleaned here.
       });
       const agents = { [CONDUCTOR_AGENT_ID]: durableAgent };
       const namespace = createHash('sha256')
@@ -2063,36 +2079,45 @@ export class MastraService
       identity.organizationId,
       identity.userId
     );
-    const controller = await this.controller();
-    const session = await controller.createSession({
-      id: `${resourceId}:${threadId}`,
-      ownerId: identity.userId,
-      resourceId,
-      scope: threadId,
-      ...(options?.bindThread ? { threadId } : {}),
-      createInitialThread: false,
-      requestContext: options?.requestContext,
-    });
-    if (options?.bindThread) {
-      const existing = await session.thread.getById({ threadId });
-      if (!existing || existing.resourceId !== resourceId)
-        throw Object.assign(
-          new Error('Native session thread is outside this workspace.'),
-          { name: 'PermissionDenied' }
+    const address = { resourceId, scope: threadId };
+    const unpin = this.nativeSessionCache.pin(address);
+    try {
+      const controller = await this.controller();
+      const session = await controller.createSession({
+        id: `${resourceId}:${threadId}`,
+        ownerId: identity.userId,
+        resourceId,
+        scope: threadId,
+        // Prevent automatic subscription during construction: permissions must be
+        // restored before an existing pending gate can execute. Binding follows below.
+        tags: { assistantThreadId: threadId, assistantRuntime: this.nativeSessionBindingId },
+        createInitialThread: false,
+        requestContext: options?.requestContext,
+      });
+      await this.nativeSessionCache.remember(address, session, controller);
+      if (options?.bindThread) {
+        const existing = await session.thread.getById({ threadId });
+        if (!existing || existing.resourceId !== resourceId)
+          throw Object.assign(
+            new Error('Native session thread is outside this workspace.'),
+            { name: 'PermissionDenied' }
+          );
+        if (session.thread.getId() !== threadId) {
+          await session.thread.switch({
+            threadId,
+            emitEvent: false,
+            requestContext: options.requestContext,
+          });
+        }
+        // Cold sessions need the native stream engine to replay and arm stored
+        // gates (including allow-policy built-ins) before answers can resume them.
+        await session.thread.ensureCurrentSubscription(
+          options.requestContext as RequestContext<any>
         );
-      if (session.thread.getId() !== threadId) {
-        await session.thread.switch({
-          threadId,
-          emitEvent: false,
-          requestContext: options.requestContext,
-        });
       }
-      // Cold sessions need the native stream engine to replay and arm stored
-      // gates (including allow-policy built-ins) before answers can resume them.
-      await session.thread.ensureCurrentSubscription(
-        options.requestContext as RequestContext<any>
-      );
+      return session;
+    } finally {
+      unpin();
     }
-    return session;
   }
 }

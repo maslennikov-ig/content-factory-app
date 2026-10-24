@@ -84,7 +84,7 @@ describe('F2: piece.adapt queues only with consent given on this call', () => {
     const door = adaptDoor({ mode: 'reserve' });
     const tool = build('piece.adapt', door.services);
     const asked = await executeTool(tool, input, context());
-    expect(asked.suspended[0]).toMatchObject({ kind: 'interview' });
+    expect(asked.suspended[0]).toMatchObject({ kind: 'domain-questions' });
     expect(asked.suspended[0]).not.toHaveProperty('afterConsent');
     await executeTool(tool, input, {
       ...context(),
@@ -119,7 +119,7 @@ describe('F2: piece.adapt queues only with consent given on this call', () => {
       await executeTool(tool, input, { ...context(), resumeData: { consentGiven: true }, suspendPayload: consent })
     ).suspended[0];
     // Kept on the server, never shown: the consent this interview follows.
-    expect(interview).toMatchObject({ kind: 'interview', afterConsent: true });
+    expect(interview).toMatchObject({ kind: 'domain-questions', afterConsent: true });
     expect(registry.questionCardView(interview)).not.toHaveProperty('afterConsent');
     const { output } = await executeTool(tool, input, {
       ...context(),

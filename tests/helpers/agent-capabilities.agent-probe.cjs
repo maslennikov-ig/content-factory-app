@@ -86,6 +86,12 @@ const paidCap = async () => {
           runs += 1;
           return intake.prepare(...args);
         },
+        // This probe isolates settled paid permits. Native question durability
+        // is covered by agent-domain-questions-native.test.cjs.
+        run: async function* () {
+          yield {name: 'piece', pieceId: `permit-piece-${runs}`, code: `cnt-${runs}`};
+          yield {name: 'done'};
+        },
       },
     }),
     language: 'ru',

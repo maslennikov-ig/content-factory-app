@@ -96,6 +96,41 @@ The facade shares the conversation, composer, upload, question, selection, appro
 
 Before the first text, remove the competing «Дописать материал» block; answers and new context belong to the interview/conversation. After a text exists, the primary path is an instruction such as «Сократи вступление» or «Добавь мой пример». A secondary «Добавить исходные материалы» action may remain for deliberate raw input, clearly distinct from an edit instruction. Do not silently append editorial commands as factual material. Keep direct manual text editing, source inspection, version restore and channel adaptation available.
 
+### Manual questions in the conversation, 24 October 2026
+
+Domain-owned manual questions use the existing native tool suspension. The
+interactive payload retains the exact question, ordered options, stable IDs,
+recommendations, custom-answer entry and source revision independently of the
+compact model preview. `DomainQuestionCard` shows one active question plus saved
+answers. Single and multiple selection follow the source contract; native
+`ask_user.selectionMode` is retained too. Own-answer options open an empty field
+and their labels never become personal facts.
+
+Each explicit answer resumes the same native call and is persisted before the
+next question. Only the completed answer batch reaches the existing domain
+service. An unanswered or empty field never delegates implicitly; per-question
+and remaining-batch delegation are deliberate controls. Accepted answers come
+from the native checkpoint. Browser session storage holds only unsent drafts,
+scoped to the existing organization, user and thread plus batch, revision and
+question. A refused or stale response retains typed text and cannot advance the
+domain batch. Concurrent tabs still require the authoritative card and revision.
+After a lost reply, an owned current history read restores the exact waiting
+gate even while execution metadata says `running`: retain the same unsent
+draft, or show the next gate and its accepted prior answer. Never resend the
+answer automatically. An explicit Stop still requires terminal stop proof.
+
+After a successful domain application, exact saved-object readers are
+revalidated without clearing editor data or remounting dirty manual fields.
+The already requested ordinary goal continues without another confirmation.
+A consent card requires operation details before showing an approval control;
+missing metadata offers a read-only refresh and safe rejection. Undo guidance
+belongs only to an operation whose actual behavior supports it.
+
+A source-read miss with a successful, revision-bound returned text range is a
+recoverable reading step: show that the exact phrase was absent and identify
+the actual character range. Do not present it as a match, evidence confirmation
+or terminal failure. A missing, stale or unauthorized source remains a failure.
+
 ## 7. Research periods and change-only tasks
 
 Both intake paths consume the same versioned research-intent contract. It distinguishes the new task from an old example and records a concrete clock anchor, timezone, requested event interval, prior coverage boundary and exclusions. Use existing role/config routing and web engines; no extra paid planner chain is required by this design.

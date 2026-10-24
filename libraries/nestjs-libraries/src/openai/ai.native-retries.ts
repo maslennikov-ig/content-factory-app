@@ -63,6 +63,17 @@ const terminalMessage = /\b(invalid[_ -]?api[_ -]?key|authentication[_ -]?error|
 const terminalBillingMessage = /\b(insufficient[_ -]?quota|quota[_ -]?exceeded|credit[_ -]?balance|billing[_ -]?(?:limit|hard[_ -]?limit))\b/i;
 const transientMessage = /\b(429|500|502|503|504|529|rate[_ -]?limit|too many requests|overloaded|temporarily[_ -]?unavailable|service[_ -]?unavailable|bad gateway|gateway timeout|timeout|timed out|econnreset|etimedout|econnrefused|epipe|und_err_socket|fetch failed|socket hang up|stream error|stream ended|mid-?stream|premature close|connection reset|network error)\b/i;
 
+/** Usage-only responses may try the configured chain once, never start a new task. */
+export const isEmptyNativeTextError = (error: unknown): boolean => {
+  const visited = new Set<object>();
+  for (let value = error; value && typeof value === 'object' && !visited.has(value); value = (value as Record<string, unknown>).cause) {
+    visited.add(value);
+    const entry = value as Record<string, unknown>;
+    if (entry.id === 'AGENT_STREAM_ERROR' && entry.message === 'Agent stream finished with finishReason "other" without producing any output') return true;
+  }
+  return false;
+};
+
 export const isTransientNativeTextError = (error: unknown): boolean => {
   const chain: Record<string, unknown>[] = [];
   const visited = new Set<object>();
@@ -183,7 +194,7 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       if (relativeRetryCount >= retries) {
         const models = (args.requestContext as RequestContext<any> | undefined)?.get(NATIVE_TEXT_MODELS_KEY) as string[] | undefined;
         const lastModel = models?.at(-1);
-        if (options?.onExhausted && models?.length &&
+        if (!isEmptyNativeTextError(args.error) && options?.onExhausted && models?.length &&
           (models.length === 1 || args.state.nativeModelId === lastModel) &&
           args.retryCount < NATIVE_TEXT_MAX_PROCESSOR_RETRIES) {
           return options.onExhausted({

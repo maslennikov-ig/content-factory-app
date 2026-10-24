@@ -6,6 +6,7 @@ import { defineCapability, door } from '../capability.types';
 import { redactSecretShapes } from '../../conductor/secret-shapes';
 import {
   compactResearchSources,
+  compactResearchAssessment,
   recordResearchEvidence,
   researchFacts,
 } from './research-evidence';
@@ -68,7 +69,7 @@ export const researchSearch = defineCapability({
         : {}),
       facts: researchFacts(output.facts),
       sources: compactResearchSources(output.sources),
-      assessment: output.assessment,
+      assessment: compactResearchAssessment(output.assessment),
       sourceCount: output.sourceCount,
       factCount: output.factCount,
       fromCache: output.fromCache,

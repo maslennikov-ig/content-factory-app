@@ -25,8 +25,7 @@ module.exports = {
     },
     {
       resume: {
-        answers: [{ key: 'ask-1', text: 'Созвон на 40 минут без итога', origin: 'person' }],
-        decideKeys: ['hook'],
+        answers: [{ key: 'ask-1', mode: 'custom', text: 'Созвон на 40 минут без итога' }, {key: 'hook', mode: 'delegate'}],
       },
       model: [[['text', 'Пост для «Канал про работу» готов.']]],
     },
@@ -34,20 +33,15 @@ module.exports = {
   check: (run) => {
     const [ask, answer] = run.turns;
     const screen = screenPieces();
-    expect(ask.suspended).toEqual([
-      {
-        runId: expect.any(String),
-        toolName: 'piece_adapt',
-        payload: {
-          kind: 'interview',
-          question: expect.stringContaining('Пара вопросов'),
-          questions: QUESTIONS,
-          canDecideForPerson: true,
-          channel: { id: 'c1', name: 'Канал про работу', provider: 'telegram' },
-          cardId: expect.stringMatching(/^[0-9a-f]{32}$/),
-        },
-      },
-    ]);
+    expect(ask.suspended).toHaveLength(1);
+    expect(ask.suspended[0]).toMatchObject({runId: expect.any(String), toolName: 'piece_adapt', payload: {
+      kind: 'domain-questions', question: expect.stringContaining('Пара вопросов'),
+      source: {kind: 'adaptation', pieceId: 'p1', channelId: 'c1', revision: expect.any(String)},
+      canDecideForPerson: true, activeKey: 'hook', answers: [], cardId: expect.stringMatching(/^[0-9a-f]{32}$/),
+    }});
+    expect(ask.suspended[0].payload.questions.map(({selectionMode, canDecideForPerson, options, ...question}) => ({
+      ...question, ...(options ? {options: options.map(option => option.label)} : {}),
+    }))).toEqual(QUESTIONS);
     expect(ask.outputs).toEqual([]);
     // Asking was paid for, as the door's interview is.
     expect(ask.admissions).toEqual([

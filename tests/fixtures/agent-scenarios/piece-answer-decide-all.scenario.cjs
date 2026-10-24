@@ -13,14 +13,16 @@ module.exports = {
       say: 'На вопросы cnt-1 решите за меня',
       model: [
         [['tool', 'piece_answer', { pieceId: 'p1' }]],
-        [['text', 'Решили за вас, суть обновлена.']],
       ],
     },
+    {resume: {decideForPerson: true}, model: [[['text', 'Суть обновлена, личный случай оставлен без выдумок.']]]},
   ],
   check: (run) => {
-    const [turn] = run.turns;
+    const [asked, turn] = run.turns;
+    expect(asked.suspended[0].payload).toMatchObject({kind: 'domain-questions', answers: []});
+    expect(asked.outputs).toEqual([]);
     expect(run.requests.filter(([door]) => door === 'piece.answer')).toEqual([
-      ['piece.answer', 'p1', {}],
+      ['piece.answer', 'p1', {decide: ['audience']}],
     ]);
     expect(run.world.pieces.find((piece) => piece.id === 'p1').answers).toEqual([
       { field: 'audience', text: '', origin: 'model' },
@@ -42,7 +44,7 @@ module.exports = {
     // as given (final recheck F-3b).
     expect(turn.outputs[0].output.summary.note).toEqual(
       expect.stringMatching(
-        /quotes each question in «» word for word as given here — not shortened, not retold.*own experience.*in their own words — also when a limit stops the turn/
+        /nothing was invented.*core goes around.*continue the original requested steps.*conversation/s
       )
     );
     expect(turn.admissions).toEqual([

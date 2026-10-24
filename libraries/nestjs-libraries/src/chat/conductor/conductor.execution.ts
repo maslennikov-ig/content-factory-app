@@ -7,6 +7,7 @@ import {
 } from '../../openai/ai.text-chain';
 import { AGENT_RUN_CLAIM_TTL_SECONDS } from './agent-run-claims';
 import { stopAfterOpenProposalRefusal, stepNotes } from './conductor.steps';
+import { researchProgressIdentity } from '../capabilities/catalogue/research-progress';
 
 /** Technical fuses, not a definition of a completed task or a financial allowance. */
 export const CONDUCTOR_MAX_TASK_DURATION_MS = 24 * 60 * 60 * 1_000;
@@ -136,7 +137,7 @@ export class ConductorExecution {
     this.policy = options.policy ?? readConductorExecutionPolicy();
     this.timeLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_MAX_DURATION_MS;
     this.stepLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_EMERGENCY_MAX_STEPS;
-    this.progressLimited = !options.native || !!options.policy || !!process.env.CF_AGENT_TASK_MAX_IDENTICAL_TOOL_RESULTS;
+    this.progressLimited = true;
     this.startedAt = this.now();
     this.signal = AbortSignal.any([
       ...(options.signal ? [options.signal] : []),
@@ -219,7 +220,7 @@ export class ConductorExecution {
   recordToolResult(toolName: string, input: unknown, output: unknown) {
     if (!this.progressLimited) return;
     if (output === undefined) return; // Native suspension is an effective human boundary.
-    const key = digest([toolName, input, output]);
+    const key = digest(researchProgressIdentity(toolName, input, output) ?? [toolName, input, output]);
     if (!this.seenResults.has(key)) {
       this.seenResults.add(key);
       // New information resets repetition counts, while remembered digests

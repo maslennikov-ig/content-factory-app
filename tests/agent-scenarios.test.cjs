@@ -79,7 +79,7 @@ describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s
       expect(turn.admissions).toEqual([['agent', 'agent', 'user-1', 'failed']]);
     }
     // Nothing is left waiting unless the scenario ends on a card.
-    expect(played.pending).toBe(scenario.endsPending ? 1 : 0);
+    expect(played.pending).toBe(scenario.pending ?? (scenario.endsPending ? 1 : 0));
   });
 
   test('the browser’s chat core takes every stream the door wrote (kcxz.29)', () => {

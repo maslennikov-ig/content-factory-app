@@ -53,6 +53,7 @@ export const PROGRESS_PART_TYPE = 'data-progress' as const;
 export const CAPABILITY_REFUSAL_CODES = [
   'IDENTITY_MISSING',
   'CAPABILITY_INPUT_INVALID',
+  'CAPABILITY_RESULT_UNAVAILABLE',
   'APPROVAL_MISMATCH',
   'PAID_CAP_REACHED',
   'AGENT_TASK_OPERATION_IN_FLIGHT',
@@ -69,6 +70,8 @@ export const CAPABILITY_REFUSAL_CODES = [
   'INPUT_NEEDS_PERSON',
   'MATERIAL_NOT_AVAILABLE',
   'MATERIAL_STALE',
+  'MATERIAL_PASSAGE_NOT_FOUND',
+  'AGENT_QUESTION_STALE',
   'APPROVAL_CONTENT_CHANGED',
   'PROPOSAL_CARD_OPEN',
   'CONFIRMATION_INVALID',
@@ -86,6 +89,7 @@ export const AGENT_ERROR_CODES = [
   'AGENT_PICTURE_NOT_SEEN',
   'AGENT_BLOCKED',
   'AGENT_RUN_NOT_PENDING',
+  'AGENT_QUESTION_STALE',
 ] as const;
 
 export const AGENT_DOOR_ERROR_CODES = [
@@ -120,7 +124,8 @@ export type AgentSelectionQuestionPayload = {
     status?: string | null;
     source?: string | null;
     /** Complete proposal text; private signed continuation stays server-side. */
-    preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text' };
+    preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text';
+    };
   }>;
   canDecideForPerson: true;
   cardId?: string;
@@ -142,6 +147,40 @@ export type AgentInterviewQuestionPayload = {
   }>;
   canDecideForPerson: true;
   channel: { id: string; name: string; provider: string } | null;
+  cardId?: string;
+};
+
+/** Exact manual questions; accepted answers live in the native checkpoint. */
+export type AgentDomainQuestionAnswer = {
+  key: string;
+  mode: 'choice' | 'custom' | 'confirmed' | 'delegate';
+  text?: string;
+  optionIds?: string[];
+};
+
+export type AgentDomainQuestionPayload = {
+  kind: 'domain-questions';
+  batchId: string;
+  question: string;
+  source: {
+    kind: 'piece' | 'adaptation';
+    pieceId: string;
+    channelId?: string;
+    revision: string;
+  };
+  questions: Array<{
+    key: string;
+    question: string;
+    options?: Array<{ id: string; label: string; recommended?: boolean }>;
+    ownOption?: string;
+    suggested?: string | null;
+    why?: string;
+    selectionMode: 'single' | 'multiple';
+    canDecideForPerson: true;
+  }>;
+  answers: AgentDomainQuestionAnswer[];
+  activeKey: string;
+  canDecideForPerson: true;
   cardId?: string;
 };
 
@@ -824,7 +863,12 @@ export const readThreadList = (body: unknown): AgentThreadSummary[] => {
 };
 
 /** Optional on old servers; each page remains bounded by native memory. */
-export type AgentPagination = { page: number; perPage: number; total: number; hasMore: boolean };
+export type AgentPagination = {
+  page: number;
+  perPage: number;
+  total: number;
+  hasMore: boolean;
+};
 export const readPagination = (body: unknown): AgentPagination | undefined => {
   const value = recordOf(recordOf(body).pagination);
   if (!Number.isSafeInteger(value.page) || !Number.isSafeInteger(value.perPage) || !Number.isSafeInteger(value.total) || typeof value.hasMore !== 'boolean') return undefined;
@@ -866,13 +910,22 @@ export type AgentThreadExecution = {
   state: 'running' | 'settled' | 'unknown';
   outcome?: 'completed' | 'failed' | 'interrupted';
 };
-export type AgentSignalReceipt = { id: string; text: string; kind: string; durability: 'native' | 'process'; state?: 'unknown' };
+export type AgentSignalReceipt = {
+  id: string;
+  text: string;
+  kind: string;
+  durability: 'native' | 'process';
+  state?: 'unknown';
+};
 
 const readExecution = (body: unknown): AgentThreadExecution => {
   const record = recordOf(body);
   const requestId = stringOf(record.requestId);
   const runId = stringOf(record.runId);
   if (requestId && record.state === 'running') return { requestId, state: 'running', ...(runId ? { runId } : {}) };
+  // The expiring execution receipt may be gone while the native run still
+  // owns a saved question. Preserve its identity for pending-gate recovery.
+  if (requestId && record.state === 'unknown' && runId) return { requestId, state: 'unknown', runId };
   if (requestId && record.state === 'settled' && ['completed', 'failed', 'interrupted'].includes(String(record.outcome))) {
     return { requestId, state: 'settled', outcome: record.outcome as AgentThreadExecution['outcome'] };
   }
@@ -1204,9 +1257,10 @@ export const readAttachedText = (
 };
 
 /** A receipt as the composer put it into a live message (`AGENT_SAMPLES_PART_TYPE`). */
-export const readSamplesPart = (
-  part: { type: string; data?: unknown }
-): { name: string; samples: { accepted: number } } | null => {
+export const readSamplesPart = (part: {
+  type: string;
+  data?: unknown;
+}): { name: string; samples: { accepted: number } } | null => {
   if (part.type !== AGENT_SAMPLES_PART_TYPE) return null;
   const data = recordOf(part.data);
   const files = Array.isArray(data.files)
@@ -1216,9 +1270,10 @@ export const readSamplesPart = (
 };
 
 /** A pictures receipt as the composer put it into a live message (`AGENT_MEDIA_PART_TYPE`). */
-export const readMediaPart = (
-  part: { type: string; data?: unknown }
-): { name: string; media: { count: number } } | null => {
+export const readMediaPart = (part: {
+  type: string;
+  data?: unknown;
+}): { name: string; media: { count: number } } | null => {
   if (part.type !== AGENT_MEDIA_PART_TYPE) return null;
   const media = Array.isArray(recordOf(part.data).media)
     ? (recordOf(part.data).media as unknown[])
@@ -1237,7 +1292,11 @@ export const linksIn = (text: string): string[] =>
 
 /* ---- Questions -------------------------------------------------------------- */
 
-export type AgentQuestionOption = { id: string; label: string; description?: string };
+export type AgentQuestionOption = {
+  id: string;
+  label: string;
+  description?: string;
+};
 
 export type AgentQuestion = (
   | {
@@ -1268,6 +1327,7 @@ export type AgentQuestion = (
       options: AgentQuestionOption[];
       /** The key the chosen option or the typed answer goes under. */
       answerKey: string;
+      selectionMode?: 'single' | 'multiple';
       /**
        * «Решите за меня»: on every question the product may decide (spec §1.9),
        * off where the capability says `canDecideForPerson: false`.
@@ -1306,6 +1366,7 @@ export type AgentQuestion = (
       canDecideForPerson: boolean;
       channel: AgentInterviewQuestionPayload['channel'];
     }
+  | (Omit<AgentDomainQuestionPayload, 'question' | 'cardId'> & { text: string })
   | {
       /** Native `submit_plan` card (`content-factory-next-on0i.6`, `A18`). */
       kind: 'plan';
@@ -1415,7 +1476,91 @@ const readQuestionShape = (
     };
   }
   if (record.kind === 'keep-picture') {
-    return { kind: 'keep-picture', text, pictureKey: stringOf(record.pictureKey) ?? '' };
+    return {
+      kind: 'keep-picture',
+      text,
+      pictureKey: stringOf(record.pictureKey) ?? '',
+    };
+  }
+  if (record.kind === 'domain-questions') {
+    const source = recordOf(record.source);
+    const questions: AgentDomainQuestionPayload['questions'] = [];
+    for (const raw of Array.isArray(record.questions) ? record.questions : []) {
+      const one = recordOf(raw);
+      if (typeof one.key !== 'string' || typeof one.question !== 'string')
+        continue;
+      const options = Array.isArray(one.options)
+        ? one.options.flatMap((rawOption) => {
+            const option = recordOf(rawOption);
+            return typeof option.id === 'string' &&
+              typeof option.label === 'string'
+              ? [
+                  {
+                    id: option.id,
+                    label: option.label,
+                    ...(option.recommended === true
+                      ? { recommended: true }
+                      : {}),
+                  },
+                ]
+              : [];
+          })
+        : undefined;
+      questions.push({
+        key: one.key,
+        question: one.question,
+        ...(options ? { options } : {}),
+        ...(typeof one.ownOption === 'string'
+          ? { ownOption: one.ownOption }
+          : {}),
+        ...(typeof one.suggested === 'string' || one.suggested === null
+          ? { suggested: one.suggested as string | null }
+          : {}),
+        ...(typeof one.why === 'string' ? { why: one.why } : {}),
+        selectionMode: one.selectionMode === 'multiple' ? 'multiple' : 'single',
+        canDecideForPerson: true,
+      });
+    }
+    const answers: AgentDomainQuestionAnswer[] = [];
+    for (const raw of Array.isArray(record.answers) ? record.answers : []) {
+      const one = recordOf(raw);
+      if (
+        typeof one.key !== 'string' ||
+        !['choice', 'custom', 'confirmed', 'delegate'].includes(
+          String(one.mode)
+        )
+      )
+        continue;
+      answers.push({
+        key: one.key,
+        mode: one.mode as AgentDomainQuestionAnswer['mode'],
+        ...(typeof one.text === 'string' ? { text: one.text } : {}),
+        ...(Array.isArray(one.optionIds)
+          ? {
+              optionIds: one.optionIds.filter(
+                (id): id is string => typeof id === 'string'
+              ),
+            }
+          : {}),
+      });
+    }
+    return {
+      kind: 'domain-questions',
+      text,
+      batchId: stringOf(record.batchId) ?? '',
+      source: {
+        kind: source.kind === 'adaptation' ? 'adaptation' : 'piece',
+        pieceId: stringOf(source.pieceId) ?? '',
+        revision: stringOf(source.revision) ?? '',
+        ...(typeof source.channelId === 'string'
+          ? { channelId: source.channelId }
+          : {}),
+      },
+      questions,
+      answers,
+      activeKey: stringOf(record.activeKey) ?? '',
+      canDecideForPerson: true,
+    };
   }
   if (record.kind === 'interview') {
     const channel = recordOf(record.channel);
@@ -1424,25 +1569,30 @@ const readQuestionShape = (
       kind: 'interview',
       text,
       questions: (Array.isArray(record.questions) ? record.questions : [])
-        .map((one): AgentInterviewQuestionPayload['questions'][number] | null => {
-          const value = recordOf(one);
-          const key = stringOf(value.key);
-          const question = stringOf(value.question);
-          if (!key || !question) return null;
-          const options = Array.isArray(value.options)
-            ? value.options.filter((option): option is string => typeof option === 'string')
-            : null;
-          const why = stringOf(value.why);
-          return {
-            key,
-            question,
-            suggested: stringOf(value.suggested) ?? null,
-            ...(options?.length ? { options } : {}),
-            ...(why ? { why } : {}),
-          };
-        })
+        .map(
+          (one): AgentInterviewQuestionPayload['questions'][number] | null => {
+            const value = recordOf(one);
+            const key = stringOf(value.key);
+            const question = stringOf(value.question);
+            if (!key || !question) return null;
+            const options = Array.isArray(value.options)
+              ? value.options.filter(
+                  (option): option is string => typeof option === 'string'
+                )
+              : null;
+            const why = stringOf(value.why);
+            return {
+              key,
+              question,
+              suggested: stringOf(value.suggested) ?? null,
+              ...(options?.length ? { options } : {}),
+              ...(why ? { why } : {}),
+            };
+          }
+        )
         .filter(
-          (one): one is AgentInterviewQuestionPayload['questions'][number] => one !== null
+          (one): one is AgentInterviewQuestionPayload['questions'][number] =>
+            one !== null
         ),
       canDecideForPerson: record.canDecideForPerson !== false,
       channel: channelId
@@ -1460,23 +1610,29 @@ const readQuestionShape = (
       text,
       answerKey: stringOf(record.answerKey) ?? 'answer',
       options: (Array.isArray(record.options) ? record.options : [])
-        .map((option): AgentSelectionQuestionPayload['options'][number] | null => {
-          const value = recordOf(option);
-          const id = stringOf(value.id);
-          const label = stringOf(value.label);
-          return id && label
-            ? {
-                id,
-                label,
-                selected: value.selected === true,
-                status: stringOf(value.status) ?? null,
-                source: stringOf(value.source) ?? null,
-                ...(readChangePreview(value.preview) ? { preview: readChangePreview(value.preview) } : {}),
-              }
-            : null;
-        })
+        .map(
+          (option): AgentSelectionQuestionPayload['options'][number] | null => {
+            const value = recordOf(option);
+            const id = stringOf(value.id);
+            const label = stringOf(value.label);
+            return id && label
+              ? {
+                  id,
+                  label,
+                  selected: value.selected === true,
+                  status: stringOf(value.status) ?? null,
+                  source: stringOf(value.source) ?? null,
+                  ...(readChangePreview(value.preview)
+                    ? { preview: readChangePreview(value.preview) }
+                    : {}),
+                }
+              : null;
+          }
+        )
         .filter(
-          (option): option is AgentSelectionQuestionPayload['options'][number] =>
+          (
+            option
+          ): option is AgentSelectionQuestionPayload['options'][number] =>
             option !== null
         ),
       canDecideForPerson: record.canDecideForPerson !== false,
@@ -1522,6 +1678,9 @@ const readQuestionShape = (
     text,
     options,
     answerKey,
+    ...(record.selectionMode === 'multiple'
+      ? { selectionMode: 'multiple' as const }
+      : {}),
     canDecideForPerson: record.canDecideForPerson !== false,
   };
 };
@@ -1545,7 +1704,7 @@ export const selectionAnswer = (
 
 export const choiceAnswer = (
   question: Extract<AgentQuestion, { kind: 'choice' }>,
-  value: string
+  value: string | readonly string[]
 ): Record<string, unknown> => ({ [question.answerKey]: value });
 
 export const planAnswer = (
@@ -1699,6 +1858,13 @@ export type AgentBlock =
     }
   | { type: 'working'; key: string; toolName: string; title: string | null }
   | {
+      type: 'source-range';
+      key: string;
+      sourceTitle: string;
+      offset: number;
+      characters: number;
+    }
+  | {
       type: 'done';
       key: string;
       toolName: string;
@@ -1796,7 +1962,11 @@ export const pendingCardId = (run: AgentPendingRun): string | null =>
  */
 export const questionWaits = (
   pending: readonly AgentPendingRun[],
-  question: { runId: string | null; toolCallId: string | null; cardId: string | null }
+  question: {
+    runId: string | null;
+    toolCallId: string | null;
+    cardId: string | null;
+  }
 ): boolean =>
   question.runId !== null &&
   pending.some((run) => {
@@ -2202,6 +2372,37 @@ const NATIVE_AUTONOMY_TOOLS: ReadonlySet<string> = new Set([
  * the thread door after a reload; during a turn the same question arrives as a
  * `data-tool-call-suspended` part of the message itself.
  */
+export const recoverableMaterialRange = (
+  raw: unknown
+): { sourceTitle: string; offset: number; characters: number } | null => {
+  const output = recordOf(raw);
+  const value = recordOf(
+    recordOf(recordOf(output.summary).untrustedData).value
+  );
+  if (
+    output.ok !== true ||
+    value.literalMatch !== false ||
+    value.canReviseInput !== true ||
+    recordOf(value.recovery).code !== 'MATERIAL_PASSAGE_NOT_FOUND' ||
+    value.part !== 'research_source' ||
+    typeof value.text !== 'string' ||
+    !value.text.length ||
+    typeof value.revision !== 'string' ||
+    !value.revision ||
+    typeof value.offset !== 'number' ||
+    !Number.isSafeInteger(value.offset) ||
+    value.offset < 0 ||
+    typeof value.totalCharacters !== 'number' ||
+    value.totalCharacters < value.offset + value.text.length
+  )
+    return null;
+  return {
+    sourceTitle: typeof value.title === 'string' ? value.title : '',
+    offset: value.offset,
+    characters: value.text.length,
+  };
+};
+
 export const readMessageBlocks = (
   message: AgentMessage,
   pending: readonly AgentPendingRun[] = [],
@@ -2478,11 +2679,15 @@ export const readMessageBlocks = (
       return;
     }
     const approval = recordOf(part.approval);
-    const reason = stringOf(approval.requestReason);
+    const pendingApproval = pending.find((run) => run.kind === 'approval' && run.toolCallId === toolCallId);
+    const reason =
+      stringOf(approval.requestReason) ??
+      pendingApproval?.summary ??
+      null;
     const approvalBlock = (approvalState: AgentApprovalState): AgentBlock => ({
       type: 'approval',
       key: `${key}:approval`,
-      approvalId: stringOf(approval.id) ?? toolCallId,
+      approvalId: stringOf(approval.id) ?? (pendingApproval ? `${pendingApproval.runId}::${toolCallId}` : toolCallId),
       toolName,
       // The label, as a reloaded card has it; the server's «what and where»
       // when a stream carried no label (kcxz.29, D5).
@@ -2566,6 +2771,11 @@ export const readMessageBlocks = (
       const refused = refusalCode(part.output);
       if (refused) {
         blocks.push({ type: 'error', key, toolName, title, code: refused });
+        return;
+      }
+      const range = recoverableMaterialRange(part.output);
+      if (range) {
+        blocks.push({ type: 'source-range', key, ...range });
         return;
       }
       // Answered after its text changed: nothing applied (`kcxz.32`, N2).
@@ -2666,7 +2876,13 @@ export const artifactsOf = (
 const NOTHING_REMOVED: ReadonlySet<string> = new Set();
 
 /** `kind:id` of an artifact, as `removedArtifactsOf` names it. */
-export const artifactKey = (artifact: { kind: string; id: string; data?: Readonly<Record<string, unknown>>; videoDraftId?: string; videoJobId?: string }) => {
+export const artifactKey = (artifact: {
+  kind: string;
+  id: string;
+  data?: Readonly<Record<string, unknown>>;
+  videoDraftId?: string;
+  videoJobId?: string;
+}) => {
   const jobId = artifact.videoJobId ?? stringOf(artifact.data?.videoJobId);
   const draftId = artifact.videoDraftId ?? stringOf(artifact.data?.videoDraftId);
   return artifact.kind === 'media' && (jobId || draftId)

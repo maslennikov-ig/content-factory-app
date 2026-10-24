@@ -174,7 +174,9 @@ test('a compact native tool result retains a full 224k source, repairs a bad rea
   expect(badRead.output).toMatchObject({ ok: false, code: 'MATERIAL_NOT_AVAILABLE', canReviseInput: true });
   const badFind = await run('piece.read', { researchId: saved.snapshotKey, part: 'research_source', sourceUrl: urlA,
     find: 'No literal like this exists in the manual.' }, built);
-  expect(badFind.output).toMatchObject({ ok: false, code: 'MATERIAL_PASSAGE_NOT_FOUND', canReviseInput: true });
+  expect(badFind.output).toMatchObject({ ok: true });
+  expect(unwrap(badFind.output)).toMatchObject({ literalMatch: false, canReviseInput: true, offset: 0, recovery: { code: 'MATERIAL_PASSAGE_NOT_FOUND' } });
+  expect(unwrap(badFind.output).matchOffset).toBeUndefined();
   const read = await run('piece.read', { researchId: saved.snapshotKey, part: 'research_source', sourceUrl: urlA,
     find: quoteA, length: 1_000 }, built);
   const passage = unwrap(read.output);
@@ -1133,4 +1135,112 @@ test('an incomplete composed brief leaves every original capture available for c
   answers = [brief(), { text: 'Both documented changes.' }];
   expect((await run('piece.create.from-research', { references, text: input }, built)).output.ok).toBe(true);
   expect(built.writes).toHaveBeenCalledTimes(1);
+});
+
+// Equivalent synthetic retained captures: the private incident exposes all five
+// literal misses but only one source's successful first range. No private export
+// or unverified historical release claim belongs in this executable fixture.
+const incidentMisses = ['October 2026', '28 days', 'October 9, 2026',
+  'Ultrafast is rolling out today', 'Ultrafast'];
+const fixedPeriodRequest = 'Соберите подтверждённые обновления с 9 по 23 октября 2026 включительно. Старый пост за 6–8 октября — только пример. Нужны заготовка и черновик для Telegram.';
+
+test.each(incidentMisses)('literal miss %s returns a truthful resumable retained range without search or fabricated match', async missing => {
+  const built = build();
+  const text = '2026-10-09. Alpha native sessions are documented.\n' + 'Retained primary-source context. '.repeat(400) + '\n2026-10-23. Beta preserves interrupted streams.';
+  const snapshot = await built.service.storeResearchEvidence(IDENTITY.organizationId, IDENTITY.userId, {
+    query: fixedPeriodRequest, level: 'standard', summary: { status: 'partial', periodStatus: 'partial' },
+    sources: [{ url: urlA, title: 'Synthetic retained changelog', publishedAt: '2026-10-23T12:00:00Z', fullText: text }], facts: [],
+  });
+  const result = await run('piece.read', { researchId: snapshot.snapshotKey, part: 'research_source', sourceIndex: 0,
+    find: missing, length: 256 }, built);
+  expect(result.output.ok).toBe(true);
+  const read = unwrap(result.output);
+  expect(read).toMatchObject({ snapshotKey: snapshot.snapshotKey, sourceUrl: urlA,
+    publishedAt: '2026-10-23T12:00:00Z', offset: 0, text: text.slice(0, 256), totalCharacters: text.length,
+    literalMatch: false, canReviseInput: true, recovery: { code: 'MATERIAL_PASSAGE_NOT_FOUND', requestedLiteral: missing,
+      searchedFrom: 0, nextRead: { offset: 256, length: 256 } } });
+  expect(read.matchOffset).toBeUndefined();
+  const next = unwrap((await run('piece.read', read.recovery.nextRead, built)).output);
+  expect(next).toMatchObject({ revision: read.revision, offset: 256, text: text.slice(256, 512) });
+  expect(await built.service.readStoredResearchEvidence(IDENTITY.organizationId, IDENTITY.userId, snapshot.snapshotKey))
+    .toMatchObject({ query: fixedPeriodRequest });
+  const stale = await run('piece.read', { ...read.recovery.nextRead, revision: '0'.repeat(64) }, built);
+  expect(stale.output).toMatchObject({ ok: false, code: 'MATERIAL_STALE' });
+  const foreign = await run('piece.read', read.recovery.nextRead, built, { userId: 'foreign-reader' });
+  expect(foreign.output).toMatchObject({ ok: false, code: 'MATERIAL_NOT_AVAILABLE' });
+  expect(built.research).not.toHaveBeenCalled();
+  expect(built.fetch).not.toHaveBeenCalled();
+  expect(calls).toEqual([]);
+});
+
+test('research evidence repetition ignores guessed literals and new search ids but preserves new ranges, revisions, dates and coverage', () => {
+  const { researchProgressIdentity: identity } = loadWithMocks('libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-progress.ts');
+  const read = { snapshotKey: 'res_synthetic', part: 'research_source', sourceUrl: urlA, revision: 'a'.repeat(64), offset: 0, text: 'Actual range' };
+  const envelope = summary => ({ ok: true, summary: { untrustedData: { value: summary } } });
+  const first = identity('piece_read', { find: 'October 2026' }, envelope(read));
+  expect(identity('piece_read', { find: '28 days' }, envelope({ ...read, literalMatch: false, recovery: { requestedLiteral: '28 days' } }))).toEqual(first);
+  expect(identity('piece_read', {}, envelope({ ...read, offset: 100, text: 'New range' }))).not.toEqual(first);
+  expect(identity('piece_read', {}, envelope({ ...read, revision: 'b'.repeat(64) }))).not.toEqual(first);
+  const search = { snapshotKey: 'res_first', query: fixedPeriodRequest, sources: [{ url: urlA, excerpt: quoteA, publishedAt: '2026-10-09' }],
+    facts: [{ statement: quoteA, sourceUrl: urlA, dateProvenance: { eventDate: '2026-10-09', basis: 'source' } }], assessment: { periodStatus: 'partial' } };
+  const searchIdentity = identity('research_search', { query: 'first query' }, envelope(search));
+  expect(identity('research_search', { query: 'rephrased query' }, envelope({ ...search, snapshotKey: 'res_second', query: 'rephrased query', fromCache: true }))).toEqual(searchIdentity);
+  expect(identity('research_search', {}, envelope({ ...search, assessment: { periodStatus: 'complete' } }))).not.toEqual(searchIdentity);
+  expect(identity('research_search', {}, envelope({ ...search, facts: [{ ...search.facts[0], dateProvenance: { eventDate: '2026-10-08', basis: 'source' } }] }))).not.toEqual(searchIdentity);
+  expect(identity('piece_open', {}, envelope(read))).toBeUndefined();
+});
+
+test('preview cache is bounded by source bytes and an oversized snapshot remains readable through domain storage', async () => {
+  const { recordResearchEvidence, readResearchEvidence, MAX_RESEARCH_EVIDENCE_CACHE_BYTES } = loadWithMocks('libraries/nestjs-libraries/src/chat/capabilities/catalogue/research-evidence.ts');
+  const text = 'x'.repeat(3 * 1024 * 1024);
+  recordResearchEvidence('byte-test', { snapshotKey: 'first', sources: [{ url: urlA, fullText: text }] });
+  expect(readResearchEvidence('byte-test', 'first')).not.toBeNull();
+  recordResearchEvidence('byte-test', { snapshotKey: 'second', sources: [{ url: urlB, fullText: text }] });
+  expect(readResearchEvidence('byte-test', 'first')).toBeNull();
+  expect(readResearchEvidence('byte-test', 'second')).not.toBeNull();
+  const tooLarge = 'z'.repeat(MAX_RESEARCH_EVIDENCE_CACHE_BYTES / 2 + 1);
+  const recorded = recordResearchEvidence('byte-test', { snapshotKey: 'oversize', sources: [{ url: urlA, fullText: tooLarge }] });
+  expect(recorded.sources[0].text).toBe(tooLarge);
+  expect(readResearchEvidence('byte-test', 'oversize')).toBeNull();
+  const built = build();
+  const saved = await built.service.storeResearchEvidence(IDENTITY.organizationId, IDENTITY.userId,
+    { query: fixedPeriodRequest, level: 'standard', sources: [{ url: urlA, fullText: tooLarge }], facts: [] });
+  const tail = unwrap((await run('piece.read', { researchId: saved.snapshotKey, part: 'research_source', sourceIndex: 0,
+    offset: tooLarge.length - 32, length: 32 }, built)).output);
+  expect(tail).toMatchObject({ text: 'z'.repeat(32), totalCharacters: tooLarge.length, truncated: false });
+});
+
+test('compact assessment retains dates and coverage while complete authorized assessment can be read with stable ranges', async () => {
+  const built = build();
+  const assessment = { version: 'reader-source-review/v1', status: 'partial', requestedDate: '2026-10-23',
+    requestedPeriod: { start: '2026-10-09', end: '2026-10-23' },
+    bounds: { candidateCount: 50, presentedCount: 50, omittedCount: 0, excludedUrlCount: 0 },
+    evidence: Array.from({ length: 50 }, (_, index) => ({ id: `s${index}`, url: `https://primary.example/${index}`, publishedAt: '2026-10-09',
+      excerpt: 'Long retained excerpt. '.repeat(100), excerptSha256: 'a'.repeat(64), retainedChars: 2200, clipped: true })),
+    claims: [{ text: quoteA, kind: 'event', refs: [{ source: 's0', start: 0, end: 32 }], dates: [{ kind: 'event', date: '2026-10-09', ref: { source: 's0', start: 0, end: 10 } }] }],
+    coverage: [{ question: 'Native sessions', status: 'supported' }, { question: 'Daily campaign claim from the old post', status: 'missing' }],
+    sources: Array.from({ length: 50 }, (_, index) => ({ id: `s${index}`, relevance: 'relevant' })) };
+  built.research.mockResolvedValue({ ...researchResult(), readerAssessment: assessment });
+  const searched = unwrap((await run('research.search', { query: fixedPeriodRequest }, built)).output);
+  expect(searched.assessment).toMatchObject({ requestedDate: '2026-10-23', requestedPeriod: assessment.requestedPeriod,
+    status: 'partial', coverage: assessment.coverage, assessmentTruncated: true, readWith: 'piece.read', part: 'research_assessment' });
+  expect(searched.assessment.evidence).toHaveLength(50);
+  expect(searched.assessment.sources).toHaveLength(50);
+  expect(searched.assessment.claims[0].dates).toEqual(assessment.claims[0].dates);
+  expect(searched.assessment.evidence[0].excerpt).toBeUndefined();
+  const full = JSON.stringify(assessment);
+  let assembled = '', offset = 0, revision;
+  do {
+    const output = await run('piece.read', { researchId: searched.snapshotKey, part: 'research_assessment', offset, length: 16_000, ...(revision ? { revision } : {}) }, built);
+    expect(output.output.ok).toBe(true);
+    const range = unwrap(output.output);
+    revision ??= range.revision;
+    expect(range.revision).toBe(revision);
+    assembled += range.text;
+    offset = range.nextOffset;
+  } while (offset !== undefined);
+  expect(assembled).toBe(full);
+  expect(JSON.stringify(searched.assessment).length).toBeLessThan(full.length / 3);
+  expect(built.research).toHaveBeenCalledTimes(1);
+  expect(built.fetch).not.toHaveBeenCalled();
 });

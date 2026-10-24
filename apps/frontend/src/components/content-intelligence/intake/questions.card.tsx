@@ -1,9 +1,11 @@
 'use client';
 
 import { Panel } from '@contentfactory/react/layout';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { Textarea } from '@contentfactory/react/form/textarea';
+import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import {
   RadioGroup,
   RadioOption,
@@ -61,6 +63,287 @@ export type QuestionAnswer =
   | { mode: 'decide' };
 
 export type QuestionAnswers = Partial<Record<string, QuestionAnswer>>;
+
+/** Shared manual/chat choices. Empty is never an implicit editorial decision. */
+export type ManualQuestionAnswer = {
+  mode: 'choice' | 'custom' | 'confirmed' | 'delegate';
+  text?: string;
+  optionIds?: string[];
+};
+
+export function ManualQuestionControls({
+  question,
+  value,
+  onChange,
+  disabled = false,
+  words,
+}: {
+  question: {
+    key: string;
+    question: string;
+    options?: readonly {
+      id: string;
+      label: string;
+      recommended?: boolean;
+      description?: string;
+    }[];
+    selectionMode?: 'single' | 'multiple';
+    ownOption?: string;
+    suggested?: string | null;
+    why?: string;
+    canDecideForPerson?: boolean;
+  };
+  value: ManualQuestionAnswer | null;
+  onChange: (value: ManualQuestionAnswer) => void;
+  disabled?: boolean;
+  words: {
+    ownAnswer: string;
+    decide: string;
+    confirmed: string;
+    suggested: string;
+    recommended: string;
+    multiple: string;
+  };
+}) {
+  const ownId = useId();
+  const ownLabelId = useId();
+  const multiple = question.selectionMode === 'multiple';
+  const options = question.options ?? [];
+  const chosen = value?.mode === 'choice' ? value.optionIds ?? [] : [];
+  const ownOption = options.find(
+    (option) => option.label === question.ownOption
+  );
+
+  const select = (id: string) => {
+    if (id === '__own__' || id === ownOption?.id)
+      onChange({
+        mode: 'custom',
+        text: value?.mode === 'custom' ? value.text ?? '' : '',
+      });
+    else if (id === '__delegate__') onChange({ mode: 'delegate' });
+    else if (id === '__confirmed__') onChange({ mode: 'confirmed' });
+    else onChange({ mode: 'choice', optionIds: [id] });
+  };
+  const optionClass = (active: boolean) =>
+    clsx(
+      'w-full min-w-0 justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none [overflow-wrap:anywhere]',
+      active
+        ? 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed'
+        : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle cf-pressed'
+    );
+  const serviceClass = (active: boolean) =>
+    clsx(
+      'w-full min-w-0 justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none [overflow-wrap:anywhere]',
+      active
+        ? 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed'
+        : 'border-transparent text-cf-ink-muted hover:bg-cf-surface-subtle cf-pressed'
+    );
+  const label = (option: (typeof options)[number]) => (
+    <span className="flex min-w-0 flex-col gap-[4px]">
+      <span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+        {option.label}
+      </span>
+      {option.recommended ? (
+        <span className="cf-caption text-cf-ink-muted">
+          {words.recommended}
+        </span>
+      ) : null}
+      {option.description ? (
+        <span className="cf-caption text-cf-ink-muted [overflow-wrap:anywhere]">
+          {option.description}
+        </span>
+      ) : null}
+    </span>
+  );
+  const serviceValue =
+    value?.mode === 'custom'
+      ? '__own__'
+      : value?.mode === 'delegate'
+      ? '__delegate__'
+      : value?.mode === 'confirmed'
+      ? '__confirmed__'
+      : null;
+  const services = (
+    <>
+      {question.suggested ? (
+        <RadioOption
+          value="__confirmed__"
+          disabled={disabled}
+          layout="content"
+          className={serviceClass(value?.mode === 'confirmed')}
+        >
+          {words.confirmed}
+        </RadioOption>
+      ) : null}
+      <RadioOption
+        value="__own__"
+        disabled={disabled}
+        layout="content"
+        className={serviceClass(value?.mode === 'custom')}
+      >
+        {words.ownAnswer}
+      </RadioOption>
+      {question.canDecideForPerson !== false ? (
+        <RadioOption
+          value="__delegate__"
+          disabled={disabled}
+          layout="content"
+          className={serviceClass(value?.mode === 'delegate')}
+        >
+          {words.decide}
+        </RadioOption>
+      ) : null}
+    </>
+  );
+  return (
+    <div
+      data-manual-question-controls={question.key}
+      className="flex min-w-0 flex-col gap-[12px]"
+    >
+      {question.why ? (
+        <p className="cf-body-sm text-cf-ink-muted whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {question.why}
+        </p>
+      ) : null}
+      {question.suggested ? (
+        <div className="flex min-w-0 flex-col gap-[4px] bg-cf-surface-subtle p-[12px]">
+          <span className="cf-caption text-cf-ink-muted">
+            {words.suggested}
+          </span>
+          <p className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {question.suggested}
+          </p>
+        </div>
+      ) : null}
+      {multiple ? (
+        <>
+          <p className="cf-caption text-cf-ink-muted">{words.multiple}</p>
+          <div
+            role="group"
+            aria-label={question.question}
+            className="flex min-w-0 flex-col gap-[4px]"
+          >
+            {options.map((option) => (
+              <div
+                key={option.id}
+                data-question-option={option.id}
+                className="min-w-0"
+              >
+                <CheckboxField
+                  label={label(option)}
+                  aria-label={option.label}
+                  aria-description={
+                    [
+                      option.recommended ? words.recommended : '',
+                      option.description ?? '',
+                    ]
+                      .filter(Boolean)
+                      .join('. ') || undefined
+                  }
+                  checked={
+                    option.id === ownOption?.id
+                      ? value?.mode === 'custom'
+                      : chosen.includes(option.id)
+                  }
+                  disabled={disabled}
+                  onChange={(event) => {
+                    if (option.id === ownOption?.id) {
+                      select('__own__');
+                      return;
+                    }
+                    const next = new Set(chosen);
+                    if (event.target.checked) next.add(option.id);
+                    else next.delete(option.id);
+                    onChange({
+                      mode: 'choice',
+                      optionIds: options
+                        .filter((one) => next.has(one.id))
+                        .map((one) => one.id),
+                    });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <RadioGroup
+            value={serviceValue}
+            aria-label={words.ownAnswer}
+            onChange={select}
+            className="flex min-w-0 flex-col gap-[4px]"
+          >
+            {services}
+          </RadioGroup>
+        </>
+      ) : (
+        <RadioGroup
+          value={serviceValue ?? chosen[0] ?? null}
+          aria-label={question.question}
+          onChange={select}
+          className="flex min-w-0 flex-col gap-[4px]"
+        >
+          {options.map((option) => (
+            <RadioOption
+              key={option.id}
+              value={option.id}
+              aria-label={option.label}
+              aria-description={
+                [
+                  option.recommended ? words.recommended : '',
+                  option.description ?? '',
+                ]
+                  .filter(Boolean)
+                  .join('. ') || undefined
+              }
+              data-question-option={option.id}
+              disabled={disabled}
+              layout="content"
+              className={optionClass(
+                option.id === ownOption?.id
+                  ? value?.mode === 'custom'
+                  : chosen.includes(option.id)
+              )}
+            >
+              {label(option)}
+            </RadioOption>
+          ))}
+          {services}
+        </RadioGroup>
+      )}
+      {value?.mode === 'custom' || (!options.length && !question.suggested) ? (
+        <div className="flex min-w-0 flex-col gap-[4px]">
+          <label
+            id={ownLabelId}
+            htmlFor={ownId}
+            className="cf-label-md text-cf-ink"
+          >
+            {words.ownAnswer}
+          </label>
+          <Textarea
+            standalone
+            id={ownId}
+            aria-labelledby={ownLabelId}
+            layout="content"
+            name={`manual-answer-${question.key}`}
+            value={value?.mode === 'custom' ? value.text ?? '' : ''}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ mode: 'custom', text: event.target.value })
+            }
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export const manualQuestionAnswered = (
+  answer: ManualQuestionAnswer | null
+): boolean =>
+  !!answer &&
+  (answer.mode === 'delegate' ||
+    answer.mode === 'confirmed' ||
+    (answer.mode === 'custom' && !!answer.text?.trim()) ||
+    (answer.mode === 'choice' && !!answer.optionIds?.length));
 
 const OWN = '__own__';
 
@@ -334,6 +617,9 @@ export function SuggestedQuestionsCard({
   onSkipAll,
   extra,
   framed = true,
+  requireExplicitAnswers = false,
+  initialAnswers = {},
+  onAnswersChange,
 }: {
   words: SuggestedQuestionsWords;
   questions: readonly SuggestedQuestion[];
@@ -358,8 +644,22 @@ export function SuggestedQuestionsCard({
    * so a card is not nested in a card.
    */
   framed?: boolean;
+  requireExplicitAnswers?: boolean;
+  initialAnswers?: QuestionAnswers;
+  onAnswersChange?: (answers: QuestionAnswers) => void;
 }) {
-  const [answers, setAnswers] = useState<QuestionAnswers>({});
+  const [answers, setAnswers] = useState<QuestionAnswers>(initialAnswers);
+  useEffect(() => {
+    onAnswersChange?.(answers);
+  }, [answers, onAnswersChange]);
+  const complete = questions.every((question) => {
+    const answer = answers[question.key];
+    return (
+      !!answer &&
+      (answer.mode === 'decide' ||
+        (!!answer.text.trim() && answer.text !== question.ownOption))
+    );
+  });
 
   /**
    * Геометрия чипа одна на оба ряда, краска — разная: варианты ответа несут
@@ -388,6 +688,7 @@ export function SuggestedQuestionsCard({
     );
 
   const submit = () => {
+    if (busy || (requireExplicitAnswers && !complete)) return;
     const given: SuggestedAnswer[] = [];
     const decided: string[] = [];
     for (const question of questions) {
@@ -630,7 +931,7 @@ export function SuggestedQuestionsCard({
         <Button
           type="button"
           variant="primary"
-          disabled={busy}
+          disabled={busy || (requireExplicitAnswers && !complete)}
           loading={busy}
           loadingLabel={busyLabel}
           onClick={submit}

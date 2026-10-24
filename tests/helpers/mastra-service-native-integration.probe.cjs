@@ -224,20 +224,20 @@ async function createRuntime(options = {}) {
     ...registry.CAPABILITY_CATALOGUE.find(
       (entry) =>
         entry.risk ===
-        (options.fixtureMode === 'approval'
+        (options.fixtureRisk || (options.fixtureMode === 'approval'
           ? 'confirm'
           : options.fixtureMode === 'question'
           ? 'input'
-          : 'read')
+          : 'read'))
     ),
     id: 'fixture.persist',
     group: 'content',
-    risk:
+    risk: options.fixtureRisk || (
       options.fixtureMode === 'approval'
         ? 'confirm'
         : options.fixtureMode === 'question'
         ? 'input'
-        : 'read',
+        : 'read'),
     label: { ru: 'Фикстура', en: 'Fixture' },
     description: 'Fixture operation.',
     input: z.object({}),
@@ -263,9 +263,9 @@ async function createRuntime(options = {}) {
       if (options.fixtureRun) return options.fixtureRun(ctx);
       return { id: 'fixture-accepted' };
     },
-    summarize: (result) => result,
+    summarize: options.fixtureSummarize || ((result) => result),
   };
-  const catalogue = { ...registry, CAPABILITY_CATALOGUE: [capability] };
+  const catalogue = { ...registry, CAPABILITY_CATALOGUE: options.capabilities ?? [capability] };
   const clients = {
     getRoutedMastraModelEntries: async (_organizationId, _role, _task, options) => ({
       entries: [options?.modelId || 'primary', 'fallback-1', 'fallback-2'].map(
@@ -354,7 +354,7 @@ async function createRuntime(options = {}) {
                 },
               },
             }
-          : {},
+          : options.serviceFor?.(token) ?? {},
     },
     aiUsage
   );

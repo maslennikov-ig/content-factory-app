@@ -1,13 +1,17 @@
 'use strict';
+const {INTAKE_QUESTIONS} = require('../../helpers/agent-scenarios.cjs');
 
 /**
- * A paid action runs without asking (spec §1.2) and admits its own `intake`
- * operation beside the turn's `agent` one — never absorbed by it (U1).
+ * A paid creation needs no separate approval and admits its own `intake`
+ * operation beside the turn's `agent` one (U1). Its editorial questions
+ * remain explicit native questions after the initial piece is saved.
  */
 module.exports = {
   id: 'piece-create-paid',
   title: 'Новая заготовка — платное действие со своим учётом',
   covers: ['piece.create'],
+  world: {intakeQuestions: INTAKE_QUESTIONS},
+  endsPending: true,
   turns: [
     {
       say: 'Напиши заготовку: мысль про созвоны без повестки',
@@ -42,23 +46,24 @@ module.exports = {
     expect(turn.data.map((part) => part.type)).toEqual([
       ...stages.map(() => 'data-progress'),
       'data-piece',
+      'data-tool-call-suspended',
     ]);
-    // The open questions are counted (kcxz.29, D4): the card and the model
-    // both know the person has two to answer.
-    expect(turn.data.at(-1).data).toEqual({ kind: 'piece', id: 'p9', code: 'cnt-9', questions: 2 });
-    expect(turn.outputs[0].output).toMatchObject({
-      ok: true,
-      summary: { pieceId: 'p9', code: 'cnt-9', questions: 2 },
-      card: { kind: 'piece', id: 'p9' },
-    });
-    expect(JSON.stringify(turn.outputs[0].output)).not.toContain('созвоны без повестки');
+    // The saved artifact and exact native question card retain the same count.
+    expect(turn.data.find(part => part.type === 'data-piece').data).toEqual({ kind: 'piece', id: 'p9', code: 'cnt-9', questions: 2 });
+    expect(turn.outputs).toEqual([]);
+    expect(turn.suspended[0].payload).toMatchObject({kind: 'domain-questions', source: {pieceId: 'p9'}, answers: []});
+    expect(turn.suspended[0].payload.questions.map(question => question.question)).toEqual(INTAKE_QUESTIONS.map(question => question.question));
+    expect(turn.modelCalls).toBe(1);
     // Two rows, each with its own role, both closed.
     expect(run.admissions).toEqual([
       ['agent', 'agent', 'user-1', 'succeeded'],
       ['intake', 'extract', 'user-1', 'succeeded'],
     ]);
-    // Progress is transient: the thread keeps the card, not the stages.
-    expect(run.storedPartTypes).toContain('data-piece');
+    // While parked, native tool invocation/checkpoint owns the saved piece
+    // reference and exact card; final custom result parts arrive on completion.
+    expect(run.storedPartTypes).toContain('tool-invocation');
+    expect(run.pendingCards).toHaveLength(1);
+    expect(run.pendingCards[0].suspendPayload).toEqual(turn.suspended[0].payload);
     expect(run.storedPartTypes).not.toContain('data-progress');
   },
 };

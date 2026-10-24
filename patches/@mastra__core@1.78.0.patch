@@ -1,0 +1,738 @@
+diff --git a/dist/agent-Blan8B5o.js b/dist/agent-Blan8B5o.js
+index 8d82d2cc9b4af2a11f0cc41f489fc626da3be0f7..93d221d2ac235708693867b625f44f4e117420a1 100644
+--- a/dist/agent-Blan8B5o.js
++++ b/dist/agent-Blan8B5o.js
+@@ -262,6 +262,7 @@ async function runIdleLoop(agent, streamOptions, deps, firstTurn, streamForConti
+ 	const forceClose = () => {
+ 		if (closed) return;
+ 		closed = true;
++		streamOptions?.abortSignal?.removeEventListener("abort", abortWrapper);
+ 		if (idleTimer) {
+ 			clearTimeout(idleTimer);
+ 			idleTimer = void 0;
+diff --git a/dist/agent-DpTPjdjR.cjs b/dist/agent-DpTPjdjR.cjs
+index 255c8893ec6d857ff8f12793985d63f0b17d4934..d15afacb29626f1f28d81d23403f5b28f63b5af0 100644
+--- a/dist/agent-DpTPjdjR.cjs
++++ b/dist/agent-DpTPjdjR.cjs
+@@ -264,6 +264,7 @@ async function runIdleLoop(agent, streamOptions, deps, firstTurn, streamForConti
+ 	const forceClose = () => {
+ 		if (closed) return;
+ 		closed = true;
++		streamOptions?.abortSignal?.removeEventListener("abort", abortWrapper);
+ 		if (idleTimer) {
+ 			clearTimeout(idleTimer);
+ 			idleTimer = void 0;
+diff --git a/dist/agent-controller-C_6RbJaM.cjs b/dist/agent-controller-C_6RbJaM.cjs
+index 2a8ed2f4e83eb537ee7fcc3149b9e801a5ad199e..79757a3f1e2672c7f3bd1751bd6ff5d44b880a05 100644
+--- a/dist/agent-controller-C_6RbJaM.cjs
++++ b/dist/agent-controller-C_6RbJaM.cjs
+@@ -1564,57 +1564,92 @@ var SessionRunEngine = class {
+ 		let bailed = false;
+ 		let abortedRunId;
+ 		const consume = async () => {
+-			for await (const chunk of subscription.stream) {
+-				if (bailed) return;
+-				if (!this.#session.stream.isCurrent({ subscription })) {
+-					subscription.unsubscribe();
+-					break;
+-				}
+-				if (chunk.type === "thread-history") continue;
+-				const runId = ("runId" in chunk ? chunk.runId : void 0) ?? subscription.activeRunId();
+-				if (runId && runId === abortedRunId) continue;
+-				if (runId && abortedRunId) abortedRunId = void 0;
+-				if (!currentRun) {
+-					currentRun = this.createStreamState(threadId, resourceId);
+-					this.#session.run.nextOperation();
+-					this.#session.run.ensureAbortController();
+-					this.#session.run.setRunId({ runId });
+-					this.#session.run.setTraceId({ traceId: null });
+-					requestContext = await this.#machinery.buildRequestContext(subscription.__getCurrentRunRequestContext?.(), {
+-						threadId,
+-						resourceId,
+-						runId: runId ?? void 0,
+-						execution: true
+-					});
+-					if (!this.#session.stream.isCurrent({ subscription })) break;
+-					this.#session.emit({ type: "agent_start" });
+-				}
+-				if (chunk.type === "start") continue;
+-				try {
+-					const streamResult = await this.processStreamChunk(currentRun, chunk, requestContext, agent);
+-					if (streamResult || chunk.type === "finish" || chunk.type === "error" || chunk.type === "abort" || chunk.type === "tripwire" || chunk.type === "tool-call-suspended") {
+-						const suspended = chunk.type === "tool-call-suspended" || (streamResult ?? this.finishStreamState(currentRun)).suspended || void 0;
+-						const aborted = chunk.type === "abort";
+-						let isError = chunk.type === "error";
+-						if (currentRun.terminalError && !isError && !aborted && !this.#session.run.isAbortRequested() && !suspended) {
+-							isError = true;
+-							this.#session.emit({
+-								type: "error",
+-								error: new Error(currentRun.terminalError),
+-								finishReason: currentRun.terminalFinishReason
++			const iterator = subscription.stream[Symbol.asyncIterator]();
++			let iteratorDone = false;
++			let preserveBodyError = false;
++			try {
++				while (true) {
++					let nextResult;
++					try {
++						nextResult = await iterator.next();
++					} catch (error) {
++						iteratorDone = true;
++						throw error;
++					}
++					if (nextResult.done) {
++						iteratorDone = true;
++						break;
++					}
++					let chunk = nextResult.value;
++					// Unlike for-await's implicit result register, this is released before
++					// waiting for another event on the persistent Session subscription.
++					nextResult = void 0;
++					try {
++						if (bailed) return;
++						if (!this.#session.stream.isCurrent({ subscription })) {
++							subscription.unsubscribe();
++							break;
++						}
++						if (chunk.type === "thread-history") continue;
++						const runId = ("runId" in chunk ? chunk.runId : void 0) ?? subscription.activeRunId();
++						if (runId && runId === abortedRunId) continue;
++						if (runId && abortedRunId) abortedRunId = void 0;
++						if (!currentRun) {
++							currentRun = this.createStreamState(threadId, resourceId);
++							this.#session.run.nextOperation();
++							this.#session.run.ensureAbortController();
++							this.#session.run.setRunId({ runId });
++							this.#session.run.setTraceId({ traceId: null });
++							requestContext = await this.#machinery.buildRequestContext(subscription.__getCurrentRunRequestContext?.(), {
++								threadId,
++								resourceId,
++								runId: runId ?? void 0,
++								execution: true
+ 							});
++							if (!this.#session.stream.isCurrent({ subscription })) break;
++							this.#session.emit({ type: "agent_start" });
+ 						}
+-						await this.finishSubscribedStreamRun({
+-							suspended,
+-							error: isError,
+-							aborted
+-						});
+-						currentRun = void 0;
+-						if (aborted) abortedRunId = runId ?? void 0;
++						if (chunk.type === "start") continue;
++						try {
++							const streamResult = await this.processStreamChunk(currentRun, chunk, requestContext, agent);
++							if (streamResult || chunk.type === "finish" || chunk.type === "error" || chunk.type === "abort" || chunk.type === "tripwire" || chunk.type === "tool-call-suspended") {
++								const suspended = chunk.type === "tool-call-suspended" || (streamResult ?? this.finishStreamState(currentRun)).suspended || void 0;
++								const aborted = chunk.type === "abort";
++								let isError = chunk.type === "error";
++								if (currentRun.terminalError && !isError && !aborted && !this.#session.run.isAbortRequested() && !suspended) {
++									isError = true;
++									this.#session.emit({
++										type: "error",
++										error: new Error(currentRun.terminalError),
++										finishReason: currentRun.terminalFinishReason
++									});
++								}
++								await this.finishSubscribedStreamRun({
++									suspended,
++									error: isError,
++									aborted
++								});
++								currentRun = void 0;
++								if (aborted) abortedRunId = runId ?? void 0;
++							}
++						} catch (error) {
++							await this.handleSubscribedStreamError(error, resourceId, threadId);
++							currentRun = void 0;
++						}
++					} finally {
++						// A live Session must not retain the previous consumed payload.
++						chunk = void 0;
+ 					}
+-				} catch (error) {
+-					await this.handleSubscribedStreamError(error, resourceId, threadId);
+-					currentRun = void 0;
++				}
++			} catch (error) {
++				preserveBodyError = true;
++				throw error;
++			} finally {
++				if (!iteratorDone) {
++					if (preserveBodyError) {
++						// AsyncIteratorClose preserves an existing body throw.
++						try { await iterator.return?.(); } catch {}
++					} else await iterator.return?.();
+ 				}
+ 			}
+ 		};
+diff --git a/dist/agent-controller-DRiP9C5v.js b/dist/agent-controller-DRiP9C5v.js
+index 933216f8a98ae20ab9a3bea65a3de2df5b0bca16..68742c80fbfef7434e0866246cf651882f1a5ca6 100644
+--- a/dist/agent-controller-DRiP9C5v.js
++++ b/dist/agent-controller-DRiP9C5v.js
+@@ -1564,57 +1564,92 @@ var SessionRunEngine = class {
+ 		let bailed = false;
+ 		let abortedRunId;
+ 		const consume = async () => {
+-			for await (const chunk of subscription.stream) {
+-				if (bailed) return;
+-				if (!this.#session.stream.isCurrent({ subscription })) {
+-					subscription.unsubscribe();
+-					break;
+-				}
+-				if (chunk.type === "thread-history") continue;
+-				const runId = ("runId" in chunk ? chunk.runId : void 0) ?? subscription.activeRunId();
+-				if (runId && runId === abortedRunId) continue;
+-				if (runId && abortedRunId) abortedRunId = void 0;
+-				if (!currentRun) {
+-					currentRun = this.createStreamState(threadId, resourceId);
+-					this.#session.run.nextOperation();
+-					this.#session.run.ensureAbortController();
+-					this.#session.run.setRunId({ runId });
+-					this.#session.run.setTraceId({ traceId: null });
+-					requestContext = await this.#machinery.buildRequestContext(subscription.__getCurrentRunRequestContext?.(), {
+-						threadId,
+-						resourceId,
+-						runId: runId ?? void 0,
+-						execution: true
+-					});
+-					if (!this.#session.stream.isCurrent({ subscription })) break;
+-					this.#session.emit({ type: "agent_start" });
+-				}
+-				if (chunk.type === "start") continue;
+-				try {
+-					const streamResult = await this.processStreamChunk(currentRun, chunk, requestContext, agent);
+-					if (streamResult || chunk.type === "finish" || chunk.type === "error" || chunk.type === "abort" || chunk.type === "tripwire" || chunk.type === "tool-call-suspended") {
+-						const suspended = chunk.type === "tool-call-suspended" || (streamResult ?? this.finishStreamState(currentRun)).suspended || void 0;
+-						const aborted = chunk.type === "abort";
+-						let isError = chunk.type === "error";
+-						if (currentRun.terminalError && !isError && !aborted && !this.#session.run.isAbortRequested() && !suspended) {
+-							isError = true;
+-							this.#session.emit({
+-								type: "error",
+-								error: new Error(currentRun.terminalError),
+-								finishReason: currentRun.terminalFinishReason
++			const iterator = subscription.stream[Symbol.asyncIterator]();
++			let iteratorDone = false;
++			let preserveBodyError = false;
++			try {
++				while (true) {
++					let nextResult;
++					try {
++						nextResult = await iterator.next();
++					} catch (error) {
++						iteratorDone = true;
++						throw error;
++					}
++					if (nextResult.done) {
++						iteratorDone = true;
++						break;
++					}
++					let chunk = nextResult.value;
++					// Unlike for-await's implicit result register, this is released before
++					// waiting for another event on the persistent Session subscription.
++					nextResult = void 0;
++					try {
++						if (bailed) return;
++						if (!this.#session.stream.isCurrent({ subscription })) {
++							subscription.unsubscribe();
++							break;
++						}
++						if (chunk.type === "thread-history") continue;
++						const runId = ("runId" in chunk ? chunk.runId : void 0) ?? subscription.activeRunId();
++						if (runId && runId === abortedRunId) continue;
++						if (runId && abortedRunId) abortedRunId = void 0;
++						if (!currentRun) {
++							currentRun = this.createStreamState(threadId, resourceId);
++							this.#session.run.nextOperation();
++							this.#session.run.ensureAbortController();
++							this.#session.run.setRunId({ runId });
++							this.#session.run.setTraceId({ traceId: null });
++							requestContext = await this.#machinery.buildRequestContext(subscription.__getCurrentRunRequestContext?.(), {
++								threadId,
++								resourceId,
++								runId: runId ?? void 0,
++								execution: true
+ 							});
++							if (!this.#session.stream.isCurrent({ subscription })) break;
++							this.#session.emit({ type: "agent_start" });
+ 						}
+-						await this.finishSubscribedStreamRun({
+-							suspended,
+-							error: isError,
+-							aborted
+-						});
+-						currentRun = void 0;
+-						if (aborted) abortedRunId = runId ?? void 0;
++						if (chunk.type === "start") continue;
++						try {
++							const streamResult = await this.processStreamChunk(currentRun, chunk, requestContext, agent);
++							if (streamResult || chunk.type === "finish" || chunk.type === "error" || chunk.type === "abort" || chunk.type === "tripwire" || chunk.type === "tool-call-suspended") {
++								const suspended = chunk.type === "tool-call-suspended" || (streamResult ?? this.finishStreamState(currentRun)).suspended || void 0;
++								const aborted = chunk.type === "abort";
++								let isError = chunk.type === "error";
++								if (currentRun.terminalError && !isError && !aborted && !this.#session.run.isAbortRequested() && !suspended) {
++									isError = true;
++									this.#session.emit({
++										type: "error",
++										error: new Error(currentRun.terminalError),
++										finishReason: currentRun.terminalFinishReason
++									});
++								}
++								await this.finishSubscribedStreamRun({
++									suspended,
++									error: isError,
++									aborted
++								});
++								currentRun = void 0;
++								if (aborted) abortedRunId = runId ?? void 0;
++							}
++						} catch (error) {
++							await this.handleSubscribedStreamError(error, resourceId, threadId);
++							currentRun = void 0;
++						}
++					} finally {
++						// A live Session must not retain the previous consumed payload.
++						chunk = void 0;
+ 					}
+-				} catch (error) {
+-					await this.handleSubscribedStreamError(error, resourceId, threadId);
+-					currentRun = void 0;
++				}
++			} catch (error) {
++				preserveBodyError = true;
++				throw error;
++			} finally {
++				if (!iteratorDone) {
++					if (preserveBodyError) {
++						// AsyncIteratorClose preserves an existing body throw.
++						try { await iterator.return?.(); } catch {}
++					} else await iterator.return?.();
+ 				}
+ 			}
+ 		};
+diff --git a/dist/create-durable-agent-CdL_GpVq.js b/dist/create-durable-agent-CdL_GpVq.js
+index d39889a023173fdc95ad0afbc8a9457f2c6e7ce8..46522fd30e6cd9fa4d3097bfd1c8e7efeb9fa28c 100644
+--- a/dist/create-durable-agent-CdL_GpVq.js
++++ b/dist/create-durable-agent-CdL_GpVq.js
+@@ -33,6 +33,25 @@ import { TTLCache } from "@isaacs/ttlcache";
+ import { ReadableStream as ReadableStream$1 } from "stream/web";
+ import { z } from "zod";
+ import { AsyncLocalStorage } from "async_hooks";
++// Forward aborts without capturing a stream method's output or execution frame.
++function forwardDurableAbortSignal(abortController, upstreamAbortSignal) {
++	const onUpstreamAbort = () => abortController.abort(upstreamAbortSignal?.reason);
++	if (upstreamAbortSignal?.aborted) onUpstreamAbort();
++	else upstreamAbortSignal?.addEventListener("abort", onUpstreamAbort, { once: true });
++	return () => upstreamAbortSignal?.removeEventListener("abort", onUpstreamAbort);
++}
++// Native sessions may release registry entries directly, bypassing the returned
++// stream's cleanup callback. Keep both paths on the same disposal contract.
++function addDurableAbortCleanup(entry, cleanup) {
++	const previousCleanup = entry.cleanup;
++	entry.cleanup = () => {
++		try {
++			cleanup();
++		} finally {
++			previousCleanup?.();
++		}
++	};
++}
+ //#region src/agent/durable/run-registry.ts
+ /**
+ * Global registry for accessing run entries from workflow steps.
+@@ -9873,14 +9892,14 @@ var DurableAgent = class extends Agent {
+ 		setExecutionClaim(requestContext, runId, executionFence.claim);
+ 		registryEntry.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		if (agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		this.#installAbortWithTotalTimeout(registryEntry, abortController);
+ 		this.#runRegistry.registerWithMessageList(runId, registryEntry, messageList, {
+ 			threadId,
+ 			resourceId
+ 		});
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		const globalRegistryEntry = {
+ 			...registryEntry,
+ 			messageList
+@@ -9892,6 +9911,7 @@ var DurableAgent = class extends Agent {
+ 		let autoCleanupTimer = null;
+ 		let streamCleanup;
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10234,8 +10254,7 @@ var DurableAgent = class extends Agent {
+ 		setExecutionClaim(resumeRequestContext, runId, executionFence.claim);
+ 		for (const reg of [entry, getRunRegistryEntry(runId, this.#mastra)]) if (reg) reg.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (resolvedOptions.abortSignal) if (resolvedOptions.abortSignal.aborted) abortController.abort(resolvedOptions.abortSignal.reason);
+-		else resolvedOptions.abortSignal.addEventListener("abort", () => abortController.abort(resolvedOptions.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, resolvedOptions.abortSignal);
+ 		if (agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		const resumeTotalMs = resolvedOptions.modelSettings?.timeout?.totalMs;
+ 		if (resumeTotalMs !== void 0) entry.timeoutTotalMs = resumeTotalMs;
+@@ -10245,12 +10264,14 @@ var DurableAgent = class extends Agent {
+ 			globalEntryForAbort.abortController = abortController;
+ 			globalEntryForAbort.abortSignal = entry.abortSignal;
+ 		}
++		for (const current of new Set([entry, globalEntryForAbort])) if (current) addDurableAbortCleanup(current, detachUpstreamAbort);
+ 		const segment = Symbol(runId);
+ 		this.#segmentOwner.set(runId, segment);
+ 		let cleanedUp = false;
+ 		let autoCleanupTimer = null;
+ 		let streamCleanup;
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10533,8 +10554,7 @@ var DurableAgent = class extends Agent {
+ 		}
+ 		const releaseLocalRecovery = this.#claimLocalRecovery(runId);
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		let executionFence;
+ 		let recoveryState;
+ 		let finishPublishedBeforeCrash;
+@@ -10566,6 +10586,7 @@ var DurableAgent = class extends Agent {
+ 			});
+ 			await this.#coverMemory(executionFence, recoveryState.requestContext, true);
+ 		} catch (error) {
++			detachUpstreamAbort();
+ 			const settlement = await executionFence?.settle(async () => {});
+ 			if (executionFence && settlement !== "superseded" && shouldReportRecoveryFailure(error)) await this.#reportRecoveryFailure(runId, error, executionFence.generation);
+ 			releaseLocalRecovery();
+@@ -10592,6 +10613,7 @@ var DurableAgent = class extends Agent {
+ 			cleanedUp = true;
+ 		};
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10609,6 +10631,7 @@ var DurableAgent = class extends Agent {
+ 		try {
+ 			workflow = this.getWorkflow();
+ 		} catch (error) {
++			detachUpstreamAbort();
+ 			if (await executionFence.settle(async () => {}) !== "superseded" && shouldReportRecoveryFailure(error)) await this.#reportRecoveryFailure(runId, error, executionFence.generation);
+ 			releaseLocalRecovery();
+ 			throw error;
+@@ -10625,10 +10648,12 @@ var DurableAgent = class extends Agent {
+ 			scheduleAutoCleanup,
+ 			executionFence
+ 		}).catch((error) => {
++			detachUpstreamAbort();
+ 			releaseLocalRecovery();
+ 			throw error;
+ 		});
+ 		const { output, cleanup: createdStreamCleanup, ready } = stream;
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		streamCleanup = createdStreamCleanup;
+ 		const recoveryPubsub = this.fenceRunPubSub(executionFence, abortController);
+ 		const workflowExecution = executionFence.run(() => this.#raceFenceLoss(ready, executionFence).then(async () => {
+@@ -10807,14 +10832,14 @@ var DurableAgent = class extends Agent {
+ 		setExecutionClaim(requestContext, runId, executionFence.claim);
+ 		registryEntry.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		if (agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		this.#installAbortWithTotalTimeout(registryEntry, abortController);
+ 		this.#runRegistry.registerWithMessageList(runId, registryEntry, messageList, {
+ 			threadId,
+ 			resourceId
+ 		});
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		const globalRegistryEntry = {
+ 			...registryEntry,
+ 			messageList
+@@ -10823,6 +10848,7 @@ var DurableAgent = class extends Agent {
+ 		let cleanedUp = false;
+ 		let autoCleanupTimer = null;
+ 		const releaseRunState = () => {
++			detachUpstreamAbort();
+ 			if (this.#runRegistry.get(runId) === registryEntry) this.#runRegistry.cleanup(runId);
+ 			if (getRunRegistryEntry(runId, this.#mastra) === globalRegistryEntry) {
+ 				globalRunRegistry.delete(runId);
+diff --git a/dist/create-durable-agent-v9Cu4dSm.cjs b/dist/create-durable-agent-v9Cu4dSm.cjs
+index 9321c11370dbbd8edd765506ada2fd6e60e837b0..304213f41d155470efaa240e3780b5d39c5b30b0 100644
+--- a/dist/create-durable-agent-v9Cu4dSm.cjs
++++ b/dist/create-durable-agent-v9Cu4dSm.cjs
+@@ -33,6 +33,25 @@ let stream_web = require("stream/web");
+ let zod = require("zod");
+ let async_hooks = require("async_hooks");
+ let _mastra_schema_compat_schema = require("@mastra/schema-compat/schema");
++// Forward aborts without capturing a stream method's output or execution frame.
++function forwardDurableAbortSignal(abortController, upstreamAbortSignal) {
++	const onUpstreamAbort = () => abortController.abort(upstreamAbortSignal?.reason);
++	if (upstreamAbortSignal?.aborted) onUpstreamAbort();
++	else upstreamAbortSignal?.addEventListener("abort", onUpstreamAbort, { once: true });
++	return () => upstreamAbortSignal?.removeEventListener("abort", onUpstreamAbort);
++}
++// Native sessions may release registry entries directly, bypassing the returned
++// stream's cleanup callback. Keep both paths on the same disposal contract.
++function addDurableAbortCleanup(entry, cleanup) {
++	const previousCleanup = entry.cleanup;
++	entry.cleanup = () => {
++		try {
++			cleanup();
++		} finally {
++			previousCleanup?.();
++		}
++	};
++}
+ //#region src/agent/durable/run-registry.ts
+ /**
+ * Global registry for accessing run entries from workflow steps.
+@@ -9873,14 +9892,14 @@ var DurableAgent = class extends require_agent.Agent {
+ 		setExecutionClaim(requestContext, runId, executionFence.claim);
+ 		registryEntry.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		if (require_storage.agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		this.#installAbortWithTotalTimeout(registryEntry, abortController);
+ 		this.#runRegistry.registerWithMessageList(runId, registryEntry, messageList, {
+ 			threadId,
+ 			resourceId
+ 		});
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		const globalRegistryEntry = {
+ 			...registryEntry,
+ 			messageList
+@@ -9892,6 +9911,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 		let autoCleanupTimer = null;
+ 		let streamCleanup;
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10234,8 +10254,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 		setExecutionClaim(resumeRequestContext, runId, executionFence.claim);
+ 		for (const reg of [entry, getRunRegistryEntry(runId, this.#mastra)]) if (reg) reg.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (resolvedOptions.abortSignal) if (resolvedOptions.abortSignal.aborted) abortController.abort(resolvedOptions.abortSignal.reason);
+-		else resolvedOptions.abortSignal.addEventListener("abort", () => abortController.abort(resolvedOptions.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, resolvedOptions.abortSignal);
+ 		if (require_storage.agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		const resumeTotalMs = resolvedOptions.modelSettings?.timeout?.totalMs;
+ 		if (resumeTotalMs !== void 0) entry.timeoutTotalMs = resumeTotalMs;
+@@ -10245,12 +10264,14 @@ var DurableAgent = class extends require_agent.Agent {
+ 			globalEntryForAbort.abortController = abortController;
+ 			globalEntryForAbort.abortSignal = entry.abortSignal;
+ 		}
++		for (const current of new Set([entry, globalEntryForAbort])) if (current) addDurableAbortCleanup(current, detachUpstreamAbort);
+ 		const segment = Symbol(runId);
+ 		this.#segmentOwner.set(runId, segment);
+ 		let cleanedUp = false;
+ 		let autoCleanupTimer = null;
+ 		let streamCleanup;
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10533,8 +10554,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 		}
+ 		const releaseLocalRecovery = this.#claimLocalRecovery(runId);
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		let executionFence;
+ 		let recoveryState;
+ 		let finishPublishedBeforeCrash;
+@@ -10566,6 +10586,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 			});
+ 			await this.#coverMemory(executionFence, recoveryState.requestContext, true);
+ 		} catch (error) {
++			detachUpstreamAbort();
+ 			const settlement = await executionFence?.settle(async () => {});
+ 			if (executionFence && settlement !== "superseded" && shouldReportRecoveryFailure(error)) await this.#reportRecoveryFailure(runId, error, executionFence.generation);
+ 			releaseLocalRecovery();
+@@ -10592,6 +10613,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 			cleanedUp = true;
+ 		};
+ 		const performCleanup = () => {
++			detachUpstreamAbort();
+ 			if (autoCleanupTimer) {
+ 				clearTimeout(autoCleanupTimer);
+ 				autoCleanupTimer = null;
+@@ -10609,6 +10631,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 		try {
+ 			workflow = this.getWorkflow();
+ 		} catch (error) {
++			detachUpstreamAbort();
+ 			if (await executionFence.settle(async () => {}) !== "superseded" && shouldReportRecoveryFailure(error)) await this.#reportRecoveryFailure(runId, error, executionFence.generation);
+ 			releaseLocalRecovery();
+ 			throw error;
+@@ -10625,10 +10648,12 @@ var DurableAgent = class extends require_agent.Agent {
+ 			scheduleAutoCleanup,
+ 			executionFence
+ 		}).catch((error) => {
++			detachUpstreamAbort();
+ 			releaseLocalRecovery();
+ 			throw error;
+ 		});
+ 		const { output, cleanup: createdStreamCleanup, ready } = stream;
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		streamCleanup = createdStreamCleanup;
+ 		const recoveryPubsub = this.fenceRunPubSub(executionFence, abortController);
+ 		const workflowExecution = executionFence.run(() => this.#raceFenceLoss(ready, executionFence).then(async () => {
+@@ -10807,14 +10832,14 @@ var DurableAgent = class extends require_agent.Agent {
+ 		setExecutionClaim(requestContext, runId, executionFence.claim);
+ 		registryEntry.executionFence = executionFence;
+ 		const abortController = new AbortController();
+-		if (options?.abortSignal) if (options.abortSignal.aborted) abortController.abort(options.abortSignal.reason);
+-		else options.abortSignal.addEventListener("abort", () => abortController.abort(options.abortSignal.reason), { once: true });
++		const detachUpstreamAbort = forwardDurableAbortSignal(abortController, options?.abortSignal);
+ 		if (require_storage.agentThreadStreamRuntime.isRunAborted(runId, this.getPubSub())) abortController.abort();
+ 		this.#installAbortWithTotalTimeout(registryEntry, abortController);
+ 		this.#runRegistry.registerWithMessageList(runId, registryEntry, messageList, {
+ 			threadId,
+ 			resourceId
+ 		});
++		addDurableAbortCleanup(registryEntry, detachUpstreamAbort);
+ 		const globalRegistryEntry = {
+ 			...registryEntry,
+ 			messageList
+@@ -10823,6 +10848,7 @@ var DurableAgent = class extends require_agent.Agent {
+ 		let cleanedUp = false;
+ 		let autoCleanupTimer = null;
+ 		const releaseRunState = () => {
++			detachUpstreamAbort();
+ 			if (this.#runRegistry.get(runId) === registryEntry) this.#runRegistry.cleanup(runId);
+ 			if (getRunRegistryEntry(runId, this.#mastra) === globalRegistryEntry) {
+ 				globalRunRegistry.delete(runId);
+diff --git a/dist/storage-7mYy2C-B.js b/dist/storage-7mYy2C-B.js
+index 3cb8e8e19831e24d47f9093893c35c0c86a12b24..d657d0d1544a855088b9bc216866fe1045b63d69 100644
+--- a/dist/storage-7mYy2C-B.js
++++ b/dist/storage-7mYy2C-B.js
+@@ -3794,11 +3794,12 @@ var AgentThreadStreamRuntime = class {
+ 			}
+ 		}
+ 		const currentRunId = activeRunId();
+-		const currentRecord = currentRunId && !state.abortedRunIds.has(currentRunId) ? state.threadRunsById.get(currentRunId) : void 0;
++		let currentRecord = currentRunId && !state.abortedRunIds.has(currentRunId) ? state.threadRunsById.get(currentRunId) : void 0;
+ 		if (currentRecord) {
+ 			localStreamIds.add(currentRecord.streamId);
+ 			enqueueRun(currentRecord);
+ 		}
++		currentRecord = void 0;
+ 		const unsubscribe = () => {
+ 			if (done) return;
+ 			done = true;
+@@ -3837,8 +3838,11 @@ var AgentThreadStreamRuntime = class {
+ 							await new Promise((resolve) => waiters.push(resolve));
+ 							continue;
+ 						}
+-						const run = pendingRuns.shift();
+-						if (isSuperseded(run.runId, run.generation)) continue;
++						let run = pendingRuns.shift();
++						if (isSuperseded(run.runId, run.generation)) {
++							run = void 0;
++							continue;
++						}
+ 						noteGeneration(run.runId, run.streamId, run.generation, run.supersedes);
+ 						noteRunHalf(run.runId, {
+ 							streamId: run.streamId,
+@@ -3851,13 +3855,14 @@ var AgentThreadStreamRuntime = class {
+ 						currentRunRequestContext = run.streamOptions.requestContext;
+ 						if (remoteRuns.has(run.streamId)) startRemoteRunLeaseWatch(run.runId, run.streamId);
+ 						let readerReleased = false;
+-						let heldStart;
++						let heldStart, part, typedPart, partWithRunId;
+ 						try {
+ 							while (true) {
+-								const { value: part, done: streamDone } = await reader.read();
++								let streamDone;
++								({ value: part, done: streamDone } = await reader.read());
+ 								if (streamDone) break;
+-								const typedPart = part;
+-								const partWithRunId = typedPart && typeof typedPart === "object" && !("runId" in typedPart) ? {
++								typedPart = part;
++								partWithRunId = typedPart && typeof typedPart === "object" && !("runId" in typedPart) ? {
+ 									...typedPart,
+ 									runId: run.runId
+ 								} : typedPart;
+@@ -3897,6 +3902,8 @@ var AgentThreadStreamRuntime = class {
+ 							activeReaderStreamId = null;
+ 							currentRunRequestContext = void 0;
+ 							if (!readerReleased) reader.releaseLock();
++							// Idle generators must release the consumed run and final payload.
++							run = heldStart = part = typedPart = partWithRunId = void 0;
+ 						}
+ 					}
+ 				} finally {
+diff --git a/dist/storage-Cfz_oB2T.cjs b/dist/storage-Cfz_oB2T.cjs
+index 7fdc8c52c6a249e90de2ccf032adb33b55e3b077..7ae8cdb7f38273ec5087577c049a9a2055a24135 100644
+--- a/dist/storage-Cfz_oB2T.cjs
++++ b/dist/storage-Cfz_oB2T.cjs
+@@ -3794,11 +3794,12 @@ var AgentThreadStreamRuntime = class {
+ 			}
+ 		}
+ 		const currentRunId = activeRunId();
+-		const currentRecord = currentRunId && !state.abortedRunIds.has(currentRunId) ? state.threadRunsById.get(currentRunId) : void 0;
++		let currentRecord = currentRunId && !state.abortedRunIds.has(currentRunId) ? state.threadRunsById.get(currentRunId) : void 0;
+ 		if (currentRecord) {
+ 			localStreamIds.add(currentRecord.streamId);
+ 			enqueueRun(currentRecord);
+ 		}
++		currentRecord = void 0;
+ 		const unsubscribe = () => {
+ 			if (done) return;
+ 			done = true;
+@@ -3837,8 +3838,11 @@ var AgentThreadStreamRuntime = class {
+ 							await new Promise((resolve) => waiters.push(resolve));
+ 							continue;
+ 						}
+-						const run = pendingRuns.shift();
+-						if (isSuperseded(run.runId, run.generation)) continue;
++						let run = pendingRuns.shift();
++						if (isSuperseded(run.runId, run.generation)) {
++							run = void 0;
++							continue;
++						}
+ 						noteGeneration(run.runId, run.streamId, run.generation, run.supersedes);
+ 						noteRunHalf(run.runId, {
+ 							streamId: run.streamId,
+@@ -3851,13 +3855,14 @@ var AgentThreadStreamRuntime = class {
+ 						currentRunRequestContext = run.streamOptions.requestContext;
+ 						if (remoteRuns.has(run.streamId)) startRemoteRunLeaseWatch(run.runId, run.streamId);
+ 						let readerReleased = false;
+-						let heldStart;
++						let heldStart, part, typedPart, partWithRunId;
+ 						try {
+ 							while (true) {
+-								const { value: part, done: streamDone } = await reader.read();
++								let streamDone;
++								({ value: part, done: streamDone } = await reader.read());
+ 								if (streamDone) break;
+-								const typedPart = part;
+-								const partWithRunId = typedPart && typeof typedPart === "object" && !("runId" in typedPart) ? {
++								typedPart = part;
++								partWithRunId = typedPart && typeof typedPart === "object" && !("runId" in typedPart) ? {
+ 									...typedPart,
+ 									runId: run.runId
+ 								} : typedPart;
+@@ -3897,6 +3902,8 @@ var AgentThreadStreamRuntime = class {
+ 							activeReaderStreamId = null;
+ 							currentRunRequestContext = void 0;
+ 							if (!readerReleased) reader.releaseLock();
++							// Idle generators must release the consumed run and final payload.
++							run = heldStart = part = typedPart = partWithRunId = void 0;
+ 						}
+ 					}
+ 				} finally {

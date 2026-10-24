@@ -351,6 +351,40 @@ export type AgentInterviewQuestionPayload = {
   cardId?: string;
 };
 
+/** Exact domain-owned questions. Partial answers live in the native tool checkpoint. */
+export type AgentDomainQuestionAnswer = {
+  key: string;
+  mode: 'choice' | 'custom' | 'confirmed' | 'delegate';
+  text?: string;
+  optionIds?: string[];
+};
+
+export type AgentDomainQuestionPayload = {
+  kind: 'domain-questions';
+  batchId: string;
+  question: string;
+  source: {
+    kind: 'piece' | 'adaptation';
+    pieceId: string;
+    channelId?: string;
+    revision: string;
+  };
+  questions: Array<{
+    key: string;
+    question: string;
+    options?: Array<{ id: string; label: string; recommended?: boolean }>;
+    ownOption?: string;
+    suggested?: string | null;
+    why?: string;
+    selectionMode: 'single' | 'multiple';
+    canDecideForPerson: true;
+  }>;
+  answers: AgentDomainQuestionAnswer[];
+  activeKey: string;
+  canDecideForPerson: true;
+  cardId?: string;
+};
+
 /**
  * Codes a capability or the per-call hooks answer with instead of a result.
  * The model reads them as the tool's output and tells the person; the screen
@@ -359,6 +393,7 @@ export type AgentInterviewQuestionPayload = {
 export const CAPABILITY_REFUSAL_CODES = [
   'IDENTITY_MISSING',
   'CAPABILITY_INPUT_INVALID',
+  'CAPABILITY_RESULT_UNAVAILABLE',
   'APPROVAL_MISMATCH',
   'PAID_CAP_REACHED',
   'AGENT_TASK_OPERATION_IN_FLIGHT',
@@ -375,6 +410,8 @@ export const CAPABILITY_REFUSAL_CODES = [
   'INPUT_NEEDS_PERSON',
   'MATERIAL_NOT_AVAILABLE',
   'MATERIAL_STALE',
+  'MATERIAL_PASSAGE_NOT_FOUND',
+  'AGENT_QUESTION_STALE',
   /**
    * The person said «Да» to a post whose text (or picture, or the number of
    * posts a mode applies to) is no longer what the card showed; nothing ran
@@ -448,6 +485,8 @@ export const AGENT_ERROR_CODES = [
    * Also a door refusal (HTTP 409) before any stream.
    */
   'AGENT_RUN_NOT_PENDING',
+  /** The saved domain object changed after its questions were shown. */
+  'AGENT_QUESTION_STALE',
 ] as const;
 export type AgentErrorCode = (typeof AGENT_ERROR_CODES)[number];
 

@@ -1,0 +1,321 @@
+{
+  "schema": "agent-chat-native-memory-proof/v1",
+  "task": "HONEY-5957",
+  "status": "passed",
+  "sourceCommit": "79b5b819c7a052e0799ba8d9802168e45fd8b3a9",
+  "command": "node --expose-gc --max-old-space-size=512 tests/helpers/agent-native-memory.probe.cjs --runs=12 --hold-ms=35000 --checkpoint-every=4",
+  "processExitCode": 0,
+  "rawLog": {
+    "path": "/tmp/cf-memory-final-bounded-512.log",
+    "sha256": "f017b1588b23cc196b8387d01a37d9b176660bc0c907e5c922378a191385b025"
+  },
+  "rawStdout": {
+    "path": "/tmp/cf-memory-final-bounded-512.json",
+    "sha256": "4a6809a74aae6e955ab8f739e23bb916f3b6ccc2ea8a0719748607685d92ac08",
+    "parsing": "Last passed:true JSON line; shutdown diagnostics are not part of this sanitized artifact."
+  },
+  "configuration": {
+    "node": "22.23.2",
+    "pnpm": "10.6.1",
+    "mastraCore": "1.78.0",
+    "maxOldSpaceSizeMiB": 512,
+    "realNativeMastraService": true,
+    "realPostgres": true,
+    "realRedis": true,
+    "externalProviderCalls": 0,
+    "modelCallsAreFrozen": true,
+    "fixturePromptRecorderCleared": true,
+    "heapSampleIntervalMs": 20,
+    "nativeCompletedGraceMs": 30000,
+    "nativeIdleSessionTimeoutMs": 30000,
+    "maxIdleNativeSessions": 8,
+    "purgeSnapshotsOrReceipts": false,
+    "diagnosticSessionDeletion": false
+  },
+  "corpus": {
+    "sourcesPerResearchResult": 50,
+    "sourceCharactersPerResearchResult": 1133853,
+    "largestSourceCharacters": 321788,
+    "researchResultsPerTurn": 4,
+    "rangeReadsPerTurn": 20,
+    "charactersPerRange": 12000,
+    "allSynthetic": true
+  },
+  "acceptance": {
+    "settledAfterTurns": [
+      4,
+      8,
+      12
+    ],
+    "settledDelayMs": 35000,
+    "maxSettledHeapSpreadBytes": 8388608,
+    "observedSettledHeapSpreadBytes": 3556560,
+    "passed": true
+  },
+  "before": {
+    "sourceCommit": "0e0cf070c6b88c8f042a7fba12945e73ba5e2cec",
+    "termination": "V8 fatal out-of-memory with JSON.parse allocation stack",
+    "processExitCode": null,
+    "exitCodeNote": "The archived raw log records the fatal termination; no numeric exit receipt was retained.",
+    "maxOldSpaceSizeMiB": 512,
+    "maxResultBytes": 160702,
+    "maxSnapshotBytes": 19677438,
+    "maxPromptBytes": 1175529,
+    "modelStepsReached": 13,
+    "fixturePromptRecorderCleared": true,
+    "rawLog": {
+      "path": "/tmp/cf-memory-baseline-corrected.log",
+      "sha256": "9b08ff4506235ab066925b25127786edc2f4e70617b3da93a360a42286c32537"
+    },
+    "originalProductionAllocationOwnerProven": false
+  },
+  "sdkCorrectedBeforeIdleBound": {
+    "accepted": false,
+    "processExitCode": 1,
+    "matchedSettledHeapBytes": [
+      245997608,
+      250267216,
+      254481288
+    ],
+    "spreadBytes": 8483680,
+    "maxSpreadBytes": 8388608,
+    "rawLog": {
+      "path": "/tmp/cf-memory-final-512.log",
+      "sha256": "0e4520d8c6bcfd85b8287f1266cee81d2b65fadfaaed2591360586e7bb9e1592"
+    },
+    "remainingOwner": "AgentController cached Session displayState currentMessage toolInvocation results and activeTools results"
+  },
+  "after": {
+    "passed": true,
+    "baselineRef": null,
+    "node": "22.23.2",
+    "core": "1.78.0",
+    "heapLimitMb": 512,
+    "sdkHashes": {
+      "create-durable-agent-v9Cu4dSm.cjs": "03af441033f75510b5718170107267f9cecddde9cc1922a1c53ca2888096b5b7",
+      "create-durable-agent-CdL_GpVq.js": "d7ffcd5e712da2dfe09268080a89534a5bdf0acba05af90b081fb8b668af3736",
+      "agent-DpTPjdjR.cjs": "b91627d8bbfd92000c4e9b79f472027e9234613c347e6773034039f69117b50a",
+      "agent-Blan8B5o.js": "b2fe8b57677d758231533f76117d67af2113edd1282d595fbc9d4d8d1c22a044",
+      "storage-Cfz_oB2T.cjs": "d6352e9a9f924c1155ef4ff38621de4f2e4fbedade5e8cbb4af0c5dce6c3ed1b",
+      "storage-7mYy2C-B.js": "eabd3a906657b1b10fab3d358f2f1f3c820b8fe18f67603daf299532e756ed12",
+      "agent-controller-C_6RbJaM.cjs": "55b9181e0833a99dbb7d0a546a628e330f91189c11369223221eae98a60e8df4",
+      "agent-controller-DRiP9C5v.js": "0cb43445c495716a31e690185c643d1a22c86982cf4f0d65b4347f9ccd2b419a"
+    },
+    "runs": 12,
+    "observe": true,
+    "retainModelCalls": false,
+    "researchResults": 48,
+    "sourcesPerResult": 50,
+    "domainCalls": 288,
+    "modelCalls": 156,
+    "sourceReads": 12,
+    "fullReceiptRangeReads": 12,
+    "reconnectResults": 288,
+    "savedReconnects": 1,
+    "maxResultBytes": 109273,
+    "maxSnapshotBytes": 4341121,
+    "maxPromptBytes": 290638,
+    "peakHeap": 405972632,
+    "peakRss": 652910592,
+    "initial": {
+      "heap": 193832128,
+      "rss": 408649728
+    },
+    "final": {
+      "heap": 247497592,
+      "rss": 423378944
+    },
+    "registry": 0,
+    "globalRegistry": 0,
+    "pgClients": 1,
+    "pgIdle": 1,
+    "holdMs": 35000,
+    "checkpointEvery": 4,
+    "steadySpreadBytes": 3556560,
+    "settledSamples": [
+      {
+        "run": 4,
+        "heap": 243944728,
+        "rss": 424837120,
+        "registry": 0,
+        "globalRegistry": 0
+      },
+      {
+        "run": 8,
+        "heap": 245695800,
+        "rss": 418078720,
+        "registry": 0,
+        "globalRegistry": 0
+      },
+      {
+        "run": 12,
+        "heap": 247501288,
+        "rss": 423182336,
+        "registry": 0,
+        "globalRegistry": 0
+      }
+    ],
+    "samples": [
+      {
+        "run": 1,
+        "heap": 243179568,
+        "rss": 506839040,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 2,
+        "heap": 259811200,
+        "rss": 511209472,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 3,
+        "heap": 260866408,
+        "rss": 514768896,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 3,
+        "pgIdle": 3
+      },
+      {
+        "run": 4,
+        "heap": 261727264,
+        "rss": 547397632,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 3,
+        "pgIdle": 3
+      },
+      {
+        "run": 5,
+        "heap": 261525320,
+        "rss": 533340160,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 6,
+        "heap": 262546304,
+        "rss": 527114240,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 7,
+        "heap": 247786680,
+        "rss": 523395072,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 8,
+        "heap": 263437664,
+        "rss": 525242368,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 3,
+        "pgIdle": 3
+      },
+      {
+        "run": 9,
+        "heap": 263416272,
+        "rss": 541835264,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 3,
+        "pgIdle": 3
+      },
+      {
+        "run": 10,
+        "heap": 264543264,
+        "rss": 544030720,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 11,
+        "heap": 250012056,
+        "rss": 515473408,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      },
+      {
+        "run": 12,
+        "heap": 265150720,
+        "rss": 542781440,
+        "registry": 0,
+        "globalRegistry": 0,
+        "pgClients": 2,
+        "pgIdle": 2
+      }
+    ]
+  },
+  "sdkPatch": {
+    "path": "patches/@mastra__core@1.78.0.patch",
+    "sha256": "c2de6ad67a8bc72cd6b4418e6b96c7355ac6fdfe000512ee9379b5508d8adb5e",
+    "installedChunkDigestsVerified": true,
+    "chunkCount": 8,
+    "packagingAndLicense": "patches/README.md"
+  },
+  "focused": {
+    "command": "pnpm exec jest --runInBand --runTestsByPath tests/agent-native-session-cache.test.cjs tests/agent-native-abort-cleanup.test.cjs tests/agent-native-output-projection.test.cjs",
+    "processExitCode": 0,
+    "suites": 3,
+    "tests": 3,
+    "seconds": 50.419,
+    "rawLog": {
+      "path": "/tmp/cf-memory-final-focused.log",
+      "sha256": "937a6926af9deb6bd2f1b7610e45c5d7c2a397a49a18f120fade7b1f7ae04da9"
+    },
+    "verified": [
+      "public native abort listener cleanup",
+      "completed outputs and FINISH payloads collectible with live subscriptions",
+      "pending native question and resume preserved",
+      "max eight idle Session mirrors",
+      "thirty-second idle release",
+      "running/approval/suspension/task/binding protection",
+      "early timer remaining-time retry",
+      "concurrent replacement teardown protection",
+      "cold saved history and read denial",
+      "cold selected model and next provider call",
+      "full ordered source/fact and exact receipt range retrieval",
+      "tenant/thread/digest checks",
+      "single domain-write replay",
+      "read outage does not create uncertain write"
+    ]
+  },
+  "inputSha256": {
+    "libraries/nestjs-libraries/src/chat/conductor/native-tool-result.ts": "960979fffcd9031f0ac089c26d342849eef26aca710e5b5729d589ace2381abd",
+    "libraries/nestjs-libraries/src/chat/conductor/native-session-cache.ts": "c3e64e65f059ae780c9f77b2b47453791a6d7c50ddcd0e70d517f86c5fce4ea1",
+    "libraries/nestjs-libraries/src/chat/conductor/conversation-history.ts": "58806f2668a1da3aad073e87deeb96b5ca2a79c3205cb0c110d713321fc7c497",
+    "libraries/nestjs-libraries/src/chat/conductor/agent-operation-receipts.ts": "f3495a8d3e96e1ccce4fea5da57894d10587c0dd014dc393f746ccb06e92c83c",
+    "libraries/nestjs-libraries/src/chat/capabilities/mastra.adapter.ts": "e37fa28a167519397f9743c3441446c243d7c10beb247bb7ff6741b156433e8a",
+    "libraries/nestjs-libraries/src/chat/mastra.service.ts": "3f958e5ad01d2fd22197d922947cb8906260bb9f945647218abaf62d05e0a66b",
+    "tests/helpers/agent-native-memory.probe.cjs": "d2b14a2041f0fe26fbf086778112e76b4dfd8d0170e1d195096c142b31341b2c",
+    "tests/helpers/agent-native-abort-cleanup.probe.cjs": "27758a179feb7815efb2c64ef3b664dd39d007010410857c9163918debc95a5f",
+    "tests/helpers/agent-native-output-projection.probe.cjs": "9850c14e560ee78fb8b54c6d583a10b4ae722f605465a8dafaba864a190d1883",
+    "tests/helpers/agent-native-session-cache.probe.cjs": "177c8e2db7afed2785cc51da8c8e0380388756e5324661965bda98ace9544ce3"
+  },
+  "limits": [
+    "The historical production allocation owner remains unproven.",
+    "This is a finite representative 12-turn local resource acceptance run with frozen providers, not a production or provider-quality test.",
+    "Peak heap and RSS are sampled every 20ms; synchronous allocation peaks can fall between samples.",
+    "The 512MiB flag limits V8 old space, not process RSS."
+  ]
+}

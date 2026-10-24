@@ -386,7 +386,10 @@
     },
     "onlyBuiltDependencies": [
       "bcrypt"
-    ]
+    ],
+    "patchedDependencies": {
+      "@mastra/core@1.78.0": "patches/@mastra__core@1.78.0.patch"
+    }
   },
   "repository": {
     "type": "git",

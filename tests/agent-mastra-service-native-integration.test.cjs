@@ -34,7 +34,9 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
         membershipRechecked: true,
       })
     );
-    expect(report.baseline.builtinPermissions.tools.skill).toBe('allow');
+    // Safe built-in reads use the effective native policy. An unconditional
+    // per-tool allow would overwrite a restored explicit ask/deny choice.
+    expect(report.baseline.builtinPermissions.tools).not.toHaveProperty('skill');
     expect(report.attemptCount).toBe(2);
   });
 

@@ -331,6 +331,11 @@ export class AgentController {
         await this.threads.threadForAnswer(identity, threadId);
         const runs = await this.threads.pendingRuns(identity, threadId);
         const verified = verifyPendingAnswer(input, runs, { threadId, resourceId });
+        if (input.mode === 'resume') {
+          const pending = runs.find(run => run.runId === verified.runId)?.toolCalls
+            .find(call => call.toolCallId === verified.toolCallId);
+          await this.mastraService.assertDomainQuestionCurrent?.(identity, pending?.suspendPayload);
+        }
         // The card this answer is for is being answered, not waiting.
         openProposals = openProposalTargets(
           runs,
@@ -338,10 +343,19 @@ export class AgentController {
             ? { runId: verified.runId, toolCallId: verified.toolCallId }
             : undefined
         );
-        // One answer per run at a time: a second tab, or a retry, meets 409
-        // instead of running the same card twice (review W1 F5).
-        release = await this.threads.claimRun(verified.runId);
-        if (!release) throw notPending();
+        // Claim each exact gate. A crash while answering an earlier card must
+        // not lock the next card of the same native run for the old lease TTL.
+        // Overlapping parallel approval batches still contend on shared calls.
+        const answerKeys = input.mode === 'resume'
+          ? [`${verified.runId}::${verified.toolCallId}::${verified.card}`]
+          : input.approvals.map(answer => `${verified.runId}::approval::${answer.toolCallId}`).sort();
+        const answerClaims: Array<() => Promise<void>> = [];
+        release = async () => { for (const releaseClaim of answerClaims) await releaseClaim(); };
+        for (const key of answerKeys) {
+          const claimed = await this.threads.claimRun(key);
+          if (!claimed) throw notPending();
+          answerClaims.push(claimed);
+        }
         fingerprints = [
           ...verified.fingerprints,
           ...(await this.contentBoundApprovals(identity, verified)),
@@ -402,6 +416,8 @@ export class AgentController {
               ? await this.mastraService.runInNativeTaskScope(identity, threadId, pointer.logicalRequestId, dispatch)
               : await dispatch();
             await this.threads.markAnswered(answered!.runId, answered!.calls);
+            await release?.();
+            release = undefined;
             await this.pipeNativeAnswer(stream, identity, threadId, live, res);
             return;
           }
@@ -561,6 +577,10 @@ export class AgentController {
           // not run the same card again (kcxz.29, D2).
           if (answered) {
             await this.threads.markAnswered(answered.runId, answered.calls);
+            // The durable card receipt rejects duplicates. The run may now
+            // park another question/approval before this execution finishes.
+            await release?.();
+            release = undefined;
           }
 
           reader = stream.getReader();
@@ -581,12 +601,13 @@ export class AgentController {
            * call (`@mastra/ai-sdk` emits the two together), so every card
            * carries its words and its shown content (review kcxz.45 F5).
            */
-          let held: any = null;
-          const flushHeld = async () => {
-            if (!held) return;
-            const part = held;
-            held = null;
-            write(await this.withApprovalReason(part, identity, threadId, calls));
+          const held = new Map<string, any>();
+          const flushHeld = async (force = false) => {
+            for (const [id, part] of held) {
+              if (!force && !calls.has(id)) continue;
+              held.delete(id);
+              write(await this.withApprovalReason(part, identity, threadId, calls));
+            }
           };
           while (!abort.signal.aborted || drainStoppedNative) {
             const { done, value } = await reader.read();
@@ -628,7 +649,7 @@ export class AgentController {
               });
             }
             if (value?.type === 'tool-approval-request' && value.toolCallId && !calls.has(value.toolCallId)) {
-              held = value;
+              held.set(value.toolCallId, value);
               continue;
             }
             write(
@@ -644,7 +665,7 @@ export class AgentController {
               detached = true;
             }
           }
-          if (!abort.signal.aborted) await flushHeld();
+          if (!abort.signal.aborted) await flushHeld(true);
         })));
         if (failedExecution()) failed = true;
       } catch (error) {
@@ -771,6 +792,9 @@ export class AgentController {
   ): Promise<string[]> {
     const prints: string[] = [];
     for (const call of verified.approved ?? []) {
+      if (this.threads.describeApproval && !await this.threads.describeApproval(identity, call.toolName, call.args)) {
+        throw notPending();
+      }
       const now = await this.threads.approvalContentNow(identity, call.toolName, call.args);
       if (!now) continue;
       const shown = await this.threads.approvalContentShown(verified.runId, call.toolCallId);

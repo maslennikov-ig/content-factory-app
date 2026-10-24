@@ -33,7 +33,7 @@ module.exports = {
   check: (run) => {
     const [ask, yes, stale, decided] = run.turns;
     expect(ask.suspended.map((one) => one.payload.kind)).toEqual(['consent']);
-    expect(yes.suspended.map((one) => one.payload.kind)).toEqual(['interview']);
+    expect(yes.suspended.map((one) => one.payload.kind)).toEqual(['domain-questions']);
     // The stale «Нет» names the consent card: not the card that waits.
     expect(stale.body.cardId).toBe(ask.suspended[0].payload.cardId);
     expect(stale.refused).toEqual({ status: 409, code: 'AGENT_RUN_NOT_PENDING' });

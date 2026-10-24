@@ -58,10 +58,22 @@ export const describeApprovalCall = async (
   const capability = capabilities.find(
     (candidate) => toolNameOf(candidate.id) === toolName
   );
-  if (!capability || !mayAskApproval(capability)) return null;
-  const label = capability.label[identity.language];
+  if (!capability) {
+    const name = args && typeof args === 'object' ? cleanApprovalSummary((args as Record<string, unknown>).name) : null;
+    if (toolName === 'skill' && name) return identity.language === 'ru'
+      ? `Загрузить встроенную инструкцию «${name}» для этого разговора. Данные продукта не изменятся.`
+      : `Load the bundled “${name}” instructions for this conversation. Product data will remain unchanged.`;
+    return null;
+  }
+  if (!mayAskApproval(capability) && capability.risk !== 'read') return null;
   const parsed = capability.input.safeParse(args ?? {});
-  if (!parsed.success || !capability.describeApproval) return label;
+  if (!parsed.success) return null;
+  if (!capability.describeApproval) {
+    const object = cleanApprovalSummary((parsed.data as Record<string, unknown>).pieceId ?? (parsed.data as Record<string, unknown>).researchId);
+    return capability.risk === 'read' && object ? identity.language === 'ru'
+      ? `${capability.label.ru}: «${object}». Операция только читает сохранённые данные.`
+      : `${capability.label.en}: “${object}”. This operation only reads saved data.` : null;
+  }
   try {
     return (
       cleanApprovalSummary(
@@ -69,10 +81,10 @@ export const describeApprovalCall = async (
           { ...identity, service: services },
           parsed.data
         )
-      ) ?? label
+      )
     );
   } catch {
-    return label;
+    return null;
   }
 };
 

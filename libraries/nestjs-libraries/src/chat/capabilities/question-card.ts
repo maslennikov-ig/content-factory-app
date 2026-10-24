@@ -1,5 +1,6 @@
 import { AGENT_CARD_ID_KEY, AGENT_DECIDE_FOR_PERSON_KEY } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
+import { domainQuestionAnswer, domainQuestionSchema, mergeDomainQuestionAnswers } from './domain-question-contract';
 
 /**
  * A question card as the browser sees it, and which card an answer is for
@@ -29,6 +30,7 @@ export const SERVER_ONLY_CARD_KEYS: readonly string[] = [
   'afterConsent',
   'authorReferenceUrls',
   'target',
+  'continuation',
   // Flagged spots a check left as they are (`kcxz.38`): said by the agent.
   'notes',
 ];
@@ -158,6 +160,11 @@ export const answerFitsCard = (
   const decide = answer[AGENT_DECIDE_FOR_PERSON_KEY];
   if (decide !== undefined && typeof decide !== 'boolean') return false;
   switch (payload.kind) {
+    case 'domain-questions': {
+      if (!domainQuestionSchema.safeParse(payload).success || !domainQuestionAnswer.safeParse(answer).success) return false;
+      try { mergeDomainQuestionAnswers(payload as any, answer); return true; }
+      catch { return false; }
+    }
     case 'selection': {
       const key = typeof payload.answerKey === 'string' ? payload.answerKey : '';
       if (!key || !onlyKeys(answer, [key, AGENT_DECIDE_FOR_PERSON_KEY])) return false;

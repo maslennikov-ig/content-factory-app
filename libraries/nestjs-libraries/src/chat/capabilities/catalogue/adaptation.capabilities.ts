@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { domainQuestionSchema, domainQuestionAnswer, isDomainQuestionCard, createDomainQuestionCard, domainQuestionRevision, continueDomainQuestions, type ManualDomainQuestion } from '../domain-questions';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { IntegrationsController } from '@contentfactory/backend/api/routes/integrations.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
@@ -122,7 +123,7 @@ const interviewAnswer = z
 const autopilotAnswer = z.object({ consentGiven: z.boolean() }).strict();
 
 /** What `piece.adapt` takes on resume: one of its two cards' answers. */
-const adaptAnswer = z.union([autopilotAnswer, interviewAnswer]);
+const adaptAnswer = z.union([autopilotAnswer, interviewAnswer, domainQuestionAnswer]);
 
 /**
  * Consent to write into an autopilot channel (spec §1.4, premortem A1): the
@@ -149,11 +150,11 @@ const AUTOPILOT_TEXT = {
 };
 
 /** Both cards of `piece.adapt`: the autopilot consent first, the interview after. */
-const adaptQuestion = z.union([autopilotQuestion, interviewQuestion]);
+const adaptQuestion = z.union([autopilotQuestion, interviewQuestion, domainQuestionSchema]);
 
 const INTERVIEW_TEXT = {
-  ru: 'Пара вопросов, чтобы пост получился вашим. Ответьте, что знаете, остальное решим за вас.',
-  en: 'A couple of questions so the post sounds like you. Answer what you know; we decide the rest.',
+  ru: 'Пара вопросов, чтобы пост получился вашим. Ответьте или явно выберите «Решите за меня».',
+  en: 'A couple of questions so the post sounds like you. Answer or explicitly choose “Decide for me”.',
 };
 
 type Adapted = {
@@ -196,7 +197,7 @@ type AdaptPass =
       plan: string | null;
       note: string | null;
     }
-  | { kind: 'questions'; questions: InterviewQuestion['questions']; channel: InterviewQuestion['channel'] };
+  | { kind: 'questions'; questions: Array<ManualDomainQuestion & {key: string; suggested: string | null}>; channel: InterviewQuestion['channel'] };
 
 /** Rejected text is diagnostic data, never a saved adaptation or an instruction. */
 const rejectedReview = (event: Record<string, unknown>) => {
@@ -261,6 +262,8 @@ const adaptPass = async (
           suggested: typeof one?.suggested === 'string' ? one.suggested : null,
           ...(Array.isArray(one?.options) ? { options: one.options.map(String) } : {}),
           ...(typeof one?.why === 'string' ? { why: one.why } : {}),
+          ...(typeof one?.ownOption === 'string' ? { ownOption: one.ownOption } : {}),
+          ...(one?.selectionMode === 'multiple' ? { selectionMode: 'multiple' as const } : {}),
         })),
       };
     }
@@ -330,6 +333,8 @@ const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string,
   return {
     variant: index < 0 ? rows.length : index + 1,
     openQuestions: questions,
+    ...(ask?.adaptationId === written && ask.questions?.length
+      ? { materialAsk: ask, questionRevision: domainQuestionRevision(detail, {kind: 'adaptation', channelId: channel}) } : {}),
     ...(text ? { savedResult: {
       text: text.slice(0, 16_000),
       totalCharacters: text.length,
@@ -389,12 +394,12 @@ export const pieceAdapt = defineCapability({
       ...extra,
       ...(Object.keys(overrides).length ? { overrides } : {}),
     });
-    const finished = async (pass: AdaptPass, asked: number): Promise<Adapted> => {
+    const finished = async (pass: AdaptPass, asked: number): Promise<Adapted | undefined> => {
       if (pass.kind !== 'adaptation') {
         throw codedFailure('GENERATION_FAILED', 'The adaptation could not be written.');
       }
       const written = await writtenOf(ctx, input.pieceId, input.channelId, pass.adaptationId);
-      return {
+      const result: Adapted = {
         pieceId: input.pieceId,
         adaptationId: pass.adaptationId,
         channel: (pass.channel as Adapted['channel'] | null) ?? { id: input.channelId, name: '', provider: '' },
@@ -407,6 +412,16 @@ export const pieceAdapt = defineCapability({
         plan: pass.plan,
         note: pass.note,
       };
+      if (ctx.suspend && written.materialAsk) {
+        await emit({kind: 'adaptation', data: {id: result.adaptationId, pieceId: result.pieceId}});
+        await ctx.suspend(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: input.channelId,
+          revision: written.questionRevision!}, written.materialAsk.questions,
+          ctx.language === 'ru' ? 'Черновик сохранён. Можно дополнить материал — ответьте или выберите «Решите за меня», чтобы оставить пробелы без выдуманных фактов.'
+            : 'The draft is saved. Add material by answering, or choose “Decide for me” to retain the gaps without inventing facts.',
+          { ...referenceMetadata, continuation: {operation: 'adaptation-material', adaptationId: result.adaptationId, result} }));
+        return undefined;
+      }
+      return result;
     };
     // «Решите всё за меня» on the page: the interview is skipped. A second
     // question round lands here too, as the page's limit of two rounds does:
@@ -415,23 +430,61 @@ export const pieceAdapt = defineCapability({
       finished(await adaptPass(ctx, input.pieceId, body({ skipInterview: true }), emit, queueAllowed, sourceUrls), asked);
 
     // The first request of the page, or the interview pause after it.
+    const askInterview = async (pass: Extract<AdaptPass, {kind: 'questions'}>, queueAllowed: boolean,
+      previousAnswers: unknown[] = [], previousDecideKeys: string[] = []): Promise<undefined> => {
+      const detail = await pieces.detail(ctx.organizationId, input.pieceId, ctx.language);
+      await ctx.suspend!(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: input.channelId,
+        revision: domainQuestionRevision(detail, {kind: 'adaptation', channelId: input.channelId})}, pass.questions,
+        INTERVIEW_TEXT[ctx.language], {
+          ...referenceMetadata,
+          ...(queueAllowed ? {afterConsent: true as const} : {}),
+          continuation: {operation: 'adaptation-interview', channel: pass.channel, previousAnswers, previousDecideKeys},
+        }));
+      return undefined;
+    };
     const firstPass = async (queueAllowed: boolean): Promise<Adapted | undefined> => {
       const pass = await adaptPass(ctx, input.pieceId, body(), emit, queueAllowed, sourceUrls);
       if (pass.kind === 'adaptation') return finished(pass, 0);
       if (!pass.questions.length) return decideAll(0, queueAllowed);
-      await ctx.suspend!({
-        kind: 'interview',
-        ...referenceMetadata,
-        question: INTERVIEW_TEXT[ctx.language],
-        questions: pass.questions,
-        canDecideForPerson: true,
-        channel: pass.channel,
-        ...(queueAllowed ? { afterConsent: true as const } : {}),
-      } satisfies InterviewQuestion);
-      return undefined;
+      return askInterview(pass, queueAllowed);
     };
 
     if (ctx.resumeData !== undefined) {
+      if (isDomainQuestionCard(ctx.suspendPayload)) {
+        const card = await continueDomainQuestions(ctx);
+        if (!card) return undefined;
+        if (card.source.kind === 'adaptation' && card.source.pieceId === input.pieceId &&
+          card.source.channelId === input.channelId && card.continuation?.operation === 'adaptation-material') {
+          const answers = card.answers.filter(answer => answer.mode !== 'delegate').map(answer => ({key: answer.key as any, text: answer.text!}));
+          const adaptationId = String(card.continuation.adaptationId);
+          const applied = await pieces.materialQuestions(ctx.organizationId, input.pieceId, input.channelId,
+            answers.length ? {adaptationId, answers} : {adaptationId, dismiss: true}, ctx.language);
+          if (!answers.length || applied.state !== 'answered') {
+            const {openQuestions: _closed, ...saved} = card.continuation.result as Adapted;
+            return {...saved, asked: saved.asked + card.questions.length};
+          }
+          // The standalone manual flow applies the whole material batch, then rebuilds and adapts once.
+          await pieces.rebuildCore(ctx.organizationId, input.pieceId, ctx.language);
+          return finished(await adaptPass(ctx, input.pieceId, body({skipInterview: true}), emit, false, sourceUrls), card.questions.length);
+        }
+        if (card.source.kind !== 'adaptation' || card.source.pieceId !== input.pieceId ||
+          card.source.channelId !== input.channelId || card.continuation?.operation !== 'adaptation-interview') {
+          throw codedFailure('INPUT_NEEDS_PERSON', 'The questions do not belong to this adaptation.');
+        }
+        const queueAllowed = card.afterConsent === true;
+        const previousAnswers = Array.isArray(card.continuation.previousAnswers) ? card.continuation.previousAnswers : [];
+        const previousDecideKeys = Array.isArray(card.continuation.previousDecideKeys) ? card.continuation.previousDecideKeys as string[] : [];
+        const byKey = new Map(card.questions.map(question => [question.key, question]));
+        const answers = [...previousAnswers, ...card.answers.filter(answer => answer.mode !== 'delegate').map(answer => ({
+          key: answer.key, text: answer.text!, origin: answer.mode === 'confirmed' ? 'confirmed' : 'person',
+          ...(answer.key.startsWith('ask-') ? {question: byKey.get(answer.key)!.question} : {}),
+        }))];
+        const decideKeys = [...new Set([...previousDecideKeys, ...card.answers.filter(answer => answer.mode === 'delegate').map(answer => answer.key)])];
+        if (!answers.length) return decideAll(card.questions.length, queueAllowed);
+        const pass = await adaptPass(ctx, input.pieceId, body({answers, ...(decideKeys.length ? {decideKeys} : {})}), emit, queueAllowed, sourceUrls);
+        if (pass.kind === 'questions') return askInterview(pass, queueAllowed, answers, decideKeys);
+        return finished(pass, card.questions.length);
+      }
       const consent = autopilotQuestion.safeParse(ctx.suspendPayload);
       if (consent.success) {
         const answer = autopilotAnswer.safeParse(ctx.resumeData);
@@ -469,7 +522,10 @@ export const pieceAdapt = defineCapability({
           ...(one.key.startsWith('ask-') ? { question: byKey.get(one.key)!.question } : {}),
         }));
       const decideKeys = (answer.data.decideKeys ?? []).filter((key) => byKey.has(key));
-      if (!answers.length && !decideKeys.length) return decideAll(asked, queueAllowed);
+      if (card.questions.some(question => !answers.some(answer => answer.key === question.key) && !decideKeys.includes(question.key))) {
+        throw codedFailure('INPUT_NEEDS_PERSON', 'Answer or explicitly delegate every question; unanswered questions are not delegated.');
+      }
+      if (!answers.length && !decideKeys.length) throw codedFailure('INPUT_NEEDS_PERSON', 'No question was answered or delegated.');
       const pass = await adaptPass(
         ctx,
         input.pieceId,

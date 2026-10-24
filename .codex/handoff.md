@@ -1,163 +1,114 @@
-# Content Factory current handoff — 23 October 2026
-
-## Video release preparation — 23 October 2026
-
-Owner now authorizes merge to main, push and deploy with release checks.
-Real provider registration/login, credentials, paid calls and credit consumption
-remain prohibited. Candidate combines origin/main `d81a12ab5` with reviewed
-video `29b96ba9c`; release worktree is `release-video-20261023`. The primary
-checkout's unrelated dirty files and existing local previews are preserved.
-The candidate has not yet been deployed; current production remains recorded
-below until fresh release evidence is accepted.
-
-Video API, personal subscriptions and manual upload are locally implemented.
-Independent review fixed identity/credential fencing, public OAuth callback,
-bounded receipt recovery and save-after-reconnect. Fresh actual browser plus
-Temporal acceptance passes for subscriptions, API, manual upload and recovery;
-no duplicate generation, actual owned playback/download. Production subscription
-profiles remain disabled pending verified live contracts. Additive Prisma changes
-require guarded application before switching the image; existing workflow
-contracts and legal notices stay intact. `.8`–`.12` are locally complete;
-`.7` and epic remain open for real account/schema/billing/output/quality evidence.
-
-[Runbook](../docs/operations/video-subscription-local-acceptance.md),
-[implementation](stages/content-factory-next-zlq6-subscriptions-20261023/implementation.md),
-[review](stages/content-factory-next-zlq6-subscriptions-20261023/review.md),
-[browser/Temporal](stages/content-factory-next-zlq6-subscriptions-20261023/reacceptance.md).
-Private release evidence: `~/.local/state/content-factory-next/release-video-20261023/`.
-
-## Table release preflight corrections — 23 October 2026
-
-Owner requested production delivery of the table fix. The full gate caught an off-token header weight: follow-up86938c73d uses `cf-label-md`; typography/Markdown/adapter37tests and frontend types PASS. A later native PG/Redis replay test exposed a real race (`content-factory-next-z2nz`): after a replay-floor read failed, a terminal-only asynchronous ownership lookup let an older generation's text through. `observeConductorRun` now loads the native storage generation before subscribing and passes Mastra's existing `minGeneration`; unavailable ownership storage propagates instead of opening an unfenced reader. No custom event filter, buffering or retry loop was added. A deterministic claim-read barrier reproduced the stale text before the fix; real PG/Redis fanout, tool pairs, detach, unknown-floor rejection and session-observe checks PASS, backend types PASS. Production delivery remains pending the full corrected source gate; site still runs eb26f53a52a1. Failed/cancelled attempts are retained privately in `~/.local/state/content-factory-next/release-tables-20261023/`. Foreign root files/index are preserved; no new model call is required for this release.
-
-## Local chat tables and maintained Markdown renderer — 23 October 2026
-
-`content-factory-next-t6ko`: replaced handwritten block/inline parsing in the shared `AgentMarkdown` with react-markdown10.1 + remark-gfm4.0.1. Native remark-math-extended6.1.1 preserves both TeX and dollar delimiters; the existing safe KaTeX DOM renderer remains. A small AST transform preserves currency using native node positions and single-dollar whitespace/digit boundaries. No custom Markdown grammar remains. Tables have semantic headers, native column alignment, themed borders and keyboard-accessible horizontal scrolling. Raw HTML/code remain text, links keep the http(s)/mailto policy, and model-provided images do not make automatic external requests. Jest converts the real ESM packages using the existing transformer; no renderer mocks.
-
-Local normal chat UI replayed the saved real Sol response: one 3-column/2-row table, four cell formulas and all22 original TeX sources exact (3 display formulas), 1440/390px, both themes, keyboard scrolling, reload, no page overflow/errors or extra model call. This is local replay evidence, not a new model or production check. Markdown/adapter28tests and four design guards65tests PASS; frontend types, frozen offline lockfile validation and diff check PASS. Full build/suite omitted for this scoped local change. Private receipts/screenshots: `~/.local/state/content-factory-next/markdown-tables-20261023/`. Local4278/3478 preserved; no deploy or source push. Root's9 unrelated video-planning files/index unchanged. `docs-reviewed: updated` (component inventory); `graph-reviewed: used` (prior owner graph orientation reused, exact existing conversation/card consumers confirmed; no architecture boundary or owner graph rewrite).
-
-## Production chat math rendering — 23 October 2026
-
-Owner-authorized `content-factory-next-xija` release accepted: tested private `23efd3094c8bb56633a91ccf76f4acdab2f98224`, public/runtime `eb26f53a52a14c9144cb39f11c9a17e1308cf714`, registry index `sha256:96a401a62de87f5c87370794f1708959881aa5a85c4499ba7feacd02c87f308e`, image config `sha256:3ffe4a192328f5c0cdeb91c8c2ba8959bd73da504e55dda13affcc8cdb9dd50a`. Verified rollback `bf7e042de228` retained.
-
-Normal production browser opened the existing saved Sol chat: all 22 original TeX expressions rendered, 3 display formulas, accessible MathML/local fonts, no horizontal page overflow, exact formula sources after reload, no page/scoped API errors. Messages exact across deployment and reload; no chat POST or new paid call. All 149 original messages and AI settings preserved. Other 27 thread rows exact; the viewed thread's only differences are native `updatedAt`/`updatedAtZ` touched by the normal workspace PATCH. Read-only normalized hashing proves every other column unchanged; raw strict-hash failure retained, no row rewritten to satisfy the check. Earlier real browser Sol-selection proof remains separate in `browser-sol-selection-20261023/`.
-
-All 9 configured release commands PASS: Jest 747 suites/13155 tests (7 suites/70 tests existing skip), Node 140 PASS (4 env skip), Python 50 OK; canonical image compiled all 4 apps, nginx/commands-help PASS. Runtime/source/archive exact; app healthy, 3 PM2 processes online/0 restarts, worker ready, 0 active native leases/admissions. Empty product schema diff, no apply; native schema fingerprint and 4 human-suspended snapshots preserved. Protected live config unchanged except image/release markers; all 21 other container identities/mounts and 21 volumes preserved. Canonical retention kept current+rollback, removed only own unused fa3 image and 4 old config copies; all 5 exact temporary schema helpers and local browser credential removed. Root main e326aab7/index/all 9 foreign video files and the local preview preserved.
-
-Private receipts/screenshots: `~/.local/state/content-factory-next/release-math-20261023/`. This closeout changes documentation only; accepted application inputs stay 23efd3094. `docs-reviewed: updated; documentation-decision: KaTeX dependency/API documented in component inventory; current deployment recorded here and in the runbook`. `graph-reviewed: used` (owner graph read during implementation; no new source changes in release, no owner graph overwritten).
-
-## Local chat math rendering — 23 October 2026
-
-`content-factory-next-xija`: existing `AgentMarkdown` renders inline/display TeX through KaTeX0.19's DOM API (`trust:false`), with MathML, local CSS/fonts, and expression overflow contained in the message. Code/currency stay literal; incomplete or invalid formulas remain readable. Source text never becomes raw HTML. Component inventory updated. Local browser replay of the saved real Sol response: all22 formula sources exact,3 display expressions,1440/390px and light/dark PASS, exact formulas after reload, no page errors or extra model call. Focused math/adapter23tests and4design guards65tests PASS; frontend types and diff check PASS. Owner graph dd67538d used read-only for the shared conversation consumer; exact current file checked, no graph rewritten (`graph-reviewed: used`). Private receipts/screenshots: `~/.local/state/content-factory-next/browser-sol-selection-20261023/math-*`. Local4278/3478 restored via the existing private runtime controller after finding both processes stopped; backend build unchanged. Local acceptance preceded the authorized production delivery recorded above. Unrelated root/video edits were preserved.
-
-## Production delivery: chats, research and semantic Sol selection — 22 October 2026
-
-Owner-authorized release accepted: tested private `b49ad7a45eefb7af031cac17564dfc2850f7a2ea`, public/runtime `bf7e042de228c43e593df7e83d24c3ac5f56f66b`, registry index `c9ea4e3c13aae9fa22904a0f1fe38e680f1df25259c24406ea32ce0761f8e4b8`, image config `7c43537985aba62cb3098e6789f517a142e62e6a49191053be80d471c6e76700`. Verified rollback `fa3a69814fe5` retained. The public provenance follow-up changed commit metadata only; its tree is identical to4c6b721. No history rewrite or suite-gate bypass.
-
-Production QA exposed and fixed three native integration cases: OpenRouter HTTP200 JSON error codes now reach the SDK as real provider errors; terminal native tripwires persist failed rather than completed; the exact native empty-other stream error no longer blocks Mastra retry/fallback. Auth, billing, unknown-error and Stop boundaries remain; no new retry loop, model tier change, retry-default change or account setting write. Real durable SDK regressions cover zero/positive retries, one committed tool and retained paid-empty usage. Full exact-source release receipt: Jest746suites/13151PASS(7suites/70tests knownskip), Node140PASS(4envskip), Python50OK. Canonical image built all4apps; nginx/commands-help PASS.
-
-Production browser QA PASS: sidebar and toolbar new chat; fresh Exa research(two real requests); correct version/date with two directly checked official sources; complex causal answer; switching/reloading exact isolated saved histories. Three intentional chat POST across primary and supplementary browser checks, no page/scoped API errors. Browser answers used Luna while the optional classifier encountered real Flex availability errors. Separate real call through the deployed native routing code and unchanged production account config independently selected advanced Sol6.1, then actualSol answered successfully on provider-reported Flex. This is production backend model-selection evidence, not a claim that a browser chat's final answer usedSol. Local own-key native durable streaming also reached actualSolFlex; earlier genuine502 failures remain preserved.
-
-Runtime/source/archive exact; app healthy and backend/frontend/orchestrator online with0restarts; worker ready,0activeleases/admissions after QA. Product schema diff0, no schema apply; Mastra fingerprint and4human-suspended snapshots preserved. Original24threads/141messages at final QA baseline and account settings unchanged; earlier21/137owner baseline preservation is chained in the prior release receipts. All21other container identities/mounts and21volumes preserved. Local4278/3478 remains running with backend79792/builds/r4eq-native-model-routing; root main e326aab7 and all9foreign video-planning files/index untouched. Metadata-only closeout below does not require another image build.
-
-Private receipts: `~/.local/state/content-factory-next/release-sol-routing-empty-20261022/`; preceding failed functional QA is retained in `release-sol-routing-20261022/` and `release-sol-routing-fix-20261022/`, never relabeled passing. Bounded nonblocking reader follow-up `content-factory-next-ij4n`: internal missing-date/number warning despite retained release-date passages; final answer independently correct. Preserve the distinction between literal presence and verified/selected facts. `docs-reviewed: updated`; `graph-reviewed: used` (existing owner graph as stale orientation, exact consumers checked; internal error predicate changes add no graph boundary).
-
-## Earlier local acceptance: native model choice and own-key fallback — 22 October 2026
-
-`content-factory-next-r4eq` is implemented and accepted locally in `/home/me/code/content-factory-next-worktrees/local-review-20261022`. [Design and acceptance](../docs/superpowers/plans/2026-10-22-native-model-selection.md). Mastra1.78 `Classifier` chooses base/advanced before a unique native fallback array. Explicit role/session choices win. Assistant, core, adaptation and review controls share the existing settings; `getChatModel` routes real stage generation through native Agent schemas. Own-key defaults now include a compatible fallback; explicit empty/reset/retry provenance, own credentials and other tenants survive. Sol6.1 preset uses configured Flex only; a different profile does not disable the included Sol tier policy. Unsupported Flex combinations fail before payment. Classifier schema and nested preparation/admission bugs found in real acceptance are fixed. Subagent model overrides now reach the actual model and child/judge retry context stays isolated.
-
-Real local QA PASS: routine adaptation via Luna; actual core writer chose Sol, received a real upstream502 and completed through Luna; difficult causal analysis in a new native chat automatically chose Sol and Sol answered successfully; scoped injected primary429 switched to a real Sol answer. Final fresh Python research used four real Luna calls and Exa, returned Python3.15.1/21Oct with official release source. Switching/reloading exact saved Sol/research histories passed. All76225input/909output model tokens and USD0.01345119145 including search match stored accounting within Decimal(14,8) rounding. Settings API and browser reload, profile toggles, stage pins, disabled/reset/retries, unchanged encrypted own key and other tenant PASS. Real providers were own-key OpenRouter/Exa; direct OpenAI Responses compatibility, Flex and accounting have fixture coverage, no real direct OpenAI call. Backend emit, frontend types, focused resolver17/settings10/adapter10, usage+native retries57, design/consumer guards35 and affected existing suites pass; matching unchanged checks reused. Full repository build/suite not run.
-
-Preview remains on4278/3478, private build `builds/r4eq-native-model-routing`. No deployment, source push, production mutation or social publishing. Root checkout video-planning WIP untouched; all earlier chat history retained. Private receipts, source fingerprints, API/UI snapshots and restart scripts: `~/.local/state/content-factory-next/local-review-20261022/r4eq-*`. `docs-reviewed: updated` (native selection, own-key fallback and stable entrypoints). `graph-reviewed: used` (owner main graph dd67538d read-only orientation; exact current consumers confirmed, no owner graph overwritten). Local GitHub sync skipped: managed Helixa server owns publication. Live scheduler receipt15:23:54UTC exit0 read; bridge status currently locked by its scheduled run, so final Linear closure is not yet confirmed.
-
-## Real local chat/search walkthrough — 22 October 2026
-
-Owner-authorized Playwright UI walkthrough PASS on local4278/3478: fresh-browser auto-login; new chat from sidebar and toolbar; real research with sources; second isolated chat; sidebar collapse/expand and switching both ways; exact saved-history equality after reloading both chats; follow-up correctly recalls the researched version/date without a new search; fresh-browser saved deep link. Six real `openai/gpt-6-luna` calls and two Exa searches, all200/unmocked, three intentional chat submissions, no duplicates/page/API errors. Found Python3.15.1 released21Oct; both official source links opened and their contents verified. Provider-reported totalUSD0.0539132065, consistent with local usage ledger. Fixed the local Next dev indicator covering Send via native `devIndicators:false`; ordinary mouse clicks pass. Backend87252/build6aea preserved, frontend restarted only after idle proof. No deployment or full build/suite. Private acceptance, streams, saved histories, screenshots and receipts: `~/.local/state/content-factory-next/local-review-20261022/LOCAL-E2E-20261022-1792679255439/`.
-
-## Default local sign-in — 22 October 2026
-
-Owner requests automatic sign-in on every local launch. `AGENTS.md` and `docs/operations/local-feedback.md` now require the selected local test profile, with private `CF_LOCAL_AUTH_TOKEN`; no arbitrary user selection. Development-only proxy helper validates the normal session through `/user/self`, requires loopback request/frontend/backend/database URLs, and uses the existing local HTTP client cookie contract. Existing other-user sessions, invitations and provider returns retain their normal flow; explicit logout pauses auto-login for that browser session. `CF_LOCAL_AUTO_LOGIN=false` opts out. Frontend dev binds to127.0.0.1 by default. Local4278 is running with private settings persisted across restarts; backend87252 and all saved data remain intact. Fresh Playwright browser: `/auth` -> `/agents`, real chat-list and self200, no401/pageerrors; logout and next-fresh-browser auto-login PASS. Focused5suites/95tests PASS on Node22.23.2; diff check PASS. Private proof: `~/.local/state/content-factory-next/local-review-20261022/auto-login-browser-smoke.json`. No new production deployment, full suite/build or provider call for this change.
-
-## Earlier release and local preview — 22 October 2026
-
-Owner22Oct explicitly authorized the local preview and parallel deployment. Accepted runtime: private6aea8d316ac7/publicfa3a69814fe5, registry index7d2828828cdb75ed5aaaeb5724d7b677df5e850f398423ac8468f46f4f7e00a1. Protected rollback9be03b5c4132 remains available. Source, image and release marker agree; backend/frontend/orchestrator online with0restarts; worker readiness and public API/login/source/archive checks pass. Full exact-source receipt: Jest740suites/13068PASS(7suites/70tests knownskip),Node140PASS(4envskip),Python50OK. Canonical image build compiled all4apps; nginx and commands help pass. Release fixes preserve trusted original author context across native child Memory isolation and use compiled relative lazy loading for historical lookup; merged legacy fixtures now follow server-owned input/native replay contracts. Product schema: one guarded nullable ContentContextItem.evidenceProjection JSONB, applied transactionally after verified product/global backup; same-image pre/post diff0. Mastra47tables/0invalidindexes/fingerprint unchanged;4human-suspended snapshots remain,0activeownerleases/admissions,0critical startup errors. All21other container identities and21volumes exact. Canonical retention removed only old0ca image and2expired own config copies; current+rollback kept,20.9GB free. Owned schema helpers removed; checked SQL and backup remain on host. Local preview http://localhost:4278/agents runs current application6aea8d316 in local-review-20261022, backend3478, independent product/Mastra DB clones and uploads. Normal login, saved chats and upload/read hash smoke pass. Compiled historical-author resolver/service-class identity verified. Credentials/restart instructions are private under ~/.local/state/content-factory-next/local-review-20261022/. Keep this runtime and original j9 data for owner testing. CI-only follow-up private06668692d608/public896ee809a468 adds healthy disposable PostgreSQL17/Redis7.2 to both hosted suites. Old hosted failures were missing localhost test services; all15affected suites/38tests pass locally with date+400days. New hosted run39771282283 is pending; this is separate from accepted runtimefa3 and does not justify rebuilding unchanged application inputs. No automatic paid model/search or real-user messaging QA was performed for this release; prior provider evidence and open eqh5 quality limits remain separate. Release evidence: ~/.local/state/content-factory-next/release-20261022/. Source/metadata delivery uses isolated release-native-main-20261022. Root main still contains concurrent video-planning WIP and is behind origin; preserve it, do not reset/stash it for cleanup. All actual release code is in origin/main. graph-reviewed: owner main graph(dd67538d,18Oct) read as stale orientation; exact changed service edge confirmed in source, no new graph boundary/refresh.
-
-## Local integration and cleanup — 21 October 2026
-
-Local main integration,21Oct: native Mastra repair4e9627e85 and Telegram/model-policy source631241921 are combined in local main (merge f2f9459e1). Preserve both native retry/receipt/Stop guards and server-owned original-author/source handoff. Luna remains primary; included fallback is Sol6.1Medium via OpenAI Flex only, with own-key/explicit-empty choices retained. Original full suites/model receipts are reused for unchanged inputs; only overlap checks and backend types run here. Cleanup complete: 11 -> 2local branches,8 -> 2worktrees;38merged remote branch names retired with exact-tip leases. Both current source lines are ancestors of local main; original root is clean after archival. All32,528old untracked files and residual nested-Git metadata are preserved outside Git with recovery receipts. The old native stand data is preserved; the fresh preview above owns ports3478/4278. Paused reader and old experiments are archived, not merged into product behavior. Fresh canonical Linear read: eight on0i tasks Done; completed x9q2/HONEY-5916 reconciled to Done. Twenty legitimate nonclosed items remain (7Todo,7Blocked, 3Deferred,3In Progress), including eqh5. Central Beads import is unverified while its SSH endpoint is unavailable; no local publisher was started. At that21Oct checkpoint, no code push/deploy/paid call occurred; the later22Oct source push and explicit release authority are recorded above. [Integration and recovery](../docs/maintenance/integration-cleanup-2026-10-21.md).
-
- ## Current local repair — native Mastra (21 Oct 2026)
-
-User authorizes fixing the whole on0i epic and local real-model/search QA; no deploy, push or production mutation. A later explicit instruction authorized a scoped read of existing generation/search credentials from the server and saving them locally; completed with private local files and local encrypted settings only. Current worktree `/home/me/code/content-factory-next-worktrees/j9p5-model-led-20261018`, branch `codex/on0i-native-repair-20261021`, baseline `e74e059ea104593d2fac831eb989714a5b151263`. Independent review invalidated full-epic completion: [R1–R6](stages/content-factory-next-on0i-review-20261021/review.md). [Repair plan](stages/content-factory-next-on0i-repair-20261021/plan.md). Epic and children reopened through Beads; implementation/acceptance ongoing. Historical production receipts below do not authorize current deployment and do not establish this repair's acceptance.
-
-Repair local technical acceptance PASS: Gate10 all10checks0,135sourceinputsexact; Jest733suites/12922PASS(70skip),Node127PASS(4envskip),Python50OK. All24selected native SDK/PG/HTTP/recovery suites executed. Current buildtmvBVorjTll4eVz0CthsG/frontend59308/backend4924: compiledpaymenterror/draftrecovery and real6-message/80-item savedhistory PASS; Gate9 actualreconnect/Stop+36ms/followup proofs explicitly reused for unchanged execution functions. Current Python research completed after1explicit nativeQAeditorialselection, not autonomousfirstpass. Beads7children+epic closed and canonical8Done freshlyconfirmed16:12:36UTC. Acceptedlocal source delivery on codex/on0i-native-repair-20261021; no push/deploy/productionmutation. Privatekeys persist locally;120unrelated untrackedfiles exact. [Outcome](stages/content-factory-next-on0i-repair-20261021/outcome.md), [evidence](stages/content-factory-next-on0i-repair-20261021/acceptance-map.md), [root acceptance](stages/content-factory-next-on0i-repair-20261021/local-final-acceptance.json).
-
-Telegram repair `content-factory-next-5rgn` accepted locally in source 631241921 lineage: original author context, complete retained source evidence, resolved channel rules and final text composition are preserved. The two saved Sol posts are historical local acceptance; later Luna/MiMo and Sol6.1 comparisons remain separate observations. Original requests/content/account settings remain preserved. General editorial completeness/quality follow-up eqh5 stays open per the latest available handoff, not silently accepted by this merge. [Telegram repair](stages/content-factory-next-5rgn-telegram-repair-20261020/outcome.md), [Sol route and comparison](../docs/reports/benchmarks/2026-10-21-luna-sol61-telegram.md), [Luna/MiMo comparison](../docs/reports/benchmarks/2026-10-21-luna-mimo-telegram.md). Task authority (owner, 2026-10-16): Linear is canonical, Hoba is the intake; linked tasks follow same-team project moves, marked `linear-project:<slug>`; Beads is the agent interface; GitHub is the subordinate mirror. Component: `content-factory`; migration epic: Helixa `helixa-2-lab-2xs0s`. Check bridge status for `preparing` versus `active`. Older Beads-authority wording below is historical. See `AGENTS.md` and managed `docs/runbooks/linear-task-sync.md`; product work/gates stay intact. Server task-sync cutover, 2026-10-16 (`helixa-2-lab-03z66`): the sole publisher and native Beads databases are on `helixa-new` (82.26.152.8). Local `bd` uses the protected SSH connection; both Windows sync tasks are disabled. Local bridge checkpoints are diagnostic copies. Use the managed task-sync runbook for the live server status and recovery; never reinitialize the selected databases.
-
-Owner-authorized j9p5 implementation and production acceptance completed19Oct: private sourceadb43f973576/public-productiondd89af1b4a29, verified rollback88867e1cb4c7. All9root and5public CI checks pass (Jest12619/Node126/Python50); natural production model selection -> saved/opened/read draft plus13chat/navigation checks pass, original messages/pending/workspace exact. Six actual usage rows succeeded/no unknown costs, modelopenai/gpt-6-luna/Exa advanced unchanged; actual partial research status preserved. Schema0SQL0/no apply, Mastra45/product77 fingerprints unchanged;17foreign containers/21volumes exact;25040601088free bytes after canonical own-only retention. Helpers/session removed. All9children and epic canonically Done at10:57UTC;2preexisting unrelated global graph conflicts preserved. [Delivery](stages/content-factory-next-j9p5-implementation-20261018/production-delivery.md); exact root verdict: stages/content-factory-next-j9p5-implementation-20261018/evidence/root-acceptance.json. Prior C4A incomplete controls remain historical. ## Native Mastra 1.78 wow-features (`content-factory-next-bxeb`) delivered & deployed (20 Oct 2026)
-
-Epic `content-factory-next-bxeb` (`bxeb.1`–`bxeb.6`, decisions `A1`–`A4`) CLOSED, merged to `main`, published, and deployed to production (`factory.aidevteam.ru`): - Private source `66cace3eaa3a7c4d07775078731e746d13724264` (`origin/main`), public commit `9be03b5c4132ebf8c1ccc15c69b2a3a6bfb8e8aa` (`9be03b5c4132`), image `ghcr.io/maslennikov-ig/content-factory-next:9be03b5c4132` (registry digest `sha256:8f63ce66f8278cff4a00b9044683f4005db3495ee00ecfef5e853f316d6c857f`, config `sha256:6e2233c0b8aeec29edbe837bb76296a9b41048be3430b546bea5d80ebb67c26a`). - Delivered: (1) Voice dictation (`AISDKTranscription`, `POST /agent/voice/transcribe`, «В текст» / «Отправить сразу» in `AgentComposer`); (2) Thread clone & message fork (`POST /agent/threads/:id/fork`, `Session.thread.clone`, `memory.cloneThread`); (3) Zero-quota deterministic `MastraScorer` (`brand-voice-and-facts`, `mastra_scores`, `GET /agent/threads/:id/scores`, `VoiceScoreBadge` on `ArtifactLine` & `PlanCard`); (4) `BackgroundTaskManager` + `NotificationsStorage` + `createNotificationInboxTool` + `AgentNotificationsBell` (`GET /agent/notifications`, `read`/`read-all`); (5) Two-way Telegram assistant channel (`@mastra/core/channels` on shared `TelegramUpdatesService`, preserving `support-relay` for `/support` and unlinked users); (6) Architecture & component inventory (`docs/architecture/mastra-native-integration.md`, `docs/design/component-inventory.md`, `docs/product/roles-matrix.md`). - Full suite receipt & public GitHub Actions (`Build` + `Code Quality Analysis`) pass: Jest 712 suites / 12,723 tests / 70 skips, Node 127 / 0 fail / 4 env skips, Python 50 OK; `nginx -t` and `apps/commands --help` pass. Runtime `healthy`, `0` restarts, 3 PM2 `online`; `/auth/login`, `/api/public/source/version` and `/api/public/source/archive` (`13,176,071` bytes, SHA-256 `57439c703fe1426038826d36f1e6cfc4af868e6acf452715f232a8a8a7179387`) match image. `retain-host-artifacts.sh` kept `9be03b5c4132` and verified rollback `0ca38ed190f3` (`24,740,466,688` free bytes; 17 foreign containers / 21 volumes preserved).
-
-## Historical native Mastra harness release (20 Oct 2026)
-
-The previous release statement is preserved verbatim in the [historical handoff](stages/content-factory-next-on0i-repair-20261021/historical-on0i-release-handoff.md). Its original full-epic acceptance was rejected by the21Oct independent review; current local repair and pending acceptance are described above. Historical production delivery neither proves this repair nor authorizes a new deployment.
-
-## AI assistant implementation
-
-Manual-width follow-up `content-factory-next-tgeq` /HOBA-5835 canonically CLOSED: testedce4a5895ccc5/public-production 88867e1cb4c7, accepted18Oct17:20UTC. All9root/5CI/3suite halves PASS (Jest12492/70existing skips,Node126/0fail,Python50);42actual2221/390px width cases PASS incl manual avatar/channel/material/adaptation and shared assistant editor. Core783→1517px/input761→1925/settingsfields560→1393; no overflow,0model/0domainwrites, original/QA/history exact and workspace restored. Actual facts collection empty; row styling source/suite only. Registry80e5/config06a4/archive12867752bytes SHA1e972 exact; schema0SQL0/no apply, healthy0/3online0/Mastra45same/21foreign containers+21volumes. Canonical retention kept888+rollbackda82/config4797, removedonlyownebdd/2old4fcopies; hashedhelpers/session removed, browser/cookies closed;25,223,315,456free bytes. [Delivery/receipts](stages/content-factory-next-tgeq-width-20261018/production-delivery.md). Prior assistant-only widthnds6/HOBA-5834 acceptedda82 remains [historical](stages/content-factory-next-nds6-width-20261018/production-delivery.md); prior paid epic evidence below unchanged.
-
-Owner16Oct selected «ИИ-помощник» across all16 locales. Epic `content-factory-next-jvrq` /HOBA-2540 and all20children are canonically CLOSED; normal-flow delegated A1–A10 acceptance is preserved. Personal owner/client/external observations remain separate. Prior accepted runtime18Oct13:29UTC: private dd67538d524417749bc46935ffb84431bc3da42f/public ebdd0fdd6d86d44152465f72e678e429d0387715, registryc1d1/config2114. Exactall9/all5CI/full3suitehalves PASS (Jest12492/70skip,Node126/0fail,Python50). Full12865844byte production archiveSHA0f1437 matches image. Schema0SQL0/no apply; healthy0/3online0/Mastra45fingerprint4739/21foreign containers+21volumes exact;25,217,040,384free bytes. Verified4f/config812 rollback retained; canonical retention removedonlyowna20/5efa/1bf and6old configcopies. Historical17Oct A1–A10 evidence remains in outcome/map, not a current-runtime assertion. Delivery18Oct: e6rj/HOBA-5826 canonicallyCLOSED; wc6o/HOBA-5827 canonically CLOSED (managed server13:37UTC). Actual fresh avatar→existing testgroup→new named piece/questions/separate answers→manual avatarv2/chatv3/channel/core controls accepted composite.4f proves retained draft/DOM on focus/route0modelPOST, inline fresh revision, native preview/history and actual paid resumeStop running/locked→explicit settled/interrupted,1POST/no replay; accepted write preserved once. Finalebdd native approval2streams200DONE/pending0/completed now reports avatar already disabled. Main1218/shared/freshmanual/API/DB exact; all originals/default/priorrecords preserved/channel fully restored.19ledger rows terminal17success/2intentionalStop failures,known0.02761769USD notinvoice;2possiblyBilled. Browser/cookies/session/RPC/3hashedhosthelpers closed; releaseWT/image/archive/privateaudit kept. Global managed relation sync remains exit1/local-graph-pending for e6/wc, recorded bounded external defer; selected statuses are separate. No local publisher/DB reinit/edge deletion. Target: `docs/product/chat-first-workspace-spec.md`; plan: `docs/superpowers/plans/2026-10-16-chat-first-workspace.md`; accepted design: `docs/design/chat-first-workspace/prototype.html`. Current evidence: `stages/content-factory-next-jvrq-implementation-20261016/acceptance-map.md`. Historical16–17Oct releases, OPEN checkpoints, failed controls and corrections remain in that stage's `outcome.md` and evidence; they are not current runtime/task statements. Latest delivery: `stages/content-factory-next-jvrq-implementation-20261016/production-delivery-20261018.md`; scoped follow-up plan: `stages/content-factory-next-jvrq-implementation-20261016/production-repair-20261018.md`.
-
-Current stage id: content-factory-next-j9p5-implementation-20261018
-
-## Shared-host artifact lifecycle delivered
-
-Current stage id: content-factory-next-host-artifact-lifecycle-20261014 Beads0qgn.24 /producer beads_fmcg_kp-qaa3; original contracts/other statuses retained. AiDevTeam ops source2283eaae5 pushed/main/host installed; source-only, no app rebuild. CF
-
-still0e8f25e5fe9f/verified rollbackec58; AiDevTeam app3153/image84520a37 unchanged. Canonical deploy now prepare/admit before build, finish after readiness; same custom contract. Keep3 latest distinct rollbacks +3 documented pins +all container references; exact removals only. Unused cache older24h toward4GB; fresh/in-use cache kept. Build needs16GB/100k inodes. Unknown capacity/pin/identity, active build or failed readiness refuses unsafe work. Root22 Python +101 CF regression PASS; syntax/compile/diff PASS; frontend build proof reused. Actual two obsolete tags/cache cleaned: ~9.24→17.82GB;22 containers/20 volumes/live files preserved. Installed check/prepare dry-run/actual finish PASS; hashes/source and CF/website health exact. No daemon/scheduler, app restart/switch, DB/backup/model/provider/message QA. Owned host temp/worktree removed;12 unrelated producer modified files preserved. Outcome/root proof: stages/content-factory-next-host-artifact-lifecycle-20261014/. Original actual owner Telegram login/client acceptance remains unverified; use fresh /auth/login. Previous13Oct repair2q28.43/.44/.45 delivered; details in login-flags-repair-20261013/outcome.md. No continuous goal/next work running; resume owner testing, leave original epics/defers unchanged.
-
-Owner12Oct explicitly approves independent Skool publication defer and epic closure. Epic and all36 technical children CLOSED; task32 independent DEFERRED, not completed. Original38 task contracts unchanged; approved defer recorded in Beads, the authority. Previous dbxe source2e357374d91a/ec58 proof stays historical, not restamped. Rejected38c compiler gap, corrected c886 proof and successful2a rollback retained. 30 old-key401/new-key200 and31 empty V2->V3 cutover remain actual accepted operations. Global34/8 retain2 disabled-caller exceptions;33/35 retain native/allocator triggers, not a universal patched claim. Four clean owned child worktrees removed; proofs and branches kept, release worktree retained. All unrelated work preserved. Store2.0.1 package/native fixture is distinct from CWS approval; EXTENSION_ID unset. Outcome/runtime/CI/status proof: stages/content-factory-next-dbxe-completion-stage/. Unrelated epics/defers open; no paid/provider/mail/social/restore QA or metadata full rerun.
-
-Accepted stage id: content-factory-next-dbxe-completion-stage
-
-Historical publishing/dependency acceptance is preserved in [the archived handoff excerpt](stages/content-factory-next-2512-native-harness-20261019/historical-operations-handoff.md).
-
-## Previous accepted access stage
-
-Previous stage id: content-factory-next-dbxe-access-stage Bounded dbxe.1–.5 accepted locally in codex/audit-readiness-20261009; Beads owns current child statuses; dbxe.1–.6 and8 CLOSED, epic OPEN. Organization list projects safe fields,
-
-reset/session/activation purposes are separate, reset uses 20min exp/password-hash CAS, legacy OAuth rechecks current tenant membership/role, cookie mutations fence Origin, provider fan-out scopes tenant+explicit family. Existing full-user sessions/organization keys retained; old untyped reset links require a new letter. No schema/secret rotation, provider call, production mutation/deploy, remote source push or customer messaging. Compatibility: docs/operations/access-token-migration.md. Stage plan/evidence: .codex/stages/content-factory-next-dbxe-access-stage/. Root follow-up review corrected dbxe.5 primary-write provider collision with an atomic predicate/HTTP409, preserving existing channels under concurrent connections. Latest review: access-stage/review/review.md and review/review-acceptance.json. Root acceptance:34 suites/558 tests, zero skip, including11 real PostgreSQL tests; backend TypeScript, docs/process/diff checks PASS. Owned disposable DB removed, foreign container IDs preserved. Fresh unauthenticated public GET: API/login/source200; source stillcae3. This is availability, not live fix proof.
-
-Audit09Oct remains historical: source5189430f1 equaled tested e2ec588d inputs before this stage. All other dbxe children/old epics and acceptance gates remain unchanged. Original findings: .codex/stages/content-factory-next-audit-20261009/audit-report.md.
-
-Fresh09Oct runtime read confirms exact active image/source/schema/native roles, healthy DB and all32+main pollers. Disposable native-image probe proves pending read-only workflow resumes after worker start and supervisor restarts a SIGKILLed worker. Image health stays green with that worker stopped: dbxe.7. These are not provider exactly-once or live-host recovery claims. Fresh disposable PostgreSQL checks20/20 pass, zero skip; all owned probe resources cleaned, foreign IDs kept. Official lockfile range lookup has323 matches/69 package names, applicability untriaged: dbxe.8; failed pnpm audit heap OOM is not a passing audit.
-
-Accepted08Oct proof stays historical for unchanged inputs; no full suite restamped today.
-
-Historical08Oct public `cae3cd8340e06058365a9c9adca8194858abbb12`, tested private `e2ec588dca449dcbaefe1b2a56ef42bcb2408a6d`; registry index `53cefe055fa9c3a2559afbb2f029932836d391715c53805132c1ac246ea669b0`, image config `a70e865a332aeae3701bfabc5fbb97f9c9b1d04596ab64536fa3c8eef0e8a053`. App `3d0effee1ab4dc018955e539c050c25834a0ae6d4fbb9d6fb27e1a1c6ec7d083`, healthy/0restarts, native backend/orchestrator/frontend. Verified local rollback `4a8e57d96545`/config`b0a30d6627a3`. Only app changed;21 other containers preserved.
-
-Reader now uses one practical natural-prose/reference/gaps synthesis. Fresh3 retained-source model and3 retrieval replies pass root semantic review; partial gaps are honest, no universal entailment certificate. Fact-effective-asof allows later retrospective articles/free translation. No new query/discovery refactor. Adaptation now persists before locked per-channel placement; empty schedule leaves a useful DRAFT/actionable note. Fresh A1 from empty space to reserved post passes via13 chat POST: manual6 fields, CORE/answer,306-char DRAFT, explicit 10Oct18UTC reserve/no publication/unchanged text. Exact1agent+1extract+1draft for adaptation;26 final usage rows terminal, no pending. Four artifact types plus reserved-adaptation context open beside;1440/390 pass, guidance control visible. Frontend tree identical to previously delivered feedback/loader/rewrite UI. Style.17 accepted INCONCLUSIVE→RETAIN_CURRENT; defaults12/20/28/profiles preserved.
-
-All9 configured release checks PASS:629 suites/11493 Jest, Node122, Python50; 9 Jest/4 Node skips explicit. All5 publicCI jobs PASS (including native31, full3 halves, calendar+400 and CodeQL). Image308 logic tests PASS;29 additional permission tests use readonly docs missing from runtime. Nginx PASS; commands help uses disposable no-network Prisma-connect stub, not a DB/CLI functionality claim. Source/archive/bundles exact; archive12485122B/SHA `aaa8594fb03fbe1947eb25e842d5df0087f97194d12b0cb35402b39a9e7ca089`. Prisma pre/post diff0, SQL not applied; Product77/Mastra45 fingerprints exact. Retain-host-artifacts now requires explicit verified rollback; activecae3 and rollback4a8 kept, only obsolete ownf26/four allowlisted copies removed. Earlier same script freed17.5GB, all live config/container identities preserved.
-
-Owned actor disabled/password removed/session401; only inert synthetic channel retired, CORE/post/derivation/usage history preserved. Exact own host/app helpers and local credentials removed; no restored backup/real social connection or publication/customer messaging. Natural8Oct encrypted scheduled backup metadata success/nonzero0600 accepted; metadata alone is not restore/offsite proof.
-
-Memory acceptance PASS:31samples/1830.10sec,56.79–57.58% Docker-equivalent; original strict<60,1792MiB. Fresh connected baseline is2 non-owned active channels (historical1 is stale); all32 provider activity queues+main,1792MiB cap/native identities preserved.
-
-Evidence: `.codex/stages/content-factory-next-0qgn-completion-20261008/`: root-acceptance.json, outcome.md, operations-root-acceptance.actual.json, product-root-acceptance.actual.json, reader-retrieval-root-review.actual.json, public-ci-root-acceptance.actual.json, hot-memory-cae3/. Raw/private evidence is local/untracked; no active credentials remain. Original pre-pass/history remains in pre-pass-handoff.md and earlier stage receipts. No old C27/native runner replay.
-
-## Next recommended
-
-Next stage id: awaiting-owner-testing-results
-
-Recommended action: unrelated client acceptance after completed jvrq — owner follows the portal guide; next session pulls actual results and fixes concrete defects in one short stage. Preparation: Beads2q28.42 CLOSED; outcome/prompt in stages/content-factory-next-client-test-prep-20261012/. Portal project content-factory, slug content-factory-owner-testing-2026-10; URL only in that stage's publication.local.json (private, excluded from Git). Three short cases +loader/AI instructions/manual-save checks;15–20min. Old Julia pagev6/two tokens and existing answers preserved; no owner answers fabricated. Owner13Oct reported Telegram/flag defects; delivered repair is recorded above. Resume owner/client testing on current5efa with fresh sign-in; old callback must not be reused. Previous ops5.2 accepted: exact native recovery/auth/accounting/telemetry; metadata1054rows/476known/578unknown/0pending, active90daytimer lastsuccess. Not invoice completeness or future sizing. Owner explicitly defers finance and 30-day error retention; original0qgn.5 BLOCKED on defers/offsite destination/key. Original71m.8 connected memory and0qgn.1 scheduled backup CLOSED, not reopened. Task32 independent DEFERRED;2q28/client acceptance remains OPEN. Wait for actual owner results; no continuous epic goal, portal polling, new paid/provider calls.
+# Content Factory current handoff — 24 October 2026
+
+## Active delivery: HONEY-5961 / HONEY-5962
+
+HONEY-5961 and all six children are implemented and canonically closed after
+local acceptance. HONEY-5962 (`content-factory-next-i0oq`) tracks the owner's
+subsequent explicit Push, Merge, Deploy instruction. Release is in progress;
+no production switch has occurred yet. Paid provider calls, social publishing,
+provider credential/policy changes and unrelated cleanup remain unauthorized.
+
+Feature branch `codex/agent-chat-5961` at `f16ab8c633a6` is pushed. The owned
+release worktree is
+`/home/me/code/content-factory-next-worktrees/release-agent-chat-5961-20261024`.
+It merged the feature from integration base `0e0cf070c6b8`; current tested
+application source is `8126a57a0`. Release checks found and corrected approval
+recovery/legacy question display/compact preview issues; remaining legacy
+fixtures and the oversized handoff are being corrected before the final gate.
+[Release regressions](stages/agent-chat-5961/release-regressions.md).
+
+Exact manual questions, all choices/custom/multiple/delegated answers and
+partial checkpoints use native Mastra suspension and existing domain services.
+Contextual approvals preserve ask/deny after restart. Literal misses recover to
+retained source ranges; equivalent research and empty streams terminate within
+finite budgets. Oversized native results keep full receipts/range retrieval.
+The pinned core 1.78.0 patch releases completed listeners/consumed results;
+rebuildable Session mirrors have 30-second idle retention and at most eight
+idle entries. Active tasks and pending gates remain protected.
+
+Local acceptance: 33 affected suites / 701 tests, zero skips; final native
+14 suites / 38 tests with real PostgreSQL/Redis; backend/frontend types PASS.
+Full Nest/Next heap512 browser case completes the fixed 9–23 October request
+through one saved piece and one Telegram draft beside chat, with reload,
+restart, lost accepted response, Stop, stale revision and RU/EN keyboard/
+390/1440px coverage. External inference/search is frozen; editorial/provider
+quality and owner acceptance remain separate. [Acceptance and restart](stages/agent-chat-5961/acceptance.md),
+[browser proof](stages/agent-chat-5961/browser-proof.json),
+[memory proof](stages/agent-chat-5961/memory.md),
+[canonical closure](stages/agent-chat-5961/canonical-proof.json),
+[pinned patch](../patches/README.md).
+
+Retained preview:
+<http://localhost:4296/agents/a5222c3c-2cc7-4c30-aec1-fef81687b8a9>, backend3496.
+Its synthetic databases/private stand are retained for owner review. Original
+main checkout's dirty planning/video files and running local services are
+preserved. One earlier failed initializer may have left an empty test schema
+without a retained identity; no shared schema was guessed or deleted.
+
+## Production baseline and video acceptance boundary
+
+Current observed production is `e819113f113e` (23 October video access release),
+from tested private source `0852c9fe515a`; prior verified rollback
+`e37c8dac4dbf`. Before this release it is healthy; current inspection found
+six suspended native snapshots, no active owner/continuation, and one old
+admitted usage row. That old row is preserved and is not active work.
+HONEY-5961 changes no Prisma schema or model/provider policy. The release must
+verify candidate digest, zero schema diff, saved native/product state and
+foreign workloads before acceptance; no historical receipt substitutes for it.
+
+The 23 October release added the versioned video API/subscription/manual
+contracts and guarded product schema. Its full suite/build/runtime/source,
+read-only UI and own-only retention evidence is retained in
+[video release outcome](stages/content-factory-next-video-release-20261023/outcome.md).
+Video `.8`–`.12` remain locally complete. `.7` and the video epic retain real
+account/tool-schema/quote/receipt/billing/output/language-quality gates;
+subscription policy/profiles are disabled and video API keys/spend policies
+unset. Fixtures and deployment do not establish provider acceptance.
+[Provider gates](../docs/operations/video-subscription-local-acceptance.md).
+
+## Authority, recovery and remaining boundaries
+
+Linear is canonical; Beads is the local work interface; GitHub is the mirror.
+Hoba is the intake, component `content-factory`. The sole publisher/native
+Beads databases are on `helixa-new`; local `bd` uses the protected tunnel.
+Both Windows sync tasks remain disabled. Local copied checkpoints are not
+acceptance: inspect the live server journal and exit-zero scheduler receipt.
+Use `AGENTS.md` and the managed task-sync runbook; never reinitialize databases.
+
+Current native model routing and own-key/Flex choices remain unchanged. Use
+[model-selection plan](../docs/superpowers/plans/2026-10-22-native-model-selection.md)
+and [integration/recovery](../docs/maintenance/integration-cleanup-2026-10-21.md).
 
 ## Explicit defers
 
-Beads content-factory-next-e3nj tracks historical untracked-evidence marker false positives; old logs preserved. Historical jvrq.9 failure was repaired/closed; .10 dialogue and .11 automatic title are delivered. Current jvrq delegated full-flow acceptance passes; jvrq.12–.20 are delivered and canonical final closure is recorded in its stage; earlier negative controls are historical. Beads24/25/37/28/36/29 CLOSED and delivered;30/31 actual operations retained. Store32 independently DEFERRED by owner12Oct. SDK history retains payloads; no global retention/privacy/host-loss recovery claim. Historical logs/markers remain unchanged. dbxe.14 canonical Python ZIP/native controlled browser PASS, not store acceptance.
+Telegram editorial-quality follow-up `eqh5` and real client/owner acceptance
+remain separate. Store32, finance/retention, legal/pricing, external ChatGPT,
+offsite backup destination/key and reference-population gates retain their
+existing owner defers. Do not restart old walkthroughs or fabricate acceptance.
 
-Owner-deferred: legal operator/region/support/Terms/Privacy, pricing/trial/payment, actual ChatGPT login(kcxz.46), external copy/key custody. Claude unavailable; root delegated verifier. Real-client Julia publication/personal feedback is not replaced by technical/owned QA; portal-only feedback choice retained. Manual9 saved samples0qgn.3 accepted; historical cohort/accepted-reference population unknown(m0iy.10), so phase2m0iy.6/m0iy.7 remains gated. No phase2 implementation or tariff/legal fiction introduced. Epic kcxz retains external ChatGPT acceptance;2q28 retains actual client acceptance.
+Graph-reviewed: the owner graph was read-only orientation; newly changed paths
+were checked against current source/SDK. It was not refreshed or treated as a
+current-branch proof. No global retention/privacy/host-loss recovery claim.
+
+All previous handoff text and release/access/client-preparation references are
+preserved in [the archived handoff](stages/agent-chat-5961/pre-release-handoff.md).
+For the next action, read current Linear/Beads and the latest owner instruction.
+
+## Next recommended
+
+Accepted stage id: content-factory-next-j9p5-implementation-20261018
+
+The process contract still names that previously accepted stage; its artifacts
+remain preserved. HONEY-5962 tracks the current production delivery separately.
+
+Next stage id: honey-5961-production-delivery
+
+Recommended action: finish the already authorized HONEY-5962 release after its
+exact full-suite receipt, image/source/schema/data checks and safe retention.
+Preserve the existing preview, foreign changes and all paid/provider boundaries.
 
 ## Starter prompt for next orchestrator
 
-Read stages/content-factory-next-client-test-prep-20261012/new-session-prompt.md and outcome.md. Use $orchestrator-stage when coordination materially helps. Preparation2q28.42 is separate from owner results; inspect fresh Beads before action. Audit dbxe CLOSED; independent32/finance/30-day/legal/pricing/ChatGPT/offsite/research defers retained. Use portal-artifact to pull only new owner form; never put bearer URL/client answers in Git. If final answers are absent and owner gave none in chat, report ready and wait. Preserve healthy5efa/verified rollback1bf, V3/digest runs, foreign work and original contracts. Reuse matching full9/publicCI/runtime evidence; release only for concrete changed application inputs. graph-reviewed: used - focused TelegramProvider query; existing symbol boundaries unchanged. Repair outcome: stages/content-factory-next-login-flags-repair-20261013/outcome.md. Root-owned closeout; metadata-only source delivery is separate from accepted image.
+Read current Linear/Beads and this handoff, then resume HONEY-5962 at its actual
+recorded release phase. Use $orchestrator-stage when coordination materially
+helps. Reuse matching passing evidence and do not restart historical scenarios.

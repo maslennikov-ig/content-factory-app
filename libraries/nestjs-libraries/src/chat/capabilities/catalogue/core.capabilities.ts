@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { domainQuestionSchema, domainQuestionAnswer } from '../domain-question-contract';
+import { withPieceQuestions } from './piece-domain-questions';
 import { researchReady, researchModelView, type ResearchReady } from './research-evidence';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
@@ -126,13 +128,15 @@ export const pieceCoreRebuild = defineCapability({
   card: 'piece',
   door: door(ContentPieceController, 'rebuildCore'),
   untrusted: [],
-  run: async (ctx, input, emit) => {
+  suspendSchema: domainQuestionSchema,
+  resumeSchema: domainQuestionAnswer,
+  run: withPieceQuestions<{pieceId: string; versions: number}>(async (ctx, input, emit) => {
     await progress(emit, 'piece.core.rebuild', 'rebuild-started');
     const rebuilt = await ctx
       .service(PieceService)
       .rebuildCore(ctx.organizationId, input.pieceId, ctx.language);
     return { pieceId: input.pieceId, versions: rebuilt.revisions };
-  },
+  }, true),
   summarize: (output) => ({ pieceId: output.pieceId, versions: output.versions }),
   cardOf: pieceCard,
 });

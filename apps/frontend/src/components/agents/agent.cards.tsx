@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { Input } from '@contentfactory/react/form/input';
+import { Textarea } from '@contentfactory/react/form/textarea';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Progress } from '@contentfactory/frontend/components/ui/progress';
 import {
@@ -33,6 +34,12 @@ import { ErrorState, SkeletonRows } from '../ui/surface';
 import { useVideoWords } from '../videos/video.copy';
 import { videoWorkspacePath, type VideoApprovalScopeV1, type VideoDraftUiV1 } from '../videos/video-ui.v1';
 import { SavedVideoApprovalV2 } from '../videos/video-access-approval';
+import {
+  ManualQuestionControls,
+  manualQuestionAnswered,
+  type ManualQuestionAnswer,
+} from '../content-intelligence/intake/questions.card';
+import { useQuestionDraft } from './agent.question-draft';
 
 /**
  * The chat's cards (`content-factory-next-kcxz.10`, spec §6.2, canvas
@@ -142,7 +149,8 @@ export function AgentCard({
 }
 
 /** «Открыть на экране» — the same words and the same control on every card. */
-export function OpenOnScreen({ href, words }: { href: string; words: AgentWords }) {
+export function OpenOnScreen({ href, words }: { href: string; words: AgentWords;
+}) {
   return (
     <ButtonLink href={href} variant="quiet" density="dense">
       {words.card.openOnScreen}
@@ -457,8 +465,8 @@ export function DoneLine({
 /**
  * Which footnote an approval carries (`kcxz.31`, D7): a deletion cannot be
  * undone; a post sent now is not taken back from here; a scheduled or moved
- * post can come off the schedule before it goes out; the rest can be undone
- * on the product screen.
+ * post can come off the schedule before it goes out. Unknown operations do
+ * not acquire an undo promise from their generic card frame.
  */
 const SCHEDULE_TOOLS: readonly string[] = ['plan_schedule', 'plan_move', 'plan_apply'];
 /**
@@ -475,16 +483,16 @@ type LeadNote = (typeof LEAD_NOTES)[keyof typeof LEAD_NOTES];
 export const approvalNoteOf = (
   toolName: string | null | undefined,
   irreversible: boolean
-): 'delete' | 'publish' | 'schedule' | 'undo' | 'video' | LeadNote =>
+): 'delete' | 'publish' | 'schedule' | 'none' | 'video' | LeadNote =>
   irreversible
     ? 'delete'
     : toolName === 'video_launch' || toolName === 'video_launch_v2'
-      ? 'video'
-      : toolName === 'plan_publish_now'
-        ? 'publish'
-        : toolName && SCHEDULE_TOOLS.includes(toolName)
-          ? 'schedule'
-          : (toolName && LEAD_NOTES[toolName as keyof typeof LEAD_NOTES]) || 'undo';
+    ? 'video'
+    : toolName === 'plan_publish_now'
+    ? 'publish'
+    : toolName && SCHEDULE_TOOLS.includes(toolName)
+    ? 'schedule'
+    : (toolName && LEAD_NOTES[toolName as keyof typeof LEAD_NOTES]) || 'none';
 
 export function ApprovalCard({
   title,
@@ -497,6 +505,8 @@ export function ApprovalCard({
   onAnswer,
   words,
   videoApproval,
+  onRefresh,
+  canAnswer = true,
 }: {
   title: string | null;
   reason: string | null;
@@ -514,15 +524,26 @@ export function ApprovalCard({
   onAnswer: (approved: boolean) => void;
   words: AgentWords;
   videoApproval?: VideoApprovalScopeV1;
+  onRefresh?: () => void;
+  canAnswer?: boolean;
 }) {
   const w = words.approval;
-  const action = title ?? w.fallbackAction;
+  const summary = reason?.trim();
+  const specific = (value: string | null | undefined) =>
+    !!value &&
+    !/^(сделать это|do this|perform this action)[?.!\s]*$/iu.test(value);
+  const detailsReady = canAnswer && specific(summary);
+  const action =
+    (specific(title?.trim()) ? title!.trim() : summary) || w.unavailable;
   const [picked, setAnswer] = useState<boolean | null>(null);
+  const pickedRef = useRef<boolean | null>(null);
   const answer = sending ?? picked;
   const settled = state !== 'asked';
   const [reviewedVideo, setReviewedVideo] = useState<string | null>(null);
   const videoScope = videoApproval ? JSON.stringify(videoApproval) : null;
-  const videoReady = !['video_launch', 'video_launch_v2'].includes(toolName ?? '') || videoScope !== null && reviewedVideo === videoScope;
+  const videoReady =
+    !['video_launch', 'video_launch_v2'].includes(toolName ?? '') ||
+    (videoScope !== null && reviewedVideo === videoScope);
 
   if (settled) {
     const word =
@@ -531,10 +552,10 @@ export function ApprovalCard({
           ? w.approvedConnect
           : w.approved
         : state === 'declined'
-          ? w.declined
-          : state === 'closed'
-            ? w.closed
-            : w.sent;
+        ? w.declined
+        : state === 'closed'
+        ? w.closed
+        : w.sent;
     return (
       <p
         data-agent-card="approval"
@@ -553,6 +574,9 @@ export function ApprovalCard({
   }
 
   const answerWith = (approved: boolean) => {
+    if (busy || pickedRef.current !== null || (approved && !detailsReady))
+      return;
+    pickedRef.current = approved;
     setAnswer(approved);
     onAnswer(approved);
   };
@@ -564,26 +588,38 @@ export function ApprovalCard({
       tone="warning"
       glyph="alert"
       kind={w.kind}
-      title={w.ask(action)}
-      label={`${w.kind}: ${w.ask(action)}`}
+      title={detailsReady ? w.ask(action) : w.unavailable}
+      label={`${w.kind}: ${detailsReady ? w.ask(action) : w.unavailable}`}
       footer={
         <>
-          <Button
-            type="button"
-            density="dense"
-            variant={irreversible ? 'destructive' : 'primary'}
-            disabled={busy || answer !== null || !videoReady}
-            loading={answer === true}
-            loadingLabel={w.sending}
-            onClick={() => answerWith(true)}
-          >
-            {w.yes}
-          </Button>
+          {detailsReady ? (
+            <Button
+              type="button"
+              density="dense"
+              variant={irreversible ? 'destructive' : 'primary'}
+              disabled={busy || answer !== null || !videoReady}
+              loading={answer === true}
+              loadingLabel={w.sending}
+              onClick={() => answerWith(true)}
+            >
+              {w.yes}
+            </Button>
+          ) : onRefresh ? (
+            <Button
+              type="button"
+              variant="secondary"
+              density="dense"
+              disabled={busy}
+              onClick={onRefresh}
+            >
+              {w.refresh}
+            </Button>
+          ) : null}
           <Button
             type="button"
             density="dense"
             variant="secondary"
-            disabled={busy || answer !== null}
+            disabled={busy || answer !== null || !canAnswer}
             loading={answer === false}
             loadingLabel={w.sending}
             onClick={() => answerWith(false)}
@@ -593,8 +629,25 @@ export function ApprovalCard({
         </>
       }
     >
-      {reason ? <Facts rows={[[w.what, reason]]} /> : null}
-      {note === 'video' && (videoApproval?.accessVersion === 2 ? <SavedVideoApprovalV2 scope={videoApproval} onReady={setReviewedVideo} /> : <VideoApprovalSnapshot scope={videoApproval} onReady={setReviewedVideo} />)}
+      {detailsReady ? (
+        <Facts rows={[[w.what, reason]]} />
+      ) : (
+        <p role="status" className="cf-body-sm text-cf-warning">
+          {w.missingDetails}
+        </p>
+      )}
+      {note === 'video' &&
+        (videoApproval?.accessVersion === 2 ? (
+          <SavedVideoApprovalV2
+            scope={videoApproval}
+            onReady={setReviewedVideo}
+          />
+        ) : (
+          <VideoApprovalSnapshot
+            scope={videoApproval}
+            onReady={setReviewedVideo}
+          />
+        ))}
       {note === 'delete' ? (
         <Note tone="warning">
           <strong>{w.irreversible}:</strong> {w.irreversibleNote}
@@ -603,17 +656,17 @@ export function ApprovalCard({
         <Note tone="warning">
           <strong>{w.publishHeading}:</strong> {w.publishNote}
         </Note>
-      ) : note === 'video' ? null : (
+      ) : note === 'video' || note === 'none' || !detailsReady ? null : (
         <Note tone="neutral">
           {note === 'schedule'
             ? w.scheduleNote
             : note === 'dismiss'
-              ? w.dismissNote
-              : note === 'take'
-                ? w.takeNote
-                : note === 'archive'
-                  ? w.archiveNote
-                  : w.reversibleNote}
+            ? w.dismissNote
+            : note === 'take'
+            ? w.takeNote
+            : note === 'archive'
+            ? w.archiveNote
+            : w.reversibleNote}
         </Note>
       )}
     </AgentCard>
@@ -621,7 +674,10 @@ export function ApprovalCard({
 }
 
 /** Read the existing saved draft door; only the version bound to this approval can enable Yes. */
-function VideoApprovalSnapshot({scope, onReady}: {scope?: VideoApprovalScopeV1; onReady: (scope: string | null) => void}) {
+function VideoApprovalSnapshot({scope, onReady}: {
+  scope?: VideoApprovalScopeV1;
+  onReady: (scope: string | null) => void;
+}) {
   const words = useVideoWords();
   const request = useFetch();
   const user = useUser();
@@ -635,23 +691,59 @@ function VideoApprovalSnapshot({scope, onReady}: {scope?: VideoApprovalScopeV1; 
   const matches = !snapshot.error && !snapshot.isValidating && !!scope && draft?.id === scope.draftId && draft.version === scope.version && draft.preflightId === scope.preflightId;
   const scopeKey = scope ? JSON.stringify(scope) : null;
   useEffect(() => { onReady(matches ? scopeKey : null); }, [onReady, matches, scopeKey]);
-  if (!scope || snapshot.error) return <ErrorState title={words.failed} action={<Button variant="secondary" onClick={() => snapshot.mutate()}>{words.refresh}</Button>} />;
+  if (!scope || snapshot.error)
+    return (
+      <ErrorState
+        title={words.failed}
+        action={
+          <Button variant="secondary" onClick={() => snapshot.mutate()}>
+            {words.refresh}
+          </Button>
+        }
+      />
+    );
   if (!draft || snapshot.isValidating) return <SkeletonRows rows={3} label={words.loading} />;
-  if (!matches) return <ErrorState title={words.approvalChanged} action={<><Button variant="secondary" onClick={() => snapshot.mutate()}>{words.refresh}</Button><ButtonLink href={videoWorkspacePath({draftId: scope.draftId, pieceId: draft.pieceId})} variant="quiet">{words.reopen}</ButtonLink></>} />;
+  if (!matches)
+    return (
+      <ErrorState
+        title={words.approvalChanged}
+        action={
+          <>
+            <Button variant="secondary" onClick={() => snapshot.mutate()}>
+              {words.refresh}
+            </Button>
+            <ButtonLink href={videoWorkspacePath({draftId: scope.draftId, pieceId: draft.pieceId})} variant="quiet">
+              {words.reopen}
+            </ButtonLink>
+          </>
+        }
+      />
+    );
   const settings = draft.settings;
-  return <section className="flex min-w-0 flex-col gap-[12px]" aria-label={words.reviewSnapshot}>
-    <p className="cf-label-md">{words.reviewSnapshot}</p>
-    <Facts rows={[
+  return (
+    <section className="flex min-w-0 flex-col gap-[12px]" aria-label={words.reviewSnapshot}>
+      <p className="cf-label-md">{words.reviewSnapshot}</p>
+      <Facts rows={[
       [words.route, `${settings.provider} / ${settings.model}`], [words.locale, settings.locale], [words.ratio, settings.aspectRatio],
       [words.duration, String(settings.duration)], ...(settings.resolution ? [[words.resolution, settings.resolution] as [string, string]] : []),
       ...(settings.avatarId ? [[words.avatar, settings.avatarId] as [string, string]] : []), ...(settings.voiceId ? [[words.voice, settings.voiceId] as [string, string]] : []),
       ...(settings.engine ? [[words.engine, settings.engine] as [string, string]] : []), [words.scriptPolicy, draft.brief.scriptPolicy === 'exact' ? words.exact : words.adaptable],
     ]} />
-    <div className="flex flex-wrap gap-[16px]"><CheckboxField disabled label={words.audio} checked={settings.audio} /><CheckboxField disabled label={words.captions} checked={settings.captions} /></div>
-    <p className="break-words whitespace-pre-wrap cf-body-sm">{settings.mode === 'presenter' ? draft.brief.script : draft.brief.prompt}</p>
-    {!!draft.brief.referenceMediaIds.length && <p className="break-all cf-caption">{words.references}: {draft.brief.referenceMediaIds.join(', ')}</p>}
-    <Note tone="warning">{words.paymentNote}</Note>
-  </section>;
+      <div className="flex flex-wrap gap-[16px]">
+        <CheckboxField disabled label={words.audio} checked={settings.audio} />
+        <CheckboxField disabled label={words.captions} checked={settings.captions} />
+      </div>
+      <p className="break-words whitespace-pre-wrap cf-body-sm">
+        {settings.mode === 'presenter' ? draft.brief.script : draft.brief.prompt}
+      </p>
+      {!!draft.brief.referenceMediaIds.length && (
+        <p className="break-all cf-caption">
+          {words.references}: {draft.brief.referenceMediaIds.join(', ')}
+        </p>
+      )}
+      <Note tone="warning">{words.paymentNote}</Note>
+    </section>
+  );
 }
 
 /* ---- Question --------------------------------------------------------------- */
@@ -709,6 +801,8 @@ export function QuestionCard({
   onAnswer,
   keepPicture,
   words,
+  failure: rejected = false,
+  draftStorageKey,
 }: {
   title: string | null;
   question: AgentQuestion;
@@ -716,25 +810,39 @@ export function QuestionCard({
   /** Answered after its text changed: nothing applied (`kcxz.32`, N2). */
   stale?: boolean;
   busy: boolean;
-  onAnswer: (resumeData: Record<string, unknown>) => void;
+  onAnswer: (resumeData: Record<string, unknown>) => void | Promise<void>;
   /**
    * Puts a picture this page showed the agent into the library (`media.keep`,
    * 28.09); `null` — the page no longer holds it.
    */
   keepPicture?: (pictureKey: string) => Promise<{ id: string } | null>;
   words: AgentWords;
+  failure?: boolean;
+  draftStorageKey?: string;
 }) {
   const w = words.question;
   const [sent, setSent] = useState<string | null>(null);
+  const sending = useRef(false);
   /** A refused library upload of `media.keep`: the card stays for a retry. */
   const [failure, setFailure] = useState<string | null>(null);
-  const [own, setOwn] = useState('');
+  const [own, setOwn] = useQuestionDraft(draftStorageKey, '');
+  const [multipleAnswer, setMultipleAnswer] =
+    useQuestionDraft<ManualQuestionAnswer | null>(
+      draftStorageKey ? `${draftStorageKey}:multiple` : undefined,
+      null
+    );
   const [consent, setConsent] = useState(false);
   // The avatar's name now, when it has one (W3 walk P3-F).
   const [name, setName] = useState(
-    question.kind === 'consent' ? (question.presetName ?? '') : ''
+    question.kind === 'consent' ? question.presetName ?? '' : ''
   );
   const ownId = useId();
+  useEffect(() => {
+    if (rejected) {
+      sending.current = false;
+      setSent(null);
+    }
+  }, [rejected]);
 
   if (answered) {
     return (
@@ -743,8 +851,8 @@ export function QuestionCard({
           question.kind === 'selection'
             ? words.selection.kind
             : question.kind === 'plan'
-              ? w.planKind
-              : w.kind
+            ? w.planKind
+            : w.kind
         }
         text={question.text || title || ''}
         state={stale ? 'stale' : 'answered'}
@@ -754,8 +862,20 @@ export function QuestionCard({
   }
 
   const send = (key: string, resumeData: Record<string, unknown>) => {
+    if (sending.current || busy) return;
+    sending.current = true;
     setSent(key);
-    onAnswer(resumeData);
+    setFailure(null);
+    Promise.resolve(onAnswer(resumeData)).then(() => {
+      if (draftStorageKey) try {
+        window.sessionStorage.removeItem(draftStorageKey);
+        window.sessionStorage.removeItem(`${draftStorageKey}:multiple`);
+      } catch { /* Accepted native answers do not rely on a browser draft. */ }
+    }).catch(() => {
+      sending.current = false;
+      setSent(null);
+      setFailure(w.answerFailed);
+    });
   };
   const locked = busy || sent !== null;
 
@@ -767,12 +887,20 @@ export function QuestionCard({
     const keep = async () => {
       setSent('yes');
       setFailure(null);
+      let uploaded = false;
       try {
-        const saved = keepPicture ? await keepPicture(question.pictureKey) : null;
-        onAnswer(saved ? { kept: true, mediaId: saved.id } : { kept: false, gone: true });
+        const saved = keepPicture
+          ? await keepPicture(question.pictureKey)
+          : null;
+        uploaded = true;
+        await onAnswer(
+          saved
+            ? { kept: true, mediaId: saved.id }
+            : { kept: false, gone: true }
+        );
       } catch {
         setSent(null);
-        setFailure(w.keepPictureFailed);
+        setFailure(uploaded ? w.answerFailed : w.keepPictureFailed);
       }
     };
     return (
@@ -823,7 +951,9 @@ export function QuestionCard({
           )
         }
       >
-        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{question.text}</p>
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+          {question.text}
+        </p>
         <p className="cf-caption text-cf-ink-muted [overflow-wrap:anywhere]">
           {picture ? w.keepPictureName(picture.name) : w.keepPictureGone}
         </p>
@@ -874,7 +1004,9 @@ export function QuestionCard({
           </>
         }
       >
-        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{question.text}</p>
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+          {question.text}
+        </p>
       </AgentCard>
     );
   }
@@ -913,7 +1045,9 @@ export function QuestionCard({
           </>
         }
       >
-        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{question.text}</p>
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+          {question.text}
+        </p>
         {question.nameKey ? (
           <Input
             standalone
@@ -994,7 +1128,68 @@ export function QuestionCard({
 
   // An open selection or interview is the conversation's own card
   // (`SelectionCard`, `InterviewCard`); answered, it folded into the line above.
-  if (question.kind === 'selection' || question.kind === 'interview') return null;
+  if (
+    question.kind === 'selection' ||
+    question.kind === 'interview' ||
+    question.kind === 'domain-questions'
+  )
+    return null;
+
+  if (question.selectionMode === 'multiple')
+    return (
+      <AgentCard
+        cardKind="question"
+        glyph="ask"
+        kind={w.kind}
+        label={`${w.kind}: ${question.text}`}
+        footer={
+          <Button
+            type="button"
+            disabled={locked || !manualQuestionAnswered(multipleAnswer)}
+            loading={sent !== null}
+            loadingLabel={w.sending}
+            onClick={() => {
+              if (!multipleAnswer) return;
+              send(
+                'multiple',
+                multipleAnswer.mode === 'delegate'
+                  ? { ...DECIDE_FOR_PERSON_ANSWER }
+                  : choiceAnswer(
+                      question,
+                      multipleAnswer.mode === 'custom'
+                        ? multipleAnswer.text!.trim()
+                        : multipleAnswer.optionIds ?? []
+                    )
+              );
+            }}
+          >
+            {w.send}
+          </Button>
+        }
+      >
+        <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {question.text}
+        </p>
+        <ManualQuestionControls
+          question={{
+            key: question.cardId ?? 'native',
+            question: question.text,
+            options: question.options,
+            selectionMode: 'multiple',
+            canDecideForPerson: question.canDecideForPerson,
+          }}
+          value={multipleAnswer}
+          onChange={setMultipleAnswer}
+          disabled={locked}
+          words={w}
+        />
+        {failure || rejected ? (
+          <p role="status" className="cf-body-sm text-cf-warning">
+            {failure ?? w.answerFailed}
+          </p>
+        ) : null}
+      </AgentCard>
+    );
 
   return (
     <AgentCard
@@ -1020,11 +1215,16 @@ export function QuestionCard({
       }
     >
       <p className="cf-body-sm text-cf-ink-muted">{w.lead}</p>
-      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{question.text}</p>
+      <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
+        {question.text}
+      </p>
       {question.options.length ? (
         <div className="flex flex-wrap gap-[8px]">
           {question.options.map((option) => (
-            <div key={option.id} className="flex flex-col items-start gap-[4px]">
+            <div
+              key={option.id}
+              className="flex min-w-0 max-w-full flex-col items-start gap-[4px]"
+            >
               <Button
                 type="button"
                 density="dense"
@@ -1032,7 +1232,10 @@ export function QuestionCard({
                 disabled={locked}
                 loading={sent === option.id}
                 loadingLabel={w.sending}
-                onClick={() => send(option.id, choiceAnswer(question, option.id))}
+                onClick={() =>
+                  send(option.id, choiceAnswer(question, option.id))
+                }
+                className="max-w-full whitespace-normal text-start [overflow-wrap:anywhere]"
               >
                 {option.label}
               </Button>
@@ -1046,7 +1249,7 @@ export function QuestionCard({
         </div>
       ) : null}
       <form
-        className="flex min-w-0 items-end gap-[8px]"
+        className="flex min-w-0 flex-wrap items-end gap-[8px]"
         onSubmit={(event) => {
           event.preventDefault();
           if (own.trim()) send('own', choiceAnswer(question, own.trim()));
@@ -1073,7 +1276,38 @@ export function QuestionCard({
           {w.send}
         </Button>
       </form>
+      {failure || rejected ? (
+        <p role="status" className="cf-body-sm text-cf-warning">
+          {failure ?? w.answerFailed}
+        </p>
+      ) : null}
     </AgentCard>
+  );
+}
+
+/** A stale/closed card never takes a typed answer away with its buttons. */
+export function RetainedQuestionDraft({
+  draftStorageKey,
+  words,
+}: {
+  draftStorageKey?: string;
+  words: AgentWords;
+}) {
+  const [text] = useQuestionDraft(draftStorageKey, '');
+  if (!text || typeof text !== 'string') return null;
+  return (
+    <div className="flex min-w-0 flex-col gap-[8px]">
+      <p role="status" className="cf-body-sm text-cf-warning">
+        {words.question.draftRetained}
+      </p>
+      <Textarea
+        standalone
+        aria-label={words.question.ownAnswer}
+        readOnly
+        layout="content"
+        value={text}
+      />
+    </div>
   );
 }
 
@@ -1114,7 +1348,9 @@ export function ProgressCard({
               {w.stop}
             </Button>
           ) : null}
-          <span className="ms-auto cf-caption text-cf-ink-muted">{w.leaveNote}</span>
+          <span className="ms-auto cf-caption text-cf-ink-muted">
+            {w.leaveNote}
+          </span>
         </>
       }
     >
@@ -1195,7 +1431,9 @@ export function TaskChecklistCard({
                   size={12}
                 />
               </span>
-              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{text}</span>
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {text}
+              </span>
               <span className="cf-caption text-cf-ink-muted">
                 {w.statuses[task.status]}
               </span>
@@ -1229,7 +1467,9 @@ export function ObjectiveCard({
       title={stateLabel}
       label={`${w.kind}: ${objective.text}`}
     >
-      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{objective.text}</p>
+      <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+        {objective.text}
+      </p>
       {objective.feedback ? (
         <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {objective.feedback}
@@ -1260,7 +1500,9 @@ export function SubagentCard({
       title={`${agentLabel} · ${statusLabel}`}
       label={`${w.kind}: ${subagent.task}`}
     >
-      <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">{subagent.task}</p>
+      <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
+        {subagent.task}
+      </p>
       {subagent.content ? (
         <div className="rounded-cf-sm border border-cf-border-subtle bg-cf-bg-inset p-[12px]">
           <AgentMarkdown text={subagent.content} />

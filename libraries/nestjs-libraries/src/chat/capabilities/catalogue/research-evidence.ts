@@ -3,11 +3,15 @@ import { redactSecretShapes } from '../../conductor/secret-shapes';
 import { wrapUntrusted } from '../untrusted-data';
 import { retainedSourceText, retainedSourceRevision } from '../../../content-intelligence/research/retained-source';
 
-export const COMPACT_FACT_STATEMENT_MAX = 220;
+// Keep every row and its revision/read reference within the model preview
+// budget. Full statements and quotes remain available through piece.read.
+export const COMPACT_FACT_STATEMENT_MAX = 150;
 export const COMPACT_FACT_QUOTE_MAX = 160;
 export const COMPACT_SOURCE_EXCERPT_MAX = 140;
 export const STORED_RESEARCH_FACT_MAX = 20_000;
 const MAX_STORED_SNAPSHOTS = 250;
+/** Preview cache only. Full authorized captures remain in existing domain storage. */
+export const MAX_RESEARCH_EVIDENCE_CACHE_BYTES = 8 * 1024 * 1024;
 
 export type StoredResearchSource = {
   index: number;
@@ -51,6 +55,25 @@ export type StoredResearchEvidence = {
 };
 
 const researchEvidenceStore = new Map<string, StoredResearchEvidence>();
+const researchEvidenceSizes = new Map<string, number>();
+let researchEvidenceBytes = 0;
+
+// Account for retained string storage without JSON.stringify creating another
+// corpus-sized string. Conservative UTF-16/UTF-8 maximum plus object overhead.
+const retainedBytes = (value: unknown, seen = new Set<object>()): number => {
+  if (typeof value === 'string') return Math.max(value.length * 2, Buffer.byteLength(value, 'utf8'));
+  if (!value || typeof value !== 'object') return 8;
+  if (seen.has(value)) return 0;
+  seen.add(value);
+  let bytes = 64;
+  for (const [key, child] of Object.entries(value)) bytes += key.length * 2 + retainedBytes(child, seen);
+  return bytes;
+};
+const evictResearchEvidence = (key: string) => {
+  researchEvidenceBytes -= researchEvidenceSizes.get(key) ?? 0;
+  researchEvidenceSizes.delete(key);
+  researchEvidenceStore.delete(key);
+};
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -142,10 +165,19 @@ export const recordResearchEvidence = (
     facts,
     createdAt: Date.now(),
   };
-  researchEvidenceStore.set(`${organizationId}:${snapshotKey}`, entry);
-  if (researchEvidenceStore.size > MAX_STORED_SNAPSHOTS) {
-    const oldestKey = researchEvidenceStore.keys().next().value;
-    if (oldestKey) researchEvidenceStore.delete(oldestKey);
+  const cacheKey = `${organizationId}:${snapshotKey}`;
+  evictResearchEvidence(cacheKey);
+  const bytes = retainedBytes(entry);
+  if (bytes <= MAX_RESEARCH_EVIDENCE_CACHE_BYTES) {
+    while (researchEvidenceStore.size >= MAX_STORED_SNAPSHOTS ||
+      researchEvidenceBytes + bytes > MAX_RESEARCH_EVIDENCE_CACHE_BYTES) {
+      const oldestKey = researchEvidenceStore.keys().next().value;
+      if (oldestKey === undefined) break;
+      evictResearchEvidence(oldestKey);
+    }
+    researchEvidenceStore.set(cacheKey, entry);
+    researchEvidenceSizes.set(cacheKey, bytes);
+    researchEvidenceBytes += bytes;
   }
   return entry;
 };
@@ -166,6 +198,7 @@ export const compactResearchSources = (value: unknown) =>
     return {
       index: normalized.index,
       sourceIndex: normalized.index,
+      revision: normalized.revision,
       url: normalized.url,
       title: normalized.title,
       ...(normalized.publishedAt ? { publishedAt: normalized.publishedAt } : {}),
@@ -273,3 +306,30 @@ export const researchModelView = (result: ResearchReady) => ({
     ['search-result', 'fetched-page']
   ),
 });
+
+/** Avoid retaining a second copy of page excerpts/claim prose in native results.
+ * Every evidence, claim and coverage row keeps its identity and date provenance;
+ * the complete assessment is available through the same authorized snapshot.
+ */
+export const compactResearchAssessment = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object') return null;
+  const input = value as Record<string, any>;
+  const words = (text: unknown, max = 300) => typeof text === 'string' ? redactSecretShapes(text).slice(0, max) : text;
+  const rows = (key: string, project: (row: any) => unknown) => Array.isArray(input[key]) ? { [key]: input[key].map(project) } : {};
+  return {
+    ...Object.fromEntries(['version', 'status', 'requestedDate', 'inputBytes', 'periodStatus', 'requestedPeriod', 'bounds', 'claimDisposition', 'failureDiagnostic']
+      .filter(key => input[key] !== undefined).map(key => [key, input[key]])),
+    ...rows('coverage', row => ({ question: words(row.question), status: row.status })),
+    ...rows('sources', row => ({ id: row.id, relevance: row.relevance })),
+    ...rows('evidence', row => ({ id: row.id, url: row.url, publishedAt: row.publishedAt,
+      excerptSha256: row.excerptSha256, sourceExcerptSha256: row.sourceExcerptSha256,
+      retainedChars: row.retainedChars, clipped: row.clipped })),
+    ...rows('claims', row => ({ text: words(row.text, COMPACT_FACT_STATEMENT_MAX), kind: row.kind, refs: row.refs, dates: row.dates })),
+    ...rows('entities', row => ({ name: words(row.name), subjectStart: row.subjectStart,
+      subjectEnd: row.subjectEnd, status: row.status, ref: row.ref })),
+    ...(typeof input.reason === 'string' ? { reason: words(input.reason, 1_000) } : {}),
+    assessmentTruncated: true,
+    readWith: 'piece.read',
+    part: 'research_assessment',
+  };
+};

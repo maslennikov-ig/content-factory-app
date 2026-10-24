@@ -519,7 +519,14 @@ const fixtures = () => ({
   },
   'piece.create': {
     input: { text: 'Мысль человека про контент-завод', inputKind: 'thought' },
+    resumeData: {decideForPerson: true},
     services: {
+      PieceService: {
+        detail: async () => ({piece: {id: 'p9', code: 'cnt-9'}, core: {text: INJECTION,
+          questions: {round: 1, answered: [], items: [{field: 'position', question: INJECTION, suggested: null}]}}}),
+        prepareAnswer: async (_org, pieceId, request) => ({pieceId, request, core: {questions: {items: []}}}),
+        answer: async function* () {yield {name: 'piece', pieceId: 'p9', code: 'cnt-9'};},
+      },
       IntakeService: {
         prepare: async (_organizationId, body) => ({ planned: body }),
         run: async function* () {
@@ -615,13 +622,16 @@ const fixtures = () => ({
   },
   'piece.answer': {
     input: { pieceId: 'p1', answers: [{ questionId: 'position', text: 'Моя позиция' }] },
+    resumeData: {answers: [{key: 'position', mode: 'custom', text: 'Моя позиция'}]},
     services: {
       PieceService: {
+        detail: async () => ({piece: {id: 'p1', code: 'cnt-1'}, core: {text: INJECTION,
+          questions: {round: 1, answered: [], items: [{field: 'position', question: INJECTION, suggested: null}]}}}),
         prepareAnswer: async (_organizationId, pieceId, request) => ({ pieceId, request }),
         answer: async function* () {
           yield { name: 'answer-started', pieceId: 'p1', round: 1 };
           yield { name: 'piece', pieceId: 'p1', code: 'cnt-1', core: { text: INJECTION } };
-          yield { name: 'questions', questions: [{ question: INJECTION }], round: 1 };
+          yield { name: 'questions', questions: [], round: 1 };
           yield { name: 'done', pieceId: 'p1' };
         },
       },
@@ -647,7 +657,10 @@ const fixtures = () => ({
   'piece.core.rebuild': {
     input: { pieceId: 'p1' },
     services: {
-      PieceService: { rebuildCore: async () => ({ text: INJECTION, revisions: 3 }) },
+      PieceService: {
+        rebuildCore: async () => ({ text: INJECTION, revisions: 3 }),
+        detail: async () => ({piece: {id: 'p1', code: 'cnt-1'}, core: {text: INJECTION, questions: {round: 1, items: [], answered: []}}}),
+      },
     },
   },
   'piece.core.restore': {
@@ -714,7 +727,7 @@ const fixtures = () => ({
   },
   'piece.adapt': {
     input: { pieceId: 'p1', channelId: 'c1' },
-    resumeData: { answers: [{ key: 'ask-1', text: 'Мой случай' }] },
+    resumeData: { answers: [{ key: 'ask-1', mode: 'custom', text: 'Мой случай' }] },
     services: {
       PieceService: {
         adaptPlanMode: async () => 'reserve',

@@ -1,5 +1,61 @@
 # Video main integration and release — 23 October 2026
 
+## Accepted delivery
+
+Owner-authorized video release accepted: tested application source `0852c9fe515a76a476ce973e8d65d06af1434cd6`,
+private main delivery `181d2aa46`, public/runtime `e819113f113ea3c0c65ce00b76cafd2ccd1a8ac1`.
+Registry digest `sha256:71d4a58fd3656627b71541744e99dc522603606466cf19d4e9c4488f6c4d3fa7`.
+Verified rollback `e37c8dac4dbf` is retained. The concurrent table/native-replay
+release and its closeout documents were preserved; primary main/index and all
+9 unrelated files remain exact.
+
+Full canonical receipt: Jest 763 suites / 13424 tests PASS (7 suites / 70 existing
+skips), Node 167 PASS / 4 environment skips, Python 50 OK. Video database tests
+ran against an owned disposable PostgreSQL. Source and image builds compiled all
+4 apps; three type checks, branding, docs, process, diff, nginx and commands-help
+PASS. The new versioned Temporal contracts add six entries; existing signatures
+remain unchanged. Earlier failed diagnostics remain separately recorded.
+
+Production browser PASS: subscription/API/manual selection, disabled provider
+connections, manual provider preserved after reload, 390px layout without
+horizontal overflow, no page/API errors and no mutating browser request.
+Execution, upload/playback/download and durable recovery retain the separately
+accepted actual local browser/Temporal evidence below; production QA generated
+no video and made no paid call. No new usage rows, connections or video jobs.
+Both subscription profiles and workspace subscription policy remain disabled;
+video API credentials/spend policies are unset. Existing AI settings are exact.
+
+Guarded live SQL added 11 video tables and 4 nullable JSON settings columns in
+one transaction after a readable backup (725 TOC entries). SQL SHA-256
+`1d01b80459872bd358605c20a98e734d98f882b904d259392d52c073f3ffc80a`; backup
+`/var/backups/content-factory-next/postgres/20261023T130932Z-pre-e819113f113e-product-only`.
+Runtime grants passed; all video tables stayed empty. Product diff is empty
+before and after the switch; Mastra schema and 4 suspended snapshots are exact.
+App healthy, 3 PM2 processes online / 0 restarts, Temporal worker ready; all 21
+other containers/mounts and 21 volumes preserved. Source archive is exact:
+14744402 bytes, SHA-256 `9c32c47dbcdbcbafcc504db8ac636c6f57b3e58f36cf2bee2e09fcbc969e3f1d`.
+
+All 149 old messages and 27 other thread rows match the preceding accepted
+release. The viewed thread's content is exact; only its two native timestamps
+differ from that release's earlier snapshot. They were last updated at
+12:48:23Z, before this video's 13:10Z switch. The initial raw mismatch is retained;
+no history was rewritten. All rows stayed exact through our read-only QA.
+
+Canonical retention kept current + verified rollback and removed only our old
+eb26 image and 2 old configuration copies. Six exact temporary host helpers,
+two owned local fixture containers/network and the temporary browser credential
+were removed. Backups, rollback, source worktrees, protected live configuration
+and foreign workloads remain. Private receipts/screenshots:
+`~/.local/state/content-factory-next/release-video-20261023/`.
+
+`.8`–`.12` remain locally complete. `.7` and the video epic stay open for real
+account/registration/tool-schema/quote/receipt/billing/output/language-quality
+evidence. No real provider registration/login, credential wiring, paid calls or
+credit use was performed. Fixtures and deployment do not satisfy those gates.
+API plan revision 3 and legal notices remain intact.
+
+## Preparation and integration record
+
 Owner authorizes main merge, push and deploy with required checks. No real
 provider connections, paid calls or credit consumption. `.7` and epic remain
 open for real-provider evidence. Root uses `codex/release-video-20261023` because
@@ -39,7 +95,7 @@ video-subscription-connections-schema-apply.sql;
 20261023110000_video_subscription_recovery_deadline → video-subscription-recovery-deadline-schema-apply.sql.
 Each old file was `libraries/nestjs-libraries/src/database/prisma/migrations/<id>/migration.sql`.
 
-Current production baseline was freshly read as eb26f53a52a1, healthy,
+Pre-release production baseline was freshly read as eb26f53a52a1, healthy,
 3 processes online/0 restarts, worker ready. Video tables/settings columns are
 absent; no active native leases or admitted calls. No deployment is claimed by
 this preparation record. Apply only the guarded additive live diff with backup,

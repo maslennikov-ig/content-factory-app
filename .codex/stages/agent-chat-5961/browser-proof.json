@@ -1,0 +1,137 @@
+{
+  "result": "PASS",
+  "scenario": "frozen external boundaries; actual full app with heap512, domain services, PostgreSQL/Redis and native Mastra",
+  "threadId": "a5222c3c-2cc7-4c30-aec1-fef81687b8a9",
+  "execution": {
+    "requestId": "56028bce-52a9-4df9-8da5-812fd9905384",
+    "state": "settled",
+    "outcome": "completed",
+    "runId": "873ea412-2e9e-41df-b5d3-2eb0b19e57f9"
+  },
+  "pieceId": "2fc7af6a-6081-4ac7-b995-d8116cffbe0d",
+  "adaptationId": "f090fa04-c21a-441d-956e-be017d9b7475",
+  "uniquePiece": 1,
+  "uniqueDerivation": 1,
+  "domainTools": [
+    "tool-research_search",
+    "tool-piece_create",
+    "tool-piece_read",
+    "tool-piece_adapt",
+    "tool-piece_read"
+  ],
+  "dateWindow": "2026-10-09/2026-10-23",
+  "sources": [
+    {
+      "url": "https://primary.example/alpha",
+      "eventDate": "2026-10-09",
+      "verified": true
+    },
+    {
+      "url": "https://primary.example/beta",
+      "eventDate": "2026-10-23",
+      "verified": true
+    }
+  ],
+  "channel": {
+    "provider": "telegram",
+    "maxLength": 4096,
+    "planMode": "draft",
+    "bodyCharacters": 290,
+    "state": "DRAFT",
+    "published": false
+  },
+  "savedHtmlTextMatchesVisibleDraft": true,
+  "canonical": {
+    "threadId": "3eff77c7-91d0-474f-994b-f77e8c199706",
+    "pieceId": "4d4e3a9d-9b03-4698-b0bc-5043bbeb793a",
+    "originalOptions": 7,
+    "choice": 7,
+    "custom": true,
+    "multiple": [
+      1,
+      7
+    ],
+    "explicitDelegation": true
+  },
+  "browser": {
+    "reloadDraft": true,
+    "backendRestart": true,
+    "acceptedHttp200ResponseLost": true,
+    "newCallRecoveredByHistoryRead": true,
+    "keyboard": true,
+    "widths": [
+      390,
+      1440
+    ],
+    "horizontalOverflow": false,
+    "languages": [
+      "ru",
+      "en"
+    ],
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "stop": {
+      "threadId": "77754737-8735-48e0-8d5a-78ce2fd40bf3",
+      "pieceId": "0fbb9e6d-044e-49d3-8183-3b7e0de57964",
+      "confirmedSuggestedAnswer": true,
+      "reloadedPartialAnswer": true,
+      "reloadedUnsentDraft": true,
+      "unsentDraftRetainedAfterStop": true,
+      "execution": "settled/interrupted",
+      "pending": 0,
+      "domainBatchApplied": false,
+      "questionsUnchanged": 4,
+      "adaptations": 0
+    },
+    "staleRevision": {
+      "threadId": "e2d3c50f-0324-4aef-937a-20d4fa3ffcbb",
+      "manualCoreEdit": "owned synthetic source, actual PUT core API",
+      "answerStatus": 409,
+      "answerCode": "AGENT_QUESTION_STALE",
+      "unsentDraftRetained": true,
+      "domainApplicationPrevented": true,
+      "finalThreadId": "1bb956f6-e2d5-4bd6-a5e9-3b416154f564",
+      "specificReasonVisible": true,
+      "resubmitDisabled": true,
+      "stopAvailable": true
+    },
+    "finalPatchedRun": {
+      "reloadDraft": true,
+      "coldRestartAtQuestion2": true,
+      "adaptationAnswerHttp200ResponseLost": true,
+      "nextQuestionRestoredWithoutResend": true,
+      "finishedWithSavedPanel": true,
+      "threadId": "c9813a18-d833-404b-9895-b42adf66107e"
+    },
+    "finalSdkRun": {
+      "threadId": "48a59090-42f8-423a-b37e-6c713536a56c",
+      "reloadDraft": true,
+      "coldRestartAtQuestion2": true,
+      "finalCoreAnswerHttp200ResponseLost": true,
+      "newAdaptationCallRestoredWithoutResend": true,
+      "finishedWithSavedPanel": true,
+      "pending": 0
+    },
+    "freshProfileAutoLogin": true,
+    "freshProfileSavedPanel": true,
+    "freshProfileConsoleErrors": 0,
+    "finalBoundedRun": {
+      "threadId": "a5222c3c-2cc7-4c30-aec1-fef81687b8a9",
+      "appHeapLimitMiB": 512,
+      "reloadDraft": true,
+      "pendingPreservedForMs": 39923,
+      "coldRestartAtQuestion2": true,
+      "finalCoreAnswerHttp200ResponseLost": true,
+      "newAdaptationCallRestoredWithoutResend": true,
+      "finishedWithSavedPanel": true,
+      "pending": 0
+    }
+  },
+  "previousMainThreadId": "a6d402dd-e327-432f-8c88-e3aa0767cf45",
+  "previousPatchedThreadId": "c9813a18-d833-404b-9895-b42adf66107e",
+  "previousSdkThreadId": "48a59090-42f8-423a-b37e-6c713536a56c",
+  "sourceCommit": "79b5b819c7a052e0799ba8d9802168e45fd8b3a9",
+  "sdkPatchHash": "c2de6ad67a8bc72cd6b4418e6b96c7355ac6fdfe000512ee9379b5508d8adb5e"
+}

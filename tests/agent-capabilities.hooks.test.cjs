@@ -16,6 +16,7 @@ const {
   permissionsService,
   servicesFrom,
   requestContextFor,
+  executeTool,
 } = require('./helpers/agent-capabilities.cjs');
 
 const registry = loadRegistry();
@@ -98,17 +99,40 @@ describe('beforeToolCall', () => {
     const answer = (context, pieceId = 'p9') =>
       hookCall('piece.answer', { pieceId, answers: null, decide: ['audience'] }, context);
 
-    test('refused in the request that wrote the piece, before a paid slot; another piece and the next request pass', async () => {
+    test('native question tools may open the exact saved questions in the same request without applying model answers', async () => {
       const hooks = registry.createCapabilityHooks(catalogue, allowAll());
       const context = requestContextFor(registry);
       await hooks.afterToolCall({ ...created('p9', 2), context: { requestContext: context } });
-      const refused = await hooks.beforeToolCall(answer(context));
-      expect(refused.output).toMatchObject({ ok: false, code: 'INPUT_NEEDS_PERSON' });
-      expect(refused.output.reason).toMatch(/Only the person answers them/);
-      expect(context.get('cf.paidCalls') ?? 0).toBe(0);
+      const call = answer(context);
+      await expect(hooks.beforeToolCall(call)).resolves.toBeUndefined();
+      const capability = catalogue.find(entry => entry.id === 'piece.answer');
+      expect(capability.nativeDomainQuestions).toBe(true);
+      const prepareAnswer = jest.fn();
+      const nativeTool = registry.buildCapabilityTool(capability, {
+        language: 'ru', entrance: 'chat', services: servicesFrom({PieceService: {
+          prepareAnswer,
+          detail: async () => ({piece: {id: 'p9', code: 'cnt-9'}, core: {text: 'Сохранённая суть',
+            questions: {round: 1, answered: [], items: [{field: 'audience', question: 'Для кого пишем?', suggested: null}]}}}),
+        }}),
+      });
+      const opened = await executeTool(nativeTool, call.input, {requestContext: context});
+      expect(opened.output).toBeUndefined();
+      expect(opened.suspended[0]).toMatchObject({kind: 'domain-questions', activeKey: 'audience', answers: []});
+      expect(prepareAnswer).not.toHaveBeenCalled();
+      await hooks.afterToolCall({...call, output: opened.output});
       await expect(hooks.beforeToolCall(answer(context, 'p1'))).resolves.toBeUndefined();
-      // The person's next message is a new request: their «Решите за меня» goes.
       await expect(hooks.beforeToolCall(answer(requestContextFor(registry)))).resolves.toBeUndefined();
+    });
+
+    test('the same-request protection remains for a tool which can still apply model-provided manual answers', async () => {
+      const legacy = catalogue.map(capability => capability.id === 'piece.answer'
+        ? {...capability, nativeDomainQuestions: undefined} : capability);
+      const hooks = registry.createCapabilityHooks(legacy, allowAll());
+      const context = requestContextFor(registry);
+      await hooks.afterToolCall({...created('p9', 2), context: {requestContext: context}});
+      const refused = await hooks.beforeToolCall(answer(context));
+      expect(refused.output).toMatchObject({ok: false, code: 'INPUT_NEEDS_PERSON'});
+      expect(context.get('cf.paidCalls') ?? 0).toBe(0);
     });
 
     test('a piece written with no open questions, or a refused write, opens nothing', async () => {

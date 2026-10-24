@@ -57,6 +57,8 @@ import { ViewedPicturesProcessor } from './conductor.pictures';
 import { stepNotes } from './conductor.steps';
 import { currentConductorExecution } from './conductor.execution';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
+import { configureNativeSessionPermissions, NATIVE_SAFE_BUILTIN_TOOLS } from './native-session-permissions';
+import { NativeToolResultPromptProcessor } from './native-tool-result';
 import {
   conductorInputProcessors,
   conductorOutputProcessors,
@@ -470,6 +472,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         strategy: 'truncate',
         trimMode: 'best-fit',
       }),
+      new NativeToolResultPromptProcessor(),
       ...retryConfig.inputProcessors,
     ],
     outputProcessors: [
@@ -530,6 +533,9 @@ export const buildConductorController = (
       ? { resolveSubagentModel: options.resolveSubagentModel }
       : {}),
     disableBuiltinTools: ['submit_plan', 'subagent'],
+    toolCategoryResolver: (toolName) => NATIVE_SAFE_BUILTIN_TOOLS.includes(toolName) ||
+      (options?.capabilities ?? CAPABILITY_CATALOGUE).some(capability => capability.risk === 'read' && capability.id.replace(/\./g, '_') === toolName)
+      ? 'read' : null,
     agent: agent as any,
     defaultModeId: 'assistant',
     modes: [
@@ -550,12 +556,7 @@ export const buildConductorController = (
   // workspace or maintain the native task checklist; domain-tool approval
   // remains the capability's authoritative requireApproval function.
   controller.onSessionCreated(async (session) => {
-    for (const toolName of ['skill', 'skill_search', 'skill_read', 'ask_user',
-      'task_write', 'task_update', 'task_complete', 'task_check']) {
-      if (session.permissions.getRules().tools[toolName] === undefined) {
-        await session.permissions.setForTool({ toolName, policy: 'allow' });
-      }
-    }
+    await configureNativeSessionPermissions(session, options?.capabilities ?? CAPABILITY_CATALOGUE, options?.memory);
   }, { blocking: true });
   return controller;
 };

@@ -370,6 +370,9 @@ describe('native Mastra tools', () => {
         .map((capability) => [capability.id, capability.risk])
     ).toEqual([
       ['piece.create', 'paid'],
+      ['piece.create.from-research', 'paid'],
+      ['piece.answer', 'paid'],
+      ['piece.core.rebuild', 'paid'],
       ['piece.research', 'paid'],
       ['piece.check_facts', 'paid'],
       ['piece.rewrite', 'paid'],
@@ -583,6 +586,7 @@ describe('one capability of each class, end to end', () => {
   test('paid: the intake generator\'s events stream as transient progress, the piece card is persisted', async () => {
     const prepared = [];
     const services = {
+      ...all['piece.create'].services,
       IntakeService: {
         ...all['piece.create'].services.IntakeService,
         prepare: async (organizationId, body) => {
@@ -591,7 +595,7 @@ describe('one capability of each class, end to end', () => {
         },
       },
     };
-    const { output, parts } = await executeTool(
+    const { output, parts, suspended } = await executeTool(
       build('piece.create', services),
       all['piece.create'].input,
       { requestContext: requestContextFor(registry) }
@@ -620,7 +624,8 @@ describe('one capability of each class, end to end', () => {
     expect(cards).toEqual([
       { type: 'data-piece', data: { kind: 'piece', id: 'p9', code: 'cnt-9', questions: 1 } },
     ]);
-    expect(output.summary).toEqual({ pieceId: 'p9', code: 'cnt-9', questions: 1 });
+    expect(output).toBeUndefined();
+    expect(suspended[0]).toMatchObject({kind: 'domain-questions', source: {pieceId: 'p9'}, activeKey: 'position'});
   });
 
   // The model chooses evidence needs; input kind alone cannot buy a search.
@@ -632,6 +637,7 @@ describe('one capability of each class, end to end', () => {
   ])('piece.create: %s', async (_name, extra, searched) => {
     const prepared = [];
     const services = {
+      ...all['piece.create'].services,
       IntakeService: {
         ...all['piece.create'].services.IntakeService,
         prepare: async (organizationId, body) => {

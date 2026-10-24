@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { SelectionRows } from '@contentfactory/frontend/components/content-intelligence/intake/selection-rows';
@@ -34,11 +34,13 @@ export function SelectionCard({
   busy,
   onAnswer,
   words,
+  failure = false,
 }: {
   question: AgentSelectionQuestion;
   busy: boolean;
-  onAnswer: (resumeData: Record<string, unknown>) => void;
+  onAnswer: (resumeData: Record<string, unknown>) => void | Promise<void>;
   words: AgentWords;
+  failure?: boolean;
 }) {
   const w = words.selection;
   const t = useT();
@@ -51,15 +53,22 @@ export function SelectionCard({
       )
   );
   const [sent, setSent] = useState<'keep' | 'decide' | null>(null);
+  const sending = useRef(false);
+  const [rejected, setRejected] = useState(false);
+  useEffect(() => { if (failure) { sending.current = false; setSent(null); } }, [failure]);
   const locked = busy || sent !== null;
   // In the order the rows stand, not the order they were ticked.
   const ids = question.options
     .filter((option) => kept.has(option.id))
     .map((option) => option.id);
 
-  const send = (key: 'keep' | 'decide', resumeData: Record<string, unknown>) => {
+  const send = async (key: 'keep' | 'decide', resumeData: Record<string, unknown>) => {
+    if (sending.current || busy) return;
+    sending.current = true;
     setSent(key);
-    onAnswer(resumeData);
+    setRejected(false);
+    try { await onAnswer(resumeData); }
+    catch { sending.current = false; setSent(null); setRejected(true); }
   };
 
   return (
@@ -99,6 +108,7 @@ export function SelectionCard({
         </>
       }
     >
+      {failure || rejected ? <p role="status" className="cf-body-sm text-cf-warning">{words.question.answerFailed}</p> : null}
       <SelectionRows
         includeLabel={w.include}
         editable

@@ -35,6 +35,11 @@ describe('a new piece with an explicit title', () => {
 
   test('create preserves the model-understood title, verified through native reads, while questions remain for the person', async () => {
     const stored = new Map();
+    const manualQuestions = [
+      {field: 'thesis', question: 'Какая главная мысль?', suggested: null},
+      {field: 'position', question: 'Какова ваша позиция?', suggested: null},
+      {field: 'facts', key: 'ask-1', question: 'Есть личный пример?', suggested: null},
+    ];
     const prepare = jest.fn(async (_organizationId, body) => ({ body }));
     const run = jest.fn(async function* () {
       stored.set('p9', {
@@ -44,7 +49,7 @@ describe('a new piece with an explicit title', () => {
       });
       yield { name: 'intake-started' };
       yield { name: 'piece', pieceId: 'p9', code: 'cnt-9' };
-      yield { name: 'questions', questions: [{}, {}, {}] };
+      yield { name: 'questions', questions: manualQuestions };
       yield { name: 'done', pieceId: 'p9' };
     });
     const updateTitle = jest.fn(async (organizationId, pieceId, nextTitle) => {
@@ -59,7 +64,8 @@ describe('a new piece with an explicit title', () => {
       IntakeService: { prepare, run },
       PieceService: { updateTitle, prepareAnswer, detail: async (organizationId, pieceId) => {
         expect(organizationId).toBe('org-1');
-        return { piece: stored.get(pieceId), core: { text: 'Три вопроса перед встречей.' } };
+        return { piece: stored.get(pieceId), core: { text: 'Три вопроса перед встречей.',
+          questions: {round: 1, answered: [], items: manualQuestions} } };
       } },
     };
     const requestContext = requestContextFor(registry);
@@ -76,12 +82,10 @@ describe('a new piece with an explicit title', () => {
     const created = await executeTool(build('piece.create', services), createInput, { requestContext });
     await hooks.afterToolCall({ ...createCall, output: created.output });
 
-    expect(created.output.summary).toEqual({
-      pieceId: 'p9',
-      code: 'cnt-9',
-      questions: 3,
-    });
-    expect(created.output.summary).not.toHaveProperty('title');
+    expect(created.output).toBeUndefined();
+    expect(created.suspended[0]).toMatchObject({kind: 'domain-questions', source: {pieceId: 'p9'}, answers: []});
+    expect(created.suspended[0].questions.map(question => question.question)).toEqual(manualQuestions.map(question => question.question));
+    expect(created.parts.find(part => part.type === 'data-piece').data).toMatchObject({id: 'p9', code: 'cnt-9', questions: 3});
     const read = await executeTool(build('piece.read', services), { pieceId: 'p9' }, { requestContext });
     expect(read.output.summary.untrustedData.value).toMatchObject({ pieceId: 'p9', title, text: 'Три вопроса перед встречей.' });
     expect(updateTitle).not.toHaveBeenCalled();
@@ -91,8 +95,12 @@ describe('a new piece with an explicit title', () => {
       { pieceId: 'p9', answers: null, decide: ['audience'] },
       requestContext
     );
-    const refusedAnswer = await hooks.beforeToolCall(answerCall);
-    expect(refusedAnswer.output).toMatchObject({ ok: false, code: 'INPUT_NEEDS_PERSON' });
+    await expect(hooks.beforeToolCall(answerCall)).resolves.toBeUndefined();
+    const reopened = await executeTool(build('piece.answer', services), {
+      pieceId: 'p9', answers: [{questionId: 'position', text: 'Модель не отвечает за человека'}], decide: ['audience'],
+    }, {requestContext});
+    expect(reopened.output).toBeUndefined();
+    expect(reopened.suspended[0]).toMatchObject({kind: 'domain-questions', answers: [], activeKey: 'thesis'});
 
     expect(stored.get('p9')).toMatchObject({ id: 'p9', code: 'cnt-9', title });
     expect(prepare).toHaveBeenCalledTimes(1);

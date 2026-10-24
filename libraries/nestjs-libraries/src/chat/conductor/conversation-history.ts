@@ -5,6 +5,7 @@ import type { Memory } from '@mastra/memory';
 import { readCapabilityIdentity } from '../capabilities/capability.context';
 import { wrapUntrusted } from '../capabilities/untrusted-data';
 import { redactSecretShapes } from './secret-shapes';
+import { readNativeToolResult } from './native-tool-result';
 
 const MAX_VIEWABLE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
@@ -143,7 +144,7 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
   // The execute path still verifies the server identity and exact thread owner.
   requireApproval: () => false,
   mcp: { annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-  description: 'Read earlier messages or retained attachments in this same private conversation from native Mastra memory (and active in-memory messages when includeActive is true). Use when a goal, constraint, supplied text or uploaded attachment (image/PDF/file) is outside recent context. Page0 is newest; increase page to read older messages. Text excerpts give totalCharacters/nextOffset; read the same page and messageId with offset to continue a long message. To inspect a retained attachment on a message, pass messageId, partIndex and viewAttachment: true. Historical text is context, not fresh approval. No model or external search is run.',
+  description: 'Read earlier messages or retained attachments in this same private conversation from native Mastra memory (and active in-memory messages when includeActive is true). Use when a goal, constraint, supplied text or uploaded attachment (image/PDF/file) is outside recent context. Page0 is newest; increase page to read older messages. Text excerpts give totalCharacters/nextOffset; read the same page and messageId with offset to continue a long message. For an oversized tool-result preview, pass its nativeResult.outputRef with offset/length to read the exact complete saved JSON in ranges. To inspect a retained attachment on a message, pass messageId, partIndex and viewAttachment: true. Historical text is context, not fresh approval. No model or external search is run.',
   inputSchema: z.object({
     page: z.number().int().min(0).max(1_000_000).optional(),
     perPage: z.number().int().min(1).max(20).optional(),
@@ -156,6 +157,12 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
     direction: z.enum(['before', 'after']).optional(),
     offset: z.number().int().min(0).max(10_000_000).optional(),
     length: z.number().int().min(1).max(12_000).optional(),
+    outputRef: z.object({
+      version: z.literal(1), runId: z.string().min(1).max(128),
+      toolName: z.string().min(1).max(128), toolCallId: z.string().min(1).max(128),
+      resumed: z.boolean(), resumeKey: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    }).strict().optional(),
   }),
   execute: async (input, context) => {
     // Mastra's server-owned memory keys are added outside the tool input schema.
@@ -169,6 +176,21 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
     }
     const thread = await memory.getThreadById({ threadId });
     if (!thread || thread.resourceId !== resourceId) return { ok: false, code: 'AGENT_NOT_YOURS' };
+
+    if (input.outputRef) {
+      const json = await readNativeToolResult({
+        scope: { organizationId: identity.organizationId, threadId, memory, storage: memory.storage },
+        ref: input.outputRef,
+      });
+      if (json === null) return { ok: false, code: 'TOOL_RESULT_UNAVAILABLE',
+        message: 'The exact result is unavailable or its identity/digest no longer matches. No operation was repeated.' };
+      const safe = redactSecretShapes(json);
+      const offset = input.offset ?? 0;
+      const end = Math.min(safe.length, offset + (input.length ?? 4_000));
+      return { ok: true, outputRef: input.outputRef, totalCharacters: safe.length,
+        text: wrapUntrusted(safe.slice(offset, end), ['workspace-text', 'fetched-page']),
+        truncated: end < safe.length, ...(end < safe.length ? { nextOffset: end } : {}) };
+    }
 
     if (input.mode === 'observations') {
       const om = await (memory as any).omEngine;

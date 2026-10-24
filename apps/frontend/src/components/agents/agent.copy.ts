@@ -171,6 +171,9 @@ type AgentWords = {
     kind: string;
     ask: (action: string) => string;
     fallbackAction: string;
+    unavailable: string;
+    missingDetails: string;
+    refresh: string;
     what: string;
     irreversible: string;
     irreversibleNote: string;
@@ -221,6 +224,18 @@ type AgentWords = {
     send: string;
     decide: string;
     answered: string;
+    confirmed: string;
+    suggested: string;
+    recommended: string;
+    multiple: string;
+    progress: (position: number, total: number) => string;
+    savedAnswers: string;
+    delegated: string;
+    decideRemaining: string;
+    answerFailed: string;
+    draftRetained: string;
+    unavailable: string;
+    readRange: (title: string, offset: number, characters: number) => string;
     consentLabel: string;
     /** The same tick for a brand's avatar (W3 walk P3-G). */
     consentLabelBrand: string;
@@ -554,7 +569,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       done: 'Готово',
       removed: 'удалено',
       pieceQuestions: (count) =>
-        `${count} ${ruPlural(count, 'вопрос ждёт', 'вопроса ждут', 'вопросов ждут')} ответа — откройте заготовку и ответьте, прежде чем делать адаптации.`,
+        `${count} ${ruPlural(count, 'вопрос ждёт', 'вопроса ждут', 'вопросов ждут')} ответа — ответьте в чате, прежде чем делать адаптации.`,
       variant: (index) => lowerFirst(piecesCopy.ru.variant(index)),
       voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
         `Голос ${rulesMatched}/${rulesTotal} · Факты ${factsCount}`,
@@ -565,11 +580,15 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       kind: 'Нужно ваше «да»',
       ask: (action) => `${action}?`,
       fallbackAction: 'Сделать это',
+      unavailable: 'Не удалось показать действие',
+      missingDetails:
+        'Не удалось проверить, что именно произойдёт. Обновите данные действия перед подтверждением.',
+      refresh: 'Обновить данные действия',
       what: 'Что будет',
       irreversible: 'Не отменить',
       irreversibleNote:
         'Вернуть не получится: удалённое не восстанавливается.',
-      reversibleNote: 'Отменить можно потом на экране продукта.',
+      reversibleNote: 'Выполненное действие автоматически не отменяется.',
       dismissNote: 'Отклонённый повод в очередь не вернуть — ни здесь, ни на экране.',
       takeNote: 'Взятый повод в очередь не вернуть; заготовку по нему можно удалить в «Контенте».',
       archiveNote: 'Подписаться снова можно в любой момент — подписка оживёт с прежними поводами.',
@@ -595,6 +614,26 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       send: 'Ответить',
       decide: 'Решите за меня',
       answered: 'отвечено',
+      confirmed: 'Так и есть',
+      suggested: 'Предлагаемый ответ',
+      recommended: 'Рекомендуем',
+      multiple: 'Можно выбрать несколько вариантов.',
+      progress: (position, total) => `Вопрос ${position} из ${total}`,
+      savedAnswers: 'Сохранённые ответы',
+      delegated: 'Решение передано ИИ',
+      decideRemaining: 'Решите всё оставшееся за меня',
+      answerFailed:
+        'Получение ответа не подтверждено. Введённый текст сохранён — проверьте актуальный вопрос перед повторной отправкой.',
+      draftRetained:
+        'Этот вопрос уже изменился или закрыт. Ваш неотправленный ответ сохранён ниже.',
+      unavailable:
+        'Не удалось восстановить вопрос. Обновите разговор — ваши ответы сохранены.',
+      readRange: (title, offset, characters) =>
+        `Точная фраза не найдена. Читаем сохранённый фрагмент${
+          title ? ` «${title}»` : ''
+        }: символы ${offset + 1}–${
+          offset + characters
+        }. Это фрагмент источника, а не подтверждение искомой фразы.`,
       closed: NO_LONGER_WAITING.ru,
       stale: 'правка устарела, текст уже изменился — ничего не применили',
       yours:
@@ -713,6 +752,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         next: 'Проверьте соединение и попробуйте ещё раз.',
       },
       codes: {
+        CAPABILITY_RESULT_UNAVAILABLE: {
+          what: 'Полученный результат не удалось надёжно сохранить.',
+          next: 'Сохранённые материалы не изменены. Проверьте доступность хранилища и повторите чтение.',
+        },
         VIDEO_PREFLIGHT_STALE: {
           what: 'Согласование видео устарело или сценарий изменился.',
           next: 'Откройте сохранённый сценарий и заново проверьте параметры и цену.',
@@ -757,6 +800,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Этот вопрос уже закрыт — ответ не нужен.',
           next: 'Продолжайте разговор.',
         },
+        AGENT_QUESTION_STALE: {
+          what: 'Материал или вопросы уже изменились. Ответ не применён.',
+          next: 'Откройте актуальную заготовку или остановите задачу. Ваш неотправленный текст сохранён в карточке вопроса.',
+        },
+        MATERIAL_PASSAGE_NOT_FOUND: {
+          what: 'Точная фраза не найдена в сохранённом источнике.',
+          next: 'Уточните фразу или прочитайте доступный фрагмент источника.',
+        },
         AGENT_BAD_REQUEST: {
           what: 'Сообщение не дошло в понятном виде.',
           next: 'Обновите страницу и отправьте ещё раз.',
@@ -777,18 +828,30 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'У вашей роли нет права на это действие.',
           next: 'Попросите администратора пространства.',
         },
-        MATERIAL_NOT_AVAILABLE: { what: "Материал или его версия больше недоступны.", next: "Выберите доступный материал в карточке." },
-        MATERIAL_STALE: { what: "Материал изменился во время чтения.", next: "Помощник прочитает текущую версию заново." },
-        AGENT_TASK_OPERATION_IN_FLIGHT: { what: "Предыдущий шаг ещё выполняется.", next: "Дождитесь результата перед следующим действием." },
-        AGENT_TASK_OPERATION_FAILED: { what: "Шаг завершился с ошибкой; вся задача ещё не выполнена.", next: "Проверьте сохранённый результат перед повтором." },
-        AGENT_TASK_TIME_BUDGET: { what: "Задача заняла отведённое время; часть работы осталась.", next: "Сохранённые результаты доступны. Помощник укажет, что осталось." },
-        AGENT_TASK_TOKEN_BUDGET: { what: "Достигнут настроенный предел объёма работы.", next: "Проверьте результаты и оставшиеся шаги перед продолжением." },
-        AGENT_TASK_COST_BUDGET: { what: "Достигнут настроенный предел расходов на задачу.", next: "Проверьте расходы и оставшуюся работу перед продолжением." },
-        AGENT_TASK_COST_UNKNOWN: { what: "Не удалось подтвердить стоимость выполненного шага.", next: "Проверьте расход и сохранённый результат перед повтором." },
-        AGENT_TASK_UNCERTAIN: { what: "Результат платного шага пока не подтверждён.", next: "Сначала проверьте сохранённый результат: повтор может создать дубликат." },
-        AGENT_TASK_NO_PROGRESS: { what: "Повторные действия не дали новых результатов.", next: "Помощник объяснит пробел и предложит другой способ продолжить." },
-        AGENT_TASK_EMERGENCY_FUSE: { what: "Длинная цепочка остановлена; задача ещё не завершена.", next: "Проверьте полученные результаты и оставшиеся шаги." },
-        AGENT_TASK_STOPPED: { what: "Выполнение остановлено. Уже сохранённые результаты доступны.", next: "Проверьте их перед продолжением." },
+        MATERIAL_NOT_AVAILABLE: { what: 'Материал или его версия больше недоступны.', next: 'Выберите доступный материал в карточке.',
+        },
+        MATERIAL_STALE: { what: 'Материал изменился во время чтения.', next: 'Помощник прочитает текущую версию заново.',
+        },
+        AGENT_TASK_OPERATION_IN_FLIGHT: { what: 'Предыдущий шаг ещё выполняется.', next: 'Дождитесь результата перед следующим действием.',
+        },
+        AGENT_TASK_OPERATION_FAILED: { what: 'Шаг завершился с ошибкой; вся задача ещё не выполнена.', next: 'Проверьте сохранённый результат перед повтором.',
+        },
+        AGENT_TASK_TIME_BUDGET: { what: 'Задача заняла отведённое время; часть работы осталась.', next: 'Сохранённые результаты доступны. Помощник укажет, что осталось.',
+        },
+        AGENT_TASK_TOKEN_BUDGET: { what: 'Достигнут настроенный предел объёма работы.', next: 'Проверьте результаты и оставшиеся шаги перед продолжением.',
+        },
+        AGENT_TASK_COST_BUDGET: { what: 'Достигнут настроенный предел расходов на задачу.', next: 'Проверьте расходы и оставшуюся работу перед продолжением.',
+        },
+        AGENT_TASK_COST_UNKNOWN: { what: 'Не удалось подтвердить стоимость выполненного шага.', next: 'Проверьте расход и сохранённый результат перед повтором.',
+        },
+        AGENT_TASK_UNCERTAIN: { what: 'Результат платного шага пока не подтверждён.', next: 'Сначала проверьте сохранённый результат: повтор может создать дубликат.',
+        },
+        AGENT_TASK_NO_PROGRESS: { what: 'Повторные действия не дали новых результатов.', next: 'Помощник объяснит пробел и предложит другой способ продолжить.',
+        },
+        AGENT_TASK_EMERGENCY_FUSE: { what: 'Длинная цепочка остановлена; задача ещё не завершена.', next: 'Проверьте полученные результаты и оставшиеся шаги.',
+        },
+        AGENT_TASK_STOPPED: { what: 'Выполнение остановлено. Уже сохранённые результаты доступны.', next: 'Проверьте их перед продолжением.',
+        },
         PAID_CAP_REACHED: {
           what: 'Этот шаг остановлен ограничением старой версии помощника.',
           next: 'Проверьте сохранённые результаты перед продолжением.',
@@ -1351,7 +1414,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       done: 'Done',
       removed: 'deleted',
       pieceQuestions: (count) =>
-        `${count} ${count === 1 ? 'question waits' : 'questions wait'} for an answer — open the piece and answer before adapting it.`,
+        `${count} ${count === 1 ? 'question waits' : 'questions wait'} for an answer — answer in chat before adapting it.`,
       variant: (index) => lowerFirst(piecesCopy.en.variant(index)),
       voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
         `Voice ${rulesMatched}/${rulesTotal} · Facts ${factsCount}`,
@@ -1362,10 +1425,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       kind: 'We need your yes',
       ask: (action) => `${action}?`,
       fallbackAction: 'Do this',
+      unavailable: 'Action details are unavailable',
+      missingDetails:
+        'We could not verify exactly what will happen. Refresh the action details before approving.',
+      refresh: 'Refresh action details',
       what: 'What happens',
       irreversible: 'Cannot be undone',
       irreversibleNote: 'There is no way back: what is deleted is gone.',
-      reversibleNote: 'You can undo it later on the product screen.',
+      reversibleNote: 'A completed action is not automatically undone.',
       dismissNote: 'A declined lead does not come back to the queue — not here, not on the screen.',
       takeNote: 'A lead taken to work does not go back to the queue; its piece can be deleted in Content.',
       archiveNote: 'You can subscribe again any time — the subscription comes back with its leads.',
@@ -1390,6 +1457,26 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       send: 'Answer',
       decide: 'Decide for me',
       answered: 'answered',
+      confirmed: 'That is right',
+      suggested: 'Suggested answer',
+      recommended: 'Recommended',
+      multiple: 'You can select more than one option.',
+      progress: (position, total) => `Question ${position} of ${total}`,
+      savedAnswers: 'Saved answers',
+      delegated: 'Decision delegated to AI',
+      decideRemaining: 'Decide all remaining answers for me',
+      answerFailed:
+        'Receipt of the answer is not confirmed. Your text is saved — check the current question before sending again.',
+      draftRetained:
+        'This question changed or closed. Your unsent answer is retained below.',
+      unavailable:
+        'We could not restore the question. Refresh the conversation — your answers are saved.',
+      readRange: (title, offset, characters) =>
+        `The exact phrase was not found. Reading the saved range${
+          title ? ` “${title}”` : ''
+        }: characters ${offset + 1}–${
+          offset + characters
+        }. This is source text, not confirmation of the requested phrase.`,
       closed: NO_LONGER_WAITING.en,
       stale: 'out of date, the text has changed since — nothing was applied',
       yours:
@@ -1508,6 +1595,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         next: 'Check the connection and try again.',
       },
       codes: {
+        CAPABILITY_RESULT_UNAVAILABLE: {
+          what: 'The retrieved result could not be durably saved.',
+          next: 'Saved material is unchanged. Check storage availability, then repeat the read.',
+        },
         VIDEO_PREFLIGHT_STALE: {
           what: 'The video approval expired or the script changed.',
           next: 'Open the saved script and review the settings and price again.',
@@ -1552,6 +1643,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'This question is already closed — no answer is needed.',
           next: 'Carry on with the conversation.',
         },
+        AGENT_QUESTION_STALE: {
+          what: 'The material or questions changed. Your answer was not applied.',
+          next: 'Open the current piece or stop the task. Your unsent text is retained in the question card.',
+        },
+        MATERIAL_PASSAGE_NOT_FOUND: {
+          what: 'The exact phrase was not found in the saved source.',
+          next: 'Refine the phrase or read the available source range.',
+        },
         AGENT_BAD_REQUEST: {
           what: 'The message did not arrive in a readable form.',
           next: 'Reload the page and send it again.',
@@ -1572,18 +1671,30 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Your role has no right to do this.',
           next: 'Ask an administrator of the workspace.',
         },
-        MATERIAL_NOT_AVAILABLE: { what: "This material or version is no longer available.", next: "Choose available material from its card." },
-        MATERIAL_STALE: { what: "The material changed while it was being read.", next: "The assistant will read its current version again." },
-        AGENT_TASK_OPERATION_IN_FLIGHT: { what: "The previous step is still running.", next: "Wait for its result before another action." },
-        AGENT_TASK_OPERATION_FAILED: { what: "A step failed; the whole task is still incomplete.", next: "Check the saved result before repeating it." },
-        AGENT_TASK_TIME_BUDGET: { what: "The task reached its time limit with work remaining.", next: "Saved results remain available. The assistant will identify what remains." },
-        AGENT_TASK_TOKEN_BUDGET: { what: "The configured task token limit was reached.", next: "Check results and remaining steps before continuing." },
-        AGENT_TASK_COST_BUDGET: { what: "The configured task spending limit was reached.", next: "Check costs and remaining work before continuing." },
-        AGENT_TASK_COST_UNKNOWN: { what: "The cost of a completed step could not be confirmed.", next: "Check usage and the saved result before repeating it." },
-        AGENT_TASK_UNCERTAIN: { what: "The result of a paid step is not confirmed yet.", next: "Check the saved result first: repeating it may create a duplicate." },
-        AGENT_TASK_NO_PROGRESS: { what: "Repeated actions did not produce new results.", next: "The assistant will explain the gap and propose another way forward." },
-        AGENT_TASK_EMERGENCY_FUSE: { what: "A long execution chain stopped; the task is still incomplete.", next: "Check the available results and remaining steps." },
-        AGENT_TASK_STOPPED: { what: "Execution stopped. Saved results remain available.", next: "Check them before continuing." },
+        MATERIAL_NOT_AVAILABLE: { what: 'This material or version is no longer available.', next: 'Choose available material from its card.',
+        },
+        MATERIAL_STALE: { what: 'The material changed while it was being read.', next: 'The assistant will read its current version again.',
+        },
+        AGENT_TASK_OPERATION_IN_FLIGHT: { what: 'The previous step is still running.', next: 'Wait for its result before another action.',
+        },
+        AGENT_TASK_OPERATION_FAILED: { what: 'A step failed; the whole task is still incomplete.', next: 'Check the saved result before repeating it.',
+        },
+        AGENT_TASK_TIME_BUDGET: { what: 'The task reached its time limit with work remaining.', next: 'Saved results remain available. The assistant will identify what remains.',
+        },
+        AGENT_TASK_TOKEN_BUDGET: { what: 'The configured task token limit was reached.', next: 'Check results and remaining steps before continuing.',
+        },
+        AGENT_TASK_COST_BUDGET: { what: 'The configured task spending limit was reached.', next: 'Check costs and remaining work before continuing.',
+        },
+        AGENT_TASK_COST_UNKNOWN: { what: 'The cost of a completed step could not be confirmed.', next: 'Check usage and the saved result before repeating it.',
+        },
+        AGENT_TASK_UNCERTAIN: { what: 'The result of a paid step is not confirmed yet.', next: 'Check the saved result first: repeating it may create a duplicate.',
+        },
+        AGENT_TASK_NO_PROGRESS: { what: 'Repeated actions did not produce new results.', next: 'The assistant will explain the gap and propose another way forward.',
+        },
+        AGENT_TASK_EMERGENCY_FUSE: { what: 'A long execution chain stopped; the task is still incomplete.', next: 'Check the available results and remaining steps.',
+        },
+        AGENT_TASK_STOPPED: { what: 'Execution stopped. Saved results remain available.', next: 'Check them before continuing.',
+        },
         PAID_CAP_REACHED: {
           what: 'This step was stopped by an older assistant limit.',
           next: 'Check saved results before continuing.',

@@ -37,6 +37,7 @@ import { redactSecretLeaves } from '../conductor/secret-shapes';
 import { trackAgentTurnWork } from '../conductor/agent-turn-lifecycle';
 import { CONDUCTOR_EXECUTION_ID_KEY } from '../conductor/conductor.context';
 import { authorRequestResolver } from './original-author-request';
+import { projectNativeToolResult } from '../conductor/native-tool-result';
 import {
   AgentOperationPersistenceError,
   AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY,
@@ -438,6 +439,18 @@ export const buildCapabilityTool = (
       capability.risk !== 'read' &&
       (durableRunIds.length > 0 || (typeof executionId === 'string' && !!executionId));
     let receiptScope: AgentOperationScope | null = null;
+    const projectResult = (result: CapabilityToolOutput, retained = false) =>
+      projectNativeToolResult({
+        result, retained,
+        scope: options.entrance === 'chat' ? receiptScope ?? {
+          organizationId: identity.organizationId,
+          runId: typeof context?.runId === 'string' && context.runId ? context.runId : durableRunIds[0],
+          threadId: context?.agent?.threadId,
+          toolName: name, toolCallId: context?.agent?.toolCallId,
+          memory: context?.memory,
+          storage: context?.mastra?.getStorage() ?? context?.memory?.storage,
+        } : null,
+      });
     const uncertainResult = async (operationType = receiptScope ? agentOperationStateType(receiptScope) : undefined) => {
       if (receiptScope) context?.requestContext?.set?.(AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY, {
         runId: receiptScope.runId, operationType,
@@ -485,7 +498,7 @@ export const buildCapabilityTool = (
           if (committed.card) {
             await emit({ kind: committed.card.kind as any, data: committed.card });
           }
-          return committed.result;
+          return projectResult(committed.result, true);
         }
       } catch (error) {
         if (capability.risk === 'paid' && context?.requestContext) {
@@ -510,7 +523,7 @@ export const buildCapabilityTool = (
           return uncertainResult();
         }
       }
-      return result;
+      return projectResult(result, !!receiptScope);
     };
     const suspend = context?.agent?.suspend;
     const runContext: CapabilityRunContext = {
@@ -629,8 +642,15 @@ export const buildCapabilityTool = (
     requestContextSchema: capabilityContextSchema,
     // An explicit public verdict also overrides Session's global approval
     // policy for ordinary tools. Invalid input never parks an approval card.
-    ...(options.entrance === 'chat' ? { requireApproval: (input: unknown) =>
-      mayAskApproval(capability) && !validateToolInput(toStandardSchema(capability.input), input).error,
+    ...(options.entrance === 'chat' ? { requireApproval: (input: unknown, context?: {requestContext?: any}) => {
+      const requestContext = context?.requestContext;
+      const controller = requestContext?.get?.('controller') ?? requestContext?.controller;
+      const state = controller?.getState?.() ?? controller?.state;
+      const rules = state?.permissionRules;
+      const policy = rules?.tools?.[name] ?? (capability.risk === 'read' ? rules?.categories?.read : undefined);
+      return (mayAskApproval(capability) || policy === 'ask' || policy === 'deny') &&
+        !validateToolInput(toStandardSchema(capability.input), input).error;
+    },
     } : {}),
     ...(options.entrance === 'chat' && mayAskApproval(capability)
       ? {
@@ -716,13 +736,12 @@ export const buildCapabilityTool = (
       }
       return {
         type: 'json',
-        value: JSON.parse(
-          JSON.stringify({
+        value: {
             ok: true,
             summary: output.summary,
             ...(output.card ? { card: output.card } : {}),
-          })
-        ),
+            ...('nativeResult' in output ? { nativeResult: output.nativeResult } : {}),
+          },
       };
     },
     transform: {

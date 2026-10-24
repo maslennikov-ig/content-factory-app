@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { domainQuestionSchema, domainQuestionAnswer, isDomainQuestionCard } from '../domain-questions';
+import { withPieceQuestions, askPieceQuestions, resumePieceQuestions, applyPieceQuestionAnswers, type PieceAnswered } from './piece-domain-questions';
 import {
   researchReady,
   researchModelView,
@@ -15,7 +17,6 @@ import { INTAKE_SNAPSHOT_TTL_SECONDS } from '@contentfactory/nestjs-libraries/co
 import {
   INTAKE_INPUT_MAX_CHARS,
   INTERVIEW_ASK_KEYS,
-  type PieceAnswerRequestV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { PIECE_BRIEF_FIELDS } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import {
@@ -165,6 +166,8 @@ type PieceCreated = {
   reusedResearchId?: string;
   requestBasis?: 'original_request' | 'research_query' | 'provided_input';
   voiceScore?: BrandVoiceFactScoreSummary;
+  leftToAuthor?: string[];
+  postLink?: 'none';
 };
 
 type PieceCreateResult = PieceCreated | ResearchReady;
@@ -364,9 +367,9 @@ export const pieceCreate = defineCapability({
   // The summary is ids and counts; the pasted text never comes back, and the
   // found facts go to the person's card, not to the model.
   untrusted: [],
-  suspendSchema: factSelection,
-  resumeSchema: factAnswer,
-  run: async (ctx, input, emit): Promise<PieceCreateResult | undefined> => {
+  suspendSchema: z.union([factSelection, domainQuestionSchema]),
+  resumeSchema: z.union([domainQuestionAnswer, factAnswer.strict()]),
+  run: withPieceQuestions<PieceCreateResult>(async (ctx, input, emit): Promise<PieceCreateResult | undefined> => {
     const rawAny = input as Record<string, unknown>;
     let snapshotKey =
       input.researchId ??
@@ -384,7 +387,7 @@ export const pieceCreate = defineCapability({
       if (!snapshotKey) throw Object.assign(unspentFailure('INTAKE_RESEARCH_SNAPSHOT_REQUIRED',
         'Exact passages need their owned researchId snapshot; no search or write was started.'), { canReviseInput: true });
       const selected = await intake.selectStoredResearchPassages(ctx.organizationId, ctx.userId, snapshotKey,
-        input.passages.map(passage => ({ sourceUrl: passage.sourceUrl, revision: passage.revision, quote: passage.quote })), factKeys);
+        input.passages.map((passage: {sourceUrl: string; revision: string; quote: string}) => ({ sourceUrl: passage.sourceUrl, revision: passage.revision, quote: passage.quote })), factKeys);
       return pieceCreate.run(ctx, { ...input, passages: undefined, researchId: selected.snapshotKey,
         factId: selected.facts.filter(fact => fact.verified && fact.status === 'confirmed').map(fact => fact.factKey!) }, emit);
     }
@@ -570,7 +573,7 @@ export const pieceCreate = defineCapability({
     // When the card was asked: the first pass it continues lives an hour.
     await ctx.suspend({ ...pass.selection, askedAt: Date.now() });
     return undefined;
-  },
+  }),
   // Its open questions are the person's to answer: piece.answer is refused
   // for this piece in the same request (kcxz.31, D1).
   personQuestions: {
@@ -588,6 +591,9 @@ export const pieceCreate = defineCapability({
     ...(output.selectionOrigin ? { selectionOrigin: output.selectionOrigin } : {}),
     ...(output.reusedResearchId ? { reusedResearchId: output.reusedResearchId } : {}),
     ...(output.requestBasis ? { requestBasis: output.requestBasis } : {}),
+    ...(output.leftToAuthor?.length ? {leftToAuthor: output.leftToAuthor,
+      note: 'These personal facts were explicitly delegated but cannot be invented. The saved core uses a neutral formulation around the gaps; say what remains unknown and continue the original requested steps.'} : {}),
+    ...(output.postLink ? {postLink: output.postLink} : {}),
     ...(output.fromLead
       ? {
           fromLead: {
@@ -626,7 +632,9 @@ export const pieceCreateFromResearch = defineCapability({
   card: 'piece',
   door: door(ContentIntakeController, 'intakeRun'),
   untrusted: [],
-  run: async (ctx, input, emit): Promise<PieceCreated> => {
+  suspendSchema: domainQuestionSchema,
+  resumeSchema: domainQuestionAnswer,
+  run: withPieceQuestions<PieceCreated>(async (ctx, input, emit): Promise<PieceCreated | undefined> => {
     if (input.references) {
       if (input.snapshotKey || input.factKeys || input.passages?.length) throw unspentFailure('INTAKE_RESEARCH_SELECTION_INVALID', 'Use references or the single-capture selection, not both.');
       return await pieceCreate.run(ctx, { references: input.references,
@@ -650,7 +658,7 @@ export const pieceCreateFromResearch = defineCapability({
     return { pieceId: pass.pieceId, code: pass.code, questions: pass.questions,
       research: null, factsKept: input.factKeys.length, factsCard: 'not_shown', selectionOrigin: 'model', reusedResearchId: input.snapshotKey,
       ...(pass.voiceScore ? { voiceScore: pass.voiceScore } : {}) };
-  },
+  }),
   personQuestions: { opens: (summary) => Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null },
   summarize: (output) => ({ ...output, outcome: 'created', note: 'The requested piece is saved with model-origin fact selection. No facts card is waiting; continue other requested steps.' }),
   cardOf: (output) => ({
@@ -670,31 +678,14 @@ const QUESTION_IDS = [...PIECE_BRIEF_FIELDS, ...INTERVIEW_ASK_KEYS] as [
 const questionId = z
   .enum(QUESTION_IDS)
   .describe('Question id from piece.open (`questions[].id`)');
-const isMaterialQuestion = (id: string) => id.startsWith('ask-');
 
-type PieceAnswered = {
-  pieceId: string;
-  code: string | null;
-  questions: number;
-  /**
-   * Questions about the author's own experience that nobody answered (`wffi`):
-   * under the default policy we never invent them, the core goes around the
-   * gap. The agent must not say they were decided.
-   */
-  leftToAuthor?: string[];
-  /**
-   * «Какую ссылку поставить в пост?» was closed by this call as «Без ссылки»
-   * (`kcxz.37`, F9): everything was handed over and a link is never invented.
-   */
-  postLink?: 'none';
-};
 
 export const pieceAnswer = defineCapability({
   id: 'piece.answer',
   group: 'content',
   label: { ru: 'Ответить на вопросы заготовки', en: 'Answer the piece\'s questions' },
   description:
-    'Answer the open questions of a piece and rewrite its core — the piece page\'s «Ответить». Paid. Only after the person replied: pass their answers verbatim by question id (from piece.open). A question left out is decided by us («Решите за меня»); pass `decide` when the person said so. Calling with no answers decides every open question. Never in the same answer that wrote the piece — the person has not seen its questions yet; that call is refused. Returns how many questions are still open.',
+    'Open the piece’s exact saved manual questions in the conversation, then rewrite its core once after every question is answered or explicitly delegated. In native chat pass only pieceId; the human answers on the native card, never through model-generated answers. Choice, own words, confirmation and explicit delegation retain their provenance. Unanswered questions do not imply delegation. Over MCP the existing manual answers/decide request applies. Returns how many questions remain.',
   input: z.object({
     pieceId,
     answers: z
@@ -717,72 +708,19 @@ export const pieceAnswer = defineCapability({
   door: door(ContentPieceController, 'answer'),
   untrusted: [],
   // Refused for a piece whose questions this request has just opened (kcxz.31, D1).
+  suspendSchema: domainQuestionSchema,
+  resumeSchema: domainQuestionAnswer,
+  nativeDomainQuestions: true,
   personQuestions: { answers: (input) => input.pieceId },
-  run: async (ctx, input, emit): Promise<PieceAnswered> => {
-    // The body the piece page sends (`piece.container.tsx`): answers by field,
-    // a material question by its key on `facts`; «Решите за меня» by field.
-    const given = (input.answers ?? []).map((answer) =>
-      isMaterialQuestion(answer.questionId)
-        ? { field: 'facts', key: answer.questionId, text: answer.text }
-        : { field: answer.questionId, text: answer.text }
-    );
-    // A material question left unanswered is delegated by the service itself.
-    const decide = [
-      ...new Set((input.decide ?? []).filter((id) => !isMaterialQuestion(id))),
-    ];
-    const request = {
-      ...(given.length ? { answers: given } : {}),
-      ...(decide.length ? { decide } : {}),
-    } as PieceAnswerRequestV1;
-    const pieces = ctx.service(PieceService);
-    const plan = await pieces.prepareAnswer(
-      ctx.organizationId,
-      input.pieceId,
-      request,
-      ctx.language
-    );
-    const toldKeys = new Set(given.flatMap((answer) => ('key' in answer ? [answer.key] : [])));
-    const linkBefore = plan.core?.postLink;
-    const openMaterial = (plan.core?.questions?.items ?? []).filter(
-      (question) => question.key && !toldKeys.has(question.key)
-    );
-    let answered: PieceAnswered | null = null;
-    for await (const event of pieces.answer(ctx.organizationId, plan, ctx.userId)) {
-      const named = event as { name: string } & Record<string, any>;
-      await emit({
-        kind: 'progress',
-        data: { capability: 'piece.answer', stage: named.name },
-        transient: true,
-      });
-      if (named.name === 'piece') {
-        answered = { pieceId: named.pieceId, code: named.code ?? null, questions: 0 };
-        // What the service stored for them: an empty model answer is a gap.
-        const stored: Array<{ key?: string; origin?: string; text?: string }> =
-          named.core?.questions?.answered ?? [];
-        const gaps = openMaterial.filter((question) =>
-          stored.some(
-            (one) => one.key === question.key && one.origin === 'model' && !one.text?.trim()
-          )
-        );
-        if (gaps.length) {
-          answered.leftToAuthor = gaps.map((question) =>
-            shortQuestion(question.question, QUOTED_QUESTION_MAX)
-          );
-        }
-        const link = named.core?.postLink;
-        if (!linkBefore && link && link.url === null) answered.postLink = 'none';
-      }
-      if (named.name === 'questions' && answered) {
-        answered.questions = Array.isArray(named.questions) ? named.questions.length : 0;
-      }
-      if (named.name === 'error') {
-        throw eventFailure(named.code, named.message, 'PIECE_NOT_SAVED', 'The answers could not be saved.');
-      }
+  run: async (ctx, input, emit): Promise<PieceAnswered | undefined> => {
+    if (ctx.suspend) {
+      if (ctx.resumeData !== undefined && isDomainQuestionCard(ctx.suspendPayload)) return resumePieceQuestions<PieceAnswered>(ctx, emit);
+      // Model arguments are never a person's reply to questions it has just opened.
+      const detail = await ctx.service(PieceService).detail(ctx.organizationId, input.pieceId, ctx.language);
+      return askPieceQuestions(ctx, { pieceId: input.pieceId, code: detail.piece.code ?? null,
+        questions: detail.core?.questions?.items?.length ?? 0 }, emit);
     }
-    if (!answered) {
-      throw intakeFailure('PIECE_NOT_SAVED', 'The answers could not be saved.');
-    }
-    return answered;
+    return applyPieceQuestionAnswers(ctx, input, emit);
   },
   summarize: (output) => ({
     pieceId: output.pieceId,
@@ -792,7 +730,7 @@ export const pieceAnswer = defineCapability({
       ? {
           leftToAuthor: output.leftToAuthor,
           leftToAuthorCount: output.leftToAuthor.length,
-          note: `These ${output.leftToAuthor.length} ask for the author’s own experience; nothing was invented for them and the core goes around them. Do not say they were decided. Your reply quotes each question in «» word for word as given here — not shortened, not retold and says the person can add their own experience there in their own words — also when a limit stops the turn right after this; the core stays general until then.`,
+          note: `These ${output.leftToAuthor.length} ask for the author’s own experience; nothing was invented for them and the core goes around them. Do not say they were decided. Say what remains unknown and continue the original requested steps. The person may add their experience in this conversation later; the saved core stays general until then.`,
         }
       : {}),
     ...(output.postLink

@@ -39,7 +39,7 @@ module.exports = {
       promptTokens: 3,
       completionTokens: 3,
     });
-    expect(run.ledger.map((row) => row.operation)).toEqual(['agent', 'intake']);
+    expect(run.ledger.map((row) => row.operation)).toEqual(['agent', 'intake', 'intake']);
     // Progress reaches the browser transient; the thread keeps only the card.
     const progress = turn.data.filter((part) => part.type === 'data-progress');
     expect(progress.length).toBeGreaterThan(0);

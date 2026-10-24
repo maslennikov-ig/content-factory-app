@@ -1,0 +1,72 @@
+{
+  "schema": "agent-chat-canonical-closeout/v1",
+  "authority": "Linear",
+  "route": "content-factory",
+  "server": "helixa-new",
+  "verifiedAt": "2026-10-24T10:45:28.357972+00:00",
+  "readOnlyCheckpointInspection": true,
+  "issues": [
+    {
+      "beadId": "content-factory-next-b5lo",
+      "linearIdentifier": "HONEY-5961",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.1",
+      "linearIdentifier": "HONEY-5960",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.2",
+      "linearIdentifier": "HONEY-5959",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.3",
+      "linearIdentifier": "HONEY-5958",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.4",
+      "linearIdentifier": "HONEY-5957",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.5",
+      "linearIdentifier": "HONEY-5956",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    },
+    {
+      "beadId": "content-factory-next-b5lo.6",
+      "linearIdentifier": "HONEY-5955",
+      "phase": "imported",
+      "localStatus": "closed",
+      "canonicalStatus": "closed"
+    }
+  ],
+  "pendingOperations": 0,
+  "schedulerReceipt": {
+    "schema": "helixa-linear-scheduler-receipt/v1",
+    "started_at": "2026-10-24T10:40:05.575143+00:00",
+    "completed_at": "2026-10-24T10:44:12.896896+00:00",
+    "exit_code": 0,
+    "source_hashes": {
+      "github_sync.py": "2a40e14ee4a22b7c27236d96f879b8967272d390749e23344591baae73f28b8e",
+      "linear_task_sync.py": "01bc4b4e966769cffff072b33aa589b943b30c575a745bbc09fc8d850ec008f0",
+      "linear_task_sync_runner.py": "64c6002d65b2486e26231898c0de59f9c17b21505e131f471ef5502a16403307"
+    }
+  },
+  "accepted": true
+}

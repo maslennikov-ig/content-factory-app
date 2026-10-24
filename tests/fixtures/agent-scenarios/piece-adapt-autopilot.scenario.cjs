@@ -52,7 +52,7 @@ module.exports = {
     expect(no.data.filter((part) => part.type === 'data-adaptation')).toEqual([]);
     // «Да»: the adapt door runs; the interview may still follow.
     expect(askAgain.suspended).toEqual([consent]);
-    expect(yes.suspended.map((one) => one.payload.kind)).toEqual(['interview']);
+    expect(yes.suspended.map((one) => one.payload.kind)).toEqual(['domain-questions']);
     expect(yes.admissions.map(([operation]) => operation)).toEqual(['agent', 'intake']);
     const screen = screenPieces();
     expect(run.requests.filter(([door]) => door === 'piece.adapt')).toEqual([

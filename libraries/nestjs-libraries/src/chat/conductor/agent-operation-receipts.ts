@@ -158,7 +158,15 @@ const readPreviousOperationWitnesses = async (args: AgentOperationScope) => {
   const workflows = await args.storage!.getStore('workflows');
   const current = workflows && resolveRunFence(workflows, undefined, args.runId);
   const store = await operationStore(args);
-  const phases: Array<{ witness: OperationWitness; record: OperationRecord | undefined }> = [];
+  // The safety decision needs a disposition, never the retained tool payload.
+  // Holding every prior receipt here made each later tool allocate the whole
+  // run's results again while the native snapshot/prompt already owned them.
+  const phases: Array<{
+    witness: OperationWitness;
+    version: number | undefined;
+    state: OperationRecord['state'] | undefined;
+    committed: boolean;
+  }> = [];
   for (const [key, witness] of Object.entries(thread.metadata ?? {})) {
     if (!key.startsWith(`${agentOperationRunStateType(args)}:`)) continue;
     const previous = witness as OperationWitness | null;
@@ -166,19 +174,21 @@ const readPreviousOperationWitnesses = async (args: AgentOperationScope) => {
         (previous.resumes !== undefined && (!Array.isArray(previous.resumes) ||
           previous.resumes.some((phase) => typeof phase !== 'string' || !phase)))) throw uncertainAgentOperation();
     const record = await store.getState<OperationRecord>({ threadId: args.threadId!, type: previous.operationType });
-    phases.push({ witness: previous, record });
+    phases.push({ witness: previous, version: record?.version, state: record?.state,
+      committed: record?.version === 1 && record.state === 'committed' &&
+        !!record.receipt && 'result' in record.receipt });
   }
   const resumedPhases: string[] = [];
   const initialPhase = agentOperationStateType({ ...args, resumed: false });
-  for (const { witness: previous, record } of phases) {
-    if (record?.version === 1 && record.state === 'committed' && record.receipt && 'result' in record.receipt) continue;
+  for (const phase of phases) {
+    const { witness: previous } = phase;
+    if (phase.committed) continue;
     // A committed answer only resolves the same call's suspended phases that
     // already existed before it began. A later suspension remains uncertain.
-    if (record?.version === 1 && record.state === 'suspended' && phases.some(({ witness, record: completed }) =>
+    if (phase.version === 1 && phase.state === 'suspended' && phases.some(({ witness, committed }) =>
       witness.callType === (previous.callType ?? previous.operationType) && witness.operationType !== witness.callType &&
-      witness.resumes?.includes(previous.operationType) && completed?.version === 1 && completed.state === 'committed' &&
-      completed.receipt && 'result' in completed.receipt)) continue;
-    if (record?.version === 1 && record.state === 'suspended' && args.resumed &&
+      witness.resumes?.includes(previous.operationType) && committed)) continue;
+    if (phase.version === 1 && phase.state === 'suspended' && args.resumed &&
         (previous.operationType === initialPhase || previous.callType === initialPhase)) {
       resumedPhases.push(previous.operationType);
       continue;

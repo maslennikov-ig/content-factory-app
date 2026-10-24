@@ -39,6 +39,8 @@ describe('limits of one turn (premortem A2, ADR-0012 §7)', () => {
   test('all requested paid operations run sequentially with the native concurrency limit', () => {
     for (const result of [report.paidCapOne, report.paidCapTwo]) {
       expect(result.runs).toBe(3);
+      expect(result.maxConcurrent).toBe(1);
+      expect(new Set(result.createdPieceIds).size).toBe(3);
       expect(result.outcomes.every((outcome) => outcome?.ok === true)).toBe(true);
     }
   });

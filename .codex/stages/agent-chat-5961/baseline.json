@@ -1,0 +1,52 @@
+{
+  "base": "0e0cf070c6b88c8f042a7fba12945e73ba5e2cec",
+  "branch": "codex/agent-chat-5961",
+  "graph_reviewed": {
+    "owner": "/home/me/code/content-factory-next/graphify-out/graph.json",
+    "baseline": "dd67538d",
+    "read_only": true
+  },
+  "deployed_comparison": [
+    {
+      "file": "libraries/nestjs-libraries/src/chat/conductor/conductor.agent.ts",
+      "identical": false,
+      "preserved_bytes": 20738,
+      "current_bytes": 20625,
+      "preserved_sha256": "1be5db40b5a9b9e3acb66c818785b970e05b0037b6eb88ff7aaef24c54c7ea5f",
+      "base_bytes": 20738,
+      "base_sha256": "1be5db40b5a9b9e3acb66c818785b970e05b0037b6eb88ff7aaef24c54c7ea5f",
+      "identical_at_base": true
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts",
+      "identical": true,
+      "preserved_bytes": 9450,
+      "current_bytes": 9450,
+      "preserved_sha256": "261a39d9d61d97400e075d79e13ed8abc09614aec5449cd6e3a9238646d9008a",
+      "base_bytes": 9450,
+      "base_sha256": "261a39d9d61d97400e075d79e13ed8abc09614aec5449cd6e3a9238646d9008a",
+      "identical_at_base": true
+    },
+    {
+      "file": "libraries/nestjs-libraries/src/chat/capabilities/catalogue/material-read.capabilities.ts",
+      "identical": false,
+      "preserved_bytes": 14766,
+      "current_bytes": 16935,
+      "preserved_sha256": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+      "base_bytes": 14766,
+      "base_sha256": "fd6bdbf9ac363f83855a3acfdc2f6e1522fb023e29564b0e8d3cdb0a02cae781",
+      "identical_at_base": true
+    },
+    {
+      "file": "apps/frontend/src/components/agents/agent.cards.tsx",
+      "identical": false,
+      "preserved_bytes": 43309,
+      "current_bytes": 45988,
+      "preserved_sha256": "1d0929d3f211c8da60f728c2c94d7c286522cec8abaa57ba1050b31fab1f4829",
+      "base_bytes": 43309,
+      "base_sha256": "1d0929d3f211c8da60f728c2c94d7c286522cec8abaa57ba1050b31fab1f4829",
+      "identical_at_base": true
+    }
+  ],
+  "notes": "Original private evidence remains untouched; current implementation source is reconciled with preserved excerpts. Existing root dirty documents and preview ports3488/3489 preserved."
+}

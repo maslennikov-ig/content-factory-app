@@ -255,6 +255,8 @@ export type CapabilityDeclaration<
     opens?: (summary: Record<string, unknown>) => string | null;
     answers?: (input: z.infer<TInput>) => string | null;
   };
+  /** In chat this tool opens authoritative native questions; model arguments cannot answer them. */
+  nativeDomainQuestions?: true;
   /**
    * A proposal of changes the person accepts on a card (`kcxz.32`, N2): the
    * text it is for (`proposalTarget`). While a card of proposed changes to

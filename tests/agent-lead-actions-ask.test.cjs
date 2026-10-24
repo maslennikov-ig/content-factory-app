@@ -154,7 +154,7 @@ describe('the card names what is acted on, read by id', () => {
   const services = servicesFrom({ ContentLeadService: leadsFake() });
   const words = (tool, args, identity = IDENTITY) => registry.describeApprovalCall(catalogue, services, identity, tool, args);
 
-  test('one lead, a batch, a subscription, a take; both languages; an unknown id falls back to the label', async () => {
+  test('one lead, a batch, a subscription, a take; both languages; an unknown id cannot supply an actionable confirmation', async () => {
     expect(await words('ideas_dismiss', { leadIds: ['lead-1'] })).toBe(
       '«Не надо» для повода «Футбол»: он уйдёт из очереди и не вернётся из той же подписки'
     );
@@ -166,7 +166,7 @@ describe('the card names what is acted on, read by id', () => {
     );
     expect(await words('ideas_archive', { subscriptionId: 'sub-1' })).toMatch(/^Отписаться от ленты «vc\.ru»/);
     expect(await words('ideas_take', { leadId: 'lead-1' })).toMatch(/^Взять в работу повод «Футбол»/);
-    expect(await words('ideas_dismiss', { leadIds: ['lead-9'] })).toBe('Не надо');
+    expect(await words('ideas_dismiss', { leadIds: ['lead-9'] })).toBeNull();
     expect(await words('ideas_feed_add', { url: 'https://vc.ru/rss' })).toBeNull();
   });
 

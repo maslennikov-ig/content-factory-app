@@ -9,6 +9,8 @@ module.exports = {
   id: 'piece-core-edit-rebuild',
   title: 'Суть: правка руками, материал и пересборка',
   covers: ['piece.core.edit', 'piece.material.add', 'piece.core.rebuild'],
+  world: {pieces: [{id: 'p1', code: 'cnt-1', title: 'Про созвоны', archivedAt: null, questions: [], answers: [],
+    body: 'Созвоны без повестки съедают день.', revisions: [{text: 'Первая суть.', writtenBy: 'model', replacedAt: '2026-09-20T10:00:00.000Z'}]}]},
   turns: [
     {
       say: 'Замени суть cnt-1 на: Созвоны без повестки съедают три часа в день.',

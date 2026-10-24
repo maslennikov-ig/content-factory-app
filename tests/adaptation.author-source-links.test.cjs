@@ -28,6 +28,7 @@ function build(entrance='chat'){
   const repository={
     getPiece:jest.fn(async()=>({id:'p1',kind:'CORE',title:'Digest',body:'Saved neutral core without reference URLs.',archivedAt:null,tags:null,
       brief:{brief:{thesis:'Digest',position:null,disagreement:null,audience:null,facts:[],origins:{},questions:[],options:{}},answers:[],writtenBy:'model'}})),
+    listPieceIds:jest.fn(async()=>[{id:'p1'}]),
     listIntegrations:jest.fn(async()=>[channel]),adaptationsByPiece:jest.fn(async()=>[{id:'old',integrationId:'c1'}]),
     createDraft:paid,createAdaptation:paid,
   };
@@ -105,9 +106,9 @@ test('native interview resume preserves initial reference metadata without copyi
     yield*realAdapt(...args);
   };
   const first=await call(built),payload=JSON.parse(JSON.stringify(first.suspended[0]));
-  expect(payload).toMatchObject({kind:'interview',authorReferenceUrls:urls});
+  expect(payload).toMatchObject({kind:'domain-questions',source:{kind:'adaptation',pieceId:'p1',channelId:'c1'},authorReferenceUrls:urls});
   const result=await executeTool(built.tool,{pieceId:'p1',channelId:'c1',wish},{requestContext:resumeContext(),
-    resumeData:{answers:[{key:'ask-0',text:'Все существенные детали.'}]},suspendPayload:payload});
+    resumeData:{answers:[{key:'ask-0',mode:'custom',text:'Все существенные детали.'}]},suspendPayload:payload});
   expect(result.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
   expect(built.requests[0].pieceEvidence.sourceUrls).toEqual(urls);
   expect(built.generatorRequests[0].intake.post.wish).toBe(wish);

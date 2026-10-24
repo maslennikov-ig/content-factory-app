@@ -993,6 +993,7 @@ describe('correctness review W2: an answer is bound to the card, «Да» to the
 
   test('F4: «Да» is bound to the text the card first showed, not to the text at the answer', async () => {
     const context = setup();
+    context.mastra.mastraService.describeApproval = jest.fn(async () => 'Опубликовать адаптацию a1 заготовки p1 в тестовом канале. Пост станет виден читателям.');
     await threadOf(context, 'thread-a-1', RESOURCE_A);
     const args = { pieceId: 'p1', adaptationId: 'a1' };
     context.mastra.runs.push({
@@ -1032,6 +1033,22 @@ describe('correctness review W2: an answer is bound to the card, «Да» to the
       fingerprintOf('plan_publish_now', args),
       approvalContentFingerprint('plan_publish_now', args, 'digest:Первый текст'),
     ]);
+  });
+
+  test('missing approval context cannot authorize an operation through the HTTP door', async () => {
+    const context = setup();
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    context.mastra.mastraService.describeApproval = jest.fn(async () => null);
+    pendingApproval(context.mastra);
+    await expect(chat(context, {
+      threadId: 'thread-a-1',
+      messages: [{ id: 'missing-context-answer', role: 'assistant', parts: [{
+        type: 'tool-piece_delete', toolCallId: 'call-1', state: 'approval-responded',
+        approval: { id: 'run-approve-1::call-1', approved: true },
+      }] }],
+    })).rejects.toMatchObject({ code: 'AGENT_RUN_NOT_PENDING' });
+    expect(context.handleChatStream).not.toHaveBeenCalled();
+    expect(context.admissions).toHaveLength(0);
   });
 });
 

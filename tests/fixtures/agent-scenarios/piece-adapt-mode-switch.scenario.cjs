@@ -29,7 +29,7 @@ module.exports = {
   check: (run) => {
     const [ask, answered] = run.turns;
     // No consent card on a «Бронь» channel: the interview came first.
-    expect(ask.suspended.map((one) => one.payload.kind)).toEqual(['interview']);
+    expect(ask.suspended.map((one) => one.payload.kind)).toEqual(['domain-questions']);
     expect(answered.outputs[0].output.summary).toMatchObject({
       adaptationId: 'a1',
       state: 'draft',

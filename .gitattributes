@@ -21,3 +21,6 @@ apps/frontend/public/icons/platforms/mastodon.svg whitespace=-blank-at-eof
 .beads export-ignore
 .codex export-ignore
 .claude export-ignore
+
+# Unified diff context prefixes original tab indentation with one space.
+patches/*.patch whitespace=-space-before-tab

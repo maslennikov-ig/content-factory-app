@@ -1377,6 +1377,29 @@ const createWorld = (overrides = {}) => {
         writes.push(['piece.material.added', pieceId]);
         return { addedMaterial: piece.addedMaterial, materialPending: true };
       },
+      materialQuestions: async (organizationId, pieceId, integrationId, input) => {
+        scoped('PieceService.materialQuestions', organizationId);
+        const piece = pieceOf(pieceId);
+        const adaptation = (rows.adaptations ?? []).find(row => row.id === input.adaptationId && row.pieceId === pieceId && row.integrationId === integrationId);
+        if (!adaptation) throw Object.assign(new Error('Адаптации нет.'), {code: 'ADAPTATION_NOT_FOUND'});
+        requests.push(['piece.material-questions', pieceId, integrationId, JSON.parse(JSON.stringify(input))]);
+        const questions = rows.materialAsks?.[integrationId] ?? [];
+        if (input.dismiss === true) {
+          delete rows.materialAsks[integrationId];
+          writes.push(['adaptation.material.dismissed', pieceId, integrationId]);
+          return {state: 'dismissed'};
+        }
+        const material = (input.answers ?? []).flatMap(answer => {
+          const question = questions[Number(String(answer.key).replace('ask-', '')) - 1];
+          return question && answer.text?.trim() ? [`${question}\n${answer.text.trim()}`] : [];
+        }).join('\n');
+        if (!material) throw Object.assign(new Error('Материал не указан.'), {code: 'PIECE_MATERIAL_EMPTY'});
+        piece.addedMaterial = [...(piece.addedMaterial ?? []), {text: material}];
+        piece.materialPending = true;
+        delete rows.materialAsks[integrationId];
+        writes.push(['piece.material.added', pieceId]);
+        return {state: 'answered', materialPending: true};
+      },
       // `writeCore` over all the material: one `intake` operation.
       rebuildCore: async (organizationId, pieceId) => {
         scoped('PieceService.rebuildCore', organizationId);
@@ -1937,12 +1960,9 @@ const createWorld = (overrides = {}) => {
             ? { facts: body.researchSelections.slice() }
             : {}),
           createdBy: userId,
-          questions: (
-            rows.intakeQuestions ?? [
-              { field: 'audience', question: 'Для кого?' },
-              { field: 'facts', key: 'ask-1', question: 'Какой итог?' },
-            ]
-          ).map((question) => ({ ...question })),
+          // Scenarios which exercise manual questions seed them explicitly.
+          // An unrelated completed-draft fixture must not invent a question gate.
+          questions: (rows.intakeQuestions ?? []).map((question) => ({ ...question })),
           answers: [],
         };
         // The core is written now only when nothing is left to ask

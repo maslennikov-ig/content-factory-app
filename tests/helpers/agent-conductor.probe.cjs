@@ -110,8 +110,8 @@ const scripted = (steps, seen = { calls: [] }) => {
 const allowAll = { check: async () => ({ allowed: true, policies: [] }) };
 
 /** The fakes of every capability, one service map, with call records. */
-const fakeServices = () => {
-  const calls = { intake: 0, deleted: [], activated: [], snapshotReads: 0 };
+const fakeServices = ({ completeDrafts = false } = {}) => {
+  const calls = { intake: 0, intakeActive: 0, intakePeak: 0, createdPieceIds: [], deleted: [], activated: [], snapshotReads: 0 };
   const all = fixtures();
   const merged = {};
   for (const fixture of Object.values(all)) {
@@ -131,8 +131,21 @@ const fakeServices = () => {
     ...merged.IntakeService,
     prepare: async (...args) => {
       calls.intake += 1;
-      return prepare(...args);
+      calls.intakeActive += 1;
+      calls.intakePeak = Math.max(calls.intakePeak, calls.intakeActive);
+      try {
+        await new Promise(resolve => setImmediate(resolve));
+        return await prepare(...args);
+      } finally { calls.intakeActive -= 1; }
     },
+    ...(completeDrafts ? { run: async function* () {
+      // This scenario tests three independent completed operations. Questions
+      // have their own native suspension scenarios; each draft has its own ID.
+      const pieceId = `paid-piece-${calls.intake}`;
+      calls.createdPieceIds.push(pieceId);
+      yield { name: 'piece', pieceId, code: `cnt-${calls.intake}`, core: { body: INJECTION } };
+      yield { name: 'done', pieceId };
+    } } : {}),
   };
   merged.PieceService = {
     ...merged.PieceService,
@@ -159,8 +172,8 @@ const contextFor = (identity, extra = {}) =>
 const outcomesOf = (result) =>
   result.toolResults.map((entry) => (entry.payload ?? entry).result);
 
-const agentWith = (steps, { identity = IDENTITY, memory } = {}) => {
-  const { services, calls } = fakeServices();
+const agentWith = (steps, { identity = IDENTITY, memory, completeDrafts = false } = {}) => {
+  const { services, calls } = fakeServices({ completeDrafts });
   const { model, seen } = scripted(steps);
   const agent = conductor.buildConductorAgent({
     services,
@@ -183,7 +196,7 @@ const paidCap = async (paidLimit) => {
       ['tool', 'piece_create', { text: request, material: 'вторая мысль' }],
       ['tool', 'piece_create', { text: request, material: 'третья мысль' }],
     ],
-  ], { memory });
+  ], { memory, completeDrafts: true });
   const mastra = new Mastra({ logger: false, storage, agents: { 'content-factory': agent }, recovery: { durableAgents: 'auto' } });
   const execution = conductor.createConductorExecution({ requestId: 'paid-probe' });
   try {
@@ -192,7 +205,7 @@ const paidCap = async (paidLimit) => {
       memory: { thread: 'thread-probe-1', resource: `${IDENTITY.organizationId}:${IDENTITY.userId}` },
       requestContext: contextFor(IDENTITY, { paidLimit, originalAuthorRequest: { messageId: 'paid-probe-request', text: request } }),
     }));
-    return { runs: calls.intake, outcomes: outcomesOf(result) };
+    return { runs: calls.intake, maxConcurrent: calls.intakePeak, createdPieceIds: calls.createdPieceIds, outcomes: outcomesOf(result) };
   } finally { await mastra.shutdown(); }
 };
 
