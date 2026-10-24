@@ -72,8 +72,9 @@ jobs:
     # was the reason the full suite stayed out of CI.
     name: Full test suite (required)
     runs-on: ubuntu-latest
-    # Hosted Jest runs can approach 30 minutes; all three halves must finish.
-    timeout-minutes: 45
+    # The October native suite exceeded 45 minutes without a failed test.
+    # Leave headroom for runner setup and all three halves; probe budgets remain bounded.
+    timeout-minutes: 60
 
 
     # Native Mastra proofs use disposable schemas in a real local PG/Redis pair.

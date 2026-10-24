@@ -1,20 +1,10 @@
 'use strict';
 
-const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const { runProbeProcess } = require('./helpers/native-probe-process.cjs');
 
 const runProbe = (file, args = [], env = {}) => {
-  const output = execFileSync(
-    process.execPath,
-    [path.join(__dirname, 'helpers', file), ...args],
-    {
-      cwd: path.join(__dirname, '..'),
-      encoding: 'utf8',
-      timeout: 200_000,
-      env: { ...process.env, ...env },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  );
+  const output = runProbeProcess(path.join(__dirname, 'helpers', file), args, { timeout: 200_000, env });
   return JSON.parse(output.trim().split('\n').at(-1));
 };
 
@@ -141,11 +131,14 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
   });
 
   describe('fresh-process recovery and task metadata', () => {
-    let reports;
-    beforeAll(() => {
-      reports = runProbe('mastra-service-native-recovery.probe.cjs').results;
-    });
-    const result = (kind) => reports.find((entry) => entry.kind === kind);
+    // Each independent recovery case keeps its own existing 200s child budget.
+    // A single nine-case beforeAll budget fails under hosted parallel load.
+    const reports = new Map();
+    const result = (kind) => {
+      if (!reports.has(kind)) reports.set(kind,
+        runProbe('mastra-service-native-recovery.probe.cjs', [kind]).results[0]);
+      return reports.get(kind);
+    };
 
     test('bootstrap returns promptly, respects the live lease and natively rechecks after SIGKILL', () => {
       expect(result('lease')).toEqual(

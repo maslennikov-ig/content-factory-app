@@ -1,6 +1,50 @@
 # Развёртывание на сервере
 
-## Current release 23 October 2026: e819113f113e
+## Current release 24 October 2026: 4ba4c5a44225
+
+HONEY-5961: exact author questions, partial native answers, continuation after
+replies and failure recovery, contextual approvals, retained full source/result
+receipts, finite research retries and bounded completed Session memory.
+Tested private source `9610d5a623fded2863da974a931bce014b6e7bf0`;
+public/runtime `4ba4c5a44225c4353255c4ab445fd3ab1e000c7f`.
+Registry digest `sha256:6d11e3973ca93730dc60df0b77acdc2da90c1cb63b066798ffd918ed6a0b5283`.
+
+All nine local release checks PASS: Jest 771 suites/13,476 tests (7 suites/70
+existing skips), Node 167 PASS/4 existing environment skips, Python 50 OK;
+all four apps built locally and in the image, types/branding/docs/process/diff/
+nginx/commands-help PASS. All eight pinned Mastra patch chunks match the tested
+source. Twelve final-source native runs with V8 heap 512 MiB retain full sources,
+receipts and reconnect history; settled heap spread 3,986,304 bytes, guard 8 MiB.
+The whole final suite took 2,473.95 seconds; diagnostics issued no green receipt.
+
+Prisma diff zero before/after, no SQL applied. Native schema and six suspended
+snapshots, all 45 threads/374 messages/1,247 usage rows, AI settings and the one
+old admitted row are exact; new usage zero. Healthy/0 restarts, three PM2
+processes online/0, worker ready. All 21 foreign containers/mounts, 21 volumes
+and protected configuration are preserved except intended image/release fields.
+API/login/source/version HTTP 200; source archive 14,836,112 bytes, SHA-256
+`8f0a68d5438d75f083c35ec7cd751bc6a4e9cbead8df36ef5de8c9a1c293b5d7`, exact to image.
+Read-only public login browser at 1440/390px: no overflow/page/API errors or
+mutations. Authenticated full dialogue/restart/recovery remains the separate
+local frozen acceptance; no paid inference/search, social publishing, provider
+connection, credential wiring or model/provider-policy change was performed.
+
+Canonical retention kept current + verified `e819113f113e`, removing only the
+old e37 tag and two configuration copies. Three SHA-verified schema helpers,
+owned local disposable PostgreSQL/Redis/network and WSL sharing files removed;
+backups, rollback, original dirty checkout and preview 3496/4296 preserved.
+Public Code Quality CI passed. Original Build CI later failed in its calendar
+job and exceeded the full-job 45-minute limit; the owner's CI-only repair and
+new acceptance are tracked in [CI follow-up](../../.codex/stages/agent-chat-5961/ci-followup.md).
+Application code and production remain unchanged during that follow-up.
+[Delivery and limits](../../.codex/stages/agent-chat-5961/production-delivery.md),
+[sanitized proof](../../.codex/stages/agent-chat-5961/production-proof.json).
+The documentation/comment follow-up does not change accepted application behavior.
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh e819113f113e`.
+Keep the existing additive video/product schema; no down-migration.
+
+## Previous release 23 October 2026: e819113f113e
 
 Video access (API, personal subscriptions and manual upload), including the
 preceding table/native-replay release. Tested private source `0852c9fe515a76a476ce973e8d65d06af1434cd6`;
@@ -3142,13 +3186,13 @@ Evidence: `.codex/stages/content-factory-next-4zul/evidence/release-2026-09-14.j
 нечего. Заодно архив исходников внутри образа начинает описывать коммит, который
 пользователь может открыть.
 
-Почему проверяется локально. Полный набор идёт около трёх минут на этой машине
-против пяти в CI, и главное — локальный прогон не блокирует, а ожидание CI
-блокирует. Это допустимо, потому что публичное дерево отличается от рабочего
+Почему проверяется локально. Полный набор выполняется на точном приватном коммите до публикации;
+24.10.2026 он занял около 41 минуты. Ожидание CI не является условием
+переключения. Это допустимо, потому что публичное дерево отличается от рабочего
 ровно на `.codex/stages/*/evidence/`, а их не читает ни один тест: ссылки на
 «evidence» в наборах ведут в `scripts/evidence`, то есть в инструменты
 измерения, и те едут. CI публичного репозитория подписывает результат
-независимо и догоняет через пять минут; если он покраснеет, откат — одна строка
+независимо; если он покраснеет, откат — одна строка
 `CF_IMAGE`.
 
 Квитанция о зелёном наборе называет один коммит, а публичный репозиторий

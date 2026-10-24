@@ -166,7 +166,11 @@ async function scenario(mode) {
  return actual;
 }
 (async () => {
- const modes = process.env.STOP_PROBE_MODE ? [process.env.STOP_PROBE_MODE] : ['lag', 'shorter', 'terminal', 'late-finish', 'mismatch', 'unknown', 'failed', 'uncertain', 'unresolved', 'pending', 'no-ack', 'network', 'successor', 'late-stop-reply', 'retired-owner', 'cold-native-owner', 'mismatched-native-pointer', 'null-receipt', 'settlement-lag', 'settlement-lag-uncertain'];
+ const allModes = ['lag', 'shorter', 'terminal', 'late-finish', 'mismatch', 'unknown', 'failed', 'uncertain', 'unresolved', 'pending', 'no-ack', 'network', 'successor', 'late-stop-reply', 'retired-owner', 'cold-native-owner', 'mismatched-native-pointer', 'null-receipt', 'settlement-lag', 'settlement-lag-uncertain'];
+ const modes = process.env.STOP_PROBE_MODES ? JSON.parse(process.env.STOP_PROBE_MODES)
+  : process.env.STOP_PROBE_MODE ? [process.env.STOP_PROBE_MODE] : allModes;
+ assert(Array.isArray(modes) && modes.length > 0 && modes.every(mode => allModes.includes(mode)), 'Only known native Stop scenarios may run');
+ assert.equal(new Set(modes).size, modes.length, 'A native Stop batch must not duplicate a scenario');
  const reports = [];
  for (const mode of modes) reports.push(await scenario(mode));
  console.log(JSON.stringify({ reports }, null, 2));

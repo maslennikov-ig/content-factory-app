@@ -43,9 +43,9 @@ export const cleanApprovalSummary = (text: unknown): string | null => {
 /**
  * The summary of one pending approval call, or `null` for a tool that is not
  * a registry capability that may ask (`confirm`, or `asksInWebChat` — kcxz.45).
- * A description that fails, or arguments the schema refuses, fall back to
- * the capability's label: the card still says
- * what, and the call itself will be refused by its own checks.
+ * Invalid arguments or an unreadable scoped description return null. The
+ * controller refuses approval without that contextual description; it cannot
+ * authorize an unnamed action using a generic capability label.
  */
 export const describeApprovalCall = async (
   capabilities: readonly CapabilityDeclaration[],

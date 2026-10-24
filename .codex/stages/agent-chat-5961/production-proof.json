@@ -1,0 +1,222 @@
+{
+  "result": "PASS",
+  "release": "4ba4c5a44225",
+  "privateTestedSource": "9610d5a623fded2863da974a931bce014b6e7bf0",
+  "publicSource": "4ba4c5a44225c4353255c4ab445fd3ab1e000c7f",
+  "registryDigest": "sha256:6d11e3973ca93730dc60df0b77acdc2da90c1cb63b066798ffd918ed6a0b5283",
+  "rollbackTag": "e819113f113e",
+  "releaseChecks": [
+    {
+      "name": "backend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 21.52,
+      "reusedFromSource": "8126a57a0b3074ba4302092ebea29d760f24d2ba",
+      "relevantDependencyDiffEmpty": true
+    },
+    {
+      "name": "frontend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 17.16,
+      "reusedFromSource": "8126a57a0b3074ba4302092ebea29d760f24d2ba",
+      "relevantDependencyDiffEmpty": true
+    },
+    {
+      "name": "orchestrator-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 16.36,
+      "reusedFromSource": "8126a57a0b3074ba4302092ebea29d760f24d2ba",
+      "relevantDependencyDiffEmpty": true
+    },
+    {
+      "name": "source-build",
+      "command": "pnpm run build",
+      "exitCode": 0,
+      "seconds": 116.46,
+      "reusedFromSource": "8126a57a0b3074ba4302092ebea29d760f24d2ba",
+      "relevantDependencyDiffEmpty": true
+    },
+    {
+      "name": "full-suite",
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "exitCode": 0,
+      "seconds": 2473.95
+    },
+    {
+      "name": "branding",
+      "command": "node scripts/branding/brand-scan.cjs",
+      "exitCode": 0,
+      "seconds": 0.12
+    },
+    {
+      "name": "docs",
+      "command": "pnpm run docs:check",
+      "exitCode": 0,
+      "seconds": 0.97
+    },
+    {
+      "name": "process",
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "exitCode": 0,
+      "seconds": 0.27
+    },
+    {
+      "name": "diff",
+      "command": "git diff --check",
+      "exitCode": 0,
+      "seconds": 0.02
+    }
+  ],
+  "fullSuite": {
+    "jestPassedSuites": 771,
+    "jestPassedTests": 13476,
+    "jestExistingSkippedSuites": 7,
+    "jestExistingSkippedTests": 70,
+    "nodePassed": 167,
+    "nodeExistingSkipped": 4,
+    "nodeFailed": 0,
+    "pythonPassed": 50
+  },
+  "nativeMemory": {
+    "heapLimitMb": 512,
+    "runs": 12,
+    "researchResults": 48,
+    "sourcesPerResult": 50,
+    "domainCalls": 288,
+    "modelCalls": 156,
+    "sourceReads": 12,
+    "fullReceiptRangeReads": 12,
+    "reconnectResults": 288,
+    "savedReconnects": 1,
+    "peakHeap": 397320872,
+    "peakRss": 643416064,
+    "steadySpreadBytes": 3986304,
+    "registry": 0,
+    "globalRegistry": 0
+  },
+  "sdkImageChunksExact": 8,
+  "patchSha256": "c2de6ad67a8bc72cd6b4418e6b96c7355ac6fdfe000512ee9379b5508d8adb5e",
+  "schema": {
+    "diffExitCode": 0,
+    "sqlLines": 0,
+    "schemaApplied": false,
+    "nativeFingerprint": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0"
+  },
+  "runtime": {
+    "result": "PASS",
+    "mode": "after-retention",
+    "at": "2026-10-24T13:31:50.581435+00:00",
+    "release": "4ba4c5a44225",
+    "pm2": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restartCount": 0
+      }
+    ],
+    "workerReadiness": {
+      "status": "ok"
+    },
+    "foreignContainersPreserved": 21,
+    "volumesPreserved": 21,
+    "suspendedSnapshotsPreserved": 6,
+    "threadsExact": 45,
+    "messagesExact": 374,
+    "usageRowsExact": 1247,
+    "newUsageRows": 0,
+    "settingsPreserved": true,
+    "protectedConfigPreserved": true,
+    "nativeSchemaFingerprint": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0",
+    "preexistingAdmittedRowsPreserved": 1
+  },
+  "sourceArchive": {
+    "commit": "4ba4c5a44225c4353255c4ab445fd3ab1e000c7f",
+    "shortCommit": "4ba4c5a44225",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-4ba4c5a44225.tar.gz",
+    "bytes": 14836112,
+    "sha256": "8f0a68d5438d75f083c35ec7cd751bc6a4e9cbead8df36ef5de8c9a1c293b5d7",
+    "builtAt": "2026-10-24T13:13:07Z"
+  },
+  "browser": {
+    "url": "https://factory.aidevteam.ru/auth/login",
+    "layouts": [
+      {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "focusTag": "BUTTON",
+        "title": "Sign In · Content Factory"
+      },
+      {
+        "width": 390,
+        "scrollWidth": 390,
+        "focusTag": "BUTTON",
+        "title": "Sign In · Content Factory"
+      }
+    ],
+    "emailFields": 2,
+    "pageErrors": [],
+    "httpErrors": [],
+    "blocked": [],
+    "mutationsSent": 0,
+    "result": "PASS",
+    "scope": "public login only; authenticated chat and real inference remain covered by local frozen acceptance, not this production browser check"
+  },
+  "cleanup": {
+    "removedOwnedHostHelpers": [
+      "schema-engine",
+      "schema-preflight.cjs",
+      "schema-preflight.sh"
+    ],
+    "removedOwnedLocalContainers": [
+      "cf-chat5961-release-pg-20261024"
+    ],
+    "ownedTemporarySharedFilesRemoved": true,
+    "backupsAndRollbackPreserved": true,
+    "previewAndForeignServicesPreserved": true,
+    "ownedProductionBrowserClosed": true
+  },
+  "originalDirtyFilesExact": 11,
+  "previewPortsPreserved": [
+    3496,
+    4296
+  ],
+  "ciAtInspection": [
+    {
+      "conclusion": "success",
+      "databaseId": 40097185896,
+      "name": "Code Quality Analysis",
+      "status": "completed",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40097185896"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40097185744,
+      "name": "Build",
+      "status": "in_progress",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40097185744"
+    }
+  ],
+  "limits": [
+    "No paid provider calls, social publishing, credential wiring or provider-policy change.",
+    "Production browser checked public login only; full authenticated chat/restart/recovery used the local frozen stand.",
+    "Twelve bounded heap-512 runs do not establish unlimited retention or provider/editorial quality."
+  ],
+  "documentationFollowup": {
+    "result": "PASS",
+    "runtimeUnchangedAfterCommentCorrection": true,
+    "emittedSha256": "17a842f0a074c66b3d5fb0e13edd435343346addc0d57d67e77ca67fa2007c8e"
+  }
+}

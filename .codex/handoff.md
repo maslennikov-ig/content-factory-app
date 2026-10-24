@@ -1,20 +1,27 @@
 # Content Factory current handoff — 24 October 2026
 
-## Active delivery: HONEY-5961 / HONEY-5962
+## Delivered: HONEY-5961 / HONEY-5962
 
-HONEY-5961 and all six children are implemented and canonically closed after
-local acceptance. HONEY-5962 (`content-factory-next-i0oq`) tracks the owner's
-subsequent explicit Push, Merge, Deploy instruction. Release is in progress;
-no production switch has occurred yet. Paid provider calls, social publishing,
-provider credential/policy changes and unrelated cleanup remain unauthorized.
+CI follow-up is active under reopened HONEY-5962: the original Build run's
+calendar job failed native child timeouts and the full job hit 45 minutes.
+Test/CI-only corrections are awaiting complete GitHub acceptance; production
+4ba4c5a44225 remains healthy with unchanged application code.
+[CI diagnosis and verification](stages/agent-chat-5961/ci-followup.md).
+
+HONEY-5961 and all six children retain completed canonical local acceptance.
+The owner's subsequent Push, Merge, Deploy instruction was delivered through
+HONEY-5962 (`content-factory-next-i0oq`): production/public `4ba4c5a44225`, tested
+private source `9610d5a623fd`, verified rollback `e819113f113e`.
+Paid provider calls, social publishing, provider credential/policy changes and
+unrelated cleanup remain unauthorized. [Release outcome and limits](stages/agent-chat-5961/production-delivery.md).
 
 Feature branch `codex/agent-chat-5961` at `f16ab8c633a6` is pushed. The owned
 release worktree is
 `/home/me/code/content-factory-next-worktrees/release-agent-chat-5961-20261024`.
-It merged the feature from integration base `0e0cf070c6b8`; current tested
-application source is `8126a57a0`. Release checks found and corrected approval
-recovery/legacy question display/compact preview issues; remaining legacy
-fixtures and the oversized handoff are being corrected before the final gate.
+It merged the feature from integration base `0e0cf070c6b8`. All nine release
+checks PASS: Jest 771 suites/13,476 tests, Node 167, Python 50; existing skips
+70+4. Approval recovery, legacy question display, compact previews and fixtures
+were corrected before the exact final-source receipt and image publication.
 [Release regressions](stages/agent-chat-5961/release-regressions.md).
 
 Exact manual questions, all choices/custom/multiple/delegated answers and
@@ -45,16 +52,18 @@ main checkout's dirty planning/video files and running local services are
 preserved. One earlier failed initializer may have left an empty test schema
 without a retained identity; no shared schema was guessed or deleted.
 
-## Production baseline and video acceptance boundary
+## Production release and video acceptance boundary
 
-Current observed production is `e819113f113e` (23 October video access release),
-from tested private source `0852c9fe515a`; prior verified rollback
-`e37c8dac4dbf`. Before this release it is healthy; current inspection found
-six suspended native snapshots, no active owner/continuation, and one old
-admitted usage row. That old row is preserved and is not active work.
-HONEY-5961 changes no Prisma schema or model/provider policy. The release must
-verify candidate digest, zero schema diff, saved native/product state and
-foreign workloads before acceptance; no historical receipt substitutes for it.
+Current production is `4ba4c5a44225` from tested private `9610d5a623fd`;
+verified retained rollback is the preceding video release `e819113f113e`.
+Healthy/0 restarts, three PM2 processes online/0, worker ready. Prisma diff is
+zero before/after, no schema applied. Six suspended native snapshots, all 45
+threads/374 messages/1,247 usage rows, AI settings, 21 foreign containers and
+21 volumes are exact; new usage zero. One old admitted row remains preserved.
+Source archive/digest and public read-only 1440/390px browser checks PASS.
+Authenticated production chat/inference were not exercised; the full dialogue
+and recovery proof is local/frozen. No provider/model policy changed.
+[Sanitized release proof](stages/agent-chat-5961/production-proof.json).
 
 The 23 October release added the versioned video API/subscription/manual
 contracts and guarded product schema. Its full suite/build/runtime/source,
@@ -101,14 +110,15 @@ Accepted stage id: content-factory-next-j9p5-implementation-20261018
 The process contract still names that previously accepted stage; its artifacts
 remain preserved. HONEY-5962 tracks the current production delivery separately.
 
-Next stage id: honey-5961-production-delivery
+Next stage id: honey-5961-owner-review
 
-Recommended action: finish the already authorized HONEY-5962 release after its
-exact full-suite receipt, image/source/schema/data checks and safe retention.
-Preserve the existing preview, foreign changes and all paid/provider boundaries.
+Recommended action: owner review of the delivered interface and saved local
+example. The release is already deployed; do not repeat it. Preserve the preview,
+foreign changes and all paid/provider boundaries. Real provider acceptance
+requires separate explicit authority.
 
 ## Starter prompt for next orchestrator
 
-Read current Linear/Beads and this handoff, then resume HONEY-5962 at its actual
-recorded release phase. Use $orchestrator-stage when coordination materially
-helps. Reuse matching passing evidence and do not restart historical scenarios.
+Read current Linear/Beads and this handoff, then follow the next owner request.
+Use $orchestrator-stage when coordination materially helps. Reuse matching
+passing evidence; do not repeat the completed release or historical scenarios.
