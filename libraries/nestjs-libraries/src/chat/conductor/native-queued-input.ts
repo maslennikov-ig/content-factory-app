@@ -351,6 +351,13 @@ export const createNativeQueuedInputWorkflow = (options: {
             inputData.childRunId
           );
           const isChildAlive = async (runId: string) => {
+            // The public thread runtime reserves an accepted successor before
+            // its first workflow lease exists. Keep observing that exact native
+            // owner across a slow handoff instead of settling its admission.
+            if (runtime.agent.getActiveThreadRunId({
+              threadId: inputData.threadId,
+              resourceId: inputData.resourceId,
+            }) === runId) return true;
             if ((await workflows.getRunOwnership({ runId }))?.live) return true;
             return (
               await runtime.agent.listSuspendedRuns({

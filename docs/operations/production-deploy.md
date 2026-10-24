@@ -36,7 +36,9 @@ backups, rollback, original dirty checkout and preview 3496/4296 preserved.
 Public Code Quality CI passed. Original Build CI later failed in its calendar
 job and exceeded the full-job 45-minute limit; the owner's CI-only repair and
 new acceptance are tracked in [CI follow-up](../../.codex/stages/agent-chat-5961/ci-followup.md).
-Application code and production remain unchanged during that follow-up.
+The first repaired CI exposed a real native continuation-start race. Its adapter
+correction requires a new exact-source release; production remains this version
+until those checks and guarded update complete.
 [Delivery and limits](../../.codex/stages/agent-chat-5961/production-delivery.md),
 [sanitized proof](../../.codex/stages/agent-chat-5961/production-proof.json).
 The documentation/comment follow-up does not change accepted application behavior.

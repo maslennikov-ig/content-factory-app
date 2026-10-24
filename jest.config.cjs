@@ -6,6 +6,9 @@ const markdownEsm =
 /** @type {import('jest').Config} */
 module.exports = {
   clearMocks: true,
+  // Long native/UI runs retain modules across suites. Recycle idle workers
+  // before their retained heap reaches Node's 4 GiB CI ceiling.
+  workerIdleMemoryLimit: 1024 ** 3,
   roots: ['<rootDir>/tests'],
   testEnvironment: 'node',
   // A suite that writes into apps/** or libraries/** breaks a `next dev` or

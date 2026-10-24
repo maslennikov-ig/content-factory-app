@@ -33,21 +33,54 @@ exact original child error code cannot be recovered from the old log.
 
 Corrected focused verification: +400 days, two workers, one CPU: 3 suites /
 24 tests PASS, zero skipped, 317.397 seconds. Workflow/time-travel guard checks:
-2 suites /24 tests PASS. Git diff check PASS. Final GitHub acceptance is pending.
+2 suites /24 tests PASS. Git diff check PASS. The first repaired CI run `40101372436` subsequently
+failed; final GitHub acceptance is pending.
+
+## Follow-up failure and deterministic runtime regression
+
+The first repair's calendar job exposed a reused Jest worker reaching about
+3.95 GiB of its 4 GiB heap after 19 minutes. The attributed routing suite passes
+in isolation on exact Node 22.23.2 (3 tests, 346 MiB reported heap). Installed
+Jest 29.7 supports idle worker recycling, now limited to 1 GiB retained heap
+between suites. The exact accumulation source is not established; the active
+suite and production heap limits are unchanged. Read-only delegated diagnosis
+was accepted; it made no working-tree or runtime changes.
+
+The same CI run exposed a real queued-availability handoff race. A deterministic
+2.5-second successor-start delay reproduces it: the reader's 1-second idle check
+cannot see a workflow lease yet and settles the task failed; the already accepted
+successor then sees that terminal marker and aborts. The new native regression
+fails before the correction with the same suspended/settled-failed state.
+
+The existing liveness check now also recognizes Mastra's public exact
+thread/resource/run reservation, which exists before the first workflow lease.
+This retains the original admission across slow native handoff, while missing
+native ownership still suspends uncertain outcomes. Read-only source review
+confirmed the exact public reservation and unchanged Stop/uncertainty gates;
+the delegated review is accepted and left no owned processes or working edits.
+Like a live workflow lease, a live local native reservation remains positive
+liveness evidence; this change does not add a separate watchdog for a wedged
+SDK startup promise. No retry, claim-stealing,
+new queue, timeout increase or synthetic success is introduced. The new delayed
+case retains all five-call/one-write/one-admission/completed assertions.
+
+The constrained integration set then exposed a cold queued-Stop status race:
+a pending continuation can retain an earlier failed observation marker. Cold
+recovery checked that terminal marker before the original immutable queued-child
+Stop witness. The explicit saved-Stop guard must precede that terminal-marker
+shortcut, as the existing `stopRequested` guard already does. A deterministic
+prior-failed-observation case is added alongside the original running case;
+all no-provider/no-successor-checkpoint assertions remain mandatory.
 
 ## Application and delivery boundary
 
-Application files, dependency versions/patches, model/provider settings and
-runtime configuration are unchanged from private `0d7540645`. That baseline's
-sole application-source difference from deployed private `9610d5a623fd` is the
-already verified comment correction with identical emitted JavaScript.
-Production remains the accepted `4ba4c5a44225` image, archive and rollback. This
-is a test/CI publication; no image rebuild or production switch is required.
-The copied public tree and Source-Commit trailer remain the publication route.
-No green local suite receipt is invented for this CI-only commit. The new
-GitHub workflow must finish all jobs and confirm all three suite halves before
-this follow-up is accepted. Production data, credentials, paid providers,
-foreign changes and the existing preview remain untouched.
+The initial test-only publication was private `19e27e183` / public `f7fb7794c`.
+Its Build `40101372436` failed and is not accepted. The deterministic follow-up
+now changes the native queue adapter; it requires exact-source release checks,
+a new copied public tree/image and a guarded production update under the owner's
+standing Push, Merge, Deploy instruction. Production remains `4ba4c5a44225`
+until those gates pass. No paid calls, provider policy, credentials, schema or
+foreign-service changes are authorized. No green receipt is invented.
 
 Detailed private evidence:
 `~/.local/state/content-factory-next/release-agent-chat-5961-20261024/ci-repair-20261024/`.

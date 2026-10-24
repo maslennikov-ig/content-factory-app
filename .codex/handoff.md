@@ -2,10 +2,12 @@
 
 ## Delivered: HONEY-5961 / HONEY-5962
 
-CI follow-up is active under reopened HONEY-5962: the original Build run's
-calendar job failed native child timeouts and the full job hit 45 minutes.
-Test/CI-only corrections are awaiting complete GitHub acceptance; production
-4ba4c5a44225 remains healthy with unchanged application code.
+CI follow-up is active under reopened HONEY-5962. The first repaired Build
+exposed a reused test-worker OOM and a real native queued-continuation gap.
+The gap is reproduced with a 2.5-second successor-start delay; an exact native
+thread reservation now protects its original admission. Focused verification,
+new complete CI and exact-source release/deployment are pending; production
+still runs 4ba4c5a44225.
 [CI diagnosis and verification](stages/agent-chat-5961/ci-followup.md).
 
 HONEY-5961 and all six children retain completed canonical local acceptance.

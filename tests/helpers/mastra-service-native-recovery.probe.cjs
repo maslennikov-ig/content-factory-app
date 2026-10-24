@@ -373,8 +373,8 @@ async function scenario(kind) {
         providerCalls: 0,
       };
     }
-    if (kind === 'queued-service' || kind === 'queued-availability') {
-      if (kind === 'queued-availability') {
+    if (kind === 'queued-service' || kind.startsWith('queued-availability')) {
+      if (kind.startsWith('queued-availability')) {
         const nativeWait = runtime.service.modelAvailability.wait.bind(
           runtime.service.modelAvailability
         );
@@ -386,6 +386,17 @@ async function scenario(kind) {
           );
           return result;
         };
+        if (kind === 'queued-availability-slow') {
+          const stream = runtime.agent.stream.bind(runtime.agent);
+          runtime.agent.stream = async (messages, options) => {
+            if (options?.runId && !options.runId.startsWith('queued-turn:')) {
+              // Native queue acceptance precedes its first workflow lease.
+              // A slow start must retain the admitted task across that gap.
+              await delay(2500);
+            }
+            return stream(messages, options);
+          };
+        }
       }
       await runtime.memory.createThread({
         threadId: THREAD,
@@ -421,7 +432,7 @@ async function scenario(kind) {
       assert.equal(runtime.admissions.length, 1);
       assert.deepEqual(runtime.admissions[0].finishes, [true]);
       const thread = await readThread();
-      if (kind === 'queued-availability') {
+      if (kind.startsWith('queued-availability')) {
         assert.notEqual(
           thread.metadata.assistantNativeRun.runId,
           accepted.childRunId
@@ -739,6 +750,19 @@ async function scenario(kind) {
         },
       });
       if (kind === 'queued-gap-stop') {
+        if (process.argv.includes('--settled-before-stop')) {
+          const beforeStop = await readThread();
+          await runtime.memory.updateThread({
+            id: THREAD,
+            metadata: {
+              assistantExecution: {
+                ...beforeStop.metadata.assistantExecution,
+                state: 'settled',
+                outcome: 'failed',
+              },
+            },
+          });
+        }
         const ids = runtime.queuedInputModule.nativeQueuedInputIds({
           identity: IDENTITY,
           threadId: THREAD,

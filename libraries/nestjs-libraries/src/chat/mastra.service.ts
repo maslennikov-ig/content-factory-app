@@ -1206,12 +1206,6 @@ export class MastraService
         await this.reconcileNativeRun(thread.id, pointer.runId, 'interrupted');
         continue;
       }
-      if (
-        ['stopped', 'settled', 'blocked'].includes(String(pointer.state)) ||
-        (marker?.requestId === pointer.logicalRequestId &&
-          (marker.stopRequested === true || marker.state === 'settled'))
-      )
-        continue;
       const queuedInputId = pointer.continuationQueuedInputChildRunId;
       if (
         typeof queuedInputId === 'string' &&
@@ -1226,6 +1220,14 @@ export class MastraService
         await this.reconcileNativeRun(thread.id, pointer.runId, 'interrupted');
         continue;
       }
+      // The original queued-child Stop also outranks a failed observation
+      // marker saved while its accepted successor had no checkpoint yet.
+      if (
+        ['stopped', 'settled', 'blocked'].includes(String(pointer.state)) ||
+        (marker?.requestId === pointer.logicalRequestId &&
+          (marker.stopRequested === true || marker.state === 'settled'))
+      )
+        continue;
       const [successor, predecessor] = await Promise.all([
         workflows.getWorkflowRunById({
           workflowName: 'durable-agentic-loop',

@@ -71,9 +71,10 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
     );
   });
 
-  test('cold queued continuation honors its original immutable Stop witness before a successor checkpoint', () => {
+  test.each([false, true])('cold queued continuation honors immutable Stop before a successor checkpoint (prior failed observation: %s)', settledBeforeStop => {
     const report = runProbe('mastra-service-native-recovery.probe.cjs', [
       'queued-gap-stop',
+      ...(settledBeforeStop ? ['--settled-before-stop'] : []),
     ]).results[0];
     expect(report).toEqual(
       expect.objectContaining({
@@ -217,8 +218,8 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
         })
       );
     });
-    test('queued task availability continuation retains the same single admission and completed tool', () => {
-      expect(result('queued-availability')).toEqual(
+    test.each(['queued-availability', 'queued-availability-slow'])('%s retains the same single admission and completed tool', kind => {
+      expect(result(kind)).toEqual(
         expect.objectContaining({
           durableAcceptance: true,
           duplicateAccepted: true,
