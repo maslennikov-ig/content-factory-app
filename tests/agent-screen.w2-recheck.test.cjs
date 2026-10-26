@@ -39,6 +39,11 @@ const contract = loadTypeScriptModule('apps/frontend/src/components/agents/agent
 const cards = loadTypeScriptModule('apps/frontend/src/components/agents/agent.cards.tsx');
 const copy = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
 const ru = copy.agentCopy.ru;
+// Load the server registry before interaction timers; the card test below
+// still uses its real native preference summary and the unchanged UI budget.
+const { loadRegistry, IDENTITY } = require('./helpers/agent-capabilities.cjs');
+const registry = loadRegistry();
+
 // The transport proof boundary is stubbed in this component stand; its real
 // server-header → typed Error path is exercised by agent-transport.test.cjs.
 class ProvenNotStarted extends Error {}
@@ -932,8 +937,6 @@ describe('W3 recheck R-5 — the paid limit is a stop, not a failure', () => {
 });
 
 test('a saved native working-memory approval renders its real details and accepts an answer', async () => {
-  const { loadRegistry, IDENTITY } = require('./helpers/agent-capabilities.cjs');
-  const registry = loadRegistry();
   const reason = await registry.describeApprovalCall([], () => { throw new Error('No external call'); }, IDENTITY,
     'updateWorkingMemory', { memory: { notes: ['Prefer concise replies.'] } });
   const answer = jest.fn();
