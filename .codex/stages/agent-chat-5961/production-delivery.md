@@ -1,5 +1,11 @@
 # HONEY-5961 production delivery — 24 October 2026
 
+This records the initial `4ba4c5a44225` delivery and its historical receipts.
+The owner's subsequent CI follow-up repaired runtime races and delivered current
+`2c25a3d13bb7` with all five CI jobs green. See [current outcome](ci-followup.md)
+and [current production proof](ci-production-proof.json). The current rollback
+is `4ba4c5a44225`; the older e819 image is no longer retained on the host.
+
 The owner's subsequent **Push, Merge, Deploy** instruction was delivered through
 HONEY-5962 (`content-factory-next-i0oq`). HONEY-5961 and all six implementation
 tasks retain their completed local acceptance. No new paid/provider authority
@@ -70,8 +76,9 @@ Retained preview: <http://localhost:4296/agents/a5222c3c-2cc7-4c30-aec1-fef81687
 (use a private browser window). It retains the original accepted feature stand;
 production includes the subsequent release recovery corrections.
 
-Public Code Quality CI passed; Build CI was still running at inspection and is
-independent of the completed local release receipt. No paid model/search call,
+Public Code Quality CI passed; Build CI was still running at the original
+inspection and later failed. The current green replacement and exact-source
+release checks are recorded in [CI follow-up](ci-followup.md). No paid model/search call,
 social publication, account connection or credential/policy change was made.
 Real provider/editorial quality and owner acceptance remain separate.
 

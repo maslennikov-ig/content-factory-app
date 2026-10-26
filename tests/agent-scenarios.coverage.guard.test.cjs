@@ -37,22 +37,30 @@ describe('recorded scenario coverage of the capability registry', () => {
     expect(unscripted).toEqual([]);
   });
 
-  test('a scenario that proves a skill names a real one and activates it (kcxz.24)', () => {
+  test('a skill scenario uses bundled know-how and existing references without activation (kcxz.24)', () => {
     const { CONDUCTOR_SKILL_SPECS } = require('./helpers/agent-capabilities.cjs').loadCapabilityModule(
       '../conductor/conductor.skills.ts'
     );
-    const names = new Set(CONDUCTOR_SKILL_SPECS.map((skill) => skill.name));
+    const specs = new Map(CONDUCTOR_SKILL_SPECS.map((skill) => [skill.name, skill]));
     const proving = scenarios.filter((scenario) => (scenario.skills ?? []).length);
     expect(proving.map((scenario) => scenario.id)).toContain('help-answer');
     for (const scenario of proving) {
-      const activated = scenario.turns.flatMap((turn) =>
+      const calls = scenario.turns.flatMap((turn) =>
         (turn.model || []).flatMap((step) =>
-          step.filter(([kind, name]) => kind === 'tool' && name === 'skill').map(([, , input]) => input.name)
+          step.filter(([kind]) => kind === 'tool')
         )
       );
+      expect(calls.filter(([, name]) => name === 'skill')).toEqual([]);
       for (const skill of scenario.skills) {
-        expect(names.has(skill)).toBe(true);
-        expect(activated).toContain(skill);
+        expect(specs.has(skill)).toBe(true);
+        expect(specs.get(skill).instructions.length).toBeGreaterThan(0);
+        const reads = calls
+          .filter(([, name, input]) => name === 'skill_read' && input.skillName === skill)
+          .map(([, , input]) => input.path);
+        const references = Object.keys(specs.get(skill)?.references ?? {})
+          .map((name) => `references/${name}`);
+        if (references.length) expect(reads.length).toBeGreaterThan(0);
+        for (const reference of reads) expect(references).toContain(reference);
       }
     }
   });

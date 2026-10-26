@@ -583,7 +583,7 @@ const notesLine = (notes?: string | null): string | null => {
  * черновика (`anti-copy`), но строка дешевле повторной генерации.
  */
 const ANTI_COPY_LINE =
-  'Never reproduce 8 or more consecutive words from any material you were given.';
+  "Never reproduce 8 or more consecutive words from foreign-source passages. This restriction covers foreign wording, not the author's own neutral core or answers. Retain supported names, numbers and author wording; foreign wording does not become original merely because it also appears in the core.";
 
 /**
  * Строка призыва отдельно от всего блока.

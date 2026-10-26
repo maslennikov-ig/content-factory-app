@@ -29,7 +29,7 @@ for (const key of ['window', 'document', 'navigator']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, render } = require('@testing-library/react');
+const { act, cleanup, fireEvent, render } = require('@testing-library/react');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
@@ -228,6 +228,50 @@ describe('D7, D9 — refusals in product words, never a raw code as the answer',
     const text = await renderError({ code: 'SOMETHING_NEW', refusal: true });
     expect(text).toContain('в ответе ниже');
     expect(text).not.toContain('обычно этого хватает');
+  });
+
+  test('saved adaptation review findings stay collapsed and render as literal RU/EN text', async () => {
+    const reviewFindings = {
+      missingRequirements: ['Не найдено подтверждение периода события.'],
+      unsupportedClaims: ['Дата публикации <img src=x> не подтверждает дату события.'],
+    };
+    let view;
+    await act(async () => {
+      view = render(h(cards.ErrorCard, {
+        title: 'Адаптировать под канал',
+        code: 'CONTENT_ADAPTATION_INCOMPLETE',
+        refusal: true,
+        reviewFindings,
+        words: ru,
+      }));
+    });
+    const russianToggle = document.querySelector('button[aria-expanded]');
+    expect(russianToggle.textContent).toContain(ru.error.reviewFindings.summary);
+    expect(russianToggle.getAttribute('aria-expanded')).toBe('false');
+    const region = document.querySelector('[role="region"]');
+    expect(region.hidden).toBe(true);
+
+    await act(async () => fireEvent.click(russianToggle));
+    expect(russianToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(region.hidden).toBe(false);
+    expect(document.body.textContent).toContain(ru.error.reviewFindings.missingRequirements);
+    expect(document.body.textContent).toContain(ru.error.reviewFindings.unsupportedClaims);
+    expect(document.body.textContent).toContain(reviewFindings.unsupportedClaims[0]);
+    expect(document.querySelector('img')).toBeNull();
+
+    view.unmount();
+    await act(async () => {
+      render(h(cards.ErrorCard, {
+        title: 'Adapt channel',
+        code: 'CONTENT_ADAPTATION_INCOMPLETE',
+        refusal: true,
+        reviewFindings,
+        words: copy.agentCopy.en,
+      }));
+    });
+    expect(document.body.textContent).toContain(copy.agentCopy.en.error.reviewFindings.summary);
+    expect(document.body.textContent).toContain(copy.agentCopy.en.error.reviewFindings.missingRequirements);
+    expect(document.body.textContent).toContain(copy.agentCopy.en.error.reviewFindings.unsupportedClaims);
   });
 
   test('a provider that rejects the request points at the settings', async () => {

@@ -1,6 +1,44 @@
 # Развёртывание на сервере
 
-## Current release 24 October 2026: 4ba4c5a44225
+## Current release 24 October 2026: 2c25a3d13bb7
+
+HONEY-5962 CI follow-up for HONEY-5961: native continuation-start, cold queued
+Stop and approval-admission races are fixed with deterministic native regressions.
+Tested private source `48e6c53fcde02695b3aa869116f33d5b937c245a`;
+public/runtime `2c25a3d13bb7958b68ba789d237a7378a1054c2a`.
+Registry digest `sha256:e3cd81454091854d3270c30f1f74aab632edcf891a096e2bf692f2dd4e181aa2`.
+
+[Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348)
+passes all four jobs; [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822396)
+passes. Full/calendar CI each pass 763 suites/13,402 tests (153 environment skips);
+full CI includes Node 167/0 FAIL/4 skips and Python 50 OK with the three-halves guard.
+All nine exact-source local release checks PASS: Jest 772 suites/13,485 tests
+(70 existing skips), Node 167/0 FAIL/4 skips, Python 50; types, all four app builds,
+branding/docs/process/diff. Full suite took 2172.92s. Image build/nginx/commands-help/
+size checks and all eight installed SDK patch chunks PASS.
+
+Prisma diff zero before/after, no schema applied. All 45 threads/374 messages/
+1,247 usage rows, six suspended snapshots, settings and old admitted row are exact;
+new usage zero. Healthy/0 restarts, three PM2 processes online/0, worker ready.
+All 21 foreign containers/mounts, 21 volumes and protected config are preserved.
+API/login/source/version HTTP 200; source archive 14,839,560 bytes, SHA-256
+`ad934505d257a7acb34aead3694f6f0137731698a975dc5f292ec2b77be4cdf7`.
+Fresh public login browser 1440/390px passes with zero mutations/errors/overflow.
+Authenticated production dialogue and provider/editorial quality remain separate
+from local frozen acceptance; no paid calls or provider/persistent-credential changes.
+
+Canonical retention keeps current + verified `4ba4c5a44225`, removing only the old
+e819 image and two configuration copies. Owned temporary helpers/DB/sharing files
+are removed; backups, foreign services, original dirty checkout and preview 3496/
+4296 are preserved. An initial unauthenticated registry read failed before any
+switch; temporary authentication and unchanged size/capacity gates passed on retry.
+[CI diagnosis and delivery](../../.codex/stages/agent-chat-5961/ci-followup.md),
+[sanitized proof](../../.codex/stages/agent-chat-5961/ci-production-proof.json).
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh 4ba4c5a44225`.
+Keep the existing additive video/product schema; no down-migration.
+
+## Previous release 24 October 2026: 4ba4c5a44225
 
 HONEY-5961: exact author questions, partial native answers, continuation after
 replies and failure recovery, contextual approvals, retained full source/result
@@ -37,8 +75,8 @@ Public Code Quality CI passed. Original Build CI later failed in its calendar
 job and exceeded the full-job 45-minute limit; the owner's CI-only repair and
 new acceptance are tracked in [CI follow-up](../../.codex/stages/agent-chat-5961/ci-followup.md).
 Follow-up CI exposed native continuation-start, cold Stop and approval-admission
-races. Their corrections require a new exact-source release; production remains this version
-until those checks and guarded update complete.
+races. The current release above supersedes this version after fresh exact-source
+checks, green CI and the guarded production update.
 [Delivery and limits](../../.codex/stages/agent-chat-5961/production-delivery.md),
 [sanitized proof](../../.codex/stages/agent-chat-5961/production-proof.json).
 The documentation/comment follow-up does not change accepted application behavior.

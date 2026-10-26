@@ -293,6 +293,7 @@ export function compileReaderSummary(
     );
   const limitations = [...new Set(gaps)];
   const assessment = unavailableReaderReview(input);
+  assessment.scopeStatus = value.scopeStatus as NonNullable<ReaderAssessment['scopeStatus']>;
   assessment.status =
     unresolvedScope || !answer || !relevant.length
       ? 'insufficient_evidence'

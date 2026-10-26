@@ -83,7 +83,7 @@ import type {
   GeneratorSchedulingOptions,
   IntakeGenerationHintsV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
-import type { RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { AdaptationQualityReviewV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 /**
  * Антикопия — общий счёт волны «вход одной мыслью»: восемь слов подряд из
  * чужого материала считаются копией. Живёт в `text-quality/anti-copy.ts`
@@ -100,8 +100,8 @@ import type { AntiCopyReportV1 } from '@contentfactory/nestjs-libraries/content-
  */
 import { forbiddenPhrasesRule } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases';
 import {
-  ADAPTATION_COVERAGE_REPAIR_RULES,
   ADAPTATION_COVERAGE_REVIEW_RULES,
+  ADAPTATION_DATE_PROVENANCE_RULE,
   adaptationCoverageSchema,
   materialSupport,
   readAdaptationCoverage,
@@ -183,7 +183,7 @@ interface WorkflowChannelsState {
    * нечего».
    */
   draftGaps?: DraftGap[];
-  adaptationCoverage?: { status: 'passed'; reviews: number; repaired: boolean };
+  adaptationCoverage?: AdaptationQualityReviewV1;
   /**
    * Что вход одной мыслью успел понять про эту генерацию.
    *
@@ -249,8 +249,7 @@ const hook = z.object({
 
 const contentZod = (
   isPicture: boolean,
-  format: 'one_short' | 'one_long' | 'thread_short' | 'thread_long',
-  requireCitations = false
+  format: 'one_short' | 'one_long' | 'thread_short' | 'thread_long'
 ) => {
   const content = z.object({
     content: z.string().describe('Content for the new post'),
@@ -278,10 +277,8 @@ const contentZod = (
      * with no sources attached — dies with a schema error rather than a post.
      * `website` above has carried the pair since upstream; this field did not.
      */
-    usedCitationIds: (requireCitations
-      ? z.array(z.string()).min(1)
-      : z.array(z.string()).nullable().optional()
-    ).describe('Citation ids from the supplied content context used here'),
+    usedCitationIds: z.array(z.string()).nullable().optional()
+      .describe('Citation ids from the supplied content context used here; never invent an id'),
   });
 
   return z.object({
@@ -400,6 +397,7 @@ const briefBlock = (state: WorkflowChannelsState): string => {
       ? [
           "The author's own neutral core of this piece. Carry retained words, numbers, names and examples over VERBATIM, and its grammatical person exactly as written — «I» stays «I», «we» stays «we», even where the two sit side by side; change only what this platform requires:",
           core,
+          ADAPTATION_DATE_PROVENANCE_RULE,
           "Preserve every distinct supported major topic and the requested scope across hook and body together. Adaptation is not a summary of only the first entry. A hard channel/provider limit or an explicit author request permits combining entries and compressing secondary details, not dropping the main topics. This takes precedence over a general instruction to keep every sentence. The voice's usual post length is a style preference, not permission to omit core topics. The core is not independent proof of external claims: keep author statements attributed, use actual source support for external claims, and make conflicts or missing support explicit instead of silently erasing a topic or inventing certainty.",
         ]
       : []),
@@ -1078,7 +1076,7 @@ export class AgentGraphService {
     const structuredOutput = (
       await getChatModel(state.orgId, 0.7, tokenCeiling(state), 'adapt')
     ).withStructuredOutput(
-      allowQuestion ? contentZod(!!state.isPicture, state.format, hasMaterial).extend({ content: contentZod(!!state.isPicture, state.format, hasMaterial).shape.content.nullable().optional(), unavoidableQuestion: unavoidableQuestionSchemaV2 }) : contentZod(!!state.isPicture, state.format, hasMaterial)
+      allowQuestion ? contentZod(!!state.isPicture, state.format).extend({ content: contentZod(!!state.isPicture, state.format).shape.content.nullable().optional(), unavoidableQuestion: unavoidableQuestionSchemaV2 }) : contentZod(!!state.isPicture, state.format)
     );
     const promptTemplate = ChatPromptTemplate.fromTemplate(channelQuestionTemplateV2(
       `
@@ -1161,7 +1159,6 @@ export class AgentGraphService {
 
         current content information:
         {information}
-        {repairHint}
       `
     )).pipe(structuredOutput);
 
@@ -1169,134 +1166,53 @@ export class AgentGraphService {
       ...(state.contentContext?.facts || []).map((item) => item.citationId),
       ...(state.contentContext?.evidence || []).map((item) => item.citationId),
     ]);
+    let citationIssue = false;
     const normalize = (item: any) => {
-      const requestedCitationIds = [
-        ...new Set<string>(
-          Array.isArray(item?.usedCitationIds) ? item.usedCitationIds : []
-        ),
-      ];
-      if (
-        requestedCitationIds.some((id) => !allowedCitationIds.has(id)) ||
-        (allowedCitationIds.size > 0 && requestedCitationIds.length === 0)
-      ) {
-        const error = new Error('Generated citation ids are invalid');
-        (error as any).code = 'CONTENT_CONTEXT_CITATIONS_INVALID';
-        (error as any).requestedCitationIds = requestedCitationIds;
-        throw error;
-      }
-      return { ...item, usedCitationIds: requestedCitationIds };
+      const requested: unknown[] = Array.isArray(item?.usedCitationIds) ? item.usedCitationIds : [];
+      const admitted = [...new Set(requested.filter((id): id is string =>
+        typeof id === 'string' && allowedCitationIds.has(id)))];
+      if (requested.some(id => typeof id !== 'string' || !allowedCitationIds.has(id)) ||
+          (allowedCitationIds.size > 0 && !admitted.length)) citationIssue = true;
+      // Unknown model-generated references cannot establish provenance. Keep
+      // the paid text without inventing a replacement source or buying a rewrite.
+      return { ...item, usedCitationIds: admitted };
     };
 
-    const attempt = async (repairHint: string) => {
-      const response = await promptTemplate.invoke({
-        voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
-        brief: inPrompt(state, briefBlock(state)),
-        related: inPrompt(state, relatedBlock(state)),
-        hook: state.hook,
-        request: inPrompt(state, state.messages[0].content),
-        information: inPrompt(state, this.researchText(state)),
-        forbidden: forbiddenPhrasesRule(
-          (state.language as 'ru' | 'en') || 'ru'
-        ),
-        repairHint,
-        channelQuestionRule: allowQuestion ? channelQuestionPromptV2 : '',
-      });
-      // The question is shown to the person, so it gets the address back too
-      // (review F3 of the fifteenth walk).
-      const question = allowQuestion ? unavoidableQuestionV2(withAuthorLink(state, (response as any).unavoidableQuestion), state.intake?.channel.writingProfile) : null;
-      if (question) return { adaptationQuestion: question };
-      const outputContent = withAuthorLink(state, response.content);
-      if (!outputContent) throw new Error('The model returned neither content nor an unavoidable question');
-      return Array.isArray(outputContent)
-        ? outputContent.map(normalize)
-        : normalize(outputContent);
-    };
+    const response = await promptTemplate.invoke({
+      voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
+      brief: inPrompt(state, briefBlock(state)),
+      related: inPrompt(state, relatedBlock(state)),
+      hook: state.hook,
+      request: inPrompt(state, state.messages[0].content),
+      information: inPrompt(state, this.researchText(state)),
+      forbidden: forbiddenPhrasesRule(
+        (state.language as 'ru' | 'en') || 'ru'
+      ),
+      channelQuestionRule: allowQuestion ? channelQuestionPromptV2 : '',
+    });
+    // The question is shown to the person, so it gets the address back too
+    // (review F3 of the fifteenth walk).
+    const question = allowQuestion ? unavoidableQuestionV2(withAuthorLink(state, (response as any).unavoidableQuestion), state.intake?.channel.writingProfile) : null;
+    if (question) return { adaptationQuestion: question };
+    const outputContent = withAuthorLink(state, response.content);
+    if (!outputContent) throw new Error('The model returned neither content nor an unavoidable question');
+    const normalized = Array.isArray(outputContent)
+      ? outputContent.map(normalize)
+      : normalize(outputContent);
 
-    // Same repair loop as `runAssist`'s schema retry (`assist.pipeline.ts`,
-    // `MAX_ATTEMPTS = 2`): one retry, with the violation handed back instead
-    // of asking again in the same words, then the failure propagates. Without
-    // it, a single bad `usedCitationIds` answer lost the whole paid call for
-    // a person who had attached sources.
-    let normalized: any;
-    try {
-      normalized = await attempt('');
-    } catch (error: any) {
-      if (error?.code !== 'CONTENT_CONTEXT_CITATIONS_INVALID') throw error;
-      const requested: string[] = error.requestedCitationIds || [];
-      const allowedList = [...allowedCitationIds];
-      normalized = await attempt(
-        allowedList.length === 0
-          ? `SCHEMA VIOLATION: usedCitationIds must be empty, no context material is available. You answered with: ${requested.join(', ') || '(none)'}.`
-          : `SCHEMA VIOLATION: usedCitationIds must only contain ids from this list: ${allowedList.join(', ')}. You answered with: ${requested.join(', ') || '(none)'}. Answer again using only valid ids from the list.`
-      );
-    }
-
-    if (normalized?.adaptationQuestion) return normalized;
-    const checked = await this.repairForeignCopy(state, normalized, attempt);
-    const content = await this.trimToAuthorLength(state, checked.content);
+    const content = await this.trimToAuthorLength(state, normalized);
+    const runs = state.foreignShingles?.length
+      ? sharedRuns(draftContentText(content), state.foreignShingles) : null;
     return {
       content,
       draftGaps: this.gapsIn(state, content),
-      ...(checked.report ? { antiCopy: checked.report } : {}),
-    };
-  }
-
-  /**
-   * Восемь слов подряд из чужого поста — и одна попытка сказать это иначе.
-   *
-   * Решение владельца 06.09.2026 (пункт 3): тему, угол и строение чужого текста
-   * брать можно, слова — нет. Проверка арифметическая и стоит ноль; повторная
-   * генерация стоит один вызов, и она одна — та же форма, что у починки
-   * ссылок выше, и по той же причине: просить второй раз теми же словами
-   * бессмысленно, а третий раз платить не за что.
-   *
-   * Второй черновик берётся даже если совпадение осталось. Это находка, а не
-   * отказ: пост, похожий на источник, лучше отсутствия поста, а квитанция
-   * (`antiCopy`) всё равно скажет, что нашлось и помогла ли попытка.
-   *
-   * Стоит между разбором ответа и подрезкой длины: сравнивать надо тот текст,
-   * который написала модель, а не тот, который после подрезки написала другая.
-   */
-  private async repairForeignCopy(
-    state: WorkflowChannelsState,
-    normalized: any,
-    attempt: (repairHint: string) => Promise<any>
-  ): Promise<{ content: any; report: AntiCopyReportV1 | null }> {
-    const shingles = state.foreignShingles;
-    if (!shingles?.length) return { content: normalized, report: null };
-
-    const runs = sharedRuns(draftContentText(normalized), shingles);
-    if (!runs.length) {
-      return {
-        content: normalized,
-        report: {
-          minWords: ANTI_COPY_MIN_WORDS,
-          runs: [],
-          retried: false,
-          clean: true,
-        },
-      };
-    }
-
-    // Три отрезка, а не все: подсказка должна помещаться в внимание модели, а
-    // четвёртое совпадение обычно из той же переписанной фразы.
-    const quoted = runs
-      .slice(0, 3)
-      .map((run) => `«${run.text}»`)
-      .join('; ');
-    const second = await attempt(
-      `REWRITE REQUIRED: these word sequences repeat the source post verbatim: ${quoted}. ` +
-        'Keep the meaning, say it in your own words.'
-    );
-    const left = sharedRuns(draftContentText(second), shingles);
-    return {
-      content: second,
-      report: {
-        minWords: ANTI_COPY_MIN_WORDS,
-        runs: left,
-        retried: true,
-        clean: left.length === 0,
-      },
+      ...(runs ? { antiCopy: { minWords: ANTI_COPY_MIN_WORDS, runs, retried: false, clean: runs.length === 0 } } : {}),
+      ...(citationIssue ? { adaptationCoverage: {
+        status: 'partial' as const, reviews: 0, repaired: false, unsupportedClaims: [],
+        missingRequirements: [state.language === 'ru'
+          ? 'Часть текста не связана с источниками: указаны неизвестные ссылки или не указаны доступные.'
+          : 'Some text is not linked to sources: references were unknown or available references were omitted.'],
+      } } : {}),
     };
   }
 
@@ -1530,16 +1446,15 @@ export class AgentGraphService {
     return checked;
   }
 
-  /** One final review, at most one repair, and a final verdict before saving. */
+  /** One advisory review; an existing draft is never lost to a quality verdict. */
   private async checkAdaptationCoverage(state: WorkflowChannelsState) {
-    let content: any = state.content;
-    let opening = state.hook || '';
-    let reviews = 0;
+    const content = state.content;
+    const opening = state.hook || '';
     const hardLimit = adaptationHardLimit(state);
-    const postTexts = () => (Array.isArray(content) ? content : [content])
+    const postTexts = (Array.isArray(content) ? content : [content])
       .map((item, index) => index === 0 ? withAdaptationOpening(opening, item?.content || '') : item?.content || '');
-    const copyRuns = () => state.foreignShingles?.length
-      ? sharedRuns(postTexts().join('\n\n'), state.foreignShingles) : [];
+    const runs = state.foreignShingles?.length
+      ? sharedRuns(postTexts.join('\n\n'), state.foreignShingles) : [];
     const input = () => ({
       assignment: {
         goal: state.intake?.request?.goal || state.intake?.brief.goal,
@@ -1551,6 +1466,7 @@ export class AgentGraphService {
         postOverrides: state.intake?.post,
       },
       channelInstructions: state.channelLines || [],
+      foreignCopy: { minWords: ANTI_COPY_MIN_WORDS, matches: runs },
       core: state.intake?.core,
       brief: state.intake?.brief,
       material: state.intake?.material?.map(item => ({
@@ -1566,100 +1482,51 @@ export class AgentGraphService {
       language: state.language,
       platform: state.intake?.channel.providerIdentifier,
       hardCharacterLimit: hardLimit,
-      postCharacterCounts: postTexts().map(text => text.length),
+      postCharacterCounts: postTexts.map(text => text.length),
       channelLengthPolicy: state.intake?.post?.lengthPolicy ?? state.intake?.channel.writingProfile?.lengthPolicy,
       withPicture: state.isPicture,
       maxCaptionLength: state.intake?.channel.maxCaptionLength,
       hook: opening,
       content,
     });
-    const review = async (): Promise<AdaptationCoverageVerdict> => {
-      reviews += 1;
-      return this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
+    let verdict: AdaptationCoverageVerdict;
+    let unavailable = false;
+    try {
+      verdict = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
         const model = (await getChatModel(state.orgId, 0.1, 3_000, 'review'))
           .withStructuredOutput(adaptationCoverageSchema);
         const result = await ChatPromptTemplate.fromMessages([
           ['system', ADAPTATION_COVERAGE_REVIEW_RULES],
           ['human', '{input}'],
         ]).pipe(model).invoke({ input: JSON.stringify(input()) });
-        const verdict = readAdaptationCoverage(result);
-        const overLimit = hardLimit ? postTexts().flatMap((text, index) =>
-          text.length > hardLimit ? [`Post ${index + 1} including its hook has ${text.length} characters; the hard limit is ${hardLimit}. Compress secondary details while retaining all major topics.`] : []) : [];
-        const copied = copyRuns().length ? ['The complete post repeats source wording.'] : [];
-        return readAdaptationCoverage({
-          ...verdict,
-          missingRequirements: [...verdict.missingRequirements, ...overLimit].slice(0, 20),
-          unsupportedClaims: [...verdict.unsupportedClaims, ...copied].slice(0, 20),
-        });
+        return readAdaptationCoverage(result, state.language);
       }, 'review');
-    };
-    const incomplete = (verdict: AdaptationCoverageVerdict): never => {
-      const error = new Error('The adaptation does not preserve the requested scope or source support.');
-      Object.assign(error, {
-        code: 'CONTENT_ADAPTATION_INCOMPLETE',
-        missingRequirements: verdict.missingRequirements,
-        unsupportedClaims: verdict.unsupportedClaims,
-        incompleteDraft: { hook: opening, content },
-      });
-      throw error;
-    };
-    let verdict: AdaptationCoverageVerdict;
-    try { verdict = await review(); }
-    catch { return incomplete({ status: 'partial', missingRequirements: ['The completeness review could not finish.'], unsupportedClaims: [] }); }
-    if (verdict.status !== 'passed') {
-      const allowedIds = new Set([
-        ...(state.contentContext?.facts || []).map(item => item.citationId),
-        ...(state.contentContext?.evidence || []).map(item => item.citationId),
-      ]);
-      try {
-        const repaired = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
-          const model = (await getChatModel(state.orgId, 0.3, tokenCeiling(state), 'adapt'))
-            .withStructuredOutput(contentZod(!!state.isPicture, state.format, allowedIds.size > 0)
-              .extend({ hook: z.string() }));
-          return ChatPromptTemplate.fromMessages([
-            ['system', ADAPTATION_COVERAGE_REPAIR_RULES],
-            ['human', '{input}'],
-          ]).pipe(model).invoke({ input: JSON.stringify({
-            ...input(), findings: verdict,
-            voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
-            channel: state.channelLines,
-            forbidden: forbiddenPhrasesRule((state.language as 'ru' | 'en') || 'ru'),
-          }) });
-        }, 'adapt');
-        const restoredContent = withAuthorLink(state, repaired.content);
-        const normalizeCitations = (item: any) => ({ ...item, usedCitationIds:
-          Array.isArray(item?.usedCitationIds) ? [...new Set<string>(item.usedCitationIds)] : [] });
-        const repairedContent = Array.isArray(restoredContent)
-          ? restoredContent.map(normalizeCitations) : normalizeCitations(restoredContent);
-        const items = Array.isArray(repairedContent) ? repairedContent : [repairedContent];
-        if (!items.length || items.some(item => !item?.content?.trim() ||
-          !Array.isArray(item.usedCitationIds) ||
-          (allowedIds.size > 0 && !item.usedCitationIds.length) ||
-          item.usedCitationIds.some((id: string) => !allowedIds.has(id)))) {
-          return incomplete(verdict);
-        }
-        content = repairedContent;
-        opening = withAuthorLink(state, repaired.hook);
-        // The repair cannot bypass the existing anti-copy policy. A remaining
-        // copy is reported as incomplete; there is no second rewrite loop.
-        if (state.foreignShingles?.length && sharedRuns(
-          wholePost(opening, draftContentText(content)), state.foreignShingles
-        ).length) return incomplete({ ...verdict, status: 'partial', unsupportedClaims: ['The repaired draft repeats source wording.'] });
-      } catch (error: any) {
-        if (error?.code === 'CONTENT_ADAPTATION_INCOMPLETE') throw error;
-        return incomplete(verdict);
-      }
-      try { verdict = await review(); }
-      catch { return incomplete({ status: 'partial', missingRequirements: ['The repaired draft could not be verified.'], unsupportedClaims: [] }); }
-      if (verdict.status !== 'passed') return incomplete(verdict);
+    } catch {
+      unavailable = true;
+      verdict = { status: 'partial', missingRequirements: [], unsupportedClaims: [] };
     }
-    return { content, hook: opening,
+    const overLimit = hardLimit ? postTexts.flatMap((text, index) =>
+      text.length > hardLimit ? [state.language === 'ru'
+        ? `Текст ${index + 1}: ${text.length} знаков при ограничении ${hardLimit}.`
+        : `Post ${index + 1} including its hook has ${text.length} characters; the hard limit is ${hardLimit}.`] : []) : [];
+    const findings = readAdaptationCoverage({
+      ...verdict,
+      missingRequirements: [...(state.adaptationCoverage?.missingRequirements || []), ...verdict.missingRequirements, ...overLimit].slice(0, 20),
+      unsupportedClaims: [...verdict.unsupportedClaims, ...(runs.length ? [state.language === 'ru'
+        ? 'Есть дословные совпадения с чужими источниками.'
+        : 'The complete post repeats source wording.'] : [])].slice(0, 20),
+    }, state.language);
+    return {
+      content, hook: opening,
       draftGaps: this.gapsIn(state, content),
       ...(state.foreignShingles?.length ? { antiCopy: {
-        minWords: ANTI_COPY_MIN_WORDS, runs: [],
-        retried: reviews === 2 || state.antiCopy?.retried === true, clean: true,
+        minWords: ANTI_COPY_MIN_WORDS, runs,
+        retried: state.antiCopy?.retried === true, clean: runs.length === 0,
       } } : {}),
-      adaptationCoverage: { status: 'passed' as const, reviews, repaired: reviews === 2 } };
+      adaptationCoverage: { ...findings,
+        status: unavailable ? 'unavailable' as const : findings.status,
+        reviews: 1, repaired: false },
+    };
   }
 
   async generatePictures(state: WorkflowChannelsState) {

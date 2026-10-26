@@ -1612,7 +1612,8 @@ const createWorld = (overrides = {}) => {
         };
         adaptations.push(row);
         writes.push(['adaptation.created', row.id, channel.id]);
-        yield { name: 'adaptation', adaptation: { ...row } };
+        yield { name: 'adaptation', adaptation: { ...row },
+          ...(rows.adaptQualityReview ? { qualityReview: rows.adaptQualityReview } : {}) };
         yield { name: 'done', adaptationId: row.id, postId: null };
       },
       editAdaptation: async (organizationId, pieceId, adaptationId, input) => {

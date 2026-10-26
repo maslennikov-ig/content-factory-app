@@ -1,18 +1,7 @@
 const { RunnableLambda } = require('@langchain/core/runnables');
 const { loadAgentGraph } = require('../scripts/evidence/voice-eval/product-graph.cjs');
 
-/**
- * A generation paid for by the space should not die on the first invalid
- * citation answer.
- *
- * `generateContent` validates `usedCitationIds` against the context it was
- * given, and used to throw `CONTENT_CONTEXT_CITATIONS_INVALID` straight past
- * the caller the moment the model named an id that was not in the allowed
- * set — no second attempt, unlike the schema-repair loop `runAssist` runs for
- * the same kind of model mistake (`assist.pipeline.ts`'s `attempt()`,
- * `MAX_ATTEMPTS = 2`). One bad structured-output answer then cost the whole
- * paid call with nothing to show for it.
- */
+/** Keep paid text, discard invented source bindings and report the gap. */
 
 const flakyCitationsChatModel = (responses) => {
   const calls = [];
@@ -43,30 +32,33 @@ const stateWithContext = () => ({
   },
 });
 
-describe('citation validation retries once before failing the generation', () => {
-  test('a model that names an invalid citation once, then a valid one, is retried and succeeds', async () => {
-    const chatModel = flakyCitationsChatModel([
-      { hook: 'хук', content: { content: 'тело', usedCitationIds: ['ghost'] } },
-      { hook: 'хук', content: { content: 'тело', usedCitationIds: ['f1'] } },
-    ]);
+describe('generated citation bindings are advisory without another generation', () => {
+  test.each([['ghost'], [], null, undefined, ['f1', 'ghost', 'f1']])('retains text for model citation metadata %j', async ids => {
+    const chatModel = flakyCitationsChatModel([{ content: { content: 'тело', usedCitationIds: ids } }]);
     const { service } = loadAgentGraph({ chatModel });
-
     const result = await service.generateContent(stateWithContext());
-
-    expect(chatModel.calls).toHaveLength(2);
-    expect(result.content.usedCitationIds).toEqual(['f1']);
+    expect(result.content.content).toBe('тело');
+    expect(result.content.usedCitationIds).toEqual(ids?.includes('f1') ? ['f1'] : []);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', reviews: 0, repaired: false,
+      missingRequirements: [expect.stringContaining('не связана с источниками')] });
+    expect(chatModel.calls).toHaveLength(1);
   });
 
-  test('a model that never recovers still fails after exactly one retry', async () => {
-    const chatModel = flakyCitationsChatModel([
-      { hook: 'хук', content: { content: 'тело', usedCitationIds: ['ghost'] } },
-      { hook: 'хук', content: { content: 'тело', usedCitationIds: ['still-ghost'] } },
-    ]);
+  test('valid citations are retained once without a warning', async () => {
+    const chatModel = flakyCitationsChatModel([{ content: { content: 'тело', usedCitationIds: ['f1', 'f1'] } }]);
     const { service } = loadAgentGraph({ chatModel });
+    const result = await service.generateContent(stateWithContext());
+    expect(result.content.usedCitationIds).toEqual(['f1']);
+    expect(result.adaptationCoverage).toBeUndefined();
+    expect(chatModel.calls).toHaveLength(1);
+  });
 
-    await expect(service.generateContent(stateWithContext())).rejects.toMatchObject({
-      code: 'CONTENT_CONTEXT_CITATIONS_INVALID',
-    });
-    expect(chatModel.calls).toHaveLength(2);
+  test('source-free text does not acquire invented bindings or an unnecessary missing-source finding', async () => {
+    const source = stateWithContext();source.contentContext = {facts: [], evidence: []};
+    const chatModel = flakyCitationsChatModel([{ content: { content: 'тело', usedCitationIds: [] } }]);
+    const { service } = loadAgentGraph({ chatModel });
+    const result = await service.generateContent(source);
+    expect(result.content.usedCitationIds).toEqual([]);
+    expect(result.adaptationCoverage).toBeUndefined();
   });
 });

@@ -1846,6 +1846,7 @@ export class PieceService {
       },
       draftGaps: Array.isArray(output.draftGaps) ? output.draftGaps : [],
       checks,
+      ...(output.adaptationCoverage ? { qualityReview: output.adaptationCoverage } : {}),
     };
     return { adaptation, event };
   }

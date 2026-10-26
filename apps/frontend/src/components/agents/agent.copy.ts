@@ -82,6 +82,7 @@ type AgentWords = {
     sendFailed: string;
     pictureBusy: string;
     attach: string;
+    attachHintLabel: string;
     attachHint: string;
     removeFile: (name: string) => string;
     send: string;
@@ -153,6 +154,14 @@ type AgentWords = {
     pieceQuestions: (count: number) => string;
     /** «вариант N» of an adaptation line: the piece page's word. */
     variant: (index: number) => string;
+    /** Quiet advice about a draft that has already been saved. */
+    qualityReview: {
+      summary: string;
+      saved: string;
+      unavailable: string;
+      missingRequirements: string;
+      unsupportedClaims: string;
+    };
     /** Brand voice and fact grounding score badge (`bxeb.3`). */
     voiceScoreBadge: (
       rulesMatched: number,
@@ -346,6 +355,11 @@ type AgentWords = {
     refused: ErrorWords;
     network: ErrorWords;
     codes: Readonly<Record<string, ErrorWords>>;
+    reviewFindings: {
+      summary: string;
+      missingRequirements: string;
+      unsupportedClaims: string;
+    };
     code: (code: string) => string;
     retry: string;
     /** The paid limit of one message under its step: a stop, not a failure (R-5). */
@@ -496,6 +510,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       sendFailed: 'Не удалось отправить. Сообщение и файлы остались в поле — попробуйте ещё раз.',
       pictureBusy: 'Картинки можно показать после текущего ответа. Сообщение и файлы остались в поле.',
       attach: 'Приложить файл',
+      attachHintLabel: 'Какие файлы можно приложить?',
       attachHint: 'образцы текстов, экспорт Telegram, картинки',
       removeFile: (name) => `Убрать ${name}`,
       send: 'Отправить',
@@ -571,6 +586,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pieceQuestions: (count) =>
         `${count} ${ruPlural(count, 'вопрос ждёт', 'вопроса ждут', 'вопросов ждут')} ответа — ответьте в чате, прежде чем делать адаптации.`,
       variant: (index) => lowerFirst(piecesCopy.ru.variant(index)),
+      qualityReview: {
+        summary: 'Замечания к черновику',
+        saved: 'Черновик сохранён. Замечания можно учесть при редактуре.',
+        unavailable: 'Проверка недоступна. Текст сохранён.',
+        missingRequirements: 'Что стоит дополнить',
+        unsupportedClaims: 'Что стоит проверить',
+      },
       voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
         `Голос ${rulesMatched}/${rulesTotal} · Факты ${factsCount}`,
       voiceScoreTitle: (inCorridor, total, facts, slop) =>
@@ -750,6 +772,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       network: {
         what: 'Связь прервалась, ответ не дошёл.',
         next: 'Проверьте соединение и попробуйте ещё раз.',
+      },
+      reviewFindings: {
+        summary: 'Почему текст не сохранён',
+        missingRequirements: 'Не хватает подтверждения',
+        unsupportedClaims: 'Не подтверждено источником',
       },
       codes: {
         CAPABILITY_RESULT_UNAVAILABLE: {
@@ -987,6 +1014,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         INTAKE_FAILED: {
           what: 'Заготовка не написалась.',
           next: 'Попробуйте ещё раз или начните её в «Контенте».',
+        },
+        INTAKE_BRIEF_INVALID: {
+          what: 'ИИ вернул некорректное описание задания. Заготовка не создана.',
+          next: 'Исходное задание сохранено. Можно повторить попытку.',
+        },
+        LOCAL_RESEARCH_UNAVAILABLE: {
+          what: 'Не удалось прочитать открытые источники.',
+          next: 'Подтверждённых данных для поста пока нет. Попробуйте позже или приложите источник.',
         },
         CHANNEL_NOT_FOUND: {
           what: 'Такого канала в пространстве нет — возможно, его уже удалили.',
@@ -1342,6 +1377,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       sendFailed: 'Could not send. Your message and files remain in the composer — try again.',
       pictureBusy: 'You can show pictures after the current response. Your message and files remain in the composer.',
       attach: 'Attach a file',
+      attachHintLabel: 'Which files can I attach?',
       attachHint: 'text samples, Telegram export, pictures',
       removeFile: (name) => `Remove ${name}`,
       send: 'Send',
@@ -1416,6 +1452,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       pieceQuestions: (count) =>
         `${count} ${count === 1 ? 'question waits' : 'questions wait'} for an answer — answer in chat before adapting it.`,
       variant: (index) => lowerFirst(piecesCopy.en.variant(index)),
+      qualityReview: {
+        summary: 'Draft review notes',
+        saved: 'Your draft is saved. You can address these notes while editing.',
+        unavailable: 'Review unavailable. Your text is saved.',
+        missingRequirements: 'What to add',
+        unsupportedClaims: 'What to verify',
+      },
       voiceScoreBadge: (rulesMatched, rulesTotal, factsCount) =>
         `Voice ${rulesMatched}/${rulesTotal} · Facts ${factsCount}`,
       voiceScoreTitle: (inCorridor, total, facts, slop) =>
@@ -1593,6 +1636,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       network: {
         what: 'The connection dropped and the answer did not arrive.',
         next: 'Check the connection and try again.',
+      },
+      reviewFindings: {
+        summary: 'Why this draft was not saved',
+        missingRequirements: 'Missing support',
+        unsupportedClaims: 'Unsupported by the source',
       },
       codes: {
         CAPABILITY_RESULT_UNAVAILABLE: {
@@ -1830,6 +1878,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         INTAKE_FAILED: {
           what: 'The piece was not written.',
           next: 'Try again or start it in Content.',
+        },
+        INTAKE_BRIEF_INVALID: {
+          what: 'AI returned an invalid task description. No piece was created.',
+          next: 'Your original request is saved. You can try again.',
+        },
+        LOCAL_RESEARCH_UNAVAILABLE: {
+          what: 'The public sources could not be read.',
+          next: 'There is not enough verified material for the post yet. Try later or attach a source.',
         },
         CHANNEL_NOT_FOUND: {
           what: 'There is no such channel in the workspace — it may have been deleted.',

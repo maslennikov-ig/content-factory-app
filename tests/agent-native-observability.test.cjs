@@ -1,6 +1,25 @@
 'use strict';
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
+
+test('both native PostgreSQL proofs reject external endpoints, other protocols and non-test databases before connecting', () => {
+  for (const probe of ['agent-native-observability.probe.cjs', 'agent-native-observability-shutdown.probe.cjs']) {
+    for (const url of [
+      'postgresql://fixture@192.0.2.1:5433/cf_fixture_test',
+      'postgresql://fixture@127.0.0.1:5433/content_factory',
+      'https://127.0.0.1:5433/cf_fixture_test',
+      'postgresql://fixture@127.0.0.1:5433/cf_fixture_test?host=192.0.2.1',
+      'postgresql://fixture@127.0.0.1:5433/cf_fixture_test?dbname=content_factory',
+    ]) {
+      const child = spawnSync(process.execPath, [path.join(__dirname, 'helpers', probe)], {
+        encoding: 'utf8', timeout: 10_000,
+        env: { ...process.env, CF_TEST_PG_URL: url },
+      });
+      expect(child.status).toBe(1);
+      expect(child.stderr).toContain('Use only');
+    }
+  }
+}, 65_000);
 
 test('native exporter and legacy PostgreSQL consumer preserve linked scopes while omitting secrets and request media', () => {
   const output = execFileSync(process.execPath, [path.join(__dirname, 'helpers', 'agent-native-observability.probe.cjs')], {

@@ -1,0 +1,175 @@
+{
+  "task": "content-factory-next-7xpe",
+  "localOnly": true,
+  "worktree": "/home/me/code/content-factory-next-worktrees/local-real-model-20261025",
+  "branch": "codex/local-real-model-20261025",
+  "baseCommit": "4b7ce98725e39c3befcf637c1087cc9414ae2d81",
+  "runtimeCommitManifest": "http://localhost:3516/public/source/version",
+  "frontend": "http://localhost:4316",
+  "backend": "http://localhost:3516",
+  "model": {
+    "name": "Qwen3-14B",
+    "engine": "llama.cpp b11871 Vulkan",
+    "gpu": "AMD Radeon RX 7900 XTX",
+    "quantization": "Q4_K_M",
+    "revision": "530227a7d994db8eca5ab5ced2fb692b614357fd",
+    "sha256": "500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0",
+    "context": 65536,
+    "nativeToolCount": 30,
+    "paidApiCalls": 0,
+    "hostedFallback": false,
+    "modelOutputsMocked": false
+  },
+  "primary": {
+    "threadId": "f41a3bb1-16b0-4961-bbfe-b1dc9b22bc07",
+    "url": "http://localhost:4316/agents/f41a3bb1-16b0-4961-bbfe-b1dc9b22bc07",
+    "execution": {
+      "requestId": "2cc95ede-6d1d-41a8-930c-ccc1476b4b2e",
+      "state": "settled",
+      "outcome": "completed",
+      "runId": "03456b93-c21b-4925-b7f8-c27898656e4f"
+    },
+    "pendingCount": 0,
+    "pieceId": "bc3c48ad-bcf3-438d-b7ba-b4d7e198b0fe",
+    "derivationId": "599cfe90-fed1-462e-8faf-94f90d66e584",
+    "postId": "d6ba0492-7475-410d-8e02-973cbbeab9a1",
+    "postState": "DRAFT",
+    "savedDraftCountForPiece": 1,
+    "published": false,
+    "explicitRecoveryMessageForEmptyDefaultAvatar": true
+  },
+  "browserChecks": [
+    "distinct inferred choices",
+    "custom answer",
+    "unsent answer preserved across actual SIGKILL",
+    "accepted HTTP200 body lost by reload without resend",
+    "late replayed questions enabled without a second reload",
+    "delegate remaining optional questions",
+    "warm native continuation",
+    "saved draft beside chat",
+    "completed history after reload",
+    "fresh-context local auto-login"
+  ],
+  "checks": {
+    "sixFocusedSuites": {
+      "passedSuites": 6,
+      "passedTests": 48
+    },
+    "latestConversationSuite": {
+      "passedTests": 35,
+      "overlapsPreviousTests": 29
+    },
+    "distinctFocusedTests": 54,
+    "nativePostgresRedisRegression": {
+      "passed": 1,
+      "checks": [
+        "warm mirror loss",
+        "partial questions",
+        "SIGKILL",
+        "cold continuation",
+        "stale rejection",
+        "one application"
+      ]
+    },
+    "backendTypes": "PASS",
+    "frontendTypes": "PASS",
+    "helperSyntax": "PASS",
+    "diffCheck": "PASS",
+    "fullRepositorySuite": "not run; local affected change",
+    "buildReleaseCI": "not run; no release requested"
+  },
+  "preservation": {
+    "headUnchanged": true,
+    "dirtyStatusUnchanged": true,
+    "foreignFiles": {
+      ".codex/handoff.md": true,
+      ".codex/project-index.md": true,
+      "docs/research/README.md": true,
+      "docs/prompts/agent-chat-honey-5961-implementation-start.md": true,
+      "docs/prompts/deep-research-video-providers.md": true,
+      "docs/prompts/deep-research-video-storytelling.md": true,
+      "docs/prompts/video-v1-implementation-start.md": true,
+      "docs/research/video-generation-2026-10-22.md": true,
+      "docs/research/video-generation-reconciliation-2026-10-22.md": true,
+      "docs/superpowers/plans/2026-10-22-video-generation.md": true,
+      "docs/superpowers/plans/2026-10-24-agent-chat-questions-and-recovery.md": true
+    },
+    "originalThreadDeepEqual": true,
+    "originalThreadCanonicalSha256": "214c4ba0b262cae8de09d27d7cc5ef3435b9eefd3faf05a00c2d57da6d304899",
+    "originalPendingIds": [
+      [
+        "0baf0956-42d7-41ac-b926-f3f7144f7889",
+        "fixture-piece_create-83d9ec82"
+      ]
+    ],
+    "originalListenersMissing": [],
+    "listenerIdentities": [
+      {
+        "pid": 81932,
+        "unchanged": true
+      },
+      {
+        "pid": 84915,
+        "unchanged": true
+      },
+      {
+        "pid": 84903,
+        "unchanged": true
+      },
+      {
+        "pid": 35845,
+        "unchanged": true
+      },
+      {
+        "pid": 35833,
+        "unchanged": true
+      },
+      {
+        "pid": 4010,
+        "unchanged": true
+      },
+      {
+        "pid": 3977,
+        "unchanged": true
+      },
+      {
+        "pid": 86465,
+        "unchanged": true
+      },
+      {
+        "pid": 52,
+        "unchanged": true
+      },
+      {
+        "pid": 68597,
+        "unchanged": true
+      },
+      {
+        "pid": 68597,
+        "unchanged": true
+      },
+      {
+        "pid": 96863,
+        "unchanged": true
+      }
+    ]
+  },
+  "originalListenerAddressCount": 26,
+  "limits": [
+    "limited 30-tool real-model profile; external search/publication unavailable",
+    "Qwen repeats some questions, literal null title, omits date and adds unsupported generic wording",
+    "earlier pre-fix synthetic diagnostic cold Stop leaves stale running marker; content-factory-next-2koa",
+    "hosted provider/editorial quality not accepted"
+  ],
+  "privateEvidenceDirectory": "/home/me/.local/state/content-factory-next/local-real-model-20261025",
+  "evidenceHashes": {
+    "final-jest.log": "10a62cf84a1708b1cda021405a749c5ba7455abd4889294fcfa199764356847b",
+    "replay-final-green-jest.log": "55bbd0e25334e9ddb9006712e789e9ea0d910bf8cae7e36bc7b7d217f0c7f117",
+    "backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "preservation-final.json": "848a502c7b9f4d9d88e549caaa945d0ecb9b644aa3d9746ad79714a6edb4a110",
+    "completed-real-model-draft.png": "a9467eaed7b130af1fe3211c0d557d265e767cb62222be4de0ed946706dc373b",
+    "recovered-next-question-enabled.png": "98c4e0c5e152b8504d3d7c2536c9c337d1bf94cb5ee5f854bf506ece85830227",
+    "model-audit.jsonl": "fb96489c442a7f986019357fb272e1499c6931e922b7fa3638e258c935831854"
+  }
+}

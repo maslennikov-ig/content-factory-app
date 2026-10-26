@@ -31,11 +31,13 @@ module.exports = {
       // step is not about it, and is the settings' one.
       say: 'А эту?',
       pictures: [{ name: 'схема-2.png', base64: PNG }],
-      model: [[['tool', 'skill', { name: 'media' }]], [['reject', 400]]],
+      model: [[['tool', 'workspace_snapshot', {}]], [['reject', 400]]],
     },
   ],
   check: (run) => {
     const [looked, later] = run.turns;
+    expect(run.firstCall.system).toContain('Pictures live in the media library');
+    expect(run.firstCall.tools).not.toContain('skill');
     expect(looked.errors).toEqual(['AGENT_PICTURE_NOT_SEEN']);
     expect(later.errors).toEqual(['AI_PROVIDER_REJECTED']);
     expect(run.prompts.map((prompt) => [prompt.turn, prompt.user.includes('[file]')])).toEqual([

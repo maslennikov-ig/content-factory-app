@@ -1759,6 +1759,67 @@ const readSecret = (data: unknown): AgentSecretField | null => {
 /** `data-progress` (`AgentProgressPayload`) and native transient run events. */
 export type AgentProgress = { capability: string; stage: string };
 
+/** Source findings attached to a rejected adaptation, shown as literal text. */
+export type AgentAdaptationReviewFindings = {
+  missingRequirements: string[];
+  unsupportedClaims: string[];
+};
+
+/** Optional advice attached to the exact saved adaptation, never an error. */
+export type AgentSavedAdaptationQualityReview = AgentAdaptationReviewFindings & {
+  status: 'partial' | 'unavailable';
+};
+
+/** Read bounded literal findings from a saved artifact's untrusted report. */
+export const readSavedAdaptationQualityReview = (
+  data: unknown
+): AgentSavedAdaptationQualityReview | null => {
+  const untrusted = recordOf(recordOf(recordOf(data).qualityReview).untrustedData);
+  if (!Array.isArray(untrusted.sources) || !untrusted.sources.includes('workspace-text')) return null;
+  const value = recordOf(untrusted.value);
+  if (value.status !== 'partial' && value.status !== 'unavailable') return null;
+  const findings = (input: unknown): string[] => Array.isArray(input)
+    ? input.slice(0, 20)
+      .filter((item): item is string => typeof item === 'string' && !!item.trim())
+      .map((item) => item.slice(0, 1_000))
+    : [];
+  const missingRequirements = findings(value.missingRequirements);
+  const unsupportedClaims = findings(value.unsupportedClaims);
+  return value.status === 'unavailable' || missingRequirements.length || unsupportedClaims.length
+    ? { status: value.status, missingRequirements, unsupportedClaims }
+    : null;
+};
+
+/** Read only the bounded findings from the native saved rejection part. */
+export const readRejectedAdaptationReviewProgress = (
+  part: unknown
+): AgentAdaptationReviewFindings | null => {
+  const row = recordOf(part);
+  if (row.type !== PROGRESS_PART_TYPE || row.transient === true) return null;
+  const data = recordOf(row.data);
+  if (
+    data.capability !== 'piece.adapt' ||
+    data.stage !== 'error' ||
+    data.code !== 'CONTENT_ADAPTATION_INCOMPLETE' ||
+    data.saved !== false
+  ) return null;
+  const untrusted = recordOf(recordOf(data.qualityReview).untrustedData);
+  const sources = untrusted.sources;
+  if (!Array.isArray(sources) || !sources.includes('workspace-text')) return null;
+  const value = recordOf(untrusted.value);
+  if (value.reviewAvailable !== true) return null;
+  const findings = (input: unknown): string[] => Array.isArray(input)
+    ? input.slice(0, 20)
+      .filter((item): item is string => typeof item === 'string' && !!item.trim())
+      .map((item) => item.slice(0, 1_000))
+    : [];
+  const missingRequirements = findings(value.missingRequirements);
+  const unsupportedClaims = findings(value.unsupportedClaims);
+  return missingRequirements.length || unsupportedClaims.length
+    ? { missingRequirements, unsupportedClaims }
+    : null;
+};
+
 export const readProgressPart = (part: {
   type: string;
   data?: unknown;
@@ -1885,6 +1946,7 @@ export type AgentBlock =
       toolName: string | null;
       title: string | null;
       code: string | null;
+      reviewFindings?: AgentAdaptationReviewFindings;
     }
   | { type: 'secret'; key: string; secret: AgentSecretField }
   /** Connecting a channel (`kcxz.19`): the card the person acts on. */
@@ -2419,6 +2481,23 @@ export const readMessageBlocks = (
   const parts = message.parts as unknown as Part[];
   const blocks: AgentBlock[] = [];
 
+  // This native diagnostic has no toolCallId. Attach it only when the same
+  // saved message contains one diagnostic and one matching refusal, so two
+  // adaptation calls can never inherit each other's findings.
+  const adaptationReviews = parts.flatMap((part, index) => {
+    const review = readRejectedAdaptationReviewProgress(part);
+    return review ? [{ index, review }] : [];
+  });
+  const incompleteRefusals = parts.flatMap((part, index) => {
+    if (!toolNameOfPart(part)) return [];
+    const code = refusalCode(part.output) ?? errorCodeOf(part.errorText);
+    return code === 'CONTENT_ADAPTATION_INCOMPLETE' ? [index] : [];
+  });
+  const reviewFindingsByIndex = new Map<number, AgentAdaptationReviewFindings>();
+  if (adaptationReviews.length === 1 && incompleteRefusals.length === 1) {
+    reviewFindingsByIndex.set(incompleteRefusals[0], adaptationReviews[0].review);
+  }
+
   const resumedCalls = new Set<string>();
   for (const part of parts) {
     if (part.type !== 'data-tool-call-resumed') continue;
@@ -2700,9 +2779,15 @@ export const readMessageBlocks = (
 
     // Native built-ins can first request tool permission and then suspend
     // with a question. The SDK tool part may retain its earlier approval
-    // state; the later suspension is the gate that is actually waiting.
+    // state, including `output-denied`; the saved question is the gate that
+    // is actually waiting.
     const question = questions.get(toolCallId);
-    if (question && (state === 'approval-requested' || state === 'approval-responded')) {
+    if (
+      question &&
+      (state === 'approval-requested' ||
+        state === 'approval-responded' ||
+        state === 'output-denied')
+    ) {
       blocks.push({
         type: 'question', key, toolName, title, runId: question.runId,
         toolCallId: stringOf(part.toolCallId),
@@ -2731,6 +2816,9 @@ export const readMessageBlocks = (
         toolName,
         title,
         code: errorCodeOf(part.errorText),
+        ...(reviewFindingsByIndex.has(index)
+          ? { reviewFindings: reviewFindingsByIndex.get(index) }
+          : {}),
       });
       return;
     }
@@ -2770,7 +2858,12 @@ export const readMessageBlocks = (
       if (approval.approved === true) blocks.push(approvalBlock('approved'));
       const refused = refusalCode(part.output);
       if (refused) {
-        blocks.push({ type: 'error', key, toolName, title, code: refused });
+        blocks.push({
+          type: 'error', key, toolName, title, code: refused,
+          ...(reviewFindingsByIndex.has(index)
+            ? { reviewFindings: reviewFindingsByIndex.get(index) }
+            : {}),
+        });
         return;
       }
       const range = recoverableMaterialRange(part.output);

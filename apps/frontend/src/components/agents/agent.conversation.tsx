@@ -309,8 +309,13 @@ export function AgentConversation({
     threadId: string; requestId: string; humanId: string; toolCallIds: string[]; verified: boolean; generation: number;
   } | null>(null);
   const confirmStoppedHistory = useRef<((history: ReturnType<typeof readThreadHistory>) => void) | null>(null);
-  const confirmWaitingHistory = useRef<((history: ReturnType<typeof readThreadHistory>) => boolean) | null>(null);
+  const confirmWaitingHistory = useRef<((history: ReturnType<typeof readThreadHistory>, nativeWaitObserved?: boolean) => boolean) | null>(null);
   const transportBusy = useRef(false);
+  /** An observer detached at a proven human gate; this is not server Stop. */
+  const waitingObserverStop = useRef<number | null>(null);
+  const pendingGateRead = useRef<AbortController | null>(null);
+  const refreshStreamGate = useRef<(nativeWaitObserved?: boolean) => void>(() => undefined);
+  useEffect(() => () => pendingGateRead.current?.abort(), []);
   /** `setMessages` of the chat below, for an authoritative native snapshot. */
   const replaceMessages = useRef<
     | ((next: AgentMessage[] | ((current: AgentMessage[]) => AgentMessage[])) => void) | null>(null);
@@ -320,7 +325,8 @@ export function AgentConversation({
       withMessages = false,
       /** Native replay may have started before its human message was saved. */
       mergeMessages = false,
-      generation = turnGeneration.current
+      generation = turnGeneration.current,
+      nativeWaitObserved = false
     ) => {
       const id = thread.current;
       if (!id) return false;
@@ -395,7 +401,7 @@ export function AgentConversation({
         // A tab return can see terminal Memory after both Stop/SDK reads saw
         // a still-running owner. Reuse the exact Stop proof on that new read.
         confirmStoppedHistory.current?.(history);
-        confirmWaitingHistory.current?.(history);
+        confirmWaitingHistory.current?.(history, nativeWaitObserved);
         return history;
       } catch {
         // Not read: the last message's cards keep the stream's word.
@@ -444,7 +450,19 @@ export function AgentConversation({
       if (part.type === 'data-native-input-wait') {
         reconnectAttempt.current = null;
         setNativeWaiting(true);
-        void refreshPending();
+        refreshStreamGate.current(true);
+        return;
+      }
+      if (['data-tool-call-suspended', 'data-tool-call-approval'].includes(part.type) &&
+        (part.data as any)?.resumed !== true) {
+        // Replayed PubSub carries the question itself, but not the HTTP
+        // producer's transient input-wait notification. Commit may follow it.
+        reconnectAttempt.current = null;
+        // Approval events can be followed by automatic approval and another
+        // native gate. Only suspension/input-wait events prove that an
+        // approval-only history read may detach this live reader. A saved
+        // question remains sufficient proof on its own (including replay).
+        refreshStreamGate.current(part.type === 'data-tool-call-suspended');
         return;
       }
       if (part.type === 'data-native-run-continuation' && typeof (part.data as any)?.runId === 'string') {
@@ -466,6 +484,7 @@ export function AgentConversation({
       });
     },
     onError: (failure) => {
+      if (waitingObserverStop.current === turnGeneration.current && !explicitStop.current) return;
       if (questionInFlight.current) questionError.current = failure;
       if (questionSent.current) {
         questionError.current = failure;
@@ -488,6 +507,15 @@ export function AgentConversation({
       }
     },
     onFinish: ({ isAbort, isError, isDisconnect }) => {
+      pendingGateRead.current?.abort();
+      const pausedObserver = waitingObserverStop.current === turnGeneration.current && !explicitStop.current;
+      waitingObserverStop.current = null;
+      if (pausedObserver) {
+        setStages({});
+        void mutate(THREADS_KEY);
+        void mutate(ALLOWANCE_API);
+        return;
+      }
       if (questionInFlight.current && (isAbort || isError || isDisconnect) && !questionError.current) questionError.current = new Error('AGENT_TASK_UNCERTAIN');
       const generation = turnGeneration.current;
       const notStarted = refusedBeforeStart.current;
@@ -526,6 +554,31 @@ export function AgentConversation({
       void mutate(ALLOWANCE_API);
     },
   });
+  refreshStreamGate.current = (nativeWaitObserved = false) => {
+    pendingGateRead.current?.abort();
+    const controller = new AbortController();
+    pendingGateRead.current = controller;
+    const generation = turnGeneration.current;
+    const id = thread.current;
+    const current = () => !controller.signal.aborted && generation === turnGeneration.current && id === thread.current && !explicitStop.current;
+    void (async () => {
+      // Read-only reconciliation, bounded and canceled on a new event/unmount.
+      // Nothing here resumes a model or repeats the person's accepted answer.
+      for (const delay of [0, 100, 500, 1500, 5000]) {
+        if (!current()) return;
+        if (delay) await new Promise<void>((resolve) => {
+          const done = () => { clearTimeout(timer); controller.signal.removeEventListener('abort', done); resolve(); };
+          const timer = setTimeout(done, delay);
+          controller.signal.addEventListener('abort', done, { once: true });
+        });
+        if (!current()) return;
+        const history = await refreshPending(false, true, generation, nativeWaitObserved);
+        if (!current() || history && confirmWaitingHistory.current?.(history, nativeWaitObserved)) return;
+      }
+    })().finally(() => {
+      if (pendingGateRead.current === controller) pendingGateRead.current = null;
+    });
+  };
   transportBusy.current = status === 'submitted' || status === 'streaming';
 
   const [pagination, setPagination] = useState(initialPagination);
@@ -970,7 +1023,7 @@ export function AgentConversation({
   // saying so after the thread is read again with the other tab's outcome
   // (`kcxz.38`, R2).
   const [closedCalls, setClosedCalls] = useState<ReadonlySet<string>>(() => new Set());
-  confirmWaitingHistory.current = (history) => {
+  confirmWaitingHistory.current = (history, nativeWaitObserved = false) => {
     if (explicitStop.current) return false;
     const gates = history.pending.filter((run) => !!run.runId && !!run.toolCallId &&
       (run.kind === 'approval' || run.kind === 'question' && !!pendingCardId(run)));
@@ -980,6 +1033,19 @@ export function AgentConversation({
     if (history.execution?.state !== 'settled' &&
       (!history.execution?.runId ||
         gates.some((run) => run.runId !== history.execution!.runId))) return false;
+    // A replay can remain streaming after a slow provider reaches the next
+    // durable question. Its observer is no longer useful and would lock every
+    // answer control. Detach only that reader, never cancel the server task or
+    // abort an answer/approval whose request is still being applied.
+    const sentQuestion = questionSent.current;
+    const answerStillPending = questionInFlight.current && (!sentQuestion || gates.some(run =>
+      run.toolCallId === sentQuestion.toolCallId && pendingCardId(run) === sentQuestion.cardId));
+    const questionWaiting = gates.some((run) => run.kind === 'question');
+    if (transportBusy.current && (questionWaiting || nativeWaitObserved) && !answerStillPending && !approvalSent.current &&
+      waitingObserverStop.current !== turnGeneration.current) {
+      waitingObserverStop.current = turnGeneration.current;
+      void stop();
+    }
     // A fresh owned history read proves which native gate still waits. It
     // enables that gate, never repeats the lost answer or starts another run.
     const cards = new Set(gates.map(pendingCardId).filter((id): id is string => !!id));
@@ -1711,6 +1777,7 @@ export function AgentConversation({
             key={block.key}
             title={block.title}
             code={block.code}
+            reviewFindings={block.reviewFindings}
             refusal
             words={words}
           />

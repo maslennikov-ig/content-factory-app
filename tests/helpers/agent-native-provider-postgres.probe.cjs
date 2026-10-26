@@ -5,7 +5,8 @@ const { providerModel, providerRequests, Response, AgentThreadsService, mocks } 
 const { loadTypeScriptModule } = require('./load-ts-module.cjs');
 
 (async () => {
-  const model = await providerModel(['tool', 'skill', { name: 'content' }]);
+  const model = await providerModel(['tool', 'skill_read', { skillName: 'help', path: 'references/ru.md' }]);
+  const { helpFaqMarkdown } = loadTypeScriptModule('libraries/nestjs-libraries/src/help/help-faq.questions.ts');
   const runtime = await createRuntime({ modelFactory: () => model });
   runtime.mastra.addGateway({ id: 'v2-fixture', name: 'Synthetic V2 provider',
     handlesModel: id => id.includes('synthetic-v2'),
@@ -28,7 +29,7 @@ const { loadTypeScriptModule } = require('./load-ts-module.cjs');
   try {
     await Promise.race([
       handler.chat({ id: IDENTITY.organizationId, createdAt: IDENTITY.organizationCreatedAt, users: [{ role: 'EDITOR' }] },
-        { id: IDENTITY.userId, language: 'ru' }, { threadId, messages: [{ id: 'human-v2', role: 'user', parts: [{ type: 'text', text: 'Read the content skill.' }] }] }, response),
+        { id: IDENTITY.userId, language: 'ru' }, { threadId, messages: [{ id: 'human-v2', role: 'user', parts: [{ type: 'text', text: 'Read the product help reference.' }] }] }, response),
       new Promise((_resolve, reject) => { deadlineTimer = setTimeout(async () => {
         const session = await runtime.service.sessionFor(IDENTITY, threadId, { bindThread: true });
         reject(new Error(JSON.stringify({ events, native: { running: session.run.isRunning(), active: session.stream.isActive() }, parts: response.parts() })));
@@ -36,12 +37,16 @@ const { loadTypeScriptModule } = require('./load-ts-module.cjs');
     ]);
     assert.equal(response.parts().filter(part => part.type === 'text-delta').map(part => part.delta).join(''), 'Нативная задача завершена.', JSON.stringify({ execution: execution?.snapshot(), requests: providerRequests.get(model)?.length, events, parts: response.parts() }));
     assert.equal(response.parts().some(part => part.type === 'data-native-input-wait'), false);
-    assert.ok(events.some(event => event.type === 'tool_end' && typeof event.result === 'string' && event.result.includes('A «заготовка» is the core text')),
-      'Verify native skill instructions actually executed, rather than a hidden tool-not-found output.');
+    const initial = providerRequests.get(model)[0];
+    assert.ok(JSON.stringify(initial.messages).includes('A «заготовка» is the core text'), 'Bundled instructions must be present before the first response.');
+    assert.ok(initial.tools.some(tool => tool.function?.name === 'skill_read'));
+    assert.equal(initial.tools.some(tool => tool.function?.name === 'skill'), false);
+    assert.ok(events.some(event => event.type === 'tool_end' && typeof event.result === 'string' && event.result.includes(helpFaqMarkdown('ru'))),
+      'Verify the native reference reader actually executed, rather than a hidden tool-not-found output.');
     assert.equal(providerRequests.get(model).length, 2);
     assert.equal((await runtime.agent.listSuspendedRuns({ threadId, resourceId: `${IDENTITY.organizationId}:${IDENTITY.userId}` })).runs.length, 0);
     console.log(JSON.stringify({ providerV2: true, postgres: true, redis: true, actualService: true, executionScopeAligned: true,
-      allowedSkillCompleted: true, assistantFinalText: true, noPending: true, requests: 2 }));
+      nativeReferenceRead: true, bundledInstructionsPreloaded: true, assistantFinalText: true, noPending: true, requests: 2 }));
   } finally { clearTimeout(deadlineTimer); await runtime.close({ drop: true }); }
   process.exit(0);
 })().catch(error => { console.error(error); process.exit(1); });

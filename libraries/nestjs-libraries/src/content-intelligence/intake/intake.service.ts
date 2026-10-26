@@ -1,5 +1,7 @@
 import { factKind, selectedFactsBrief, ungroundedStatements, type PieceFactV2 } from '../pieces/piece-facts.v2';
 import { createHash, randomUUID } from 'node:crypto';
+import { OutputParserException } from '@langchain/core/output_parsers';
+import { ZodError } from 'zod';
 import { exactResearchSourceSpan } from './research-digest.v4';
 import { researchReuseError, selectedSourcePassages, selectReusableResearch, mergeResearchCaptures, qualifiedResearchFactKey, type ResearchCaptureReference, type ResearchReuseSnapshot, type ResearchSourcePassage } from './research-reuse';
 import {
@@ -115,6 +117,7 @@ import { briefTitle } from '../brief/content-brief.compose';
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
   IntakeError,
+  IntakeBriefInvalidError,
   PIECE_NOT_SAVED_MESSAGES,
   intakeError,
 } from './intake.errors';
@@ -1143,7 +1146,7 @@ export class IntakeService {
     const modelSelectionContinues = !plan.researchReuse && state.researchSelection?.origin === 'model' &&
       plan.researchSelectionPolicy === 'model' && selectedResearch.length > 0;
     if (!modelSelectionContinues && actorUserId && filled.inputSufficient === false && state.summary?.status === 'partial' &&
-        selectedResearch.length && !this.openQuestions(filled, plan).length) {
+        selectedResearch.length && !this.openQuestions(filled, plan, state.researchSelection).length) {
       // A pre-search assessment cannot decide whether newly selected evidence
       // now supports the goal. Reuse the native brief model with the actual
       // selection; preserve its provenance and never answer personal questions.
@@ -1161,7 +1164,13 @@ export class IntakeService {
       yield { name: 'done', pieceId: null };
       return;
     }
-    const open = this.openQuestions(filled, plan);
+    const open = this.openQuestions(filled, plan, state.researchSelection);
+    if (plan.request?.constraints?.humanFactSelection && state.researchSelection?.origin !== 'person' && !open.length) {
+      yield { name: 'error', error: true, code: 'INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON', message: language === 'ru'
+        ? 'Исходное задание требует выбора фактов человеком.' : 'The original request requires a person to select these facts.' };
+      yield { name: 'done', pieceId: null };
+      return;
+    }
     if (!modelSelectionContinues && !open.length && filled.inputSufficient === false && state.summary?.status !== 'sufficient') {
       yield { name: 'error', error: true, code: 'INTAKE_INPUT_INSUFFICIENT', canReviseInput: true,
         message: plan.researchReuse ? (language === 'ru'
@@ -1594,43 +1603,53 @@ export class IntakeService {
         const model = (
           await getChatModel(organizationId, 0, 4_096, 'extract')
         ).withStructuredOutput(briefFillSchemaV13);
-        return await model.invoke(
-          briefFillPromptV13({
-            language: plan.language,
-            originalRequest: plan.input,
-            contextMaterial: plan.contextMaterial,
-            request: plan.request,
-            requestClock: { asOf: this.now().toISOString(), timezone: researchTimezone(plan.timeZone) },
-            researchEnabled: plan.options.researchEnabled,
-            selectedResearch: selectedResearch ?? plan.reusedResearchFacts,
-            materialReads: plan.materialReads,
-            materialEvidence: [...evidence.values()].filter(item => item.requestMaterial).map(item => ({
-              evidenceId: item.evidenceId, url: item.url, role: item.requestMaterial!.role,
-              origin: item.requestMaterial!.origin, text: item.excerpt.slice(0, WEB_SEARCH_MAX_SOURCE_CHARS),
-            })),
-            priorExample: plan.priorExample,
-            researchTask: plan.researchTask,
-            material,
-            materialKind,
-            ...(materialKind === 'instruction'
-              ? { keepLinks: this.outputLinks(plan) }
-              : {}),
-            fixed: Object.entries(person).map(([field, text]) => ({
-              field,
-              text,
-            })),
-            decided: this.handedFields(plan),
-            avatar: avatar.lines,
-            channel: [],
-            facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
-            evidence: [...evidence.values()].map(
-              (item) =>
-                `[E:${item.evidenceId}] ${item.requestMaterial ? JSON.stringify(item.requestMaterial) + ' ' : ''}${oneLine(item.title || item.url)} — ${oneLine(
-                  item.excerpt
-                ).slice(0, 400)}`
-            ),
-          })
-        );
+        try {
+          return await model.invoke(
+            briefFillPromptV13({
+              language: plan.language,
+              originalRequest: plan.input,
+              contextMaterial: plan.contextMaterial,
+              request: plan.request,
+              requestClock: { asOf: this.now().toISOString(), timezone: researchTimezone(plan.timeZone) },
+              researchEnabled: plan.options.researchEnabled,
+              selectedResearch: selectedResearch ?? plan.reusedResearchFacts,
+              materialReads: plan.materialReads,
+              materialEvidence: [...evidence.values()].filter(item => item.requestMaterial).map(item => ({
+                evidenceId: item.evidenceId, url: item.url, role: item.requestMaterial!.role,
+                origin: item.requestMaterial!.origin, text: item.excerpt.slice(0, WEB_SEARCH_MAX_SOURCE_CHARS),
+              })),
+              priorExample: plan.priorExample,
+              researchTask: plan.researchTask,
+              material,
+              materialKind,
+              ...(materialKind === 'instruction'
+                ? { keepLinks: this.outputLinks(plan) }
+                : {}),
+              fixed: Object.entries(person).map(([field, text]) => ({
+                field,
+                text,
+              })),
+              decided: this.handedFields(plan),
+              avatar: avatar.lines,
+              channel: [],
+              facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
+              evidence: [...evidence.values()].map(
+                (item) =>
+                  `[E:${item.evidenceId}] ${item.requestMaterial ? JSON.stringify(item.requestMaterial) + ' ' : ''}${oneLine(item.title || item.url)} — ${oneLine(
+                    item.excerpt
+                  ).slice(0, 400)}`
+              ),
+            })
+          );
+        } catch (error) {
+          // Catch only extraction parsing, never usage accounting, provider
+          // transport or a later storage/write failure. The model call may
+          // already be billed, so this refusal must not grant automatic replay.
+          if (error instanceof OutputParserException || error instanceof ZodError) {
+            throw new IntakeBriefInvalidError(error);
+          }
+          throw error;
+        }
       },
       'extract'
     );
@@ -1706,14 +1725,20 @@ export class IntakeService {
    * Что осталось спросить у только что записанной заготовки.
    *
    * Ничего терминального: список едет вместе с заготовкой и живёт в её брифе,
-   * а отвечают на него на её странице. `skipInterview` по-прежнему значит
-   * «модель решает всё сама» — тогда не спрашивают вовсе.
+   * а отвечают на него на её странице. `skipInterview` отдаёт выбор модели,
+   * кроме явно оставленного за человеком выбора фактов.
    */
   private openQuestions(
     filled: FilledBrief,
-    plan: IntakePlanV1
+    plan: IntakePlanV1,
+    researchSelection?: IntakeResearchSelectionV1
   ): PieceOpenQuestionV1[] {
-    if (plan.skipInterview) return [];
+    // Sufficiency is the brief model's semantic decision for this request.
+    // Optional suggestions must not become blocking human questions after it
+    // explicitly judged the available input sufficient. An outstanding human
+    // fact choice is an authority boundary, not an input-sufficiency judgment.
+    const humanFactSelectionPending = plan.request?.constraints?.humanFactSelection && researchSelection?.origin !== 'person';
+    if (!humanFactSelectionPending && (plan.skipInterview || filled.inputSufficient === true)) return [];
     const settled = this.settledFields(plan);
     /*
       Сколько спросить, решает модель (`97dq.44`): ноль, один или несколько —

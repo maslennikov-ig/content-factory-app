@@ -202,9 +202,10 @@ describe('the rules the research measured', () => {
       { foreignShingles: ['раз два три четыре пять шесть семь восемь'] }
     );
 
-    expect(withSource).toContain(
-      'Never reproduce 8 or more consecutive words from any material you were given.'
-    );
+    const rule = withSource.find((line) => line.includes('Never reproduce 8'));
+    expect(rule).toContain('foreign-source passages');
+    expect(rule).toContain("not the author's own neutral core or answers");
+    expect(rule).not.toContain('any material you were given');
     expect(
       linesFor(defaultWritingProfileFor('telegram', 'ru')).some((line) =>
         line.includes('Never reproduce 8')

@@ -134,3 +134,22 @@ test('an unavailable review/candidate remains diagnostic data and never claims a
   expect(wire.find(value => value.type === 'data-progress')).toMatchObject({ transient: false, data: { saved: false,
     qualityReview: { untrustedData: { value: { reviewAvailable: false, candidate: { unavailable: true } } } } } });
 });
+
+
+test('a saved advisory survives the actual capability and controller wire as an adaptation card', async () => {
+  const registry = loadRegistry();
+  const qualityReview = { status: 'partial', missingRequirements: ['An omitted condition.'], unsupportedClaims: [], reviews: 1, repaired: false };
+  const tool = registry.buildCapabilityTool(registry.CAPABILITY_CATALOGUE.find(row => row.id === 'piece.adapt'), {
+    entrance: 'chat', language: 'ru', services: servicesFrom({ PieceService: {
+      adaptPlanMode: async () => 'reserve', prepareAdapt: async () => ({}),
+      adapt: async function* () { yield { name: 'adaptation', qualityReview, adaptation: { id: 'a1', state: 'draft' } }; },
+      detail: async () => ({ adaptations: [{ id: 'a1', integrationId: 'c1', body: 'Saved draft.' }] }),
+    } }),
+  });
+  const produced = await executeTool(tool, { pieceId: 'p1', channelId: 'c1' }, { requestContext: requestContextFor(registry) });
+  expect(produced.output.ok).toBe(true);
+  const { wire } = await consume(produced.parts);
+  expect(wire.find(part => part.type === 'data-adaptation')?.transient).not.toBe(true);
+  expect(wire.find(part => part.type === 'data-adaptation')).toMatchObject({
+    data: { id: 'a1', pieceId: 'p1', qualityReview: { untrustedData: { value: qualityReview } } } });
+});

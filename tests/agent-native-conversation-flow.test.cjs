@@ -10,6 +10,7 @@ global.IS_REACT_ACT_ENVIRONMENT = true;
 const { act, cleanup, fireEvent, render, within } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { readThreadHistory } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
 const words = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts').agentCopy.ru;
 const h = React.createElement;
 afterEach(cleanup);
@@ -61,6 +62,102 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
 }
 const human = { id: 'human', role: 'user', parts: [{ type: 'text', text: 'Исходная задача' }] };
 const active = { requestId: 'logical-native', runId: 'native-run', state: 'running' };
+
+test.each([
+  [true, 'data-native-input-wait'], [false, 'data-native-input-wait'],
+  [true, 'data-tool-call-suspended'], [false, 'data-tool-call-suspended'],
+  [true, 'data-tool-call-approval'], [false, 'data-tool-call-approval'],
+])('a replay observer detaches only for a saved gate of its current native owner (%s, %s)', async (ownsGate, event) => {
+  const call = { runId: ownsGate ? active.runId : 'another-owner', toolCallId: 'slow-replay-call', toolName: 'piece_adapt' };
+  const question = { kind: 'domain-questions', batchId: 'slow-replay-batch', cardId: 'slow-replay-card', question: 'Выберите акцент',
+    source: { kind: 'adaptation', pieceId: 'slow-replay-piece', channelId: 'slow-replay-channel', revision: 'slow-replay-v1' },
+    activeKey: 'angle', answers: [], canDecideForPerson: true,
+    questions: [{ key: 'angle', question: 'На чём сделать акцент?', options: [
+      { id: 'early', label: 'Раннее открытие' }, { id: 'cup', label: 'Скидка со своей кружкой' },
+    ], selectionMode: 'single', canDecideForPerson: true }] };
+  const asked = { id: 'slow-replay-message', role: 'assistant', parts: [{ type: 'tool-piece_adapt', toolCallId: call.toolCallId,
+    state: 'input-available', title: 'Подготовить черновик', input: {} }] };
+  const pending = [{ ...call, kind: 'question', suspendPayload: question, summary: null }];
+  const f = fixture({ status: 'streaming', initialMessages: [human, asked], initialExecution: active,
+    historyResult: { messages: [human, asked], pending: [], execution: active } });
+  const view = render(h(f.Component, f.props));
+  f.stop.mockImplementation(async () => {
+    f.setStatus('ready');
+    f.config().onFinish({ isAbort: true, isError: false, isDisconnect: false });
+  });
+  await act(async () => { f.config().onData({ type: event, data: {} }); });
+  expect(f.stop).not.toHaveBeenCalled();
+  f.setHistory({ messages: [human, asked], pending, execution: active });
+  await act(async () => new Promise(resolve => setTimeout(resolve, 160)));
+  await act(async () => view.rerender(h(f.Component, f.props)));
+  expect(f.stop).toHaveBeenCalledTimes(ownsGate ? 1 : 0);
+  expect(within(document.body).getByRole('radio', { name: 'Раннее открытие' }).disabled).toBe(!ownsGate);
+  expect(f.calls.filter(call => call.method === 'POST')).toEqual([]);
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.resumeStream).not.toHaveBeenCalled();
+});
+
+test('an approval event cannot detach a live reader before native input wait', async () => {
+  const call = { runId: active.runId, toolCallId: 'approval-phase-call', toolName: 'piece_adapt' };
+  const asked = { id: 'approval-phase-message', role: 'assistant', parts: [{
+    type: 'tool-piece_adapt', toolCallId: call.toolCallId, state: 'approval-requested', input: {},
+    approval: { id: `${call.runId}::${call.toolCallId}` },
+  }] };
+  const approvalHistory = {
+    messages: [human, asked],
+    pending: [{ ...call, kind: 'approval', summary: 'Подтвердите действие.' }],
+    execution: active,
+  };
+  const f = fixture({ status: 'streaming', initialMessages: [human, asked], initialExecution: active,
+    historyResult: approvalHistory });
+  render(h(f.Component, f.props));
+
+  await act(async () => f.config().onData({ type: 'data-tool-call-approval', data: { ...call } }));
+  await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+  expect(f.stop).not.toHaveBeenCalled();
+
+  // The producer may auto-resume this approval. That event alone does not
+  // prove that the native owner is waiting for a person now.
+  await act(async () => f.config().onData({ type: 'data-tool-call-approval', data: { ...call, resumed: true } }));
+  expect(f.stop).not.toHaveBeenCalled();
+
+  await act(async () => f.config().onData({
+    type: 'data-native-input-wait', data: { runId: call.runId }, transient: true,
+  }));
+  await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+  expect(f.stop).toHaveBeenCalledTimes(1);
+  expect(f.calls.filter(call => call.method === 'POST')).toEqual([]);
+});
+
+test.each([false, true])('an in-flight answer detaches its reader only after its saved gate advances (%s)', async advances => {
+  const question = { kind: 'domain-questions', batchId: 'advance-batch', cardId: 'advance-first', question: 'Выберите акцент',
+    source: { kind: 'adaptation', pieceId: 'advance-piece', channelId: 'advance-channel', revision: 'advance-v1' },
+    activeKey: 'ask-1', answers: [], canDecideForPerson: true, questions: [
+      { key: 'ask-1', question: 'Первый акцент?', options: [{ id: 'early', label: 'Часы работы' }], selectionMode: 'single', canDecideForPerson: true },
+      { key: 'ask-2', question: 'Второй акцент?', options: [{ id: 'cup', label: 'Своя кружка' }], selectionMode: 'single', canDecideForPerson: true },
+    ] };
+  const call = { runId: active.runId, toolCallId: 'advance-call', toolName: 'piece_adapt', kind: 'question', summary: null };
+  const asked = { id: 'advance-message', role: 'assistant', parts: [{ type: 'tool-piece_adapt', toolCallId: call.toolCallId,
+    state: 'input-available', title: 'Подготовить черновик', input: {} }] };
+  const f = fixture({ initialMessages: [human, asked], initialExecution: active, pending: [{ ...call, suspendPayload: question }] });
+  const view = render(h(f.Component, f.props));
+  let finish;
+  f.sendMessage.mockImplementation(() => { f.setStatus('streaming'); return new Promise(resolve => { finish = resolve; }); });
+  f.stop.mockImplementation(async () => { f.setStatus('ready'); f.config().onFinish({ isAbort: true, isError: false, isDisconnect: false }); finish(); });
+  fireEvent.click(within(document.body).getByRole('radio', { name: 'Часы работы' }));
+  await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: words.question.send })));
+  await act(async () => view.rerender(h(f.Component, f.props)));
+  const next = advances ? { ...question, cardId: 'advance-second', activeKey: 'ask-2',
+    answers: [{ key: 'ask-1', mode: 'choice', optionIds: ['early'], text: 'Часы работы' }] } : question;
+  f.setHistory({ messages: [human, asked], execution: active, pending: [{ ...call, suspendPayload: next }] });
+  await act(async () => f.config().onData({ type: 'data-tool-call-suspended', data: {} }));
+  await act(async () => view.rerender(h(f.Component, f.props)));
+  expect(f.stop).toHaveBeenCalledTimes(advances ? 1 : 0);
+  if (advances) expect(within(document.body).getByRole('radio', { name: 'Своя кружка' }).disabled).toBe(false);
+  else expect(within(document.body).queryAllByRole('radio').filter(control => !control.disabled)).toHaveLength(0);
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.calls.filter(call => call.method === 'POST')).toEqual([]);
+});
 
 test('reload resumes the real SDK observer once and explicit Stop also reaches the server', async () => {
   const f = fixture({ initialMessages: [human], initialExecution: active });
@@ -265,6 +362,100 @@ test('a native question suspension supersedes the earlier approval projection fo
   expect(within(document.body).getByRole('textbox')).toBeTruthy();
   expect(document.body.textContent).toContain(question.question);
   expect(document.body.textContent).not.toContain('больше не ждёт ответа');
+});
+
+test('native input wait reloads a pending ask_user question when the suspension event is absent', async () => {
+  const call = { runId: 'native-choice-run', toolCallId: 'native-choice-call', toolName: 'ask_user' };
+  const question = {
+    question: 'Какой ответ отправить клиенту?',
+    options: [
+      { label: 'Клиентам', description: 'Подготовить сообщение для клиентов.' },
+      { label: 'Коллегам', description: 'Подготовить сообщение для коллег.' },
+    ],
+    selectionMode: 'single_select',
+    canDecideForPerson: true,
+    cardId: 'a'.repeat(32),
+  };
+  const savedQuestion = { id: 'native-choice-message', role: 'assistant', parts: [
+    { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'input-available',
+      input: { question: question.question, options: question.options, selectionMode: question.selectionMode } },
+  ] };
+  // The browser still has the approval state from the earlier tool event; the
+  // authoritative saved history has already advanced this same call to a wait.
+  const staleApproval = { ...savedQuestion, parts: [
+    { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'approval-requested',
+      input: { question: question.question, options: question.options },
+      approval: { id: `${call.runId}::${call.toolCallId}` } },
+  ] };
+  const nativeHistory = {
+    messages: [human, savedQuestion],
+    pending: [{ runId: call.runId, toolCallId: call.toolCallId, toolName: call.toolName,
+      kind: 'question', suspendPayload: question }],
+    execution: { requestId: 'logical-native', runId: call.runId, state: 'running' },
+  };
+  const f = fixture({ status: 'streaming', initialMessages: [human, staleApproval], initialExecution: { ...active, runId: call.runId } });
+  let view;
+  await act(async () => { view = render(h(f.Component, f.props)); });
+  f.setHistory(nativeHistory);
+  expect(document.body.textContent).toContain('Обновить данные действия');
+  await act(async () => f.config().onData({
+    type: 'data-tool-call-approval',
+    data: { state: 'data-tool-call-approval', ...call, args: staleApproval.parts[0].input, resumed: true },
+  }));
+  // A missing/dropped suspension data part must not leave the approval card
+  // as the only visible gate once the native owner announces its saved wait.
+  await act(async () => f.config().onData({ type: 'data-native-input-wait', data: { runId: call.runId }, transient: true }));
+  await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+
+  expect(await within(document.body).findByRole('button', { name: 'Клиентам' })).toBeTruthy();
+  expect(within(document.body).getByRole('button', { name: 'Коллегам' })).toBeTruthy();
+  expect(document.querySelector('[data-agent-card="approval"]')).toBeNull();
+  expect(document.body.textContent).not.toContain('Обновить данные действия');
+
+  f.setStatus('ready');
+  await act(async () => view.rerender(h(f.Component, f.props)));
+  await act(async () => f.config().onFinish({ isAbort: false, isError: false, isDisconnect: false }));
+
+  const questionCard = document.querySelector('[data-agent-card="question"]');
+  expect(within(questionCard).getByRole('button', { name: 'Решите за меня' }).disabled).toBe(false);
+  const clients = within(questionCard).getByRole('button', { name: 'Клиентам' });
+  expect(clients.disabled).toBe(false);
+  expect(f.calls.some(call => call.url === '/agent/threads/thread-native')).toBe(true);
+  await act(async () => fireEvent.click(clients));
+  expect(f.sendMessage).toHaveBeenCalledWith(undefined, { body: { resume: {
+    runId: call.runId, toolCallId: call.toolCallId, cardId: question.cardId, resumeData: { answer: 'Клиентам' },
+  } } });
+});
+
+test('a persisted pending ask_user question replaces its obsolete denied permission part', async () => {
+  const call = { runId: 'native-choice-run', toolCallId: 'native-choice-call', toolName: 'ask_user' };
+  const question = {
+    question: 'Какой ответ отправить клиенту?',
+    options: [
+      { label: 'Да', description: 'Подтвердить предложенный ответ.' },
+      { label: 'Нет', description: 'Отказаться от предложенного ответа.' },
+    ],
+    selectionMode: 'single_select',
+    canDecideForPerson: true,
+    cardId: 'a'.repeat(32),
+  };
+  const asked = { id: 'native-choice-message', role: 'assistant', parts: [
+    { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'output-denied',
+      input: { question: question.question, options: question.options },
+      approval: { id: `${call.runId}::${call.toolCallId}` } },
+  ] };
+  const history = readThreadHistory({
+    messages: [asked],
+    pending: [{ ...call, kind: 'question', suspendPayload: question, summary: null }],
+  });
+  const f = fixture({ initialMessages: [human, ...history.messages], initialExecution: active, pending: history.pending });
+
+  await act(async () => render(h(f.Component, f.props)));
+
+  expect(await within(document.body).findByRole('button', { name: 'Да' })).toBeTruthy();
+  expect(within(document.body).getByRole('button', { name: 'Нет' })).toBeTruthy();
+  expect(document.querySelector('[data-agent-card="approval"]')).toBeNull();
+  expect(document.body.textContent).not.toContain('Обновить данные действия');
 });
 
 test('parallel approval answers reach one native continuation after every distinct gate is answered', async () => {

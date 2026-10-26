@@ -1,5 +1,10 @@
 # HONEY-5961 local acceptance — 24 October 2026
 
+This is the original feature acceptance. The local preview was updated on
+25 October to release 2c25a3d13bb7; use [current preview and restart](local-preview-2c25.md)
+for its source, new verification and current private stand. Historical receipts
+and the old saved example remain preserved.
+
 ## Scope and ownership
 
 Owned worktree `/home/me/code/content-factory-next-worktrees/agent-chat-5961-20261024`, branch `codex/agent-chat-5961`, integration base `0e0cf070c6b88c8f042a7fba12945e73ba5e2cec`. Original checkout remains at `e326aab7a`; its unrelated dirty documentation and video work were not edited. Preserved deployed excerpts exactly match the owning integration-base files; `baseline.json` records their hashes. Original private incident evidence remains untouched.

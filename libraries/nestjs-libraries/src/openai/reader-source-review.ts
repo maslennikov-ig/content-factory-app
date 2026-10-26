@@ -1249,6 +1249,8 @@ export interface ReaderAssessment {
     | 'partial'
     | 'insufficient_evidence'
     | 'review_unavailable';
+  /** Explicit request-scope decision from the semantic reader, when available. */
+  scopeStatus?: 'resolved' | 'needs_clarification' | 'not_temporal';
   requestedDate: string | null;
   inputBytes: number;
   evidence: ReaderReviewInput['evidence']['sources'];

@@ -1,0 +1,98 @@
+{
+  "result": "PASS",
+  "publicSource": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+  "privateSource": "48e6c53fcde02695b3aa869116f33d5b937c245a",
+  "candidateRelease": "2c25a3d13bb7",
+  "build": {
+    "status": "completed",
+    "conclusion": "success",
+    "headSha": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+    "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348"
+  },
+  "codeQuality": {
+    "status": "completed",
+    "conclusion": "success",
+    "headSha": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+    "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822396"
+  },
+  "focused": {
+    "result": "PASS",
+    "privateSource": "48e6c53fcde02695b3aa869116f33d5b937c245a",
+    "focus": {
+      "passedSuites": 4,
+      "passedTests": 5,
+      "skipped": 0,
+      "timeTravelDays": 400,
+      "cpuCount": 1,
+      "workerCount": 2,
+      "seconds": 74.035,
+      "logSha256": "9bbe556b745ba04ea670b7acfd01e0bc8f9fa800eac28e9700120480adf9b42b"
+    },
+    "regression": "persisted approval precedes Session delivery; exact live owner retains two admissions/one write",
+    "paidCalls": 0
+  },
+  "jobs": [
+    {
+      "name": "Docker-capable execution proofs (required)",
+      "databaseId": 120916040376,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348/job/120916040376",
+      "startedAt": "2026-10-24T15:50:45Z",
+      "completedAt": "2026-10-24T15:52:28Z"
+    },
+    {
+      "name": "Full test suite (required)",
+      "databaseId": 120916040556,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348/job/120916040556",
+      "startedAt": "2026-10-24T15:50:45Z",
+      "completedAt": "2026-10-24T16:28:37Z"
+    },
+    {
+      "name": "build (22.23.2)",
+      "databaseId": 120916040586,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348/job/120916040586",
+      "startedAt": "2026-10-24T15:50:46Z",
+      "completedAt": "2026-10-24T15:53:27Z"
+    },
+    {
+      "name": "The suite, one year on",
+      "databaseId": 120916040654,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822348/job/120916040654",
+      "startedAt": "2026-10-24T15:50:46Z",
+      "completedAt": "2026-10-24T16:09:12Z"
+    },
+    {
+      "name": "Analyze (javascript-typescript)",
+      "databaseId": 120916040772,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40108822396/job/120916040772",
+      "startedAt": "2026-10-24T15:50:46Z",
+      "completedAt": "2026-10-24T15:59:36Z"
+    }
+  ],
+  "paidCalls": 0,
+  "productionSwitches": 0,
+  "full": {
+    "jestSuites": "Test Suites: 16 skipped, 763 passed, 763 of 779 total",
+    "jestTests": "Tests:       153 skipped, 13402 passed, 13555 total",
+    "logSha256": "39288d12ca3e5ce66e01e33d15e5a4c54c3339d7392da16a49d334a8909f9245",
+    "nodePass": "# pass 167",
+    "nodeFail": "# fail 0",
+    "nodeSkip": "# skipped 4",
+    "pythonCount": "Ran 50 tests in 0.701s",
+    "pythonResult": "OK"
+  },
+  "calendar": {
+    "jestSuites": "Test Suites: 16 skipped, 763 passed, 763 of 779 total",
+    "jestTests": "Tests:       153 skipped, 13402 passed, 13555 total",
+    "logSha256": "c2123737012a1cf642d5658ef206ae4c87fb4a295b534003c0e2f01ceb91882d"
+  }
+}

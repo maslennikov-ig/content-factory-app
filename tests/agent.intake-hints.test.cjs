@@ -584,7 +584,7 @@ describe('the brief and the channel reach the prompt', () => {
   });
 });
 
-/* ---- Антикопия: одна повторная попытка и квитанция ------------------------ */
+/* ---- Антикопия: находки без повторной генерации -------------------------- */
 
 const SOURCE =
   'Мы перестали публиковать каждый день и стали писать один раз в неделю, ' +
@@ -596,46 +596,15 @@ const { wordShingles } = loadTypeScriptModule(
 // Модуль S3 ждёт готовые восьмисловные отпечатки, а не сам чужой текст.
 const shingles = () => wordShingles(SOURCE);
 
-describe('eight words of somebody else cost one retry, not the post', () => {
-  test('a copied run is quoted back and the second draft is kept', async () => {
-    const chatModel = capturingModel([
-      draft(`Вот что было. ${SOURCE} Дальше свои слова.`),
-      draft('Реже, но по делу — и людей стало больше.'),
-    ]);
+describe('foreign copying is a free advisory finding without an automatic rewrite', () => {
+  test('the original draft and actual copied passage survive without another model call', async () => {
+    const text = `Вот что было. ${SOURCE} Дальше свои слова.`;
+    const chatModel = capturingModel([draft(text)]);
     const { service } = loadAgentGraph({ chatModel });
-
-    const result = await service.generateContent(
-      withHints({ foreignShingles: shingles() })
-    );
-
-    expect(chatModel.prompts).toHaveLength(2);
-    expect(chatModel.prompts[1]).toContain('REWRITE REQUIRED');
-    expect(chatModel.prompts[1]).toContain('Keep the meaning, say it in your own words.');
-    expect(chatModel.prompts[1]).toContain('перестали публиковать каждый день');
-    expect(result.content.content).toBe('Реже, но по делу — и людей стало больше.');
-    expect(result.antiCopy).toEqual({
-      minWords: 8,
-      runs: [],
-      retried: true,
-      clean: true,
-    });
-  });
-
-  test('a second draft that still copies is kept, and the receipt says so', async () => {
-    const chatModel = capturingModel([
-      draft(`Первый. ${SOURCE}`),
-      draft(`Второй. ${SOURCE}`),
-    ]);
-    const { service } = loadAgentGraph({ chatModel });
-
-    const result = await service.generateContent(
-      withHints({ foreignShingles: shingles() })
-    );
-
-    expect(chatModel.prompts).toHaveLength(2);
-    expect(result.content.content).toContain('Второй.');
-    expect(result.antiCopy.retried).toBe(true);
-    expect(result.antiCopy.clean).toBe(false);
+    const result = await service.generateContent(withHints({ foreignShingles: shingles() }));
+    expect(chatModel.prompts).toHaveLength(1);
+    expect(result.content.content).toBe(text);
+    expect(result.antiCopy).toMatchObject({ minWords: 8, retried: false, clean: false });
     expect(result.antiCopy.runs).toHaveLength(1);
     expect(result.antiCopy.runs[0].text).toContain('перестали публиковать');
   });

@@ -1,0 +1,133 @@
+{
+  "task": "content-factory-next-2koa",
+  "baseCommit": "7adeee7b451fa37af3e1b25fba178c38987cf58d",
+  "branch": "codex/local-real-model-20261025",
+  "runtimeSourceManifest": "http://localhost:3516/public/source/version",
+  "diagnosticUrl": "http://localhost:4316/agents/ab640164-aa0a-4a54-bd76-4234a5d44959",
+  "diagnosticExecution": {
+    "requestId": "59fac473-654f-4784-bf22-a81f9ac8b08f",
+    "state": "settled",
+    "outcome": "interrupted",
+    "runId": "d25aee85-ae53-4a34-81de-19175517f36e"
+  },
+  "pendingCount": 0,
+  "originalDiagnosticMessagesPreserved": true,
+  "checks": {
+    "beforeFixRegression": "FAIL: expected settled, actual running",
+    "finalAffectedJest": {
+      "suites": 4,
+      "tests": 16,
+      "status": "PASS"
+    },
+    "testCleanupRerun": "PASS1/1 after own Redis-key cleanup added",
+    "backendTypes": "PASS",
+    "diffCheck": "PASS",
+    "actualStop": "HTTP201 and settled/interrupted",
+    "actualSIGKILLRecovery": "same terminal execution after owned backend recreation",
+    "browserReload": {
+      "composerEnabled": true,
+      "stopOrUnknownStateControls": 0
+    },
+    "repeatStop": "same requestId and outcome",
+    "newModelCalls": 0,
+    "paidCalls": 0,
+    "fullBuildSuite": "not run; bounded affected repair"
+  },
+  "preservation": {
+    "rootHeadPreserved": true,
+    "rootStatusPreserved": true,
+    "foreignFiles": {
+      ".codex/handoff.md": true,
+      ".codex/project-index.md": true,
+      "docs/research/README.md": true,
+      "docs/prompts/agent-chat-honey-5961-implementation-start.md": true,
+      "docs/prompts/deep-research-video-providers.md": true,
+      "docs/prompts/deep-research-video-storytelling.md": true,
+      "docs/prompts/video-v1-implementation-start.md": true,
+      "docs/research/video-generation-2026-10-22.md": true,
+      "docs/research/video-generation-reconciliation-2026-10-22.md": true,
+      "docs/superpowers/plans/2026-10-22-video-generation.md": true,
+      "docs/superpowers/plans/2026-10-24-agent-chat-questions-and-recovery.md": true
+    },
+    "priorListenerAddressesMissing": [
+      "127.0.0.1:55471",
+      "127.0.0.1:55524"
+    ],
+    "unchangedProcessIdentities": [
+      {
+        "pid": 26937,
+        "unchanged": true
+      },
+      {
+        "pid": 35833,
+        "unchanged": true
+      },
+      {
+        "pid": 35845,
+        "unchanged": true
+      },
+      {
+        "pid": 3977,
+        "unchanged": true
+      },
+      {
+        "pid": 4010,
+        "unchanged": true
+      },
+      {
+        "pid": 52,
+        "unchanged": true
+      },
+      {
+        "pid": 68597,
+        "unchanged": true
+      },
+      {
+        "pid": 71371,
+        "unchanged": true
+      },
+      {
+        "pid": 81932,
+        "unchanged": true
+      },
+      {
+        "pid": 84903,
+        "unchanged": true
+      },
+      {
+        "pid": 84915,
+        "unchanged": true
+      },
+      {
+        "pid": 86465,
+        "unchanged": true
+      },
+      {
+        "pid": 96863,
+        "unchanged": true
+      }
+    ],
+    "onlyPriorBackendPidReplaced": 39447,
+    "modelAuditUnchanged": true,
+    "originalHistoryPreserved": true,
+    "originalDifferences": [],
+    "coffeeHistoryPreserved": true,
+    "coffeeDifferences": [],
+    "unattributedListenerNote": "Two PID-less loopback listeners55471/55524 disappeared during the task; ownership/cause not established. All captured application process identities and named application/database service listeners are unchanged. No attempt to recreate unidentified listeners."
+  },
+  "privateEvidenceDirectory": "/home/me/.local/state/content-factory-next/local-real-model-20261025/stop-fix",
+  "evidenceSha256": {
+    "regression-red.log": "c0511afdb8291f77a8a11497072bd3bd649c43fcaccf3cc17190ea46e48a6297",
+    "final-stop-tests.log": "e6e6f9fb43a1b2cf33435bedcc8f1fa5683eef000381a3a3ccca18a32451203a",
+    "cleanup-regression.log": "79febb0aa21d2eb47695c5680079b08290d948b36b34f23b87d14750997506fd",
+    "backend-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "after-crash.private.json": "e7fe9518dccdac7eaf5f9186812e11dbe04ba54ff29b36400a47b05ab71b85ef",
+    "stop-receipt.private.json": "3230122d3c0580eecf52ab05abb78bd7a715e593ea148ee5a7dfbe9cd6f7564f",
+    "restored-interrupted.png": "b783c0c7d55cc2ad3cad24f074194a7cb45c5ac5f48a03dfab7ac4c92b987bcb",
+    "preservation-final.json": "58509408cb5b6927e4a4e8262ba823821976678fa5cc79bfcf06aa50997621b9"
+  },
+  "remainingLimits": [
+    "Free local Qwen3-14B editorial quality remains unqualified",
+    "No hosted provider, external research or publication acceptance"
+  ]
+}

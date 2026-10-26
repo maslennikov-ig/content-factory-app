@@ -59,6 +59,7 @@ import { currentConductorExecution } from './conductor.execution';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
 import { configureNativeSessionPermissions, NATIVE_SAFE_BUILTIN_TOOLS } from './native-session-permissions';
 import { NativeToolResultPromptProcessor } from './native-tool-result';
+import { NativeResponseBoundaryProcessor } from './native-response-boundary';
 import {
   conductorInputProcessors,
   conductorOutputProcessors,
@@ -276,8 +277,9 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
 
   // One tool set per interface language; the role filter picks from it.
   // Native approval/resume rebuilds assigned tools before workspace tools.
-  // Register the SDK's own skill tools so a cold/resumed read can execute.
-  const skillTools = createSkillTools(resolveAgentSkills([...CONDUCTOR_SKILLS]));
+  // Bundled instructions are already loaded. Keep only the SDK reference-file
+  // reader so a cold/resumed reference read can execute without activation.
+  const { skill_read } = createSkillTools(resolveAgentSkills([...CONDUCTOR_SKILLS]));
   const toolsByLanguage = new Map<'ru' | 'en', CapabilityTools>();
   const toolsFor = (
     identity: CapabilityIdentity,
@@ -300,7 +302,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     );
     return {
       ...domainTools,
-      ...skillTools,
+      skill_read,
       ...autonomyToolsFor(identity, hasControllerToolset),
     };
   };
@@ -457,6 +459,14 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     // stored UI/memory messages (on0i.2). TaskStateProcessor injects active
     // task list progress once per step (on0i.4, A18).
     inputProcessors: [
+      {
+        id: 'bundled-product-instructions',
+        // Public discovery contract: our instruction builder has already
+        // supplied all bundled know-how. Suppress the redundant activation
+        // catalog/tools; Mastra still provides skill_read for reference files.
+        providesSkillDiscovery: 'on-demand',
+        processInputStep: ({ messages }) => messages,
+      },
       ...conductorInputProcessors(),
       new ChatChannelProcessor() as any,
       ...(dynamicModelSelectionProcessor ? [dynamicModelSelectionProcessor as any] : []),
@@ -474,6 +484,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       }),
       new NativeToolResultPromptProcessor(),
       ...retryConfig.inputProcessors,
+      new NativeResponseBoundaryProcessor(),
     ],
     outputProcessors: [
       ...conductorOutputProcessors(),

@@ -11,7 +11,7 @@
  *   reads this, and the scenario suite checks the model really called each);
  * - `skills`: skills of the conductor it proves when it is not about a
  *   capability (the «help» answers, kcxz.24); the guard checks they exist
- *   and that the script activates them;
+ *   and that any requested references exist; instructions are preloaded;
  * - `role` (default `EDITOR`) and `world` (overrides of the base rows);
  * - `turns`: requests to `POST /agent/chat`, in order — `{ say }` a message
  *   (with `samples`: the receipt of files the composer uploaded, kcxz.18),

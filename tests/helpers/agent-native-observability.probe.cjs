@@ -22,8 +22,14 @@ async function main() {
   const schemaName = `cf_native_obs_${process.pid}_${randomUUID().replaceAll('-', '').slice(0, 10)}`;
   const pgUrl = process.env.CF_TEST_PG_URL || 'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db';
   const endpoint = new URL(pgUrl);
-  assert.ok(['127.0.0.1', 'localhost'].includes(endpoint.hostname) && endpoint.port === '5433', 'Use only the local test PostgreSQL.');
-  assert.ok(endpoint.pathname === '/cf-dev-db' || /^\/cf_on0i_qa_[a-z0-9_]+_mastra$/.test(endpoint.pathname), 'Use only a known local test database.');
+  const overridesTarget = [...endpoint.searchParams.keys()].some((key) =>
+    ['host', 'hostaddr', 'service', 'servicefile', 'port', 'dbname', 'database'].includes(key.toLowerCase()));
+  assert.ok(['postgres:', 'postgresql:'].includes(endpoint.protocol) &&
+    ['127.0.0.1', 'localhost'].includes(endpoint.hostname) && Number(endpoint.port) > 0 && !overridesTarget,
+    'Use only an explicit local test PostgreSQL endpoint.');
+  assert.ok(endpoint.pathname === '/cf-dev-db' ||
+    /^\/cf_on0i_qa_[a-z0-9_]+_mastra$/.test(endpoint.pathname) ||
+    /^\/cf_[a-z0-9_]+_test$/.test(endpoint.pathname), 'Use only a known local test database.');
   const storage = new PostgresStore({ id: schemaName, connectionString: pgUrl, schemaName });
   let mastra;
   const originalFetch = globalThis.fetch;

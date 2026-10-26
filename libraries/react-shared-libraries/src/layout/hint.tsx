@@ -121,7 +121,7 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
     const node = bubble.current;
     if (!anchor || !node) return;
     const room = document.documentElement.clientWidth;
-    const width = node.getBoundingClientRect().width;
+    const { width, height } = node.getBoundingClientRect();
     const box = anchor.getBoundingClientRect();
     const flip =
       side === 'end' ? box.left + width > room - 8 : box.right - width < 8;
@@ -135,9 +135,14 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
       (anchor.closest('[dir]')?.getAttribute('dir') ??
         document.documentElement.dir) === 'rtl';
     const leftEdge = alignStart !== rtl;
+    const below = box.bottom + 8;
+    const viewportHeight = document.documentElement.clientHeight;
     setCoords({
-      top: box.bottom + 8,
-      left: leftEdge ? box.left : box.right - width,
+      top: below + height <= viewportHeight - 8
+        ? below
+        : Math.max(8, box.top - height - 8),
+      left: Math.max(8, Math.min(room - width - 8,
+        leftEdge ? box.left : box.right - width)),
     });
   }, [side]);
 

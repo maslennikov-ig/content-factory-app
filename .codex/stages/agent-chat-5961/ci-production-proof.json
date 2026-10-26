@@ -1,0 +1,318 @@
+{
+  "result": "PASS",
+  "release": "2c25a3d13bb7",
+  "privateTestedSource": "48e6c53fcde02695b3aa869116f33d5b937c245a",
+  "publicSource": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+  "registryDigest": "sha256:e3cd81454091854d3270c30f1f74aab632edcf891a096e2bf692f2dd4e181aa2",
+  "rollbackTag": "4ba4c5a44225",
+  "rollbackDigestVerified": true,
+  "ciProof": "ci-proof.json",
+  "childAcceptance": {
+    "agent": "approval_admission_race",
+    "pair": "gpt-6.1-sol/max",
+    "benefit": [
+      "parallel_latency",
+      "context_isolation"
+    ],
+    "accepted": true,
+    "delivered": [
+      "exact CI approval-admission reproduction",
+      "virtual single-condition correction green",
+      "deterministic native delivery barrier recipe"
+    ],
+    "ownedRepositoryFiles": [],
+    "cleanup": "read-only stream complete; external diagnostic logs retained"
+  },
+  "registryReadRecovery": {
+    "initialExit": 1,
+    "loginExit": 0,
+    "authenticatedManifestExit": 0,
+    "manifestEntries": 2,
+    "manifestSha256": "f4115669b203e3877193eb4023cf329069c1c1eb1b978d443e4715097bc64704",
+    "weightExit": 0
+  },
+  "releaseChecks": [
+    {
+      "name": "full-suite",
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "exitCode": 0,
+      "seconds": 2172.92
+    },
+    {
+      "name": "backend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 21.52
+    },
+    {
+      "name": "frontend-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 15.0
+    },
+    {
+      "name": "orchestrator-types",
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "exitCode": 0,
+      "seconds": 13.15
+    },
+    {
+      "name": "source-build",
+      "command": "pnpm run build",
+      "exitCode": 0,
+      "seconds": 93.28
+    },
+    {
+      "name": "branding",
+      "command": "node scripts/branding/brand-scan.cjs",
+      "exitCode": 0,
+      "seconds": 0.12
+    },
+    {
+      "name": "docs",
+      "command": "pnpm run docs:check",
+      "exitCode": 0,
+      "seconds": 0.72
+    },
+    {
+      "name": "process",
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "exitCode": 0,
+      "seconds": 0.22
+    },
+    {
+      "name": "diff",
+      "command": "git diff --check",
+      "exitCode": 0,
+      "seconds": 0.02
+    }
+  ],
+  "fullSuite": {
+    "jestPassedSuites": 772,
+    "jestPassedTests": 13485,
+    "jestExistingSkippedSuites": 7,
+    "jestExistingSkippedTests": 70,
+    "nodePassed": 167,
+    "nodeFailed": 0,
+    "nodeExistingSkipped": 4,
+    "pythonPassed": 50,
+    "logSha256": "ab647ee9cea36abfd14d95a2e4c6268c5eb68d8a94f70f719d3cb48541bedee7"
+  },
+  "imageChecks": [
+    {
+      "name": "suite-halves",
+      "exitCode": 0,
+      "seconds": 0.03
+    },
+    {
+      "name": "copy-exact-receipt",
+      "exitCode": 0,
+      "seconds": 4.53
+    },
+    {
+      "name": "exact-source-receipt",
+      "exitCode": 0,
+      "seconds": 0.07
+    },
+    {
+      "name": "source-archive",
+      "exitCode": 0,
+      "seconds": 1.52
+    },
+    {
+      "name": "image-build",
+      "exitCode": 0,
+      "seconds": 382.87
+    },
+    {
+      "name": "image-nginx",
+      "exitCode": 0,
+      "seconds": 2.38
+    },
+    {
+      "name": "image-sdk-patch",
+      "exitCode": 0,
+      "seconds": 1.12
+    },
+    {
+      "name": "commands-connect-owned-db",
+      "exitCode": 0,
+      "seconds": 0.52
+    },
+    {
+      "name": "image-commands-help",
+      "exitCode": 0,
+      "seconds": 17.31
+    },
+    {
+      "name": "commands-remove-owned-redis",
+      "exitCode": 0,
+      "seconds": 0.72
+    },
+    {
+      "name": "commands-disconnect-owned-db",
+      "exitCode": 0,
+      "seconds": 0.42
+    },
+    {
+      "name": "commands-remove-owned-network",
+      "exitCode": 0,
+      "seconds": 0.77
+    },
+    {
+      "name": "image-push",
+      "exitCode": 0,
+      "seconds": 150.84
+    }
+  ],
+  "sdkImageChunksExact": 8,
+  "schema": {
+    "before": {
+      "ok": true,
+      "diffExitCode": 0,
+      "sqlLines": 0,
+      "schemaApplied": false,
+      "prismaVersion": "6.5.0",
+      "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+      "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+    },
+    "after": {
+      "ok": true,
+      "diffExitCode": 0,
+      "sqlLines": 0,
+      "schemaApplied": false,
+      "prismaVersion": "6.5.0",
+      "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+      "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+    }
+  },
+  "runtime": {
+    "result": "PASS",
+    "mode": "after-retention",
+    "at": "2026-10-24T16:49:06.475631+00:00",
+    "release": "2c25a3d13bb7",
+    "pm2": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restartCount": 0
+      }
+    ],
+    "workerReadiness": {
+      "status": "ok"
+    },
+    "foreignContainersPreserved": 21,
+    "volumesPreserved": 21,
+    "suspendedSnapshotsPreserved": 6,
+    "threadsExact": 45,
+    "messagesExact": 374,
+    "usageRowsExact": 1247,
+    "newUsageRows": 0,
+    "settingsPreserved": true,
+    "protectedConfigPreserved": true,
+    "nativeSchemaFingerprint": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0",
+    "preexistingAdmittedRowsPreserved": 1
+  },
+  "sourceArchive": {
+    "commit": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+    "shortCommit": "2c25a3d13bb7",
+    "archive": "content-factory-source.tar.gz",
+    "downloadName": "content-factory-2c25a3d13bb7.tar.gz",
+    "bytes": 14839560,
+    "sha256": "ad934505d257a7acb34aead3694f6f0137731698a975dc5f292ec2b77be4cdf7",
+    "builtAt": "2026-10-24T16:29:56Z"
+  },
+  "browser": {
+    "url": "https://factory.aidevteam.ru/auth/login",
+    "layouts": [
+      {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "focusTag": "BUTTON",
+        "title": "Sign In \u00b7 Content Factory"
+      },
+      {
+        "width": 390,
+        "scrollWidth": 390,
+        "focusTag": "BUTTON",
+        "title": "Sign In \u00b7 Content Factory"
+      }
+    ],
+    "emailFields": 2,
+    "pageErrors": [],
+    "httpErrors": [],
+    "blocked": [],
+    "mutationsSent": 0,
+    "result": "PASS",
+    "release": "2c25a3d13bb7",
+    "publicSource": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+    "scope": "public login only; no authenticated chat, paid inference or production mutations"
+  },
+  "retention": {
+    "script": "scripts/release/retain-host-artifacts.sh",
+    "dryRunPassed": true,
+    "kept": [
+      "2c25a3d13bb7",
+      "4ba4c5a44225"
+    ],
+    "logSha256": "23697ba1bb48cd6227554099fd474970bd671918a9b9a0d12761c9df4596c786"
+  },
+  "cleanup": {
+    "removedOwnedHostHelpers": [
+      "schema-engine",
+      "schema-preflight.cjs",
+      "schema-preflight.sh"
+    ],
+    "removedOwnedLocalContainers": [
+      "cf-chat5961-ci-pg-20261024"
+    ],
+    "emptyOwnedSharedDirectoryRemoved": true,
+    "backupsRollbackPreviewForeignServicesPreserved": true
+  },
+  "preservation": {
+    "result": "PASS",
+    "checkedAt": "2026-10-24T16:49:45.710298+00:00",
+    "originalCheckoutHeadStatusUnchanged": true,
+    "originalDirtyFilesExact": 11,
+    "previewPortsAvailable": [
+      3496,
+      4296
+    ],
+    "previewProcessesExact": true,
+    "productionSource": "2c25a3d13bb7958b68ba789d237a7378a1054c2a",
+    "productionHealth": "healthy",
+    "productionRestarts": 0,
+    "http": [
+      {
+        "path": "/api/",
+        "status": 200
+      },
+      {
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "path": "/api/public/source/version",
+        "status": 200
+      }
+    ],
+    "paidCalls": 0
+  },
+  "paidCalls": 0,
+  "productionSwitches": 1,
+  "limits": [
+    "Real provider/editorial quality and authenticated production chat were not exercised; full dialogue and recovery acceptance remains local/frozen.",
+    "Existing environment skips remain explicit.",
+    "No separate watchdog for a wedged Mastra startup promise is added; a public exact native reservation is positive liveness evidence just like the existing workflow lease."
+  ]
+}

@@ -4,18 +4,26 @@ const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { loadRegistry, requestContextFor, servicesFrom, executeTool, IDENTITY } = require('./helpers/agent-capabilities.cjs');
 const registry = loadRegistry();
 let answers, calls;
+const chatClients = {
+  WEB_SEARCH_MAX_SOURCE_CHARS: 8_000,
+  getChatModel: async (_org, _temperature, _tokens, role) => ({ withStructuredOutput: () => ({ invoke: async prompt => {
+    calls.push({ role, prompt });
+    if (!answers.length) throw new Error('Unexpected model call');
+    return answers.shift();
+  } }) }),
+};
 const { IntakeService } = loadWithMocks('libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts', {
   '@contentfactory/nestjs-libraries/agent/agent.graph.service': { AgentGraphService: class {} },
   '@contentfactory/nestjs-libraries/integrations/integration.manager': { IntegrationManager: class {} },
   '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
-  '@contentfactory/nestjs-libraries/openai/ai.clients': {
-    WEB_SEARCH_MAX_SOURCE_CHARS: 8_000,
-    getChatModel: async (_org, _temperature, _tokens, role) => ({ withStructuredOutput: () => ({ invoke: async prompt => {
-      calls.push({ role, prompt });
-      if (!answers.length) throw new Error('Unexpected model call');
-      return answers.shift();
-    } }) }),
-  },
+  '@contentfactory/nestjs-libraries/openai/ai.clients': chatClients,
+  '../brief/content-brief.repository': { ContentBriefRepository: class {} },
+});
+const { PieceService } = loadWithMocks('libraries/nestjs-libraries/src/content-intelligence/pieces/piece.service.ts', {
+  '@contentfactory/nestjs-libraries/agent/agent.graph.service': { AgentGraphService: class {} },
+  '@contentfactory/nestjs-libraries/integrations/integration.manager': { IntegrationManager: class {} },
+  '@contentfactory/nestjs-libraries/openai/ai.clients': chatClients,
+  './piece.repository': { PieceRepository: class {} },
   '../brief/content-brief.repository': { ContentBriefRepository: class {} },
 });
 const input = '  Подготовь полный обзор двух независимых изменений.\nСтарый пример — только пример структуры.  ';
@@ -55,14 +63,70 @@ const build = () => {
     undefined, () => null, null, undefined, snapshots);
   return { service, rows, snapshots, sources, accepted, writes, research, fetch };
 };
-const run = (id, value, built, identity = {}) => {
+const run = (id, value, built, identity = {}, resume = {}) => {
   const capability = registry.CAPABILITY_CATALOGUE.find(row => row.id === id);
   const tool = registry.buildCapabilityTool(capability, { services: servicesFrom({
     IntakeService: built.service, WebResearchService: { research: built.research }, PieceService: built.pieces }), language: 'ru', entrance: 'chat' });
-  return executeTool(tool, value, { requestContext: requestContextFor(registry, { ...IDENTITY, ...identity }) });
+  return executeTool(tool, value, { requestContext: requestContextFor(registry, { ...IDENTITY, ...identity }), ...resume });
 };
 const unwrap = output => output.summary?.untrustedData?.value ?? output.summary;
 beforeEach(() => { answers = []; calls = []; });
+
+test.each(['choice', 'delegate'])('fresh create preserves an explicit human fact choice despite sufficient supplied material and resumes one %s', async mode => {
+  const built = build();
+  const now = new Date('2026-10-20T09:00:00Z');
+  let piece;
+  built.writes.mockImplementation(async (_org, saved) => {
+    piece = { id: 'piece-1', code: 'cnt-1', kind: 'CORE', ...saved, language: 'ru',
+      tags: null, archivedAt: null, createdAt: now, brandProfileVersion: null };
+    return { id: piece.id, code: piece.code };
+  });
+  const updated = jest.fn(async (_org, _id, saved) => {
+    expect(saved.expected.body).toBe(piece.body);
+    expect(saved.expected.brief).toEqual(piece.brief);
+    piece = { ...piece, body: saved.body, brief: saved.brief, ...(saved.title ? { title: saved.title } : {}) };
+  });
+  built.pieces = new PieceService({
+    getPiece: async (org, id) => org === IDENTITY.organizationId && id === piece?.id ? piece : null,
+    listPieceIds: async () => [{ id: piece.id }], listIntegrations: async () => [], adaptationsByPiece: async () => [],
+  }, { start: async function* () {} }, { getSocialIntegration: () => undefined }, () => now, () => null,
+  { executeAiOperation: async (_org, _operation, callback) => callback() }, { updateCore: updated }, null, null, null, null);
+  const question = 'Какие из предоставленных фактов вы разрешаете использовать в тексте?';
+  const understood = brief({ questions: [{ about: 'material', question, options: [quoteA, quoteB] }] });
+  understood.understanding = { version: 'intake-request/v1', goal: 'Написать после выбора фактов человеком.',
+    materials: [{ role: 'evidence', origin: 'user', text: `${quoteA}\n${quoteB}` }],
+    constraints: { research: 'allowed', humanFactSelection: true } };
+  answers = [understood, { text: 'Alpha supports native sessions.' }];
+  const input = { text: 'Покажи предоставленные факты и дождись моего выбора перед написанием.',
+    material: `${quoteA}\n${quoteB}`, inputKind: 'instruction', research: 'none' };
+  const created = await run('piece.create', input, built);
+  expect(built.writes.mock.calls[0][1].body).toBe('');
+  expect(created.suspended[0]).toMatchObject({ kind: 'domain-questions', answers: [],
+    questions: [expect.objectContaining({ question, options: [expect.objectContaining({ label: quoteA }), expect.objectContaining({ label: quoteB })] })] });
+  expect(created.output).toBeUndefined();
+  expect(built.writes.mock.calls[0][1].brief.request.constraints.humanFactSelection).toBe(true);
+  expect(calls.map(call => call.role)).toEqual(['extract']);
+  const card = created.suspended[0];
+  const completed = await run('piece.create', input, built, {}, {
+    suspendPayload: JSON.parse(JSON.stringify(card)),
+    resumeData: mode === 'choice'
+      ? { answers: [{ key: card.questions[0].key, mode: 'choice', optionIds: [card.questions[0].options[0].id] }] }
+      : { decideForPerson: true },
+  });
+  expect(completed.output).toMatchObject({ ok: true, summary: { pieceId: 'piece-1', questions: 0 } });
+  expect(completed.suspended).toEqual([]);
+  expect(piece.body).toBe('Alpha supports native sessions.');
+  expect(piece.brief.questions.items).toEqual([]);
+  expect(piece.brief.questions.answered).toContainEqual(expect.objectContaining({
+    key: card.questions[0].key, origin: mode === 'choice' ? 'person' : 'model', text: mode === 'choice' ? quoteA : '',
+  }));
+  expect(piece.brief.request.constraints.humanFactSelection).toBe(true);
+  expect(built.writes).toHaveBeenCalledTimes(1);
+  expect(updated).toHaveBeenCalledTimes(1);
+  expect(calls.map(call => call.role)).toEqual(['extract', 'draft']);
+  expect(built.research).not.toHaveBeenCalled();
+  expect(built.fetch).not.toHaveBeenCalled();
+});
 
 test.each(['piece.create', 'piece.create.from-research'])('%s preserves two owned facts and late quotes into the saved brief without fetching again', async capability => {
   const built = build();
@@ -827,7 +891,7 @@ test('reader cache identity cannot replay the old supplied-query no-reader outco
   expect(producer.calls.model).toHaveLength(1);
 });
 
-test('actual producer insufficient-evidence assessment keeps candidates inspectable but refuses explicit reuse before any model, claim or writer', async () => {
+test('actual producer insufficient-evidence assessment permits an exact selected passage and keeps its gaps', async () => {
   resetProducer();
   const passage='The captured article describes unrelated background and supplies no requested result.';
   producer.configure({ exact:[{url:'https://example.org/unrelated',title:'Unrelated article',content:passage,rawContent:passage}] },prompt=>{
@@ -843,12 +907,17 @@ test('actual producer insufficient-evidence assessment keeps candidates inspecta
   expect(output.assessment).toMatchObject({status:'insufficient_evidence'});
   const candidate=output.facts.find(fact=>fact.sourcePassage);
   expect(candidate).toMatchObject({status:'unverified',selected:false});
-  answers=[brief(),{text:'This must never be written.'}];
+  answers=[brief(),{text:'The retained source does not confirm the requested result.'}];
   const result=await run('piece.create.from-research',{snapshotKey:output.snapshotKey,factKeys:[candidate.factKey],text:'Explain the requested capability.'},built);
-  expect(result.output).toMatchObject({ok:false,code:'INTAKE_RESEARCH_INCOMPLETE'});
-  expect(calls).toEqual([]);
-  expect(built.writes).not.toHaveBeenCalled();
-  expect([...built.rows.keys()].some(key=>key.endsWith(':continuation'))).toBe(false);
+  expect(result.output.ok).toBe(true);
+  expect(unwrap(result.output)).toMatchObject({outcome:'created',pieceId:'piece-1'});
+  expect(calls.length).toBeGreaterThan(0);
+  expect(built.writes).toHaveBeenCalledTimes(1);
+  expect([...built.rows.keys()].some(key=>key.endsWith(':continuation'))).toBe(true);
+  const retained=await built.service.readStoredResearchEvidence(IDENTITY.organizationId,IDENTITY.userId,output.snapshotKey);
+  expect(retained.summary).toMatchObject({status:'insufficient_evidence'});
+  expect(retained.facts.find(fact=>fact.factKey===candidate.factKey)).toMatchObject({status:'unverified',selected:false});
+  expect(built.fetch).not.toHaveBeenCalled();
   expect(producer.calls.model).toHaveLength(1);
 });
 
@@ -900,6 +969,8 @@ test('actual producer unresolved temporal scope refuses native reuse even with a
   expect(output.facts.filter(fact=>!fact.sourcePassage)).toEqual([]);
   const candidate=output.facts.find(fact=>fact.sourcePassage);
   expect(candidate).toMatchObject({status:'unverified',selected:false,quote:passage});
+  const retained=await built.service.readStoredResearchEvidence(IDENTITY.organizationId,IDENTITY.userId,output.snapshotKey);
+  expect(retained.summary).toMatchObject({status:'insufficient_evidence',scopeStatus:'needs_clarification'});
   answers=[brief(),{text:'This must never be written.'}];
   const result=await run('piece.create.from-research',{snapshotKey:output.snapshotKey,factKeys:[candidate.factKey],text:query},built);
   expect(result.output).toMatchObject({ok:false,code:'INTAKE_RESEARCH_INCOMPLETE'});
@@ -1024,7 +1095,7 @@ test('multi-capture qualifies colliding keys and preserves immutable members, as
   expect(built.writes).toHaveBeenCalledTimes(1);
 });
 
-test('multi-capture ownership, status, missing request and mixed contracts fail before any claim, model or writer',async()=>{
+test('multi-capture ownership, missing request and mixed contracts fail before any claim, model or writer',async()=>{
   const built=build(),references=await capturePair(built);
   const foreign=await run('piece.create.from-research',{references,text:input},built,{userId:'foreign'});
   expect(foreign.output).toMatchObject({ok:false,code:'INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE'});
@@ -1032,15 +1103,37 @@ test('multi-capture ownership, status, missing request and mixed contracts fail 
   expect(noRequest.output.ok).toBe(false);
   const mixed=await run('piece.create.from-research',{references,snapshotKey:references[0].snapshotKey,factKeys:['alpha'],text:input},built);
   expect(mixed.output.ok).toBe(false);
-  const raw=await built.service.readStoredResearchEvidence(IDENTITY.organizationId,IDENTITY.userId,references[1].snapshotKey);
-  raw.summary={status:'insufficient_evidence'};
-  const key=[...built.rows.keys()].find(k=>k.endsWith(references[1].snapshotKey));
-  built.rows.set(key,JSON.stringify({organizationId:IDENTITY.organizationId,actorUserId:IDENTITY.userId,research:raw}));
-  const incomplete=await run('piece.create.from-research',{references,text:input},built);
-  expect(incomplete.output).toMatchObject({ok:false,code:'INTAKE_RESEARCH_INCOMPLETE'});
   expect([...built.rows.keys()].some(k=>k.endsWith(':continuation'))).toBe(false);
   expect(calls).toEqual([]);
   expect(built.writes).not.toHaveBeenCalled();
+});
+
+test.each(['insufficient_evidence','review_unavailable'])('a %s capture can contribute individually confirmed facts to a saved draft without upgrading its assessment',async status=>{
+  const built=build(),references=await capturePair(built);
+  const raw=await built.service.readStoredResearchEvidence(IDENTITY.organizationId,IDENTITY.userId,references[1].snapshotKey);
+  raw.summary={status,gaps:['Coverage remains incomplete.']};
+  const key=[...built.rows.keys()].find(k=>k.endsWith(references[1].snapshotKey));
+  built.rows.set(key,JSON.stringify({organizationId:IDENTITY.organizationId,actorUserId:IDENTITY.userId,research:raw}));
+  answers=[brief(),{text:'Alpha supports native sessions. Beta preserves interrupted streams; coverage remains incomplete.'}];
+
+  const result=await run('piece.create.from-research',{references,text:input},built);
+
+  expect(result.output.ok).toBe(true);
+  expect(unwrap(result.output)).toMatchObject({pieceId:'piece-1',outcome:'created'});
+  expect(built.writes).toHaveBeenCalledTimes(1);
+  const savedBrief=built.writes.mock.calls[0][1].brief;
+  expect(savedBrief.brief.facts).toEqual(expect.arrayContaining([
+    expect.objectContaining({sourceUrl:urlA,quote:quoteA,verified:true}),
+    expect.objectContaining({sourceUrl:urlB,quote:quoteB,verified:true}),
+  ]));
+  const merged=await built.service.readStoredResearchEvidence(IDENTITY.organizationId,IDENTITY.userId,
+    unwrap(result.output).reusedResearchId);
+  expect(merged.summary).toMatchObject({status:'partial'});
+  expect(merged.summary.captures).toEqual(expect.arrayContaining([
+    expect.objectContaining({snapshotKey:references[1].snapshotKey,
+      assessment:{status,gaps:['Coverage remains incomplete.']}}),
+  ]));
+  expect(merged.summary.status).toBe('partial');
 });
 
 test('multi-capture atomic claims exclude racing singleton and overlapping bundles and leave no partial locks',async()=>{

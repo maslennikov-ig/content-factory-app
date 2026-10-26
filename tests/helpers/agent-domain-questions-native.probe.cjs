@@ -85,14 +85,24 @@ async function child(phase, schemaName, statePath) {
     assert.equal(partial.suspendPayload.answers[0].text, 'Мои точные слова.');
     assert.equal(read().applied, 0);
     await assert.rejects(send(answer(first, {decideForPerson: true})), error => error.getStatus?.() === 409);
+    const session = await runtime.service.sessionFor(IDENTITY, threadId);
+    await until(() => session.suspensions.resolve({runId: partial.runId, toolCallId: partial.toolCallId}), 'warm native suspension');
+    const parked = session.suspensions.resolve({runId: partial.runId, toolCallId: partial.toolCallId});
+    const address = {runId: partial.runId, toolCallId: partial.toolCallId, threadId, resourceId: parked.resourceId};
+    session.suspensions.delete(address);
+    assert.equal(session.suspensions.has(address), false);
+    await send(answer(partial, {answers: [{key: 'ask-1', mode: 'delegate'}]}));
+    const restored = (await handler.getThread(ORG, USER, threadId)).pending[0];
+    assert.equal(restored.suspendPayload.activeKey, 'ask-2');
+    assert.equal(read().applied, 0);
     process.send({phase: 'ready'});
     return;
   }
   try {
     const pending = (await handler.getThread(ORG, USER, threadId)).pending[0];
-    assert.equal(pending.suspendPayload.activeKey, 'ask-1');
+    assert.equal(pending.suspendPayload.activeKey, 'ask-2');
     assert.equal(pending.suspendPayload.answers[0].text, 'Мои точные слова.');
-    await send(answer(pending, {answers: [{key: 'ask-1', mode: 'delegate'}]}));
+    await send(answer(pending, {answers: [{key: 'ask-2', mode: 'delegate'}]}));
     const after = await handler.getThread(ORG, USER, threadId);
     assert.equal(after.pending.length, 0);
     assert.equal(after.execution.state, 'settled');
@@ -100,7 +110,7 @@ async function child(phase, schemaName, statePath) {
     assert.equal(read().applied, 1);
     await assert.rejects(send(answer(pending, {decideForPerson: true})), error => error.getStatus?.() === 409);
     process.send({phase: 'complete', result: {nativePartialSaved: true, sameToolCallNewCard: true, processRecreated: true,
-      staleDuplicateRejected: true, created: read().created, applied: read().applied, settled: true}});
+      staleDuplicateRejected: true, warmMirrorRebuilt: true, created: read().created, applied: read().applied, settled: true}});
   } finally { await runtime.close({drop: true}); }
   process.exit(0);
 }
@@ -127,6 +137,7 @@ async function main() {
     core: {text: 'Сохранённая суть', questions: {round: 1, answered: [], items: [
       {field: 'position', question: 'Дословный длинный вопрос '.repeat(30), suggested: null, options: Array.from({length: 7}, (_, i) => `Вариант ${i + 1}`)},
       {field: 'facts', key: 'ask-1', question: 'Ваш собственный эпизод?', suggested: null},
+      {field: 'facts', key: 'ask-2', question: 'Какое ограничение оставить явным?', suggested: null},
     ]}}, adaptations: []}}));
   try {
     const schemaName = `cf_domain_questions_${process.pid}`;

@@ -38,7 +38,9 @@ const { ru, en } = loadTypeScriptModule('apps/frontend/src/components/agents/age
 const compressed = [];
 const composer = loadWithMocks('apps/frontend/src/components/agents/agent.composer.tsx', {
   react: React,
-  '@contentfactory/frontend/components/ui/allowance-hint': { AllowanceHint: () => null },
+  '@contentfactory/frontend/components/ui/allowance-hint': {
+    AllowanceHint: ({ presentation }) => h('span', { 'data-presentation': presentation }),
+  },
   '@contentfactory/frontend/components/media/library-image-compression': {
     compressLibraryImage: async (file) => {
       compressed.push(file.name);
@@ -92,6 +94,22 @@ const switchToLibrary = async (name = 'кофейня.png') => {
 };
 
 describe('pictures in the composer', () => {
+  test('attachment formats sit behind a focusable question mark', async () => {
+    await mount({});
+
+    const trigger = document.querySelector(`button[aria-label="${ru.composer.attachHintLabel}"]`);
+    expect(trigger).not.toBeNull();
+    expect(document.body.textContent).not.toContain(ru.composer.attachHint);
+
+    await act(async () => fireEvent.focus(trigger));
+    expect(document.body.textContent).toContain(ru.composer.attachHint);
+  });
+
+  test('the chat requests the scoped allowance presentation', async () => {
+    await mount({});
+    expect(document.querySelector('[data-presentation="chat"]')).not.toBeNull();
+  });
+
   test('a busy picture remains unsent and stays in the composer', async () => {
     const sent = await mount({ busy: true });
     await paste([picture()]);

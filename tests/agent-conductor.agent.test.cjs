@@ -69,9 +69,7 @@ describe('what the model is offered', () => {
         'piece_create',
         'piece_delete',
         'avatar_activate',
-        'skill',
         'skill_read',
-        'skill_search',
       ])
     );
   });
@@ -117,9 +115,7 @@ describe('what the model is offered', () => {
         'plan_ahead',
         'plan_calendar',
         'plan_ready',
-        'skill',
         'skill_read',
-        'skill_search',
         'workspace_snapshot',
       ].sort()
     );
@@ -139,9 +135,12 @@ describe('what the model is offered', () => {
     expect(wrapped.rule).toBe(UNTRUSTED_DATA_RULE);
     expect(JSON.stringify(wrapped.value)).toContain(report.injection);
     expect(wrapped.value.pieces[0]).toMatchObject({ id: 'p1', code: 'cnt-1' });
-    // Group know-how is disclosed as skills, not inlined.
+    // Bundled know-how is ready before the first model response, without a gate.
     expect(system).toContain('workspace-start');
     expect(system).toContain('avatars');
+    expect(system).not.toContain('activate it immediately');
+    expect(report.editorTurn.tools).not.toContain('skill');
+    expect(report.editorTurn.tools).not.toContain('skill_search');
   });
 });
 

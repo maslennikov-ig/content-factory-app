@@ -93,3 +93,18 @@ export const PIECE_NOT_SAVED_MESSAGES = {
   ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
   en: 'The piece could not be saved. Nothing is lost — try again.',
 } as const;
+
+/** A completed extraction returned an invalid brief before any piece write.
+ * Model usage may already have been charged; this never grants replay. */
+export class IntakeBriefInvalidError extends Error {
+  readonly code = 'INTAKE_BRIEF_INVALID';
+  readonly status = 422;
+  declare readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super('The model returned an invalid brief. No piece was saved.');
+    this.name = 'IntakeBriefInvalidError';
+    // Keep raw parser/model details for internal inspection only.
+    Object.defineProperty(this, 'cause', { value: cause, enumerable: false });
+  }
+}

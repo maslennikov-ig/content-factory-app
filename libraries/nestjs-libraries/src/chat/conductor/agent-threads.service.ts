@@ -554,6 +554,11 @@ export class AgentThreadsService {
         if (!saved.messages.some(message => message.role === 'assistant' && message.id === response.messageId)) {
           throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
         }
+        if (!active && requestId && !(await this.mastraService.settleStoppedNativeRun({
+          threadId, resourceId, runId: owned.runId, requestId,
+        }))) {
+          throw new ServiceUnavailableException('Native Stop could not confirm its terminal settlement.');
+        }
       }
     }
     return {

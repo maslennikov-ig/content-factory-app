@@ -2626,6 +2626,15 @@ export type VoiceCheckReportV1 = {
  * Находки совещательны. Ни одна из трёх не запрещает сохранить, отправить или
  * опубликовать текст.
  */
+/** Advisory review of the generated draft, retained in native chat results. */
+export type AdaptationQualityReviewV1 = {
+  status: 'passed' | 'partial' | 'unavailable';
+  missingRequirements: string[];
+  unsupportedClaims: string[];
+  reviews: number;
+  repaired: boolean;
+};
+
 export type AdaptationChecksV1 = {
   antiCopy: AntiCopyReportV1 | null;
   slop: SlopReportV1 | null;
@@ -2742,6 +2751,7 @@ export type IntakeEventV1 =
       provenance: unknown;
       draftGaps: unknown[];
       checks: AdaptationChecksV1;
+      qualityReview?: AdaptationQualityReviewV1;
     }
   | { name: 'done'; postIds: string[] }
   | {

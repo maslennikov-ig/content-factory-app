@@ -28,7 +28,7 @@ module.exports = {
     {
       say: 'Что на этой картинке?',
       pictures: [{ name: 'скриншот.png', base64: PNG, key: KEY }],
-      model: [[['tool', 'skill', { name: 'media' }]], [['text', 'На картинке — одна точка.']]],
+      model: [[['tool', 'workspace_snapshot', {}]], [['text', 'На картинке — одна точка.']]],
     },
     {
       say: 'А какого она цвета?',
@@ -37,6 +37,8 @@ module.exports = {
   ],
   check: (run) => {
     const [looked, later] = run.turns;
+    expect(run.firstCall.system).toContain('Pictures live in the media library');
+    expect(run.firstCall.tools).not.toContain('skill');
     expect(looked.refused).toBeNull();
     expect(later.refused).toBeNull();
     // The model saw the picture in the request that carried it…

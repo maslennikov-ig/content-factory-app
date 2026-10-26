@@ -16,8 +16,14 @@ async function main() {
   const schemaName = `cf_native_obs_shutdown_${process.pid}_${randomUUID().replaceAll('-', '').slice(0, 8)}`;
   const pgUrl = process.env.CF_TEST_PG_URL || 'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db';
   const endpoint = new URL(pgUrl);
-  assert.ok(['127.0.0.1', 'localhost'].includes(endpoint.hostname) && endpoint.port === '5433');
-  assert.ok(endpoint.pathname === '/cf-dev-db' || /^\/cf_on0i_qa_[a-z0-9_]+_mastra$/.test(endpoint.pathname));
+  const overridesTarget = [...endpoint.searchParams.keys()].some((key) =>
+    ['host', 'hostaddr', 'service', 'servicefile', 'port', 'dbname', 'database'].includes(key.toLowerCase()));
+  assert.ok(['postgres:', 'postgresql:'].includes(endpoint.protocol) &&
+    ['127.0.0.1', 'localhost'].includes(endpoint.hostname) && Number(endpoint.port) > 0 && !overridesTarget,
+    'Use only an explicit local test PostgreSQL endpoint.');
+  assert.ok(endpoint.pathname === '/cf-dev-db' ||
+    /^\/cf_on0i_qa_[a-z0-9_]+_mastra$/.test(endpoint.pathname) ||
+    /^\/cf_[a-z0-9_]+_test$/.test(endpoint.pathname), 'Use only a known local test database.');
   let poolEnds = 0;
   class OwnedPool extends Pool {
     constructor(options) {

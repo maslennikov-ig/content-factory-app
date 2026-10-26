@@ -102,9 +102,9 @@ function loadHint() {
 
 const hint = loadHint();
 
-const render = (state) =>
+const render = (state, presentation = 'default') =>
   renderToStaticMarkup(
-    React.createElement(hint.AllowanceHintView, { state, language: 'ru' })
+    React.createElement(hint.AllowanceHintView, { state, language: 'ru', presentation })
   );
 
 describe('the allowance line', () => {
@@ -154,6 +154,16 @@ describe('the allowance line', () => {
 
     expect(markup).toContain('Ключ пространства: лимита нет');
     expect(markup).not.toMatch(/\d/);
+  });
+
+  test('the chat hides no-limit details but keeps allowances and blocking states visible', () => {
+    expect(render({ status: 'workspace_key' }, 'chat')).toBe('');
+    expect(render({ status: 'unlimited' }, 'chat')).toBe('');
+    expect(render({ status: 'included', remaining: 2, limit: 10, resetsAt: '2026-10-04T00:00:00.000Z' }, 'chat'))
+      .toContain('Обращений к ИИ осталось: 2 из 10');
+    for (const status of ['exhausted', 'unavailable', 'no_allowance', 'error']) {
+      expect(render({ status }, 'chat')).not.toBe('');
+    }
   });
 
   test('an exhausted allowance uses the wording of the server refusal', () => {
@@ -270,5 +280,22 @@ describe('the allowance line', () => {
     expect(hint.ALLOWANCE_API).toBe('/settings/ai/allowance');
     expect(swrCalls.at(-1).key).toBe('/settings/ai/allowance');
     expect(markup).toContain('Считаем остаток…');
+  });
+
+  test('the shared container keeps its default and accepts the scoped chat presentation', () => {
+    const previousAnswer = swrAnswer;
+    swrAnswer = {
+      data: { mode: 'workspace_key' },
+      error: undefined,
+      isLoading: false,
+    };
+    try {
+      expect(renderToStaticMarkup(React.createElement(hint.AllowanceHint)))
+        .toContain('Ключ пространства: лимита нет');
+      expect(renderToStaticMarkup(React.createElement(hint.AllowanceHint, { presentation: 'chat' })))
+        .toBe('');
+    } finally {
+      swrAnswer = previousAnswer;
+    }
   });
 });

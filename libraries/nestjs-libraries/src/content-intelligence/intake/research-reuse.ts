@@ -64,8 +64,13 @@ export const selectedSourcePassages = (snapshot: ResearchReuseSnapshot, passages
 };
 
 export const selectReusableResearch = (snapshot: ResearchReuseSnapshot, keys?: string[]): PieceFactV2[] => {
-  const status = (snapshot.summary as { status?: string } | null)?.status;
-  if (['empty', 'failed', 'needs_clarification', 'unsupported', 'insufficient_evidence', 'review_unavailable'].includes(status ?? '')) {
+  const summary = snapshot.summary as { status?: string; scopeStatus?: string } | null;
+  const status = summary?.status;
+  // Insufficient or unavailable overall review is retained as a limitation;
+  // it does not erase independently selected facts with their own source and
+  // quote checks below. Person-owned clarification still blocks reuse.
+  if (summary?.scopeStatus === 'needs_clarification' ||
+      ['empty', 'failed', 'needs_clarification', 'unsupported'].includes(status ?? '')) {
     throw researchReuseError('INTAKE_RESEARCH_INCOMPLETE', 'The saved research has no assessed usable outcome; resolve its gaps before writing.');
   }
   const chosen = keys ?? snapshot.facts.filter(fact => fact.verified && fact.status === 'confirmed').map(fact => fact.factKey!);

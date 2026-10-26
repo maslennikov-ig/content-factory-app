@@ -3,8 +3,10 @@ import { z } from 'zod';
 /** Meaning is supplied by the existing model, never inferred from a phrase list. */
 export const INTAKE_UNDERSTANDING_VERSION = 'intake-request/v1' as const;
 
-const machineDate = z.string().max(80).refine(value => {
-  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value)) return false;
+// Keep the lexical shape in JSON Schema for constrained model decoding; the
+// refinement additionally rejects impossible calendar days at the boundary.
+const machineDatePattern = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/;
+const machineDate = z.string().max(80).regex(machineDatePattern).refine(value => {
   const day = value.slice(0, 10);
   return Number.isFinite(Date.parse(value)) && new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
 }, 'Expected an explicit valid YYYY-MM-DD date or ISO timestamp with timezone');

@@ -15,6 +15,8 @@ import {
   consentAnswer,
   DECIDE_FOR_PERSON_ANSWER,
   planAnswer,
+  readSavedAdaptationQualityReview,
+  type AgentAdaptationReviewFindings,
   type AgentApprovalState,
   type AgentArtifact,
   type AgentArtifactKind,
@@ -29,6 +31,7 @@ import { AgentGlyph, type AgentGlyphName } from './agent.icons';
 import { AgentMarkdown } from './agent.markdown';
 import { pictureAvailable } from './agent.media';
 import { usePieceArtifact } from './agent.piece-data';
+import { Disclosure } from '../ui/disclosure';
 import { useUser } from '../layout/user.context';
 import { ErrorState, SkeletonRows } from '../ui/surface';
 import { useVideoWords } from '../videos/video.copy';
@@ -345,6 +348,9 @@ export function ArtifactLine({
       ? artifact.data.questions
       : 0;
   const voiceScore = readVoiceScore(artifact.data.voiceScore);
+  const qualityReview = artifact.kind === 'adaptation' && !removed
+    ? readSavedAdaptationQualityReview(artifact.data)
+    : null;
   return (
     <div
       data-agent-artifact={artifact.kind}
@@ -400,6 +406,39 @@ export function ArtifactLine({
           <AgentGlyph name="right" size={14} />
         </Button>
       )}
+      {qualityReview ? (
+        <Disclosure
+          className="w-full min-w-0 border-t border-cf-border pt-1"
+          summary={words.card.qualityReview.summary}
+          contentClassName="flex flex-col gap-2 px-2 pb-2 pt-2"
+        >
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {qualityReview.status === 'unavailable'
+              ? words.card.qualityReview.unavailable
+              : words.card.qualityReview.saved}
+          </p>
+          {qualityReview.missingRequirements.length ? (
+            <section>
+              <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.missingRequirements}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+                {qualityReview.missingRequirements.map((finding, index) => (
+                  <li key={`missing-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {qualityReview.unsupportedClaims.length ? (
+            <section>
+              <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.unsupportedClaims}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+                {qualityReview.unsupportedClaims.map((finding, index) => (
+                  <li key={`unsupported-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </Disclosure>
+      ) : null}
       {questions > 0 && !removed ? (
         // The piece is written but not finished: its open questions wait on
         // the piece card (kcxz.29, D4).
@@ -1522,6 +1561,7 @@ export function SubagentCard({
 export function ErrorCard({
   title,
   code,
+  reviewFindings,
   network,
   refusal = false,
   onRetry,
@@ -1530,6 +1570,8 @@ export function ErrorCard({
 }: {
   title: string | null;
   code: string | null;
+  /** Literal semantic-review findings saved with this rejected adaptation. */
+  reviewFindings?: AgentAdaptationReviewFindings;
   /** The request never came back, not a refusal. */
   network?: boolean;
   /**
@@ -1570,6 +1612,34 @@ export function ErrorCard({
         <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{known.what}</p>
         <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{known.next}</p>
       </div>
+      {reviewFindings && (reviewFindings.missingRequirements.length || reviewFindings.unsupportedClaims.length) ? (
+        <Disclosure
+          className="mt-2 border-t border-cf-border pt-1"
+          summary={w.reviewFindings.summary}
+          contentClassName="flex flex-col gap-2 pt-2"
+        >
+          {reviewFindings.missingRequirements.length ? (
+            <section>
+              <p className="cf-label-md text-cf-ink">{w.reviewFindings.missingRequirements}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+                {reviewFindings.missingRequirements.map((finding, index) => (
+                  <li key={`missing-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {reviewFindings.unsupportedClaims.length ? (
+            <section>
+              <p className="cf-label-md text-cf-ink">{w.reviewFindings.unsupportedClaims}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+                {reviewFindings.unsupportedClaims.map((finding, index) => (
+                  <li key={`unsupported-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </Disclosure>
+      ) : null}
       {code && !known.known ? (
         <p className="cf-caption text-cf-ink-muted">{w.code(code)}</p>
       ) : null}

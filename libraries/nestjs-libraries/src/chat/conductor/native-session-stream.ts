@@ -120,6 +120,30 @@ export async function streamNativeSession(input: {
     runId = accepted.runId;
   } else {
     runId = input.resume?.runId ?? input.approvals!.runId;
+    if (input.resume) {
+      const address = { runId, toolCallId: input.resume.toolCallId, threadId: input.threadId, resourceId: input.resourceId };
+      if (!session.suspensions.has(address)) {
+        // Later questions of the same tool can outlive its warm Session mirror.
+        // Rebuild only that native entry from the owning agent's persisted
+        // suspension, before a stream can acknowledge the human answer.
+        const perPage = 100;
+        let toolName: string | undefined;
+        for (let page = 0; ; page++) {
+          const { runs, total } = await agent.listSuspendedRuns({
+            threadId: input.threadId, resourceId: input.resourceId, page, perPage,
+          });
+          const saved = runs.find(run => run.runId === runId && run.threadId === input.threadId && run.resourceId === input.resourceId);
+          const call = saved?.toolCalls.find(call => call.toolCallId === address.toolCallId);
+          if (call && !call.requiresApproval && typeof call.toolName === 'string' && call.toolName) {
+            toolName = call.toolName;
+            break;
+          }
+          if ((page + 1) * perPage >= total) break;
+        }
+        if (!toolName) throw Object.assign(new Error('No current native suspension at this address.'), { code: 'AGENT_RUN_NOT_PENDING' });
+        session.suspensions.register({ ...address, toolName });
+      }
+    }
     // Native event indices include lifecycle events. Subscribe before resuming
     // and start after the old segment so a stored approval is not replayed.
     const history = await agent.pubsub.getHistory(AGENT_STREAM_TOPIC(runId));
@@ -163,11 +187,18 @@ export async function streamNativeSession(input: {
     start(controller) {
       notifyGate = (toolCallId: string) => {
         const gate = shownGates.get(toolCallId);
-        if (!gate || closed || announced.has(toolCallId)) return;
+        if (!gate || closed) return;
         const address = { runId: gate.runId, toolCallId, threadId: input.threadId, resourceId: input.resourceId };
-        const parked = gate.kind === 'approval' ? session.approval.isArmed(address) : session.suspensions.has(address);
+        // A natively approved tool can then suspend for an answer at the same
+        // address. Session's current suspension wins over an older replayed
+        // approval chunk; the UI reads its payload from native saved state.
+        const suspended = session.suspensions.has(address);
+        const phase = suspended ? 'suspension' : gate.kind;
+        const key = `${gate.runId}:${toolCallId}:${phase}`;
+        if (announced.has(key)) return;
+        const parked = suspended || (gate.kind === 'approval' && session.approval.isArmed(address));
         if (parked) {
-          announced.add(toolCallId);
+          announced.add(key);
           controller.enqueue({ type: 'data-native-input-wait', data: { runId: gate.runId, toolCallId }, transient: true });
         }
       };

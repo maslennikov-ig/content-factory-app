@@ -115,6 +115,70 @@ test('borrowed factual material does not manufacture an opinion question; a miss
   expect(modelCalls.filter(call => call.role === 'draft')).toHaveLength(1);
 });
 
+test('an explicit sufficient-input decision does not turn optional suggestions into blocking questions', async () => {
+  const { service, writes, searches } = build();
+  answers = [brief({ inputSufficient: true, questions: [
+    { about: 'material', question: 'Есть ли дополнительные материалы?', options: [] },
+    { about: 'format', question: 'Нужны ли ещё варианты оформления?', options: [] },
+  ] }), { text: 'Заметка из достаточного исходного материала.' }];
+  const plan = await service.prepare('org', { input: 'Перепиши эту заметку понятно.', inputKind: 'instruction', language: 'ru' });
+  const events = await drain(service.run('org', plan, 'user'));
+  expect(events.filter(event => event.name === 'questions')).toEqual([]);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'draft']);
+  expect(writes[0].body).toBe('Заметка из достаточного исходного материала.');
+  expect(searches).toEqual([]);
+  expect(plan.interview).toEqual([]);
+});
+
+test.each([false, true])('an explicit human fact choice without a model question cannot become a draft (skip interview: %s)', async skipInterview => {
+  const { service, writes, searches } = build();
+  const request = meaning({ evidenceNeeds: [], constraints: { research: 'allowed', humanFactSelection: true } });
+  answers = [brief({ understanding: request, inputSufficient: true }), { text: 'Несогласованный черновик.' }];
+  const plan = await service.prepare('org', { input: 'Дождись моего выбора предоставленных фактов перед написанием.',
+    inputKind: 'instruction', language: 'ru', skipInterview });
+  const events = await drain(service.run('org', plan, 'user'));
+  expect(events.find(event => event.name === 'error')?.code).toBe('INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON');
+  expect(events.at(-1)).toEqual({ name: 'done', pieceId: null });
+  expect(writes).toEqual([]);
+  expect(searches).toEqual([]);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract']);
+});
+
+test('skipping the ordinary interview and a contrary brief cannot waive a supplied human fact choice', async () => {
+  const { service, writes } = build();
+  const request = meaning({ constraints: { research: 'allowed', humanFactSelection: true } });
+  const question = 'Какие предоставленные факты вы выбираете для текста?';
+  answers = [brief({ understanding: meaning({ constraints: { humanFactSelection: false } }), inputSufficient: true,
+    questions: [{ about: 'material', question, options: [] }] })];
+  const plan = await service.prepare('org', { input: 'Сначала согласуй со мной факты.', request,
+    inputKind: 'instruction', language: 'ru', skipInterview: true });
+  const events = await drain(service.run('org', plan, 'user'));
+  expect(events.find(event => event.name === 'questions')?.questions).toEqual([expect.objectContaining({ question })]);
+  expect(writes[0]).toMatchObject({ body: '', brief: { request } });
+  expect(modelCalls.map(call => call.role)).toEqual(['extract']);
+});
+
+test('an answered native human facts card permits writing without repeating the already resolved question', async () => {
+  const { service, writes } = build();
+  const request = meaning({ constraints: { research: 'required', temporal, humanFactSelection: true } });
+  answers = [brief({ inputSufficient: true, questions: [
+    { about: 'material', question: 'Какие из найденных фактов вы выбираете?', options: [] },
+  ] }), { verdicts: [], findings: [finding()], assessment: assessment() }, { text: 'Alpha стала доступна 12 октября.' }];
+  const plan = await service.prepare('org', { input: 'Покажи найденные факты и дождись моего выбора.', request,
+    inputKind: 'instruction', language: 'ru', options: { researchEnabled: true } }, { researchSelectionPolicy: 'model' });
+  const first = await drain(service.run('org', plan, 'user'));
+  expect(writes).toEqual([]);
+  const ready = first.find(event => event.name === 'research-selection-required');
+  const selectedKeys = ready.facts.filter(fact => fact.kind === 'found').map(fact => fact.factKey);
+  const resume = await service.prepare('org', { input: 'Продолжить.', snapshotKey: ready.snapshotKey, researchSelections: selectedKeys, language: 'ru' });
+  const finished = await drain(service.run('org', resume, 'user'));
+  expect(finished.filter(event => event.name === 'questions' || event.name === 'error')).toEqual([]);
+  expect(writes[0]).toMatchObject({ body: 'Alpha стала доступна 12 октября.', brief: {
+    researchSelection: { origin: 'person', selectedKeys }, request: { constraints: { humanFactSelection: true } },
+  } });
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review', 'draft']);
+});
+
 test('a stable comparison needs supported facts rather than manufactured event dates', () => {
   const row = finding({ eventDate: null, eventDateQuote: null, dateBasis: null, eventStatus: null });
   const settled = settleResearchDigestV4({ verdicts: [], findings: [row], assessment: assessment(), temporalConstraint: null }, {

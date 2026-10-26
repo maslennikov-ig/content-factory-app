@@ -14,6 +14,8 @@ const fs = require('node:fs');
 const { MockLanguageModelV3 } = require('ai/test');
 const { convertArrayToReadableStream } = require('@ai-sdk/provider-utils/test');
 const { loadCapabilityModule } = require('./agent-capabilities.cjs');
+const { loadTypeScriptModule } = require('./load-ts-module.cjs');
+const { helpFaqMarkdown } = loadTypeScriptModule('libraries/nestjs-libraries/src/help/help-faq.questions.ts');
 
 const IDENTITY = {
   organizationId: 'org-service',
@@ -98,8 +100,9 @@ async function createRuntime(options = {}) {
           ...(process.env.CF_SERVICE_DEBUG_SKILL
             ? {
                 skillTool: (args.tools ?? []).find(
-                  (tool) => tool.name === 'skill'
+                  (tool) => tool.name === 'skill_read'
                 ),
+                hasSkillReference: JSON.stringify(args.prompt).includes(JSON.stringify(helpFaqMarkdown('ru')).slice(1, -1)),
               }
             : {}),
         });
@@ -185,9 +188,9 @@ async function createRuntime(options = {}) {
               { type: 'stream-start', warnings: [] },
               {
                 type: 'tool-call',
-                toolCallId: 'activate-service-skill',
-                toolName: 'skill',
-                input: JSON.stringify({ name: 'content' }),
+                toolCallId: 'read-service-reference',
+                toolName: 'skill_read',
+                input: JSON.stringify({ skillName: 'help', path: 'references/ru.md' }),
               },
               {
                 type: 'finish',
@@ -482,12 +485,17 @@ async function main() {
     );
     assert.equal(attempts[0].modelId, 'selected-primary');
     assert.equal(membershipReads.length > 0, true);
-    if (process.env.CF_SERVICE_DEBUG_SKILL)
+    if (process.env.CF_SERVICE_DEBUG_SKILL) {
       assert.equal(
         attempts.length,
         2,
-        'The built-in skill tool must execute and reach the following native model step.'
+        'The native reference reader must execute and reach the following model step.'
       );
+      assert.ok(attempts[0].skillTool);
+      assert.equal(attempts[0].toolNames.includes('skill'), false);
+      assert.equal(attempts[0].hasSkillReference, false);
+      assert.equal(attempts[1].hasSkillReference, true);
+    }
     const currentThread = await memory.getThreadById({ threadId });
     assert.equal(
       currentThread.metadata.assistantNativeRun.logicalRequestId,

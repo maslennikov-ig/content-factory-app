@@ -25,11 +25,13 @@ async function phase(action, mode, schemaName, auditPath) {
     serviceFor: token => token.name === 'PieceService' ? { detail: async () => ({ piece: { id: 'owned-piece', title: 'Локальный источник' }, core: { text: 'READ-MATERIAL-SENTINEL' } }) } : {},
     modelFactory: modelId => new MockLanguageModelV3({ modelId, async doStream(args) {
       const prompt = JSON.stringify(args.prompt);
+      assert.ok(prompt.includes('A «заготовка» is the core text'), 'Bundled instructions must survive cold recovery without activation.');
+      assert.equal((args.tools ?? []).some(tool => tool.name === 'skill'), false);
       console.error('MODEL', action, mode, modelId, prompt.includes('checkpoint-written'), prompt.includes('READ-MATERIAL-SENTINEL'));
       const calls = !prompt.includes('checkpoint-written')
         ? [{ type: 'tool-call', toolCallId: 'checkpoint-call', toolName: 'permission_checkpoint', input: '{}' }]
         : !prompt.includes('READ-MATERIAL-SENTINEL')
-        ? [{ type: 'tool-call', toolCallId: 'skill-call', toolName: 'skill', input: '{"name":"content"}' },
+        ? [{ type: 'tool-call', toolCallId: 'reference-call', toolName: 'skill_read', input: '{"skillName":"help","path":"references/ru.md"}' },
            { type: 'tool-call', toolCallId: 'read-call', toolName: 'piece_read', input: '{"pieceId":"owned-piece","part":"core"}' }]
         : [{ type: 'text-start', id: 'answer' }, { type: 'text-delta', id: 'answer', delta: 'Проверенный источник прочитан.' }, { type: 'text-end', id: 'answer' }];
       return { stream: convertArrayToReadableStream([{ type: 'stream-start', warnings: [] }, ...calls,
@@ -54,7 +56,6 @@ async function phase(action, mode, schemaName, auditPath) {
   try {
     const ctx = runtime.contextModule.buildConductorContext({ identity: IDENTITY, threadId });
     const session = await runtime.service.sessionFor(IDENTITY, threadId, { bindThread: true, requestContext: ctx });
-    assert.equal(session.resolveToolApproval('skill', threadId), 'allow');
     assert.equal(session.resolveToolApproval('skill_read', threadId), 'deny');
     assert.equal(session.resolveToolApproval('piece_read', threadId), mode === 'ask' ? 'ask' : 'allow');
     assert.equal(session.resolveToolApproval('permission_checkpoint', threadId), 'ask');
@@ -89,8 +90,8 @@ async function phase(action, mode, schemaName, auditPath) {
     assert.equal(final.pending.length, 0);
     assert.equal(final.execution.outcome, 'completed');
     assert.equal(fs.readFileSync(auditPath, 'utf8').trim(), 'write');
-    assert(!seenGates.includes('skill'), 'Bundled skill must not ask after recovery');
-    process.send({ report: { mode, skill: 'allow', materialRead: mode, restrictedSkill: 'deny', writes: 1, completed: true, actualProcessRecreated: true } });
+    assert(!seenGates.includes('skill_read'), 'An explicitly denied reference must not become an approval request after recovery');
+    process.send({ report: { mode, bundledInstructionsPreloaded: true, materialRead: mode, restrictedSkill: 'deny', writes: 1, completed: true, actualProcessRecreated: true } });
   } finally { await runtime.close({ drop: true }); }
   process.exit(0);
 }

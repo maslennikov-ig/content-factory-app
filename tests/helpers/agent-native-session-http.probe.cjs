@@ -135,7 +135,7 @@ async function scenario(kind) {
     run: async () => { writes++; return { saved: true }; }, summarize: () => ({ saved: true }),
   };
   const first = mode === 'payment' ? ['payment'] : mode === 'terminal-tripwire' ? ['terminal-tripwire']
-    : mode === 'skill' ? ['tool', 'skill', { name: 'content' }] : mode === 'approval'
+    : mode === 'skill' ? ['tool', 'skill_read', { skillName: 'help', path: 'references/ru.md' }] : mode === 'approval'
     ? ['tool', 'test_confirm', { value: 'confirmed' }]
     : ['tool', 'ask_user', { question: 'Что выбрать?', options: [{ label: 'Первое' }, { label: 'Второе' }] }];
   const model = kind.startsWith('provider-') ? await providerModel(first) : scripted([[first], [['text', 'Нативная задача завершена.']]]).model;

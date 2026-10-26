@@ -29,6 +29,7 @@ import { wrapUntrusted } from '../untrusted-data';
 import { proposalTarget } from '../capability.context';
 import { withAdaptationOpening } from '@contentfactory/nestjs-libraries/agent/adaptation-coverage';
 import { adaptationReferenceUrls } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
+import type { AdaptationQualityReviewV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
  * Adaptations (spec §5.2 «Контент», `kcxz.14`): writing a piece for a
@@ -172,9 +173,8 @@ type Adapted = {
     text: string;
     totalCharacters: number;
     truncated: boolean;
-    core: string;
-    goal: string;
   };
+  qualityReview?: AdaptationQualityReviewV1;
   /** Optional questions open under the new post («Материала мало»), as asked (`QUOTED_QUESTION_MAX`). */
   openQuestions?: string[];
   /** Where the version stands in the channel's plan, and why, when said. */
@@ -196,6 +196,7 @@ type AdaptPass =
       channel: InterviewQuestion['channel'];
       plan: string | null;
       note: string | null;
+      qualityReview?: AdaptationQualityReviewV1;
     }
   | { kind: 'questions'; questions: Array<ManualDomainQuestion & {key: string; suggested: string | null}>; channel: InterviewQuestion['channel'] };
 
@@ -275,6 +276,7 @@ const adaptPass = async (
         channel,
         plan: typeof named.adaptation.plan?.status === 'string' ? named.adaptation.plan.status : null,
         note: typeof named.adaptation.plan?.note === 'string' ? named.adaptation.plan.note : null,
+        ...(named.qualityReview ? { qualityReview: named.qualityReview } : {}),
       };
     }
     if (named.name === 'error') {
@@ -339,8 +341,6 @@ const writtenOf = async (ctx: CapabilityRunContext, id: string, channel: string,
       text: text.slice(0, 16_000),
       totalCharacters: text.length,
       truncated: text.length > 16_000,
-      core: typeof core?.text === 'string' ? core.text.slice(0, 16_000) : '',
-      goal: typeof core?.brief?.goal === 'string' ? core.brief.goal : '',
     } } : {}),
     ...(voiceScore ? { voiceScore } : {}),
   };
@@ -351,7 +351,7 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
+    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. qualityReview is advisory: partial or unavailable review does not undo the saved draft. Report the findings; do not rewrite or repeat checks without a new request. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
     channelId,
@@ -409,11 +409,13 @@ export const pieceAdapt = defineCapability({
         ...(written.savedResult ? { savedResult: written.savedResult } : {}),
         ...(written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
         ...(written.voiceScore ? { voiceScore: written.voiceScore } : {}),
+        ...(pass.qualityReview ? { qualityReview: pass.qualityReview } : {}),
         plan: pass.plan,
         note: pass.note,
       };
       if (ctx.suspend && written.materialAsk) {
-        await emit({kind: 'adaptation', data: {id: result.adaptationId, pieceId: result.pieceId}});
+        await emit({kind: 'adaptation', data: {id: result.adaptationId, pieceId: result.pieceId,
+          ...(result.qualityReview ? { qualityReview: wrapUntrusted(result.qualityReview, ['workspace-text']) } : {})}});
         await ctx.suspend(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: input.channelId,
           revision: written.questionRevision!}, written.materialAsk.questions,
           ctx.language === 'ru' ? 'Черновик сохранён. Можно дополнить материал — ответьте или выберите «Решите за меня», чтобы оставить пробелы без выдуманных фактов.'
@@ -593,13 +595,12 @@ export const pieceAdapt = defineCapability({
           channelId: output.channel.id,
           variant: output.variant,
           state: output.state,
+          ...(output.qualityReview ? { qualityReview: wrapUntrusted(output.qualityReview, ['workspace-text']) } : {}),
           savedResult: output.savedResult
             ? {
-                assessmentRequired: true,
                 data: wrapUntrusted(output.savedResult, ['workspace-text']),
               }
             : {
-                assessmentRequired: true,
                 unavailable: true,
                 read: { capability: 'piece.read', part: 'adaptation', pieceId: output.pieceId, adaptationId: output.adaptationId },
               },
@@ -628,6 +629,7 @@ export const pieceAdapt = defineCapability({
           channel: output.channel,
           variant: output.variant,
           ...(output.voiceScore ? { voiceScore: output.voiceScore } : {}),
+          ...(output.qualityReview ? { qualityReview: wrapUntrusted(output.qualityReview, ['workspace-text']) } : {}),
         },
 });
 

@@ -11,6 +11,12 @@ const { materialSupport } = loadWithMocks(
 const { defaultWritingProfileFor } = loadWithMocks(
   'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
 );
+const { channelInstructionLines } = loadWithMocks(
+  'libraries/nestjs-libraries/src/agent/channel-directives.ts'
+);
+const { wordShingles, sharedRuns } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/text-quality/anti-copy.ts'
+);
 
 const FIRST = 'Aurora выпустила инструмент для редакторов.';
 const SECOND = 'Бюро добавило общий календарь команд.';
@@ -127,366 +133,152 @@ const build = (responses) => {
   return { service, calls, usage };
 };
 
-describe('final adaptation coverage uses the actual complete post and bounded repair', () => {
-  test('the chosen snippet is reviewed, repaired once and re-reviewed across every topic', async () => {
-    const repaired = { hook: 'Обновления редакции', content: item(CORE) };
-    const { service, calls, usage } = build([
-      draft(FIRST),
-      MISSING,
-      repaired,
-      PASSED,
-    ]);
+describe('final adaptation review advises without discarding or rewriting the draft', () => {
+  test('a passed review retains the exact draft and supported own-core wording', async () => {
+    const own = 'Лабораториям доступно до 30 мест Business Standard бесплатно на срок до 12 месяцев.';
     const source = state();
-    source.contextText = service.renderContext(source.contentContext);
+    source.hook = '';
+    source.intake.core = own;
+    source.content = item(own);
+    source.foreignShingles = wordShingles('Eligible research labs can receive thirty seats for one year.');
+    source.channelLines = channelInstructionLines(defaultWritingProfileFor('telegram', 'ru'),
+      { identifier: 'telegram', name: 'Telegram', maxLength: 4096, editor: 'html' }, { foreignShingles: source.foreignShingles });
+    const { service, calls, usage } = build([PASSED]);
+    const result = await service.fixArray(source);
+    expect(result.content).toEqual([source.content]);
+    expect(result.adaptationCoverage).toEqual({ ...PASSED, reviews: 1, repaired: false });
+    expect(result.antiCopy).toMatchObject({ clean: true, runs: [], retried: false });
+    const input = JSON.parse(calls[0].slice(calls[0].indexOf('Human: ') + 7));
+    expect(input.foreignCopy).toEqual({ minWords: 8, matches: [] });
+    expect(calls[0]).not.toContain('any material you were given');
+    expect(calls[0]).toContain('Do not invent a copying violation from overlap with the neutral core');
+    expect(usage.map(one => one.role)).toEqual(['review']);
+  });
+
+  test.each([
+    MISSING,
+    { status: 'partial', missingRequirements: [], unsupportedClaims: ['Source says 12, not 21.'] },
+    { status: 'passed', missingRequirements: ['An omitted condition.'], unsupportedClaims: [] },
+    { status: 'invalid' },
+  ])('retains the paid draft with honest findings and no automatic rewrite: %j', async verdict => {
+    const source = state();
+    const { service, calls, usage } = build([verdict]);
+    const result = await service.fixArray(source);
+    expect(result.content).toEqual([source.content]);
+    expect(result.hook).toBe(source.hook);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', reviews: 1, repaired: false });
+    expect(result.adaptationCoverage.missingRequirements.length + result.adaptationCoverage.unsupportedClaims.length).toBeGreaterThan(0);
+    expect(calls).toHaveLength(1);
+    expect(usage.map(one => one.role)).toEqual(['review']);
+  });
+
+  test('final review cannot erase an unlinked-source finding even when it says passed', async () => {
+    const { service } = build([{ content: { content: CORE, usedCitationIds: ['invented'] } }, PASSED]);
+    const source = state();
     const generated = await service.generateContent(source);
     const result = await service.fixArray({ ...source, ...generated });
-
     expect(result.content[0].content).toBe(CORE);
-    expect(result.hook).toBe(repaired.hook);
-    expect(result.adaptationCoverage).toEqual({
-      status: 'passed',
-      reviews: 2,
-      repaired: true,
-    });
-    expect(calls).toHaveLength(4);
-    expect(usage.map((one) => one.role)).toEqual(['review', 'adapt', 'review']);
-    expect(
-      usage.every(
-        (one) => one.org === 'org-a' && one.operation === 'text_generation'
-      )
-    ).toBe(true);
-    expect(calls[0]).toContain(SECOND);
-    expect(calls[0]).toContain(THIRD);
-    expect(calls[0]).not.toContain(
-      'Every number, date, name or legal reference in the draft must come from this block'
-    );
-    expect(calls[1]).toContain('hardMax');
-    expect(calls[1]).toContain('1500');
-    expect(calls[1]).toContain('Сводка обновлений и объяснение кампании');
-    expect(calls[1]).not.toContain(
-      'Пример предыдущего поста, а не новое задание'
-    );
-    expect(calls[2]).toContain(SECOND);
-    expect(calls[3]).toContain(CORE.replace(/\n/g, '\\n'));
+    expect(result.content[0].usedCitationIds).toEqual([]);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: [expect.stringContaining('не связана с источниками')] });
   });
 
-  test('final review and its one repair receive the same resolved channel instructions', async () => {
+  test('foreign copying is reported even if it also appears in the core and the model says passed', async () => {
+    const text = 'Чужой текст содержит достаточно последовательных слов чтобы проверка заметила заимствование целиком.';
     const source = state();
-    source.channelLines = ['Address the reader as ты.', 'Put source links at the end.'];
-    source.content = item(`${CORE} Какое обновление вам полезнее?`);
-    const fixed = `${CORE} Какое обновление тебе полезнее?`;
-    const { service, calls } = build([
-      { status: 'partial', missingRequirements: ['The explicit channel address form is not followed.'], unsupportedClaims: [] },
-      { hook: source.hook, content: item(fixed) },
-      PASSED,
-    ]);
+    source.hook = '';
+    source.intake.core = text;
+    source.content = item(text);
+    source.foreignShingles = wordShingles(text);
+    const { service, calls } = build([PASSED]);
     const result = await service.fixArray(source);
-    expect(result.content[0].content).toBe(fixed);
-    for (const call of calls) {
-      expect(call).toContain('channelInstructions');
-      expect(call).toContain('Address the reader as ты.');
-      expect(call).toContain('Put source links at the end.');
-    }
-    expect(result.adaptationCoverage).toEqual({ status: 'passed', reviews: 2, repaired: true });
-  });
-
-  test('coverage passing under a hard limit does not require every sentence or number', async () => {
-    const { service, calls, usage } = build([PASSED]);
-    const source = state();
-    source.intake.core = `${CORE}\n\n${'Второстепенные детали результата. '.repeat(
-      100
-    )}`;
-    source.content = item(
-      'Aurora обновила инструмент; Бюро — календарь. Кампания связывает публикации общей целью.'
-    );
-    const result = await service.fixArray(source);
-    expect(result.content[0]).toEqual(source.content);
-    expect(result.adaptationCoverage.repaired).toBe(false);
-    expect(calls).toHaveLength(1);
-    expect(usage.map((one) => one.role)).toEqual(['review']);
-    expect(calls[0]).toMatch(/without requiring every core sentence or number/);
-  });
-
-  test('a final incomplete verdict stops before a ready version and preserves the paid diagnostic draft', async () => {
-    const { service, calls } = build([
-      MISSING,
-      { hook: 'Начало', content: item(FIRST) },
-      MISSING,
-    ]);
-    await expect(service.fixArray(state())).rejects.toMatchObject({
-      code: 'CONTENT_ADAPTATION_INCOMPLETE',
-      missingRequirements: [SECOND, THIRD],
-      incompleteDraft: { hook: 'Начало', content: item(FIRST) },
-    });
-    expect(calls).toHaveLength(3);
-  });
-
-  test('a conflicting core claim cannot be certified by a source id and a different amount', async () => {
-    const conflict = {
-      status: 'partial',
-      missingRequirements: [],
-      unsupportedClaims: ['Source says 12, not 21.'],
-    };
-    const source = state();
-    source.intake.core = 'Aurora получила 21 заказ.';
-    source.contentContext.evidence[0].excerpt = 'Aurora получила 12 заказов.';
-    source.content = item(source.intake.core);
-    const { service, calls } = build([
-      conflict,
-      { hook: 'Итоги', content: item(source.intake.core) },
-      conflict,
-    ]);
-    await expect(service.fixArray(source)).rejects.toMatchObject({
-      code: 'CONTENT_ADAPTATION_INCOMPLETE',
-      unsupportedClaims: ['Source says 12, not 21.'],
-    });
-    expect(calls[0]).toContain('12 заказов');
-    expect(calls[0]).toContain('21 заказ');
-    expect(calls[0]).toMatch(/id or citation id alone proves nothing/);
-    expect(calls).toHaveLength(3);
-  });
-
-  test('a failed reviewer never becomes a passed generation and does not start repair', async () => {
-    const { service, calls } = build([new Error('Unavailable')]);
-    await expect(service.fixArray(state())).rejects.toMatchObject({
-      code: 'CONTENT_ADAPTATION_INCOMPLETE',
-    });
+    expect(result.content).toEqual([source.content]);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', unsupportedClaims: [expect.stringContaining('совпадения')] });
+    expect(result.antiCopy).toMatchObject({ clean: false, retried: false, runs: sharedRuns(text, source.foreignShingles) });
     expect(calls).toHaveLength(1);
   });
 
-  test('whole-post hardMax, including the hook, forces the one repair even if the model says passed', async () => {
+  test.each([false, true])('overlength including the hook is advisory, including picture captions (%s)', async picture => {
     const source = state();
+    source.isPicture = picture;
     source.hook = 'Х'.repeat(20);
     source.content = item('Т'.repeat(210));
     source.intake.channel.writingProfile.lengthPolicy.hardMax = 220;
-    const { service, calls } = build([
-      PASSED,
-      { hook: 'Сводка', content: item(CORE) },
-      PASSED,
-    ]);
-    const result = await service.fixArray(source);
-    expect(result.content[0].content).toBe(CORE);
-    expect(result.adaptationCoverage.repaired).toBe(true);
-    expect(calls[1]).toContain('including its hook has 232 characters');
-    expect(calls[1]).toContain('hard limit is 220');
-    expect(calls).toHaveLength(3);
-  });
-
-  test('a passed semantic verdict cannot save a repaired whole post above the caption limit', async () => {
-    const source = state();
-    source.isPicture = true;
     source.intake.channel.maxCaptionLength = 80;
-    source.hook = 'Х'.repeat(20);
-    source.content = item('Т'.repeat(70));
-    const { service, calls } = build([
-      PASSED,
-      { hook: 'Х'.repeat(20), content: item('Т'.repeat(70)) },
-      PASSED,
-    ]);
-    await expect(service.fixArray(source)).rejects.toMatchObject({
-      code: 'CONTENT_ADAPTATION_INCOMPLETE',
-      missingRequirements: [expect.stringContaining('hard limit is 80')],
-    });
-    expect(calls).toHaveLength(3);
+    const { service, calls } = build([PASSED]);
+    const result = await service.fixArray(source);
+    expect(result.content).toEqual([source.content]);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: [expect.stringContaining(`при ограничении ${picture ? 80 : 220}`)] });
+    expect(calls).toHaveLength(1);
   });
 
-  test('source-free repair accepts nullable optional citations as an empty list', async () => {
+  test('reviewer failure retains the draft and independent free findings without a false passing verdict', async () => {
+    const source = state();
+    source.hook = '';
+    source.content = item('Чужой текст содержит достаточно последовательных слов чтобы заметить заимствование целиком.');
+    source.foreignShingles = wordShingles(source.content.content);
+    source.intake.channel.maxLength = 20;
+    const { service, calls } = build([new Error('Unavailable')]);
+    const result = await service.fixArray(source);
+    expect(result.content).toEqual([source.content]);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'unavailable', reviews: 1, repaired: false,
+      unsupportedClaims: [expect.stringContaining('совпадения')],
+      missingRequirements: [expect.stringContaining('при ограничении 20')] });
+    expect(result.antiCopy.clean).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
+
+  test('generation records foreign overlap without buying a second draft', async () => {
     const source = state();
     source.contentContext = { facts: [], evidence: [] };
-    const { service } = build([
-      MISSING,
-      { hook: 'Начало', content: { content: CORE, usedCitationIds: null } },
-      PASSED,
-    ]);
-    const result = await service.fixArray(source);
-    expect(result.content[0].usedCitationIds).toEqual([]);
+    const text = 'Чужой текст содержит достаточно последовательных слов чтобы заметить заимствование целиком.';
+    source.foreignShingles = wordShingles(text);
+    const { service, calls } = build([{ content: { content: text, usedCitationIds: [] } }]);
+    const result = await service.generateContent(source);
+    expect(result.content.content).toBe(text);
+    expect(result.antiCopy).toMatchObject({ clean: false, retried: false });
+    expect(calls).toHaveLength(1);
   });
 
-  test('piece generation and repair budgets cover the core under the real cap despite a tiny avatar', async () => {
-    const modelBudgets = [],
-      prompts = [],
-      usage = [];
-    const responses = [
-      draft(FIRST),
-      MISSING,
-      { hook: 'Сводка', content: item(CORE) },
-      PASSED,
-    ];
-    const model = {
-      withStructuredOutput: () =>
-        RunnableLambda.from(async (prompt) => {
-          prompts.push(String(prompt));
-          return responses.shift();
-        }),
-    };
-    const empty = {};
-    const { AgentGraphService } = loadWithMocks(
-      'libraries/nestjs-libraries/src/agent/agent.graph.service.ts',
-      {
-        '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service':
-          { PostsService: class {} },
-        '@contentfactory/nestjs-libraries/database/prisma/media/media.service':
-          { MediaService: class {} },
-        '@contentfactory/nestjs-libraries/upload/upload.factory': {
-          UploadFactory: { createStorage: () => empty },
-        },
-        '@contentfactory/nestjs-libraries/openai/ai.clients': {
-          getChatModel: async (org, temperature, tokens, role) => {
-            modelBudgets.push({ tokens, role });
-            return model;
-          },
-        },
-        '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
-          AiUsageService: class {},
-        },
-        '@contentfactory/nestjs-libraries/openai/web.research.service': {
-          WebResearchService: class {},
-        },
-        '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.service':
-          { ContentContextService: class {} },
-        '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service':
-          { BrandProfileContextService: class {} },
-        '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-registry.service':
-          { ContentSourceRegistryService: class {} },
-      }
-    );
-    const service = new AgentGraphService(
-      empty,
-      empty,
-      empty,
-      {
-        executeAiOperation: async (org, operation, callback, role) => {
-          usage.push(role);
-          return callback();
-        },
-      },
-      empty,
-      empty,
-      null,
-      null
-    );
-    const source = state();
-    source.intake.core = `${CORE}\n\n${'Второстепенная подробность. '.repeat(
-      100
-    )}`;
-    const generated = await service.generateContent(source);
-    await service.fixArray({ ...source, ...generated });
-    expect(modelBudgets.map((one) => one.tokens)).toEqual([
-      2131, 3000, 2131, 3000,
-    ]);
-    expect(modelBudgets[2].role).toBe('adapt');
-    expect(usage).toEqual(['review', 'adapt', 'review']);
-  });
-
-  test('ordinary generator without a core makes no coverage calls', async () => {
-    const { service, calls } = build([]);
+  test('ordinary generator without a core makes no semantic review call', async () => {
     const source = state();
     delete source.intake;
-    expect(await service.fixArray(source)).toEqual({
-      content: [source.content],
-    });
+    const { service, calls } = build([]);
+    expect(await service.fixArray(source)).toEqual({ content: [source.content] });
     expect(calls).toHaveLength(0);
   });
 
-  test.each([true, false])(
-    'the assembled native graph carries a verified result or the explicit incomplete diagnostic (%s)',
-    async (passes) => {
-      const source = state();
-      source.intake.channel.writingProfile = defaultWritingProfileFor(
-        'telegram',
-        'ru'
-      );
-      const reviews = [],
-        usage = [];
-      const model = {
-        withStructuredOutput: (schema) =>
-          RunnableLambda.from(async () => {
-            const shape = schema.shape;
-            if (shape.category) return { category: 'Редакция' };
-            if (shape.topic) return { topic: 'Обновления' };
-            if (shape.status) {
-              reviews.push(1);
-              return reviews.length === 2 && passes ? PASSED : MISSING;
-            }
-            if (shape.content && shape.hook)
-              return { hook: 'Полная сводка', content: item(CORE) };
-            if (shape.content) return draft(FIRST);
-            return { hook: 'Начало' };
-          }),
-      };
-      const { AgentGraphService } = loadAgentGraph({ chatModel: model });
-      const service = new AgentGraphService(
-        {
-          findAllExistingCategories: async () => [],
-          findAllExistingTopicsOfCategory: async () => [],
-          findPopularPosts: async () => [],
-        },
-        {},
-        {},
-        {
-          executeAiStreamOperation: (org, operation, callback) => callback(),
-          executeAiOperation: async (org, operation, callback, role) => {
-            usage.push(role);
-            return callback();
-          },
-        },
-        {
-          build: async () => ({
-            ...source.contentContext,
-            contentContextSnapshotId: 'snapshot-a',
-            status: 'READY',
-            generationPolicy: 'ALLOW_GROUNDED',
-            profile: { mode: 'neutral_fallback', reason: 'NO_PROFILE' },
-          }),
-        },
-        {},
-        null,
-        null
-      );
-      const events = [];
-      for await (const event of service.start(
-        'org-a',
-        {
-          research: 'Обновления',
-          format: 'one_long',
-          language: 'ru',
-          isPicture: false,
-          intake: source.intake,
-          materialPolicy: 'PIECE_ONLY',
-          userMaterialEvidenceIds: ['e-1'],
-        },
-        { draftOnly: true }
-      ))
-        events.push(event);
-
-      expect(reviews).toHaveLength(2);
-      expect(usage).toEqual(['review', 'adapt', 'review']);
-      if (passes) {
-        const outputs = events
-          .map((event) => event.data?.output)
-          .filter((output) => Array.isArray(output?.content));
-        const final = outputs[outputs.length - 1];
-        expect(final.content[0].content).toBe(CORE);
-        expect(final.hook).toBe('Полная сводка');
-        expect(final.adaptationCoverage).toEqual({
-          status: 'passed',
-          reviews: 2,
-          repaired: true,
-        });
-        expect(events.some((event) => event.error)).toBe(false);
-      } else {
-        const error = events.find((event) => event.error);
-        expect(error).toMatchObject({
-          code: 'CONTENT_ADAPTATION_INCOMPLETE',
-          missingRequirements: [SECOND, THIRD],
-          incompleteDraft: { hook: 'Полная сводка', content: item(CORE) },
-        });
-        expect(
-          events.some((event) => Array.isArray(event.data?.output?.content))
-        ).toBe(false);
+  test.each([true, false, 'unavailable'])('the assembled native graph returns the draft once for review outcome %s', async outcome => {
+    const source = state();
+    source.intake.channel.writingProfile = defaultWritingProfileFor('telegram', 'ru');
+    const reviews = [], usage = [];
+    const model = { withStructuredOutput: schema => RunnableLambda.from(async () => {
+      const shape = schema.shape;
+      if (shape.category) return { category: 'Редакция' };
+      if (shape.topic) return { topic: 'Обновления' };
+      if (shape.status) {
+        reviews.push(1);
+        if (outcome === 'unavailable') throw new Error('Reviewer unavailable');
+        return outcome ? PASSED : MISSING;
       }
-    }
-  );
+      if (shape.content) return draft(FIRST);
+      return { hook: 'Начало' };
+    }) };
+    const { AgentGraphService } = loadAgentGraph({ chatModel: model });
+    const service = new AgentGraphService({ findAllExistingCategories: async () => [], findAllExistingTopicsOfCategory: async () => [], findPopularPosts: async () => [] }, {}, {}, {
+      executeAiStreamOperation: (org, operation, callback) => callback(),
+      executeAiOperation: async (org, operation, callback, role) => { usage.push(role); return callback(); },
+    }, { build: async () => ({ ...source.contentContext, contentContextSnapshotId: 'snapshot-a', status: 'READY', generationPolicy: 'ALLOW_GROUNDED', profile: { mode: 'neutral_fallback', reason: 'NO_PROFILE' } }) }, {}, null, null);
+    const events = [];
+    for await (const event of service.start('org-a', { research: 'Обновления', format: 'one_long', language: 'ru', isPicture: false, intake: source.intake, materialPolicy: 'PIECE_ONLY', userMaterialEvidenceIds: ['e-1'] }, { draftOnly: true })) events.push(event);
+    const outputs = events.map(event => event.data?.output).filter(output => Array.isArray(output?.content));
+    expect(outputs.length).toBeGreaterThan(0);
+    const final = outputs.at(-1);
+    expect(final.content[0].content).toBe(FIRST);
+    expect(final.adaptationCoverage).toMatchObject({ status: outcome === 'unavailable' ? 'unavailable' : outcome ? 'passed' : 'partial', reviews: 1, repaired: false });
+    expect(events.some(event => event.error)).toBe(false);
+    expect(reviews).toHaveLength(1);
+    expect(usage).toEqual(['review']);
+  });
 });
 
 describe('a selected claim needs the actual admitted source quote', () => {

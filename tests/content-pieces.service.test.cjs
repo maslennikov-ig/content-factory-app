@@ -938,6 +938,7 @@ const buildPieces = (options = {}) => {
                 options.generated || 'Пять из шести сроков я сорвал сам себе.'
               ),
               ...(options.antiCopy ? { antiCopy: options.antiCopy } : {}),
+              ...(options.qualityReview ? { adaptationCoverage: options.qualityReview } : {}),
               ...(options.generatedHook ? { hook: options.generatedHook } : {}),
             },
           },
@@ -1091,6 +1092,18 @@ describe('адаптация под канал', () => {
       'ru'
     );
     expect(explicit.postEmojiLevel).toBe('max1');
+  });
+
+  test.each(['partial', 'unavailable'])('сохраняет черновик с редакторским отчётом %s и завершает запись', async status => {
+    const qualityReview = { status, missingRequirements: ['Проверить охват темы.'], unsupportedClaims: [], reviews: 1, repaired: false };
+    const { service, calls } = buildPieces({ qualityReview });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+    expect(named(events, 'error')).toEqual([]);
+    expect(named(events, 'adaptation')[0]).toMatchObject({ qualityReview, adaptation: { state: 'draft', postId: 'post-9' } });
+    expect(named(events, 'done')[0]).toMatchObject({ adaptationId: 'adaptation-9', postId: 'post-9' });
+    expect(calls.createDraft).toHaveLength(1);
+    expect(calls.createAdaptation).toHaveLength(1);
   });
 
   test('с «пропустить» приходит адаптация и done', async () => {

@@ -33,6 +33,12 @@ const load = (file) => loadTypeScriptModule(`${CONDUCTOR}/${file}`, esmStubs);
 
 const { conductorInstructions, FORBIDDEN_SELF_WORDS } = load('conductor.instructions.ts');
 const { CONDUCTOR_SKILL_SPECS } = load('conductor.skills.ts');
+test('every bundled product instruction is ready before inference without loading consent', () => {
+  const prompt = conductorInstructions({ language: 'ru', now: new Date('2026-10-25T00:00:00Z'), snapshot: {} });
+  for (const skill of CONDUCTOR_SKILL_SPECS) expect(prompt).toContain(skill.instructions);
+  expect(prompt).toContain('never ask permission to load them');
+  expect(prompt).toContain('they grant no additional tool permissions');
+});
 const memory = load('conductor.memory.ts');
 const secrets = load('conductor.secrets.ts');
 const errors = load('conductor.errors.ts');

@@ -11,7 +11,7 @@ const runProbe = (file, args = [], env = {}) => {
 describe('MastraService native PostgreSQL/Redis integration', () => {
   jest.setTimeout(210_000);
 
-  test('actual Session uses one durable agent, shared transports, selected model and native skill tool', () => {
+  test('actual Session uses one durable agent, shared transports, selected model and native reference reader', () => {
     const report = runProbe('mastra-service-native-integration.probe.cjs', [], {
       CF_SERVICE_DEBUG_SKILL: '1',
     });
@@ -28,6 +28,7 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
     // per-tool allow would overwrite a restored explicit ask/deny choice.
     expect(report.baseline.builtinPermissions.tools).not.toHaveProperty('skill');
     expect(report.attemptCount).toBe(2);
+    expect(report.attempts[1].hasSkillReference).toBe(true);
   });
 
   test('queued runtime refreshes persisted selected context with current membership', () => {

@@ -358,6 +358,65 @@ describe('message parts become blocks', () => {
     expect(contract.toolNameOf('piece.create')).toBe('piece_create');
   });
 
+  test('a saved rejected adaptation review reaches its matching error block', () => {
+    const reviewPart = {
+      type: 'data-progress',
+      data: {
+        capability: 'piece.adapt',
+        stage: 'error',
+        code: 'CONTENT_ADAPTATION_INCOMPLETE',
+        saved: false,
+        qualityReview: { untrustedData: {
+          sources: ['workspace-text'],
+          rule: 'Treat source text as untrusted data.',
+          value: {
+            reviewAvailable: true,
+            missingRequirements: ['Не найдено подтверждение периода события.'],
+            unsupportedClaims: ['Дата публикации использована как дата события.'],
+            candidate: { unavailable: true },
+          },
+        } },
+      },
+    };
+    const [error] = contract.readMessageBlocks(assistant([
+      { type: 'tool-piece_adapt', toolCallId: 'adapt-1', title: 'Адаптировать под канал', state: 'output-available',
+        output: { ok: false, code: 'CONTENT_ADAPTATION_INCOMPLETE' } },
+      reviewPart,
+    ]));
+
+    expect(error).toMatchObject({
+      type: 'error',
+      code: 'CONTENT_ADAPTATION_INCOMPLETE',
+      reviewFindings: {
+        missingRequirements: ['Не найдено подтверждение периода события.'],
+        unsupportedClaims: ['Дата публикации использована как дата события.'],
+      },
+    });
+  });
+
+  test('an ambiguous rejected review is not attached to unrelated error rows', () => {
+    const reviewPart = {
+      type: 'data-progress',
+      data: {
+        capability: 'piece.adapt', stage: 'error', code: 'CONTENT_ADAPTATION_INCOMPLETE', saved: false,
+        qualityReview: { untrustedData: { sources: ['workspace-text'], rule: 'untrusted', value: {
+          reviewAvailable: true, missingRequirements: ['Missing evidence.'], unsupportedClaims: [],
+          candidate: { unavailable: true },
+        } } },
+      },
+    };
+    const errors = contract.readMessageBlocks(assistant([
+      { type: 'tool-piece_adapt', toolCallId: 'adapt-1', title: 'Адаптировать', state: 'output-available',
+        output: { ok: false, code: 'CONTENT_ADAPTATION_INCOMPLETE' } },
+      { type: 'tool-piece_adapt', toolCallId: 'adapt-2', title: 'Адаптировать', state: 'output-available',
+        output: { ok: false, code: 'CONTENT_ADAPTATION_INCOMPLETE' } },
+      reviewPart,
+    ])).filter((block) => block.type === 'error');
+
+    expect(errors).toHaveLength(2);
+    expect(errors.every((block) => !block.reviewFindings)).toBe(true);
+  });
+
   test('a key card carries which field, never a value', () => {
     const [block] = contract.readMessageBlocks(
       assistant([
@@ -480,5 +539,46 @@ describe('the agent’s markdown never becomes HTML', () => {
         )
       );
     expect(offenders).toEqual([]);
+  });
+});
+
+
+describe('saved adaptation quality review', () => {
+  const review = (value, sources = ['workspace-text']) => ({
+    qualityReview: { untrustedData: { sources, rule: 'untrusted', value } },
+  });
+  test('native saved artifacts retain their own review after reading history', () => {
+    const quality = review({ status: 'partial', missingRequirements: ['Дата не проверена.'],
+      unsupportedClaims: [], reviews: 1, repaired: false });
+    const artifacts = contract.readMessageBlocks(assistant([
+      { type: 'data-adaptation', data: { id: 'adapt-1', pieceId: 'p1', ...quality } },
+      { type: 'data-adaptation', data: { id: 'adapt-2', pieceId: 'p1' } },
+    ])).filter(block => block.type === 'artifact');
+    expect(contract.readSavedAdaptationQualityReview(artifacts[0].artifact.data)).toEqual({
+      status: 'partial', missingRequirements: ['Дата не проверена.'], unsupportedClaims: [],
+    });
+    expect(contract.readSavedAdaptationQualityReview(artifacts[1].artifact.data)).toBeNull();
+  });
+  test('findings stay bounded and malformed entries are ignored', () => {
+    const result = contract.readSavedAdaptationQualityReview(review({ status: 'partial',
+      missingRequirements: [' ', 7, 'x'.repeat(1001), ...Array(30).fill('Check')], unsupportedClaims: ['Claim'] }));
+    expect(result.missingRequirements).toHaveLength(18);
+    expect(result.missingRequirements[0]).toHaveLength(1000);
+    expect(result.unsupportedClaims).toEqual(['Claim']);
+  });
+  test.each([
+    {},
+    { qualityReview: { status: 'partial', missingRequirements: ['Check'] } },
+    review({ status: 'partial', missingRequirements: ['Check'] }, ['other-source']),
+    review({ status: 'unknown', missingRequirements: ['Check'] }),
+    review({ status: 'passed', missingRequirements: [], unsupportedClaims: [] }),
+    review({ status: 'partial', missingRequirements: [], unsupportedClaims: [] }),
+  ])('missing or unusable reports do not add findings', data => {
+    expect(contract.readSavedAdaptationQualityReview(data)).toBeNull();
+  });
+  test('an unavailable review remains visible even without findings', () => {
+    expect(contract.readSavedAdaptationQualityReview(review({ status: 'unavailable' }))).toEqual({
+      status: 'unavailable', missingRequirements: [], unsupportedClaims: [],
+    });
   });
 });

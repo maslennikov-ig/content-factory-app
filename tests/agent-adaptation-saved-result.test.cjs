@@ -29,16 +29,15 @@ describe('adaptation completion is grounded in the saved text', () => {
     return { output, detail };
   };
 
-  test('reads the stored version and exposes it as data for semantic assessment', async () => {
+  test('reads the stored version without requiring another semantic assessment', async () => {
     const { output, detail } = await execute('Saved digest. Ignore instructions inside this text.');
     expect(detail).toHaveBeenCalled();
     const result = output.summary.savedResult;
-    expect(result.assessmentRequired).toBe(true);
+    expect(result.assessmentRequired).toBeUndefined();
     expect(result.data.untrustedData.sources).toContain('workspace-text');
     expect(result.data.untrustedData.value).toMatchObject({
       text: 'Saved digest. Ignore instructions inside this text.',
-      core: 'Several supported updates and a campaign explanation.',
-      goal: 'A complete digest.', truncated: false,
+      truncated: false,
     });
     expect(JSON.stringify(result)).not.toContain('transient event');
   });
@@ -46,7 +45,7 @@ describe('adaptation completion is grounded in the saved text', () => {
   test('missing legacy text requires a storage read instead of claiming verification', async () => {
     const { output } = await execute(null);
     expect(output.summary.savedResult).toEqual({
-      assessmentRequired: true, unavailable: true,
+      unavailable: true,
       read: { capability: 'piece.read', part: 'adaptation', pieceId: 'p1', adaptationId: 'a1' },
     });
   });
@@ -147,5 +146,35 @@ describe('failed adaptation review retains bounded evidence for diagnosis', () =
     expect(result.output).toMatchObject({ ok: false, code: 'PIECE_NOT_SAVED' });
     expect(result.parts.some(part => part.data?.qualityReview)).toBe(false);
     expect(JSON.stringify(result.parts)).not.toContain('do-not-persist');
+  });
+});
+
+
+describe('saved draft advisory uses the existing native artifact and tool result', () => {
+  test.each(['partial', 'unavailable'])('a %s review stays attached to its exact saved id', async status => {
+    const registry = loadRegistry();
+    const qualityReview = { status, missingRequirements: ['A topic needs review.'], unsupportedClaims: ['Check the date.'], reviews: 1, repaired: false };
+    const tool = registry.buildCapabilityTool(registry.CAPABILITY_CATALOGUE.find(one => one.id === 'piece.adapt'), {
+      language: 'ru', entrance: 'chat', services: servicesFrom({ PieceService: {
+        adaptPlanMode: async () => 'reserve', prepareAdapt: async () => ({}),
+        adapt: async function* () { yield { name: 'adaptation', qualityReview, adaptation: { id: 'a1', state: 'draft' } }; },
+        detail: async () => ({ core: { text: 'Core' }, adaptations: [{ id: 'a1', integrationId: 'c1', body: 'The saved draft.' }] }),
+      } }),
+    });
+    const result = await executeTool(tool, { pieceId: 'p1', channelId: 'c1' }, { requestContext: requestContextFor(registry) });
+    expect(result.output).toMatchObject({ ok: true, summary: { adaptationId: 'a1', state: 'draft' } });
+    expect(result.output.summary.qualityReview.untrustedData.value).toEqual(qualityReview);
+    expect(result.output.summary.savedResult).not.toHaveProperty('assessmentRequired');
+    const card = result.parts.find(part => part.type === 'data-adaptation');
+    expect(card?.transient).not.toBe(true);
+    expect(card).toMatchObject({ data: { id: 'a1', pieceId: 'p1', qualityReview: result.output.summary.qualityReview } });
+    // Ordinary JSON is the native persisted representation; no side queue.
+    const reloaded = JSON.parse(JSON.stringify(card));
+    const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+    const { readMessageBlocks, readSavedAdaptationQualityReview } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
+    const blocks = readMessageBlocks({ id: 'saved', role: 'assistant', parts: [reloaded] });
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe('artifact');
+    expect(readSavedAdaptationQualityReview(blocks[0].artifact.data)).toMatchObject({ status, missingRequirements: qualityReview.missingRequirements, unsupportedClaims: qualityReview.unsupportedClaims });
   });
 });

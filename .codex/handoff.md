@@ -1,63 +1,110 @@
-# Content Factory current handoff — 24 October 2026
+# Content Factory current handoff — 26 October 2026
 
-## Delivered: HONEY-5961 / HONEY-5962
+## Authorized release in progress
 
-CI follow-up is active under reopened HONEY-5962. Full local release checks
-passed for 4e50deb25efe and calendar CI passed, but full CI exposed an extra
-approval admission when persisted history precedes Session event delivery.
-A controlled native regression reproduces it; the exact live task owner now
-controls continuation without a new admission. New full acceptance/release
-is pending; production still runs 4ba4c5a44225.
-[CI diagnosis and verification](stages/agent-chat-5961/ci-followup.md).
+Task `content-factory-next-55e7`: owner explicitly authorized push, merge,
+deployment, cleanup and closeout. Fetched private main `565b91ac8758` is an
+ancestor of local source `30c3b6ce4c16`; seven local commits are included.
+Release work is isolated in `codex/release-chat-polish-20261026`; original main
+and its eleven dirty planning/research files are preserved. Production is still
+`2c25a3d13bb7` until the new exact-source gates, public-tree image/schema checks
+and guarded switch complete. Rollback remains that verified prior version.
+No paid inference/search, social publishing or credential changes are authorized.
 
-HONEY-5961 and all six children retain completed canonical local acceptance.
-The owner's subsequent Push, Merge, Deploy instruction was delivered through
-HONEY-5962 (`content-factory-next-i0oq`): production/public `4ba4c5a44225`, tested
-private source `9610d5a623fd`, verified rollback `e819113f113e`.
-Paid provider calls, social publishing, provider credential/policy changes and
-unrelated cleanup remain unauthorized. [Release outcome and limits](stages/agent-chat-5961/production-delivery.md).
+## Advisory drafts and bounded complexity audit
 
-Feature branch `codex/agent-chat-5961` at `f16ab8c633a6` is pushed. The owned
-release worktree is
-`/home/me/code/content-factory-next-worktrees/release-agent-chat-5961-20261024`.
-It merged the feature from integration base `0e0cf070c6b8`. All nine release
-checks PASS: Jest 771 suites/13,476 tests, Node 167, Python 50; existing skips
-70+4. Approval recovery, legacy question display, compact previews and fixtures
-were corrected before the exact final-source receipt and image publication.
-[Release regressions](stages/agent-chat-5961/release-regressions.md).
+`content-factory-next-zcdn`: owner accepted advisory editorial review. Generated
+text now saves despite partial/unavailable review, copy, length or missing
+source-binding findings. Unknown generated source ids are discarded, never
+certified. Automatic copy/citation rewrites and final repair/re-review are
+removed; the conductor reports the saved draft and findings without buying a
+second editorial pass. Supported partial research is reusable, with explicit
+person-owned scope clarification retained.
 
-Exact manual questions, all choices/custom/multiple/delegated answers and
-partial checkpoints use native Mastra suspension and existing domain services.
-Contextual approvals preserve ask/deny after restart. Literal misses recover to
-retained source ranges; equivalent research and empty streams terminate within
-finite budgets. Oversized native results keep full receipts/range retrieval.
-The pinned core 1.78.0 patch releases completed listeners/consumed results;
-rebuildable Session mirrors have 30-second idle retention and at most eight
-idle entries. Active tasks and pending gates remain protected.
+One collapsed advisory on the saved adaptation survives native questions and
+reload through existing Mastra Memory. No schema migration or parallel runtime.
+Local preview remains4316/3516 using production API settings; no paid call,
+push or deployment. New user activity in the stand is preserved alongside
+historical chats. [Audit, checks and limits](stages/agent-chat-5961/advisory-review-audit.md).
 
-Local acceptance: 33 affected suites / 701 tests, zero skips; final native
-14 suites / 38 tests with real PostgreSQL/Redis; backend/frontend types PASS.
-Full Nest/Next heap512 browser case completes the fixed 9–23 October request
-through one saved piece and one Telegram draft beside chat, with reload,
-restart, lost accepted response, Stop, stale revision and RU/EN keyboard/
-390/1440px coverage. External inference/search is frozen; editorial/provider
-quality and owner acceptance remain separate. [Acceptance and restart](stages/agent-chat-5961/acceptance.md),
-[browser proof](stages/agent-chat-5961/browser-proof.json),
-[memory proof](stages/agent-chat-5961/memory.md),
-[canonical closure](stages/agent-chat-5961/canonical-proof.json),
-[pinned patch](../patches/README.md).
+The earlier copy-scope repair below is historical: its provenance distinction
+remains, but its blocking editorial policy is superseded by this owner decision.
 
-Retained preview:
-<http://localhost:4296/agents/a5222c3c-2cc7-4c30-aec1-fef81687b8a9>, backend3496.
-Its synthetic databases/private stand are retained for owner review. Original
-main checkout's dirty planning/video files and running local services are
-preserved. One earlier failed initializer may have left an empty test schema
-without a retained identity; no shared schema was guessed or deleted.
+## Real API adaptation refusal repaired locally
+
+`content-factory-next-jxlw` repairs the actual owner run `dbcc542a`: research
+and CORE `cnt-05` succeeded, but adaptation review falsely treated wording from
+its own core as foreign copying. The channel rule now names foreign-source
+passages only; review/repair receives the existing deterministic copy findings.
+This is historical evidence; the advisory policy above supersedes the former
+blocking copy/factual-support gate and its repair limit. Three suites/88 tests, backend types and preservation checks PASS.
+Current chat, source material, failed outcome and foreign workloads are retained.
+No paid replay, push or deployment. [Failure, fix and limits](stages/agent-chat-5961/api-adaptation-copy-scope.md).
+
+## Current local preview: production API configuration
+
+Task `content-factory-next-o260`: owner rejected the local Qwen route. The
+4316/3516 preview now uses the ordinary production provider and search code,
+with a read-only verified copy of the production configuration: OpenRouter,
+`openai/gpt-6-luna`, advanced/fallback `openai/gpt-6.1-sol`, Flex enabled,
+image `openai/gpt-5-image-mini`, Exa research and Tavily facts/discovery.
+All model IDs come from settings; no Qwen protocol/tool/search override remains.
+
+The owned Windows model directory, weights, binaries, archive and GPU process,
+local gateway and transport dumps have been removed. Original chats, drafts,
+application fixes, local databases and foreign services remain. Existing saved
+Qwen responses are historical content and were not rewritten. No paid inference
+was performed; production was only read. No push or deployment.
+
+Current launcher: `scripts/development/agent-chat-api-preview.cjs`; the private
+identity-checking `manage-stand.py` now starts only backend/frontend. Never use
+the historical Qwen restart commands below. [Configuration, cleanup and checks](stages/agent-chat-5961/local-api-restore.md).
+
+## Local native chat and Stop acceptance
+
+`mh7l` preloads bundled product instructions, removes non-actionable chat copy,
+and fixes native question observation/response chronology without topic rules.
+`2koa` settles the exact orphaned Stop owner after its response is saved and
+HTTP owner drains; active/successor tasks and waiting checkpoints stay protected.
+Both retain actual local recovery evidence, current chats and foreign services.
+[Chat/research repair](stages/agent-chat-5961/local-chat-research-repair.md),
+[Stop proof](stages/agent-chat-5961/local-stop-recovery.md).
+
+Historical Qwen runtime/gateway/weights were removed by `o260`. Its saved chats
+remain historical evidence; it is not the current preview provider. Earlier
+question/restart/lost-response acceptance remains linked from
+[local model history](stages/agent-chat-5961/local-real-model.md).
+
+## Local preview updated: 2c25a3d13bb7
+
+Owner-requested local follow-up runs the released application source 48e6c53fcde0
+on backend 3496/frontend 4296, with the exact released SDK patch. New browser proof
+covers full questions, answers/automatic continuation, actual backend SIGKILL,
+lost accepted HTTP 200 response without resend, Stop and saved draft restoration.
+Seven focused native tests PASS; original data/dirty files and adjacent services
+are preserved. No paid calls or production action. Current preview/restart and
+limits: [local update](stages/agent-chat-5961/local-preview-2c25.md),
+[proof](stages/agent-chat-5961/local-preview-2c25-proof.json).
+
+## Delivered native questions and recovery
+
+HONEY-5961 and six children retain canonical local acceptance; HONEY-5962
+released the native continuation-start, cold Stop and approval-admission fixes.
+Historical production source is `2c25a3d13bb7`, private `48e6c53fcde0`.
+[CI follow-up](stages/agent-chat-5961/ci-followup.md),
+[delivery](stages/agent-chat-5961/production-delivery.md),
+[local/frozen acceptance](stages/agent-chat-5961/acceptance.md),
+[memory proof](stages/agent-chat-5961/memory.md).
+Native Mastra owns exact questions/options/answers, durable suspension and
+recovery. Active tasks and pending gates remain protected; literal misses use
+retained source ranges and large results keep their full native receipts.
+The original4296/3496 preview and newer4316/3516 API preview remain retained.
 
 ## Production release and video acceptance boundary
 
-Current production is `4ba4c5a44225` from tested private `9610d5a623fd`;
-verified retained rollback is the preceding video release `e819113f113e`.
+Current production is `2c25a3d13bb7` from tested private `48e6c53fcde0`;
+verified retained rollback is `4ba4c5a44225`. Build and Code Quality are green;
+full/calendar CI each pass 763 suites/13,402 tests, with 153 environment skips.
 Healthy/0 restarts, three PM2 processes online/0, worker ready. Prisma diff is
 zero before/after, no schema applied. Six suspended native snapshots, all 45
 threads/374 messages/1,247 usage rows, AI settings, 21 foreign containers and
@@ -65,7 +112,12 @@ threads/374 messages/1,247 usage rows, AI settings, 21 foreign containers and
 Source archive/digest and public read-only 1440/390px browser checks PASS.
 Authenticated production chat/inference were not exercised; the full dialogue
 and recovery proof is local/frozen. No provider/model policy changed.
-[Sanitized release proof](stages/agent-chat-5961/production-proof.json).
+[Current release proof](stages/agent-chat-5961/ci-production-proof.json),
+[CI proof](stages/agent-chat-5961/ci-proof.json). The original release proof is
+historical. Owned temporary resources were removed; original checkout and preview
+ports are preserved. The 25 October preview now includes the same released
+runtime repairs. Production evidence above is the 24 October release receipt;
+the local update did not repeat production operations.
 
 The 23 October release added the versioned video API/subscription/manual
 contracts and guarded product schema. Its full suite/build/runtime/source,
@@ -115,7 +167,7 @@ remain preserved. HONEY-5962 tracks the current production delivery separately.
 Next stage id: honey-5961-owner-review
 
 Recommended action: owner review of the delivered interface and saved local
-example. The release is already deployed; do not repeat it. Preserve the preview,
+example. Complete the explicitly authorized new release, then preserve the preview,
 foreign changes and all paid/provider boundaries. Real provider acceptance
 requires separate explicit authority.
 

@@ -691,6 +691,67 @@ export class MastraService
     await this.modelAvailability!.cancel(runId);
   }
 
+  /** Called only after Stop drained its HTTP owner and verified the saved tail. */
+  async settleStoppedNativeRun(input: {
+    threadId: string; resourceId: string; runId: string; requestId: string;
+  }): Promise<boolean> {
+    const agent = await this.conductor();
+    if (!isDurableAgent(agent)) return false;
+    const memory = await agent.getMemory();
+    const thread = await memory?.getThreadById({ threadId: input.threadId });
+    const owns = (current: typeof thread) => {
+      const pointer = current?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+      const marker = current?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+      return current?.resourceId === input.resourceId && pointer?.runId === input.runId &&
+        pointer.logicalRequestId === input.requestId && marker?.requestId === input.requestId;
+    };
+    const settled = (current: typeof thread) => {
+      const marker = current?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+      return owns(current) && marker?.state === 'settled' &&
+        ['completed', 'failed', 'interrupted'].includes(String(marker.outcome));
+    };
+    if (!owns(thread)) return false;
+    if (settled(thread)) return true;
+    const pointer = thread!.metadata!.assistantNativeRun as Record<string, unknown>;
+    const workflows = await pStore.getStore('workflows');
+    const memoryStore = await pStore.getStore('memory');
+    if (!workflows || !memoryStore) throw new Error('Native Stop storage is unavailable.');
+    const related = [...new Set([input.runId, pointer.previousRunId,
+      ...(Array.isArray(pointer.lineageRunIds) ? pointer.lineageRunIds : []),
+    ].filter((id): id is string => typeof id === 'string' && !!id))];
+    for (const runId of related) {
+      if (agent.runRegistry.get(runId)) return false;
+      const [saved, owner] = await Promise.all([
+        workflows.getWorkflowRunById({ workflowName: 'durable-agentic-loop', runId }),
+        workflows.getRunOwnership({ runId }),
+      ]);
+      const snapshot = typeof saved?.snapshot === 'string' ? JSON.parse(saved.snapshot) : saved?.snapshot;
+      // Native continuation keeps completed predecessor snapshots as history.
+      // Only the target must be canceled; history need not be rewritten to
+      // acknowledge its successor's Stop. Nonterminal ancestors still fence it.
+      const terminalPredecessor = runId !== input.runId &&
+        ['success', 'failed', 'tripwire', 'bailed', 'skipped'].includes(snapshot?.status);
+      if (owner?.live || (saved && snapshot?.status !== 'canceled' && !terminalPredecessor)) return false;
+    }
+    // No driver/checkpoint remains to emit FINISH after a failed resume. Stop
+    // owns this terminal write, atomically guarded against a successor task.
+    const updated = await memoryStore.updateThreadMetadata({
+      id: input.threadId, resourceId: input.resourceId,
+      update: current => {
+        if (!owns(current) || settled(current)) return undefined;
+        const currentPointer = current.metadata!.assistantNativeRun as Record<string, unknown>;
+        const marker = current.metadata![AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown>;
+        if (marker.stopRequested !== true || currentPointer.state !== 'stopped') return undefined;
+        return {
+          assistantNativeRun: { ...currentPointer, state: 'settled', outcome: 'interrupted',
+            continuationPending: false, continuationIdentity: null },
+          [AGENT_EXECUTION_METADATA_KEY]: { ...marker, state: 'settled', outcome: 'interrupted' },
+        };
+      },
+    });
+    return settled(updated);
+  }
+
   /** Native workflows persist explicitly queued user input before acceptance. */
   async queueNativeInput(
     input: Omit<NativeQueuedInputSubmission, 'identity' | 'resourceId'> & {

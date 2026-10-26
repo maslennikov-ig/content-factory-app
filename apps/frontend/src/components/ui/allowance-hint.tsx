@@ -54,6 +54,8 @@ export type AllowanceState =
       resetsAt: string;
     };
 
+export type AllowanceHintPresentation = 'default' | 'chat';
+
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
@@ -119,11 +121,21 @@ export const formatResetDate = (iso: string, language: string) => {
 export const AllowanceHintView = ({
   state,
   language = 'en',
+  presentation = 'default',
 }: {
   state: AllowanceState;
   language?: string;
+  /** The chat hides no-limit details while keeping blocking states on screen. */
+  presentation?: AllowanceHintPresentation;
 }) => {
   const t = useT();
+
+  if (
+    presentation === 'chat' &&
+    (state.status === 'workspace_key' || state.status === 'unlimited')
+  ) {
+    return null;
+  }
 
   if (state.status === 'loading') {
     return (
@@ -207,7 +219,11 @@ export const AllowanceHintView = ({
 };
 
 /** The same line, reading the door. */
-export const AllowanceHint = () => {
+export const AllowanceHint = ({
+  presentation = 'default',
+}: {
+  presentation?: AllowanceHintPresentation;
+}) => {
   const request = useFetch();
   const language = useInterfaceLanguage();
 
@@ -226,7 +242,13 @@ export const AllowanceHint = () => {
     ? { status: 'error' }
     : readAllowance(data);
 
-  return <AllowanceHintView state={state} language={language} />;
+  return (
+    <AllowanceHintView
+      state={state}
+      language={language}
+      presentation={presentation}
+    />
+  );
 };
 
 export default AllowanceHint;

@@ -169,10 +169,11 @@ test.each([false, true])('saved optional adaptation material questions apply one
   const saved = detail();
   saved.core.questions.items = [];
   saved.channels = [{integrationId: 'channel-1', materialAsk: {adaptationId: 'adaptation-1', questions: [original, second]}}];
+  const qualityReview = { status: 'partial', missingRequirements: ['Уточнить охват.'], unsupportedClaims: [], reviews: 1, repaired: false };
   const adapt = jest.fn(async function* () {
     const id = saved.adaptations.length ? 'adaptation-2' : 'adaptation-1';
     saved.adaptations.push({id, integrationId: 'channel-1', body: 'Сохранённый пост'});
-    yield {name: 'adaptation', adaptation: {id, state: 'draft'}};
+    yield {name: 'adaptation', qualityReview, adaptation: {id, state: 'draft'}};
   });
   const materialQuestions = jest.fn(async (_org, _piece, _channel, input) => {
     saved.channels[0].materialAsk = null;
@@ -183,7 +184,8 @@ test.each([false, true])('saved optional adaptation material questions apply one
     prepareAdapt: async (_org, pieceId, request) => ({pieceId, request}), adapt, materialQuestions, rebuildCore}});
   const input = {pieceId: 'piece-1', channelId: 'channel-1'};
   const first = await executeTool(tool, input, {requestContext: requestContextFor(registry)});
-  expect(first.suspended[0]).toMatchObject({kind: 'domain-questions', continuation: {operation: 'adaptation-material'}});
+  expect(first.suspended[0]).toMatchObject({kind: 'domain-questions', continuation: {operation: 'adaptation-material', result: { qualityReview }}});
+  expect(first.parts.find(part => part.type === 'data-adaptation')?.data.qualityReview.untrustedData.value).toEqual(qualityReview);
   expect(first.suspended[0].questions[0].options).toHaveLength(7);
   let pending = first.suspended[0];
   if (!delegateAll) {
@@ -194,7 +196,7 @@ test.each([false, true])('saved optional adaptation material questions apply one
     expect(rebuildCore).not.toHaveBeenCalled();
   }
   const final = await executeTool(tool, input, {requestContext: requestContextFor(registry), suspendPayload: pending, resumeData: {decideForPerson: true}});
-  expect(final.output).toMatchObject({ok: true, summary: {adaptationId: delegateAll ? 'adaptation-1' : 'adaptation-2'}});
+  expect(final.output).toMatchObject({ok: true, summary: {adaptationId: delegateAll ? 'adaptation-1' : 'adaptation-2', qualityReview: { untrustedData: { value: qualityReview } }}});
   expect(materialQuestions).toHaveBeenCalledTimes(1);
   expect(materialQuestions.mock.calls[0][3]).toEqual(delegateAll ? {adaptationId: 'adaptation-1', dismiss: true}
     : {adaptationId: 'adaptation-1', answers: [{key: 'position', text: 'Мой реальный материал'}]});

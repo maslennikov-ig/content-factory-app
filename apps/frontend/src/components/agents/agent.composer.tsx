@@ -14,6 +14,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Select } from '@contentfactory/react/form/select';
 import { FileInput } from '@contentfactory/react/form/file-input';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
 import {
   containsSecretShape,
@@ -47,8 +48,9 @@ import {
 
 /**
  * The composer (`content-factory-next-kcxz.10`, canvas C): text, pasted links
- * and attachments, one allowance line above it (spec §6.2 «Остаток» — the full
- * card only when too little is left, and that is the line's own danger state).
+ * and attachments. The chat keeps a finite remainder and blocking allowance
+ * states visible while hiding the no-limit detail; file guidance lives in a
+ * `Hint` beside the attachment control.
  *
  * Enter sends, Shift+Enter breaks the line. While the agent works the field
  * stays open: the next message waits and goes as soon as the turn ends, and
@@ -632,10 +634,7 @@ export function AgentComposer({
 
   return (
     <div className="flex min-w-0 flex-col gap-[8px]">
-      <span className="inline-flex min-w-0 items-center gap-[8px] text-cf-ink-muted">
-        <AgentGlyph name="gauge" size={14} />
-        <AllowanceHint />
-      </span>
+      <AllowanceHint presentation="chat" />
       <form
         className="flex min-w-0 flex-col gap-[8px]"
         onSubmit={(event) => {
@@ -782,9 +781,7 @@ export function AgentComposer({
             }
             onFiles={addFiles}
           />
-          <span className="hidden min-w-0 flex-1 truncate cf-caption text-cf-ink-muted sm:inline">
-            {w.attachHint}
-          </span>
+          <Hint label={w.attachHintLabel}>{w.attachHint}</Hint>
           <span className="ms-auto inline-flex shrink-0 items-center gap-[8px]">
             {transcribeVoice ? (
               recording ? (
