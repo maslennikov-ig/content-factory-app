@@ -4,7 +4,7 @@ import type { CapabilityDeclaration } from '../capabilities/capability.types';
 
 export const NATIVE_PERMISSION_METADATA_KEY = 'assistantPermissionRules';
 export const NATIVE_SAFE_BUILTIN_TOOLS = ['skill', 'skill_search', 'skill_read', 'ask_user',
-  'task_write', 'task_update', 'task_complete', 'task_check'];
+  'task_write', 'task_update', 'task_complete', 'task_check', 'updateWorkingMemory'];
 const policies = new Set(['allow', 'ask', 'deny']);
 
 /** Restore before subscribing to a persisted gate. Domain checks remain authoritative. */

@@ -81,7 +81,10 @@ describe('the identity of an MCP request', () => {
     const requestContext = new RequestContext();
     const user = await mcp.seedMcpRequestContext({ authInfo: { extra: { identity } }, requestContext });
     expect(user).toEqual({ id: 'user-1' });
-    expect(registry.readCapabilityIdentity(requestContext)).toEqual(identity);
+    expect(registry.readCapabilityIdentity(requestContext)).toEqual({
+      ...identity,
+      interfaceLanguage: identity.language,
+    });
     expect(registry.capabilityContextSchema.safeParse(
       Object.fromEntries([...requestContext.entries()])
     ).success).toBe(true);

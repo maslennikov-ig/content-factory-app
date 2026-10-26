@@ -41,7 +41,10 @@ so if one is wrong):
    upstream surfaces hidden by 2q28.26 (webhooks, autopost v1, sets, signatures, developers/API,
    plugs, third-party), video generation, the legacy Postiz compose modal (`POST /posts`), the
    brand-profile versions API and the source registry (both have no live UI).
-9. The agent speaks as the product speaks: «мы», and «ИИ» when the performer must be named; never
+9. The assistant describes its own work in the first-person singular in every response language
+   («Думаю», «Ищу», «Проверяю» in Russian); preserve quotations and authored content voice.
+   Use the full interface locale by default; explicit requested reply language overrides it.
+   Authored content language follows the request/channel/avatar separately. Never call the assistant
    «модель» (PRODUCT.md, «Как продукт называет себя»). The product rule «решаем за человека» applies
    to the agent itself: it does not ask what it can decide, and every question it does ask carries
    «Решите за меня».

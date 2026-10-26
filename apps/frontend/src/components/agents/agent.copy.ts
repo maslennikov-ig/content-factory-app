@@ -7,15 +7,12 @@ import type { SuggestedQuestionsWords } from '@contentfactory/frontend/component
 import type { AgentArtifactKind } from './agent.contract';
 import type { EditorDraftWords } from './agent.handoff';
 import { reviewPreviewCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/review-change-preview.copy';
+import { agentProgressWordsFor } from './agent.progress.copy';
 
 /**
- * Слова экрана «Агент» (`content-factory-next-kcxz.10`), два языка рядом с
- * кодом — договорённость `settings.copy.ts` и `onboarding.copy.ts`: новое
- * ложится сюда, а не в шестнадцать файлов локалей с обещанием перевода.
- *
- * Голос — продукта (PRODUCT.md, spec §1.9): «мы», «ИИ», когда исполнителя
- * надо назвать, и никогда «модель». Отказ говорит, что случилось и что
- * дальше, одной-двумя фразами.
+ * Assistant screen words. Base cards retain their ru/en fallback; personal
+ * chat navigation and live assistant progress have all sixteen locale copies.
+ * The assistant describes its own actions in the first-person singular.
  */
 export type AgentCopyLocale = 'ru' | 'en';
 
@@ -488,7 +485,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       label: 'Разговор',
       you: 'Вы',
       agent: 'ИИ-помощник',
-      thinking: 'Думаем…',
+      thinking: 'Думаю…',
       attached: (name) => `Приложено: ${name}`,
       samplesAdded: (name, accepted) =>
         `${name} — в образцы аватара: ${accepted} ${ruPlural(accepted, 'текст', 'текста', 'текстов')}`,
@@ -739,22 +736,22 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       cancelled: 'Бронь снята, пост остался черновиком.',
     }),
     progress: {
-      kind: 'Работаем',
-      working: 'Работаем…',
+      kind: 'Работаю',
+      working: 'Работаю…',
       stepsLabel: 'Шаги',
-      leaveNote: 'Можно уйти с экрана — доделаем сами',
+      leaveNote: 'Можно уйти с экрана — я продолжу работу',
       stop: 'Остановить',
       stages: {
-        started: 'Читаем…',
-        brief: 'Собираем бриф…',
-        claims: 'Разбираем утверждения…',
-        search: 'Ищем недостающие факты…',
-        writing: 'Пишем…',
+        started: 'Читаю…',
+        brief: 'Собираю бриф…',
+        claims: 'Разбираю утверждения…',
+        search: 'Ищу недостающие факты…',
+        writing: 'Пишу…',
         done: 'Готово',
-        measuring: 'Считаем длину фраз, пунктуацию и повторы…',
-        proposing: 'Составляем предложение голоса…',
-        retrying: 'Связь мигнула — повторяем шаг…',
-        fallback: 'Переключаемся на резервный ИИ…',
+        measuring: 'Считаю длину фраз, пунктуацию и повторы…',
+        proposing: 'Составляю предложение голоса…',
+        retrying: 'Связь мигнула — повторяю шаг…',
+        fallback: 'Переключаюсь на резервный ИИ…',
       },
     },
     error: {
@@ -1355,7 +1352,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       label: 'Conversation',
       you: 'You',
       agent: 'AI assistant',
-      thinking: 'Thinking…',
+      thinking: "I'm thinking…",
       attached: (name) => `Attached: ${name}`,
       samplesAdded: (name, accepted) =>
         `${name} — to the avatar's samples: ${accepted} ${accepted === 1 ? 'text' : 'texts'}`,
@@ -1604,21 +1601,21 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     }),
     progress: {
       kind: 'Working',
-      working: 'Working…',
+      working: "I'm working…",
       stepsLabel: 'Steps',
-      leaveNote: 'You can leave the screen — we finish on our own',
+      leaveNote: "You can leave the screen — I'll keep working.",
       stop: 'Stop',
       stages: {
-        started: 'Reading…',
-        brief: 'Filling the brief…',
-        claims: 'Reading the claims…',
-        search: 'Looking for missing facts…',
-        writing: 'Writing…',
+        started: "I'm reading…",
+        brief: "I'm filling in the brief…",
+        claims: "I'm reviewing the claims…",
+        search: "I'm looking for missing facts…",
+        writing: "I'm writing…",
         done: 'Done',
-        measuring: 'Counting sentence length, punctuation and repeats…',
-        proposing: 'Writing the voice proposal…',
-        retrying: 'Connection hiccup — retrying the step…',
-        fallback: 'Switching to the backup AI…',
+        measuring: "I'm checking sentence length, punctuation and repetition…",
+        proposing: "I'm drafting a voice proposal…",
+        retrying: "Connection hiccup — I'm retrying the step…",
+        fallback: "I'm switching to the backup AI…",
       },
     },
     error: {
@@ -2185,7 +2182,21 @@ export const agentWordsFor = (language: string | undefined | null): AgentWords =
   let words = navigationCopies.get(key);
   if (!words) {
     const threads = chatWordsFor(language);
-    words = { ...agentCopy[resolveContentLocale(language)], threads, history: { loading: threads.historyLoading, failedTitle: threads.historyFailedTitle, failedBody: threads.historyFailedBody, retry: threads.retry } };
+    const base = agentCopy[resolveContentLocale(language)];
+    const progress = agentProgressWordsFor(language);
+    words = {
+      ...base,
+      threads,
+      history: { loading: threads.historyLoading, failedTitle: threads.historyFailedTitle, failedBody: threads.historyFailedBody, retry: threads.retry },
+      conversation: { ...base.conversation, thinking: progress.thinking },
+      progress: {
+        ...base.progress,
+        kind: progress.kind,
+        working: progress.working,
+        leaveNote: progress.leaveNote,
+        stages: { ...base.progress.stages, ...progress.stages },
+      },
+    };
     navigationCopies.set(key, words);
   }
   return words;

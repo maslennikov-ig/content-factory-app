@@ -411,6 +411,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       if (!identity) throw new Error(IDENTITY_REQUIRED);
       return conductorInstructions({
         language: identity.language,
+        interfaceLanguage: identity.interfaceLanguage ?? identity.language,
         role: identity.role,
         now: now(),
         timeZone: identity.timeZone,
@@ -564,7 +565,7 @@ export const buildConductorController = (
     ],
   });
   // Controller gates built-ins globally. These tools only read the bundled
-  // workspace or maintain the native task checklist; domain-tool approval
+  // workspace or maintain native task state and personal preferences; domain-tool approval
   // remains the capability's authoritative requireApproval function.
   controller.onSessionCreated(async (session) => {
     await configureNativeSessionPermissions(session, options?.capabilities ?? CAPABILITY_CATALOGUE, options?.memory);

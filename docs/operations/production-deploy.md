@@ -1,6 +1,36 @@
 # Развёртывание на сервере
 
-## Current release 24 October 2026: 2c25a3d13bb7
+## Current release 26 October 2026: 34d3591b2cc1
+
+Chat instructions load automatically; native questions continue after answers,
+recover after reload/process loss and settle Stop without losing saved results.
+Usable drafts save with collapsed advisory findings instead of automatic
+rewrite/re-review; explicit human fact selection remains. Chat copy is quieter.
+Models/search retain the existing production API settings.
+
+Tested private source `3a2670415b46fa73103bccc1b7bfc8f56fdf17a5`; public/runtime
+`34d3591b2cc1736fdd83d4d4981e0811a9ab8398`. Registry `ghcr.io/maslennikov-ig/content-factory-next@sha256:1914b50d601f2bea733c40239a51403a509aac4ecb4ceb3f07c28641bbf027c8`.
+All nine local release checks PASS: Jest777/13,555 (70 standard skips),
+Node167/0FAIL/4skips, Python50. [Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40355934427)
+passes all four jobs; [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40355934213) passes.
+Image/nginx/CLI/eight SDK chunks/registry size PASS (0% growth). Empty schema
+diff before/after; no SQL applied. Healthy, three PM2 online/zero restarts,
+worker ready. Source archive/version exact; public login1440/390 has no errors,
+overflow or writes.45 threads/374 messages/six suspended snapshots/1247 usage
+rows/settings/native schema preserved. No paid inference/search or new usage.
+
+Retention keeps current plus verified `2c25a3d13bb7`; only4ba/two old config
+copies removed. Own test resources and release intermediates cleaned; foreign
+workloads/current AiDevTeam replacement, original checkout and branch refs kept.
+New authenticated provider/editorial acceptance remains separate (`eqh5`).
+[Delivery proof and cleanup](../../.codex/stages/agent-chat-5961/release-2026-10-26.md),
+[owner walkthrough](agent-chat-owner-check-2026-10-26.md). Documentation follow-up
+does not change accepted app behavior.
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh 2c25a3d13bb7`.
+Keep the existing additive schema; no down-migration.
+
+## Previous release 24 October 2026: 2c25a3d13bb7
 
 HONEY-5962 CI follow-up for HONEY-5961: native continuation-start, cold queued
 Stop and approval-admission races are fixed with deterministic native regressions.

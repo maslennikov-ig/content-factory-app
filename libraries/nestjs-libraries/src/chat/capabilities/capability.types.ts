@@ -1,6 +1,7 @@
 import type { Type } from '@nestjs/common';
 import type { z } from 'zod';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import type { BackendLocale } from '../../locale/backend-strings';
 import type { UntrustedSource } from './untrusted-data';
 import { CARD_KINDS, type CardKind } from './agent-parts.contract';
 
@@ -77,6 +78,8 @@ export type CapabilityIdentity = {
   userId: string;
   role: OrganizationRole;
   language: 'ru' | 'en';
+  /** Full trusted interface locale; optional for callers and legacy snapshots. */
+  interfaceLanguage?: BackendLocale;
   /**
    * The person's time zone as the door resolved it (`person-time.ts`): the
    * browser's IANA zone, else the saved offset, else `UTC`. Times are read

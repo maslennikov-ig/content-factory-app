@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { RequestContext } from '@mastra/core/request-context';
 import type { CapabilityIdentity, OriginalAuthorRequest } from './capability.types';
 import { currentConductorExecution } from '../conductor/conductor.execution';
+import { BACKEND_LOCALES } from '../../locale/backend-strings';
 
 /**
  * The keys the server writes into Mastra's `RequestContext` for the registry
@@ -19,6 +20,8 @@ export const CAPABILITY_CONTEXT_KEYS = {
   userId: 'cf.userId',
   role: 'cf.role',
   language: 'cf.language',
+  /** Full interface locale for assistant language; optional on old snapshots. */
+  interfaceLanguage: 'cf.interfaceLanguage',
   /** The person's time zone (IANA or offset), resolved by the door. */
   timeZone: 'cf.timeZone',
   /** One author record from the current chat ingress, serialized for snapshots. */
@@ -76,6 +79,7 @@ export const capabilityContextSchema = z
     [K.userId]: z.string().min(1),
     [K.role]: z.enum(['USER', 'EDITOR', 'ADMIN', 'SUPERADMIN']),
     [K.language]: z.enum(['ru', 'en']),
+    [K.interfaceLanguage]: z.enum(BACKEND_LOCALES).optional(),
     [K.timeZone]: z.string().min(1).max(64),
     [K.originalAuthorRequest]: z.string().max(122_000)
       .refine(value => parseAuthorRequest(value) !== null).optional(),
@@ -111,6 +115,7 @@ export const seedCapabilityContext = (
   context.set(K.userId as never, identity.userId as never);
   context.set(K.role as never, identity.role as never);
   context.set(K.language as never, identity.language as never);
+  context.set(K.interfaceLanguage as never, (identity.interfaceLanguage ?? identity.language) as never);
   context.set(K.timeZone as never, (identity.timeZone || 'UTC') as never);
 };
 
@@ -124,6 +129,7 @@ export const readCapabilityIdentity = (
     [K.userId]: read(context, K.userId),
     [K.role]: read(context, K.role),
     [K.language]: read(context, K.language),
+    [K.interfaceLanguage]: read(context, K.interfaceLanguage),
     [K.timeZone]: read(context, K.timeZone),
   });
   if (!parsed.success) return null;
@@ -134,6 +140,7 @@ export const readCapabilityIdentity = (
     userId: value[K.userId],
     role: value[K.role],
     language: value[K.language],
+    interfaceLanguage: value[K.interfaceLanguage] ?? value[K.language],
     timeZone: value[K.timeZone],
   };
 };

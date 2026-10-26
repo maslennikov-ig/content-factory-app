@@ -32,6 +32,7 @@ const esmStubs = {
 const load = (file) => loadTypeScriptModule(`${CONDUCTOR}/${file}`, esmStubs);
 
 const { conductorInstructions, FORBIDDEN_SELF_WORDS } = load('conductor.instructions.ts');
+const { BACKEND_LOCALES } = loadTypeScriptModule('libraries/nestjs-libraries/src/locale/backend-strings.ts');
 const { CONDUCTOR_SKILL_SPECS } = load('conductor.skills.ts');
 test('every bundled product instruction is ready before inference without loading consent', () => {
   const prompt = conductorInstructions({ language: 'ru', now: new Date('2026-10-25T00:00:00Z'), snapshot: {} });
@@ -48,6 +49,7 @@ const questionCard = loadCapabilityModule('question-card.ts');
 /** The id of a card whose stored payload is `payload` (review W2 F3). */
 const CARD = (payload) => questionCard.questionCardId(payload);
 const context = loadCapabilityModule('../conductor/conductor.context.ts');
+const capabilityContext = loadCapabilityModule('capability.context.ts');
 const request = loadCapabilityModule('../conductor/agent-chat.request.ts');
 const { AGENT_ERROR_CODES } = loadCapabilityModule('agent-parts.contract.ts');
 
@@ -57,15 +59,17 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
   const snapshot = { counts: { pieces: 1 }, pieces: [{ id: 'p1', code: 'cnt-1', title: INJECTION }] };
   const text = conductorInstructions({ language: 'ru', now: NOW, snapshot });
 
-  test('speaks as the product: «мы», «ИИ», and «модель» only where it is forbidden', () => {
-    expect(text).toContain('«мы»');
+  test('speaks about its own actions in first person singular without changing quoted copy', () => {
+    expect(text).toContain('«Думаю», «Ищу», «Проверяю»');
+    expect(text).toMatch(/Do not describe your own work with product\/team plural or in the third person/);
+    expect(text).toMatch(/Preserve quoted and user-authored wording/);
     expect(text).toContain('«ИИ»');
     const lines = text.split('\n');
     const naming = lines.filter((line) =>
       FORBIDDEN_SELF_WORDS.some((word) => line.includes(word))
     );
     expect(naming).toHaveLength(1);
-    expect(naming[0]).toMatch(/^- Russian: .*Never call yourself or the product/);
+    expect(naming[0]).toMatch(/^- Never call yourself or the product/);
   });
 
   test('decides for the person and offers «Решите за меня» on the one question it asks', () => {
@@ -113,8 +117,28 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
   test('without a snapshot it says so and reads it with the tool before acting', () => {
     const empty = conductorInstructions({ language: 'en', now: NOW, snapshot: null });
     expect(empty).toMatch(/Unavailable this turn/);
-    expect(empty).toContain('Answer in English');
+    expect(empty).toMatch(/Use English by default for direct replies and task text/);
     expect(empty).toContain('2026-09-27 10:00');
+  });
+
+  test('the full interface locale sets the default reply language independently from authored content', () => {
+    const locale = 'fr';
+    const displayName = new Intl.DisplayNames([locale], { type: 'language' }).of(locale);
+    const localized = conductorInstructions({ language: 'en', interfaceLanguage: locale, now: NOW, snapshot: null });
+    expect(localized).toContain(`Use ${displayName} by default for direct replies and task text`);
+    expect(localized).toMatch(/Follow an explicit request to reply in a different language/);
+    expect(localized).toMatch(/Quoted text, examples, source excerpts .* do not change the reply language/);
+    expect(localized).toMatch(/keep the language and voice the person explicitly requested, or the channel\/avatar voice/);
+    expect(localized).toMatch(/Write task titles, labels and activeForm in the same language as the current response/);
+  });
+
+  test('every supported interface locale has a full-language default instruction', () => {
+    for (const locale of BACKEND_LOCALES) {
+      const tag = locale.replace('_', '-');
+      const name = new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? locale;
+      const prompt = conductorInstructions({ language: 'en', interfaceLanguage: locale, now: NOW, snapshot: null });
+      expect(prompt).toContain(`Use ${name} by default for direct replies and task text`);
+    }
   });
 });
 
@@ -299,6 +323,21 @@ describe('the request context of a turn (premortem S1; spec §4.3)', () => {
     const legacy = context.buildConductorContext({ identity: IDENTITY, threadId: 'legacy-thread', paidLimit: 1 });
     expect(legacy.get('cf.executionId')).toBeUndefined();
     expect(context.conductorContextSchema.safeParse(Object.fromEntries(legacy.entries())).success).toBe(true);
+  });
+
+  test('full interface language survives the request context, with old snapshots falling back to capability language', () => {
+    const french = context.buildConductorContext({
+      identity: { ...IDENTITY, interfaceLanguage: 'fr' },
+      threadId: 'french-thread',
+    });
+    expect(french.get('cf.language')).toBe('ru');
+    expect(french.get('cf.interfaceLanguage')).toBe('fr');
+    expect(capabilityContext.readCapabilityIdentity(french).interfaceLanguage).toBe('fr');
+
+    const legacyValues = Object.fromEntries(french.entries());
+    delete legacyValues['cf.interfaceLanguage'];
+    expect(context.conductorContextSchema.safeParse(legacyValues).success).toBe(true);
+    expect(capabilityContext.readCapabilityIdentity(legacyValues).interfaceLanguage).toBe('ru');
   });
 
   test('a resource, scope or messageAuthor that is not the caller’s own fails the agent’s schema', () => {

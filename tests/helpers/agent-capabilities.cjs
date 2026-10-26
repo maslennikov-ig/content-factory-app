@@ -236,6 +236,7 @@ const IDENTITY = {
   userId: 'user-1',
   role: 'EDITOR',
   language: 'ru',
+  interfaceLanguage: 'ru',
   timeZone: 'Europe/Moscow',
 };
 

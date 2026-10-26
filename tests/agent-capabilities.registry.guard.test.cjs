@@ -248,6 +248,21 @@ describe('F1, F16: an approval card says what and where, for exactly the call (r
   const all = fixtures();
   const base = catalogue.find((capability) => capability.id === 'piece.delete');
 
+  test('a legacy native preference-memory gate has an actionable scoped summary without model or service calls', async () => {
+    const services = () => { throw new Error('No service read is needed for native preference input'); };
+    const args = { memory: { answerLength: 'short', notes: ['Prefer concise replies.'] } };
+    for (const language of ['ru', 'en']) {
+      const summary = await registry.describeApprovalCall(catalogue, services, { ...IDENTITY, language }, 'updateWorkingMemory', args);
+      expect(summary).toContain('Prefer concise replies.');
+      expect(summary).toContain('short');
+      expect(summary).not.toContain('undefined');
+    }
+    for (const memory of [null, {}, { answerLength: 'invalid' }, { unrelated: 'not a preference' }]) {
+      expect(await registry.describeApprovalCall(catalogue, services, IDENTITY, 'updateWorkingMemory', { memory })).toBeNull();
+    }
+    expect(await registry.describeApprovalCall(catalogue, services, IDENTITY, 'unregistered_tool', args)).toBeNull();
+  });
+
   test('every confirm capability describes its card from the workspace, in both languages', async () => {
     for (const capability of byClass('confirm')) {
       const fixture = all[capability.id];

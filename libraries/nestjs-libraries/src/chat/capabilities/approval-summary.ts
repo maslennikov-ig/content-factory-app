@@ -7,6 +7,7 @@ import {
   type CapabilityIdentity,
 } from './capability.types';
 import type { CapabilityServices } from './mastra.adapter';
+import { personPreferencesSchema } from '../conductor/conductor.memory';
 
 /**
  * The approval card's «what and where» (correctness review W1 F1, spec §5.1
@@ -59,6 +60,17 @@ export const describeApprovalCall = async (
     (candidate) => toolNameOf(candidate.id) === toolName
   );
   if (!capability) {
+    // Old suspended snapshots and an explicit memory ask policy remain
+    // answerable. Describe the exact native input without requiring a model.
+    if (toolName === 'updateWorkingMemory') {
+      const memory = args && typeof args === 'object' ? (args as Record<string, unknown>).memory : null;
+      const parsed = personPreferencesSchema.safeParse(memory);
+      if (!parsed.success || !Object.keys(parsed.data).length) return null;
+      const values = JSON.stringify(parsed.data);
+      return cleanApprovalSummary(identity.language === 'ru'
+        ? `Запомнить предпочтения для ваших следующих разговоров: ${values}`
+        : `Remember preferences for your future conversations: ${values}`);
+    }
     const name = args && typeof args === 'object' ? cleanApprovalSummary((args as Record<string, unknown>).name) : null;
     if (toolName === 'skill' && name) return identity.language === 'ru'
       ? `Загрузить встроенную инструкцию «${name}» для этого разговора. Данные продукта не изменятся.`

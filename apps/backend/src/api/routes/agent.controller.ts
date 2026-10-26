@@ -119,16 +119,15 @@ export const agentIdentity = (
   timeZoneHeader?: unknown
 ): CapabilityIdentity => {
   const role = organization.users?.[0]?.role;
+  const interfaceLanguage = resolveBackendLocale((user as { language?: unknown }).language);
   return {
     organizationId: organization.id,
     organizationCreatedAt: new Date(organization.createdAt).toISOString(),
     userId: user.id,
     // An unknown role reads as the least one, never as a writer.
     role: role && ROLES.includes(role) ? role : 'USER',
-    language:
-      resolveBackendLocale((user as { language?: unknown }).language) === 'ru'
-        ? 'ru'
-        : 'en',
+    language: interfaceLanguage === 'ru' ? 'ru' : 'en',
+    interfaceLanguage,
     // The browser's zone, as the screens use; else the saved standard
     // offset (`User.timezone`, minutes); else UTC (`kcxz.15`).
     timeZone: agentTimeZone(timeZoneHeader, (user as { timezone?: unknown }).timezone),

@@ -1,0 +1,284 @@
+{
+  "task": "content-factory-next-55e7",
+  "verifiedAt": "2026-10-26T17:02:31.443948+00:00",
+  "privateSource": "3a2670415b46fa73103bccc1b7bfc8f56fdf17a5",
+  "publicSource": "34d3591b2cc1736fdd83d4d4981e0811a9ab8398",
+  "tag": "34d3591b2cc1",
+  "rollbackTag": "2c25a3d13bb7",
+  "imageDigest": "ghcr.io/maslennikov-ig/content-factory-next@sha256:1914b50d601f2bea733c40239a51403a509aac4ecb4ceb3f07c28641bbf027c8",
+  "rootReleaseChecks": {
+    "source": "3a2670415b46fa73103bccc1b7bfc8f56fdf17a5",
+    "steps": [
+      {
+        "name": "backend-types",
+        "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+        "exitCode": 0,
+        "seconds": 18.91,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/backend-types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "frontend-types",
+        "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+        "exitCode": 0,
+        "seconds": 16.01,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/frontend-types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "orchestrator-types",
+        "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+        "exitCode": 0,
+        "seconds": 13.5,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/orchestrator-types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "source-build",
+        "command": "pnpm run build",
+        "exitCode": 0,
+        "seconds": 103.82,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/source-build.log",
+        "logSha256": "0be02b58aa6458ce12d656406582df665f0e23f49e3e024a803c0da6f88c2b2c"
+      },
+      {
+        "name": "full-suite",
+        "command": "bash scripts/release/record-suite-receipt.sh",
+        "exitCode": 0,
+        "seconds": 2762.05,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/full-suite.log",
+        "logSha256": "933d938b9fad3ba9766715dd846b06fc0ea93867e4c77df3bd1619fa9dd46533"
+      },
+      {
+        "name": "branding",
+        "command": "node scripts/branding/brand-scan.cjs",
+        "exitCode": 0,
+        "seconds": 0.22,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/branding.log",
+        "logSha256": "92de49af5a8e45856311e297697d24d2d9c2cb4879f446bca6d4bad3eceb31a5"
+      },
+      {
+        "name": "docs",
+        "command": "pnpm run docs:check",
+        "exitCode": 0,
+        "seconds": 0.92,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/docs.log",
+        "logSha256": "bc64f5972862f926bd429844c7af8dd8048c03661a9289cc84759e4e94237e39"
+      },
+      {
+        "name": "process",
+        "command": "bash scripts/orchestration/run_process_verification.sh",
+        "exitCode": 0,
+        "seconds": 0.27,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/process.log",
+        "logSha256": "51dc422f9e252bdf11a0d2d8e5c2dab236a8d871f8b03aafa49275d67d837ef8"
+      },
+      {
+        "name": "diff",
+        "command": "git diff --check",
+        "exitCode": 0,
+        "seconds": 0.02,
+        "log": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026/diff.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "phase": "PASS",
+    "owner": "release-chat-polish-20261026",
+    "sourceAfter": "3a2670415b46fa73103bccc1b7bfc8f56fdf17a5"
+  },
+  "suiteReceipt": {
+    "commit": "3a2670415b46fa73103bccc1b7bfc8f56fdf17a5",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-26T16:05:14Z",
+    "jest": {
+      "suites": "Test Suites: 7 skipped, 777 passed, 777 of 784 total",
+      "tests": "Tests:       70 skipped, 13555 passed, 13625 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 167",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "ci": {
+    "Build": {
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40355934427",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "The suite, one year on",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (22.23.2)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full test suite (required)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Docker-capable execution proofs (required)",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "Code Quality Analysis": {
+      "url": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40355934213",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Analyze (javascript-typescript)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "production": {
+    "result": "PASS",
+    "mode": "after-retention",
+    "at": "2026-10-26T17:00:15.455359+00:00",
+    "release": "34d3591b2cc1",
+    "pm2": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restartCount": 0
+      }
+    ],
+    "workerReadiness": {
+      "status": "ok"
+    },
+    "foreignContainersPreserved": 21,
+    "volumesPreserved": 21,
+    "suspendedSnapshotsPreserved": 6,
+    "threadsExact": 45,
+    "messagesExact": 374,
+    "usageRowsExact": 1247,
+    "newUsageRows": 0,
+    "settingsPreserved": true,
+    "protectedConfigPreserved": true,
+    "nativeSchemaFingerprint": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0",
+    "preexistingAdmittedRowsPreserved": 1
+  },
+  "schemaBefore": {
+    "ok": true,
+    "diffExitCode": 0,
+    "sqlLines": 0,
+    "schemaApplied": false,
+    "prismaVersion": "6.5.0",
+    "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+    "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+  },
+  "schemaAfter": {
+    "ok": true,
+    "diffExitCode": 0,
+    "sqlLines": 0,
+    "schemaApplied": false,
+    "prismaVersion": "6.5.0",
+    "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+    "engineSha256": "431f23f13da76244d6cffe1b7a8d80f544e0812eed009492cf545f220d88a4b2"
+  },
+  "browser": {
+    "url": "https://factory.aidevteam.ru/auth/login",
+    "layouts": [
+      {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "focusTag": "BUTTON",
+        "title": "Sign In · Content Factory"
+      },
+      {
+        "width": 390,
+        "scrollWidth": 390,
+        "focusTag": "BUTTON",
+        "title": "Sign In · Content Factory"
+      }
+    ],
+    "emailFields": 2,
+    "pageErrors": [],
+    "httpErrors": [],
+    "blocked": [],
+    "mutationsSent": 0,
+    "result": "PASS",
+    "release": "34d3591b2cc1",
+    "publicSource": "34d3591b2cc1736fdd83d4d4981e0811a9ab8398",
+    "scope": "public login only; no authenticated chat, paid inference or production mutations"
+  },
+  "cleanup": {
+    "removedOwnedHostHelpers": [
+      "schema-engine",
+      "schema-preflight.cjs",
+      "schema-preflight.sh"
+    ],
+    "removedOwnedContainers": [
+      "cf-release-chat-polish-pg-20261026",
+      "cf-release-chat-polish-redis-20261026"
+    ],
+    "removedOwnedAnonymousVolumes": [
+      "9ba8b890e20252d87e1bc0224a85df24d3f49172dbfc79d0d0ef3e81f6e5a045",
+      "032c634406e0135f007b080dea97a31bf4dfc53ce349d80b91a46d271918d3b7"
+    ],
+    "removedOwnedNetwork": "cf-release-chat-polish-20261026",
+    "removedEmptyOwnedSharingDirectory": true,
+    "removedOwnedLocalImageTags": [
+      "content-factory-next:34d3591b2cc1",
+      "ghcr.io/maslennikov-ig/content-factory-next:34d3591b2cc1"
+    ],
+    "keptConsumedImageTags": [],
+    "globalCachesAndForeignResourcesUntouched": true,
+    "removedOwnedCapacityHelper": "alpine:3.20",
+    "removedOwnedDisposableDbEnvironment": true
+  },
+  "localPreservation": {
+    "foreignFiles": 11,
+    "filesUnchanged": true,
+    "foreignContainers": 20,
+    "containerIdentitiesAndMountsPreserved": true,
+    "unchangedProcessIdentities": 10,
+    "independentObservedProcessExits": 8,
+    "noForeignSignalsOrRestarts": true
+  },
+  "foreignBaselineRefresh": "Independent AiDevTeam container replacement retained; original host inventory archived privately. All current foreign21 containers and21 volumes preserved across our switch/retention.",
+  "privateEvidenceDirectory": "/home/me/.local/state/content-factory-next/release-chat-polish-20261026",
+  "releaseCheckoutCleanup": "Removed after this documentation push; final identity/ref/consumer proof is worktree-cleanup.json in the private evidence directory.",
+  "limits": [
+    "No new paid provider inference/search or authenticated production dialogue was executed.",
+    "Factual/editorial live-provider acceptance remains open under content-factory-next-eqh5.",
+    "Historical failed chat messages and preexisting admitted usage row remain intact.",
+    "Private-repository Actions never started because of its existing account limit; the public release CI and exact-source local receipt are the accepted gates.",
+    "Shared caches, original dirty checkout, older worktrees and other owners workloads are retained."
+  ],
+  "ciSuiteCounts": {
+    "full": {
+      "jestSuitesPassed": 768,
+      "jestTestsPassed": 13472,
+      "jestTestsSkipped": 153,
+      "nodePassed": 167,
+      "nodeFailed": 0,
+      "nodeSkipped": 4,
+      "pythonPassed": 50,
+      "allThreeHalvesReported": true
+    },
+    "calendar400Days": {
+      "jestSuitesPassed": 768,
+      "jestTestsPassed": 13472,
+      "jestTestsSkipped": 153
+    },
+    "requiredDockerProofs": {
+      "suitesPassed": 3,
+      "testsPassed": 31
+    }
+  }
+}

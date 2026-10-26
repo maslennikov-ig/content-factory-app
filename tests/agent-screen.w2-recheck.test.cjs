@@ -931,6 +931,25 @@ describe('W3 recheck R-5 — the paid limit is a stop, not a failure', () => {
   });
 });
 
+test('a saved native working-memory approval renders its real details and accepts an answer', async () => {
+  const { loadRegistry, IDENTITY } = require('./helpers/agent-capabilities.cjs');
+  const registry = loadRegistry();
+  const reason = await registry.describeApprovalCall([], () => { throw new Error('No external call'); }, IDENTITY,
+    'updateWorkingMemory', { memory: { notes: ['Prefer concise replies.'] } });
+  const answer = jest.fn();
+  await act(async () => {
+    render(h(cards.ApprovalCard, { title: null, reason, toolName: 'updateWorkingMemory',
+      irreversible: false, state: 'asked', busy: false, onAnswer: answer, words: ru }));
+  });
+  expect(document.body.textContent).toContain('Prefer concise replies.');
+  expect(document.body.textContent).not.toContain(ru.approval.unavailable);
+  const yes = within(document.body).getByRole('button', { name: ru.approval.yes });
+  expect(yes.disabled).toBe(false);
+  await act(async () => fireEvent.click(yes));
+  expect(answer).toHaveBeenCalledTimes(1);
+  expect(answer).toHaveBeenCalledWith(true);
+});
+
 describe('N5 — «Сразу в канал» says «не снять» once', () => {
   test('the publish-now card: the server’s line says what happens, the footnote the limit', async () => {
     // The server's line for this card (`tests/agent-capabilities.w2-fixes.test.cjs`).

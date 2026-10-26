@@ -227,6 +227,7 @@ describe('voice dictation in AgentComposer (bxeb.1)', () => {
 
 describe('POST /agent/voice/transcribe door (bxeb.1)', () => {
   const noOp = () => () => undefined;
+  const backendLocale = loadTypeScriptModule('libraries/nestjs-libraries/src/locale/backend-strings.ts');
   const controllerModule = loadBackendTs('apps/backend/src/api/routes/agent.controller.ts', {
     '@mastra/ai-sdk': { handleChatStream: jest.fn() },
     '@mastra/ai-sdk/ui': { toAISdkMessages: (m) => m },
@@ -242,6 +243,27 @@ describe('POST /agent/voice/transcribe door (bxeb.1)', () => {
     },
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
     '@contentfactory/nestjs-libraries/chat/mastra.service': { MastraService: class {} },
+    '@contentfactory/nestjs-libraries/locale/backend-strings': backendLocale,
+  });
+
+  test('agent identity keeps the trusted full interface locale beside legacy ru/en capability language', () => {
+    const organization = {
+      id: 'org-language',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      users: [{ role: 'EDITOR' }],
+    };
+    expect(controllerModule.agentIdentity(organization, { id: 'user-fr', language: 'fr' })).toMatchObject({
+      language: 'en',
+      interfaceLanguage: 'fr',
+    });
+    expect(controllerModule.agentIdentity(organization, { id: 'user-ru', language: 'ru' })).toMatchObject({
+      language: 'ru',
+      interfaceLanguage: 'ru',
+    });
+    expect(controllerModule.agentIdentity(organization, { id: 'user-unknown', language: 'garbage' })).toMatchObject({
+      language: 'en',
+      interfaceLanguage: 'en',
+    });
   });
 
   test('accepts uploaded file buffer and delegates to MastraService.transcribeVoice', async () => {

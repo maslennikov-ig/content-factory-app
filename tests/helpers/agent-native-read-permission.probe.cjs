@@ -17,6 +17,10 @@ const cases = [
   { name: 'schedule_followup_list', input: {} },
   { name: 'set_objective', input: { action: 'get' } },
  ] },
+ { id: 'memory', tools: [{ name: 'updateWorkingMemory', input: { memory: { answerLength: 'short', notes: ['Prefer concise answers.'] } } }] },
+ { id: 'memory-category-ask', rules: { categories: { read: 'ask' } }, tools: [{ name: 'updateWorkingMemory', input: { memory: { notes: ['ASK_SENTINEL'] } } }], gate: true },
+ { id: 'memory-tool-ask', rules: { tools: { updateWorkingMemory: 'ask' } }, tools: [{ name: 'updateWorkingMemory', input: { memory: { notes: ['ASK_SENTINEL'] } } }], gate: true },
+ { id: 'memory-tool-deny', rules: { tools: { updateWorkingMemory: 'deny' } }, tools: [{ name: 'updateWorkingMemory', input: { memory: { notes: ['DENY_SENTINEL'] } } }] },
  { id: 'objective-set', tools: [{ name: 'set_objective', input: { action: 'set', text: 'This mutation still requires approval.' } }], gate: true },
  { id: 'objective-default', tools: [{ name: 'set_objective', input: { text: 'The default action is a mutation.' } }], gate: true },
  { id: 'objective-clear', tools: [{ name: 'set_objective', input: { action: 'clear' } }], gate: true },
@@ -56,7 +60,7 @@ async function main() {
    const current = active;
    const threadId = `native-read-permission-${spec.id}`;
    const requestId = `native-read-request-${spec.id}`;
-   await memory.createThread({ threadId, resourceId: 'org-service:user-service', title: 'Controlled native permission case' });
+   await memory.createThread({ threadId, resourceId: 'org-service:user-service', title: 'Controlled native permission case', ...(spec.rules ? { metadata: { assistantPermissionRules: spec.rules } } : {}) });
    await memory.saveMessages({ messages: [{ id: `own-${spec.id}`, threadId, resourceId: 'org-service:user-service', role: 'user', createdAt: new Date('2026-01-01T00:00:00Z'), content: { format: 2, parts: [{ type: 'text', text: 'OWNER_HISTORY_SENTINEL' }] } }] });
    const context = contextModule.buildConductorContext({ identity: IDENTITY, threadId, requestId });
    const execution = new executionModule.ConductorExecution({ requestId, native: true });
@@ -81,14 +85,28 @@ async function main() {
    assert.equal(armed, !!spec.gate, `${spec.id}: only declared reads bypass the native global approval gate`);
    if (!spec.gate) {
     assert.equal(failure, undefined);
-    assert.equal(callCount, 4);
+    assert.equal(callCount, spec.tools.length + 1);
+    if (spec.id === 'memory') {
+     const saved = await memory.getWorkingMemory({ threadId, resourceId: 'org-service:user-service' });
+     assert.equal(JSON.parse(saved).answerLength, 'short');
+     assert(saved.includes('Prefer concise answers.'));
+     const instructions = await memory.getSystemMessage({ threadId, resourceId: 'org-service:user-service' });
+     assert(instructions.includes('Only update when the person states a new or changed lasting preference'));
+     assert(!instructions.includes('MUST call updateWorkingMemory in every response'));
+     assert(!instructions.includes('Store anything that could be useful later'));
+    }
+    if (spec.id === 'memory-tool-deny') {
+     const saved = await memory.getWorkingMemory({ threadId, resourceId: 'org-service:user-service' });
+     assert(!saved.includes('DENY_SENTINEL'));
+    }
+    if (spec.id === 'reads') {
     assert.equal(reports.at(-1).ownerHistory, true);
     assert.equal(reports.at(-1).foreignHistory, false);
     assert(toolOutput.includes('schedule_followup_list') && toolOutput.includes('set_objective'));
     const memoryTools = memory.listTools();
     assert.equal(memoryTools.readConversationHistory.mcp.annotations.readOnlyHint, true);
-    assert.equal(memoryTools.updateWorkingMemory.requireApproval, false, 'Working-memory mutation keeps its original non-authoritative boolean; Session still gates it');
-    assert.equal(session.resolveToolApproval('updateWorkingMemory', threadId), 'ask');
+    assert.equal(memoryTools.updateWorkingMemory.requireApproval, false, 'Memory tool keeps its native execution contract');
+    assert.equal(session.resolveToolApproval('updateWorkingMemory', threadId), 'allow');
     const before = reports.length;
     const foreignContext = contextModule.buildConductorContext({ identity: IDENTITY, threadId: 'foreign-read-permission', requestId: 'foreign-read-proof' });
     foreignContext.set(MASTRA_THREAD_ID_KEY, 'foreign-read-permission');
@@ -97,15 +115,25 @@ async function main() {
      const result = await memoryTools.readConversationHistory.execute({}, { requestContext });
      assert.equal(result.ok, false); assert.equal(result.code, 'AGENT_NOT_YOURS');
     }
+    const foreignMemoryBefore = await memory.getWorkingMemory({ threadId: 'foreign-read-permission', resourceId: 'org-service:other-user' });
+    let foreignWriteError;
+    try {
+     await memoryTools.updateWorkingMemory.execute({ memory: { notes: ['FOREIGN_WRITE_SENTINEL'] } }, {
+      memory, agent: { threadId: 'foreign-read-permission', resourceId: 'org-service:user-service' }, requestContext: foreignContext,
+     });
+    } catch (error) { foreignWriteError = error; }
+    assert(foreignWriteError, 'Native preference memory must reject a different resource owner');
+    assert.equal(await memory.getWorkingMemory({ threadId: 'foreign-read-permission', resourceId: 'org-service:other-user' }), foreignMemoryBefore);
     assert.equal(reports.length, before);
     const registered = await runtime.agent.listTools({ requestContext: context });
     assert.equal(registered.schedule_followup_list.mcp.annotations.readOnlyHint, true);
     assert.equal(registered.set_objective.mcp.annotations.readOnlyHint, false, 'Mixed get/set tool must not claim to be wholly read-only');
+    }
    } else assert.equal(callCount, 1);
   }
   const events = fs.existsSync(auditPath) ? fs.readFileSync(auditPath, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse) : [];
   assert.equal(events.filter(event => event.type === 'write').length, 0, 'No gated domain effect may execute');
-  return { reports, ownerRefusals: 2, domainWrites: 0, externalProviderCalls: 0 };
+  return { reports, ownerRefusals: 3, domainWrites: 0, externalProviderCalls: 0 };
  } finally {
   await runtime.close({ drop: true });
   fs.rmSync(temporary, { recursive: true, force: true });

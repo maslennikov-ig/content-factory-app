@@ -1,15 +1,29 @@
 # Content Factory current handoff — 26 October 2026
 
-## Authorized release in progress
+## Local first-person / locale / memory gate repair
 
-Task `content-factory-next-55e7`: owner explicitly authorized push, merge,
-deployment, cleanup and closeout. Fetched private main `565b91ac8758` is an
-ancestor of local source `30c3b6ce4c16`; seven local commits are included.
-Release work is isolated in `codex/release-chat-polish-20261026`; original main
-and its eleven dirty planning/research files are preserved. Production is still
-`2c25a3d13bb7` until the new exact-source gates, public-tree image/schema checks
-and guarded switch complete. Rollback remains that verified prior version.
-No paid inference/search, social publishing or credential changes are authorized.
+`content-factory-next-dv8a` has accepted local fixes on
+`codex/chat-voice-error-20261026`: singular assistant voice, full16locale model
+reply context and active statuses, native safe preference-memory policy and
+readable old memory approvals. Thirteen focused suites /382 tests and both app
+type checks PASS; no paid call or production resume/change. Current production
+remains `34d3591b2cc1`; release delivery is pending. The exact owner chat/messages/
+snapshot remain unchanged. [Diagnosis, checks and limits](stages/agent-chat-5961/voice-and-memory-repair-2026-10-26.md).
+
+## Production release accepted
+
+`content-factory-next-55e7`: owner-authorized push/merge/deploy delivered
+public/runtime `34d3591b2cc1`, tested private source `3a2670415b46`.
+All nine local gates and public Build/Code Quality PASS; schema unchanged,
+chats/settings/usage/suspended runs preserved, runtime healthy/zero restarts.
+Rollback `2c25a3d13bb7`; canonical retention and task-owned cleanup complete.
+Original dirty checkout/foreign changes and older local worktrees are retained.
+No paid inference/search, social publication or provider/credential changes.
+[Release and cleanup](stages/agent-chat-5961/release-2026-10-26.md),
+[proof](stages/agent-chat-5961/release-proof-2026-10-26.json),
+[owner guide](../docs/operations/agent-chat-owner-check-2026-10-26.md).
+`eqh5` remains factual/editorial real-provider acceptance. Documentation follow-up
+leaves the tested app source fixed; final task closure/readback follows cleanup.
 
 ## Advisory drafts and bounded complexity audit
 

@@ -252,11 +252,11 @@ describe('native harness UI contract and cards (on0i.6)', () => {
 
     const ruRetry = copy.stageWordFor(ru, 'stream-retry');
     const ruFallback = copy.stageWordFor(ru, 'model-fallback');
-    expect(ruRetry).toBe('Связь мигнула — повторяем шаг…');
-    expect(ruFallback).toBe('Переключаемся на резервный ИИ…');
+    expect(ruRetry).toBe('Связь мигнула — повторяю шаг…');
+    expect(ruFallback).toBe('Переключаюсь на резервный ИИ…');
     expect(ruFallback).not.toMatch(/модел/i);
-    expect(copy.stageWordFor(en, 'stream-retry')).toBe('Connection hiccup — retrying the step…');
-    expect(copy.stageWordFor(en, 'model-fallback')).toBe('Switching to the backup AI…');
+    expect(copy.stageWordFor(en, 'stream-retry')).toBe("Connection hiccup — I'm retrying the step…");
+    expect(copy.stageWordFor(en, 'model-fallback')).toBe("I'm switching to the backup AI…");
   });
 
   test('folds ask_user / submit_plan cards when data-tool-call-resumed arrives in stored history', () => {
