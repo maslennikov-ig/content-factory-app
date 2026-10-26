@@ -47,6 +47,14 @@ const request = async (url, init = {}) => {
   if (url.startsWith('/media/video-v2/jobs')) return response(currentJob ? [{...currentJob, access: currentJob.access ?? {kind: 'api', payer: 'workspace_key'}}] : []);
   throw new Error(`Unexpected request ${method} ${url}`);
 };
+// Compile the shared approval module once, outside each UI interaction's timeout.
+const { ApprovalCard } = loadWithMocks('apps/frontend/src/components/agents/agent.cards.tsx', {
+  '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
+  '@contentfactory/react/translation/get.transation.service.client': { useT: () => (key, fallback) => en[key] || fallback },
+  '../layout/user.context': { useUser: () => ({ orgId: 'workspace-1' }) },
+});
+const { agentWordsFor } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
+
 const { VideoWorkspace } = loadWithMocks('apps/frontend/src/components/videos/video.workspace.tsx', {
   '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
   '@contentfactory/react/translation/get.transation.service.client': { useT: () => (key, fallback) => en[key] || fallback },
@@ -336,12 +344,6 @@ test('media query changes and back navigation switch the existing page between l
 });
 
 test('paid video approval shows the exact saved script/settings and never promises cancellation', async () => {
-  const { ApprovalCard } = loadWithMocks('apps/frontend/src/components/agents/agent.cards.tsx', {
-    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
-    '@contentfactory/react/translation/get.transation.service.client': { useT: () => (key, fallback) => en[key] || fallback },
-    '../layout/user.context': { useUser: () => ({ orgId: 'workspace-1' }) },
-  });
-  const { agentWordsFor } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
   const words = agentWordsFor('en');
   stored.preflightId = 'quote-1';
   stored.settings = { ...helper.videoSettingsForRoute(presenter, 'ru'), avatarId: 'stock-avatar', voiceId: 'stock-voice', engine: 'avatar_iii' };
@@ -362,12 +364,6 @@ test('paid video approval shows the exact saved script/settings and never promis
 });
 
 test('paid approval refuses a changed saved draft while leaving decline and refresh available', async () => {
-  const { ApprovalCard } = loadWithMocks('apps/frontend/src/components/agents/agent.cards.tsx', {
-    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
-    '@contentfactory/react/translation/get.transation.service.client': { useT: () => (key, fallback) => en[key] || fallback },
-    '../layout/user.context': { useUser: () => ({ orgId: 'workspace-1' }) },
-  });
-  const { agentWordsFor } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
   const words = agentWordsFor('en');
   stored.version = 2; stored.preflightId = 'quote-2';
   const view = render(React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0, loadingTimeout: 0, errorRetryCount: 0 } }, React.createElement(ApprovalCard, {
