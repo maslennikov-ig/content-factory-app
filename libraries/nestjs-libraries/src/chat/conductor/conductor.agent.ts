@@ -12,7 +12,7 @@ import {
   type ModelSelectionDecision,
   type ModelSelectionProcessorOptions,
 } from '@mastra/core/processors';
-import { MASTRA_THREAD_ID_KEY } from '@mastra/core/request-context';
+import { MASTRA_THREAD_ID_KEY, type RequestContext } from '@mastra/core/request-context';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import {
   NATIVE_TEXT_MAX_PROCESSOR_RETRIES,
@@ -381,6 +381,23 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     defaultMaxRetries: deps.defaultModelMaxRetries,
     ...deps.modelAvailability,
   });
+  const instructions = async ({ requestContext }: { requestContext: RequestContext<any> }) => {
+    const identity = readCapabilityIdentity(requestContext as any);
+    if (!identity) throw new Error(IDENTITY_REQUIRED);
+    return conductorInstructions({
+      language: identity.language,
+      interfaceLanguage: identity.interfaceLanguage ?? identity.language,
+      role: identity.role,
+      now: now(),
+      timeZone: identity.timeZone,
+      snapshot: await snapshotOf(requestContext as object, identity),
+      workContext: (() => {
+        const selected = requestContext.get(AGENT_WORK_CONTEXT_KEY);
+        return typeof selected === 'string' && selected ? JSON.parse(selected) as ResolvedAgentWorkContext : null;
+      })(),
+    });
+  };
+
   return new Agent({
     id: CONDUCTOR_AGENT_ID,
     name: 'Content Factory',
@@ -406,22 +423,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         typeof threadId === 'string' && threadId ? threadId : undefined
       );
     },
-    instructions: async ({ requestContext }) => {
-      const identity = readCapabilityIdentity(requestContext as any);
-      if (!identity) throw new Error(IDENTITY_REQUIRED);
-      return conductorInstructions({
-        language: identity.language,
-        interfaceLanguage: identity.interfaceLanguage ?? identity.language,
-        role: identity.role,
-        now: now(),
-        timeZone: identity.timeZone,
-        snapshot: await snapshotOf(requestContext as object, identity),
-        workContext: (() => {
-          const selected = requestContext.get(AGENT_WORK_CONTEXT_KEY);
-          return typeof selected === 'string' && selected ? JSON.parse(selected) as ResolvedAgentWorkContext : null;
-        })(),
-      });
-    },
+    instructions,
     model: async ({ requestContext }) => {
       const identity = readCapabilityIdentity(requestContext as any);
       if (!identity) throw new Error(IDENTITY_REQUIRED);
@@ -466,7 +468,14 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         // supplied all bundled know-how. Suppress the redundant activation
         // catalog/tools; Mastra still provides skill_read for reference files.
         providesSkillDiscovery: 'on-demand',
-        processInputStep: ({ messages }) => messages,
+        // Durable snapshots retain the original untagged prompt. Refresh the
+        // conductor through Mastra's per-step system-message contract instead
+        // of rewriting snapshots/history. Native tagged guidance stays owned
+        // by Memory, task state and the other processors.
+        processInputStep: async ({ messages, requestContext }) => ({
+          messages,
+          systemMessages: [{ role: 'system', content: await instructions({ requestContext }) }],
+        }),
       },
       ...conductorInputProcessors(),
       new ChatChannelProcessor() as any,

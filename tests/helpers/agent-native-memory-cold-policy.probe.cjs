@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { MockLanguageModelV3 } = require('ai/test');
+const { Memory } = require('@mastra/memory');
 const { convertArrayToReadableStream } = require('@ai-sdk/provider-utils/test');
 const { createRuntime, IDENTITY } = require('./mastra-service-native-integration.probe.cjs');
 const { Response, HttpController, AgentThreadsService, until } = require('./agent-native-session-http.probe.cjs');
@@ -13,6 +14,8 @@ const { Response, HttpController, AgentThreadsService, until } = require('./agen
 const ORG = { id: IDENTITY.organizationId, createdAt: IDENTITY.organizationCreatedAt, users: [{ role: 'EDITOR' }] };
 const USER = { id: IDENTITY.userId, language: 'ru' };
 const usage = { inputTokens: { total: 5, noCache: 5 }, outputTokens: { total: 5, text: 5 } };
+
+const LEGACY_INSTRUCTIONS = 'Legacy deployment fixture: describe your own work as a plural team.';
 
 async function child(phase, schemaName, auditPath) {
   let modelCalls = 0;
@@ -22,9 +25,10 @@ async function child(phase, schemaName, auditPath) {
     fixtureMode: 'approval',
     modelFactory: (modelId) => new MockLanguageModelV3({
       modelId,
-      async doStream() {
+      async doStream(options) {
         const call = ++modelCalls;
-        fs.appendFileSync(auditPath, `${JSON.stringify({ type: 'model', phase, call })}\n`);
+        const system = options.prompt.filter(message => message.role === 'system').map(message => message.content).join('\n');
+        fs.appendFileSync(auditPath, `${JSON.stringify({ type: 'model', phase, call, system })}\n`);
         if ((phase === 'start' && call === 1) || (phase === 'resume' && call === 2)) {
           const preference = phase === 'start' ? 'cold approved preference' : 'future allowed preference';
           return { stream: convertArrayToReadableStream([
@@ -64,6 +68,13 @@ async function child(phase, schemaName, auditPath) {
   const handler = new HttpController(service, threads, usageLedger);
 
   if (phase === 'start') {
+    // Simulate a real old application definition, not a manually edited snapshot.
+    const configuredAgent = runtime.agent.agent ?? runtime.agent;
+    configuredAgent.getInstructions = async () => LEGACY_INSTRUCTIONS;
+    memory.getInputProcessors = (...args) => Memory.prototype.getInputProcessors.call(memory, ...args);
+    const bundled = await configuredAgent.resolveProcessorById('bundled-product-instructions');
+    assert.ok(bundled);
+    bundled.processInputStep = ({ messages }) => messages;
     const bindNativeTaskSession = service.bindNativeTaskSession.bind(service);
     service.bindNativeTaskSession = async (...args) => {
       const session = await bindNativeTaskSession(...args);
@@ -80,6 +91,9 @@ async function child(phase, schemaName, auditPath) {
     assert.equal(history.pending.length, 1);
     assert.equal(history.pending[0].toolName, 'updateWorkingMemory');
     assert.equal(modelCalls, 1);
+    const firstPrompt = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(JSON.parse).find(event => event.type === 'model');
+    assert.ok(firstPrompt.system.includes(LEGACY_INSTRUCTIONS), 'The real old native run saved its original instructions.');
+    assert.ok(firstPrompt.system.includes('You MUST call updateWorkingMemory in every response'), 'The old native Memory provider emitted its original generic guidance.');
     assert.equal(String(await memory.getWorkingMemory({ threadId, resourceId: 'org-service:user-service' }) ?? '').includes('cold approved preference'), false);
     process.send({ phase: 'ready', threadId });
     return;
@@ -104,6 +118,7 @@ async function child(phase, schemaName, auditPath) {
     await new Promise(resolve => setTimeout(resolve, 20_000));
     const afterPassiveBind = await handler.getThread(ORG, USER, threadId);
     assert.equal(afterPassiveBind.pending.length, 1, 'Passive rebind must leave the old approval armed.');
+    assert.deepEqual(afterPassiveBind.messages, before.messages, 'Observer reconnect leaves historical messages unchanged.');
     assert.equal(modelCalls, 0, 'Passive rebind must not continue into the model.');
     assert.equal((await memory.getWorkingMemory({ threadId, resourceId: 'org-service:user-service' })), emptyMemory);
     assert.equal(session.resolveToolApproval('updateWorkingMemory', threadId), 'allow', 'New memory calls use the current safe policy.');
@@ -116,6 +131,15 @@ async function child(phase, schemaName, auditPath) {
     await handler.chat(ORG, USER, answer, approvalResponse);
     assert.equal(approvalResponse.parts().filter(part => part.type === 'text-delta').map(part => part.delta).join(''), 'Готово.');
     assert.equal(modelCalls, 1, 'Explicit approval resumes the prior run and completes its answer.');
+    const resumedPrompt = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(JSON.parse)
+      .find(event => event.type === 'model' && event.phase === 'resume');
+    assert.ok(resumedPrompt.system.includes('Do not describe your own work with product/team plural or in the third person'));
+    assert.ok(!resumedPrompt.system.includes(LEGACY_INSTRUCTIONS), 'The old untagged system prompt is replaced before actual inference.');
+    assert.ok(resumedPrompt.system.includes('Personal chat preferences'), 'Current Memory guidance survives the conductor refresh.');
+    assert.ok(!resumedPrompt.system.includes('You MUST call updateWorkingMemory in every response'), 'The old generic Memory instructions are replaced through the native provider.');
+    const approvedHistory = await handler.getThread(ORG, USER, threadId);
+    assert.deepEqual(approvedHistory.messages.filter(message => message.role === 'user'), before.messages.filter(message => message.role === 'user'));
+
     assert.equal((await memory.getWorkingMemory({ threadId, resourceId: 'org-service:user-service' })).includes('cold approved preference'), true);
     const explicitApprovalExecutions = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(JSON.parse)
       .filter(event => event.phase === 'resume' && event.type === 'memory-tool-success');
@@ -133,6 +157,9 @@ async function child(phase, schemaName, auditPath) {
     assert.equal(memoryExecutions.length, 2, 'The two memory tool executions are explicit approval and a later fresh allow.');
     await Promise.race([observerTask, new Promise(resolve => setTimeout(resolve, 1_000))]);
     process.send({ phase: 'complete', report: {
+      currentInstructionsOnColdResume: true,
+      currentMemoryInstructionsOnColdResume: true,
+      historicalUserMessagesPreserved: true,
       oldGateRetainedOnRebind: afterPassiveBind.pending.length === 1,
       passiveRebindModelCalls: 0,
       passiveRebindMemoryWrites: 0,

@@ -8,6 +8,9 @@ test('cold native rebind preserves an old updateWorkingMemory approval until exp
   });
   const report = JSON.parse(output.trim().split('\n').at(-1));
   expect(report).toEqual({
+    currentInstructionsOnColdResume: true,
+    currentMemoryInstructionsOnColdResume: true,
+    historicalUserMessagesPreserved: true,
     oldGateRetainedOnRebind: true,
     passiveRebindModelCalls: 0,
     passiveRebindMemoryWrites: 0,

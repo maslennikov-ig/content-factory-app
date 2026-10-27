@@ -1,5 +1,8 @@
 # First-person voice, full reply locale and native preference-memory repair
 
+Delivered production release: [accepted version and limits](release-voice-2026-10-26.md).
+The local-only state below is historical implementation evidence.
+
 Task: `content-factory-next-dv8a`. Branch: `codex/chat-voice-error-20261026`.
 Base: private `3e08b39ec492`; production remains public `34d3591b2cc1`.
 Local engineering acceptance only; no push, merge, deployment or paid provider calls.

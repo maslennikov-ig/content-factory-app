@@ -1,16 +1,17 @@
 # Content Factory current handoff — 26 October 2026
 
-## Local first-person / locale / memory gate repair
+## Voice/locale/memory release accepted
 
-`content-factory-next-dv8a` has accepted local fixes on
-`codex/chat-voice-error-20261026`: singular assistant voice, full16locale model
-reply context and active statuses, native safe preference-memory policy and
-readable old memory approvals. Thirteen focused suites /382 tests and both app
-type checks PASS; no paid call or production resume/change. Current production
-remains `34d3591b2cc1`; release delivery is pending. The exact owner chat/messages/
-snapshot remain unchanged. [Diagnosis, checks and limits](stages/agent-chat-5961/voice-and-memory-repair-2026-10-26.md).
+`content-factory-next-dv8a`: production `dc5893e2ad73`, tested private
+`7f8bc4742df6`. Nine local gates/public Build and Code Quality PASS;
+native chats/snapshots/usage/settings and foreign workloads preserved. No schema
+apply, provider change or paid invocation. Rollback `34d3591b2cc1` kept.
+First-person active status in 16 locales and full model locale; native memory/old-card
+repair. Frozen in-flight prompts remain historical until their run completes.
+[Release, checks and limits](stages/agent-chat-5961/release-voice-2026-10-26.md),
+[proof](stages/agent-chat-5961/release-voice-proof-2026-10-26.json).
 
-## Production release accepted
+## Previous production release accepted
 
 `content-factory-next-55e7`: owner-authorized push/merge/deploy delivered
 public/runtime `34d3591b2cc1`, tested private source `3a2670415b46`.

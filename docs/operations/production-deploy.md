@@ -1,6 +1,23 @@
 # Развёртывание на сервере
 
-## Current release 26 October 2026: 34d3591b2cc1
+## Current release 26 October 2026: dc5893e2ad73
+
+First-person assistant actions, active status in 16 locales, full model reply
+locale and native personal-memory/old approval-card repair. Frozen in-flight
+runs keep their original system instructions; new turns use current ones.
+Private app source `7f8bc4742df6e26964f2c3e1ccc2141da098d7b3`; public/runtime `dc5893e2ad73aec1648750824907f1b88b96f576`.
+Registry `ghcr.io/maslennikov-ig/content-factory-next@sha256:735fb73770c875651d341db25e07f2d05dd3d89eaa3f73d2e6acdb32cd2005a4`. Nine local release gates and [Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40385804967) /
+[Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40385804782) PASS. Exact SHA-bound full suite receipt; all three
+halves checked. Types/build reuse unchanged app inputs from 0364884af.
+Empty schema diff before/after, healthy/zero restarts, worker ready, exact source
+archive; current chats/native snapshots/settings/usage and foreign services kept.
+No paid calls or provider changes. Canonical retention keeps rollback `34d3591b2cc1`.
+[Release proof and limits](../../.codex/stages/agent-chat-5961/release-voice-2026-10-26.md).
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh 34d3591b2cc1`.
+No schema rollback.
+
+## Previous release 26 October 2026: 34d3591b2cc1
 
 Chat instructions load automatically; native questions continue after answers,
 recover after reload/process loss and settle Stop without losing saved results.

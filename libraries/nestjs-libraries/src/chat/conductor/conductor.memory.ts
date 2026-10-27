@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { Memory } from '@mastra/memory';
 import type { MastraCompositeStore } from '@mastra/core/storage';
-import type { WorkingMemoryTemplate } from '@mastra/core/memory';
+import { parseMemoryRequestContext, type WorkingMemoryTemplate } from '@mastra/core/memory';
+import { WorkingMemory, type ProcessInputArgs, type ProcessInputStepArgs } from '@mastra/core/processors';
 import { wrapUntrusted } from '../capabilities/untrusted-data';
 import { AGENT_THREAD_TITLE_MAX } from '../capabilities/agent-parts.contract';
 import { redactSecretShapes } from './secret-shapes';
@@ -90,6 +91,28 @@ export const conductorMemoryOptions = {
 };
 
 class ConductorMemory extends Memory {
+  override async getInputProcessors(...args: Parameters<Memory['getInputProcessors']>) {
+    const processors = await super.getInputProcessors(...args);
+    const inject = async ({ messageList, requestContext }: ProcessInputArgs | ProcessInputStepArgs) => {
+      const context = parseMemoryRequestContext(requestContext);
+      if (!context?.thread?.id) return messageList;
+      const instructions = await this.getSystemMessage({
+        threadId: context.thread.id,
+        resourceId: context.resourceId,
+        memoryConfig: context.memoryConfig,
+      });
+      // Native WorkingMemory owns the "memory" tag. Resolve its instruction
+      // through Memory's public extension on every step, including cold resume.
+      messageList.clearSystemMessages('memory').addSystem(instructions, 'memory');
+      return messageList;
+    };
+    return processors.map(processor => processor instanceof WorkingMemory ? {
+      id: processor.id,
+      processInput: inject,
+      processInputStep: inject,
+    } : processor);
+  }
+
   // Use Memory's instruction extension point: its generic default asks the
   // model to save every response, including task facts, as personal memory.
   protected override getWorkingMemoryToolInstruction({ data }: {
