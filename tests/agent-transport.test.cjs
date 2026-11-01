@@ -34,6 +34,24 @@ beforeAll(() => {
 }, 90_000);
 
 describe('the chat transport through the product fetch', () => {
+  test.each([
+    ['unproven-proxy', { status: 502, code: 'AGENT_FAILED', notStarted: false }],
+    ['plain-proxy', { status: 502, notStarted: false }],
+    ['unsafe-code', { status: 502, notStarted: false }],
+    ['pre-start-context', { status: 400, code: 'AGENT_BAD_REQUEST', notStarted: true }],
+    ['unproven-header-value', { status: 400, code: 'AGENT_BAD_REQUEST', notStarted: false }],
+  ])('%s reports only the actual safe HTTP diagnostic', (name, diagnostic) => {
+    expect(report[name].diagnostics).toEqual([diagnostic]);
+    expect(report[name].error).toBeDefined();
+  });
+  test.each(['native-reconnect', 'observer-failure', 'network-failure'])('%s does not report a chat HTTP failure', name => {
+    expect(report[name].diagnostics).toEqual([]);
+  });
+  test('failure diagnostics leave the response body available to the SDK and typed refusal', () => {
+    expect(report['plain-proxy'].error).toContain('upstream unavailable');
+    expect(report['pre-start-context'].error).toContain('AGENT_BAD_REQUEST');
+    expect(report['pre-start-context'].notStarted).toBe(true);
+  });
   test('SDK reconnect consumes the authenticated native thread observer', () => {
     expect(report['native-reconnect'].error).toBeUndefined();
     expect(report['native-reconnect'].seen).toEqual([{ method: 'GET', path: `/agent/threads/${THREAD}/observe` }]);
@@ -149,6 +167,24 @@ describe('the chat transport through the product fetch', () => {
 
 
 describe('manual edits before the next deliberate user turn', () => {
+  test.each(['sdk-preflight-failure', 'sdk-post-failure'])('%s captures the SDK user message before network work', name => {
+    const run = report[name];
+    expect(run.error).toBeUndefined();
+    expect(run.parts.status).toBe('error');
+    expect(run.parts.userMessage.id).toEqual(expect.any(String));
+    expect(run.captured).toEqual([{ message: run.parts.userMessage, historyReads: 0, posts: 0 }]);
+    expect(run.parts.userMessage.parts).toEqual([{ type: 'text', text: 'Сохранить черновик.' }]);
+    expect(run.historyReads).toHaveLength(1);
+    expect(run.seen).toHaveLength(name === 'sdk-post-failure' ? 1 : 0);
+    if (name === 'sdk-post-failure') expect(run.seen[0].body.messages).toEqual([run.parts.userMessage]);
+  });
+  test.each(['native-reconnect', 'resume', 'resume-above', 'native-question', 'native-approval', 'earlier-approval', 'regenerate'])('%s does not capture a user submission', name => {
+    expect(report[name].captured).toEqual([]);
+  });
+  test.each(['message', 'inline-saved', 'queued-context', 'queued-null'])('%s captures one deliberate instruction', name => {
+    expect(report[name].captured).toHaveLength(1);
+    expect(report[name].captured[0].message).toEqual(report[name].seen[0].body.messages[0]);
+  });
   test('an inline save refreshes the implicit selected revision before the sole POST, without a focus event', () => {
     const run = report['inline-saved'];
     expect(run.error).toBeUndefined();
@@ -169,6 +205,7 @@ describe('manual edits before the next deliberate user turn', () => {
     expect(run.historyReads).toHaveLength(1);
     expect(run.seen).toEqual([]);
     expect(run.notStarted).toBe(true);
+    expect(run.diagnostics).toEqual([]);
   });
   test('an explicit queued null context stays null without a preflight', () => {
     const run = report['queued-null'];
@@ -185,3 +222,17 @@ describe('manual edits before the next deliberate user turn', () => {
     expect(run.preStartSignals).toBe(1);
   });
 });
+
+  test.each(['writing-new', 'writing-refresh-race', 'writing-save-await'])('%s freezes channel and avatar before asynchronous preparation', mode => {
+    expect(report[mode].seen[0].body.writingSelection).toEqual({ channelId: 'channel-original', avatarId: 'avatar-original' });
+  });
+  test('queued and cleared choices stay explicit, native answers do not send the new writing target', () => {
+    expect(report['writing-queued'].seen[0].body.writingSelection).toEqual({ channelId: 'queued-channel' });
+    expect(report['writing-cleared'].seen[0].body.writingSelection).toEqual({});
+    expect(report['writing-native-question'].seen[0].body.writingSelection).toBeUndefined();
+  });
+
+  test('failed selection save is a typed pre-start refusal and never sends a model request', () => {
+    expect(report['writing-save-refused'].seen).toEqual([]);
+    expect(report['writing-save-refused'].notStarted).toBe(true);
+  });

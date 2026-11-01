@@ -206,11 +206,16 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
       ref={wrapper}
       data-hint-anchor={bubbleId}
       className={clsx('relative inline-flex align-middle', className)}
-      onMouseEnter={() => setOpen(true)}
+      // Touch emits compatibility mouse enter/leave events after the tap.
+      // Keep the tapped bubble open, while allowing a real mouse to take over.
+      onPointerEnter={(event) => { pointerKind.current = event.pointerType; }}
+      onMouseEnter={() => {
+        if (pointerKind.current !== 'touch') setOpen(true);
+      }}
       // Moving onto the bubble keeps it up — it is hoverable content
       // (WCAG 1.4.13), and it no longer sits inside this wrapper.
       onMouseLeave={(event) => {
-        if (!inside(bubble.current, event.relatedTarget)) close();
+        if (pointerKind.current !== 'touch' && !inside(bubble.current, event.relatedTarget)) close();
       }}
     >
       {/*

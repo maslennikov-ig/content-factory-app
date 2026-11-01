@@ -72,6 +72,7 @@ describe('existing-piece edits use the native preview flow', () => {
     };
     const calls = {
       reviewV2: jest.fn(async () => proposal),
+      previewReviewV2: jest.fn(() => ({ title: null, text: proposal.changes[0].replacement })),
       acceptReviewV2: jest.fn(async () => undefined),
     };
     const capability = registry.CAPABILITY_CATALOGUE.find((item) => item.id === 'piece.rewrite');
@@ -93,7 +94,8 @@ describe('existing-piece edits use the native preview flow', () => {
     expect(opened.suspended[0]).toMatchObject({
       kind: 'selection',
       answerKey: 'changeIds',
-      canDecideForPerson: true,
+      canDecideForPerson: false,
+      fullPreview: { title: null, text: proposal.changes[0].replacement },
       token: 'signed-proposal-token',
       options: [{
         id: 'change-1',

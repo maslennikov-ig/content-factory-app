@@ -1511,6 +1511,14 @@ const createWorld = (overrides = {}) => {
           slopAfter: 0,
         };
       },
+      previewReviewV2: (organizationId, pieceId, adaptationId, input) => {
+        scoped('PieceService.previewReviewV2', organizationId);
+        const proposal = rows.proposals?.[input.token];
+        if (!proposal || proposal.pieceId !== pieceId)
+          throw Object.assign(new Error('Выберите правки.'), { code: 'REVIEW_SELECTION' });
+        const piece = pieceOf(pieceId);
+        return { title: piece.title ?? null, text: `${piece.body} Поправлено.` };
+      },
       acceptReviewV2: async (organizationId, pieceId, adaptationId, input) => {
         scoped('PieceService.acceptReviewV2', organizationId);
         const piece = pieceOf(pieceId);

@@ -37,6 +37,7 @@ import { redactSecretLeaves } from '../conductor/secret-shapes';
 import { trackAgentTurnWork } from '../conductor/agent-turn-lifecycle';
 import { CONDUCTOR_EXECUTION_ID_KEY } from '../conductor/conductor.context';
 import { authorRequestResolver } from './original-author-request';
+import { projectResearchOverview } from './catalogue/research-evidence';
 import { projectNativeToolResult } from '../conductor/native-tool-result';
 import {
   AgentOperationPersistenceError,
@@ -178,7 +179,9 @@ export const codedRefusal = (error: unknown) => {
     code,
     typeof message === 'string' && message ? message.slice(0, 1_000) : code
   );
-  if ((error as { canReviseInput?: unknown })?.canReviseInput !== true) return result;
+  // A server-marked pre-effect refusal leaves the native agent room to repair
+  // its input; unknown codes and uncertain writes still fail closed.
+  if ((error as { canReviseInput?: unknown })?.canReviseInput !== true && !failedUnspent(error)) return result;
   const inputRecovery = validatedInputRecovery(code, true, (error as { inputRecovery?: unknown }).inputRecovery);
   return { ...result, canReviseInput: true as const,
     ...(inputRecovery ? { inputRecovery } : {}) };
@@ -314,6 +317,8 @@ export const buildCapabilityTool = (
   options: CapabilityToolOptions
 ) => {
   const name = toolNameOf(capability.id);
+  if (capability.entrances && !capability.entrances.includes(options.entrance))
+    throw new Error(`Capability ${capability.id} is unavailable at this entrance.`);
   if (options.entrance === 'mcp' && !options.gate) {
     throw new Error(`MCP tool ${name} needs a policy gate.`);
   }
@@ -439,8 +444,9 @@ export const buildCapabilityTool = (
       capability.risk !== 'read' &&
       (durableRunIds.length > 0 || (typeof executionId === 'string' && !!executionId));
     let receiptScope: AgentOperationScope | null = null;
-    const projectResult = (result: CapabilityToolOutput, retained = false) =>
-      projectNativeToolResult({
+    const projectResult = async (result: CapabilityToolOutput, retained = false) => {
+      // Retain the original first. A model view never replaces a committed receipt.
+      const projected = await projectNativeToolResult({
         result, retained,
         scope: options.entrance === 'chat' ? receiptScope ?? {
           organizationId: identity.organizationId,
@@ -451,6 +457,16 @@ export const buildCapabilityTool = (
           storage: context?.mastra?.getStorage() ?? context?.memory?.storage,
         } : null,
       });
+      const evidence = (result as any).summary?.untrustedData?.value;
+      if (projected.ok && capability.id === 'research.search' && evidence &&
+          typeof evidence.snapshotKey === 'string' && Array.isArray(evidence.sources) &&
+          Array.isArray(evidence.facts) && typeof evidence.summary === 'string' &&
+          Buffer.byteLength(JSON.stringify(result)) > 20_000) {
+        return { ...projected, summary: { ...(result as any).summary,
+          untrustedData: { ...(result as any).summary.untrustedData, value: projectResearchOverview(evidence) } } };
+      }
+      return projected;
+    };
     const uncertainResult = async (operationType = receiptScope ? agentOperationStateType(receiptScope) : undefined) => {
       if (receiptScope) context?.requestContext?.set?.(AGENT_UNCERTAIN_OPERATION_CONTEXT_KEY, {
         runId: receiptScope.runId, operationType,
@@ -533,6 +549,9 @@ export const buildCapabilityTool = (
       ...(options.entrance === 'chat' ? {
         resolveAuthorRequest: authorRequestResolver(identity, context?.requestContext, options.services),
       } : {}),
+      mastra: context?.mastra as CapabilityRunContext['mastra'],
+      requestContext: context?.requestContext,
+      nativeToolCallId: context?.agent?.toolCallId,
       abortSignal: context?.abortSignal,
       resumeData: context?.agent?.resumeData,
       suspendPayload: context?.agent?.suspendPayload,
@@ -750,7 +769,7 @@ export const buildCapabilityTool = (
     },
     execute: ((input: any, context: ToolContextLike) =>
       options.entrance === 'chat'
-        ? trackAgentTurnWork(context?.requestContext, () => execute(input, context), context)
+        ? trackAgentTurnWork(context?.requestContext, () => execute(input, context), context, { readOnly: capability.risk === 'read' })
         : execute(input, context)) as any,
   });
   return tool;

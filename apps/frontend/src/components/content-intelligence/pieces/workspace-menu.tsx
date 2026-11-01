@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import clsx from 'clsx';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   Menu,
   MenuButton,
@@ -29,6 +28,7 @@ export type WorkspaceMenuItem = {
   id: string;
   title: string;
   description: string;
+  disabled?: boolean;
   onSelect: () => void;
 };
 
@@ -57,25 +57,16 @@ export function WorkspaceMenu({
   dataName: string;
 }) {
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
+  const anchor = useRef<HTMLButtonElement | null>(null);
 
   return (
     <Menu open={open} onOpenChange={setOpen}>
       <div
-        ref={root}
         className="relative inline-flex"
         data-workspace-menu={dataName}
       >
         <MenuButton
+          ref={anchor}
           aria-label={label}
           disabled={disabled}
           density={density}
@@ -86,11 +77,10 @@ export function WorkspaceMenu({
         {open ? (
           <Popover
             role="dialog"
-            className={clsx(
-              'absolute z-30 w-[288px] max-w-[calc(100vw-32px)]',
-              placement === 'below' ? 'top-full mt-[4px]' : 'bottom-full mb-[8px]',
-              align === 'start' ? 'start-0' : 'end-0'
-            )}
+            anchorRef={anchor}
+            onClose={() => setOpen(false)}
+            placement={`${placement === 'below' ? 'bottom' : 'top'}-${align}`}
+            className="w-[288px]"
           >
             <MenuList
               aria-label={label}
@@ -102,6 +92,7 @@ export function WorkspaceMenu({
                   data-workspace-menu-item={item.id}
                   title={item.title}
                   description={item.description}
+                  disabled={item.disabled}
                   onClick={item.onSelect}
                 />
               ))}

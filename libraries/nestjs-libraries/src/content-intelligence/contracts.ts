@@ -1,6 +1,8 @@
 export const CONTENT_CONTEXT_MAX_FACTS_V1 = 8 as const;
 export const CONTENT_CONTEXT_MAX_EVIDENCE_V1 = 8 as const;
 export const CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1 = 12_000 as const;
+/** Existing boundary for explicit context identifiers and saved-piece proof. */
+export const CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 = 64 as const;
 
 /**
  * Откуда взялась цитата: подтверждена человеком или найдена поиском.

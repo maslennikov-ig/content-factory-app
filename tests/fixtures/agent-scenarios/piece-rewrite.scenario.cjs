@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * «Переписать…» by the person's instruction; the person takes one change and
- * the core's accept door gets only that one. Taking none changes nothing.
+ * «Переписать…» by the person's instruction; the person accepts all changes
+ * or declines the complete candidate.
  */
 const CHANGES = [
   { id: 'w1', basket: 'show', excerpt: 'съедают день', replacement: 'съедают полдня', why: 'Короче' },
@@ -19,7 +19,7 @@ module.exports = {
       say: 'Перепиши суть cnt-1 короче',
       model: [[['tool', 'piece_rewrite', { pieceId: 'p1', instruction: 'короче' }]]],
     },
-    { resume: { changeIds: ['w2', 'w9'] }, model: [[['text', 'Приняли одну правку.']]] },
+    { resume: { changeIds: ['w1', 'w2'] }, model: [[['text', 'Приняли обе правки.']]] },
     {
       say: 'Ещё раз, проще',
       model: [[['tool', 'piece_rewrite', { pieceId: 'p1', instruction: 'проще' }]]],
@@ -32,14 +32,14 @@ module.exports = {
       ['piece.review', 'p1', null, { instruction: 'проще' }],
     ]);
     expect(run.turns[0].admissions.map(([operation]) => operation)).toEqual(['agent', 'text_generation']);
-    // An id the card did not offer is dropped; nothing is chosen by the model.
+    // Acceptance names every offered change.
     expect(run.requests.filter(([door]) => door === 'piece.review.accept')).toEqual([
-      ['piece.review.accept', 'p1', null, { token: 'token-1', selectedIds: ['w2'] }],
+      ['piece.review.accept', 'p1', null, { token: 'token-1', selectedIds: ['w1', 'w2'] }],
     ]);
-    expect(run.turns[1].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'applied', offered: 2, applied: 1, declined: 1, waitingOnCard: 0, acceptedOnCard: true, note: expect.stringMatching(/person.*accepted.*card/i) });
+    expect(run.turns[1].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'applied', offered: 2, applied: 2, declined: 0, waitingOnCard: 0, acceptedOnCard: true, note: expect.stringMatching(/person.*accepted.*card/i) });
     // None taken: the core stays, no accept, no card.
     expect(run.turns[3].outputs[0].output.summary).toEqual({ pieceId: 'p1', outcome: 'kept-as-is', offered: 2, applied: 0, declined: 2, waitingOnCard: 0 });
     expect(run.turns[3].data.filter((part) => part.type === 'data-piece')).toEqual([]);
-    expect(run.writes).toEqual([['piece.review.accepted', 'p1', ['w2']]]);
+    expect(run.writes).toEqual([['piece.review.accepted', 'p1', ['w1', 'w2']]]);
   },
 };

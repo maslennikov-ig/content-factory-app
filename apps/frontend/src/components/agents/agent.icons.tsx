@@ -12,6 +12,7 @@ const PATHS = {
   right: <path d="M6 4l4 4-4 4" />,
   plus: <path d="M8 4v8M4 8h8" />,
   close: <path d="M4 4l8 8M12 4l-8 8" />,
+  search: <><circle cx="7" cy="7" r="4" /><path d="m10 10 3 3" /></>,
   pen: (
     <path d="M3 13l.6-2.6L10.8 3.2a1.2 1.2 0 011.7 0l.3.3a1.2 1.2 0 010 1.7L5.6 12.4 3 13z" />
   ),

@@ -8,6 +8,7 @@ import type { AgentArtifactKind } from './agent.contract';
 import type { EditorDraftWords } from './agent.handoff';
 import { reviewPreviewCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/review-change-preview.copy';
 import { agentProgressWordsFor } from './agent.progress.copy';
+import { batchSeriesWordsFor } from './agent.batch-series.copy';
 
 /**
  * Assistant screen words. Base cards retain their ru/en fallback; personal
@@ -140,6 +141,8 @@ type AgentWords = {
     voiceDenied: string;
   };
   card: {
+    series: (count: number) => string;
+    seriesPart: (index: number, total: number) => string;
     openOnScreen: string;
     openBeside: string;
     openedBeside: string;
@@ -154,6 +157,8 @@ type AgentWords = {
     /** Quiet advice about a draft that has already been saved. */
     qualityReview: {
       summary: string;
+      seriesSummary: string;
+      seriesSaved: string;
       saved: string;
       unavailable: string;
       missingRequirements: string;
@@ -212,6 +217,7 @@ type AgentWords = {
     closed: string;
   };
   question: {
+    batch: ReturnType<typeof batchSeriesWordsFor>['batch'];
     kind: string;
     /** A card further up that the server no longer waits on (`kcxz.31`, D2). */
     closed: string;
@@ -226,6 +232,10 @@ type AgentWords = {
      */
     yours: string;
     lead: string;
+    historyAnswer: string;
+    historyAnswerUnavailable: string;
+    historyFollowUp: string;
+    historyFollowUpUnavailable: string;
     ownAnswer: string;
     send: string;
     decide: string;
@@ -346,6 +356,13 @@ type AgentWords = {
     };
   };
   error: {
+    sourceRead: {
+      remoteTitle: string;
+      retainedTitle: string;
+      remote: string;
+      retained: string;
+      continued: string;
+    };
     kind: string;
     generic: ErrorWords;
     /** An action refused with a reason the product has no words for. */
@@ -563,9 +580,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       voiceDenied: 'Нет доступа к микрофону. Разрешите микрофон в браузере.',
     },
     card: {
+      series: batchSeriesWordsFor('ru').series,
+      seriesPart: batchSeriesWordsFor('ru').seriesPart,
       openOnScreen: 'Открыть на экране',
-      openBeside: 'Открыть рядом',
-      openedBeside: 'открыто рядом',
+      openBeside: 'Открыть',
+      openedBeside: 'открыто',
       kinds: {
         workspace: 'Пространство',
         channels: 'Каналы',
@@ -585,7 +604,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       variant: (index) => lowerFirst(piecesCopy.ru.variant(index)),
       qualityReview: {
         summary: 'Замечания к черновику',
-        saved: 'Черновик сохранён. Замечания можно учесть при редактуре.',
+        seriesSummary: batchSeriesWordsFor('ru').artifact.seriesSummary,
+        seriesSaved: batchSeriesWordsFor('ru').artifact.seriesSaved,
+        saved: 'Черновик сохранён. Это замечания ИИ при создании текста; их стоит оценить при редактуре.',
         unavailable: 'Проверка недоступна. Текст сохранён.',
         missingRequirements: 'Что стоит дополнить',
         unsupportedClaims: 'Что стоит проверить',
@@ -627,8 +648,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       closed: NO_LONGER_WAITING.ru,
     },
     question: {
+      batch: batchSeriesWordsFor('ru').batch,
       kind: 'Уточнение',
       lead: 'Спрашиваем только то, чего в вашем тексте нет.',
+      historyAnswer: 'Ваш ответ',
+      historyAnswerUnavailable: 'Ответ не найден в сохранённой истории.',
+      historyFollowUp: 'Продолжение после ответа',
+      historyFollowUpUnavailable: 'Отдельное пояснение решения в истории не сохранено.',
       ownAnswer: 'Свой ответ',
       send: 'Ответить',
       decide: 'Решите за меня',
@@ -755,6 +781,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       },
     },
     error: {
+      sourceRead: {
+        remoteTitle: 'Не удалось прочитать источник',
+        retainedTitle: 'Сохранённый материал недоступен',
+        remote: 'Сайт не отдал страницу при этом запросе.',
+        retained: 'Этот материал не удалось получить. Можно использовать ранее прочитанные фрагменты из истории разговора.',
+        continued: 'После этого я прочитал доступные материалы.',
+      },
       paidCapNote: (title) =>
         `${title ? `${title} — ` : ''}шаг остановлен ограничением старой версии помощника. Проверьте сохранённые результаты перед продолжением.`,
       kind: 'Не получилось',
@@ -768,7 +801,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       },
       network: {
         what: 'Связь прервалась, ответ не дошёл.',
-        next: 'Проверьте соединение и попробуйте ещё раз.',
+        next: 'Обновите состояние, чтобы узнать, сохранилось ли сообщение и продолжается ли задача.',
       },
       reviewFindings: {
         summary: 'Почему текст не сохранён',
@@ -1107,8 +1140,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Найдём источники заново или используем доступную заготовку.',
         },
         INTAKE_RESEARCH_SELECTION_INVALID: {
-          what: 'Выбранные сведения не совпадают с сохранёнными источниками.',
-          next: 'Проверим цитаты и выберем подтверждённые сведения.',
+          what: 'Не удалось применить выбор из сохранённых исследований.',
+          next: 'Помощник может исправить параметры выбора и продолжить.',
         },
         INTAKE_RESEARCH_STORAGE_UNAVAILABLE: {
           what: 'Не удалось сохранить исследование для продолжения.',
@@ -1429,9 +1462,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       voiceDenied: 'Allow microphone access in your browser to dictate.',
     },
     card: {
+      series: batchSeriesWordsFor('en').series,
+      seriesPart: batchSeriesWordsFor('en').seriesPart,
       openOnScreen: 'Open on screen',
-      openBeside: 'Open beside',
-      openedBeside: 'open beside',
+      openBeside: 'Open',
+      openedBeside: 'opened',
       kinds: {
         workspace: 'Workspace',
         channels: 'Channels',
@@ -1451,7 +1486,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       variant: (index) => lowerFirst(piecesCopy.en.variant(index)),
       qualityReview: {
         summary: 'Draft review notes',
-        saved: 'Your draft is saved. You can address these notes while editing.',
+        seriesSummary: batchSeriesWordsFor('en').artifact.seriesSummary,
+        seriesSaved: batchSeriesWordsFor('en').artifact.seriesSaved,
+        saved: 'Your draft is saved. These are AI notes from its creation; consider them while editing.',
         unavailable: 'Review unavailable. Your text is saved.',
         missingRequirements: 'What to add',
         unsupportedClaims: 'What to verify',
@@ -1491,8 +1528,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       closed: NO_LONGER_WAITING.en,
     },
     question: {
+      batch: batchSeriesWordsFor('en').batch,
       kind: 'Question',
       lead: 'We only ask what your text does not say.',
+      historyAnswer: 'Your answer',
+      historyAnswerUnavailable: 'The answer is unavailable in saved history.',
+      historyFollowUp: 'After your answer',
+      historyFollowUpUnavailable: 'No separate explanation of the decision was saved.',
       ownAnswer: 'Your own answer',
       send: 'Answer',
       decide: 'Decide for me',
@@ -1619,6 +1661,13 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       },
     },
     error: {
+      sourceRead: {
+        remoteTitle: 'Could not read this source',
+        retainedTitle: 'Saved material unavailable',
+        remote: 'The website did not return the page for this request.',
+        retained: 'This material could not be retrieved. Previously read excerpts can be reused from conversation history.',
+        continued: 'After this, I read available material.',
+      },
       paidCapNote: (title) =>
         `${title ? `${title} — ` : ''}this step was stopped by an older assistant limit. Check saved results before continuing.`,
       kind: 'Did not work',
@@ -1632,7 +1681,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       },
       network: {
         what: 'The connection dropped and the answer did not arrive.',
-        next: 'Check the connection and try again.',
+        next: 'Refresh status to see whether the message was saved and the task is still running.',
       },
       reviewFindings: {
         summary: 'Why this draft was not saved',
@@ -1971,8 +2020,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Research the sources again or use the available piece.',
         },
         INTAKE_RESEARCH_SELECTION_INVALID: {
-          what: 'The selected findings do not match their saved sources.',
-          next: 'Check the quotes and select supported findings.',
+          what: 'The selection from saved research could not be applied.',
+          next: 'The assistant can correct the selection parameters and continue.',
         },
         INTAKE_RESEARCH_STORAGE_UNAVAILABLE: {
           what: 'The research could not be saved for continuation.',
@@ -2184,9 +2233,15 @@ export const agentWordsFor = (language: string | undefined | null): AgentWords =
     const threads = chatWordsFor(language);
     const base = agentCopy[resolveContentLocale(language)];
     const progress = agentProgressWordsFor(language);
+    const features = batchSeriesWordsFor(language);
     words = {
       ...base,
       threads,
+      card: { ...base.card, series: features.series, seriesPart: features.seriesPart,
+        openBeside: features.artifact.open, openedBeside: features.artifact.opened,
+        qualityReview: { ...base.card.qualityReview, seriesSummary: features.artifact.seriesSummary, seriesSaved: features.artifact.seriesSaved },
+      },
+      question: { ...base.question, batch: features.batch },
       history: { loading: threads.historyLoading, failedTitle: threads.historyFailedTitle, failedBody: threads.historyFailedBody, retry: threads.retry },
       conversation: { ...base.conversation, thinking: progress.thinking },
       progress: {

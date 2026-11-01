@@ -450,8 +450,8 @@ const build = (options = {}) => {
   const service = new PieceService(
     repository,
     {
-      start: async function* (organizationId, body) {
-        calls.start.push([organizationId, body]);
+      start: async function* (organizationId, body, scheduling) {
+        calls.start.push([organizationId, body, scheduling]);
         yield { data: { output: { content: [{ content: 'Готовый текст.' }] } } };
       },
     },
@@ -1193,5 +1193,40 @@ describe('«Снять с расписания»', () => {
     );
     expect(error.code).toBe('PIECE_NOT_FOUND');
     expect(calls.status).toEqual([]);
+  });
+});
+
+
+describe('native series generation and atomic persistence boundary', () => {
+  test('generation retains presentation, draftOnly and raw source without saving a post', async () => {
+    const { service, calls } = build();
+    const plan = await service.prepareAdapt('org-a', 'piece-1', { integrationId: 'int-tg', skipInterview: true }, 'ru');
+    expect(plan.sourceRevision).toEqual(expect.objectContaining({ body: expect.any(String), brief: expect.anything() }));
+    const generated = await service.generateSeriesAdaptation('org-a', plan, 'actor', 'auto');
+    expect(generated.kind).toBe('generated');
+    expect(calls.start).toHaveLength(1);
+    expect(calls.start[0][1].intake.presentation).toBe('auto');
+    expect(calls.start[0][2].draftOnly).toBe(true);
+    expect(generated.output.date).toBe('2026-09-22T12:00:00.000Z');
+  });
+  test('each model entry stays a separate draft, hook only on first, date stable on replay', async () => {
+    const { service } = build();
+    const plan = await service.prepareAdapt('org-a', 'piece-1', { integrationId: 'int-tg', skipInterview: true }, 'ru');
+    const writes = [];
+    service.pieces.createAdaptationSeries = async (org, input) => {
+      writes.push({ org, input });
+      return { seriesId: input.seriesId, created: true, parts: input.parts.map((part, index) => ({ adaptationId: `a${index}`, postId: `p${index}`, title: part.title, createdAt: input.date })) };
+    };
+    const generated = { plan, answers: [], output: { hook: 'Opening', date: '2026-09-22T12:00:00.000Z',
+      content: [{ content: 'First topic', usedCitationIds: ['fact-a'] }, { content: 'Second topic', usedCitationIds: ['fact-b'] }] } };
+    const first = await service.persistSeriesAdaptation('org-a', 'actor', 'native-id', generated);
+    await service.persistSeriesAdaptation('org-a', 'actor', 'native-id', generated);
+    expect(first.parts).toHaveLength(2);
+    expect(writes[0].input).toEqual(writes[1].input);
+    expect(writes[0].input).toMatchObject({ actorUserId: 'actor', seriesId: 'native-id', sourceBody: plan.sourceRevision.body, sourceBrief: plan.sourceRevision.brief });
+    expect(writes[0].input.parts).toEqual([
+      expect.objectContaining({ body: 'Opening\n\nFirst topic', usedCitationIds: ['fact-a'] }),
+      expect.objectContaining({ body: 'Second topic', usedCitationIds: ['fact-b'] }),
+    ]);
   });
 });

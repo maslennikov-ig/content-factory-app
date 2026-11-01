@@ -3,7 +3,7 @@
 /**
  * «Проверить факты»: the page's web check, spend confirmed by the agent; the
  * changes card offers the editable changes, all preselected as on the page;
- * «Решите за меня» accepts those through the core's accept door. Accepting
+ * The person accepts the complete candidate through the core's accept door. Accepting
  * spends nothing, as the door's does not.
  */
 const CHANGES = [
@@ -15,12 +15,12 @@ const CHANGES = [
 
 module.exports = {
   id: 'piece-check-facts',
-  title: '«Проверить факты» → карточка правок → «Решите за меня»',
+  title: '«Проверить факты» → принятие итогового текста',
   covers: ['piece.check_facts'],
   world: { reviewChanges: CHANGES },
   turns: [
     { say: 'Проверь факты в cnt-1', model: [[['tool', 'piece_check_facts', { pieceId: 'p1' }]]] },
-    { resume: { decideForPerson: true }, model: [[['text', 'Приняли две правки.']]] },
+    { resume: { changeIds: ['c1', 'c4'] }, model: [[['text', 'Приняли две правки.']]] },
   ],
   check: (run) => {
     const [ask, answer] = run.turns;
@@ -31,7 +31,7 @@ module.exports = {
     expect(card).toMatchObject({
       kind: 'selection',
       answerKey: 'changeIds',
-      canDecideForPerson: true,
+      canDecideForPerson: false,
       verdict: 'review',
       cardId: expect.stringMatching(/^[0-9a-f]{32}$/),
     });

@@ -337,6 +337,16 @@ describe('the adaptation line and panel', () => {
     expect(cards.artifactName({ ...ADAPTATION, data: { pieceId: 'p1' } }, en)).toBe(en.card.kinds.adaptation);
   });
 
+  test('a series member shows its position and title in the chat and panel name', async () => {
+    const member = { ...ADAPTATION, title: 'Первая часть', data: { ...ADAPTATION.data, series: { id: 'series-1', index: 1, total: 3 } } };
+    await act(async () => {
+      render(h(cards.ArtifactLine, { artifact: member, open: false, onOpen: () => {}, words: ru }));
+    });
+    expect(document.body.textContent).toContain('Канал про работу · 1/3 · Первая часть');
+    expect(cards.artifactName(member, ru)).toBe('Канал про работу · 1/3 · Первая часть');
+    expect(cards.artifactName(member, ru)).not.toContain('вариант');
+  });
+
   test('the panel opens the piece screen on the channel’s tab and leads to it', async () => {
     const panel = loadWithMocks('apps/frontend/src/components/agents/agent.panel.tsx', {
       react: React,
@@ -366,6 +376,12 @@ describe('the adaptation line and panel', () => {
     expect(screen.getByRole('link', { name: /Открыть на экране/ }).getAttribute('href')).toBe(
       '/content/pieces/p1?tab=c1'
     );
+    cleanup();
+    const member = { ...ADAPTATION, title: 'Первая часть', data: { ...ADAPTATION.data, series: { id: 'series-1', index: 1, total: 3 } } };
+    await act(async () => {
+      render(h(panel.ArtifactColumn, { artifact: member, onClose: () => {}, empty: null, words: ru }));
+    });
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Канал про работу · 1/3 · Первая часть');
   });
 });
 
@@ -395,7 +411,7 @@ describe('saved draft quality advisory', () => {
     const trigger = screen.getByRole('button', { name: 'Замечания к черновику' });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('region')).toBeNull();
-    expect(screen.getByRole('button', { name: /Открыть рядом/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Открыть/ })).toBeTruthy();
     await act(async () => fireEvent.click(trigger));
     const region = screen.getByRole('region', { name: 'Замечания к черновику' });
     expect(region.textContent).toContain('Черновик сохранён.');

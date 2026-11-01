@@ -292,6 +292,32 @@ describe('writeCoreWithDecisions', () => {
     const core = await coreWrite.writeCore(input(), deps);
     expect(core.text).toBe('Суть.');
   });
+
+  test.each([false, true])('the core writer keeps the full multi-output request but writes only the core (research: %s)', async withResearch => {
+    const request = {
+      version: 'intake-request/v1',
+      goal: 'Подготовить содержательную заготовку и отдельную адаптацию для канала.',
+      requestedOutputs: ['Заготовка со сравнением', 'Отдельная адаптация для канала'],
+      materials: [{ role: 'author_material', origin: 'user', text: 'Решение полезно при ручной проверке.' }],
+      constraints: { research: 'allowed', requirements: ['Сохранить условие ручной проверки'] },
+    };
+    const original = JSON.parse(JSON.stringify(request));
+    const coreText = 'Решение полезно при ручной проверке.';
+    responses = [{ text: coreText, decisions: [] }];
+    const { core } = await coreWrite.writeCoreWithDecisions(input({ request,
+      ...(withResearch ? { researchSummary: { status: 'partial', gaps: ['Один аспект требует проверки.'] } } : {}),
+    }), deps);
+    expect(modelCalls).toHaveLength(1);
+    const prompt = modelCalls[0].prompt;
+    expect(prompt).toContain(withResearch ? 'PROMPT VERSION: core-write/v20' : 'PROMPT VERSION: core-write/v19');
+    expect(prompt).toContain('This call writes exactly one cohesive core');
+    expect(prompt).toContain('do not write them in the core');
+    expect(prompt).toContain('substantive sections, examples, distinctions and comparisons');
+    expect(prompt).toContain(JSON.stringify(original));
+    expect(core.request).toEqual(original);
+    expect(request).toEqual(original);
+    expect(core.text).toBe(coreText);
+  });
 });
 
 describe('intake-brief-fill/v10', () => {

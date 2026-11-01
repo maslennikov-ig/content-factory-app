@@ -18,6 +18,7 @@ test('full replacement is exposed before selection without signed proposal or sn
   const asked = await executeTool(
     build('piece.rewrite', {
       PieceService: {
+        previewReviewV2: () => ({ title: null, text: after }),
         reviewV2: async () => ({
           token: 'private-token',
           verdict: 'review',
@@ -122,6 +123,7 @@ test.each(['empty', 'needs_clarification'])('a %s research outcome never creates
 test.each(['accepted', 'declined', 'stale'])('rewrite completion identifies the actual %s card decision', async (decision) => {
   const accepted = [];
   const tool = build('piece.rewrite', { PieceService: {
+    previewReviewV2: () => ({ title: null, text: 'After' }),
     reviewV2: async () => ({ token: 'private-review-token', verdict: 'review', changes: [
       { id: 'c1', basket: 'show', excerpt: 'Before', replacement: 'After', why: 'Clearer', target: 'body' },
     ] }),

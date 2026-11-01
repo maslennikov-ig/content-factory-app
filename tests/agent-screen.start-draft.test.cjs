@@ -160,12 +160,12 @@ const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.sc
   './agent.availability': { AgentAvailabilityGate: Gate },
   './agent.conversation': { AgentConversation: Conversation },
   './assistant.workspace-context': { useAssistantWorkspace: () => world.assistant },
-  './agent.workspace-shell': { AgentWorkspaceShell: ({ children }) => h('div', { 'data-shared-shell': '' }, children) },
+  './agent.workspace-shell': { AgentWorkspaceShell: ({ children, toolbar }) => h('div', { 'data-shared-shell': '' }, toolbar, children) },
   './agent.artifact-host': { AgentArtifactHost: () => null },
   './agent.artifact-picker': { AgentArtifactPicker: () => null },
   './agent.workspace-browser': { AgentWorkspaceBrowser: ({ onSelect }) => h('button', { type: 'button', 'data-workspace-browser': '', onClick: () => onSelect({ kind: 'avatar', id: 'avatar1', title: 'Avatar', code: null, data: {} }) }, 'Workspace') },
   './agent.piece-data': { useLoadedPiece: () => null, withPieceData: (artifact) => artifact, pieceIdOf: (artifact) => artifact.kind === 'piece' ? artifact.id : null },
-  './agent.artifact-metadata': { useArtifactMetadata: () => ({ get: () => undefined }), AgentArtifactLiveStatus: () => null },
+  './agent.artifact-metadata': { useArtifactMetadata: () => ({ get: () => undefined, known: () => false }), AgentArtifactLiveStatus: () => null },
   './agent.threads': {
     THREADS_KEY: '/agents/threads',
     ThreadSwitcher: (props) => { world.switcher = props; return h('div', { 'data-switcher': '' }, props.actions); },
@@ -192,6 +192,22 @@ const field = () => document.querySelector('textarea');
 
 beforeEach(reset);
 afterEach(cleanup);
+
+test('the selected context lives in shared chat controls and leaves the composer unobstructed', async () => {
+  world.assistant = { workContext: { version: 'assistant-work-context/v1', kind: 'piece', id: 'piece1' }, requestedThreadId: null, requestVersion: 0, contextVersion: 0, rememberThread: () => {}, setWorkContext: () => {} };
+  const view = await open('/agents/new');
+  const original = field();
+  fireEvent.change(original, { target: { value: 'Несохранённый текст' } });
+  const trigger = view.getByRole('button', { name: 'Context: Pieces' });
+  expect(trigger.closest('[data-switcher]')).not.toBeNull();
+  expect(world.conversationProps.contextControls).toBeUndefined();
+  fireEvent.click(trigger);
+  expect(view.getByRole('dialog', { name: 'Context' })).toBeTruthy();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(field()).toBe(original);
+  expect(field().value).toBe('Несохранённый текст');
+  expect(world.submitted).toEqual([]);
+});
 
 test('returning to a conversation that began fresh loads native history and preserves its unsent draft', async () => {
   await open('/agents/new');

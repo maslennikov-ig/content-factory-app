@@ -133,9 +133,14 @@ input:autofill {
   animation: cf-enter 150ms ease-out;
 }
 
+.cf-question-enter {
+  animation: cf-enter 240ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cf-page-enter,
-  .cf-tab-enter {
+  .cf-tab-enter,
+  .cf-question-enter {
     animation: none;
   }
 
@@ -203,46 +208,18 @@ h3 {
   }
 }
 
-/**
- * Between the tablet and desktop breakpoints the signed rail is always compact:
- * there is not enough width for labels next to a working surface. Labels stay
- * in the accessible name and the tooltip, so nothing loses its meaning.
- */
-@media (min-width: 768px) and (max-width: 1023.98px) {
-  .cf-sidebar {
-    width: 72px !important;
-  }
+.cf-pieces-container {
+  container-type: inline-size;
+  container-name: pieces;
+}
 
-  .cf-sidebar .cf-nav-label,
-  .cf-sidebar .cf-group-label,
-  .cf-sidebar .cf-account-email {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border-width: 0 !important;
-  }
+.cf-pieces-table {
+  display: none;
+}
 
-  // `cf-nav-row-content` is the same row seen from inside the shared button:
-  // the anchor branch of a navigation row carries its own gap, the button
-  // branch hands it to the button's content wrapper.
-  .cf-sidebar .cf-nav-row,
-  .cf-sidebar .cf-nav-row-content,
-  .cf-sidebar .cf-brand,
-  .cf-sidebar .cf-account {
-    justify-content: center !important;
-    gap: 0 !important;
-    padding-inline: 0 !important;
-  }
-
-  .cf-sidebar .cf-collapse-toggle,
-  .cf-sidebar [data-side-panel-handle] {
-    display: none !important;
-  }
+@container pieces (min-width: 720px) {
+  .cf-pieces-table { display: block; }
+  .cf-pieces-cards, .cf-pieces-sort { display: none; }
 }
 
 .box {

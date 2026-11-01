@@ -644,8 +644,10 @@ test.each([['Отдельный заголовок','Первый абзац.','
  repository.reviewDraft.mockResolvedValue({...draft(),title,post:{...draft().post,content}});
  output={changes:[{id:'title',target:'title',excerpt:title??'Старый заголовок',replacement:'Новый заголовок',variants:['Новый заголовок','Другой заголовок','Третий заголовок'],why:'Яснее',basket:'show'}],verdict:'review',summary:''};
  const result=await service.reviewV2('org','piece','adaptation',{instruction:'Только заголовок'});
+ const preview=service.previewReviewV2('org','piece','adaptation',{token:result.token,selectedIds:['title'],variant:'Новый заголовок'});
  await service.acceptReviewV2('org','piece','adaptation',{token:result.token,selectedIds:['title'],variant:'Новый заголовок'});
  const saved=repository.acceptReviewV2.mock.calls[0];
+ expect(preview).toEqual({text:saved[4],title:saved[6]});
  expect(saved[3].adaptationTitle).toBe(title);expect(saved[4]).toBe(expected);expect(saved[6]).toBe('Новый заголовок');
 });
 test('adaptation v2 CAS requires old independent title and writes title/body/post atomically',async()=>{
@@ -669,4 +671,18 @@ test('review converts legacy ask output to a visible unchanged note and stores n
  });
  expect(service.answerReviewQuestions).toBeUndefined();
  expect(metadata.updateCoreMetadata).not.toHaveBeenCalled();
+});
+
+
+test('full preview preserves a null adaptation title when only body changes', async () => {
+ process.env.JWT_SECRET='test-review-key';
+ repository.reviewDraft.mockResolvedValue({...draft(), title:null});
+ output={changes:[{id:'body',excerpt:'Новый',replacement:'Свежий',why:'',basket:'show'}],verdict:'review',summary:''};
+ const proposal=await service.reviewV2('org','piece','adaptation',{mode:'slop'});
+ const input={token:proposal.token,selectedIds:['body']};
+ const preview=service.previewReviewV2('org','piece','adaptation',input);
+ await service.acceptReviewV2('org','piece','adaptation',input);
+ const saved=repository.acceptReviewV2.mock.calls[0];
+ expect(preview).toEqual({text:saved[4],title:null});
+ expect(saved[6]).toBeNull();
 });

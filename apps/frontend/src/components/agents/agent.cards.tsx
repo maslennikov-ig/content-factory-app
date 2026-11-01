@@ -6,10 +6,10 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
-import { Progress } from '@contentfactory/frontend/components/ui/progress';
 import {
   choiceAnswer,
   consentAnswer,
@@ -22,6 +22,9 @@ import {
   type AgentArtifactKind,
   type AgentObjectiveView,
   type AgentQuestion,
+  type AgentQuestionHistory,
+  type AgentNativeBatchAnswer,
+  type AgentSourceReadIssue,
   type AgentSubagentView,
   type AgentTaskItem,
   type BrandVoiceFactScoreSummary,
@@ -32,6 +35,7 @@ import { AgentMarkdown } from './agent.markdown';
 import { pictureAvailable } from './agent.media';
 import { usePieceArtifact } from './agent.piece-data';
 import { Disclosure } from '../ui/disclosure';
+import { useEnterMotion } from '../ui/enter-motion';
 import { useUser } from '../layout/user.context';
 import { ErrorState, SkeletonRows } from '../ui/surface';
 import { useVideoWords } from '../videos/video.copy';
@@ -39,6 +43,7 @@ import { videoWorkspacePath, type VideoApprovalScopeV1, type VideoDraftUiV1 } fr
 import { SavedVideoApprovalV2 } from '../videos/video-access-approval';
 import {
   ManualQuestionControls,
+  hasQuestionOptionLabel,
   manualQuestionAnswered,
   type ManualQuestionAnswer,
 } from '../content-intelligence/intake/questions.card';
@@ -216,8 +221,8 @@ const ARTIFACT_GLYPH: Record<AgentArtifactKind, AgentGlyphName> = {
 
 /**
  * The name a produced thing goes by, in the line and in the panel head. An
- * adaptation has no title of its own: it is its channel and its variant
- * («Канал про работу · вариант 2», `kcxz.16`).
+ * Ordinary adaptations use their channel and variant; series members use
+ * their position and title instead of calling separate posts variants.
  */
 export const artifactName = (artifact: AgentArtifact, words: AgentWords): string =>
   artifactOwnName(artifact, words) ?? words.card.kinds[artifact.kind];
@@ -239,6 +244,13 @@ export const artifactOwnName = (
       typeof channel.name === 'string' && channel.name.trim()
         ? channel.name
         : null;
+    const series = artifact.data.series;
+    if (series && typeof series === 'object' && 'index' in series && 'total' in series &&
+        typeof series.index === 'number' && Number.isInteger(series.index) && series.index > 0 &&
+        typeof series.total === 'number' && Number.isInteger(series.total) && series.total >= series.index) {
+      const title = artifact.title?.trim() || (typeof artifact.data.title === 'string' ? artifact.data.title.trim() : '');
+      return [name ?? kind, `${series.index}/${series.total}`, title].filter(Boolean).join(' · ');
+    }
     const variant =
       typeof artifact.data.variant === 'number' && artifact.data.variant > 0
         ? words.card.variant(artifact.data.variant)
@@ -309,6 +321,47 @@ export function VoiceScoreBadge({
   );
 }
 
+/** Historical model notes keep their original findings and explicit presentation scope. */
+export function SavedReviewNotes({ qualityReview, words, scope = 'draft' }: {
+  qualityReview: NonNullable<ReturnType<typeof readSavedAdaptationQualityReview>>;
+  words: AgentWords;
+  scope?: 'draft' | 'series';
+}) {
+  return (
+    <Disclosure
+      className="w-full min-w-0 border-t border-cf-border pt-1"
+      summary={scope === 'series' ? words.card.qualityReview.seriesSummary : words.card.qualityReview.summary}
+      contentClassName="flex flex-col gap-2 px-2 pb-2 pt-2"
+    >
+      <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        {qualityReview.status === 'unavailable'
+          ? words.card.qualityReview.unavailable
+          : scope === 'series' ? words.card.qualityReview.seriesSaved : words.card.qualityReview.saved}
+      </p>
+      {qualityReview.missingRequirements.length ? (
+        <section>
+          <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.missingRequirements}</p>
+          <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+            {qualityReview.missingRequirements.map((finding, index) => (
+              <li key={`missing-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {qualityReview.unsupportedClaims.length ? (
+        <section>
+          <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.unsupportedClaims}</p>
+          <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
+            {qualityReview.unsupportedClaims.map((finding, index) => (
+              <li key={`unsupported-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </Disclosure>
+  );
+}
+
 /**
  * A thing the turn produced, as one line (canvas C «свёрнутые строки»): its
  * kind, its name, and either «открыто рядом» or the control that opens it.
@@ -318,6 +371,7 @@ export function ArtifactLine({
   open,
   removed = false,
   latest = true,
+  seriesMember = false,
   onOpen,
   words,
 }: {
@@ -332,6 +386,8 @@ export function ArtifactLine({
    * D12), unless the loaded piece tells the count as it is now.
    */
   latest?: boolean;
+  /** The group already names the channel; prioritize the part and text here. */
+  seriesMember?: boolean;
   onOpen: (artifact: AgentArtifact) => void;
   words: AgentWords;
 }) {
@@ -339,7 +395,10 @@ export function ArtifactLine({
   // card that named only its id, the open questions as they are now.
   const { artifact, loaded } = usePieceArtifact(written);
   const kind = words.card.kinds[artifact.kind];
-  const own = artifactOwnName(artifact, words);
+  const own = seriesMember && artifact.data.series && typeof artifact.data.series === 'object' &&
+    'index' in artifact.data.series && 'total' in artifact.data.series
+    ? [words.card.seriesPart(Number(artifact.data.series.index), Number(artifact.data.series.total)), artifact.title].filter(Boolean).join(' · ')
+    : artifactOwnName(artifact, words);
   const name = own ?? kind;
   const questions =
     artifact.kind === 'piece' &&
@@ -348,7 +407,7 @@ export function ArtifactLine({
       ? artifact.data.questions
       : 0;
   const voiceScore = readVoiceScore(artifact.data.voiceScore);
-  const qualityReview = artifact.kind === 'adaptation' && !removed
+  const qualityReview = artifact.kind === 'adaptation' && !removed && !seriesMember
     ? readSavedAdaptationQualityReview(artifact.data)
     : null;
   return (
@@ -369,7 +428,7 @@ export function ArtifactLine({
         )}
       >
         <AgentGlyph name={ARTIFACT_GLYPH[artifact.kind]} size={14} />
-        {kind}
+        {seriesMember ? null : kind}
       </span>
       {own ? (
         <span className="min-w-0 flex-1 truncate cf-body-sm text-cf-ink" title={own}>
@@ -381,7 +440,7 @@ export function ArtifactLine({
           {artifact.code}
         </span>
       ) : null}
-      {voiceScore && !removed ? (
+      {voiceScore && !removed && !seriesMember ? (
         <VoiceScoreBadge score={voiceScore} words={words} />
       ) : null}
       {removed ? (
@@ -406,39 +465,7 @@ export function ArtifactLine({
           <AgentGlyph name="right" size={14} />
         </Button>
       )}
-      {qualityReview ? (
-        <Disclosure
-          className="w-full min-w-0 border-t border-cf-border pt-1"
-          summary={words.card.qualityReview.summary}
-          contentClassName="flex flex-col gap-2 px-2 pb-2 pt-2"
-        >
-          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {qualityReview.status === 'unavailable'
-              ? words.card.qualityReview.unavailable
-              : words.card.qualityReview.saved}
-          </p>
-          {qualityReview.missingRequirements.length ? (
-            <section>
-              <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.missingRequirements}</p>
-              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
-                {qualityReview.missingRequirements.map((finding, index) => (
-                  <li key={`missing-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {qualityReview.unsupportedClaims.length ? (
-            <section>
-              <p className="cf-body-sm text-cf-ink">{words.card.qualityReview.unsupportedClaims}</p>
-              <ul className="mt-1 list-disc space-y-1 ps-5 cf-body-sm text-cf-ink-muted">
-                {qualityReview.unsupportedClaims.map((finding, index) => (
-                  <li key={`unsupported-${index}`} className="[overflow-wrap:anywhere]">{finding}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </Disclosure>
-      ) : null}
+      {qualityReview ? <SavedReviewNotes qualityReview={qualityReview} words={words} /> : null}
       {questions > 0 && !removed ? (
         // The piece is written but not finished: its open questions wait on
         // the piece card (kcxz.29, D4).
@@ -471,7 +498,7 @@ export function DoneLine({
 }) {
   if (stale) {
     return (
-      <p
+      <span
         data-agent-done="stale"
         className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted"
       >
@@ -479,18 +506,18 @@ export function DoneLine({
         <span className="min-w-0 truncate">
           {title ? `${title} — ${words.question.stale}` : words.question.stale}
         </span>
-      </p>
+      </span>
     );
   }
   return (
-    <p className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted">
+    <span className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted">
       <span className="text-cf-accent">
         <AgentGlyph name="check" size={12} />
       </span>
       <span className="min-w-0 truncate">
         {title ? `${words.card.done}: ${title}` : words.card.done}
       </span>
-    </p>
+    </span>
   );
 }
 
@@ -798,42 +825,77 @@ function VideoApprovalSnapshot({scope, onReady}: {
  * words and a glyph, so the person knows the card is not simply broken.
  */
 export function QuestionClosedLine({
-  kind,
-  text,
-  state,
-  words,
+  kind, text, state, words, question, history,
 }: {
   kind: string;
   text: string;
-  /**
-   * `stale`: answered, but the proposal was for a text that has changed since
-   * — nothing was applied (`kcxz.32`, N2).
-   */
+  /** A stale proposal was not applied; closing a question does not prove an answer. */
   state: 'answered' | 'closed' | 'stale';
   words: AgentWords;
+  question?: AgentQuestion;
+  history?: AgentQuestionHistory;
 }) {
+  const w = words.question;
+  const options = question?.kind === 'choice' || question?.kind === 'selection' ? question.options : [];
+  const items = question?.kind === 'domain-questions' || question?.kind === 'interview' ? question.questions : [];
+  const domainAnswers = question?.kind === 'domain-questions' ? question.answers.map(answer => {
+    const item = question.questions.find(item => item.key === answer.key);
+    const value = answer.mode === 'delegate' ? w.delegated : answer.text ??
+      (answer.mode === 'confirmed' ? item?.suggested : item?.options?.filter(option => answer.optionIds?.includes(option.id)).map(option => option.label).join('\n'));
+    return `${item?.question ?? ''}\n${value || w.historyAnswerUnavailable}`;
+  }) : [];
+  const saved = history?.answer ?? (domainAnswers.length ? domainAnswers : undefined);
+  const answerText = (value: string) => options.find(option => option.id === value)?.label ?? value;
   return (
-    <p
-      data-agent-card="question"
-      data-agent-question={state}
-      className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted"
-    >
-      <AgentGlyph name={state === 'answered' ? 'check' : 'close'} size={12} />
-      <span className="min-w-0 truncate" title={text || undefined}>
-        {text ? `${kind}: ${text}` : kind} —{' '}
-        {state === 'closed'
-          ? words.question.closed
-          : state === 'stale'
-            ? words.question.stale
-            : words.question.answered}
-      </span>
-    </p>
+    <div data-agent-card="question" data-agent-question={state} className="min-w-0">
+      <Disclosure
+        className="min-w-0"
+        triggerClassName="px-0 py-[8px]"
+        summary={
+          <span className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted">
+            <AgentGlyph name={state === 'answered' ? 'check' : 'close'} size={12} />
+            <span className="min-w-0 flex-1 truncate" title={text || undefined}>{text ? `${kind}: ${text}` : kind}</span>
+            <span className="min-w-0 shrink truncate"> — {state === 'closed' ? w.closed : state === 'stale' ? w.stale : w.answered}</span>
+          </span>
+        }
+        contentClassName="flex min-w-0 flex-col gap-[12px] px-[20px] pb-[12px]"
+      >
+        {text ? <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{text}</p> : null}
+        {question?.kind === 'plan' ? <AgentMarkdown text={question.plan} /> : null}
+        {question?.kind === 'question-batch' ? <ol className="flex min-w-0 flex-col gap-[12px]">
+          {question.questions.map((item, index) => <li key={index} className="min-w-0">
+            <p className="cf-caption text-cf-ink-muted">{w.batch.progress(index + 1, question.questions.length)}</p>
+            <p className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{item.text}</p>
+            <p className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{batchAnswerText(history?.batchAnswers?.[index], words)}</p>
+          </li>)}
+        </ol> : null}
+        {items.length ? <ul className="flex min-w-0 flex-col gap-[8px]">
+          {items.map((item, index) => <li key={index} className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{item.question}</li>)}
+        </ul> : null}
+        {options.length ? <ul className="flex min-w-0 flex-col gap-[8px]">
+          {options.map(option => <li key={option.id} className="cf-body-sm text-cf-ink-muted whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {option.label}{'description' in option && option.description ? ` — ${option.description}` : ''}
+          </li>)}
+        </ul> : null}
+        <div className="flex min-w-0 flex-col gap-[4px]">
+          <p className="cf-label-sm text-cf-ink-muted">{w.historyAnswer}</p>
+          {saved !== undefined ? <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {Array.isArray(saved) ? saved.map(answerText).join('\n') : answerText(saved)}
+          </p> : <p className="cf-body-sm text-cf-ink-muted">{w.historyAnswerUnavailable}</p>}
+        </div>
+        {history?.followUp || saved !== undefined ? <div className="flex min-w-0 flex-col gap-[4px]">
+          <p className="cf-label-sm text-cf-ink-muted">{w.historyFollowUp}</p>
+          {history?.followUp ? <AgentMarkdown text={history.followUp} /> : <p className="cf-body-sm text-cf-ink-muted">{w.historyFollowUpUnavailable}</p>}
+        </div> : null}
+      </Disclosure>
+    </div>
   );
 }
 
 export function QuestionCard({
   title,
   question,
+  history,
   answered,
   stale = false,
   busy,
@@ -842,9 +904,11 @@ export function QuestionCard({
   words,
   failure: rejected = false,
   draftStorageKey,
+  initialAnswer,
 }: {
   title: string | null;
   question: AgentQuestion;
+  history?: AgentQuestionHistory;
   answered: boolean;
   /** Answered after its text changed: nothing applied (`kcxz.32`, N2). */
   stale?: boolean;
@@ -858,13 +922,14 @@ export function QuestionCard({
   words: AgentWords;
   failure?: boolean;
   draftStorageKey?: string;
+  initialAnswer?: string;
 }) {
   const w = words.question;
   const [sent, setSent] = useState<string | null>(null);
   const sending = useRef(false);
   /** A refused library upload of `media.keep`: the card stays for a retry. */
   const [failure, setFailure] = useState<string | null>(null);
-  const [own, setOwn] = useQuestionDraft(draftStorageKey, '');
+  const [own, setOwn] = useQuestionDraft(draftStorageKey, initialAnswer ?? '');
   const [multipleAnswer, setMultipleAnswer] =
     useQuestionDraft<ManualQuestionAnswer | null>(
       draftStorageKey ? `${draftStorageKey}:multiple` : undefined,
@@ -896,6 +961,8 @@ export function QuestionCard({
         text={question.text || title || ''}
         state={stale ? 'stale' : 'answered'}
         words={words}
+        question={question}
+        history={history}
       />
     );
   }
@@ -917,6 +984,9 @@ export function QuestionCard({
     });
   };
   const locked = busy || sent !== null;
+
+  if (question.kind === 'question-batch') return <NativeQuestionBatchCard question={question}
+    busy={busy} onAnswer={onAnswer} words={words} draftStorageKey={draftStorageKey} failure={rejected} />;
 
   if (question.kind === 'keep-picture') {
     // The page that showed the agent this picture still holds it — or not,
@@ -1236,12 +1306,37 @@ export function QuestionCard({
       glyph="ask"
       kind={w.kind}
       label={`${w.kind}: ${question.text}`}
-      footer={
-        question.canDecideForPerson ? (
+    >
+      <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
+        {question.text}
+      </p>
+      <div data-agent-question-choices="" className="flex min-w-0 flex-wrap items-center gap-[8px]">
+        {question.options.map((option) => (
+          <div key={option.id} className="flex min-w-0 max-w-full items-center gap-[4px]">
+            <Button
+              type="button"
+              density="dense"
+              variant="secondary"
+              disabled={locked}
+              loading={sent === option.id}
+              layout="content"
+              loadingLabel={w.sending}
+              aria-description={option.description}
+              onClick={() => send(option.id, choiceAnswer(question, option.id))}
+              className="min-w-0 max-w-full whitespace-normal py-[8px] text-start [overflow-wrap:anywhere]"
+            >
+              {option.label}
+            </Button>
+            {option.description ? (
+              <Hint label={`${option.label}: ${option.description}`}>{option.description}</Hint>
+            ) : null}
+          </div>
+        ))}
+        {question.canDecideForPerson && !hasQuestionOptionLabel(question.options, w.decide) ? (
           <Button
             type="button"
             density="dense"
-            variant="secondary"
+            variant="quiet"
             disabled={locked}
             loading={sent === 'decide'}
             loadingLabel={w.sending}
@@ -1250,43 +1345,8 @@ export function QuestionCard({
             <AgentGlyph name="spark" size={14} />
             {w.decide}
           </Button>
-        ) : undefined
-      }
-    >
-      <p className="cf-body-sm text-cf-ink-muted">{w.lead}</p>
-      <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
-        {question.text}
-      </p>
-      {question.options.length ? (
-        <div className="flex flex-wrap gap-[8px]">
-          {question.options.map((option) => (
-            <div
-              key={option.id}
-              className="flex min-w-0 max-w-full flex-col items-start gap-[4px]"
-            >
-              <Button
-                type="button"
-                density="dense"
-                variant="secondary"
-                disabled={locked}
-                loading={sent === option.id}
-                loadingLabel={w.sending}
-                onClick={() =>
-                  send(option.id, choiceAnswer(question, option.id))
-                }
-                className="max-w-full whitespace-normal text-start [overflow-wrap:anywhere]"
-              >
-                {option.label}
-              </Button>
-              {option.description ? (
-                <span className="cf-caption text-cf-ink-muted">
-                  {option.description}
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <form
         className="flex min-w-0 flex-wrap items-end gap-[8px]"
         onSubmit={(event) => {
@@ -1324,6 +1384,81 @@ export function QuestionCard({
   );
 }
 
+function batchAnswerText(answer: AgentNativeBatchAnswer | undefined, words: AgentWords): string {
+  if (!answer) return words.question.historyAnswerUnavailable;
+  if ('skipped' in answer) return words.question.batch.skipped;
+  if ('decideForPerson' in answer) return words.question.delegated;
+  return Array.isArray(answer.answer) ? answer.answer.join('\n') : answer.answer;
+}
+
+/** One saved native question array, browser-only navigation, one final resume. */
+function NativeQuestionBatchCard({ question, busy, onAnswer, words, draftStorageKey, failure }: {
+  question: Extract<AgentQuestion, { kind: 'question-batch' }>;
+  busy: boolean;
+  onAnswer: (data: Record<string, unknown>) => void | Promise<void>;
+  words: AgentWords;
+  draftStorageKey?: string;
+  failure?: boolean;
+}) {
+  const w = words.question, b = w.batch, total = question.questions.length;
+  const [draft, setDraft] = useQuestionDraft<{ index: number; answers: Array<AgentNativeBatchAnswer | null> }>(
+    draftStorageKey ? `${draftStorageKey}:batch` : undefined, { index: 0, answers: Array(total).fill(null) });
+  const [sent, setSent] = useState(false), [error, setError] = useState(false);
+  const sending = useRef(false), heading = useRef<HTMLDivElement>(null);
+  const index = Math.max(0, Math.min(draft.index, total));
+  const answers = question.questions.map((_, i) => draft.answers[i] ?? null);
+  const review = index === total;
+  const panel = useEnterMotion<HTMLDivElement>(index, 'cf-question-enter');
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    heading.current?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  }, [index]);
+  useEffect(() => { if (failure) { sending.current = false; setSent(false); } }, [failure]);
+  const move = (next: number) => setDraft(previous => ({ ...previous, index: next }));
+  const save = (value: AgentNativeBatchAnswer) => setDraft({ index: index + 1, answers: answers.map((old, i) => i === index ? value : old) });
+  const submit = async () => {
+    if (busy || sending.current || answers.some(answer => !answer)) return;
+    sending.current = true; setSent(true); setError(false);
+    try {
+      await onAnswer({ answers });
+      if (draftStorageKey) try { window.sessionStorage.removeItem(`${draftStorageKey}:batch`); } catch { /* Native history owns accepted answers. */ }
+    } catch { sending.current = false; setSent(false); setError(true); }
+  };
+  const locked = busy || sent;
+  return <div data-agent-question-batch="" className="flex min-w-0 flex-col gap-[8px]">
+    <div ref={heading} tabIndex={-1} className="flex min-w-0 flex-wrap items-center justify-between gap-[8px]">
+      <p aria-live="polite" className="cf-caption text-cf-ink-muted">{review ? b.review : b.progress(index + 1, total)}</p>
+      <div className="flex min-w-0 flex-wrap gap-[8px]">
+        <Button type="button" density="dense" variant="quiet" disabled={locked || index === 0} onClick={() => move(index - 1)}>{b.back}</Button>
+        {!review && answers[index] ? <Button type="button" density="dense" variant="quiet" disabled={locked} onClick={() => move(index + 1)}>{b.next}</Button> : null}
+      </div>
+    </div>
+    <div ref={panel} data-agent-question-panel="" className="flex min-w-0 flex-col gap-[8px]">
+    {review ? <AgentCard cardKind="question-batch-review" glyph="list" kind={w.kind} label={b.review} title={b.review}
+      footer={<Button type="button" density="dense" disabled={locked || answers.some(answer => !answer)} loading={sent} loadingLabel={w.sending} onClick={() => void submit()}>{b.submit}</Button>}>
+      <ol className="flex min-w-0 flex-col gap-[12px]">{question.questions.map((item, i) => <li key={i} className="min-w-0">
+        <p className="cf-body-sm text-cf-ink [overflow-wrap:anywhere]">{b.progress(i + 1, total)} · {item.text}</p>
+        <p className="cf-body-sm text-cf-ink-muted whitespace-pre-wrap [overflow-wrap:anywhere]">{batchAnswerText(answers[i] ?? undefined, words)}</p>
+        <Button type="button" variant="quiet" density="dense" disabled={locked} onClick={() => move(i)} aria-label={`${b.edit}: ${item.text}`}>{b.edit}</Button>
+      </li>)}</ol>
+    </AgentCard> : <>
+      {answers[index] ? <p className="cf-body-sm text-cf-ink-muted whitespace-pre-wrap [overflow-wrap:anywhere]">{batchAnswerText(answers[index] ?? undefined, words)}</p> : null}
+      <QuestionCard key={`${index}:${JSON.stringify(answers[index])}`} title={null} question={question.questions[index]}
+        words={words} busy={locked} answered={false}
+        initialAnswer={answers[index] && 'answer' in answers[index]! ? batchAnswerText(answers[index]!, words) : ''}
+        draftStorageKey={draftStorageKey ? `${draftStorageKey}:batch:${index}` : undefined}
+        onAnswer={data => { save(data.decideForPerson === true ? { decideForPerson: true } : { answer: data.answer as string | string[] }); }} />
+      <div className="flex min-w-0 flex-wrap gap-[8px]">
+        <Button type="button" density="dense" variant="quiet" disabled={locked} onClick={() => save({ skipped: true })}>{b.skip}</Button>
+        <Button type="button" density="dense" variant="quiet" disabled={locked} onClick={() => setDraft({ index: total, answers: answers.map(answer => answer ?? { skipped: true }) })}>{b.skipRest}</Button>
+      </div>
+    </>}
+    </div>
+    {error || failure ? <p role="status" className="cf-body-sm text-cf-warning">{w.answerFailed}</p> : null}
+  </div>;
+}
+
 /** A stale/closed card never takes a typed answer away with its buttons. */
 export function RetainedQuestionDraft({
   draftStorageKey,
@@ -1353,13 +1488,17 @@ export function RetainedQuestionDraft({
 /* ---- Progress --------------------------------------------------------------- */
 
 /**
- * The running step (canvas «Ход работы · идёт»): what runs, the step it has
- * reached, the steps so far. The step list is announced as it grows.
+ * Only the latest tool status is visible. Earlier steps are local disclosure
+ * content; Stop never depends on opening the history.
  */
 export function ProgressCard({
   title,
   current,
   steps,
+  completed = [],
+  history,
+  summary: summaryOverride,
+  running = true,
   onStop,
   words,
 }: {
@@ -1368,49 +1507,50 @@ export function ProgressCard({
   current: string;
   /** Words of the steps already reached, oldest first, without `current`. */
   steps: readonly string[];
+  completed?: readonly { key: string; title: string | null }[];
+  /** Optional rendered attempt history; native results remain unchanged. */
+  history?: readonly ReactNode[];
+  summary?: ReactNode;
+  running?: boolean;
   onStop?: () => void;
   words: AgentWords;
 }) {
   const w = words.progress;
+  const earlier = running ? completed : completed.slice(0, -1);
+  const summary = summaryOverride ?? (running ? (
+    <span role="status" className="flex min-w-0 items-center gap-[8px] cf-caption text-cf-ink-muted">
+      <span className="text-cf-accent"><AgentGlyph name="bolt" size={12} /></span>
+      <span className="min-w-0 truncate" title={title ? `${title} · ${current}` : current}>
+        {title ? `${title} · ${current}` : current}
+      </span>
+    </span>
+  ) : <DoneLine title={title} words={words} />);
   return (
-    <AgentCard
-      cardKind="progress"
-      glyph="bolt"
-      kind={w.kind}
-      title={title}
-      label={`${w.kind}: ${title ?? current}`}
-      footer={
-        <>
-          {onStop ? (
-            <Button type="button" density="dense" variant="quiet" onClick={onStop}>
-              <AgentGlyph name="stop" size={14} />
-              {w.stop}
-            </Button>
-          ) : null}
-          <span className="ms-auto cf-caption text-cf-ink-muted">
-            {w.leaveNote}
-          </span>
-        </>
-      }
-    >
-      <Progress mode="indeterminate" label={title ?? current} />
-      <ol aria-label={w.stepsLabel} aria-live="polite" className="flex flex-col gap-[8px]">
-        {steps.map((step, index) => (
-          <li key={`${step}-${index}`} className="flex items-center gap-[8px] cf-body-sm text-cf-ink">
-            <span className="text-cf-accent">
-              <AgentGlyph name="check" size={12} />
-            </span>
-            {step}
-          </li>
-        ))}
-        <li className="flex items-center gap-[8px] cf-label-md text-cf-ink">
-          <span className="text-cf-accent">
-            <AgentGlyph name="bolt" size={12} />
-          </span>
-          {current}
-        </li>
-      </ol>
-    </AgentCard>
+    <div data-agent-progress={running ? 'running' : 'completed'} className="flex min-w-0 items-start gap-[8px]">
+      {history?.length || earlier.length || steps.length ? (
+        <Disclosure
+          className="min-w-0 flex-1"
+          summary={summary}
+          contentClassName="flex flex-col gap-[8px] px-[12px] pb-[8px]"
+        >
+          <ol aria-label={w.stepsLabel} className="flex flex-col gap-[8px]">
+            {history ? history.map((entry, index) => <li key={index}>{entry}</li>) : earlier.map((step) => <li key={step.key}><DoneLine title={step.title} words={words} /></li>)}
+            {steps.map((step, index) => (
+              <li key={`${step}-${index}`} className="flex items-center gap-[8px] cf-caption text-cf-ink-muted">
+                <span className="text-cf-accent"><AgentGlyph name="check" size={12} /></span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          {running ? <span className="cf-caption text-cf-ink-muted">{w.leaveNote}</span> : null}
+        </Disclosure>
+      ) : <div className="min-w-0 flex-1 py-[8px]">{summary}</div>}
+      {running && onStop ? (
+        <Button type="button" density="dense" variant="quiet" onClick={onStop}>
+          <AgentGlyph name="stop" size={14} />{w.stop}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -1562,9 +1702,12 @@ export function ErrorCard({
   title,
   code,
   reviewFindings,
+  sourceRead,
   network,
   refusal = false,
   onRetry,
+  retryLabel,
+  nextStep,
   href,
   words,
 }: {
@@ -1572,6 +1715,7 @@ export function ErrorCard({
   code: string | null;
   /** Literal semantic-review findings saved with this rejected adaptation. */
   reviewFindings?: AgentAdaptationReviewFindings;
+  sourceRead?: AgentSourceReadIssue;
   /** The request never came back, not a refusal. */
   network?: boolean;
   /**
@@ -1580,10 +1724,30 @@ export function ErrorCard({
    */
   refusal?: boolean;
   onRetry?: () => void;
+  retryLabel?: string;
+  nextStep?: string;
   href?: string | null;
   words: AgentWords;
 }) {
   const w = words.error;
+  if (sourceRead) {
+    const text = w.sourceRead;
+    return <div data-agent-source-issue={sourceRead.kind} role="status" className="min-w-0">
+      <Disclosure
+        className="min-w-0"
+        triggerClassName="px-0 py-[8px]"
+        summary={<span className="flex min-w-0 items-center gap-[8px] cf-body-sm text-cf-ink-muted">
+          <span className="text-cf-warning"><AgentGlyph name="alert" size={14} /></span>
+          <span className="min-w-0 truncate">{sourceRead.kind === 'retained' ? text.retainedTitle : text.remoteTitle}{sourceRead.host ? ` · ${sourceRead.host}` : ''}</span>
+        </span>}
+        contentClassName="flex min-w-0 flex-col gap-[8px] px-[20px] pb-[12px]"
+      >
+        <p className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{sourceRead.kind === 'retained' ? text.retained : text.remote}</p>
+        {sourceRead.continued ? <p className="cf-body-sm text-cf-ink-muted">{text.continued}</p> : null}
+        <p className="cf-caption text-cf-ink-muted">{sourceRead.status ? `HTTP ${sourceRead.status} · ` : ''}{code ? w.code(code) : ''}</p>
+      </Disclosure>
+    </div>;
+  }
   const known = network
     ? { ...w.network, known: true }
     : errorWordsFor(words, code, refusal);
@@ -1600,7 +1764,7 @@ export function ErrorCard({
           <>
             {onRetry ? (
               <Button type="button" density="dense" onClick={onRetry}>
-                {w.retry}
+                {retryLabel ?? w.retry}
               </Button>
             ) : null}
             {href ? <OpenOnScreen href={href} words={words} /> : null}
@@ -1610,7 +1774,7 @@ export function ErrorCard({
     >
       <div role="alert" className="flex flex-col gap-[4px]">
         <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{known.what}</p>
-        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{known.next}</p>
+        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{nextStep ?? known.next}</p>
       </div>
       {reviewFindings && (reviewFindings.missingRequirements.length || reviewFindings.unsupportedClaims.length) ? (
         <Disclosure

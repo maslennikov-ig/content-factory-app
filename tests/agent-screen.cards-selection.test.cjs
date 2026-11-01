@@ -268,3 +268,37 @@ describe('the piece opened beside the chat', () => {
     expect(open.getAttribute('href')).toBe('/content/pieces/p9');
   });
 });
+
+const FULL_REVIEW = {
+  kind: 'selection', cardId: 'signed-full-preview', text: 'Review the candidate', answerKey: 'changeIds', canDecideForPerson: false,
+  options: [
+    { id: 'c1', label: 'Change the introduction', selected: true, preview: { before: 'Old lead', after: 'New lead' } },
+    { id: 'c2', label: 'Change the ending', selected: false, preview: { before: 'Old ending', after: 'New ending' } },
+  ],
+  fullPreview: { title: 'Complete proposed title', text: 'New lead\n\n' + 'Full proposed paragraph. '.repeat(180) + '\n\nExact final ending.' },
+};
+test('full signed candidate is visible before accepting all changes, without selection or delegation', async () => {
+  const { card, answers } = await renderCard({ question: FULL_REVIEW });
+  const body = within(card);
+  expect(card.querySelector('[data-agent-full-preview]').textContent).toContain('Exact final ending.');
+  expect(body.getByText('Complete proposed title').closest('[hidden]')).toBeNull();
+  expect(body.queryByRole('checkbox')).toBeNull();
+  expect(body.queryByRole('button', { name: /Решите за меня|Decide for me/ })).toBeNull();
+  expect(body.getByText('Old lead').closest('[hidden]')).not.toBeNull();
+  const accept = body.getByRole('button', { name: /^(Accept|Принять)$/ });
+  await act(async () => { fireEvent.click(accept); fireEvent.click(accept); });
+  expect(answers).toEqual([{ changeIds: ['c1', 'c2'] }]);
+});
+test('keeping the current draft declines the complete proposal with the native empty selection', async () => {
+  const { card, answers } = await renderCard({ question: FULL_REVIEW });
+  await act(async () => fireEvent.click(within(card).getByRole('button', { name: /Keep current draft|Оставить текущий текст/ })));
+  expect(answers).toEqual([{ changeIds: [] }]);
+});
+test('a refused full-preview answer unlocks the same exact candidate for retry', async () => {
+  const { card } = await renderCard({ question: FULL_REVIEW, onAnswer: async () => { throw Error('Not accepted'); } });
+  const accept = within(card).getByRole('button', { name: /^(Accept|Принять)$/ });
+  await act(async () => fireEvent.click(accept));
+  expect(accept.disabled).toBe(false);
+  expect(card.querySelector('[data-agent-full-preview]').textContent).toContain('Exact final ending.');
+  expect(within(card).getByRole('status').textContent).toBe(ru.question.answerFailed);
+});

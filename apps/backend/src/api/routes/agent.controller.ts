@@ -23,6 +23,7 @@ import type { Response } from 'express';
 import type { Organization, User } from '@prisma/client';
 import { handleChatStream } from '@mastra/ai-sdk';
 import { AGENT_NATIVE_CONTINUATION_PART, streamNativeSession } from '@contentfactory/nestjs-libraries/chat/conductor/native-session-stream';
+import { parseAgentWritingSelection } from '@contentfactory/nestjs-libraries/chat/conductor/work-context';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
@@ -393,6 +394,8 @@ export class AgentController {
           const context = buildConductorContext({ identity, threadId, requestId: pointer.logicalRequestId,
             trackExecution: true, approvals: fingerprints, openProposals,
             workContext: await this.threads.workContextForTurn(identity, threadId),
+            writingSelection: await this.threads.writingSelectionForTurn(identity, threadId,
+              pointer.continuationWritingSelection === undefined ? undefined : parseAgentWritingSelection(pointer.continuationWritingSelection)),
           });
           const live = await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext: context });
           const owner = await this.threads.activeTurnFor(identity, threadId);
@@ -436,6 +439,10 @@ export class AgentController {
       // Resolve tenant, role, deletion and revision before an admission or any
       // model call. An answered card cannot inject a different work target.
       const workContext = await this.threads.workContextForTurn(identity, threadId, input.mode === 'message' ? input.workContext : undefined);
+      const resumePointer = input.mode === 'message' ? null : await this.threads.readNativeRun(identity, threadId);
+      const writingSelection = await this.threads.writingSelectionForTurn(identity, threadId,
+        input.mode === 'message' ? input.writingSelection : resumePointer?.continuationWritingSelection === undefined
+          ? undefined : parseAgentWritingSelection(resumePointer.continuationWritingSelection));
       const requestContext = buildConductorContext({
         identity,
         threadId,
@@ -445,6 +452,7 @@ export class AgentController {
         requestId,
         trackExecution: true,
         workContext,
+        writingSelection,
         ...(input.mode === 'message' ? {
           originalAuthorRequest: { messageId: input.message.id, text: input.text },
         } : {}),
@@ -534,7 +542,7 @@ export class AgentController {
                 ...(input.mode === 'message' ? { message: messages[0] as any } : {}),
                 ...(resume ? { resume } : {}),
                 ...(input.mode === 'approval' ? { approvals: { runId: input.mode === 'approval' ? answered!.runId : '', answers: input.approvals } } : {}),
-                onRunId: (nativeRunId) => this.threads.rememberNativeRun(identity, threadId, nativeRunId, requestId),
+                onRunId: (nativeRunId) => this.threads.rememberNativeRun(identity, threadId, nativeRunId, requestId, input.mode === 'message' ? writingSelection.selection : undefined),
                 onMessageId: (nativeRunId, messageId) => this.threads.rememberNativeResponse(identity, threadId, nativeRunId, messageId),
                 nextRunId: async () => (await this.threads.readNativeRun(identity, threadId))?.runId,
                 onError: (error) => conductorOnError(error, errorScope),
@@ -611,7 +619,8 @@ export class AgentController {
           while (!abort.signal.aborted || drainStoppedNative) {
             const { done, value } = await reader.read();
             if (done) break;
-            if (failedPart(value)) failed = true;
+            if ((!abort.signal.aborted || failedExecution()) && failedPart(value)) failed = true;
+            if ((!abort.signal.aborted || failedExecution()) && value?.type === 'error' && KNOWN_ERRORS.includes(value.errorText)) turn?.fail(value.errorText);
             // Explicit native Stop suppresses display work, while this same
             // reader awaits native FINISH/EOF after the actual Memory flush.
             if (abort.signal.aborted) continue;
@@ -681,6 +690,7 @@ export class AgentController {
           }
         }
         const code = conductorErrorCode(error, errorScope);
+        if (!abort.signal.aborted || failedExecution()) turn?.fail(code);
         this.logger.warn(`Agent turn failed after the stream opened: ${stopped ?? code}`);
         const errorPart = { type: 'error', errorText: code };
         if (!detached && !res.writableEnded) {
@@ -1044,7 +1054,7 @@ export class AgentController {
     if (!['deliver', 'queue', 'follow-up', 'steer'].includes(kind)) {
       throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Invalid signal kind.');
     }
-    const parsed = parseAgentChatBody({ threadId, messages: [value.message], workContext: value.workContext });
+    const parsed = parseAgentChatBody({ threadId, messages: [value.message], workContext: value.workContext, writingSelection: value.writingSelection });
     if (parsed.mode !== 'message' || parsed.pictures?.length) {
       throw new AgentChatRequestError('AGENT_BAD_REQUEST', 400, 'Send pictures in a new turn after the active response.');
     }
@@ -1060,13 +1070,18 @@ export class AgentController {
     const pointer = await this.threads.readNativeRun(identity, threadId);
     const requestId = kind === 'deliver' && pointer?.logicalRequestId ? pointer.logicalRequestId : randomUUID();
     const workContext = await this.threads.workContextForTurn(identity, threadId, parsed.workContext);
+    const writingSelection = await this.threads.writingSelectionForTurn(identity, threadId, parsed.writingSelection);
+    const queued = kind === 'queue' || kind === 'follow-up';
+    const activeWritingSelection = !queued && pointer?.continuationWritingSelection !== undefined
+      ? await this.threads.writingSelectionForTurn(identity, threadId, parseAgentWritingSelection(pointer.continuationWritingSelection))
+      : writingSelection;
     const context = buildConductorContext({ identity, threadId, requestId, trackExecution: true,
       openProposals: openProposalTargets(await this.threads.pendingRuns(identity, threadId)),
       workContext,
+      writingSelection: activeWritingSelection,
     });
     // Explicit queued input is driven by its native workflow's admitted scope.
     // Creating its Session subscription here would capture this HTTP scope.
-    const queued = kind === 'queue' || kind === 'follow-up';
     const session = queued ? undefined : await this.threads.sessionFor(identity, threadId, { bindThread: true, requestContext: context });
     if (!queued && !session?.sendSignal) throw new HttpException({ code: 'AGENT_FAILED' }, 503);
     const contents = message.parts.filter(part => part.type === 'text').map(part => ({ type: 'text' as const, text: String(part.text) }));
@@ -1090,6 +1105,7 @@ export class AgentController {
         accepted = await this.mastraService.queueNativeInput({ identity, threadId, requestId,
           previousRunId: pointer?.runId,
           ...(parsed.workContext !== undefined || workContext ? { workContext: workContext?.context ?? null } : {}),
+          writingSelection: writingSelection.selection,
           signal: { id: message.id, contents: contents.map(part => part.text).join('\n'),
             createdAt: new Date().toISOString(), author: { id: identity.userId } },
         });

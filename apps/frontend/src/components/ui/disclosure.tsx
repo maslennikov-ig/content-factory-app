@@ -16,6 +16,8 @@ export type DisclosureProps = {
   defaultOpen?: boolean;
   className?: string;
   triggerClassName?: string;
+  /** Use the shared navigation paint when this row lives in the sidebar. */
+  triggerVariant?: 'quiet' | 'navigation';
   contentClassName?: string;
   triggerProps?: Omit<
     ButtonHTMLAttributes<HTMLButtonElement>,
@@ -27,7 +29,7 @@ export type DisclosureProps = {
   >;
 };
 
-const ChevronIcon = ({ open }: { open: boolean }) => (
+const ChevronIcon = ({ open, navigation }: { open: boolean; navigation: boolean }) => (
   <svg
     width="16"
     height="16"
@@ -39,7 +41,8 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
     strokeLinejoin="round"
     aria-hidden
     className={clsx(
-      'shrink-0 text-cf-ink-muted transition-transform duration-state motion-reduce:transition-none',
+      'shrink-0 transition-transform duration-state motion-reduce:transition-none',
+      !navigation && 'text-cf-ink-muted',
       open && 'rotate-180'
     )}
   >
@@ -54,6 +57,7 @@ export function Disclosure({
   defaultOpen = false,
   className,
   triggerClassName,
+  triggerVariant = 'quiet',
   contentClassName,
   triggerProps,
   regionProps,
@@ -68,8 +72,9 @@ export function Disclosure({
       <Button
         {...triggerProps}
         type="button"
-        variant="quiet"
+        variant={triggerVariant}
         layout="content"
+        innerClassName="min-w-0"
         id={triggerId}
         aria-expanded={open}
         aria-controls={contentId}
@@ -80,7 +85,7 @@ export function Disclosure({
         )}
       >
         <span className="min-w-0 flex-1 [text-wrap:pretty]">{summary}</span>
-        <ChevronIcon open={open} />
+        <ChevronIcon open={open} navigation={triggerVariant === 'navigation'} />
       </Button>
       <div
         {...regionProps}

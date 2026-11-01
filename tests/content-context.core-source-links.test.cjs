@@ -92,22 +92,32 @@ test('explicit selected ID and quote outrank URL lookup; duplicate URLs cannot w
   expect(h.lookups).toHaveLength(1); // selected-id lookup only, no competing URL row
 });
 
-test('URL expansion respects remaining sixteen-source budget and deterministic actual body selection',async()=>{
-  const explicit=Array.from({length:15},(_,i)=>row('selected-'+i,`https://example.org/selected-${i}`,'Selected source '+i));
+test('URL expansion respects the existing identifier budget and deterministic actual body selection',async()=>{
+  const explicit=Array.from({length:63},(_,i)=>row('selected-'+i,`https://example.org/selected-${i}`,'Selected source '+i));
   const a=row('a-short',mathUrl,'A short fragment.'),b=row('b-full',mathUrl,quote);
   const h=harness([...explicit,a,b,row('extra','https://example.org/extra','Extra')]);
   const request=input(`The mathematics programme commits $5m. ${mathUrl}`,{userMaterialEvidenceIds:explicit.map(r=>r.id)});
   request.pieceEvidence.sourceUrls=[mathUrl,mathUrl+'#part','https://example.org/extra'];
   const result=await h.builder.build('org-a',request);
-  expect(result.evidence).toHaveLength(16);
+  expect(result.evidence).toHaveLength(64);
   expect(result.evidence.map(e=>e.evidenceId)).toContain('b-full');
   expect(result.evidence.map(e=>e.evidenceId)).not.toContain('extra');
   expect(result.renderedCharacterCount).toBeLessThanOrEqual(24_000);
-  const full=harness([...explicit,row('sixteenth','https://example.org/sixteenth'),b]);
-  request.userMaterialEvidenceIds=[...explicit.map(r=>r.id),'sixteenth'];
+  const full=harness([...explicit,row('last','https://example.org/last'),b]);
+  request.userMaterialEvidenceIds=[...explicit.map(r=>r.id),'last'];
   const candidates=await full.repository.findCandidates('org-a',request);
-  expect(candidates.evidence).toHaveLength(16);
+  expect(candidates.evidence).toHaveLength(64);
   expect(full.lookups).toHaveLength(1);
+});
+
+test('URL discovery retains eighteen distinct owned sources within the total character budget',async()=>{
+  const rows=Array.from({length:18},(_,i)=>row('source-'+i,`https://example.org/source-${i}`,`Literal source passage ${i}.`));
+  const h=harness(rows),request=input('Compare the selected sources.');
+  request.pieceEvidence.sourceUrls=rows.map(r=>r.snapshot.finalCanonicalUrl);
+  const result=await h.builder.build('org-a',request);
+  expect(result.evidence).toHaveLength(18);
+  expect(result.evidence.map(e=>e.evidenceId).sort()).toEqual(rows.map(r=>r.id).sort());
+  expect(result.renderedCharacterCount).toBeLessThanOrEqual(64_000);
 });
 
 test('ordinary HTTP context DTO cannot acquire the server-only saved-piece URL policy',async()=>{
@@ -118,6 +128,20 @@ test('ordinary HTTP context DTO cannot acquire the server-only saved-piece URL p
   expect(dto.pieceEvidence).toBeUndefined();
   expect(dto.sourceUrls).toBeUndefined();
   expect(fs.readFileSync('apps/backend/src/main.ts','utf8')).toMatch(/whitelist:\s*true/);
+});
+
+test('both post DTO forms accept all permitted evidence and fact citation IDs, with a bounded array',()=>{
+  const {validateSync}=require('class-validator');
+  const {Post,PostContent}=loadWithMocks('libraries/nestjs-libraries/src/dtos/posts/create.post.dto.ts',{
+    '@contentfactory/helpers/utils/sanitize.post.content':{sanitizePostContent:value=>value},
+  });
+  const ids=[...Array.from({length:64},(_,i)=>`E${i+1}`),...Array.from({length:8},(_,i)=>`F${i+1}`)];
+  for(const Type of [Post,PostContent]){
+    const value=Object.assign(new Type(),{usedCitationIds:ids});
+    expect(validateSync(value,{skipMissingProperties:true}).filter(error=>error.property==='usedCitationIds')).toHaveLength(0);
+    value.usedCitationIds=[...ids,'E65'];
+    expect(validateSync(value,{skipMissingProperties:true}).some(error=>error.property==='usedCitationIds')).toBe(true);
+  }
 });
 
 

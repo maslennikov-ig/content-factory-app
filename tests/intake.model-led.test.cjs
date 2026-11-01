@@ -365,11 +365,11 @@ test('a model research choice leaves unanswered private author questions in the 
   expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
 });
 
-test('manual partial selection retains its native evidence reassessment', async () => {
+test('manual partial selection writes from the captured brief without purchasing a second verdict', async () => {
   const { service, writes } = build();
   answers = [brief({ inputSufficient: false }),
     { verdicts: [], findings: [finding()], assessment: assessment({ status: 'partial', gaps: ['Полнота не подтверждена'] }) },
-    brief({ inputSufficient: true }), { text: 'Подтверждённая часть с оговоркой.' }];
+    { text: 'Подтверждённая часть с оговоркой.' }];
   const plan = await service.prepare('org', { input: 'Подготовь подтверждённую часть и укажи пробелы.',
     request: meaning(), language: 'ru', options: { researchEnabled: true } });
   const first = await drain(service.run('org', plan, 'user'));
@@ -380,7 +380,7 @@ test('manual partial selection retains its native evidence reassessment', async 
   const saved = await drain(service.run('org', resume, 'user'));
   expect(saved.some(row => row.name === 'piece')).toBe(true);
   expect(writes[0].brief.researchSelection.origin).toBe('person');
-  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review', 'extract', 'draft']);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review', 'draft']);
 });
 
 test('native contextual material reaches the existing semantic model without altering the original request', async () => {
@@ -508,4 +508,21 @@ test('existing-core research defaults to person policy and accepts model policy 
   expect(() => service.selectCoreResearchForModel(manual, 'Исходный материал.', 'ru', keys)).toThrow('person');
   const model = await service.researchExistingCore('org', 'Исходный материал.', sourceBrief, 'ru', 'standard', undefined, { researchSelectionPolicy: 'model' });
   expect(service.selectCoreResearchForModel(model, 'Исходный материал.', 'ru', keys).researchSelection.origin).toBe('model');
+});
+
+test.each(['model', 'person'])('an empty %s choice does not count as sufficient selected research', async mode => {
+  const { service, writes } = build();
+  answers = [brief({ inputSufficient: false }), { verdicts: [], findings: [finding()], assessment: assessment({ status: 'partial' }) }];
+  const plan = await service.prepare('org', { input: 'Подготовь текст по доступным материалам.',
+    request: meaning({ constraints: { research: 'allowed' } }), language: 'ru',
+    options: { researchEnabled: true } }, { researchSelectionPolicy: mode });
+  const first = await drain(service.run('org', plan, 'user'));
+  const ready = first.find(row => row.name === 'research-ready');
+  const events = mode === 'model'
+    ? await drain(service.selectResearchForModel('org', 'user', ready.snapshotKey, []))
+    : await drain(service.run('org', await service.prepare('org', { input: 'Resume original.', language: 'ru',
+      snapshotKey: ready.snapshotKey, researchSelections: [] }), 'user'));
+  expect(events.find(row => row.name === 'error')).toMatchObject({ code: 'INTAKE_INPUT_INSUFFICIENT' });
+  expect(writes).toEqual([]);
+  expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
 });

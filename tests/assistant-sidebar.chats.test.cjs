@@ -96,3 +96,20 @@ test('conversation toolbar leaves the persistent archive out of the message colu
   expect(view.getByRole('button', { name: 'Чаты' })).toBeTruthy();
   expect(view.getByRole('button', { name: 'Новый чат' })).toBeTruthy();
 });
+
+
+test('compact toolbar combines title and chat chooser while retaining new-chat and archive actions', async () => {
+  const onNew = jest.fn(), onOpen = jest.fn(), title = 'Текущий чат с длинным названием';
+  const view = draw(h(ThreadSwitcher, { compact: true, threadId: 'chat-0', title, language: 'ru', onOpen, onNew, onRemoved: jest.fn(), words }));
+  expect(view.queryByRole('button', { name: 'Чаты', exact: true })).toBeNull();
+  const chooser = view.getByRole('button', { name: `Чаты: ${title}` });
+  expect(chooser.textContent).toContain(title);
+  fireEvent.click(chooser);
+  await view.findByRole('link', { name: 'Чат 0' });
+  expect(view.getByRole('dialog').textContent).toContain(words.threads.rename);
+  const closes = view.getAllByRole('button', { name: words.threads.close, exact: true });
+  fireEvent.click(closes.at(-1));
+  fireEvent.click(view.getByRole('button', { name: words.threads.newThread, exact: true }));
+  expect(onNew).toHaveBeenCalledTimes(1);
+  expect(onOpen).not.toHaveBeenCalled();
+});

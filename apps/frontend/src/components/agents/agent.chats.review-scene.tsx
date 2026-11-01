@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { NavigationPromisesContext, PathnameContext, PathParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { SWRConfig } from 'swr';
+import { createInstance } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
+import ruTranslations from '@contentfactory/react/translation/locales/ru/translation.json';
+import enTranslations from '@contentfactory/react/translation/locales/en/translation.json';
 import { FetchProvider } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
 import { UserContext } from '@contentfactory/frontend/components/layout/user.context';
@@ -17,7 +21,7 @@ import { AGENT_NOT_STARTED_HEADER, AGENT_THREAD_HEADER, type AgentMessage, type 
 /** Development-only product components, synthetic responses and zero network. */
 export const scene = defineInterfaceReviewScene({
   id: 'agents/chats', fixture: { threads: 105, messagesInFirstThread: 405 },
-  states: ['default', 'empty', 'error', 'loading', 'long-content'] as const,
+  states: ['default', 'empty', 'error', 'loading', 'long-content', 'restricted'] as const,
 });
 const workspace = (): AgentWorkspaceV1 => ({ version: 'assistant-workspace/v1', workContext: null, artifacts: [], activeArtifact: null });
 const json = (body: unknown, status = 200, headers?: HeadersInit) => Response.json(body, { status, headers });
@@ -25,7 +29,15 @@ const transcript = (thread: string, count: number): AgentMessage[] => Array.from
 
 export function Scene({ context }: { context: InterfaceReviewContext }) {
   const router = useRouter();
-  const [route, setRoute] = useState('/agents/new');
+  // The isolated review has no application language cookie/bootstrap. Use the
+  // canonical locale resources synchronously on both SSR and hydration.
+  const reviewI18n = useMemo(() => {
+    const instance = createInstance();
+    void instance.init({ lng: context.locale, fallbackLng: 'en', initAsync: false,
+      resources: { ru: { translation: ruTranslations }, en: { translation: enTranslations } } });
+    return instance;
+  }, [context.locale]);
+  const [route, setRoute] = useState(context.state === 'restricted' ? '/agents/review-chat-0' : '/agents/new');
   const [mobileOpen, setMobileOpen] = useState(false);
   // Development-only routing keeps real sidebar actions inside the synthetic
   // scene. No navigation to an authenticated route or live API is possible.
@@ -66,12 +78,12 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
       if (method === 'DELETE') { database.threads.splice(database.threads.indexOf(thread), 1); return json({ deleted: true }); }
       let messages = database.histories.get(id);
       if (!messages) {
-        messages = transcript(id, id === 'review-chat-0' ? 405 : 2);
+        messages = transcript(id, id === 'review-chat-0' && context.state !== 'restricted' ? 405 : 2);
         if (id === 'review-chat-1') messages[1].parts.push({ type: 'dynamic-tool', toolName: 'piece_delete', toolCallId: 'review-pending-call', state: 'input-available', input: { pieceId: 'synthetic-piece' } });
         database.histories.set(id, messages);
       }
       const end = Math.max(0, messages.length - page * perPage);
-      return json({ thread, messages: messages.slice(Math.max(0, end - perPage), end), pending: id === 'review-chat-1' ? [{ runId: 'review-pending-run', toolCallId: 'review-pending-call', toolName: 'piece_delete', kind: 'approval', args: { pieceId: 'synthetic-piece' }, summary: 'Synthetic pending action / Ожидает подтверждения' }] : [], workspace: database.workspaces.get(id) ?? workspace(), pagination: { page, perPage, total: messages.length, hasMore: end > perPage }, execution: { requestId: `synthetic-${id}`, state: 'settled', outcome: 'completed' } });
+      return json({ thread, messages: messages.slice(Math.max(0, end - perPage), end), pending: id === 'review-chat-1' && context.state !== 'restricted' ? [{ runId: 'review-pending-run', toolCallId: 'review-pending-call', toolName: 'piece_delete', kind: 'approval', args: { pieceId: 'synthetic-piece' }, summary: 'Synthetic pending action / Ожидает подтверждения' }] : [], workspace: database.workspaces.get(id) ?? workspace(), pagination: { page, perPage, total: messages.length, hasMore: end > perPage }, execution: { requestId: `synthetic-${id}`, state: 'settled', outcome: context.state === 'restricted' ? 'failed' : 'completed', ...(context.state === 'restricted' ? { errorCode: 'AI_PROVIDER_PAYMENT_REQUIRED' } : {}) } });
     }
     if (path === '/agent/chat' && method === 'POST') {
       if (refuseFirstSend && !database.rejected) { database.rejected = true; return json({ code: 'AI_PROVIDER_BUSY' }, 503, { [AGENT_NOT_STARTED_HEADER]: '1' }); }
@@ -99,7 +111,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
   const user = { id: 'synthetic-user', orgId: 'synthetic-org', role: 'ADMIN' } as NonNullable<ContextType<typeof UserContext>>;
   return <InterfaceReviewFrame scene={scene} context={context}>
     <AppRouterContext.Provider value={reviewRouter}><NavigationPromisesContext.Provider value={null}><PathnameContext.Provider value={route}><PathParamsContext.Provider value={{ id: route.split('/')[2] }}>
-    <ReviewLocaleProvider locale={context.locale}><UserContext.Provider value={user}><FetchProvider.Provider value={request}><SWRConfig value={{ provider: () => new Map(), shouldRetryOnError: false, revalidateOnFocus: false }}>
+    <I18nextProvider i18n={reviewI18n}><ReviewLocaleProvider locale={context.locale}><UserContext.Provider value={user}><FetchProvider.Provider value={request}><SWRConfig value={{ provider: () => new Map(), shouldRetryOnError: false, revalidateOnFocus: false }}>
       <div data-chat-review="synthetic" className="flex h-[100dvh] min-h-0 flex-col bg-cf-surface text-cf-ink">
         <div className="flex shrink-0 flex-wrap items-center gap-[8px] border-b border-cf-border p-[8px]">
           <p className="cf-caption">Synthetic only · HTTP blocked · {stats.reads} reads · {stats.sends} synthetic sends</p>
@@ -108,9 +120,9 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
           <Button type="button" density="dense" variant="quiet" onClick={() => setRefuseFirstSend((value) => !value)} aria-pressed={refuseFirstSend}>First send fails</Button>
           {context.state === 'error' || context.state === 'loading' ? <Button type="button" density="dense" variant="quiet" onClick={() => setRecovered(true)}>Recover synthetic API, then retry</Button> : null}
         </div>
-        <div className="relative flex min-h-0 flex-1"><Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} /><div className="flex min-h-0 min-w-0 flex-1 [&_[data-agent-screen]]:h-auto [&_[data-agent-screen]]:flex-1"><AgentScreen contextual={contextual} /></div></div>
+        <div className="relative flex min-h-0 flex-1">{context.state !== 'restricted' ? <Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} /> : null}<div className="flex min-h-0 min-w-0 flex-1 [&_[data-agent-screen]]:h-auto [&_[data-agent-screen]]:flex-1"><AgentScreen contextual={contextual} /></div></div>
       </div>
-    </SWRConfig></FetchProvider.Provider></UserContext.Provider></ReviewLocaleProvider>
+    </SWRConfig></FetchProvider.Provider></UserContext.Provider></ReviewLocaleProvider></I18nextProvider>
     </PathParamsContext.Provider></PathnameContext.Provider></NavigationPromisesContext.Provider></AppRouterContext.Provider>
   </InterfaceReviewFrame>;
 }

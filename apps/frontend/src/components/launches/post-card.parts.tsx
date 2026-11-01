@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, ReactNode, useCallback, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { htmlToPlainText } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/html-text';
 import { Button } from '@contentfactory/react/form/button';
@@ -380,23 +380,7 @@ export const PostCardActions: FC<{
   className?: string;
 }> = ({ actions, extra = [], inline, moreLabel, className }) => {
   const [open, setOpen] = useState(false);
-  const holder = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!holder.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [open]);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
 
   const toggle = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
@@ -411,7 +395,6 @@ export const PostCardActions: FC<{
 
   return (
     <div
-      ref={holder}
       className={clsx(
         'flex items-center gap-[4px] p-[4px] rounded-[8px]',
         'bg-cf-surface-raised border border-cf-border-strong',
@@ -425,6 +408,7 @@ export const PostCardActions: FC<{
       {menu.length > 0 && (
         <div className="relative">
           <Button
+            ref={moreRef}
             iconOnly
             variant="quiet"
             aria-label={moreLabel}
@@ -438,7 +422,7 @@ export const PostCardActions: FC<{
             <DotsIcon />
           </Button>
           {open && (
-            <Popover className="absolute top-[36px] end-0 z-[60]">
+            <Popover anchorRef={moreRef} onClose={() => setOpen(false)}>
               {menu.map((action) => (
                 <MenuItem
                   key={action.key}

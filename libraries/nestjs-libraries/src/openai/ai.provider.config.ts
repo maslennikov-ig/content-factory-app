@@ -259,12 +259,15 @@ const resolvedSearch = (
   };
 };
 
-const DEFAULT_MODELS: Record<AiProvider, { text: string; image: string }> = {
-  openai: { text: 'gpt-4.1', image: 'chatgpt-image-latest' },
-  // `content-factory-next-97dq.55`: Luna 6 on the text side. The image model
-  // is unchanged.
-  openrouter: { text: 'openai/gpt-6-luna', image: 'openai/gpt-5-image' },
+const DEFAULT_MODELS: Record<AiProvider, { text: string; classify: string; image: string }> = {
+  openai: { text: 'gpt-6.1-terra', classify: 'gpt-6-luna', image: 'chatgpt-image-latest' },
+  openrouter: { text: 'openai/gpt-6.1-terra', classify: 'openai/gpt-6-luna', image: 'openai/gpt-5-image' },
 };
+
+const operatorRoleDefaults = (provider: AiProvider) => ({
+  classify: DEFAULT_MODELS[provider].classify,
+  ...parseRoleModels(readJson(process.env.AI_ROLE_MODELS, 'AI_ROLE_MODELS')),
+});
 
 /** Operator-level non-secret defaults for included mode. */
 const envDefaults = () => {
@@ -285,9 +288,7 @@ const envDefaults = () => {
      * ours, so nothing here may hold a table of them. Unparseable reads as
      * «none configured», which is the behaviour the product had before.
      */
-    roleModels: parseRoleModels(
-      readJson(process.env.AI_ROLE_MODELS, 'AI_ROLE_MODELS')
-    ),
+    roleModels: operatorRoleDefaults(provider),
     search: {
       enabled: false,
       provider: 'tavily' as const,
@@ -486,7 +487,12 @@ const storedKeyPresence = (
  * key. Reading the row as all-or-nothing would silently drop the key at that
  * moment.
  */
-export const defaultAdvancedModelForProvider = (provider: AiProvider): string =>
+export const defaultTextModelForProvider = (provider: AiProvider): string =>
+  DEFAULT_MODELS[provider].text;
+
+export const defaultAdvancedModelForProvider = defaultTextModelForProvider;
+
+export const defaultTextFallbackModelForProvider = (provider: AiProvider): string =>
   provider === 'openai' && DEFAULT_TEXT_FALLBACK_MODEL.startsWith('openai/')
     ? DEFAULT_TEXT_FALLBACK_MODEL.slice('openai/'.length)
     : DEFAULT_TEXT_FALLBACK_MODEL;
@@ -517,7 +523,7 @@ const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
       (provider === env.provider
         ? env.imageModel
         : DEFAULT_MODELS[provider].image),
-    roleModels: Object.keys(storedRoles).length ? storedRoles : env.roleModels,
+    roleModels: Object.keys(storedRoles).length ? storedRoles : operatorRoleDefaults(provider),
     modelRouting: resolveModelRoutingSettings(
       readStoredModelRouting(instance?.roleModels),
       defaultAdvancedModelForProvider(provider)

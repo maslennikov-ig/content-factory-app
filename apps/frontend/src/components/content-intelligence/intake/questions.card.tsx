@@ -71,6 +71,12 @@ export type ManualQuestionAnswer = {
   optionIds?: string[];
 };
 
+/** Supplied native choices retain their values; avoid repeating the same host action. */
+export const hasQuestionOptionLabel = (options: readonly { label: string }[], label: string) => {
+  const normalized = (value: string) => value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase();
+  return options.some(option => normalized(option.label) === normalized(label));
+};
+
 export function ManualQuestionControls({
   question,
   value,
@@ -183,7 +189,7 @@ export function ManualQuestionControls({
       >
         {words.ownAnswer}
       </RadioOption>
-      {question.canDecideForPerson !== false ? (
+      {question.canDecideForPerson !== false && !hasQuestionOptionLabel(options, words.decide) ? (
         <RadioOption
           value="__delegate__"
           disabled={disabled}

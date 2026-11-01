@@ -13,13 +13,15 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 /** Layout only: both panes stay mounted across resizing, hiding and compact switching. */
 export function AgentWorkspaceShell({
-  children, material, materialName, materialActions, hasMaterial, hidden,
+  children, material, materialName, materialActions, toolbar, hasMaterial, hidden,
   contextual = false, selectionVersion, onHide,
 }: {
   children: ReactNode;
   material: ReactNode;
   materialName: string;
   materialActions?: ReactNode;
+  /** Shared controls remain mounted when panes switch or resize. */
+  toolbar?: ReactNode;
   hasMaterial: boolean;
   hidden: boolean;
   contextual?: boolean;
@@ -63,10 +65,13 @@ export function AgentWorkspaceShell({
   return (
     <div ref={container} data-assistant-layout={wide ? 'split' : 'compact'} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Tabs value={compactTab} onChange={setCompactTab}>
-        <TabList aria-label={t('agent', 'AI assistant')} style={{ display: !wide && showMaterial ? undefined : 'none' }} className="flex shrink-0 gap-[4px] border-b border-cf-border bg-cf-surface px-[12px] py-[8px]">
+        <div data-assistant-toolbar="" style={{ display: toolbar || !wide && showMaterial ? undefined : 'none' }} className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-[12px] gap-y-[4px] border-b border-cf-border bg-cf-surface px-[12px] py-[4px]">
+          {toolbar ? <div className="min-w-0 flex-1 basis-[360px]" style={{ display: !wide && chatHidden ? 'none' : undefined }}>{toolbar}</div> : null}
+        <TabList aria-label={t('agent', 'AI assistant')} style={{ display: !wide && showMaterial ? undefined : 'none' }} className="flex min-w-0 flex-1 basis-[200px] gap-[4px]">
           <Tab value="chat" className="min-w-0 flex-1 rounded-[8px] px-[12px] py-[8px] cf-label-md text-cf-ink aria-selected:bg-cf-accent-soft aria-selected:text-cf-accent">{t('assistant_chat', 'Chat')}</Tab>
           <Tab value="material" className="min-w-0 flex-1 truncate rounded-[8px] px-[12px] py-[8px] cf-label-md text-cf-ink aria-selected:bg-cf-accent-soft aria-selected:text-cf-accent" title={materialName}>{t('assistant_material', 'Material')} · {materialName}</Tab>
         </TabList>
+        </div>
         <div className="flex min-h-0 min-w-0 flex-1">
           <TabPanel value="chat" style={{ display: chatHidden ? 'none' : undefined, flex: wide && showMaterial ? `0 0 ${currentRatio * 100}%` : '1 1 0%' }} className="flex min-h-0 min-w-0 flex-col bg-cf-canvas">
             <div id={chatId} className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>

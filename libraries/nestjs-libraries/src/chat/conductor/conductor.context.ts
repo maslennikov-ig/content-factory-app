@@ -18,7 +18,7 @@ import {
 } from '../capabilities/capability.context';
 import type { CapabilityIdentity, OriginalAuthorRequest } from '../capabilities/capability.types';
 import { CONDUCTOR_EXECUTION_DEFAULTS, type ConductorExecutionPolicy } from './conductor.execution';
-import { AGENT_WORK_CONTEXT_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext } from './work-context';
+import { AGENT_WORK_CONTEXT_KEY, AGENT_WRITING_SELECTION_KEY, AGENT_WORK_CONTENT_MAX_CHARS, type ResolvedAgentWorkContext, type ResolvedAgentWritingSelection } from './work-context';
 
 export { MASTRA_MESSAGE_AUTHOR_KEY, MASTRA_SCOPES_KEY };
 
@@ -92,6 +92,7 @@ export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   CONDUCTOR_REQUEST_ID_KEY,
   CONDUCTOR_EXECUTION_ID_KEY,
   AGENT_WORK_CONTEXT_KEY,
+  AGENT_WRITING_SELECTION_KEY,
   CONDUCTOR_MODEL_TASK_KEY,
   MASTRA_RESOURCE_ID_KEY,
   MASTRA_THREAD_ID_KEY,
@@ -117,6 +118,7 @@ export const conductorContextSchema = capabilityContextSchema
     [MASTRA_RESOURCE_ID_KEY]: z.string().min(3),
     [MASTRA_THREAD_ID_KEY]: z.string().min(1),
     [AGENT_WORK_CONTEXT_KEY]: z.string().max(AGENT_WORK_CONTENT_MAX_CHARS + 2_000).optional(),
+    [AGENT_WRITING_SELECTION_KEY]: z.string().max(4_000).optional(),
     [MASTRA_SCOPES_KEY]: z.array(z.string().min(3)).optional(),
     [MASTRA_MESSAGE_AUTHOR_KEY]: messageAuthorSchema.optional(),
   })
@@ -179,6 +181,7 @@ export type ConductorTurn = {
   requestId?: string;
   trackExecution?: boolean;
   workContext?: ResolvedAgentWorkContext | null;
+  writingSelection?: ResolvedAgentWritingSelection;
   /** Only the current message accepted by the server door, never client history. */
   originalAuthorRequest?: OriginalAuthorRequest;
 };
@@ -219,6 +222,7 @@ export const buildConductorContext = (turn: ConductorTurn) => {
   context.set(CONDUCTOR_REQUEST_ID_KEY, requestId);
   if (turn.trackExecution) context.set(CONDUCTOR_EXECUTION_ID_KEY, requestId);
   context.set(AGENT_WORK_CONTEXT_KEY, turn.workContext ? JSON.stringify(turn.workContext) : '');
+  context.set(AGENT_WRITING_SELECTION_KEY, turn.writingSelection ? JSON.stringify(turn.writingSelection) : '');
   for (const fingerprint of turn.approvals ?? []) {
     grantApproval(context, fingerprint);
   }

@@ -194,6 +194,27 @@ describe('task execution uses real accounting and technical fuses', () => {
     expect(outcomes).toEqual([expected]);
   });
 
+  test('a handled read refusal does not override the native terminal outcome', async () => {
+    const { AgentTurnLifecycle } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
+    const outcomes = [];
+    const turn = new AgentTurnLifecycle('handled-read', async outcome => outcomes.push(outcome));
+    await turn.track(async () => ({ ok: false, code: 'REMOTE_4XX' }), { readOnly: true });
+    await turn.track(async () => ({ ok: false, code: 'MATERIAL_NOT_AVAILABLE' }), { readOnly: true });
+    await turn.track(async () => ({ ok: true, summary: { saved: true } }));
+    expect(await turn.finish('completed')).toBe('completed');
+    expect(outcomes).toEqual(['completed']);
+  });
+
+  test('read errors retain the native failure or explicit Stop and cannot admit late work', async () => {
+    const { AgentTurnLifecycle } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
+    for (const outcome of ['failed', 'interrupted']) {
+      const turn = new AgentTurnLifecycle(`read-${outcome}`, async () => {});
+      await expect(turn.track(async () => { throw Error('Unavailable source'); }, { readOnly: true })).rejects.toThrow('Unavailable source');
+      expect(await turn.finish(outcome)).toBe(outcome);
+      await expect(turn.track(async () => 'late read', { readOnly: true })).rejects.toThrow('stopped');
+    }
+  });
+
   test('lifecycle finish waits for tracked work and durable settlement before returning its actual failure', async () => {
     const { AgentTurnLifecycle } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/agent-turn-lifecycle.ts');
     let releaseWork, releaseSettlement;

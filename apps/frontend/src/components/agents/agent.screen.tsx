@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, cloneElement, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, cloneElement, type ReactElement } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
@@ -13,7 +13,7 @@ import { AgentAvailabilityGate } from './agent.availability';
 import {
   AGENT_DOORS, AGENT_TIMEZONE_HEADER, artifactHref, artifactKey, artifactRefOf, artifactContextOf,
   artifactsOf, readAgentWorkspace, readThreadHistory, refToArtifact,
-  type AgentArtifact, type AgentThreadHistory, type AgentWorkContextV1,
+  type AgentArtifact, type AgentThreadHistory, type AgentWorkContextV1, type AgentWritingSelection,
 } from './agent.contract';
 import { agentWordsFor, type AgentWords } from './agent.copy';
 import { AgentConversation } from './agent.conversation';
@@ -21,6 +21,7 @@ import { AgentArtifactHost } from './agent.artifact-host';
 import { AgentArtifactPicker } from './agent.artifact-picker';
 import { AgentWorkspaceShell } from './agent.workspace-shell';
 import { AgentWorkspaceBrowser } from './agent.workspace-browser';
+import { useAgentWritingChoices, effectiveWritingSelection } from './agent.writing-selection';
 import { AgentContextChip } from './agent.context-chip';
 import { AgentArtifactLiveStatus, useArtifactMetadata } from './agent.artifact-metadata';
 import { artifactName } from './agent.cards';
@@ -28,6 +29,7 @@ import { pieceIdOf, useLoadedPiece, withPieceData } from './agent.piece-data';
 import { useAssistantWorkspace } from './assistant.workspace-context';
 import { assistantContextKey } from './assistant.route-context';
 import { artifactWorkspaceReducer, emptyArtifactWorkspace, persistedArtifactSelection, type ArtifactWorkspaceState } from './agent.workspace-state';
+import { AgentGlyph } from './agent.icons';
 import { THREADS_KEY, ThreadSwitcher, useAgentThreads } from './agent.threads';
 import { screenTimeZone } from './agent.transport';
 import { AGENT_START_PARAM, startDraftStep } from './agent.starters';
@@ -68,6 +70,10 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const knownSessions = useRef(new Map<string, Session>([[session.key, session]]));
   knownSessions.current.set(session.key, session);
   const renderedSessions = useRef(new Map<string, ReactElement<{ visible: boolean }>>());
+  const [writingSelections, setWritingSelections] = useState<Record<string, AgentWritingSelection | undefined>>({});
+  const writingChoices = useAgentWritingChoices();
+  const writingSelectionsRef = useRef(writingSelections);
+  writingSelectionsRef.current = writingSelections;
   const sessionContexts = useRef(new Map<string, { context: AgentWorkContextV1 | null; artifact: AgentArtifact | null }>());
   const current = useRef(session);
   current.current = session;
@@ -75,7 +81,11 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const fallback = useMemo(() => emptyArtifactWorkspace(session.fresh), [session.key]);
   const workspace = states[session.key] ?? fallback;
   const dispatch = useCallback((action: Parameters<typeof artifactWorkspaceReducer>[1]) => {
-    setStates((previous) => ({ ...previous, [session.key]: artifactWorkspaceReducer(previous[session.key] ?? emptyArtifactWorkspace(session.fresh), action) }));
+    setStates((previous) => {
+      const state = previous[session.key] ?? emptyArtifactWorkspace(session.fresh);
+      const next = artifactWorkspaceReducer(state, action);
+      return next === state ? previous : { ...previous, [session.key]: next };
+    });
   }, [session.key, session.fresh]);
   const [title, setTitle] = useState<string | null>(null);
   const [selectionVersion, setSelectionVersion] = useState(0);
@@ -85,6 +95,26 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const [aiUnavailable, setAiUnavailable] = useState(false);
   const [saveFailed, setSaveFailed] = useState<string | null>(null);
   const [saveAttempt, setSaveAttempt] = useState(0);
+  // Selection writes are immediate and survive navigation; ordinary panel saves
+  // never carry a writing target, so an older panel PATCH cannot reset it.
+  const writingSaves = useRef<Record<string, Promise<void>>>({});
+  const writingSaveFailures = useRef(new Set<string>());
+  const persistWritingSelection = useCallback((key: string, id: string, next: AgentWritingSelection) => {
+    const saved = (writingSaves.current[key] ?? Promise.resolve()).then(async () => {
+      const response = await request(AGENT_DOORS.threadWorkspace(id), { method: 'PATCH', body: JSON.stringify({ writingSelection: next }) });
+      if (!response.ok) throw new Error(String(response.status));
+      writingSaveFailures.current.delete(key);
+      setSaveFailed(previous => previous === key ? null : previous);
+    }).catch(() => { writingSaveFailures.current.add(key); setSaveFailed(key); });
+    writingSaves.current[key] = saved;
+    return saved;
+  }, [request]);
+  const storeWritingSelection = useCallback((key: string, next: AgentWritingSelection) => {
+    writingSelectionsRef.current = { ...writingSelectionsRef.current, [key]: next };
+    setWritingSelections(writingSelectionsRef.current);
+    const id = knownSessions.current.get(key)?.threadId;
+    if (id) void persistWritingSelection(key, id, next);
+  }, [persistWritingSelection]);
   const explicitSelection = useRef(new Set<string>());
   const manualContextSessions = useRef(new Set<string>());
 
@@ -176,6 +206,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   }, [workspace.active, dispatch]);
   const onHistory = useCallback((history: AgentThreadHistory) => {
     const saved = history.workspace ?? null;
+    setWritingSelections(previous => Object.prototype.hasOwnProperty.call(previous, session.key) ? previous : { ...previous, [session.key]: saved?.writingSelection });
     dispatch({ type: 'restore', artifacts: [...(saved?.artifacts.map(refToArtifact) ?? []), ...artifactsOf(history.messages)], workspace: saved });
     if (saved) sessionContexts.current.set(session.key, { context: saved.workContext, artifact: saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null });
     if (current.current.key === session.key && (!contextual || !manualContextSessions.current.has(session.key)) && saved && !explicitSelection.current.has(session.key)) assistantRef.current?.setWorkContext(saved.workContext, saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null);
@@ -212,12 +243,14 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const onThreadId = useCallback((id: string) => {
     const named = { ...(knownSessions.current.get(session.key) ?? session), threadId: id };
     knownSessions.current.set(session.key, named);
+    const selectedWriting = writingSelectionsRef.current[session.key];
+    if (selectedWriting !== undefined) void persistWritingSelection(session.key, id, selectedWriting);
     if (current.current.key !== session.key) { void mutate(THREADS_KEY); return; }
     setSession(named);
     assistantRef.current?.rememberThread(id);
     if (/^\/agents(?:\/|$)/.test(window.location.pathname)) window.history.replaceState(null, '', `/agents/${encodeURIComponent(id)}`);
     void mutate(THREADS_KEY);
-  }, [mutate, session.key]);
+  }, [mutate, session.key, persistWritingSelection]);
   const onTitle = useCallback((next: string | null) => {
     if (current.current.key === session.key) setTitle(next);
   }, [session.key]);
@@ -230,6 +263,18 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const saveQueue = useRef(Promise.resolve());
   const lastSaved = useRef<Record<string, string>>({});
   const workContext = assistant?.workContext ?? null;
+  const writingSelection = writingSelections[session.key];
+  const effectiveSelection = effectiveWritingSelection(writingSelection, workContext, writingChoices.channels);
+  const prepareWritingSelection = useCallback(async (sent: AgentWritingSelection | undefined) => {
+    const latest = writingSelectionsRef.current[session.key];
+    const effective = effectiveWritingSelection(latest, workContext, writingChoices.channels);
+    if (sent && sent.channelId === effective?.channelId && sent.avatarId === effective?.avatarId &&
+      (sent.channelId !== latest?.channelId || sent.avatarId !== latest?.avatarId || latest === undefined)) {
+      storeWritingSelection(session.key, sent);
+    }
+    await writingSaves.current[session.key];
+    if (writingSaveFailures.current.has(session.key)) throw new Error('Writing selection could not be saved');
+  }, [session.key, workContext, writingChoices.channels, storeWritingSelection]);
   useEffect(() => {
     if (!workspace.ready) return;
     sessionContexts.current.set(session.key, { context: workContext, artifact: assistant?.contextArtifact ?? null });
@@ -271,26 +316,28 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const materialName = resolved ? resolved.kind === 'piece' && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
   const picker = <AgentArtifactPicker artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
 
-  renderedSessions.current.set(session.key, <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} draftStorageKey={`cf-assistant-draft/v1:${user?.orgId ?? ''}:${user?.id ?? ''}:${session.threadId ?? 'new'}`} onHistory={onHistory} workContext={workContext} onWorkContext={onWorkContext} onNewConversation={startNew} onForked={openThread} contextControls={<AgentContextChip context={workContext} artifact={assistant?.contextArtifact} onRemove={() => assistantRef.current?.setWorkContext(null)} />} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />);
+  const toolbar = <ThreadSwitcher compact contextual={contextual} threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={removeThread} words={words} actions={<>
+              <AgentArtifactPicker compact artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />
+              <AgentWorkspaceBrowser compact onSelect={selectArtifact} words={words} />
+              <AgentContextChip key={session.key} context={workContext} artifact={assistant?.contextArtifact} writingSelection={writingSelection} choices={writingChoices} onWritingSelection={(next) => storeWritingSelection(session.key, next)} onRemove={() => assistantRef.current?.setWorkContext(null)} />
+              {workspace.hidden && artifact ? <Button data-assistant-restore="" type="button" density="dense" variant="quiet" iconOnly aria-label={t('assistant_restore', 'Restore')} title={t('assistant_restore', 'Restore')} onClick={() => selectArtifact(artifact)}><AgentGlyph name="right" /></Button> : null}
+            </>} />;
+
+  renderedSessions.current.set(session.key, <SessionView key={session.key} visible={isAgentsRoute || contextual} session={session} draftStorageKey={`cf-assistant-draft/v1:${user?.orgId ?? ''}:${user?.id ?? ''}:${session.threadId ?? 'new'}`} onHistory={onHistory} workContext={workContext} writingSelection={effectiveSelection} prepareWritingSelection={prepareWritingSelection} onWorkContext={onWorkContext} onNewConversation={startNew} onForked={openThread} onArtifacts={onArtifacts} onThreadId={onThreadId} onTitle={onTitle} onArtifact={onArtifact} openArtifact={contextual ? assistant?.contextArtifact ?? null : workspace.hidden ? null : artifact} onArtifactRemoved={onRemoved} starter={starter} onStarterUsed={() => setStarter(null)} draft={draft} onDraftUsed={onDraftUsed} words={words} />);
 
   return (
     <div data-agent-screen="" className={contextual ? 'relative flex min-h-0 min-w-0 flex-1' : 'relative flex h-[calc(100dvh-56px)] min-h-0 min-w-0 flex-none md:h-auto md:flex-1'}>
       <div className="flex min-h-0 min-w-0 flex-1 md:absolute md:inset-0">
-        <AgentWorkspaceShell contextual={contextual} hasMaterial={!!artifact} hidden={workspace.hidden} selectionVersion={selectionVersion} materialName={materialName} onHide={closeArtifact} materialActions={<>
+        <AgentWorkspaceShell toolbar={toolbar} contextual={contextual} hasMaterial={!!artifact} hidden={workspace.hidden} selectionVersion={selectionVersion} materialName={materialName} onHide={closeArtifact} materialActions={<>
           {resolved ? <AgentArtifactLiveStatus artifact={resolved} metadata={metadata.get(resolved)} /> : null}
           {workspace.active && workspace.dirty.includes(workspace.active) ? <span className="cf-caption text-cf-ink-muted">{t('assistant_manual_edits', 'Manual edits')}</span> : null}
           {picker}
           {artifact ? <ButtonLink href={artifactHref(artifact)} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink> : null}
         </>} material={<AgentArtifactHost artifact={artifact} selectionVersion={selectionVersion} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
           <section aria-label={t('agent', 'AI assistant')} className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <ThreadSwitcher contextual={contextual} threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={removeThread} words={words} actions={<>
-              {picker}
-              <AgentWorkspaceBrowser onSelect={selectArtifact} words={words} />
-              {workspace.hidden && artifact ? <Button data-assistant-restore="" type="button" density="dense" variant="quiet" onClick={() => selectArtifact(artifact)}>{t('assistant_restore', 'Restore')}</Button> : null}
-            </>} />
             {saveFailed === session.key ? <div role="status" className="flex flex-wrap items-center gap-[8px] border-b border-cf-border px-[16px] py-[8px] cf-body-sm text-cf-ink-muted">
               {words.threads.actionFailed}
-              <Button type="button" density="dense" variant="quiet" onClick={() => setSaveAttempt((attempt) => attempt + 1)}>{t('assistant_reconcile', 'Check result')}</Button>
+              <Button type="button" density="dense" variant="quiet" onClick={() => { if (writingSaveFailures.current.has(session.key) && session.threadId) void persistWritingSelection(session.key, session.threadId, writingSelectionsRef.current[session.key] ?? {}); else setSaveAttempt((attempt) => attempt + 1); }}>{t('assistant_reconcile', 'Check result')}</Button>
             </div> : null}
             <AgentAvailabilityGate onUnavailable={setAiUnavailable}>
               {[...renderedSessions.current].map(([key, view]) => <div key={key} hidden={key !== session.key} className={key === session.key ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>{cloneElement(view, { visible: key === session.key && (isAgentsRoute || contextual) })}</div>)}
@@ -314,8 +361,9 @@ function SessionView({
   session,
   onHistory,
   workContext,
+  writingSelection,
+  prepareWritingSelection,
   onArtifacts,
-  contextControls,
   onNewConversation,
   onForked,
   onWorkContext,
@@ -335,8 +383,9 @@ function SessionView({
   session: Session;
   onHistory: (history: AgentThreadHistory) => void;
   workContext: AgentWorkContextV1 | null;
+  writingSelection?: AgentWritingSelection;
+  prepareWritingSelection: (selection: AgentWritingSelection | undefined) => Promise<void>;
   onArtifacts: (artifacts: AgentArtifact[]) => void;
-  contextControls: ReactNode;
   onNewConversation: () => void;
   onForked: (id: string) => void;
   onWorkContext: (context: AgentWorkContextV1 | null) => void;
@@ -420,8 +469,9 @@ function SessionView({
       draftStorageKey={draftStorageKey}
       pending={loaded.pending}
       workContext={workContext}
+      writingSelection={writingSelection}
+      prepareWritingSelection={prepareWritingSelection}
       onArtifacts={onArtifacts}
-      contextControls={contextControls}
       onNewConversation={onNewConversation}
       onForked={onForked}
       onWorkContext={onWorkContext}

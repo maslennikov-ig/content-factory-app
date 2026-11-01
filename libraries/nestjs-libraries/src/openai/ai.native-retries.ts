@@ -4,6 +4,7 @@ import {
   type ProcessInputStepArgs,
 } from '@mastra/core/processors';
 import type { RequestContext } from '@mastra/core/request-context';
+import { nativeTerminalProviderError, readNativeTerminalProviderError, type NativeTerminalProviderError } from './ai.provider-terminal-error';
 import {
   DEFAULT_TEXT_MAX_RETRIES,
   MAX_TEXT_FALLBACK_MODELS,
@@ -17,6 +18,11 @@ export const NATIVE_TEXT_MAX_PROCESSOR_RETRIES =
 export const NATIVE_TEXT_RETRY_POLICY_KEY = 'cf.nativeTextMaxRetries';
 export const NATIVE_TEXT_MODELS_KEY = 'cf.nativeTextModels';
 export const NATIVE_TEXT_RUN_ID_KEY = 'cf.nativeRunId';
+export const NATIVE_TERMINAL_MODEL_ERROR_KEY = 'cf.nativeTerminalModelError';
+
+/** Safe primitive fields survive RequestContext cloning without a raw provider error. */
+export const getNativeTerminalModelError = (context: object | null | undefined): NativeTerminalProviderError | undefined =>
+  readNativeTerminalProviderError((context as { get?: (key: string) => unknown } | undefined)?.get?.(NATIVE_TERMINAL_MODEL_ERROR_KEY));
 export const NATIVE_TEXT_RETRY_BASE_MS = 500;
 export const NATIVE_TEXT_RETRY_MAX_MS = 5_000;
 export const NATIVE_TEXT_RETRY_AFTER_MAX_MS = 30_000;
@@ -154,8 +160,9 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       const signal = nativeTextAbortSignal(args.abortSignal);
       if (signal) signals.set(args.state, signal);
       if (signal?.aborted || args.state.terminalModelError) {
-        args.abort(String(args.state.terminalModelError ?? 'Model execution stopped.'), {
-          metadata: { terminalModelError: true },
+        const terminal = signal?.aborted ? undefined : readNativeTerminalProviderError(args.state.terminalModelError);
+        args.abort(signal?.aborted ? 'Model execution stopped.' : 'Model provider request failed.', {
+          metadata: terminal ? { cfNativeTerminalModelError: terminal } : undefined,
         });
       }
       const model = args.model as { provider?: string; modelId?: string } | undefined;
@@ -185,7 +192,9 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       if (!isTransientNativeTextError(args.error)) {
         // Native model fallback otherwise walks every key/model even on auth,
         // consent, invalid input, or exhausted quota. Stop before its next call.
-        args.state.terminalModelError = args.error instanceof Error ? args.error.message : 'Non-retryable model error.';
+        const terminal = nativeTerminalProviderError(args.error);
+        args.state.terminalModelError = terminal;
+        (args.requestContext as RequestContext<any> | undefined)?.set(NATIVE_TERMINAL_MODEL_ERROR_KEY, terminal);
         return;
       }
       const retries = getNativeTextMaxRetries(args.requestContext, options?.defaultMaxRetries);

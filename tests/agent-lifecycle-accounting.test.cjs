@@ -10,6 +10,7 @@ test('native queued accounting uses the actual lifecycle outcome and requires a 
   expect(JSON.parse(output.trim().split('\n').at(-1))).toEqual([
     { kind: 'fatal', modelCalls: 2, domainCalls: 1, admissionCompleted: false, state: 'settled', outcome: 'failed', nativeStatus: 'success' },
     { kind: 'revision', modelCalls: 3, domainCalls: 2, admissionCompleted: true, state: 'settled', outcome: 'completed', nativeStatus: 'success' },
+    { kind: 'unspent', modelCalls: 3, domainCalls: 2, admissionCompleted: true, state: 'settled', outcome: 'completed', nativeStatus: 'success' },
     { kind: 'settlement-failure', modelCalls: 2, domainCalls: 1, admissionCompleted: false, state: 'running', outcome: null, nativeStatus: 'failed' },
   ]);
 }, 80_000);

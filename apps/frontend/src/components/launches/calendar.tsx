@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { postSaveErrorMessage } from '@contentfactory/frontend/components/new-launch/post-save-error';
@@ -105,7 +106,6 @@ import {
   StagePill,
   TrashIcon,
 } from '@contentfactory/frontend/components/launches/post-card.parts';
-import { usePopoverTrigger } from '@contentfactory/frontend/components/ui/use-popover-trigger';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -1363,7 +1363,8 @@ const WeekTimeGroup: FC<{
   planningCopy: PlanningCopy;
   rowProps: (row: any) => Record<string, any>;
 }> = ({ rows, time, day, planningCopy, rowProps }) => {
-  const { open, setOpen, holder } = usePopoverTrigger<HTMLDivElement>();
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLButtonElement>(null);
   const channels = useMemo(() => channelsOf(rows), [rows]);
   const states = useMemo(() => rows.map((row) => planStateOf(row)), [rows]);
 
@@ -1372,8 +1373,9 @@ const WeekTimeGroup: FC<{
   const heading = `${day.format('dd DD.MM')} · ${time}`;
 
   return (
-    <div ref={holder} className="relative w-full min-w-0">
+    <div className="relative w-full min-w-0">
       <ControlButton
+        ref={anchor}
         layout="content"
         aria-expanded={open}
         aria-label={planningCopy.groupOpen(time, channels.length)}
@@ -1395,10 +1397,11 @@ const WeekTimeGroup: FC<{
       {open && (
         <Popover
           role="dialog"
-          className={clsx(
-            'absolute top-[calc(100%+4px)] z-[60] flex w-[min(560px,calc(100vw-32px))] flex-col gap-[8px] p-[12px]',
-            towardsStart ? 'end-0' : 'start-0'
-          )}
+          anchorRef={anchor}
+          onClose={() => setOpen(false)}
+          ariaLabel={heading}
+          placement={towardsStart ? 'bottom-end' : 'bottom-start'}
+          className="flex w-[min(560px,calc(100vw-32px))] flex-col gap-[8px] p-[12px]"
         >
           <SectionLabel as="p">{heading}</SectionLabel>
           {rows.map((row) => (

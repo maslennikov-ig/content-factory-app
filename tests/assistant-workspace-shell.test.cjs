@@ -66,3 +66,26 @@ describe('assistant workspace split and compact views', () => {
     expect(document.querySelector('[role="separator"]')).toBeNull();
   });
 });
+
+
+test('shared toolbar and both editors keep their identity through compact tabs and split resizing', async () => {
+  width = 390;
+  function Toolbar() { const [value, setValue] = React.useState(0); return h('button', { onClick: () => setValue(value + 1) }, `Thread controls ${value}`); }
+  const local = { ...props, toolbar: h(Toolbar) };
+  let view;
+  await act(async () => { view = render(h(AgentWorkspaceShell, local)); });
+  const control = view.getByRole('button', { name: 'Thread controls 0' });
+  const message = document.querySelector('textarea'), editor = document.querySelector('input[aria-label="Draft"]');
+  message.value = 'Unsent instruction'; editor.value = 'Uncommitted edit';
+  await act(async () => fireEvent.click(control));
+  expect(control.closest('[role="tabpanel"]')).toBeNull();
+  await act(async () => fireEvent.click(view.getByRole('tab', { name: 'Material · Piece one' })));
+  expect(control.parentElement.style.display).toBe('none');
+  await act(async () => fireEvent.click(view.getByRole('tab', { name: 'Chat' })));
+  width = 1200;
+  await act(async () => window.dispatchEvent(new window.Event('resize')));
+  expect(view.getByRole('button', { name: 'Thread controls 1' })).toBe(control);
+  expect(document.querySelector('textarea')).toBe(message);
+  expect(document.querySelector('input[aria-label="Draft"]')).toBe(editor);
+  expect(message.value).toBe('Unsent instruction'); expect(editor.value).toBe('Uncommitted edit');
+});

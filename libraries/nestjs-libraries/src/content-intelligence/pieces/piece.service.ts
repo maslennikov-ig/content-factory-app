@@ -499,8 +499,11 @@ const isoOf = (value: Date | string | null | undefined): string | null => {
  * строкой стрима.
  */
 export type PieceAdaptPlanV1 = {
+  sourceRevision?: { body: string; brief: unknown };
   /** Trusted native author references; not part of the public adaptation request. */
   authorReferenceUrls?: string[];
+  /** Authenticated one-off chat request; never part of the public DTO or stored core. */
+  currentAuthorRequest?: string;
   pieceId: string;
   integrationId: string;
   kind: AdaptationKindV1;
@@ -632,6 +635,8 @@ const CORE_EDIT_WORDS = {
  * rewrite keeps them — they are the author's, not the model's.
  */
 const keptAuthor = (core: ZagotovkaCoreV1) => ({
+  ...(core.contextMaterial ? { contextMaterial: core.contextMaterial } : {}),
+  ...(core.adaptationSeries ? { adaptationSeries: core.adaptationSeries } : {}),
   ...(core.postLink ? { postLink: core.postLink } : {}),
   ...(core.addedMaterial?.length ? { addedMaterial: core.addedMaterial } : {}),
   ...(core.revisions?.length ? { revisions: core.revisions } : {}),
@@ -1262,15 +1267,12 @@ export class PieceService {
       linkQuestion: this.linkQuestionOf(core, integrations, adaptations, piece.tags),
       core,
       legacyBody: core ? null : piece.body,
-      adaptations: adaptations.map((row) =>
-        this.adaptationOf(
-          row,
-          pieceId,
-          integrations,
-          checksById.get(row.id),
-          holders
-        )
-      ),
+      adaptations: adaptations.map((row) => {
+        const group = core?.adaptationSeries?.find(series => series.parts.some(part => part.adaptationId === row.id));
+        const part = group?.parts.find(part => part.adaptationId === row.id);
+        return { ...this.adaptationOf(row, pieceId, integrations, checksById.get(row.id), holders),
+          ...(group && part ? { series: { id: group.seriesId, index: part.ordinal, total: group.parts.length } } : {}) };
+      }),
       targets: this.targetsOf(integrations, adaptations),
       later: ADAPTATION_KINDS_LATER,
     };
@@ -1293,7 +1295,7 @@ export class PieceService {
     pieceId: string,
     request: PieceAdaptRequestV1,
     language: 'ru' | 'en',
-    internal?: { authorReferenceUrls?: string[] }
+    internal?: { authorReferenceUrls?: string[]; currentAuthorRequest?: string }
   ): Promise<PieceAdaptPlanV1> {
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
@@ -1356,7 +1358,9 @@ export class PieceService {
     const sourceUrls = adaptationReferenceUrls(...(internal?.authorReferenceUrls || []));
     return {
       ...(sourceUrls.length ? { authorReferenceUrls: sourceUrls } : {}),
+      ...(internal?.currentAuthorRequest ? { currentAuthorRequest: internal.currentAuthorRequest } : {}),
       pieceId,
+      sourceRevision: { body: piece.body, brief: piece.brief },
       integrationId,
       firstOnChannel: !earlier.some((row) => row.integrationId === integration.id),
       ...(postEmojiLevel ? { postEmojiLevel } : {}),
@@ -1479,7 +1483,7 @@ export class PieceService {
    * ответами, с «Реши сама» или с «пропустить», и второй круг вопросов не
    * задаёт вовсе.
    */
-  async *adapt(
+  private async *renderAdaptation(
     organizationId: string,
     plan: PieceAdaptPlanV1,
     /**
@@ -1491,8 +1495,8 @@ export class PieceService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     actorUserId?: string,
     /** The agent chat's `queueAllowed: false` (review W2 F2); the door omits it. */
-    consent: QueueConsentV1 = {}
-  ): AsyncGenerator<PieceAdaptEventV1> {
+    presentation?: 'auto' | 'series'
+  ): AsyncGenerator<PieceAdaptEventV1, { output: any; answers: PieceAnswerV1[] } | undefined> {
     const language = plan.language;
     yield {
       name: 'adapt-started',
@@ -1539,6 +1543,7 @@ export class PieceService {
       interviewed = true;
     }
     const hints = this.hintsOf(plan, answers, brief.material);
+    if (presentation) hints.presentation = presentation;
     // Модель только что решила, что спрашивать не о чем: второй вопрос изнутри
     // генерации (`channel-question/v2`) это решение не отменяет.
     hints.allowQuestion = !interviewed && !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
@@ -1592,7 +1597,7 @@ export class PieceService {
     let adaptationQuestion: PieceQuestionV1 | null = null;
     let failed = false;
     try {
-      const draftOnly =
+      const draftOnly = !!presentation ||
         (await this.adaptPlanMode(
           organizationId,
           plan.pieceId,
@@ -1663,6 +1668,15 @@ export class PieceService {
       output = leftover.value;
     }
 
+    return { output, answers };
+  }
+
+  async *adapt(
+    organizationId: string, plan: PieceAdaptPlanV1, actorUserId?: string, consent: QueueConsentV1 = {}
+  ): AsyncGenerator<PieceAdaptEventV1> {
+    const rendered = yield* this.renderAdaptation(organizationId, plan, actorUserId);
+    if (!rendered) return;
+    const { output, answers } = rendered;
     const saved = await this.persist(organizationId, plan, output, answers, consent);
     if (!saved) {
       yield {
@@ -1691,6 +1705,68 @@ export class PieceService {
    * старая версия не затирается — она уже могла выйти, и переписывать след
    * вышедшего текста продукт не станет (допущение исполнителя, §11).
    */
+  /** Generation and saving are separate native workflow steps; no post is written here. */
+  async generateSeriesAdaptation(
+    organizationId: string, plan: PieceAdaptPlanV1, actorUserId: string,
+    presentation: 'auto' | 'series', signal?: AbortSignal
+  ) {
+    const render = this.renderAdaptation(organizationId, plan, actorUserId, presentation);
+    while (true) {
+      if (signal?.aborted) throw new DOMException('The adaptation was stopped.', 'AbortError');
+      const next = await render.next();
+      if (next.done) {
+        if (!next.value) throw Object.assign(new Error('No adaptation was generated.'), { code: 'GENERATION_FAILED' });
+        const first = Array.isArray(next.value.output.content) ? next.value.output.content[0] : null;
+        const firstBody = withAdaptationOpening(stripCitationLabels(trimmed(next.value.output.hook)),
+          stripCitationLabels(trimmed(first?.content)));
+        if (signal?.aborted) throw new DOMException('The adaptation was stopped.', 'AbortError');
+        const materialAsk = await this.prepareMaterialQuestions(organizationId, plan,
+          { id: '', body: firstBody, answers: next.value.answers });
+        if (signal?.aborted) throw new DOMException('The adaptation was stopped.', 'AbortError');
+        return { kind: 'generated' as const, plan, ...next.value, ...(materialAsk ? { materialAsk } : {}),
+          output: { ...next.value.output, date: trimmed(next.value.output.date) || this.now().toISOString() } };
+      }
+      const event = next.value as any;
+      if (event.name === 'questions') {
+        await render.return(undefined);
+        return { kind: 'questions' as const, plan, questions: event.questions };
+      }
+      if (event.name === 'error') throw Object.assign(new Error(event.message), { code: event.code });
+    }
+  }
+
+  /** The existing repository writes every DRAFT and its immutable receipt atomically. */
+  async persistSeriesAdaptation(
+    organizationId: string, actorUserId: string, seriesId: string,
+    generated: { plan: PieceAdaptPlanV1; output: any; answers: PieceAnswerV1[]; materialAsk?: MaterialAskRecordV1 }
+  ) {
+    const { plan, output } = generated;
+    if (!plan.sourceRevision) throw Object.assign(new Error('The original material revision is unavailable.'), { code: 'ADAPTATION_SERIES_UNAVAILABLE' });
+    const content = (Array.isArray(output.content) ? output.content : []).map((item: any, index: number) => {
+      const body = stripCitationLabels(trimmed(item?.content));
+      const plain = index === 0 ? withAdaptationOpening(stripCitationLabels(trimmed(output.hook)), body) : body;
+      if (!plain) throw Object.assign(new Error('A generated post is empty.'), { code: 'GENERATION_FAILED' });
+      return { body: plain, content: editorHtml(plain, plan.channel.editor),
+        title: trimmed(item?.title) || null, format: materialFormat(plain, null, plan.language),
+        usedCitationIds: Array.isArray(item?.usedCitationIds) ? item.usedCitationIds.filter((id: unknown) => typeof id === 'string' && id.trim()) : [] };
+    });
+    if (!content.length) throw Object.assign(new Error('No posts were generated.'), { code: 'GENERATION_FAILED' });
+    const saved = await this.pieces.createAdaptationSeries(organizationId, {
+      seriesId, actorUserId, pieceId: plan.pieceId, channelId: plan.channel.id,
+      providerIdentifier: plan.channel.providerIdentifier, kind: plan.kind,
+      sourceBody: plan.sourceRevision.body, sourceBrief: plan.sourceRevision.brief,
+      date: trimmed(output.date) || this.now().toISOString(), parts: content,
+      ...(generated.materialAsk ? { materialAsk: generated.materialAsk } : {}),
+      contentContextSnapshotId: trimmed(output.contentContextSnapshotId) || null,
+      brandProfileVersionId: trimmed(output.brandProfileVersionId) || null,
+    });
+    this.search?.invalidate(organizationId);
+    return { kind: 'adaptation' as const, ...saved, channel: {
+      id: plan.channel.id, name: plan.channel.name, provider: plan.channel.providerIdentifier },
+      ...(trimmed(output.presentationReason) ? { presentationReason: trimmed(output.presentationReason) } : {}),
+      ...(output.adaptationCoverage ? { qualityReview: output.adaptationCoverage } : {}) };
+  }
+
   private async persist(
     organizationId: string,
     plan: PieceAdaptPlanV1,
@@ -2590,19 +2666,20 @@ export class PieceService {
    * -------------------------------------------------------------------- */
 
   /**
-   * After a post is written: clearly short of the length it was written to
-   * — ask for one to three questions and keep them beside the post settings.
+   * Prepare optional questions for a short post without writing its settings.
+   * The caller attaches them after or together with the saved draft.
    * Questions still open for the same core move to the new post without a
    * model call; «Не нужно» for the same core and an answered round are not
    * asked again. Never throws.
    */
-  private async askForMaterial(
+  private async prepareMaterialQuestions(
     organizationId: string,
     plan: PieceAdaptPlanV1,
-    adaptation: AdaptationV1
-  ): Promise<void> {
+    adaptation: Pick<AdaptationV1, 'id' | 'body' | 'answers'>
+  ): Promise<MaterialAskRecordV1 | null> {
+    if (plan.request?.skipInterview) return null;
     const core = plan.core?.text ?? '';
-    if (!core.trim() || !this.aiUsage || !this.planStore()) return;
+    if (!core.trim() || !this.aiUsage || !this.planStore()) return null;
     try {
       const target = channelLengthTarget(
         plan.channel.profile,
@@ -2620,11 +2697,11 @@ export class PieceService {
         }
       );
       const short = materialShortfall(adaptation.body ?? '', target);
-      if (!short) return;
+      if (!short) return null;
       const digest = coreDigest(core);
       const piece = await this.pieces.getPiece(organizationId, plan.pieceId);
       const before = materialAskRecordOf(piece?.tags ?? null, plan.channel.id);
-      if (!mayAskMaterial(before, core)) return;
+      if (!mayAskMaterial(before, core)) return null;
       const carried =
         before?.state === 'open' && before.core === digest && before.questions.length
           ? before.questions
@@ -2651,8 +2728,8 @@ export class PieceService {
           },
           { aiUsage: this.aiUsage, warn: (message) => this.logger.warn(message) }
         ));
-      if (!questions.length) return;
-      const record: MaterialAskRecordV1 = {
+      if (!questions.length) return null;
+      return {
         adaptationId: adaptation.id,
         length: short.length,
         min: short.min,
@@ -2662,8 +2739,24 @@ export class PieceService {
         askedAt: this.now().toISOString(),
         closedAt: null,
       };
+    } catch (error) {
+      this.logger.warn(
+        `Material questions for channel ${plan.channel.id} were not kept: ${describeError(error)}`
+      );
+      return null;
+    }
+  }
+
+  private async askForMaterial(
+    organizationId: string,
+    plan: PieceAdaptPlanV1,
+    adaptation: AdaptationV1
+  ): Promise<void> {
+    const record = await this.prepareMaterialQuestions(organizationId, plan, adaptation);
+    if (!record) return;
+    try {
       await this.writeMaterialAsk(organizationId, plan.pieceId, plan.channel.id, (current) =>
-        mayAskMaterial(current, core) ? record : undefined
+        mayAskMaterial(current, plan.core?.text ?? '') ? record : undefined
       );
     } catch (error) {
       this.logger.warn(
@@ -2880,6 +2973,7 @@ export class PieceService {
         delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
         brief: selectedFactsBrief(core.brief),
         ...(core.request ? { request: core.request } : {}),
+        ...(core.contextMaterial ? { contextMaterial: core.contextMaterial } : {}),
         ...(core.researchSelection?.origin === 'model' && core.researchSummary ? { researchSummary: core.researchSummary } : {}),
         answers: core.answers,
         // Every answer goes with its question, the model's decisions included.
@@ -3197,6 +3291,7 @@ export class PieceService {
           delegatedPolicy,
           brief: selectedFactsBrief(answeredBrief),
           ...(plan.core.request ? { request: plan.core.request } : {}),
+          ...(plan.core.contextMaterial ? { contextMaterial: plan.core.contextMaterial } : {}),
           ...(plan.core.researchSelection?.origin === 'model' && plan.core.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
@@ -5342,18 +5437,22 @@ export class PieceService {
     return sign({ ...reviewed, sources, ...(factCheck ? { factCheck } : {}) });
   }
 
-  async acceptReviewV2(
+  /** Project exactly the candidate the accept path will persist, from the signed snapshot. */
+  previewReviewV2(
     organizationId: string,
     pieceId: string,
     adaptationId: string | undefined,
     input: { token: string; selectedIds: string[]; variant?: string }
-  ) {
-    const proposal = readReview(
-      input.token,
-      organizationId,
-      pieceId,
-      adaptationId
-    );
+  ): { text: string; title: string | null } {
+    const proposal = readReview(input.token, organizationId, pieceId, adaptationId);
+    return this.projectReviewV2(proposal, adaptationId, input);
+  }
+
+  private projectReviewV2(
+    proposal: ReturnType<typeof readReview>,
+    adaptationId: string | undefined,
+    input: { selectedIds: string[]; variant?: string }
+  ): { text: string; title: string | null } {
     let text: string, title: string;
     try {
       text = applyReviewChanges(
@@ -5377,6 +5476,28 @@ export class PieceService {
         'Выберите правки из результата проверки.'
       );
     }
+    if (!adaptationId) return { text, title };
+    const titleSelected = proposal.changes.some(
+      (c) => c.target === 'title' && input.selectedIds.includes(c.id)
+    );
+    if (titleSelected && proposal.originalText.split('\n').find((line) => line.trim()) === proposal.title)
+      text = syncEmbeddedTitle(text, proposal.title, title);
+    return { text, title: titleSelected ? title : proposal.snapshot!.adaptationTitle };
+  }
+
+  async acceptReviewV2(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string | undefined,
+    input: { token: string; selectedIds: string[]; variant?: string }
+  ) {
+    const proposal = readReview(
+      input.token,
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    const { text, title } = this.projectReviewV2(proposal, adaptationId, input);
     if (adaptationId) {
       const draft = await this.liveVariantRead(organizationId, pieceId, adaptationId, () =>
         this.pieces.reviewDraft(organizationId, pieceId, adaptationId)
@@ -5387,15 +5508,6 @@ export class PieceService {
       const provider = this.integrationManager.getSocialIntegration(
         draft.post.integration.providerIdentifier
       );
-      const titleSelected = proposal.changes.some(
-        (c) => c.target === 'title' && input.selectedIds.includes(c.id)
-      );
-      if (
-        titleSelected &&
-        proposal.originalText.split('\n').find((line) => line.trim()) ===
-          proposal.title
-      )
-        text = syncEmbeddedTitle(text, proposal.title, title);
       return this.pieces.acceptReviewV2(
         organizationId,
         pieceId,
@@ -5403,7 +5515,7 @@ export class PieceService {
         proposal.snapshot!,
         text,
         renderedPost(text, provider.editor),
-        titleSelected ? title : proposal.snapshot!.adaptationTitle
+        title
       );
     }
     const brief = (proposal.pieceSnapshot.brief ?? {}) as Record<string, unknown>;
@@ -5436,7 +5548,7 @@ export class PieceService {
       pieceId,
       proposal.pieceSnapshot,
       text,
-      title,
+      title!,
       stored
     );
   }
@@ -5524,7 +5636,10 @@ export class PieceService {
     if (!brief) return null;
     return {
       version: PIECE_CORE_VERSION,
+      ...(Array.isArray(stored.adaptationSeries) ? { adaptationSeries: stored.adaptationSeries } : {}),
       ...(request ? { request } : {}),
+      ...(typeof stored.contextMaterial === 'string' && stored.contextMaterial.trim()
+        ? { contextMaterial: stored.contextMaterial } : {}),
       ...(stored.researchSelection && ['person', 'model'].includes(stored.researchSelection.origin) &&
         Array.isArray(stored.researchSelection.selectedKeys) && stored.researchSelection.selectedKeys.every((key: unknown) => typeof key === 'string') &&
         typeof stored.researchSelection.selectedAt === 'string' && Number.isFinite(Date.parse(stored.researchSelection.selectedAt))
@@ -6116,7 +6231,10 @@ export class PieceService {
     return {
       version: INTAKE_HINTS_VERSION,
       ...(plan.authorReferenceUrls?.length ? { authorReferenceUrls: [...plan.authorReferenceUrls] } : {}),
+      ...(plan.currentAuthorRequest ? { currentAuthorRequest: plan.currentAuthorRequest } : {}),
       ...(plan.core?.request ? { request: plan.core.request } : {}),
+      ...(plan.core?.contextMaterial ? { contextMaterial: plan.core.contextMaterial } : {}),
+      ...(plan.core?.addedMaterial?.length ? { authorAdditions: plan.core.addedMaterial.map(({ text, addedAt }) => ({ text, addedAt })) } : {}),
       ...(trimmed(plan.core?.instructionText) ? { instructionText: plan.core!.instructionText } : {}),
       brief: {
         thesis: brief?.thesis ?? null,

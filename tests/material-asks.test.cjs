@@ -129,10 +129,10 @@ describe('the trigger: clearly short of the length the post was written to', () 
     ).toEqual({ min: 1_024, max: 1_024 });
   });
 
-  test('the prompt still says the same length it said before the rule shared it', () => {
+  test('the prompt and material questions use the same channel target', () => {
     const lines = directives.channelInstructionLines(profile(RANGE), TELEGRAM, {});
     expect(lines).toContain(
-      'Readers of this channel expect 500 to 1000 characters. If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
+      'Readers of this channel expect 500 to 1000 characters. This channel range takes precedence over the avatar’s statistical sample length; preserve the avatar’s voice at the requested length.'
     );
   });
 });
@@ -316,7 +316,64 @@ const ASKED = {
   ],
 };
 
+describe('series prepares questions before the saved generation checkpoint', () => {
+  test('skipping author questions prevents even preparing a short series question', async () => {
+    const { service } = build({ models: [ASKED] });
+    service.renderAdaptation = async function* () {
+      return { output: { content: [{ content: text(360) }] }, answers: [] };
+    };
+    const generated = await service.generateSeriesAdaptation('org-a', plan({request: {skipInterview: true}}), 'person-a', 'series');
+    expect(generated.materialAsk).toBeUndefined();
+    expect(modelCalls).toHaveLength(0);
+  });
+  test('questions use the first complete post, then pass unchanged to save without another model call', async () => {
+    const { service, piece, calls } = build({ models: [ASKED] });
+    const source = { ...plan(), sourceRevision: { body: CORE_TEXT, brief: piece.brief } };
+    service.renderAdaptation = async function* () {
+      return { output: { hook: 'Начало', content: [{ content: text(360) }, { content: 'Вторая часть' }] }, answers: [] };
+    };
+    let savedInput; const savedInputs = [];
+    service.pieces.createAdaptationSeries = async (_org, input) => {
+      savedInput = input; savedInputs.push(input);
+      return { seriesId: input.seriesId, parts: [{ adaptationId: 'series-first', postId: 'post-first', title: null, createdAt: NOW.toISOString() }], created: true };
+    };
+    const generated = await service.generateSeriesAdaptation('org-a', source, 'person-a', 'series');
+    expect(modelCalls).toHaveLength(1);
+    expect(generated.materialAsk).toMatchObject({ state: 'open', adaptationId: '', core: asks.coreDigest(CORE_TEXT),
+      length: asks.visiblePostLength(`Начало\n\n${text(360)}`), askedAt: NOW.toISOString() });
+    expect(piece.tags.materialAsks).toBeUndefined();
+    expect(calls.writes).toBe(0);
+    await service.persistSeriesAdaptation('org-a', 'person-a', 'series-1', generated);
+    await service.persistSeriesAdaptation('org-a', 'person-a', 'series-1', generated);
+    expect(savedInputs[1]).toEqual(savedInputs[0]);
+    expect(savedInput.materialAsk).toEqual(generated.materialAsk);
+    expect(savedInput.parts[0].body).toBe(`Начало\n\n${text(360)}`);
+    expect(modelCalls).toHaveLength(1);
+    expect(calls.writes).toBe(0);
+  });
+
+  test('already open questions are carried to a new series without a model call', async () => {
+    const { service, piece } = build({ models: [ASKED] });
+    await service.askForMaterial('org-a', plan(), adaptation('old-adaptation', 367));
+    const old = asks.materialAskRecordOf(piece.tags, 'int-tg');
+    modelCalls.length = 0;
+    service.renderAdaptation = async function* () {
+      return { output: { content: [{ content: text(360) }] }, answers: [] };
+    };
+    const generated = await service.generateSeriesAdaptation('org-a', plan(), 'person-a', 'auto');
+    expect(generated.materialAsk.questions).toEqual(old.questions);
+    expect(modelCalls).toEqual([]);
+  });
+});
+
 describe('after a post is written', () => {
+  test('skipping author questions leaves a short saved post alone without a model call', async () => {
+    const { service, piece, calls } = build({ models: [ASKED] });
+    await service.askForMaterial('org-a', plan({request: {skipInterview: true}}), adaptation('ad-1', 367));
+    expect(piece.tags.materialAsks).toBeUndefined();
+    expect(modelCalls).toHaveLength(0);
+    expect(calls.writes).toBe(0);
+  });
   test('a short post gets its questions, kept beside the post settings', async () => {
     const { service, piece, calls } = build({ models: [ASKED] });
     await service.askForMaterial('org-a', plan(), adaptation('ad-1', 367));

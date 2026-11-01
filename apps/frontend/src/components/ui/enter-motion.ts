@@ -15,7 +15,7 @@ import { useEffect, useRef } from 'react';
  */
 export function useEnterMotion<T extends HTMLElement>(
   key: unknown,
-  className: 'cf-page-enter' | 'cf-tab-enter' = 'cf-page-enter'
+  className: 'cf-page-enter' | 'cf-tab-enter' | 'cf-question-enter' = 'cf-page-enter'
 ) {
   const ref = useRef<T | null>(null);
   const first = useRef(true);

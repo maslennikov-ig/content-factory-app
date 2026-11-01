@@ -95,8 +95,12 @@ export type IntakeChannelHintsV1 = {
 };
 
 export type IntakeGenerationHintsV1 = {
+  /** Choose one complete post or an ordered series, without a predetermined count. */
+  presentation?: 'auto' | 'series';
   /** Server-owned current author references, separate from the model-supplied editorial wish. */
   authorReferenceUrls?: string[];
+  /** Authenticated current chat request, untrusted editorial data, not a permission. */
+  currentAuthorRequest?: string;
   allowQuestion?: boolean;
   /** Saved selected quotes, outside the short editorial material budget. All are untrusted until registry validation. */
   evidenceQuotes?: PieceEvidenceInputV1['quotes'];
@@ -121,6 +125,10 @@ export type IntakeGenerationHintsV1 = {
   };
   /** Original scope stays distinct from reference material and from the core. */
   request?: IntakeUnderstandingV1;
+  /** Labelled conversation/reference context, separate from source facts and permissions. */
+  contextMaterial?: string;
+  /** Complete later author replies, enriching prior context; timestamps record insertion, not event dates. */
+  authorAdditions?: Array<{ text: string; addedAt: string }>;
   instructionText?: string;
   /** Взятое из чужого текста: тема, угол, строение. Никогда — сам текст. */
   borrowed?: {
@@ -134,8 +142,8 @@ export type IntakeGenerationHintsV1 = {
    * Суть заготовки простым текстом (`content-factory-next-tu3k.9`).
    *
    * Материал, а не запрос: она уже написана и уже нейтральна, и адаптация
-   * переносит её слова, числа и примеры дословно, меняя только то, чего
-   * требует площадка. Поле необязательно — короткий путь «сразу для Telegram»
+   * сохраняет её смысл, факты и позицию в голосе аватара. Дословные
+   * цитаты нужны только по явной просьбе автора. Поле необязательно — короткий путь «сразу для Telegram»
    * тоже проходит через заготовку, но материал до этой волны сути не имеет
    * вовсе, и без неё промпт читается ровно как читался.
    */
@@ -255,3 +263,14 @@ export type GeneratorRunInput = GeneratorDto & {
    */
   relatedOwnPosts?: RelatedOwnPostV1[];
 };
+
+/** Editorial intent guides native structured output; this never rewrites or caps the model's posts. */
+export const editorialPresentationInstruction = (presentation: 'auto' | 'series', hardLimit: number | null): string => [
+  '- Preserve the requested editorial unit. A roundup or summary should combine related updates into a coherent roundup; an individual news item is not automatically a separate post.',
+  presentation === 'auto'
+    ? '- Prefer one complete post when the requested result fits. Otherwise choose the smallest coherent series that serves the requested detail and actual per-post constraints; combine related announcements and avoid overlapping posts. Do not split merely because several updates or author comments exist.'
+    : '- The person explicitly requested a series. Choose meaningful complete posts without a fixed count; combine related announcements and avoid overlapping posts.',
+  '- Preserve requested topics, factual detail and author context at the requested level of depth. A requested concise roundup is not a request for a standalone article about every update. Do not silently discard requested material to fit a preferred style length.',
+  '- This stage generates content only. The application saves the generated content after this stage and reports the actual outcome. In presentationReason give a brief public first-person explanation only of your post or series format choice in the response language, separate from the post text. Do not claim ability, success or failure to save or publish. If you split the material, say why this scope needs the chosen series; distinguish a real per-post length limit from readability or an explicitly requested series. Do not invent a length overflow.',
+  `- Each array item is one complete publishable post, not a paragraph, opening, outline or alternative wording. Split only where length or coherent reading requires it. Fit the actual per-post hard limit${hardLimit ? ` of ${hardLimit} characters` : ''}, including the hook on the first post. The supplied hook belongs only to the first post; later posts need their own natural opening. Give each post a short informative title.`,
+].join('\n');

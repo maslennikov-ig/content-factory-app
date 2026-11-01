@@ -32,6 +32,27 @@ describe('assistant artifact selection and draft protection', () => {
     expect(rows.map((one) => one.id)).toEqual(['a', 'b', 'one']);
     expect(rows.at(-1).title).toBe('Updated');
   });
+  test('token-only stream updates keep the existing workspace and protected editor state', () => {
+    let state = reduce(emptyArtifactWorkspace(), { type: 'produced', artifacts: [artifact('one'), artifact('two')] });
+    state = reduce(state, { type: 'select', artifact: artifact('one') });
+    state = reduce(state, { type: 'dirty', key: 'piece:one' });
+    state = reduce(state, { type: 'hide' });
+    const incoming = JSON.parse(JSON.stringify(state.artifacts));
+    for (let token = 0; token < 120; token++) {
+      expect(reduce(state, { type: 'produced', artifacts: incoming })).toBe(state);
+    }
+    expect(state.active).toBe('piece:one');
+    expect(state.dirty).toEqual(['piece:one']);
+    expect(state.hidden).toBe(true);
+  });
+  test('a changed result with the same id still refreshes its metadata', () => {
+    const original = { ...artifact('one'), data: { id: 'one', quality: { score: 2 }, retained: true } };
+    const state = reduce(emptyArtifactWorkspace(), { type: 'produced', artifacts: [original] });
+    const updated = reduce(state, { type: 'produced', artifacts: [{ ...original, title: 'Updated', data: { quality: { score: 5 } } }] });
+    expect(updated).not.toBe(state);
+    expect(updated.artifacts[0]).toMatchObject({ title: 'Updated', data: { retained: true, quality: { score: 5 } } });
+    expect(updated.active).toBe(state.active);
+  });
   test('late history cannot replace a material explicitly selected and edited during loading', () => {
     let state = emptyArtifactWorkspace(false);
     state = reduce(state, { type: 'select', artifact: artifact('B') });

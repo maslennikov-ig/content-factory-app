@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
-import { renderEvidenceProjection } from './piece-evidence-projection';
+import { PIECE_EVIDENCE_MAX_ITEMS, renderEvidenceProjection } from './piece-evidence-projection';
 
 type PrismaClientLike = Record<string, any>;
 
@@ -157,13 +157,13 @@ export async function validateContentContextForDraft(
   }
 
   const requested = [...new Set(input.usedCitationIds || [])].sort();
-  const citationPattern = snapshot.selectionAlgorithmVersion >= 3
-    ? /^(?:F[1-8]|E(?:[1-9]|1[0-6]))$/
-    : /^[FE][1-8]$/;
+  const validCitation = (id: string) => snapshot.selectionAlgorithmVersion >= 3
+    ? /^F[1-8]$/.test(id) || (/^E[1-9]\d*$/.test(id) && Number(id.slice(1)) <= PIECE_EVIDENCE_MAX_ITEMS)
+    : /^[FE][1-8]$/.test(id);
   if (
     requested.some(
       (citationId) =>
-        typeof citationId !== 'string' || !citationPattern.test(citationId)
+        typeof citationId !== 'string' || !validCitation(citationId)
     )
   ) {
     throw new ContentContextError(

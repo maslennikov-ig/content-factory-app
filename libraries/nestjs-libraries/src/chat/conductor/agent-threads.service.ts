@@ -20,6 +20,7 @@ import type {
   AgentThreadListV1,
   AgentThreadV1,
   AgentWorkContextV1,
+  AgentWritingSelection,
   AgentWorkspaceV1,
 } from '../capabilities/agent-parts.contract';
 import type { CapabilityIdentity } from '../capabilities/capability.types';
@@ -403,13 +404,14 @@ export class AgentThreadsService {
       : null;
   }
 
-  async rememberNativeRun(identity: CapabilityIdentity, threadId: string, runId: string, logicalRequestId: string) {
+  async rememberNativeRun(identity: CapabilityIdentity, threadId: string, runId: string, logicalRequestId: string, writingSelection?: AgentWritingSelection) {
     await this.writeWorkspace(threadId, async () => {
       const saved = await this.readNativeRun(identity, threadId);
       await (await this.memory()).updateThread({ id: threadId, metadata: {
         [AGENT_NATIVE_RUN_METADATA_KEY]: {
           ...(saved?.logicalRequestId === logicalRequestId ? saved : {}),
           runId, logicalRequestId, state: 'running',
+          ...(writingSelection !== undefined ? { continuationWritingSelection: writingSelection } : {}),
         },
       } });
     });
@@ -630,7 +632,7 @@ export class AgentThreadsService {
         metadata: { [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'running' } },
       });
     });
-    return new AgentTurnLifecycle(requestId, async (outcome) => {
+    return new AgentTurnLifecycle(requestId, async (outcome, errorCode) => {
       // Release before publishing the terminal receipt, after all real work
       // settled. Otherwise an old expired lease could delete a new turn's
       // claim after it observed our terminal receipt and acquired the key.
@@ -641,10 +643,19 @@ export class AgentThreadsService {
         if (marker?.requestId !== requestId) return;
         await (await this.memory()).updateThread({
           id: threadId,
-          metadata: { [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'settled', outcome } },
+          metadata: {
+            [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'settled', outcome, ...(errorCode ? { errorCode } : {}) },
+            ...((thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as any)?.logicalRequestId === requestId &&
+                (thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as any)?.state !== 'stopped' ? {
+              [AGENT_NATIVE_RUN_METADATA_KEY]: {
+                ...(thread.metadata![AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown>),
+                state: 'settled', outcome, ...(errorCode ? { errorCode } : {}), continuationPending: false, continuationIdentity: null,
+              },
+            } : {}),
+          },
         });
       });
-      await writeAgentThreadExecution(this.claims, { requestId, state: 'settled', outcome }).catch(refusedWhenUnavailable);
+      await writeAgentThreadExecution(this.claims, { requestId, state: 'settled', outcome, ...(errorCode ? { errorCode } : {}) }).catch(refusedWhenUnavailable);
     });
   }
 
@@ -756,6 +767,13 @@ export class AgentThreadsService {
     return this.mastraService.resolveWorkContext(identity, context, { refresh: selected === undefined });
   }
 
+  async writingSelectionForTurn(identity: CapabilityIdentity, threadId: string, selected?: AgentWritingSelection) {
+    const thread = await this.ownThread(identity, threadId);
+    const selection = selected === undefined ? readStoredAgentWorkspace(thread?.metadata).writingSelection ?? {} : selected;
+    if (!selection.channelId && !selection.avatarId) return { selection };
+    return this.mastraService.resolveWritingSelection(identity, selection);
+  }
+
   private async availableWorkspace(identity: CapabilityIdentity, workspace: AgentWorkspaceV1): Promise<AgentWorkspaceV1> {
     const artifacts: AgentWorkspaceV1['artifacts'] = [];
     for (const ref of workspace.artifacts) {
@@ -825,6 +843,8 @@ export class AgentThreadsService {
       const thread = await this.requireOwnThread(identity, threadId);
       const workspace = await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata));
       if (patch.workContext !== undefined) workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext)).context;
+      if (patch.writingSelection !== undefined) workspace.writingSelection = !patch.writingSelection.channelId && !patch.writingSelection.avatarId
+        ? {} : (await this.mastraService.resolveWritingSelection(identity, patch.writingSelection)).selection;
       if (patch.artifacts !== undefined) {
         workspace.artifacts = [];
         for (const ref of patch.artifacts) {

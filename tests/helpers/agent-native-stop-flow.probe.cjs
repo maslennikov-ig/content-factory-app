@@ -120,7 +120,7 @@ async function scenario(mode) {
  let lateStopIgnored;
  if (successor) {
   if (mode === 'late-stop-reply') await act(async () => {
-   fireEvent.click(within(document.body).getByRole('button', { name: 'Check saved result' })); await wait(80);
+   fireEvent.click(within(document.body).getByRole('button', { name: 'Refresh status' })); await wait(80);
   });
   assert.equal(document.querySelector('fieldset').disabled, false, 'verified/reconciled A must allow deliberate task B');
   await act(async () => { await submit({ text: 'Deliberate task B after verified Stop', files: [] }); await wait(80); });
@@ -157,7 +157,7 @@ async function scenario(mode) {
  if (blocked) await act(async () => { await submit({ text: 'Do not repeat an unknown action', files: [] }); });
  actual.callsAfterBlockedSubmit = calls;
  if (mode === 'lag') {
-  await act(async () => { fireEvent.click(within(document.body).getByRole('button', { name: 'Check saved result' })); await wait(100); });
+  await act(async () => { fireEvent.click(within(document.body).getByRole('button', { name: 'Refresh status' })); await wait(100); });
   actual.manualReconcilePreserved = document.body.textContent.includes(fullText) && document.body.textContent.includes('New task to stop');
   actual.manualReconcileUnlocked = !document.querySelector('fieldset').disabled;
   assert.equal(actual.manualReconcilePreserved, true); assert.equal(actual.manualReconcileUnlocked, true);

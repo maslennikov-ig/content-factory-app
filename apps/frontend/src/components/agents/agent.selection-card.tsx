@@ -14,6 +14,7 @@ import {
 import { AgentCard } from './agent.cards';
 import type { AgentWords } from './agent.copy';
 import { AgentGlyph } from './agent.icons';
+import { AgentMarkdown } from './agent.markdown';
 
 /**
  * «Выбор» (spec §6.2, canvas C `_c_selection`, `kcxz.16`): rows to keep,
@@ -52,7 +53,7 @@ export function SelectionCard({
           .map((option) => option.id)
       )
   );
-  const [sent, setSent] = useState<'keep' | 'decide' | null>(null);
+  const [sent, setSent] = useState<'keep' | 'decide' | 'decline' | null>(null);
   const sending = useRef(false);
   const [rejected, setRejected] = useState(false);
   useEffect(() => { if (failure) { sending.current = false; setSent(null); } }, [failure]);
@@ -62,7 +63,7 @@ export function SelectionCard({
     .filter((option) => kept.has(option.id))
     .map((option) => option.id);
 
-  const send = async (key: 'keep' | 'decide', resumeData: Record<string, unknown>) => {
+  const send = async (key: 'keep' | 'decide' | 'decline', resumeData: Record<string, unknown>) => {
     if (sending.current || busy) return;
     sending.current = true;
     setSent(key);
@@ -70,6 +71,39 @@ export function SelectionCard({
     try { await onAnswer(resumeData); }
     catch { sending.current = false; setSent(null); setRejected(true); }
   };
+
+  if (question.fullPreview) {
+    const title = t('assistant_draft_review_title', 'Proposed draft');
+    return (
+      <AgentCard cardKind="selection" glyph="pen" kind={title} label={title}
+        footer={<>
+          <Button type="button" density="dense" disabled={locked} loading={sent === 'keep'} loadingLabel={words.question.sending}
+            onClick={() => send('keep', selectionAnswer(question, question.options.map(option => option.id)))}>
+            {t('assistant_accept_draft', 'Accept')}
+          </Button>
+          <Button type="button" density="dense" variant="secondary" disabled={locked} loading={sent === 'decline'} loadingLabel={words.question.sending}
+            onClick={() => send('decline', selectionAnswer(question, []))}>
+            {t('assistant_keep_draft', 'Keep current draft')}
+          </Button>
+        </>}
+      >
+        {failure || rejected ? <p role="status" className="cf-body-sm text-cf-warning">{words.question.answerFailed}</p> : null}
+        <div data-agent-full-preview="" className="min-w-0">
+          {question.fullPreview.title ? <h3 className="mb-[12px] cf-heading-md text-cf-ink [overflow-wrap:anywhere]">{question.fullPreview.title}</h3> : null}
+          <AgentMarkdown text={question.fullPreview.text} />
+        </div>
+        <Disclosure className="mt-[16px] min-w-0 border-t border-cf-border pt-[8px]"
+          summary={t('assistant_review_changes', 'Compare changes')}
+          contentClassName="flex min-w-0 flex-col gap-[12px] pt-[12px]">
+          {question.options.map(option => <div key={option.id} className="min-w-0">
+            {option.preview ? <LocalizedReviewChangePreview before={option.preview.before} after={option.preview.after}
+              reason={option.preview.reason} fallbackWords={w.preview} />
+              : <p className="cf-body-sm text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">{option.label}</p>}
+          </div>)}
+        </Disclosure>
+      </AgentCard>
+    );
+  }
 
   return (
     <AgentCard

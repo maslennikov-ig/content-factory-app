@@ -4,6 +4,8 @@ import type { AgentSignalContents } from '@mastra/core/agent';
 import { AGENT_STREAM_TOPIC, type DurableAgent } from '@mastra/core/agent/durable';
 import type { RequestContext } from '@mastra/core/request-context';
 import { observeConductorRun } from './native-run-observer';
+import { NATIVE_TERMINAL_MODEL_ERROR_KEY } from '../../openai/ai.native-retries';
+import { readNativeTerminalProviderError } from '../../openai/ai.provider-terminal-error';
 import { seedConductorModelTask } from './conductor.model-task';
 
 export const AGENT_NATIVE_RUN_METADATA_KEY = 'assistantNativeRun';
@@ -42,6 +44,13 @@ export async function observeNativeRun(input: {
           const part = await reader.read();
           if (cancelled) return;
           if (!part.done) {
+            if (part.value?.type === 'data-tripwire' && (
+              readNativeTerminalProviderError((part.value.data as any)?.metadata?.cfNativeTerminalModelError) ||
+              (part.value.data as any)?.metadata?.terminalModelError === true
+            )) {
+              terminal.push({ type: 'error', errorText: input.onError({ payload: part.value.data }) });
+              continue;
+            }
             if (['abort', 'finish', 'error'].includes(part.value?.type)) {
               terminal.push(part.value); continue;
             }
@@ -94,6 +103,8 @@ export async function streamNativeSession(input: {
   let offset: number | undefined;
   let drive: (() => Promise<void>) | undefined;
   if (input.message) {
+    // A fresh explicit user signal starts a new attempt, including on a warm Session.
+    requestContext.set(NATIVE_TERMINAL_MODEL_ERROR_KEY, null);
     seedConductorModelTask(requestContext, input.message.parts
       .filter((part) => part.type === 'text' && typeof part.text === 'string')
       .map((part) => part.text)

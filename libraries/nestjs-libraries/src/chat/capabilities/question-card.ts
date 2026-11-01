@@ -1,5 +1,7 @@
 import { AGENT_CARD_ID_KEY, AGENT_DECIDE_FOR_PERSON_KEY } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
+import { validFullPreviewAnswer } from './catalogue/selection';
+import { nativeQuestionBatchAnswerFits } from '../conductor/native-question-batch';
 import { domainQuestionAnswer, domainQuestionSchema, mergeDomainQuestionAnswers } from './domain-question-contract';
 
 /**
@@ -53,6 +55,7 @@ const isAskUserPayload = (
   payload: Record<string, unknown>,
   toolName?: string | null
 ) => {
+  if (payload.kind === 'question-batch') return false;
   if (toolName !== undefined && toolName !== null) {
     return toolName === 'ask_user';
   }
@@ -79,6 +82,12 @@ export const questionCardView = (
   const shown = Object.fromEntries(
     Object.entries(payload).filter(([key]) => !SERVER_ONLY_CARD_KEYS.includes(key))
   );
+  if (shown.kind === 'selection' && 'fullPreview' in shown) {
+    const preview = shown.fullPreview;
+    if (isRecord(preview) && (preview.title === null || typeof preview.title === 'string') && typeof preview.text === 'string')
+      shown.fullPreview = { title: preview.title, text: preview.text };
+    else delete shown.fullPreview;
+  }
   if (shown.kind === 'selection' && Array.isArray(shown.options)) {
     shown.options = shown.options.map((option) => {
       if (!isRecord(option) || !('preview' in option)) return option;
@@ -146,6 +155,9 @@ export const answerFitsCard = (
   toolName?: string | null
 ): boolean => {
   if (!isRecord(payload)) return isRecord(answer);
+  if (payload.kind === 'question-batch') {
+    return (toolName == null || toolName === 'ask_user') && nativeQuestionBatchAnswerFits(payload, answer);
+  }
   if (payload.toolId === 'submit_plan' || toolName === 'submit_plan') {
     if (!isRecord(answer) || !onlyKeys(answer, ['action', 'feedback'])) return false;
     return (
@@ -168,6 +180,10 @@ export const answerFitsCard = (
     case 'selection': {
       const key = typeof payload.answerKey === 'string' ? payload.answerKey : '';
       if (!key || !onlyKeys(answer, [key, AGENT_DECIDE_FOR_PERSON_KEY])) return false;
+      if ('fullPreview' in payload) {
+        if (payload.canDecideForPerson !== false || !Array.isArray(payload.options)) return false;
+        return validFullPreviewAnswer(payload.options, answer, key);
+      }
       return answer[key] === undefined || isStringList(answer[key]);
     }
     case 'interview': {

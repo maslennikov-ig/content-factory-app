@@ -14,6 +14,7 @@ import { artifactName } from './agent.cards';
 import type { AgentWords } from './agent.copy';
 import { AgentArtifactLiveStatus, useArtifactMetadata, type ArtifactMetadata } from './agent.artifact-metadata';
 import { withPieceData } from './agent.piece-data';
+import { AgentGlyph } from './agent.icons';
 
 function ArtifactPickerRow({ artifact, selected, onSelect, onRemove, words, metadata, metadataKnown }: {
   artifact: AgentArtifact;
@@ -39,7 +40,7 @@ function ArtifactPickerRow({ artifact, selected, onSelect, onRemove, words, meta
     <li className="flex min-w-0 items-center gap-[8px] border-b border-cf-border py-[8px] last:border-b-0">
       <Button type="button" variant={selected ? 'secondary' : 'quiet'} className="min-w-0 flex-1 justify-start" innerClassName="min-w-0 flex-1 justify-start" disabled={!!unavailable} onClick={() => onSelect({ ...artifact, title: name })}>
         <span className="flex min-w-0 flex-1 flex-col items-start text-start">
-          <span className="max-w-full truncate cf-label-md">{name}</span>
+          <span className="max-w-full break-words [overflow-wrap:anywhere] cf-label-md">{name}</span>
           <span className="cf-caption text-cf-ink-muted">{unavailable ? t('assistant_context_unavailable', 'This object is no longer available') : words.card.kinds[artifact.kind]}</span>
           {!unavailable ? <AgentArtifactLiveStatus artifact={enriched} metadata={metadata} /> : null}
         </span>
@@ -51,13 +52,14 @@ function ArtifactPickerRow({ artifact, selected, onSelect, onRemove, words, meta
 }
 
 /** Distinct objects of this personal thread; opening the chooser never sends a message. */
-export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRemove, words }: {
+export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRemove, words, compact = false }: {
   artifacts: readonly AgentArtifact[];
   active: string | null;
   unread: number;
   onSelect: (artifact: AgentArtifact) => void;
   onRemove: (key: string) => void;
   words: AgentWords;
+  compact?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -75,9 +77,9 @@ export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRem
   }
   return (
     <>
-      <Button type="button" density="dense" variant="quiet" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-        {t('assistant_artifacts', 'Artifacts')} · {artifacts.length}
-        {unread ? <span className="rounded-full bg-cf-accent-soft px-[8px] cf-caption text-cf-accent" aria-label={t('assistant_new_artifact', 'New artifact')}>{unread}</span> : null}
+      <Button type="button" density="dense" variant="quiet" className={compact ? 'min-w-[44px] px-[8px]' : undefined} aria-label={compact ? `${t('assistant_artifacts', 'Artifacts')} · ${artifacts.length}` : undefined} title={compact ? t('assistant_artifacts', 'Artifacts') : undefined} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+        {compact ? <><AgentGlyph name="doc" /><span aria-hidden className="cf-caption">{artifacts.length}</span></> : <>{t('assistant_artifacts', 'Artifacts')} · {artifacts.length}</>}
+        {unread ? compact ? <span className="h-[8px] w-[8px] rounded-full bg-cf-accent" aria-label={`${t('assistant_new_artifact', 'New artifact')}: ${unread}`} /> : <span className="rounded-full bg-cf-accent-soft px-[8px] cf-caption text-cf-accent" aria-label={t('assistant_new_artifact', 'New artifact')}>{unread}</span> : null}
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title={t('assistant_artifacts', 'Artifacts')}>
         <div className="flex min-w-0 flex-col gap-[12px]">

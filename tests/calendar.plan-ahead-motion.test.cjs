@@ -61,6 +61,7 @@ const weekdayOf = (y, m, d) =>
 let requests;
 let answer;
 const mocks = {
+  '@floating-ui/dom': { computePosition: () => new Promise(() => {}), autoUpdate: (_anchor, _panel, update) => { update(); return () => {}; }, offset: () => ({}), flip: () => ({}), shift: () => ({}), size: () => ({}) },
   '@contentfactory/helpers/utils/custom.fetch': {
     useFetch: () => async (url) => {
       requests.push(url);
@@ -150,9 +151,9 @@ describe('«впереди N дней» in the calendar header', () => {
     const bubble = screen.getByRole('tooltip');
     expect(chip.parentElement.contains(bubble)).toBe(false);
     expect(bubble.getAttribute('data-hint-portal')).toBeTruthy();
-    fireEvent.mouseDown(bubble.firstChild || bubble);
+    fireEvent.pointerDown(bubble.firstChild || bubble);
     expect(document.querySelector('[data-plan-ahead-channels]')).not.toBeNull();
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
     expect(document.querySelector('[data-plan-ahead-channels]')).toBeNull();
   });
 
@@ -285,7 +286,8 @@ describe('content transitions', () => {
     expect(styles).toMatch(/\.cf-page-enter \{\s*animation: cf-enter 180ms ease-out;/);
     expect(styles).toMatch(/\.cf-tab-enter \{\s*animation: cf-enter 150ms ease-out;/);
     const reduced = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'));
-    expect(reduced).toMatch(/\.cf-page-enter,\s*\.cf-tab-enter \{\s*animation: none;/);
+    expect(reduced).toMatch(/\.cf-page-enter,\s*\.cf-tab-enter,\s*\.cf-question-enter \{\s*animation: none;/);
+    expect(styles).toMatch(/\.cf-question-enter \{\s*animation: cf-enter 240ms ease-out;/);
     const pkg = JSON.parse(read('package.json'));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     expect(Object.keys(deps).filter((name) => /framer-motion|react-spring|gsap/.test(name))).toEqual([]);

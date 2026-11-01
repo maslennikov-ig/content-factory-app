@@ -1235,6 +1235,8 @@ describe('the path that fills the five lines by hand', () => {
     const base = await profiles.createDraft('org-a', 'user-admin', {
       ...PROFILE_CONTENT,
       project: { ...PROFILE_CONTENT.project, name: 'Мастерская на Ленина' },
+      persona: { kind: 'PERSON', portrait: 'Существующий портрет.' },
+      voice: { ...PROFILE_CONTENT.voice, pointOfView: 'third_person' },
     });
     await profiles.activate('org-a', 'user-admin', base.id);
 
@@ -1246,6 +1248,8 @@ describe('the path that fills the five lines by hand', () => {
 
     const now = await profiles.overview('org-a');
     expect(now.activeVersion.content.project.name).toBe('Мастерская на Ленина');
+    expect(now.activeVersion.content.persona).toEqual({ kind: 'PERSON', portrait: 'Существующий портрет.' });
+    expect(now.activeVersion.content.voice.pointOfView).toBe('third_person');
     expect(now.activeVersion.content.voice.sentenceStyle).toBe(
       FIVE.SENTENCE_LENGTH
     );
@@ -2448,6 +2452,24 @@ describe('a hand-written avatar with every line accepted can be switched on', ()
     const list = await service.createAvatar(admin, { name });
     return list.avatars.find((one) => one.name === name).id;
   };
+
+  test.each([
+    ['PERSON', 'first_person'],
+    ['BRAND', 'company_we'],
+  ])('a new manual %s voice uses its avatar kind without claiming sample analysis', async (kind, pointOfView) => {
+    const { service, profiles } = harness();
+    const created = await service.createAvatar(admin, { name: `Manual ${kind}`, kind });
+    const actor = { ...admin, avatarId: created.createdAvatarId };
+    await writeSix(service, actor);
+    await service.activateProposal(actor, {
+      version: 2, consentGiven: true, mode: 'manual', avatarName: `Manual ${kind}`,
+    });
+    const { activeVersion } = await profiles.overview('org-a', actor.avatarId);
+    expect(activeVersion.content.persona.kind).toBe(kind);
+    expect(activeVersion.content.voice.pointOfView).toBe(pointOfView);
+    expect(activeVersion.content.project.oneLineDescription).not.toMatch(/образц/u);
+    expect(validateBrandProfileContent(activeVersion.content, { forActivation: true })).toEqual({ valid: true });
+  });
 
   test('activation without a named path uses the manual draft when there is no analysis', async () => {
     const { service } = harness();

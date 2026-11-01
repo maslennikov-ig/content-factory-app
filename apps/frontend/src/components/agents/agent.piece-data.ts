@@ -186,6 +186,9 @@ export const withPieceData = (
   }
   if (artifact.kind !== 'adaptation') return artifact;
   const place = adaptationPlace(workspaceChannels(piece), artifact.id);
+  const saved = piece.adaptations.find((adaptation) => adaptation.id === artifact.id);
+  const series = artifact.data.series ?? saved?.series;
+  const title = artifact.title ?? saved?.title ?? null;
   const voiceScore =
     artifact.data.voiceScore ?? derivePieceVoiceScore(piece, artifact.id) ?? undefined;
   if (!place) {
@@ -197,11 +200,13 @@ export const withPieceData = (
   const hasChannel =
     !!channel && typeof channel === 'object' && !!textOf((channel as { id?: unknown }).id);
   const hasVariant = typeof artifact.data.variant === 'number' && artifact.data.variant > 0;
-  if (hasChannel && hasVariant && (!voiceScore || artifact.data.voiceScore)) return artifact;
+  if (hasChannel && hasVariant && (!series || artifact.data.series) && title === artifact.title && (!voiceScore || artifact.data.voiceScore)) return artifact;
   return {
     ...artifact,
+    title,
     data: {
       ...artifact.data,
+      ...(series ? { series } : {}),
       ...(hasChannel
         ? {}
         : { channel: { id: place.channel.id, name: place.channel.name } }),

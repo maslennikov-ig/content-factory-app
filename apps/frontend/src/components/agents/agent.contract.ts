@@ -80,6 +80,7 @@ export const CAPABILITY_REFUSAL_CODES = [
 
 export const AGENT_ERROR_CODES = [
   'AGENT_FAILED',
+  'AGENT_TASK_OPERATION_FAILED',
   'AI_PROVIDER_UNAVAILABLE',
   'AI_PROVIDER_PAYMENT_REQUIRED',
   'AI_ALLOWANCE_EXHAUSTED',
@@ -127,7 +128,8 @@ export type AgentSelectionQuestionPayload = {
     preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text';
     };
   }>;
-  canDecideForPerson: true;
+  canDecideForPerson: boolean;
+  fullPreview?: { title: string | null; text: string };
   cardId?: string;
 };
 
@@ -451,7 +453,10 @@ export type AgentArtifactRef = {
   videoJobId?: string;
 };
 
+export type AgentWritingSelection = { channelId?: string; avatarId?: string };
+
 export type AgentWorkspaceV1 = {
+  writingSelection?: AgentWritingSelection;
   version: 'assistant-workspace/v1';
   workContext: AgentWorkContextV1 | null;
   artifacts: AgentArtifactRef[];
@@ -481,6 +486,19 @@ export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null 
   return result;
 };
 
+export const readAgentWritingSelection = (value: unknown): AgentWritingSelection | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const row = recordOf(value);
+  if (Object.keys(row).some(key => !['channelId', 'avatarId'].includes(key))) return undefined;
+  const selection: AgentWritingSelection = {};
+  for (const key of ['channelId', 'avatarId'] as const) {
+    if (row[key] === undefined) continue;
+    if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return undefined;
+    selection[key] = row[key] as string;
+  }
+  return selection;
+};
+
 const readArtifactRef = (value: unknown): AgentArtifactRef | null => {
   const row = recordOf(value);
   if (!isArtifactKind(row.kind) || typeof row.id !== 'string' || !WORK_ID.test(row.id)) return null;
@@ -503,6 +521,7 @@ export const readAgentWorkspace = (value: unknown): AgentWorkspaceV1 | null => {
   return {
     version: 'assistant-workspace/v1',
     workContext: readAgentWorkContext(row.workContext),
+    ...(readAgentWritingSelection(row.writingSelection) !== undefined ? { writingSelection: readAgentWritingSelection(row.writingSelection) } : {}),
     artifacts,
     activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId && ref.videoJobId === active.videoJobId && ref.videoDraftId === active.videoDraftId) ? active : null,
   };
@@ -909,6 +928,7 @@ export type AgentThreadExecution = {
   runId?: string;
   state: 'running' | 'settled' | 'unknown';
   outcome?: 'completed' | 'failed' | 'interrupted';
+  errorCode?: string;
 };
 export type AgentSignalReceipt = {
   id: string;
@@ -927,7 +947,8 @@ const readExecution = (body: unknown): AgentThreadExecution => {
   // owns a saved question. Preserve its identity for pending-gate recovery.
   if (requestId && record.state === 'unknown' && runId) return { requestId, state: 'unknown', runId };
   if (requestId && record.state === 'settled' && ['completed', 'failed', 'interrupted'].includes(String(record.outcome))) {
-    return { requestId, state: 'settled', outcome: record.outcome as AgentThreadExecution['outcome'] };
+    return { requestId, state: 'settled', outcome: record.outcome as AgentThreadExecution['outcome'],
+      ...(errorCodeOf(record.errorCode) ? { errorCode: errorCodeOf(record.errorCode)! } : {}) };
   }
   return { requestId, state: 'unknown' };
 };
@@ -1055,6 +1076,7 @@ export const buildChatBody = ({
   messageId,
   resume,
   workContext,
+  writingSelection,
 }: {
   threadId: string | null;
   messages: readonly AgentMessage[];
@@ -1062,8 +1084,9 @@ export const buildChatBody = ({
   messageId?: string | null;
   resume?: AgentResume | null;
   workContext?: AgentWorkContextV1 | null;
+  writingSelection?: AgentWritingSelection;
 }) => {
-  const thread = { ...(threadId ? { threadId } : {}), ...(workContext !== undefined ? { workContext } : {}) };
+  const thread = { ...(threadId ? { threadId } : {}), ...(workContext !== undefined ? { workContext } : {}), ...(writingSelection !== undefined ? { writingSelection } : {}) };
   if (resume) {
     return {
       ...thread,
@@ -1292,6 +1315,10 @@ export const linksIn = (text: string): string[] =>
 
 /* ---- Questions -------------------------------------------------------------- */
 
+/** Read-only projection of native retained answers and public assistant continuation. */
+export type AgentNativeBatchAnswer = { answer: string | string[] } | { decideForPerson: true } | { skipped: true };
+export type AgentQuestionHistory = { answer?: string | string[]; batchAnswers?: AgentNativeBatchAnswer[]; followUp?: string };
+
 export type AgentQuestionOption = {
   id: string;
   label: string;
@@ -1299,6 +1326,11 @@ export type AgentQuestionOption = {
 };
 
 export type AgentQuestion = (
+  | {
+      kind: 'question-batch';
+      text: string;
+      questions: Array<Extract<AgentQuestion, { kind: 'choice' }>>;
+    }
   | {
       kind: 'consent';
       text: string;
@@ -1345,6 +1377,7 @@ export type AgentQuestion = (
       /** The key the kept ids go under (`factKeys`, `changeIds`). */
       answerKey: string;
       options: AgentSelectionQuestionPayload['options'];
+      fullPreview?: AgentSelectionQuestionPayload['fullPreview'];
       canDecideForPerson: boolean;
     }
   | {
@@ -1447,6 +1480,11 @@ const readQuestionShape = (
   resumeSchema: unknown
 ): DistributiveOmit<AgentQuestion, 'cardId'> => {
   const text = stringOf(record.question) ?? '';
+  if ((record.kind === 'question-batch' || (!record.kind && toolName === 'ask_user')) && Array.isArray(record.questions)) {
+    return { kind: 'question-batch', text,
+      questions: record.questions.map(item => readQuestion('ask_user', item, null))
+        .filter((item): item is Extract<AgentQuestion, { kind: 'choice' }> => item.kind === 'choice') };
+  }
   if (
     toolName === 'submit_plan' ||
     record.toolId === 'submit_plan' ||
@@ -1609,6 +1647,10 @@ const readQuestionShape = (
       kind: 'selection',
       text,
       answerKey: stringOf(record.answerKey) ?? 'answer',
+      ...(typeof recordOf(record.fullPreview).text === 'string' &&
+          (recordOf(record.fullPreview).title === null || typeof recordOf(record.fullPreview).title === 'string')
+        ? { fullPreview: { title: recordOf(record.fullPreview).title as string | null, text: recordOf(record.fullPreview).text as string } }
+        : {}),
       options: (Array.isArray(record.options) ? record.options : [])
         .map(
           (option): AgentSelectionQuestionPayload['options'][number] | null => {
@@ -1678,7 +1720,7 @@ const readQuestionShape = (
     text,
     options,
     answerKey,
-    ...(record.selectionMode === 'multiple'
+    ...(['multiple', 'multi_select'].includes(String(record.selectionMode))
       ? { selectionMode: 'multiple' as const }
       : {}),
     canDecideForPerson: record.canDecideForPerson !== false,
@@ -1884,6 +1926,14 @@ export type AgentSubagentView = {
   content: string | null;
 };
 
+/** One unavailable source does not determine the task's terminal state. */
+export type AgentSourceReadIssue = {
+  kind: 'remote' | 'retained';
+  host?: string;
+  status?: number;
+  continued: boolean;
+};
+
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
   | ({ type: 'file'; key: string } & AttachedLine)
@@ -1911,6 +1961,7 @@ export type AgentBlock =
       /** The call the answer is for; sent with the answer. */
       toolCallId: string | null;
       question: AgentQuestion;
+      history?: AgentQuestionHistory;
       /**
        * Answered, but the text had changed since the proposal: nothing was
        * applied (`kcxz.32`, N2).
@@ -1947,6 +1998,7 @@ export type AgentBlock =
       title: string | null;
       code: string | null;
       reviewFindings?: AgentAdaptationReviewFindings;
+      sourceRead?: AgentSourceReadIssue;
     }
   | { type: 'secret'; key: string; secret: AgentSecretField }
   /** Connecting a channel (`kcxz.19`): the card the person acts on. */
@@ -2465,6 +2517,61 @@ export const recoverableMaterialRange = (
   };
 };
 
+const questionHistoryOf = (toolName: string, output: unknown, resumed: unknown, followUp: string): AgentQuestionHistory | undefined => {
+  const raw = recordOf(output);
+  const batch = recordOf(resumed).answers ?? raw.answers;
+  if (toolName === 'ask_user' && Array.isArray(batch) && batch.length && batch.every(item => {
+    const value = recordOf(item);
+    return typeof value.answer === 'string' || (Array.isArray(value.answer) && value.answer.every(item => typeof item === 'string')) ||
+      value.decideForPerson === true || value.skipped === true;
+  })) return { batchAnswers: batch as AgentNativeBatchAnswer[], ...(followUp ? { followUp } : {}) };
+  const answerValue = (value: unknown): string | string[] | undefined =>
+    typeof value === 'string' ? value : Array.isArray(value) && value.every(item => typeof item === 'string') ? value : undefined;
+  // Actual native data wins. Do not infer an answer from unrelated tool prose.
+  let answer = answerValue(resumed) ?? answerValue(recordOf(resumed).answer) ?? answerValue(raw.answer);
+  if (toolName === 'ask_user' && answer === undefined && raw.isError !== true) {
+    // Mastra's installed askUserTool result format; multi-select labels may contain commas.
+    const prefix = 'User answered: ';
+    if (typeof raw.content === 'string' && raw.content.startsWith(prefix)) answer = raw.content.slice(prefix.length);
+  }
+  if (toolName === 'submit_plan' && answer === undefined && ['approved', 'rejected'].includes(String(raw.status)))
+    answer = [String(raw.status), ...(typeof raw.feedback === 'string' && raw.feedback ? [raw.feedback] : [])];
+  return answer !== undefined || followUp ? { ...(answer !== undefined ? { answer } : {}), ...(followUp ? { followUp } : {}) } : undefined;
+};
+
+const sourceReadIssueOf = (
+  part: Part,
+  code: string | null,
+  later: Part[]
+): AgentSourceReadIssue | undefined => {
+  if (toolNameOfPart(part) !== 'piece_read') return undefined;
+  const input = recordOf(part.input);
+  const remote = typeof input.url === 'string' &&
+    ['REMOTE_4XX', 'REMOTE_5XX', 'RATE_LIMITED', 'TIMEOUT', 'ROBOTS_DISALLOWED'].includes(code ?? '');
+  const retained = code === 'MATERIAL_NOT_AVAILABLE' &&
+    (typeof input.researchId === 'string' || String(input.part).startsWith('research_'));
+  if (!remote && !retained) return undefined;
+  let host: string | undefined;
+  if (remote) {
+    try {
+      const url = new URL(String(input.url));
+      if (url.protocol === 'https:' || url.protocol === 'http:') host = url.hostname;
+    } catch { /* No URL detail is safer than a guessed address. */ }
+  }
+  const matched = /\bHTTP ([45]\d{2})\b/.exec(String(recordOf(part.output).reason ?? ''));
+  const continued = later.some(next =>
+    toolNameOfPart(next) === 'piece_read' &&
+    next.state === 'output-available' &&
+    recordOf(next.output).ok === true
+  );
+  return {
+    kind: remote ? 'remote' : 'retained',
+    ...(host ? { host } : {}),
+    ...(remote && matched ? { status: Number(matched[1]) } : {}),
+    continued,
+  };
+};
+
 export const readMessageBlocks = (
   message: AgentMessage,
   pending: readonly AgentPendingRun[] = [],
@@ -2499,11 +2606,15 @@ export const readMessageBlocks = (
   }
 
   const resumedCalls = new Set<string>();
+  const resumedAnswers = new Map<string, unknown>();
   for (const part of parts) {
     if (part.type !== 'data-tool-call-resumed') continue;
     const data = recordOf(part.data);
     const id = stringOf(data.toolCallId) ?? stringOf(part.id);
-    if (id) resumedCalls.add(id);
+    if (id) {
+      resumedCalls.add(id);
+      if (data.resumeData !== undefined) resumedAnswers.set(id, data.resumeData);
+    }
   }
 
   // The card a stored or streamed part names, unless Mastra marked it
@@ -2810,12 +2921,14 @@ export const readMessageBlocks = (
     }
     if (state === 'output-error') {
       if (approval.approved === true) blocks.push(approvalBlock('approved'));
+      const sourceRead = sourceReadIssueOf(part, errorCodeOf(part.errorText), parts.slice(index + 1));
       blocks.push({
         type: 'error',
         key,
         toolName,
         title,
         code: errorCodeOf(part.errorText),
+        ...(sourceRead ? { sourceRead } : {}),
         ...(reviewFindingsByIndex.has(index)
           ? { reviewFindings: reviewFindingsByIndex.get(index) }
           : {}),
@@ -2858,8 +2971,10 @@ export const readMessageBlocks = (
       if (approval.approved === true) blocks.push(approvalBlock('approved'));
       const refused = refusalCode(part.output);
       if (refused) {
+        const sourceRead = sourceReadIssueOf(part, refused, parts.slice(index + 1));
         blocks.push({
           type: 'error', key, toolName, title, code: refused,
+          ...(sourceRead ? { sourceRead } : {}),
           ...(reviewFindingsByIndex.has(index)
             ? { reviewFindings: reviewFindingsByIndex.get(index) }
             : {}),
@@ -2887,6 +3002,13 @@ export const readMessageBlocks = (
             ? ANSWERED_SELECTION
             : null;
       if (folded) {
+        const publicText: string[] = [];
+        for (const next of parts.slice(index + 1)) {
+          const nextTool = toolNameOfPart(next);
+          if (nextTool === 'ask_user' || nextTool === 'submit_plan' || next.type === 'data-tool-call-suspended') break;
+          if (next.type === 'text' && typeof next.text === 'string' && next.text.trim()) publicText.push(next.text);
+        }
+        const history = questionHistoryOf(toolName, part.output, resumedAnswers.get(toolCallId), publicText.join('\n\n'));
         blocks.push({
           type: 'question',
           key: `${key}:question`,
@@ -2897,6 +3019,7 @@ export const readMessageBlocks = (
           // keeps saying so once the history is read again (`kcxz.38`, R2).
           toolCallId: stringOf(part.toolCallId),
           question: folded,
+          ...(history ? { history } : {}),
           ...(stale ? { stale: true } : {}),
         });
       }
@@ -2939,19 +3062,28 @@ export const readMessageBlocks = (
 export const withoutRepeatedQuestionLines = (
   perMessage: readonly AgentBlock[][]
 ): AgentBlock[][] => {
+  const historyKey = (block: Extract<AgentBlock, { type: 'question' }>) => block.toolCallId
+    ? JSON.stringify([block.toolCallId, block.question.cardId ?? block.question.text])
+    : block.question.cardId ? `card:${block.question.cardId}` : null;
+  const histories = new Map<string, AgentQuestionHistory>();
+  for (const blocks of perMessage) for (const block of blocks) {
+    if (block.type !== 'question' || !block.history) continue;
+    const key = historyKey(block);
+    if (key) histories.set(key, { ...histories.get(key), ...block.history });
+  }
   const seen = new Set<string>();
-  return perMessage.map((blocks) =>
-    blocks.filter((block) => {
-      if (block.type !== 'question') return true;
-      const keys = [
-        block.toolCallId ? `call:${block.toolCallId}` : null,
-        block.question.cardId ? `card:${block.question.cardId}` : null,
-      ].filter((key): key is string => key !== null);
-      const repeat = block.runId === null && keys.some((key) => seen.has(key));
-      for (const key of keys) seen.add(key);
-      return !repeat;
-    })
-  );
+  return perMessage.map((blocks) => blocks.map(block => {
+    if (block.type !== 'question') return block;
+    const key = historyKey(block), history = key ? histories.get(key) : undefined;
+    return history ? { ...block, history } : block;
+  }).filter((block) => {
+    if (block.type !== 'question') return true;
+    const keys = [block.toolCallId ? `call:${block.toolCallId}` : null,
+      block.question.cardId ? `card:${block.question.cardId}` : null].filter((key): key is string => key !== null);
+    const repeat = block.runId === null && keys.some((key) => seen.has(key));
+    for (const key of keys) seen.add(key);
+    return !repeat;
+  }));
 };
 
 /** The artifacts of a whole conversation, latest last. */

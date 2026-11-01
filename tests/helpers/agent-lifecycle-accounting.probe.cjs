@@ -5,28 +5,47 @@ const { MockLanguageModelV3 } = require('ai/test');
 const { convertArrayToReadableStream } = require('@ai-sdk/provider-utils/test');
 const { createRuntime, IDENTITY } = require('./mastra-service-native-integration.probe.cjs');
 const { until } = require('./agent-native-session-http.probe.cjs');
+const { loadCapabilityModule } = require('./agent-capabilities.cjs');
+const { z } = require('zod');
 
 const usage = { inputTokens: { total: 2, noCache: 2 }, outputTokens: { total: 2, text: 2 } };
 
 async function scenario(kind) {
   let modelCalls = 0, domainCalls = 0;
-  const runtime = await createRuntime({
-    fixtureRun: async () => {
+  const registry = loadCapabilityModule('capability.registry.ts');
+  const capability = {
+    ...registry.CAPABILITY_CATALOGUE.find(entry => entry.risk === (kind === 'fatal' ? 'write' : 'read')),
+    id: 'fixture.persist', group: 'content', risk: kind === 'fatal' ? 'write' : 'read',
+    label: { ru: 'Фикстура', en: 'Fixture' }, description: 'Fixture operation.',
+    input: z.object({ selection: z.enum(['mixed', 'single']) }), untrusted: [],
+    beforeApproval: undefined, approvalContent: undefined, describeApproval: undefined,
+    summarize: result => result,
+    run: async (_ctx, input) => {
       domainCalls++;
-      if (kind === 'fatal' || (kind === 'revision' && domainCalls === 1)) {
+      if (kind === 'fatal' || (['revision', 'unspent'].includes(kind) && domainCalls === 1)) {
+        if (kind === 'unspent') assert.equal(input.selection, 'mixed');
         throw Object.assign(new Error('Controlled native tool refusal.'), {
-          code: 'ANALYTICS_UNAVAILABLE', ...(kind === 'revision' ? { canReviseInput: true } : {}),
+          code: kind === 'unspent' ? 'INTAKE_RESEARCH_SELECTION_INVALID' : 'ANALYTICS_UNAVAILABLE',
+          ...(kind === 'revision' ? { canReviseInput: true } : {}),
+          ...(kind === 'unspent' ? { spentNothing: true } : {}),
         });
       }
+      assert.equal(input.selection, 'single');
       return { id: 'fixture-accepted' };
     },
-    modelFactory: () => new MockLanguageModelV3({ modelId: 'lifecycle-accounting', doStream: async () => {
+  };
+  const runtime = await createRuntime({
+    capabilities: [capability],
+    modelFactory: () => new MockLanguageModelV3({ modelId: 'lifecycle-accounting', doStream: async (args) => {
       const call = modelCalls++;
-      const tool = call === 0 || (kind === 'revision' && call === 1);
+      const tool = call === 0 || (['revision', 'unspent'].includes(kind) && call === 1);
+      if (kind === 'unspent' && call === 1) {
+        assert.match(JSON.stringify(args.prompt), /(?:\\"|")canReviseInput(?:\\"|"):true/);
+      }
       return { stream: convertArrayToReadableStream([
         { type: 'stream-start', warnings: [] },
         ...(tool
-          ? [{ type: 'tool-call', toolCallId: `accounting-tool-${call}`, toolName: 'fixture_persist', input: '{}' }]
+          ? [{ type: 'tool-call', toolCallId: `accounting-tool-${call}`, toolName: 'fixture_persist', input: JSON.stringify({ selection: kind === 'unspent' && call === 0 ? 'mixed' : 'single' }) }]
           : [{ type: 'text-start', id: 'accounting-done' }, { type: 'text-delta', id: 'accounting-done', delta: 'Готово.' }, { type: 'text-end', id: 'accounting-done' }]),
         { type: 'finish', finishReason: { unified: tool ? 'tool-calls' : 'stop', raw: tool ? 'tool_calls' : 'stop' }, usage },
       ]) };
@@ -60,10 +79,10 @@ async function scenario(kind) {
     const recalled = await runtime.memory.recall({ threadId, resourceId: `${IDENTITY.organizationId}:${IDENTITY.userId}`, perPage: false });
     assert.ok(JSON.stringify(recalled.messages).includes('Готово.'), 'The scripted model actually said done after the tool result.');
     assert.equal(runtime.admissions.length, 1);
-    assert.equal(modelCalls, kind === 'revision' ? 3 : 2);
-    assert.equal(domainCalls, kind === 'revision' ? 2 : 1);
+    assert.equal(modelCalls, ['revision', 'unspent'].includes(kind) ? 3 : 2);
+    assert.equal(domainCalls, ['revision', 'unspent'].includes(kind) ? 2 : 1);
     const admissionCompleted = runtime.admissions[0].finishes[0];
-    if (kind === 'revision') {
+    if (['revision', 'unspent'].includes(kind)) {
       assert.deepEqual(execution, { requestId: `lifecycle-accounting-${kind}`, state: 'settled', outcome: 'completed' });
       assert.equal(admissionCompleted, true, 'A server-proven input revision can still complete.');
       assert.equal(savedRun.status, 'success');
@@ -86,6 +105,6 @@ async function scenario(kind) {
 
 (async () => {
   const report = [];
-  for (const kind of process.argv[2] ? process.argv[2].split(',') : ['fatal', 'revision', 'settlement-failure']) report.push(await scenario(kind));
+  for (const kind of process.argv[2] ? process.argv[2].split(',') : ['fatal', 'revision', 'unspent', 'settlement-failure']) report.push(await scenario(kind));
   return report;
 })().then(report => { console.log(JSON.stringify(report)); process.exit(0); }).catch(error => { console.error(error); process.exit(1); });

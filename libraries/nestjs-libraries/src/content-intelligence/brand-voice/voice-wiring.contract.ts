@@ -2665,6 +2665,8 @@ export type IntakeCorrectionV1 = {
 
 /** Одна строка над таблицей: сколько чего нашлось. */
 export type IntakeResearchSummaryV1 = {
+  /** Original saved assessments; composition is not a new semantic review. */
+  captures?: Array<{ snapshotKey: string; query: string; assessment: unknown }>;
   confirmed: number;
   conflicting: number;
   unverified: number;
@@ -3194,8 +3196,13 @@ export type PieceCoreRevisionV1 = {
 };
 
 export type ZagotovkaCoreV1 = {
+  /** Completed, server-owned atomic series receipts; native workflows own pending state. */
+  adaptationSeries?: Array<{ seriesId: string; actorUserId: string; channelId: string; fingerprint: string;
+    parts: Array<{ adaptationId: string; postId: string; ordinal: number; title: string | null; createdAt: string }> }>;
   version: typeof PIECE_CORE_VERSION;
   request?: import('../intake/request-understanding').IntakeUnderstandingV1;
+  /** Labelled earlier conversation and references; never additional authority. */
+  contextMaterial?: string;
   researchSelection?: import('../intake/request-understanding').IntakeResearchSelectionV1;
   researchSummary?: IntakeResearchSummaryV1;
   text: string;
@@ -3281,6 +3288,7 @@ export type ZagotovkaCoreV1 = {
 };
 
 export type AdaptationV1 = {
+  series?: { id: string; index: number; total: number };
   id: string;
   pieceId: string;
   kind: AdaptationKindV1;

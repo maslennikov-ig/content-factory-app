@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import type { AgentErrorCode } from '../capabilities/agent-parts.contract';
 import { redactSecretShapes } from './secret-shapes';
+import { nativeTerminalProviderError, readNativeTerminalProviderError } from '../../openai/ai.provider-terminal-error';
 
 /**
  * Stream errors in product codes (`content-factory-next-kcxz.8`, premortem S6,
@@ -56,14 +57,31 @@ export const conductorErrorCode = (
   error: unknown,
   scope: ConductorErrorScope = {}
 ): AgentErrorCode => {
-  const code = ownErrorCode(error);
+  const terminal = nativeTerminalFromError(error);
+  const code = terminal?.code ?? ownErrorCode(error);
   // The step that carried the pictures was refused for its content: the
   // model does not take pictures, or not this one (review W4-25 vision F5).
   if (code === 'AI_PROVIDER_REJECTED' && scope.picturesInStep?.()) {
-    const status = statusOf(error) ?? statusOf(field(error, 'cause'));
+    const status = terminal?.status ?? statusOf(error) ?? statusOf(field(error, 'cause'));
     if (status !== undefined && CONTENT_REJECTIONS.has(status)) return 'AGENT_PICTURE_NOT_SEEN';
   }
   return code;
+};
+
+// Mastra emits metadata in TripWire.options or the replayed tripwire payload.
+const nativeTerminalFromError = (error: unknown) => {
+  const seen = new Set<object>();
+  const queue: unknown[] = [error];
+  while (queue.length && seen.size < 16) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object' || seen.has(current)) continue;
+    seen.add(current);
+    const metadata = field(field(current, 'options'), 'metadata') ?? field(field(current, 'payload'), 'metadata');
+    const terminal = readNativeTerminalProviderError(field(metadata, 'cfNativeTerminalModelError'));
+    if (terminal) return terminal;
+    queue.push(field(current, 'cause'), field(current, 'error'));
+  }
+  return undefined;
 };
 
 const ownErrorCode = (error: unknown): AgentErrorCode => {
@@ -94,7 +112,7 @@ const ownErrorCode = (error: unknown): AgentErrorCode => {
   if (name === 'TripWire' || field(error, 'processorId') !== undefined) {
     return 'AGENT_BLOCKED';
   }
-  if (status === 402 && (fromProvider(error) || fromProvider(cause))) {
+  if (nativeTerminalProviderError(error).code === 'AI_PROVIDER_PAYMENT_REQUIRED') {
     return 'AI_PROVIDER_PAYMENT_REQUIRED';
   }
   if (

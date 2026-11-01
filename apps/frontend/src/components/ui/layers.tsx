@@ -5,7 +5,11 @@ import { FC, ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 import { MenuCommand } from '@contentfactory/react/choice/choice.menu';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, RefObject } from 'react';
+import { autoUpdate, computePosition, flip, offset, shift, size, type Placement, type SizeOptions } from '@floating-ui/dom';
+import { Button } from '@contentfactory/react/form/button';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { containsIncludingHints } from '@contentfactory/react/layout/hint-portal';
 
 export function DescribedMenuItem({
   title,
@@ -58,6 +62,7 @@ export const Dialog: FC<{
   footer?: ReactNode;
   className?: string;
 }> = ({ open, onClose, title, children, footer, className }) => {
+  const t = useT();
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -104,10 +109,13 @@ export const Dialog: FC<{
             className
           )}
         >
-          <header className="px-[20px] pt-[18px] pb-[12px] border-b border-cf-border">
-            <h2 id={titleId} className="cf-heading-md text-cf-ink">
+          <header className="flex items-start justify-between gap-[12px] px-[20px] pt-[18px] pb-[12px] border-b border-cf-border">
+            <h2 id={titleId} className="min-w-0 cf-heading-md text-cf-ink">
               {title}
             </h2>
+            <Button iconOnly density="dense" variant="quiet" aria-label={t('close', 'Close')} onClick={onClose} className="shrink-0">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l10 10M13 3L3 13" /></svg>
+            </Button>
           </header>
           <div className="p-[20px] cf-body-md text-cf-ink">{children}</div>
           {footer && (
@@ -122,21 +130,88 @@ export const Dialog: FC<{
 };
 
 /** Popover and dropdown menu share one shell: raised surface, 8px, shadow. */
-export const Popover: FC<{
+type PopoverProps = {
   children: ReactNode;
   className?: string;
   role?: 'menu' | 'dialog' | 'listbox';
-}> = ({ children, className, role = 'menu' }) => (
-  <div
-    role={role}
-    className={clsx(
-      'min-w-[180px] rounded-[8px] p-[6px]',
-      'bg-cf-surface-raised border border-cf-border shadow-menu',
-      className
-    )}
-  >
-    {children}
-  </div>
+  anchorRef?: RefObject<HTMLElement | null>;
+  onClose?: () => void;
+  placement?: Placement;
+  ariaLabel?: string;
+};
+
+const POPOVER_SURFACE = 'rounded-[8px] p-[6px] bg-cf-surface-raised border border-cf-border shadow-menu';
+
+// Portals opened by controls inside another popover remain part of that layer.
+const anchoredPopovers = new Map<HTMLElement, HTMLElement>();
+const containsPopoverTree = (root: HTMLElement, target: EventTarget | null, visited = new Set<HTMLElement>()): boolean => {
+  if (containsIncludingHints(root, target)) return true;
+  if (visited.has(root)) return false;
+  visited.add(root);
+  for (const [panel, anchor] of anchoredPopovers) {
+    if (root.contains(anchor) && containsPopoverTree(panel, target, visited)) return true;
+  }
+  return false;
+};
+
+const AnchoredPopover: FC<PopoverProps> = ({ children, className, role = 'menu', anchorRef, onClose, placement = 'bottom-end', ariaLabel }) => {
+  const floating = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  const [positioned, setPositioned] = useState(false);
+
+  useEffect(() => {
+    const anchor = anchorRef?.current;
+    const element = floating.current;
+    if (!anchor || !element) return;
+    let active = true;
+    let revision = 0;
+    const update = () => {
+      const current = ++revision;
+      void computePosition(anchor, element, {
+        strategy: 'fixed', placement,
+        middleware: [offset(4), flip({ padding: 8 }), shift({ padding: 8 }), size({ padding: 8, apply({ availableWidth, availableHeight, elements }: Parameters<NonNullable<SizeOptions['apply']>>[0]) {
+          Object.assign(elements.floating.style, { maxWidth: `${Math.max(0, availableWidth)}px`, maxHeight: `${Math.max(0, availableHeight)}px` });
+        } })],
+      }).then(({ x, y }) => {
+        if (!active || current !== revision) return;
+        Object.assign(element.style, { left: `${x}px`, top: `${y}px` });
+        setPositioned(true);
+      });
+    };
+    anchoredPopovers.set(element, anchor);
+    const cleanup = autoUpdate(anchor, element, update);
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!containsIncludingHints(anchor, target) && !containsPopoverTree(element, target)) close.current?.();
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && !Array.from(anchoredPopovers.values()).some((childAnchor) => element.contains(childAnchor))) {
+        anchor.focus();
+        if (document.activeElement !== anchor) {
+          anchor.querySelector<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')?.focus();
+        }
+        close.current?.();
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', keydown);
+    return () => {
+      active = false;
+      anchoredPopovers.delete(element);
+      cleanup();
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', keydown);
+    };
+  }, [anchorRef, placement]);
+
+  return <div ref={floating} role={role} aria-label={ariaLabel} style={{ position: 'fixed', top: 0, left: 0, opacity: positioned ? 1 : 0, minWidth: 'min(180px, calc(100vw - 16px))', overflowY: 'auto' }} className={clsx('z-[60]', POPOVER_SURFACE, className)}>{children}</div>;
+};
+
+export const Popover: FC<PopoverProps> = ({ anchorRef, ...props }) => anchorRef ? (
+  <Portal><AnchoredPopover {...props} anchorRef={anchorRef} /></Portal>
+) : (
+  <div role={props.role ?? 'menu'} className={clsx('min-w-[180px]', POPOVER_SURFACE, props.className)}>{props.children}</div>
 );
 
 export const MenuItem: FC<{
@@ -151,8 +226,8 @@ export const MenuItem: FC<{
     disabled={disabled}
     onClick={onClick}
     className={clsx(
-      'flex w-full items-center gap-[8px] h-[32px] px-[10px] rounded-[4px]',
-      'cf-body-md text-cf-ink text-left transition-colors duration-state',
+      'flex w-full h-fit min-h-[32px] items-center gap-[8px] px-[10px] py-[4px] rounded-[4px]',
+      'cf-body-md text-cf-ink text-left [overflow-wrap:anywhere] transition-colors duration-state',
       'hover:bg-cf-surface-subtle disabled:opacity-55 disabled:cursor-not-allowed',
       className
     )}

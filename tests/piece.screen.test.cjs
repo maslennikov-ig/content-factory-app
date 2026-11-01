@@ -249,6 +249,37 @@ const drawChannel = (props = {}, adaptations = [adaptation()]) => {
   );
 };
 
+describe('saved series navigation', () => {
+  const seriesRows = () => [
+    ...Array.from({ length: 12 }, (_, i) => adaptation({ id: `old-${i + 1}`, createdAt: '2026-10-30T15:52:00Z', series: { id: 'old', index: i + 1, total: 12 } })),
+    ...Array.from({ length: 3 }, (_, i) => adaptation({ id: `new-${i + 1}`, createdAt: '2026-10-31T11:49:00Z', title: `Тема ${i + 1}`, series: { id: 'new', index: i + 1, total: 3 } })),
+  ];
+  test('only selected series parts are visible; older series has a dated collapsed history and opens its first saved post', () => {
+    const rows = seriesRows(), onSelectAdaptation = jest.fn();
+    drawChannel({ adaptation: rows[12], onSelectAdaptation }, rows);
+    const navigation = screen.getByRole('radiogroup', { name: 'Посты серии' });
+    expect(within(navigation).getAllByRole('radio')).toHaveLength(3);
+    expect(within(navigation).queryByText('1/12')).toBeNull();
+    const history = screen.getByRole('button', { name: 'История серий', expanded: false });
+    expect(screen.queryByRole('button', { name: /12 постов/ })).toBeNull();
+    fireEvent.click(history);
+    const old = screen.getByRole('button', { name: /12 постов/ });
+    expect(old.textContent).toContain('2026');
+    fireEvent.click(old);
+    expect(onSelectAdaptation).toHaveBeenCalledWith('old-1');
+  });
+  test('an explicitly opened historical member remains selected and latest series is available in history', () => {
+    const rows = seriesRows(), onSelectAdaptation = jest.fn();
+    drawChannel({ adaptation: rows[7], onSelectAdaptation }, rows);
+    const navigation = screen.getByRole('radiogroup', { name: 'Посты серии' });
+    expect(within(navigation).getAllByRole('radio')).toHaveLength(12);
+    expect(within(navigation).getByRole('radio', { checked: true }).textContent).toBe('8/12');
+    fireEvent.click(screen.getByRole('button', { name: 'История серий' }));
+    fireEvent.click(screen.getByRole('button', { name: /Последний результат.*3 поста/ }));
+    expect(onSelectAdaptation).toHaveBeenCalledWith('new-1');
+  });
+});
+
 /* ---------------------------------------------------------------------- */
 
 describe('the page is one workspace with tabs', () => {
@@ -668,6 +699,25 @@ describe('the channel tab with an adaptation', () => {
     expect(onSelectAdaptation).toHaveBeenCalledWith('old');
   });
 
+  test('a series member keeps its position/title and an older standalone text stays available in history', () => {
+    const rows = [
+      adaptation({ id: 'old', createdAt: '2026-09-18T09:00:00Z' }),
+      adaptation({ id: 'new', createdAt: '2026-09-18T10:00:00Z', title: 'Вторая часть', series: { id: 'series-1', index: 2, total: 3 } }),
+    ];
+    const onSelectAdaptation = jest.fn();
+    drawChannel({ adaptation: rows[1], onSelectAdaptation }, rows);
+    expect(screen.getByText('2/3 · Вторая часть')).toBeTruthy();
+    expect(screen.queryByRole('radiogroup', { name: 'Варианты текста' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'История серий' }));
+    fireEvent.click(screen.getByRole('button', { name: /1 пост/ }));
+    expect(onSelectAdaptation).toHaveBeenCalledWith('old');
+  });
+
+  test('a single loaded series member still shows its position', () => {
+    drawChannel({}, [adaptation({ title: 'Первая часть', series: { id: 'series-1', index: 1, total: 3 } })]);
+    expect(screen.getByText('1/3 · Первая часть')).toBeTruthy();
+  });
+
   test('«было N → стало M» stays beside the quality line after an accepted review', () => {
     drawChannel({ slopChange: { slopBefore: 2, slopAfter: 0 } });
     expect(
@@ -835,6 +885,74 @@ describe('the channel tab with an adaptation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Изменить время' }));
     fireEvent.click(screen.getByRole('button', { name: 'Перенести' }));
     expect(onMove).toHaveBeenCalledTimes(1);
+  });
+
+  test('compact actions preserve keyboard navigation and confirm the selected deletion', () => {
+    const onConfirm = jest.fn();
+    const onArchive = jest.fn();
+    drawPage({ tab: 'tg-main', onArchive, channelDelete: { id: 'adaptation-1', onConfirm } });
+    const trigger = document.querySelector('[data-workspace-menu="piece-actions"] button');
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const menu = screen.getByRole('menu', { name: trigger.getAttribute('aria-label') });
+    const video = menu.querySelector('[data-workspace-menu-item="video"]');
+    const archive = menu.querySelector('[data-workspace-menu-item="archive"]');
+    const remove = menu.querySelector('[data-workspace-menu-item="delete"]');
+    expect(video.textContent).toBeTruthy();
+    expect(archive.textContent).toContain('В архив');
+    expect(remove.textContent).toContain('Удалить');
+    expect(document.activeElement).toBe(video);
+    fireEvent.keyDown(video, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(archive);
+    fireEvent.keyDown(archive, { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.queryByRole('menu', { name: trigger.getAttribute('aria-label') })).toBeNull();
+    fireEvent.click(trigger);
+    fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
+    const dialog = screen.getByRole('dialog', { name: 'Удалить эту адаптацию?' });
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отменить' }));
+    expect(document.activeElement).toBe(trigger);
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(trigger);
+    fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Удалить эту адаптацию?' })).getByRole('button', { name: 'Удалить' }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onArchive).not.toHaveBeenCalled();
+  });
+
+  test('compact deletion confirmation closes when the piece changes', () => {
+    const oldDelete = jest.fn(), newDelete = jest.fn();
+    const view = drawPage({ tab: 'core', onDelete: oldDelete });
+    fireEvent.click(document.querySelector('[data-workspace-menu="piece-actions"] button'));
+    fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
+    expect(screen.getByRole('dialog', { name: 'Удалить всю заготовку?' })).not.toBeNull();
+    const detail = detailOf();
+    detail.piece.id = 'piece-2';
+    detail.piece.title = 'Другая заготовка';
+    view.rerender(React.createElement(variables.VariableContextComponent, { language: 'ru' },
+      React.createElement(PieceScreen, {
+        locale: 'ru', state: 'default', detail, channels: adapter.workspaceChannels(detail),
+        tab: 'core', canWrite: true, busy: false, coreTab: coreTab(detail),
+        renderChannelTab: () => null, onTabChange: noop, onArchive: noop,
+        onDelete: newDelete, onRetry: noop,
+      })));
+    expect(screen.queryByRole('dialog', { name: 'Удалить всю заготовку?' })).toBeNull();
+    expect(oldDelete).not.toHaveBeenCalled();
+    expect(newDelete).not.toHaveBeenCalled();
+    fireEvent.click(document.querySelector('[data-workspace-menu="piece-actions"] button'));
+    fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
+    const dialog = screen.getByRole('dialog', { name: 'Удалить всю заготовку?' });
+    expect(dialog.textContent).toContain('Другая заготовка');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отменить' }));
+    expect(newDelete).not.toHaveBeenCalled();
+  });
+
+  test('compact actions retain the disabled state of a channel deletion', () => {
+    drawPage({ tab: 'tg-main', channelDelete: { id: 'adaptation-1', onConfirm: noop, disabled: true } });
+    fireEvent.click(document.querySelector('[data-workspace-menu="piece-actions"] button'));
+    expect(document.querySelector('[data-workspace-menu-item="delete"]').disabled).toBe(true);
+    expect(document.querySelector('[data-workspace-menu-item="archive"]').disabled).toBe(false);
   });
 
   test('one «Удалить» in the page title row, right of «В архив»: the adaptation on a channel tab (97dq.78)', () => {

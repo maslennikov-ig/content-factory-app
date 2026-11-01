@@ -25,6 +25,9 @@ import {
 import { ValidContent } from '@contentfactory/helpers/utils/valid.images';
 import { sanitizePostContent } from '@contentfactory/helpers/utils/sanitize.post.content';
 import { EDITORIAL_STAGE_VALUES } from '@contentfactory/nestjs-libraries/dtos/posts/get.posts.dto';
+import { CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1, CONTENT_CONTEXT_MAX_FACTS_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
+
+const MAX_CONTEXT_CITATIONS = CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 + CONTENT_CONTEXT_MAX_FACTS_V1;
 
 export class Integration {
   @IsDefined()
@@ -74,7 +77,7 @@ export class PostContent {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(16)
+  @ArrayMaxSize(MAX_CONTEXT_CITATIONS)
   @IsString({ each: true })
   usedCitationIds?: string[];
 }
@@ -133,7 +136,7 @@ export class Post {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(16)
+  @ArrayMaxSize(MAX_CONTEXT_CITATIONS)
   @IsString({ each: true })
   usedCitationIds?: string[];
 

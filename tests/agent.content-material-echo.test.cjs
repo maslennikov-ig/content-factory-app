@@ -29,6 +29,27 @@ const capturePromptChatModel = (capture, usedCitationIds = []) => ({
   },
 });
 
+describe('opening and body share the whole-post editorial constraints', () => {
+  test('the body sees the actual opening and the assembly boundary, including question limits', async () => {
+    const prompts = [];
+    const { service } = loadAgentGraph({ chatModel: capturePromptChatModel(p => prompts.push(p)) });
+    const state = stateFor(undefined);
+    state.hook = 'How much confidence is enough?';
+    await service.generateContent(state);
+    expect(prompts[0]).toContain(state.hook);
+    expect(prompts[0]).toContain('The saved first post combines the existing hook with your first content item');
+    expect(prompts[0]).toMatch(/question.*limits.*whole assembled post/i);
+    expect(prompts[0]).not.toContain('Use the hook as inspiration');
+  });
+
+  test('the opening reserves a requested closing question for the body', async () => {
+    const prompts = [];
+    const { service } = loadAgentGraph({ chatModel: capturePromptChatModel(p => prompts.push(p)) });
+    await service.generateHook(stateFor(undefined));
+    expect(prompts[0]).toContain('if a closing question is requested, reserve it for the body');
+  });
+});
+
 const stateFor = (contentContext) => ({
   orgId: 'org',
   language: 'en',

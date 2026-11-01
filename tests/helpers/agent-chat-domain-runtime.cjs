@@ -24,15 +24,20 @@ async function prepare() {
   const suffix = randomUUID().slice(0, 8);
   const database = `cf_chat_5961_20261024_${suffix}`;
   const { Client } = require('pg');
-  const admin = new Client({ connectionString: 'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db' });
+  const baseUrl = new URL(process.env.CF_TEST_PG_URL || 'postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db');
+  if (!['postgres:', 'postgresql:'].includes(baseUrl.protocol) || !['127.0.0.1', 'localhost'].includes(baseUrl.hostname) || Number(baseUrl.port) <= 0 || baseUrl.pathname !== '/cf-dev-db' || baseUrl.hash || [...baseUrl.searchParams].length) throw Error('Domain probes require an explicit loopback cf-dev-db without URL overrides');
+  const databaseUrl = name => { const url = new URL(baseUrl); url.pathname = '/' + name; url.search = ''; return url.href; };
+  const redisUrl = new URL(process.env.CF_TEST_REDIS_URL || 'redis://127.0.0.1:6380'); redisUrl.pathname = '/15';
+  if (redisUrl.protocol !== 'redis:' || !['127.0.0.1', 'localhost'].includes(redisUrl.hostname) || Number(redisUrl.port) <= 0 || redisUrl.hash || [...redisUrl.searchParams].length) throw Error('Domain probes require an explicit loopback Redis endpoint');
+  const admin = new Client({ connectionString: baseUrl.href });
   await admin.connect();
   try { for (const name of [database, `${database}_mastra`]) { await admin.query(`CREATE DATABASE "${name}"`); await admin.query(`COMMENT ON DATABASE "${name}" IS '${OWNER}'`); } } finally { await admin.end(); }
   const env = {
     NODE_ENV:'development',PORT:'3496',FRONTEND_URL:'http://localhost:4296',MAIN_URL:'http://localhost:4296',NEXT_PUBLIC_URL:'http://localhost:4296',
     NEXT_PUBLIC_BACKEND_URL:'http://localhost:3496',BACKEND_INTERNAL_URL:'http://localhost:3496',
-    DATABASE_URL:`postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/${database}?connection_limit=8`,
-    MASTRA_DATABASE_URL:`postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/${database}_mastra`,
-    REDIS_URL:'redis://127.0.0.1:6380/15',JWT_SECRET:randomUUID()+randomUUID(),NOT_SECURED:'true',API_LIMIT:'10000',
+    DATABASE_URL:databaseUrl(database) + "?connection_limit=8",
+    MASTRA_DATABASE_URL:databaseUrl(`${database}_mastra`),
+    REDIS_URL:redisUrl.href,JWT_SECRET:randomUUID()+randomUUID(),NOT_SECURED:'true',API_LIMIT:'10000',
     STORAGE_PROVIDER:'local',UPLOAD_DIRECTORY:path.join(directory,'uploads'),NEXT_PUBLIC_UPLOAD_DIRECTORY:'/uploads',
     EMAIL_PROVIDER:'',DISABLE_REGISTRATION:'true',MCP_ENABLED:'',NEXT_TELEMETRY_DISABLED:'1',RUN_CRON:'',
     TEMPORAL_ADDRESS:'127.0.0.1:1',TEMPORAL_NAMESPACE:`cf-chat-5961-${suffix}`,

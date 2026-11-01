@@ -7,6 +7,7 @@ const { ConsoleLogger } = require('@mastra/core/logger');
 const { loadCapabilityModule, IDENTITY } = require('./agent-capabilities.cjs');
 const { buildConductorAgent } = loadCapabilityModule('../conductor/conductor.agent.ts');
 const { buildConductorContext } = loadCapabilityModule('../conductor/conductor.context.ts');
+const { conductorInstructions } = loadCapabilityModule('../conductor/conductor.instructions.ts');
 
 async function main() {
   let snapshotReads = 0;
@@ -34,6 +35,11 @@ async function main() {
     assert.ok(current.includes('Do not describe your own work with product/team plural or in the third person'), 'Current first-person instructions must replace the frozen prompt');
     assert.ok(current.includes('Use Deutsch by default'), 'The trusted full reply locale must reach a resumed step');
     assert.ok(current.includes('current workspace'));
+    const expected = conductorInstructions({ language: IDENTITY.language, interfaceLanguage: 'de',
+      role: IDENTITY.role, timeZone: IDENTITY.timeZone, now: new Date('2026-10-27T00:00:00Z'),
+      snapshot: { marker: 'current workspace' }, workContext: null });
+    assert.ok(list.getSystemMessages().some(message => message.content === expected),
+      'The complete current instruction, including native answer proposals, reaches warm and restored steps');
     assert.ok(!current.includes('Old deployment:'));
     assert.deepEqual(list.getSystemMessages('fixture-guidance'), [{ role: 'system', content: 'Native processor-owned guidance' }]);
     assert.equal(JSON.stringify(list.get.all.db()), history, 'Native memory history is not rewritten');

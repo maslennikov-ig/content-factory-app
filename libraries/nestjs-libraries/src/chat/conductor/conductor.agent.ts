@@ -6,7 +6,6 @@ import { ChatChannelProcessor } from '@mastra/core/channels';
 import type { MastraMemory } from '@mastra/core/memory';
 import {
   ModelSelectionProcessor,
-  TokenLimiterProcessor,
   ToolCallFilter,
   UnsupportedFileHandler,
   type ModelSelectionDecision,
@@ -32,9 +31,10 @@ import {
   assertCapabilityRegistry,
   CAPABILITY_CATALOGUE,
 } from '../capabilities/capability.registry';
-import type {
-  CapabilityDeclaration,
-  CapabilityIdentity,
+import {
+  toolNameOf,
+  type CapabilityDeclaration,
+  type CapabilityIdentity,
 } from '../capabilities/capability.types';
 import {
   activeCapabilityToolNames,
@@ -50,15 +50,18 @@ import {
   conductorContextSchema,
   conductorScopes,
 } from './conductor.context';
-import { AGENT_WORK_CONTEXT_KEY, type ResolvedAgentWorkContext } from './work-context';
+import { AGENT_WORK_CONTEXT_KEY, AGENT_WRITING_SELECTION_KEY, type ResolvedAgentWorkContext, type ResolvedAgentWritingSelection } from './work-context';
 export { readConductorModelTask, seedConductorModelTask } from './conductor.model-task';
 import { conductorInstructions } from './conductor.instructions';
 import { ViewedPicturesProcessor } from './conductor.pictures';
 import { stepNotes } from './conductor.steps';
 import { currentConductorExecution } from './conductor.execution';
 import { CONDUCTOR_SKILLS } from './conductor.skills';
-import { configureNativeSessionPermissions, NATIVE_SAFE_BUILTIN_TOOLS } from './native-session-permissions';
+import { configureNativeSessionPermissions, nativeQuestionTools, NATIVE_SAFE_BUILTIN_TOOLS } from './native-session-permissions';
+import { configureNativeSessionContext, type NativeRunContextResolver } from './native-session-context';
 import { NativeToolResultPromptProcessor } from './native-tool-result';
+import { ConductorPromptBudget } from './conductor.prompt-budget';
+import { NativeToolCallLifecycleProcessor } from './native-tool-call-lifecycle';
 import { NativeResponseBoundaryProcessor } from './native-response-boundary';
 import {
   conductorInputProcessors,
@@ -146,6 +149,7 @@ export const createConductorModelSelectionProcessor = (
  */
 
 export type ConductorDependencies = {
+  promptTokenLimit?: (identity: CapabilityIdentity, modelId: string) => Promise<number | undefined>;
   services: CapabilityServices;
   gate: CapabilityGate;
   /**
@@ -395,6 +399,10 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         const selected = requestContext.get(AGENT_WORK_CONTEXT_KEY);
         return typeof selected === 'string' && selected ? JSON.parse(selected) as ResolvedAgentWorkContext : null;
       })(),
+      writingSelection: (() => {
+        const selected = requestContext.get(AGENT_WRITING_SELECTION_KEY);
+        return typeof selected === 'string' && selected ? JSON.parse(selected) as ResolvedAgentWritingSelection : undefined;
+      })(),
     });
   };
 
@@ -484,13 +492,18 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       ...(deps.memory ? [createConductorTaskStateProcessor() as any] : []),
       new ViewedPicturesProcessor(),
       new ToolCallFilter({
+        // Compact product/source traffic, never native human answers, plan
+        // decisions or task progress. Native built-ins have no toModelOutput
+        // marker, so an all-tools filter silently erased those older results.
+        exclude: [...capabilities.map(capability => toolNameOf(capability.id)), 'readConversationHistory', 'skill_read'],
         filterAfterToolSteps: CONDUCTOR_TOOL_STEP_FILTER,
         preserveModelOutput: true,
       }),
-      new TokenLimiterProcessor({
-        limit: CONDUCTOR_PROMPT_TOKEN_LIMIT,
-        strategy: 'truncate',
-        trimMode: 'best-fit',
+      new ConductorPromptBudget(CONDUCTOR_PROMPT_TOKEN_LIMIT, async ({ model, requestContext }) => {
+        const identity = readCapabilityIdentity(requestContext as any);
+        return identity && deps.promptTokenLimit
+          ? deps.promptTokenLimit(identity, model.modelId)
+          : undefined;
       }),
       new NativeToolResultPromptProcessor(),
       ...retryConfig.inputProcessors,
@@ -498,6 +511,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
     ],
     outputProcessors: [
       ...conductorOutputProcessors(),
+      new NativeToolCallLifecycleProcessor(),
       {
         id: 'native-session-execution-budget',
         processOutputStep: (args: any) => {
@@ -533,6 +547,7 @@ export const buildConductorController = (
     services?: CapabilityServices;
     gate?: CapabilityGate;
     resolveSubagentModel?: (modelId: string, context?: any) => any;
+    restoreRunContext?: NativeRunContextResolver;
   }
 ) => {
   const subagents =
@@ -553,7 +568,8 @@ export const buildConductorController = (
     ...(options?.resolveSubagentModel
       ? { resolveSubagentModel: options.resolveSubagentModel }
       : {}),
-    disableBuiltinTools: ['submit_plan', 'subagent'],
+    tools: nativeQuestionTools(),
+    disableBuiltinTools: ['ask_user', 'submit_plan', 'subagent'],
     toolCategoryResolver: (toolName) => NATIVE_SAFE_BUILTIN_TOOLS.includes(toolName) ||
       (options?.capabilities ?? CAPABILITY_CATALOGUE).some(capability => capability.risk === 'read' && capability.id.replace(/\./g, '_') === toolName)
       ? 'read' : null,
@@ -578,6 +594,7 @@ export const buildConductorController = (
   // remains the capability's authoritative requireApproval function.
   controller.onSessionCreated(async (session) => {
     await configureNativeSessionPermissions(session, options?.capabilities ?? CAPABILITY_CATALOGUE, options?.memory);
+    if (options?.restoreRunContext) configureNativeSessionContext(session, options.restoreRunContext);
   }, { blocking: true });
   return controller;
 };

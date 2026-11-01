@@ -249,21 +249,17 @@ describe('«Площадка + ещё нет» keeps the rows that platform has 
   разметки узнать было нельзя.
 */
 describe('the table renders as a table, and the row says how to open it', () => {
-  test('the breakpoint is a named screen Tailwind actually emits', () => {
+  test('cards, table and sorting share a container-based breakpoint', () => {
     drawTable();
     const table = document.querySelector('[data-piece-table]');
     const cards = document.querySelector('[data-piece-cards]');
-    const panel = table.closest('.hidden');
-
-    // Именованный экран `table` объявлен в `tailwind.config.cjs` строкой и
-    // потому выпускается. Произвольный вариант с шириной в скобках Tailwind
-    // 3.4 молча выбрасывает, пока в `screens` есть объект с `raw`, — так
-    // таблица и уехала на боевой невидимой.
-    expect(panel.className).toContain('table:block');
-    expect(cards.className).toContain('table:hidden');
-    expect(`${panel.className} ${cards.className}`).not.toMatch(
-      /(min|max)-\[[^\]]+\]:/
-    );
+    const panel = table.closest('.cf-pieces-table');
+    const container = cards.closest('.cf-pieces-container');
+    const css = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../apps/frontend/src/app/global.scss'), 'utf8');
+    expect(container.contains(panel)).toBe(true);
+    expect(container.querySelector('.cf-pieces-sort')).toBeTruthy();
+    expect(css).toMatch(/@container pieces \(min-width: 720px\)/);
+    expect(css).toMatch(/\.cf-pieces-cards, \.cf-pieces-sort \{ display: none; \}/);
   });
 
   test('the arrow that opens the row has a name, and it changes when it is open', () => {

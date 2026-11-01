@@ -51,8 +51,10 @@ test('an authoritative manual revision change is refused without consuming the s
   expect(pending.answers[0].text).toBe('Моя позиция');
 });
 
-const { loadRegistry, requestContextFor, servicesFrom, executeTool } = require('./helpers/agent-capabilities.cjs');
+const { loadRegistry, loadCapabilityModule, IDENTITY, requestContextFor, servicesFrom, executeTool } = require('./helpers/agent-capabilities.cjs');
 const registry = loadRegistry();
+const { buildConductorContext } = loadCapabilityModule('../conductor/conductor.context.ts');
+const authorContext = text => buildConductorContext({identity: IDENTITY, threadId: 'owned-thread', originalAuthorRequest: {messageId:'current', text}});
 const build = (id, services) => registry.buildCapabilityTool(registry.CAPABILITY_CATALOGUE.find(capability => capability.id === id), {
   services: servicesFrom(services), language: 'ru', entrance: 'chat',
 });
@@ -129,6 +131,66 @@ test('native adaptation saves human answers one at a time and preserves confirme
   expect(prepareAdapt.mock.calls[1][2]).toMatchObject({answers: [{key: 'position', text: 'Вариант 6', origin: 'confirmed'}], decideKeys: ['ask-1']});
 });
 
+test('native adaptation forwards the explicit skip of author questions, not a reader CTA override', async () => {
+  const saved = detail();
+  const prepareAdapt = jest.fn(async (_org, pieceId, request) => ({pieceId, request}));
+  const adapt = jest.fn(async function* (_org, plan) {
+    if (!plan.request.skipInterview) { yield {name: 'questions', questions: [original]}; return; }
+    saved.adaptations.push({id: 'adaptation-1', integrationId: 'channel-1', body: 'Вопрос читателю?'});
+    yield {name: 'adaptation', adaptation: {id: 'adaptation-1', state: 'draft'}};
+  });
+  const tool = build('piece.adapt', {PieceService: {detail: async () => saved, adaptPlanMode: async () => 'draft', prepareAdapt, adapt}});
+  const result = await executeTool(tool, {pieceId: 'piece-1', channelId: 'channel-1', skipInterview: true}, {requestContext: requestContextFor(registry)});
+  expect(prepareAdapt.mock.calls[0][2]).toMatchObject({skipInterview: true});
+  expect(prepareAdapt.mock.calls[0][2].overrides?.ctaKind).toBeUndefined();
+  expect(result.suspended).toHaveLength(0);
+  expect(result.output).toMatchObject({ok: true, summary: {adaptationId: 'adaptation-1'}});
+});
+
+test('autopilot consent resumes the original author-question skip choice from the saved card', async () => {
+  const saved = detail();
+  const prepareAdapt = jest.fn(async (_org, pieceId, request) => ({pieceId, request}));
+  const adapt = jest.fn(async function* () {
+    saved.adaptations.push({id: 'adaptation-1', integrationId: 'channel-1', body: 'Вопрос читателю?'});
+    yield {name: 'adaptation', adaptation: {id: 'adaptation-1', state: 'draft'}};
+  });
+  const tool = build('piece.adapt', {PieceService: {detail: async () => saved, adaptPlanMode: async () => 'autopilot', prepareAdapt, adapt},
+    IntegrationService: {getIntegrationsForChannelList: async () => [{id: 'channel-1', name: 'Канал', providerIdentifier: 'telegram'}]}});
+  const input = {pieceId: 'piece-1', channelId: 'channel-1', skipInterview: true};
+  const first = await executeTool(tool, input, {requestContext: requestContextFor(registry)});
+  expect(first.suspended[0].continuation.skipInterview).toBe(true);
+  expect(prepareAdapt).not.toHaveBeenCalled();
+  const final = await executeTool(tool, {...input, skipInterview: false}, {requestContext: requestContextFor(registry),
+    suspendPayload: JSON.parse(JSON.stringify(first.suspended[0])), resumeData: {consentGiven: true}});
+  expect(prepareAdapt.mock.calls[0][2].skipInterview).toBe(true);
+  expect(final.output).toMatchObject({ok: true, summary: {adaptationId: 'adaptation-1'}});
+});
+
+test.each(['explicit', 'decide-all'])('author-question skip (%s) does not reopen or report saved material questions', async mode => {
+  const saved = detail();
+  const oldAsk = {adaptationId: 'adaptation-1', questions: [original, second]};
+  saved.channels = [{integrationId: 'channel-1', materialAsk: oldAsk}];
+  const prepareAdapt = jest.fn(async (_org, pieceId, request) => ({pieceId, request}));
+  const adapt = jest.fn(async function* (_org, plan) {
+    if (!plan.request.skipInterview) { yield {name: 'questions', questions: [original]}; return; }
+    saved.adaptations.push({id: 'adaptation-1', integrationId: 'channel-1', body: 'Вопрос читателю?'});
+    yield {name: 'adaptation', adaptation: {id: 'adaptation-1', state: 'draft'}};
+  });
+  const materialQuestions = jest.fn();
+  const tool = build('piece.adapt', {PieceService: {detail: async () => saved, adaptPlanMode: async () => 'draft', prepareAdapt, adapt, materialQuestions}});
+  const input = {pieceId: 'piece-1', channelId: 'channel-1', ...(mode === 'explicit' ? {skipInterview: true} : {})};
+  let result = await executeTool(tool, input, {requestContext: requestContextFor(registry)});
+  if (mode === 'decide-all') {
+    expect(result.suspended).toHaveLength(1);
+    result = await executeTool(tool, input, {requestContext: requestContextFor(registry), suspendPayload: result.suspended[0], resumeData: {decideForPerson: true}});
+  }
+  expect(result.suspended).toHaveLength(0);
+  expect(result.output).toMatchObject({ok: true, summary: {adaptationId: 'adaptation-1'}});
+  expect(result.output.summary.openQuestions).toEqual({count: 0});
+  expect(saved.channels[0].materialAsk).toBe(oldAsk);
+  expect(materialQuestions).not.toHaveBeenCalled();
+});
+
 test('explicit native read ask/deny restrictions override the ordinary safe-read default', () => {
   const tool = build('piece.open', {});
   for (const policy of ['ask', 'deny']) {
@@ -180,26 +242,32 @@ test.each([false, true])('saved optional adaptation material questions apply one
     return {state: input.dismiss ? 'dismissed' : 'answered'};
   });
   const rebuildCore = jest.fn(async () => {saved.core.text = 'Суть с новым материалом'; return {revisions: 1};});
+  const prepareAdapt = jest.fn(async (_org, pieceId, request) => ({pieceId, request}));
   const tool = build('piece.adapt', {PieceService: {detail: async () => saved, adaptPlanMode: async () => 'draft',
-    prepareAdapt: async (_org, pieceId, request) => ({pieceId, request}), adapt, materialQuestions, rebuildCore}});
+    prepareAdapt, adapt, materialQuestions, rebuildCore}});
   const input = {pieceId: 'piece-1', channelId: 'channel-1'};
-  const first = await executeTool(tool, input, {requestContext: requestContextFor(registry)});
+  const originalRequest = 'Сохраните это условие в публикации. '.repeat(25);
+  const first = await executeTool(tool, input, {requestContext: authorContext(originalRequest)});
   expect(first.suspended[0]).toMatchObject({kind: 'domain-questions', continuation: {operation: 'adaptation-material', result: { qualityReview }}});
+  expect(first.suspended[0].continuation.currentAuthorRequest).toBe(originalRequest);
+  expect(prepareAdapt.mock.calls[0][4].currentAuthorRequest).toBe(originalRequest);
   expect(first.parts.find(part => part.type === 'data-adaptation')?.data.qualityReview.untrustedData.value).toEqual(qualityReview);
   expect(first.suspended[0].questions[0].options).toHaveLength(7);
   let pending = first.suspended[0];
   if (!delegateAll) {
-    const partial = await executeTool(tool, input, {requestContext: requestContextFor(registry), suspendPayload: pending,
+    const partial = await executeTool(tool, input, {requestContext: authorContext('Мой реальный материал'), suspendPayload: pending,
       resumeData: {answers: [{key: 'position', mode: 'custom', text: 'Мой реальный материал'}]}});
     pending = partial.suspended[0];
+    expect(pending.continuation.currentAuthorRequest).toBe(originalRequest);
     expect(materialQuestions).not.toHaveBeenCalled();
     expect(rebuildCore).not.toHaveBeenCalled();
   }
-  const final = await executeTool(tool, input, {requestContext: requestContextFor(registry), suspendPayload: pending, resumeData: {decideForPerson: true}});
+  const final = await executeTool(tool, input, {requestContext: authorContext('Решите за меня'), suspendPayload: pending, resumeData: {decideForPerson: true}});
   expect(final.output).toMatchObject({ok: true, summary: {adaptationId: delegateAll ? 'adaptation-1' : 'adaptation-2', qualityReview: { untrustedData: { value: qualityReview } }}});
   expect(materialQuestions).toHaveBeenCalledTimes(1);
   expect(materialQuestions.mock.calls[0][3]).toEqual(delegateAll ? {adaptationId: 'adaptation-1', dismiss: true}
     : {adaptationId: 'adaptation-1', answers: [{key: 'position', text: 'Мой реальный материал'}]});
   expect(rebuildCore).toHaveBeenCalledTimes(delegateAll ? 0 : 1);
   expect(adapt).toHaveBeenCalledTimes(delegateAll ? 1 : 2);
+  if (!delegateAll) expect(prepareAdapt.mock.calls[1][4].currentAuthorRequest).toBe(originalRequest);
 });

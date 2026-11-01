@@ -46,7 +46,11 @@ export const authorRequestResolver = (
           typeof import('../conductor/agent-threads.service');
         const { messages } = await services(AgentThreadsService).readMessages(identity, threadId, { page: 0, perPage: 200 });
         return messages.flatMap(message => {
-          if (message.role !== 'user' || message.threadId !== threadId || message.resourceId !== resourceId) return [];
+          // Session persists authenticated human turns as native user signals.
+          // Other signals (state/tool/notification) are never author requests.
+          const authored = message.role === 'user' || (message.role === 'signal' &&
+            (message.content?.metadata?.signal as { type?: unknown } | undefined)?.type === 'user');
+          if (!authored || message.threadId !== threadId || message.resourceId !== resourceId) return [];
           const parsed = originalAuthorRequestSchema.safeParse({
             messageId: message.id,
             text: redactSecretShapes(historyText(message)),

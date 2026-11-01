@@ -532,13 +532,13 @@ if (fs.existsSync(builderPath)) {
     assert.deepEqual(repository.standaloneEvidence, pages, 'whole source projections must leave raw evidence unchanged');
   });
 
-  test('an oversized selected corpus keeps bounded fair windows and every mandatory quote instead of full pages', async () => {
-    const { pages, quotes, profile, input } = completeCorpusFixture(16);
+  test('an oversized 18-source corpus keeps bounded fair windows and every mandatory quote instead of full pages', async () => {
+    const { pages, quotes, profile, input } = completeCorpusFixture(18);
     assert.ok(JSON.stringify(profile.effectiveVoice).length + pages.reduce((n, page) => n + page.excerpt.length, 0) > 64_000);
     const repository = new MemoryRepository([], pages);
     const built = await makeBuilder(repository, profile).build('org-a', input);
     const { materialSupport } = loadTypeScriptModule('libraries/nestjs-libraries/src/agent/adaptation-coverage.ts');
-    assert.equal(built.evidence.length, 16);
+    assert.equal(built.evidence.length, 18);
     for (const quote of quotes) assert.ok(materialSupport(quote, built));
     for (const item of built.evidence) {
       assert.ok(item.excerpt.length <= 2_600, 'the existing 2400-character background and essential spans remain bounded');
@@ -546,6 +546,26 @@ if (fs.existsSync(builderPath)) {
     }
     assert.ok(built.renderedCharacterCount <= 64_000);
     assert.deepEqual((await makeBuilder(repository, profile).get('org-a', built.contentContextSnapshotId)).evidence, built.evidence);
+  });
+
+  test('a large proof set still rejects a forged or foreign source before snapshot creation', async () => {
+    for (const mismatch of ['forged', 'foreign']) {
+      const { pages, input } = completeCorpusFixture(18);
+      if (mismatch === 'forged') input.pieceEvidence.quotes[17].quote = 'Not a literal source quote.';
+      else { pages[17].organizationId = 'org-b'; pages[17].snapshot.organizationId = 'org-b'; }
+      const repository = new MemoryRepository([], pages);
+      await assert.rejects(makeBuilder(repository).build('org-a', input), error => error.code === 'CONTENT_EVIDENCE_REQUIRED');
+      assert.equal(repository.snapshots.size, 0);
+    }
+  });
+
+  test('proof above the existing explicit identifier limit fails before snapshot creation', async () => {
+    const { pages, input } = completeCorpusFixture(65);
+    input.pieceEvidence.quotes = [];
+    const repository = new MemoryRepository([], pages);
+    await assert.rejects(makeBuilder(repository).build('org-a', input), error =>
+      error.code === 'CONTENT_EVIDENCE_REQUIRED' && error.message.includes('proof limit is 64'));
+    assert.equal(repository.snapshots.size, 0);
   });
 
   test('long semantic quotes remain mandatory when the stored registry excerpt is exactly that quote', async () => {
@@ -668,9 +688,9 @@ if (fs.existsSync(builderPath)) {
     await assert.rejects(save(), error => error.code === 'CONTENT_CONTEXT_INVALIDATED');
   });
 
-  test('v3 draft finalization accepts actual E9 and E16, rejects E17 and F9, and keeps the legacy citation limit', async () => {
+  test('v3 finalization accepts owned evidence through E64 and preserves identifier, membership and legacy boundaries', async () => {
     const { pages, input } = pieceProofFixture();
-    for (let index = 9; index < 16; index += 1) pages.push(evidence(`piece-${index}`));
+    for (let index = 9; index < 64; index += 1) pages.push(evidence(`piece-${index}`));
     input.userMaterialEvidenceIds = pages.map(page => page.id);
     const repository = new MemoryRepository([], pages);
     const built = await makeBuilder(repository).build('org-a', input);
@@ -679,15 +699,68 @@ if (fs.existsSync(builderPath)) {
     const client = { contentContextSnapshot: { findFirst: async () => structuredClone(stored) } };
     const save = usedCitationIds => validateContentContextForDraft(client, { organizationId: 'org-a',
       contentContextSnapshotId: stored.id, usedCitationIds, now });
-    assert.deepEqual((await save(['E9', 'E16'])).usedCitationIds, ['E16', 'E9']);
-    for (const citation of ['E17', 'F9']) await assert.rejects(save([citation]), error =>
+    assert.deepEqual((await save(['E9', 'E16', 'E18', 'E64'])).usedCitationIds, ['E16', 'E18', 'E64', 'E9']);
+    for (const citation of ['E0', 'E01', 'E65', 'E-1', 'E1e1', 'F0', 'F01', 'F9']) await assert.rejects(save([citation]), error =>
       error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' && error.message === 'Citation identifiers are invalid');
     stored.items = stored.items.filter(item => item.citationId !== 'E12');
     await assert.rejects(save(['E12']), error => error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' &&
       error.message === 'Citation does not belong to the resolved context');
+    const foreign = stored.items.find(item => item.citationId === 'E64').evidence;
+    foreign.snapshot.organizationId = 'org-b';
+    await assert.rejects(save(['E64']), error => error.code === 'CONTENT_CONTEXT_INVALIDATED');
+    foreign.snapshot.organizationId = 'org-a';
     stored.selectionAlgorithmVersion = 2;
     await assert.rejects(save(['E9']), error => error.code === 'CONTENT_CONTEXT_CITATIONS_INVALID' &&
       error.message === 'Citation identifiers are invalid');
+  });
+
+  test('save-only resume persists the existing 18-source generation without invoking generation again', async () => {
+    const { pages, input } = completeCorpusFixture(18);
+    const repository = new MemoryRepository([], pages);
+    const built = await makeBuilder(repository).build('org-a', input);
+    const stored = repository.snapshots.get(`org-a:${built.contentContextSnapshotId}`);
+    const { validateContentContextForDraft } = loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/context/content-context.finalize.ts');
+    const client = { contentContextSnapshot: { findFirst: async () => structuredClone(stored) } };
+    const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+    const steps = new Map();
+    const native = loadWithMocks('libraries/nestjs-libraries/src/chat/conductor/native-adaptation-series.ts', {
+      '@mastra/core/workflows': {
+        createStep: step => { steps.set(step.id, step); return step; },
+        createWorkflow: () => { const chain = { then: () => chain, commit: () => chain }; return chain; },
+      },
+    });
+    const owner = { organizationId: 'org-a', userId: 'user-a', pieceId: 'piece-a' };
+    const plan = { pieceId: owner.pieceId, sourceRevision: { body: 'original' } };
+    const generated = { kind: 'generated', plan, output: { content: [{ content: 'Existing paid text', usedCitationIds: ['E18'] }] } };
+    let generateCount = 0, persistCount = 0, received;
+    native.createNativeAdaptationSeriesWorkflow(() => ({
+      generateSeriesAdaptation: async () => { generateCount++; throw new Error('must not generate'); },
+      persistSeriesAdaptation: async (_org, _user, _run, value) => {
+        persistCount++; received = value;
+        const binding = await validateContentContextForDraft(client, { organizationId: owner.organizationId,
+          contentContextSnapshotId: stored.id, usedCitationIds: value.output.content[0].usedCitationIds, now });
+        return { parts: value.output.content, binding };
+      },
+    }));
+    const payload = { ...owner, plan }, resourceId = native.adaptationSeriesResource(owner.organizationId, owner.userId, owner.pieceId);
+    const state = { status: 'suspended', resourceId, payload, steps: {
+      'generate-posts': { status: 'success', output: generated }, 'save-drafts': { status: 'suspended' },
+    } };
+    const workflow = { getWorkflowRunById: async () => state, createRun: async () => ({
+      cancel: async () => {}, resume: async options => {
+        assert.equal(options.step, 'save-drafts');
+        const result = await steps.get('save-drafts').execute({ inputData: generated, getInitData: () => payload,
+          runId: 'series', abortSignal: new AbortController().signal, suspend: value => { throw new Error(JSON.stringify(value)); } });
+        return { status: 'success', result };
+      },
+    }) };
+    const result = await native.resumeNativeAdaptationSeries({ getWorkflow: () => workflow }, owner, 'series');
+    assert.equal(result.status, 'success');
+    assert.equal(result.result.parts[0].content, 'Existing paid text');
+    assert.deepEqual(result.result.binding.usedCitationIds, ['E18']);
+    assert.equal(received, generated);
+    assert.equal(generateCount, 0);
+    assert.equal(persistCount, 1);
   });
 
   test('build is deterministic, tenant-scoped and bounded to 8 facts, 8 evidence and 12k chars', async () => {

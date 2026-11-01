@@ -14,6 +14,7 @@ import { useRefreshOnReturn, useRevalidateArtifact, useRevalidateUnder, useReval
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { CfMark } from '@contentfactory/frontend/components/ui/brand/cf-mark';
+import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
 import { WorkingLine } from '@contentfactory/frontend/components/ui/working-line';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 import {
@@ -57,6 +58,7 @@ import {
   type AgentThreadExecution,
   type AgentSignalReceipt,
   type AgentWorkContextV1,
+  type AgentWritingSelection,
 } from './agent.contract';
 import { errorWordsFor, stageWordFor, type AgentWords } from './agent.copy';
 import { sendSamplesTo } from './agent.samples';
@@ -84,6 +86,8 @@ import {
   SubagentCard,
   TaskChecklistCard,
 } from './agent.cards';
+import { SeriesCard } from './agent.series-card';
+import { groupSeriesBlocks } from './agent.series';
 import { SecretCard } from './agent.secret-card';
 import { ChannelConnectCard } from './agent.channel-card';
 import { SelectionCard } from './agent.selection-card';
@@ -102,8 +106,28 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { startersFor, type AgentStarter } from './agent.starters';
 import { channelWaitsForAdmin } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
 import { AgentGlyph } from './agent.icons';
+import { readSubmissionDraft, writeSubmissionDraft, clearSubmissionDraft, restoreSubmissionDraft, type SubmissionFailure } from './agent.submission-draft';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { assistantContextKey } from './assistant.route-context';
+
+type CompletedStep = Extract<AgentBlock, { type: 'done' }>;
+const isCompletedStep = (block: AgentBlock): block is CompletedStep =>
+  block.type === 'done' && block.stale !== true;
+
+const isSourceAttempt = (block: AgentBlock) => block.type === 'error' && !!block.sourceRead;
+const isActivityStep = (block: AgentBlock) => isCompletedStep(block) || isSourceAttempt(block);
+
+/** Presentation only: cards/text/stale actions always keep their own position. */
+function groupProgressBlocks(blocks: readonly AgentBlock[], live: boolean): AgentBlock[][] {
+  const groups: AgentBlock[][] = [];
+  for (const block of blocks) {
+    const previous = groups[groups.length - 1];
+    if ((isActivityStep(block) || (live && block.type === 'working')) &&
+        previous?.every(isActivityStep)) groups[groups.length - 1].push(block);
+    else groups.push([block]);
+  }
+  return groups;
+}
 
 /**
  * One conversation on `useChat` (`content-factory-next-kcxz.10`, spec §4.4).
@@ -153,6 +177,8 @@ const closedLineOf = (
   block: Extract<AgentBlock, { type: 'question' }>,
   words: AgentWords
 ) => ({
+  question: block.question,
+  history: block.history,
   kind:
     block.question.kind === 'selection'
       ? words.selection.kind
@@ -187,7 +213,8 @@ export function AgentConversation({
   onArtifact,
   onArtifacts,
   workContext,
-  contextControls,
+  writingSelection,
+  prepareWritingSelection,
   onNewConversation,
   onForked,
   onWorkContext,
@@ -214,7 +241,8 @@ export function AgentConversation({
   onArtifact: (artifact: AgentArtifact, how: 'produced' | 'asked') => void;
   onArtifacts?: (artifacts: AgentArtifact[]) => void;
   workContext?: AgentWorkContextV1 | null;
-  contextControls?: ReactNode;
+  writingSelection?: AgentWritingSelection;
+  prepareWritingSelection?: (selection: AgentWritingSelection | undefined) => Promise<void>;
   onNewConversation?: () => void;
   /** Opens a newly branched thread (`bxeb.2`). */
   onForked?: (id: string) => void;
@@ -239,6 +267,10 @@ export function AgentConversation({
   const t = useT();
   const currentContext = useRef(workContext);
   currentContext.current = workContext;
+  const currentWritingSelection = useRef(writingSelection);
+  currentWritingSelection.current = writingSelection;
+  const prepareWriting = useRef(prepareWritingSelection);
+  prepareWriting.current = prepareWritingSelection;
   const announceContext = useRef(onWorkContext);
   announceContext.current = onWorkContext;
   const { mutate } = useSWRConfig();
@@ -251,10 +283,15 @@ export function AgentConversation({
   const announceThread = useRef(onThreadId);
   announceThread.current = onThreadId;
   const refusedBeforeStart = useRef(false);
-  const submittedMessage = useRef<{ message: ComposerSubmit; context?: AgentWorkContextV1 | null;
+  const submissionKey = useRef(draftStorageKey);
+  submissionKey.current = draftStorageKey;
+  const cachedSubmission = useRef(readSubmissionDraft(draftStorageKey));
+  const submittedMessage = useRef<{ message: ComposerSubmit; context?: AgentWorkContextV1 | null; writingSelection?: AgentWritingSelection;
+    userMessage?: AgentMessage; storageKey?: string; attachments?: boolean; diagnostic?: SubmissionFailure;
   } | null>(null);
   const refusedMessage = useRef<typeof submittedMessage.current>(null);
   const [composerRecovery, setComposerRecovery] = useState<ComposerRecovery | null>(null);
+  const [reconciled, setReconciled] = useState<'missing' | 'newer-draft' | 'saved' | 'running' | 'failed' | 'unavailable' | 'unconfirmed' | null>(null);
   const replayComplete = useRef<() => Promise<void>>(async () => undefined);
 
   const transport = useMemo(
@@ -263,8 +300,33 @@ export function AgentConversation({
         request,
         currentThread: () => thread.current,
         currentContext: () => currentContext.current,
+        currentWritingSelection: () => currentWritingSelection.current,
+        prepareWritingSelection: selection => prepareWriting.current?.(selection),
         onNotStarted: () => { refusedBeforeStart.current = true; },
+        onUserMessage: (message) => {
+          const submitted = submittedMessage.current;
+          if (!submitted) return;
+          submitted.userMessage = message;
+          submitted.storageKey = submissionKey.current;
+          submitted.attachments = !!(submitted.message.files.length || submitted.message.samples || submitted.message.media);
+          writeSubmissionDraft(submitted.storageKey, { id: message.id, text: submitted.message.text, attachments: submitted.attachments });
+        },
+        onRequestFailure: (diagnostic) => {
+          const submitted = submittedMessage.current;
+          if (!submitted?.userMessage) return;
+          submitted.diagnostic = diagnostic;
+          writeSubmissionDraft(submitted.storageKey, { id: submitted.userMessage.id, text: submitted.message.text, attachments: submitted.attachments, diagnostic });
+        },
         onThread: (named) => {
+          const submitted = submittedMessage.current;
+          const oldKey = submitted?.storageKey;
+          if (submitted?.userMessage && oldKey?.endsWith(':new')) {
+            const nextKey = `${oldKey.slice(0, -3)}${named}`;
+            if (writeSubmissionDraft(nextKey, { id: submitted.userMessage.id, text: submitted.message.text, attachments: submitted.attachments, diagnostic: submitted.diagnostic })) {
+              clearSubmissionDraft(oldKey, submitted.userMessage.id);
+              submitted.storageKey = nextKey;
+            }
+          }
           thread.current = named;
           announceThread.current(named);
         },
@@ -342,6 +404,12 @@ export function AgentConversation({
         if (!response.ok) return false;
         const history = readThreadHistory(await response.json());
         if (thread.current !== id || generation !== turnGeneration.current) return false;
+        const submitted = submittedMessage.current;
+        if (submitted?.userMessage && history.messages.some(message => message.role === 'user' && message.id === submitted.userMessage!.id)) {
+          clearSubmissionDraft(submitted.storageKey, submitted.userMessage.id);
+          if (refusedMessage.current?.userMessage?.id === submitted.userMessage.id) refusedMessage.current = null;
+          submittedMessage.current = null;
+        }
         if (history.workspace && contextAtRead === assistantContextKey(currentContext.current ?? null) && contextAtRead === assistantContextKey(history.workspace.workContext)) {
           currentContext.current = history.workspace.workContext;
           announceContext.current?.(history.workspace.workContext);
@@ -362,12 +430,15 @@ export function AgentConversation({
         // tool part; changing only the pending list cannot draw a new card.
         const canRestorePending = !explicitStop.current && history.pending.length > 0 &&
           (interruptedAtRead || (!busyAtRead && !transportBusy.current));
-        if ((withMessages || mergeMessages || canRestorePending) && history.messages.length) {
+        if ((withMessages || mergeMessages || canRestorePending) && (history.messages.length || submittedMessage.current?.userMessage)) {
           replaceMessages.current?.((current) => {
             const restorePending = canRestorePending && history.pending.some((run) => run.toolCallId &&
               !hasNativeToolCall(current, run.toolCallId) && hasNativeToolCall(history.messages, run.toolCallId));
             if (!withMessages && !mergeMessages && !restorePending) return current;
             const savedIds = new Set(history.messages.map((message) => message.id));
+            const pendingUser = submittedMessage.current?.userMessage;
+            const keepPending = (saved: AgentMessage[]) => pendingUser && !saved.some(message => message.id === pendingUser.id)
+              ? [...saved, current.find(message => message.id === pendingUser.id) ?? pendingUser] : saved;
             if (mergeMessages && !withMessages && !restorePending) {
               const merged = [...current];
               let next = 0;
@@ -386,7 +457,7 @@ export function AgentConversation({
                   next = Math.max(next, index + 1);
                 }
               }
-              return merged;
+              return keepPending(merged);
             }
             const boundary = current.findIndex((message) => savedIds.has(message.id));
             // Only a confirmed older prefix lies outside a bounded newest
@@ -394,7 +465,7 @@ export function AgentConversation({
             const prefix = history.pagination?.hasMore
               ? (boundary >= 0 ? current.slice(0, boundary) : current).filter((message) => confirmedHistoryIds.current.has(message.id) && !savedIds.has(message.id))
               : [];
-            return [...prefix, ...history.messages];
+            return keepPending([...prefix, ...history.messages]);
           });
         }
         for (const message of history.messages) confirmedHistoryIds.current.add(message.id);
@@ -524,8 +595,7 @@ export function AgentConversation({
         interruptedNow.current = false;
         setInterrupted(false);
       } else {
-        submittedMessage.current = null;
-        refusedMessage.current = null;
+        // Delivery is confirmed by the matching native message ID, not by a failed stream finishing.
         const followed = continuation.current;
         continuation.current = false;
         if (!followed && (isAbort || isDisconnect || isError)) {
@@ -538,7 +608,7 @@ export function AgentConversation({
               return;
             }
             const run = history && history.execution;
-            if (!explicitStop.current && history && !history.pending.length &&
+            if (!explicitStop.current && !submittedMessage.current?.userMessage && history && !history.pending.length &&
               run?.state === 'running' && run.runId && reconnectAttempt.current !== run.runId) {
               interruptedNow.current = false;
               setInterrupted(false);
@@ -629,14 +699,17 @@ export function AgentConversation({
     const generation = turnGeneration.current;
     // A 204 has no SDK finish callback. Native Memory is the terminal source
     // after the framework has released its cached streaming events.
+    const sent = submittedMessage.current;
     const history = await refreshPending(false, true, generation);
     if (generation !== turnGeneration.current) return;
+    if (sent?.userMessage && history && !history.messages.some(message => message.id === sent.userMessage!.id && message.role === 'user')) { interrupt(); return; }
     if (history && history.execution?.state === 'settled' && history.messages.some(message => message.role === 'assistant')) {
       continuation.current = false;
       if (!explicitStop.current) {
         interruptedNow.current = false;
         setInterrupted(false);
-        clearError();
+        if (history.execution.outcome !== 'failed') clearError();
+        else setReconciled('failed');
       }
     } else if (!history || !confirmWaitingHistory.current?.(history)) interrupt();
   };
@@ -727,20 +800,52 @@ export function AgentConversation({
   }, [confirmStopped, interrupt, messages, refreshPending, request, serverExecution?.requestId, stop]);
   const reconcile = useCallback(async () => {
     const generation = turnGeneration.current;
+    const submitted = submittedMessage.current;
     setChecking(true);
     try {
       const history = await refreshPending(true, false, generation);
       if (generation !== turnGeneration.current) return;
-      if (history && history.execution?.state === 'settled' && !history.pending.length) {
-        explicitStop.current = false;
-        stopReceipt.current = null;
-        interruptedNow.current = false;
-        setInterrupted(false);
-        clearError();
-        void revalidateUnder(PIECES_API.list);
+      if (!history) { setReconciled('unavailable'); return; }
+      const saved = submitted?.userMessage && history.messages.some(message => message.role === 'user' && message.id === submitted.userMessage!.id);
+      if (submitted?.userMessage && !saved && (history.execution?.state === 'settled' || history.pending.length > 0)) {
+        const restored = restoreSubmissionDraft(submitted.storageKey, { id: submitted.userMessage.id, text: submitted.message.text, attachments: submitted.attachments });
+        if (restored) setComposerRecovery(previous => ({ version: (previous?.version ?? 0) + 1, kind: 'restore', text: submitted.message.text }));
+        refusedMessage.current = submitted;
+        setReconciled(restored ? 'missing' : 'newer-draft');
+        explicitStop.current = false; stopReceipt.current = null;
+        interruptedNow.current = false; setInterrupted(false); clearError();
+        return;
       }
+      if (submitted?.userMessage && !saved) { setReconciled('unconfirmed'); interrupt(); return; }
+      if (saved) {
+        const running = history.execution?.state === 'running' || history.pending.length > 0;
+        const failed = history.execution?.state === 'settled' && history.execution.outcome === 'failed';
+        setReconciled(running ? 'running' : failed ? 'failed' : 'saved');
+        if (history.execution?.state !== 'unknown') {
+          interruptedNow.current = false; setInterrupted(false);
+          if (!failed) clearError();
+        }
+      } else if (history.execution?.state === 'settled' && !history.pending.length) {
+        explicitStop.current = false; stopReceipt.current = null;
+        interruptedNow.current = false; setInterrupted(false);
+        setReconciled(history.execution.outcome === 'failed' ? 'failed' : 'saved');
+        if (history.execution.outcome !== 'failed') clearError();
+      } else setReconciled('running');
+      void revalidateUnder(PIECES_API.list);
     } finally { setChecking(false); }
-  }, [refreshPending, clearError, revalidateUnder]);
+  }, [refreshPending, clearError, revalidateUnder, interrupt]);
+  useEffect(() => {
+    const cached = cachedSubmission.current;
+    cachedSubmission.current = null;
+    if (!cached || submittedMessage.current) return;
+    submittedMessage.current = { message: { text: cached.text, files: [] }, userMessage: {
+      id: cached.id, role: 'user', parts: [{ type: 'text', text: cached.text }],
+    }, storageKey: submissionKey.current, attachments: cached.attachments, diagnostic: cached.diagnostic };
+    const recovered = submittedMessage.current.userMessage!;
+    setMessages(current => current.some(message => message.id === recovered.id) ? current : [...current, recovered]);
+    interrupt();
+    if (thread.current) void reconcile();
+  }, [reconcile, interrupt, setMessages]);
   useEffect(() => {
     if (error && !isAgentRequestNotStarted(error) && currentContext.current?.revision && errorCodeOf(error.message) === 'AGENT_BAD_REQUEST') interrupt();
   }, [error, interrupt]);
@@ -751,9 +856,10 @@ export function AgentConversation({
   const approvalSent = useRef(false);
 
   const send = useCallback(
-    (message: ComposerSubmit, context?: AgentWorkContextV1 | null, prepared?: AgentMessage) => {
+    (message: ComposerSubmit, context?: AgentWorkContextV1 | null, prepared?: AgentMessage, selectedWriting = currentWritingSelection.current) => {
       if (interruptedNow.current) return;
       turnGeneration.current++;
+      setReconciled(null);
       explicitStop.current = false;
       stopReceipt.current = null;
       reconnectAttempt.current = null;
@@ -765,7 +871,8 @@ export function AgentConversation({
         // Explicit Enter retries the same SDK user message, including its
         // already prepared files/receipts, rather than appending it twice.
         submittedMessage.current = retry;
-        void regenerate(retry.context !== undefined ? { body: { workContext: retry.context } } : undefined);
+        if (retry.userMessage) writeSubmissionDraft(retry.storageKey, { id: retry.userMessage.id, text: retry.message.text, attachments: retry.attachments });
+        void regenerate({ body: { ...(retry.context !== undefined ? { workContext: retry.context } : {}), writingSelection: retry.writingSelection } });
         return;
       }
       if (retry) {
@@ -777,8 +884,8 @@ export function AgentConversation({
           return index >= 0 ? current.slice(0, index) : current;
         });
       }
-      submittedMessage.current = { message, context };
-      const options = context !== undefined ? { body: { workContext: context } } : undefined;
+      submittedMessage.current = { message, context, writingSelection: selectedWriting };
+      const options = { body: { ...(context !== undefined ? { workContext: context } : {}), writingSelection: selectedWriting } };
       if (prepared) {
         void sendMessage(prepared, options);
         return;
@@ -813,6 +920,8 @@ export function AgentConversation({
       const id = thread.current;
       if (!id) throw new Error('The conversation is not yet assigned.');
       const selected = currentContext.current ?? null;
+      const selectedWriting = currentWritingSelection.current;
+      await prepareWriting.current?.(selectedWriting);
       const userMessage = { id: crypto.randomUUID(), role: 'user', parts: [
         ...(message.text ? [{ type: 'text', text: message.text }] : []),
         ...(message.samples ? [{ type: AGENT_SAMPLES_PART_TYPE, data: message.samples }] : []),
@@ -821,12 +930,12 @@ export function AgentConversation({
       ] };
       const response = await request(AGENT_DOORS.threadSignals(id), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'deliver', message: userMessage, workContext: selected }),
+        body: JSON.stringify({ kind: 'deliver', message: userMessage, workContext: selected, writingSelection: selectedWriting }),
       });
       if (!response.ok) throw new Error(String(response.status));
       const accepted = await response.json();
       if (accepted.accepted === false && accepted.code === 'AGENT_SIGNAL_IDLE' && accepted.id === userMessage.id) {
-        send(message, selected, userMessage as AgentMessage);
+        send(message, selected, userMessage as AgentMessage, selectedWriting);
         return;
       }
       if (accepted.accepted !== true) throw new Error('The instruction was not accepted.');
@@ -1025,6 +1134,8 @@ export function AgentConversation({
   const [closedCalls, setClosedCalls] = useState<ReadonlySet<string>>(() => new Set());
   confirmWaitingHistory.current = (history, nativeWaitObserved = false) => {
     if (explicitStop.current) return false;
+    const sent = submittedMessage.current?.userMessage;
+    if (sent && !history.messages.some(message => message.id === sent.id && message.role === 'user')) return false;
     const gates = history.pending.filter((run) => !!run.runId && !!run.toolCallId &&
       (run.kind === 'approval' || run.kind === 'question' && !!pendingCardId(run)));
     if (!gates.length) return false;
@@ -1401,13 +1512,16 @@ export function AgentConversation({
         code: errorCodeOf(error.message) ?? readDoorError(error.message),
         network: isNetworkFailure(error),
       }
-    : null;
+    : !submittedMessage.current && status === 'ready' && serverExecution?.outcome === 'failed' && serverExecution.errorCode
+      ? { code: serverExecution.errorCode, network: false } : null;
 
   const renderBlock = (
     block: AgentBlock,
     message: AgentMessage,
     live: boolean,
-    last: boolean
+    last: boolean,
+    completed: readonly CompletedStep[] = [],
+    activityHistory?: readonly ReactNode[]
   ): ReactNode => {
     switch (block.type) {
       case 'text':
@@ -1635,6 +1749,7 @@ export function AgentConversation({
             key={block.key}
             title={block.title}
             question={block.question}
+            history={block.history}
             answered={block.runId === null}
             stale={block.stale === true}
             failure={questionFailures.has(block.question.cardId ?? '')}
@@ -1668,10 +1783,12 @@ export function AgentConversation({
         ];
         return (
           <ProgressCard
-            key={block.key}
+            key={completed[0]?.key ?? block.key}
             title={block.title}
             current={seen[seen.length - 1] ?? words.progress.working}
             steps={seen.slice(0, -1)}
+            completed={completed}
+            history={activityHistory}
             onStop={stopAndReconcile}
             words={words}
           />
@@ -1778,6 +1895,7 @@ export function AgentConversation({
             title={block.title}
             code={block.code}
             reviewFindings={block.reviewFindings}
+            sourceRead={block.sourceRead}
             refusal
             words={words}
           />
@@ -1881,7 +1999,19 @@ export function AgentConversation({
       </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-[12px]">
                   <span className="sr-only">{words.conversation.agent}:</span>
-                  {blocks.map((block) => renderBlock(block, message, live, last))}
+                  {groupSeriesBlocks(groupProgressBlocks(blocks, live)).map((entry) => {
+                    if (entry.type === 'series') return <SeriesCard key={entry.key} members={entry.members} openArtifact={openArtifact} onOpen={(artifact) => onArtifact(artifact, 'asked')} words={words} defaultOpen={last} />;
+                    const group = entry.blocks;
+                    const hasSourceAttempts = group.some(isSourceAttempt);
+                    if (group.length === 1 && !hasSourceAttempts) return renderBlock(group[0], message, live, last);
+                    const latest = group[group.length - 1];
+                    const completed = group.filter(isCompletedStep);
+                    const history = hasSourceAttempts ? group.filter(isActivityStep).map(block => renderBlock(block, message, live, last)) : undefined;
+                    if (latest.type === 'working') return renderBlock(latest, message, live, last, completed, history);
+                    return <ProgressCard key={group[0].key} title={completed[completed.length - 1]?.title ?? null} current="" steps={[]}
+                      completed={completed} history={history} running={false} words={words}
+                      summary={isSourceAttempt(latest) ? <span className="cf-caption text-cf-ink-muted">{t('assistant_source_activity', 'Source activity')}</span> : undefined} />;
+                  })}
                   {onForked && (threadId || thread.current) && !live ? (
                     <div className="flex flex-wrap items-center gap-[8px]">
                       <Button
@@ -1941,11 +2071,15 @@ export function AgentConversation({
             <ErrorCard
               title={null}
               code={chatError.code}
-              network={chatError.network && !chatError.code}
+              network={(interrupted || chatError.network) && !chatError.code}
+              retryLabel={interrupted || reconciled === 'failed' ? t('assistant_reconcile', 'Refresh status') : undefined}
+              nextStep={interrupted || reconciled === 'failed' ? t('assistant_reconcile_help', 'Refresh saved messages and task status. This does not send the message again.') : undefined}
               // An approval that did not go through is asked again on its own
               // card; regenerating would re-run the last message instead.
               onRetry={
-                approvalFailed.current || interrupted || chatError.network
+                interrupted || reconciled === 'failed'
+                  ? () => void reconcile()
+                  : approvalFailed.current || chatError.network
                   ? undefined
                   : () => {
                       const retry = refusedMessage.current;
@@ -1956,7 +2090,7 @@ export function AgentConversation({
                       }
                       turnGeneration.current++;
                       clearError();
-                      void regenerate(retry?.context !== undefined ? { body: { workContext: retry.context } } : undefined);
+                      void regenerate({ body: { ...(retry?.context !== undefined ? { workContext: retry.context } : {}), writingSelection: (retry ?? submittedMessage.current)?.writingSelection } });
                     }
               }
               words={words}
@@ -1966,15 +2100,14 @@ export function AgentConversation({
       </div>
       <div className="shrink-0 px-[16px] pb-[16px] pt-[8px] md:px-[20px]">
         <div className="w-full min-w-0">
-          {contextControls}
-          {interrupted ? (
+          {interrupted && !chatError ? (
             <div role="status" className="mb-[12px] flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
               <span>
-                {thread.current ? t('assistant_interrupted_note', 'Response interrupted. Check the saved result before continuing.') : t('assistant_unknown_result', 'The response was interrupted before the conversation identifier arrived. Check history: the action may have been saved. You can start a new conversation.')}
+                {thread.current ? t('assistant_interrupted_note', 'Could not receive the reply. Refresh status to check message delivery and task progress.') : t('assistant_unknown_result', 'The response was interrupted before the conversation identifier arrived. Check history: the action may have been saved. You can start a new conversation.')}
               </span>
               {thread.current ? (
                 <Button type="button" variant="secondary" density="dense" loading={checking} loadingLabel={t('assistant_working', 'Working')} disabled={busy} onClick={() => void reconcile()}>
-                  {t('assistant_reconcile', 'Check saved result')}
+                  {t('assistant_reconcile', 'Refresh status')}
                 </Button>
               ) : onNewConversation ? (
                 <Button type="button" variant="secondary" density="dense" onClick={onNewConversation}>
@@ -1983,6 +2116,22 @@ export function AgentConversation({
               ) : null}
             </div>
           ) : null}
+          {reconciled ? <p role="status" className="mb-[12px] cf-body-sm text-cf-ink-muted">
+            {t(`assistant_reconcile_${reconciled.replace('-', '_')}`, reconciled === 'missing'
+              ? 'The new message was not found in saved history. Its text is back in the input; it was not sent again.'
+              : reconciled === 'newer-draft' ? 'The message was not found in saved history. Its copy remains above; your newer draft was kept.'
+              : reconciled === 'unconfirmed' ? 'The message is not yet in saved history. The task is still active; no message was sent again.'
+              : reconciled === 'running' ? 'The saved task is still running or waiting for an answer.'
+              : reconciled === 'failed' ? 'Status refreshed: the task did not complete. Its saved result remains in the conversation.'
+              : reconciled === 'unavailable' ? 'Could not refresh status. Your message has been kept; try refreshing status again.'
+              : 'Status refreshed. The saved messages and task result are shown.')}
+          </p> : null}
+          {reconciled && submittedMessage.current?.diagnostic ? <Disclosure className="mb-[12px] min-w-0"
+            summary={t('assistant_delivery_details', 'Delivery details')} contentClassName="cf-caption text-cf-ink-muted pb-[8px]">
+            HTTP {submittedMessage.current.diagnostic.status}{submittedMessage.current.diagnostic.code ? ` · ${submittedMessage.current.diagnostic.code}` : ''}
+          </Disclosure> : null}
+          {reconciled && submittedMessage.current?.attachments && !submittedMessage.current.message.files.length && !submittedMessage.current.message.samples && !submittedMessage.current.message.media
+            ? <p className="mb-[12px] cf-body-sm text-cf-ink-muted">{t('assistant_recovered_attachments', 'The text was recovered. Attach the files again if they are still needed.')}</p> : null}
           <fieldset disabled={interrupted && !busy} className="min-w-0">
           <AgentComposer
             busy={busy || attachedRunning}

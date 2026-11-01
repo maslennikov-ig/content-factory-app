@@ -289,3 +289,24 @@ test('stale core snapshot rejects the write and leaves history untouched', async
   expect(db.get().brief.revisions).toEqual(previousRevisions);
   expect(db.updateMany).toHaveBeenCalledTimes(1);
 });
+
+test('full preview equals the saved core for title, replacement and deletion; signed boundaries hold', async () => {
+  const piece = initialPiece(), db = database(piece), service = serviceFor(db.repository);
+  const token = reviewToken(piece, [
+    { id: 'title', excerpt: 'Тема', replacement: 'Новая тема', why: '', basket: 'show', target: 'title' },
+    { id: 'replace', excerpt: 'точный', replacement: 'ясный', why: '', basket: 'show' },
+    { id: 'delete', excerpt: 'до переписывания', replacement: '', why: '', basket: 'show' },
+  ]);
+  const selectedIds = ['title', 'replace', 'delete'];
+  const preview = service.previewReviewV2('org', 'piece', undefined, { token, selectedIds });
+  expect(preview.title).toBe('Новая тема');
+  expect(preview.text).toContain('ясный');
+  expect(preview.text).not.toContain('до переписывания');
+  expect(() => service.previewReviewV2('other', 'piece', undefined, { token, selectedIds })).toThrow();
+  expect(() => service.previewReviewV2('org', 'piece', undefined, { token: token + 'x', selectedIds })).toThrow();
+  expect(() => service.previewReviewV2('org', 'piece', undefined, { token, selectedIds: ['unknown'] })).toThrow();
+  const expired = signReview({ ...JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString()), expires: Date.now() - 1 });
+  expect(() => service.previewReviewV2('org', 'piece', undefined, { token: expired, selectedIds })).toThrow();
+  await service.acceptReviewV2('org', 'piece', undefined, { token, selectedIds });
+  expect({ title: db.get().title, text: db.get().body }).toEqual(preview);
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
@@ -9,6 +9,8 @@ import { useEnterMotion } from '../../ui/enter-motion';
 import { sectionTabClass } from '../../ui/section-tabs';
 import { PlusIcon } from '@contentfactory/frontend/components/ui/icons';
 import { ConfirmButton } from '../../ui/confirm-button';
+import { Dialog } from '../../ui/layers';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import {
   ErrorState,
   RestrictedState,
@@ -29,6 +31,8 @@ import {
 } from './pieces.adapter';
 import { WorkspaceMenu } from './workspace-menu';
 import { VideoPieceEntry } from '../../videos/video.entry';
+import { useVideoWords } from '../../videos/video.copy';
+import { videoWorkspacePath } from '../../videos/video-ui.v1';
 
 /**
  * Страница заготовки — одно рабочее место с вкладками (`97dq.37`, вариант A).
@@ -101,6 +105,11 @@ export function PieceScreen({
   onTitleSave?: (title: string) => Promise<void>;
 }) {
   const t = piecesCopy[locale];
+  const translate = useT();
+  const videoWords = useVideoWords();
+  const mobileActions = useRef<HTMLDivElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  useEffect(() => setDeleteTarget(null), [detail?.piece.id, tab, channelDelete?.id]);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [titleSaving, setTitleSaving] = useState(false);
@@ -196,6 +205,12 @@ export function PieceScreen({
       ? PIECE_TAB_CORE
       : channels.find((channel) => channel.id === tab)?.id ?? PIECE_TAB_CORE;
   const activeChannel = channels.find((channel) => channel.id === active);
+  const deleteIdentity = activeChannel
+    ? `${piece.id}:adaptation:${activeChannel.id}:${channelDelete?.id ?? ''}`
+    : `piece:${piece.id}`;
+  const adaptationTitle = activeChannel?.adaptations.find(
+    (adaptation) => adaptation.id === channelDelete?.id
+  )?.title;
 
   const link =
     'underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus';
@@ -286,7 +301,7 @@ export function PieceScreen({
           Выходы со страницы и «В архив» — тихий вес в одной строке с
           заголовком: главное действие страницы живёт во вкладке.
         */}
-        <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-[8px]">
+        <div className="flex w-full min-w-0 max-w-full shrink-0 flex-wrap items-center gap-[8px] split:w-auto">
           <a
             href="/content?tab=materials"
             data-piece-back="true"
@@ -307,13 +322,15 @@ export function PieceScreen({
           >
             {t.newPiece}
           </a>
-          <VideoPieceEntry pieceId={piece.id} canWrite={canWrite} />
+          <div className="hidden split:contents">
+            <VideoPieceEntry pieceId={piece.id} canWrite={canWrite} />
+          </div>
           {!piece.archivedAt ? (
             <Button
               type="button"
               variant="quiet"
               density="dense"
-              className="shrink-0"
+              className="hidden shrink-0 split:inline-flex"
               data-piece-archive="true"
               disabled={!canWrite || busy}
               onClick={onArchive}
@@ -334,6 +351,7 @@ export function PieceScreen({
               <ConfirmButton
                 key={`adaptation-${activeChannel.id}-${channelDelete.id ?? ''}`}
                 label={t.deletePiece}
+                className="hidden split:inline-flex"
                 armedLabel={t.deleteAdaptationArmed}
                 disabled={!canWrite || busy || channelDelete.disabled}
                 loading={channelDelete.loading}
@@ -346,13 +364,54 @@ export function PieceScreen({
             <ConfirmButton
               key="piece"
               label={t.deletePiece}
+              className="hidden split:inline-flex"
               armedLabel={t.deleteWholePieceArmed}
               disabled={!canWrite || busy}
               data-piece-delete="true"
               onConfirm={onDelete}
             />
           )}
+          <div ref={mobileActions} className="ms-auto split:hidden">
+            <WorkspaceMenu
+              label={translate('more_actions', 'More actions')}
+              trigger={translate('more_actions', 'More actions')}
+              triggerClassName={buttonClassName({ variant: 'quiet', density: 'dense' })}
+              density="dense"
+              align="end"
+              dataName="piece-actions"
+              disabled={!canWrite || busy}
+              items={[
+                { id: 'video', title: videoWords.entry, description: '', onSelect: () => window.location.assign(videoWorkspacePath({ pieceId: piece.id })) },
+                ...(!piece.archivedAt ? [{ id: 'archive', title: t.archive, description: '', onSelect: onArchive }] : []),
+                ...(activeChannel && !channelDelete ? [] : [{
+                  id: 'delete', title: t.deletePiece, description: '',
+                  disabled: Boolean(activeChannel && (channelDelete?.disabled || channelDelete?.loading)),
+                  onSelect: () => {
+                    mobileActions.current?.querySelector('button')?.focus();
+                    setDeleteTarget(deleteIdentity);
+                  },
+                }]),
+              ]}
+            />
+          </div>
         </div>
+        <Dialog
+          open={deleteTarget === deleteIdentity}
+          onClose={() => setDeleteTarget(null)}
+          title={activeChannel ? t.deleteAdaptationArmed : t.deleteWholePieceArmed}
+          footer={<>
+            <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>{t.cancel}</Button>
+            <Button type="button" variant="destructive" disabled={!canWrite || busy || Boolean(activeChannel && (channelDelete?.disabled || channelDelete?.loading))} onClick={() => {
+              if (deleteTarget !== deleteIdentity) return;
+              setDeleteTarget(null);
+              if (activeChannel) channelDelete?.onConfirm();
+              else onDelete();
+            }}>{t.deletePiece}</Button>
+          </>}
+        >
+          <p>{piece.title}</p>
+          {activeChannel ? <p>{activeChannel.name}{adaptationTitle ? ` · ${adaptationTitle}` : null}</p> : null}
+        </Dialog>
         {editingTitle ? (
           <form
             className="flex w-full flex-wrap items-start gap-[8px]"

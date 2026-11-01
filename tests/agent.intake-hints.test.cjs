@@ -729,3 +729,15 @@ describe('97dq.44 answers to the adaptation interview reach the prompt as direct
     expect(chatModel.prompts[0]).not.toContain('questions about adapting this post');
   });
 });
+
+test('labelled author comments reach the actual adaptation prompt without inventing an omitted comment', async () => {
+  const contextMaterial = JSON.stringify({ author_comments: [
+    { update: 'Alpha sessions', origin: 'author_reply', text: 'Мне это полезно для длинных задач.' },
+    { update: 'Beta tools', origin: 'author_reply', skipped: true },
+  ] });
+  const chatModel = capturingModel([draft('Alpha sessions. Мне это полезно для длинных задач. Beta tools.')]);
+  const { service } = loadAgentGraph({ chatModel });
+  await service.generateContent(withHints({ intake: { core: 'Alpha sessions. Beta tools.', contextMaterial, post: { lengthPolicy: 'auto' } } }));
+  expect(chatModel.prompts[0]).toContain(JSON.stringify(contextMaterial));
+  expect(JSON.parse(contextMaterial).author_comments[1]).not.toHaveProperty('text');
+});

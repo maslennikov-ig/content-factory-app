@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
+import { PieceRepository } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.repository';
 import { VoiceService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice.service';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { ContentFactService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service';
@@ -8,7 +9,7 @@ import { VideoJobService } from '@contentfactory/nestjs-libraries/videos/video-j
 import type { VideoAccessService as UnifiedVideoAccessService } from '@contentfactory/nestjs-libraries/videos/video-access.service';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import type { AgentArtifactRef, AgentWorkContextV1 } from '../capabilities/agent-parts.contract';
+import type { AgentArtifactRef, AgentWorkContextV1, AgentWritingSelection } from '../capabilities/agent-parts.contract';
 import type { CapabilityGate } from '../capabilities/capability.admission';
 import type { CapabilityDeclaration, CapabilityIdentity } from '../capabilities/capability.types';
 import type { CapabilityServices } from '../capabilities/mastra.adapter';
@@ -60,6 +61,34 @@ export class AgentWorkContextResolver {
     if (!row || row.inBetweenSteps) throw missingWorkContext();
     const writing = await integrations.getWritingProfile(identity.organizationId, id);
     return { id: row.id, name: row.name, platform: row.providerIdentifier, disabled: !!row.disabled, writing: writing.profile ?? null };
+  }
+
+  async resolveWritingSelection(identity: CapabilityIdentity, selected: AgentWritingSelection) {
+    const channel = selected.channelId ? await this.channel(identity, selected.channelId) : undefined;
+    const explicitAvatar = selected.avatarId;
+    const channelAvatar = (channel?.writing as { brandProfileId?: unknown } | null)?.brandProfileId;
+    const avatarId = explicitAvatar || (typeof channelAvatar === 'string' ? channelAvatar : undefined);
+    let avatar: { id: string; name: string | null } | undefined;
+    let brandProfileSelection: { mode: 'version'; versionId: string } | undefined;
+    if (avatarId) {
+      await this.allow(identity, 'avatar.list');
+      const voice = this.deps.services(VoiceService);
+      const actor = { organizationId: identity.organizationId, userId: identity.userId, canManage: isOrganizationEditor(identity.role), locale: identity.language };
+      const row = (await voice.avatars(actor)).avatars.find(one => one.id === avatarId);
+      if (!row || !row.analysed) {
+        if (explicitAvatar) throw missingWorkContext();
+      } else {
+        const profile = await this.deps.services(PieceRepository).findAvatar(identity.organizationId, avatarId);
+        if (!profile?.activeVersionId) {
+          if (explicitAvatar) throw missingWorkContext();
+        } else {
+          avatar = { id: row.id, name: row.name };
+          brandProfileSelection = { mode: 'version', versionId: profile.activeVersionId };
+        }
+      }
+    }
+    return { selection: selected, ...(channel ? { channel: { id: channel.id, name: channel.name } } : {}),
+      ...(avatar ? { avatar } : {}), ...(brandProfileSelection ? { brandProfileSelection } : {}) };
   }
 
   async resolve(

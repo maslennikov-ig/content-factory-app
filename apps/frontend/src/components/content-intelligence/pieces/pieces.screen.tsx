@@ -56,15 +56,9 @@ import { FilterChips } from '../../ui/filter-chips';
  *
  * Пять вещей в разметке — решения, а не оформление.
  *
- * **Брейкпоинт таблицы именованный, и это не мелочь.** До 07.09.2026 здесь
- * стоял произвольный брейкпоинт на 720 px, записанный вариантом `min` с
- * шириной в скобках. Tailwind 3.4 такие варианты не выпускает вовсе, пока в
- * `screens` есть хоть один объект с `raw` — их шесть, — и молчит об этом в
- * логе сборки. Правила не было в CSS, таблица держала `hidden` и на боевой не
- * отрисовалась ни разу: человек видел только карточки. Экран `table` (720px,
- * то же число, что `PIECE_TABLE_MIN_WIDTH`) — обычный брейкпоинт, и
- * `tests/design.guard.test.cjs` с тех пор роняет сборку на любом произвольном
- * варианте в разметке.
+ * **Ширина таблицы — ширина раздела, а не окна.** Навигация может занимать
+ * часть окна, поэтому CSS container query показывает таблицу при 720 px
+ * внутри раздела (то же число, что `PIECE_TABLE_MIN_WIDTH`).
  *
  * **Ниже 720 px таблицы нет вовсе.** Не «таблица с прокруткой», а карточки:
  * горизонтально прокручиваемая таблица на 390 px — это способ спрятать
@@ -383,7 +377,7 @@ export function PiecesScreen({
         standalone
         name="pieces-sort"
         aria-label={sortWords.label}
-        className="w-[176px] max-w-full table:hidden"
+        className="cf-pieces-sort w-[176px] max-w-full"
         value={filters.sort}
         onChange={(event) => {
           const value = event.target.value;
@@ -598,7 +592,7 @@ export function PiecesScreen({
       data-content-panel="pieces"
       data-piece-state={state}
       aria-busy={busy}
-      className="flex min-w-0 flex-col gap-[16px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
+      className="cf-pieces-container flex min-w-0 flex-col gap-[16px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
       {head}
 
@@ -641,20 +635,20 @@ export function PiecesScreen({
 
           {/*
             Ниже 720 px — карточки, выше — таблица. Оба списка в разметке
-            всегда, а переключает их именованный экран `table`: узкий экран,
+            всегда, а переключает их ширина раздела: узкая область,
             который прокручивает таблицу вбок, прячет ровно то, ради чего
             таблица и заведена, — состояние по площадкам.
           */}
           <ul
             data-piece-cards="true"
-            className="flex flex-col gap-[8px] table:hidden"
+            className="cf-pieces-cards flex flex-col gap-[8px]"
           >
             {rows.map((row) => card(row))}
           </ul>
 
           <Panel
             contentPadding="none"
-            className="hidden min-w-0 overflow-hidden table:block"
+            className="cf-pieces-table min-w-0 overflow-hidden"
           >
             <div
               data-piece-table="true"

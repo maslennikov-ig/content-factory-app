@@ -12,6 +12,8 @@ import {
   readThreadHistory,
   type AgentMessage,
   type AgentWorkContextV1,
+  type AgentWritingSelection,
+  readAgentWritingSelection,
 } from './agent.contract';
 import { assistantContextKey } from './assistant.route-context';
 
@@ -85,21 +87,31 @@ export const createAgentTransport = ({
   request,
   currentThread,
   currentContext,
+  currentWritingSelection,
+  prepareWritingSelection,
   onThread,
   onNotStarted,
   onReplayComplete,
+  onUserMessage,
+  onRequestFailure,
 }: {
   request: ProductFetch;
   /** The thread the next request writes to; `null` opens a new one. */
   currentThread: () => string | null;
   /** Read at send time so manual navigation never captures an old object. */
   currentContext?: () => AgentWorkContextV1 | null | undefined;
+  currentWritingSelection?: () => AgentWritingSelection | undefined;
+  prepareWritingSelection?: (selection: AgentWritingSelection | undefined) => void | Promise<void>;
   /** The server named the thread in `AGENT_THREAD_HEADER`. */
   onThread: (id: string) => void;
   /** Positive proof: local preparation or the server refused before starting. */
   onNotStarted?: () => void;
   /** Native replay was released after its saved terminal response committed. */
   onReplayComplete?: () => void | Promise<void>;
+  /** The SDK's new user message, before preparation or the chat request. */
+  onUserMessage?: (message: AgentMessage) => void;
+  /** Safe details from an actual unsuccessful chat POST response. */
+  onRequestFailure?: (diagnostic: { status: number; code?: string; notStarted: boolean }) => void;
 }) =>
   new AgentChatTransport({
     api: AGENT_DOORS.chat,
@@ -113,6 +125,13 @@ export const createAgentTransport = ({
         init.signal.throwIfAborted();
       }
       const response = await request(String(input), init ?? {});
+      if (!response.ok && onRequestFailure && init?.method?.toUpperCase() === 'POST' && String(input) === AGENT_DOORS.chat) {
+        const payload = await response.clone().json().catch(() => null);
+        const code = payload && typeof payload === 'object' && typeof payload.code === 'string' && /^[A-Z][A-Z0-9_]+$/.test(payload.code)
+          ? payload.code
+          : undefined;
+        onRequestFailure({ status: response.status, ...(code ? { code } : {}), notStarted: response.headers.get(AGENT_NOT_STARTED_HEADER) === '1' });
+      }
       if (response.status === 204 && currentThread() && String(input).endsWith(AGENT_DOORS.observeThread(currentThread()!))) {
         await onReplayComplete?.();
       }
@@ -137,6 +156,8 @@ export const createAgentTransport = ({
         // An answer on an approval card further up names its message (N1).
         messageId,
         resume: readResumeOption(body),
+        writingSelection: body && Object.prototype.hasOwnProperty.call(body, 'writingSelection')
+          ? readAgentWritingSelection(body.writingSelection) : undefined,
         workContext: body && Object.prototype.hasOwnProperty.call(body, 'workContext')
           ? readAgentWorkContext(body.workContext)
           : currentContext?.(),
@@ -146,7 +167,19 @@ export const createAgentTransport = ({
     const id = currentThread();
     const context = currentContext?.();
     const explicitContext = options.body && Object.prototype.hasOwnProperty.call(options.body, 'workContext');
-    const intent = buildChatBody({ threadId: id, messages: options.messages, messageId: options.messageId, resume: readResumeOption(options.body) });
+    const resume = readResumeOption(options.body);
+    const intent = buildChatBody({ threadId: id, messages: options.messages, messageId: options.messageId, resume });
+    if (options.trigger === 'submit-message' && !resume && intent.messages[0]?.role === 'user') {
+      onUserMessage?.(intent.messages[0]);
+    }
+    // Freeze the writing target before an asynchronous context refresh.
+    if (options.trigger === 'submit-message' && !resume && intent.messages[0]?.role === 'user' && !Object.prototype.hasOwnProperty.call(options.body ?? {}, 'writingSelection')) {
+      options = { ...options, body: { ...options.body, writingSelection: currentWritingSelection?.() } };
+    }
+    if (!resume && intent.messages[0]?.role === 'user') {
+      try { await prepareWritingSelection?.(readAgentWritingSelection((options.body as { writingSelection?: unknown } | undefined)?.writingSelection)); }
+      catch { onNotStarted?.(); throw new AgentRequestNotStartedError('Writing selection could not be saved', 503); }
+    }
     // Queued targets, regeneration and native cards keep their original binding.
     // Only a new deliberate instruction should see the latest manual version.
     if (options.trigger !== 'submit-message' || explicitContext || !id || !context?.revision || intent.messages[0]?.role !== 'user') return options;

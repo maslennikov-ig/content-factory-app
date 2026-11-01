@@ -28,7 +28,9 @@ const ReactLoading = ({
       style={{
         width: size,
         height: size,
-        border: `${borderWidth}px solid transparent`,
+        borderWidth,
+        borderStyle: 'solid',
+        borderColor: 'transparent',
         borderTopColor: color,
         borderRadius: '50%',
         animation: 'spin 0.8s linear infinite',
@@ -227,7 +229,7 @@ const getContentClasses = (className: string, innerClassName?: string) => {
   ];
 
   return clsx(
-    'flex-1 items-center flex',
+    'min-w-0 flex-1 items-center flex',
     !ownsUnprefixedAxis(owned, ['justify']) && 'justify-center',
     !ownsUnprefixedAxis(owned, ['gap']) && 'gap-[8px]',
     carried
@@ -300,7 +302,6 @@ const getGeometryClasses = (
   density: ButtonDensity = 'standard',
   layout: 'control' | 'content' = 'control'
 ) => {
-  if (layout === 'content') return clsx('min-h-[40px]', getHorizontalPaddingDefaults(tokens));
   if (iconOnly) {
     return clsx(
       density === 'dense' ? 'h-[32px] w-[32px]' : 'h-[40px] w-[40px]',
@@ -308,7 +309,10 @@ const getGeometryClasses = (
     );
   }
 
-  return clsx(density === 'dense' ? 'h-[32px]' : 'h-[40px]', getHorizontalPaddingDefaults(tokens));
+  const top = ownsUnprefixedAxis(tokens, ['p', 'py', 'pt']);
+  const bottom = ownsUnprefixedAxis(tokens, ['p', 'py', 'pb']);
+  const dense = density === 'dense' && layout !== 'content';
+  return clsx('h-fit', dense ? 'min-h-[32px]' : 'min-h-[40px]', !top && (dense ? 'pt-[4px]' : 'pt-[8px]'), !bottom && (dense ? 'pb-[4px]' : 'pb-[8px]'), getHorizontalPaddingDefaults(tokens));
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

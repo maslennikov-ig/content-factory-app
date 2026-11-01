@@ -992,3 +992,15 @@ describe('«Решите за меня» on every question answers the link ques
     expect(piece.brief.postLink).toBeUndefined();
   });
 });
+
+test('a core rebuild retains labelled author comments and omissions without another interview', async () => {
+  const contextMaterial = JSON.stringify({ author_comments: [
+    { update: 'Alpha sessions', origin: 'author_reply', text: 'Мне это полезно для длинных задач.' },
+    { update: 'Beta tools', origin: 'author_reply', skipped: true },
+  ] });
+  const { service, piece } = build({ brief: { ...CORE_BRIEF, contextMaterial }, models: [{ text: 'Текст с сохранённым комментарием автора.' }] });
+  await service.rebuildCore('org-a', 'piece-1', 'ru');
+  expect(piece.brief.contextMaterial).toBe(contextMaterial);
+  expect(modelCalls).toHaveLength(1);
+  expect(modelCalls[0].prompt).toContain(contextMaterial);
+});

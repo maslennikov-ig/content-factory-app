@@ -1,4 +1,5 @@
-import type { Session } from '@mastra/core/agent-controller';
+import { type Session } from '@mastra/core/agent-controller';
+import { createNativeQuestionTool } from './native-question-batch';
 import type { MastraMemory } from '@mastra/core/memory';
 import type { CapabilityDeclaration } from '../capabilities/capability.types';
 
@@ -6,6 +7,13 @@ export const NATIVE_PERMISSION_METADATA_KEY = 'assistantPermissionRules';
 export const NATIVE_SAFE_BUILTIN_TOOLS = ['skill', 'skill_search', 'skill_read', 'ask_user',
   'task_write', 'task_update', 'task_complete', 'task_check', 'updateWorkingMemory'];
 const policies = new Set(['allow', 'ask', 'deny']);
+
+/** A question suspends itself; the global action-approval hop is redundant. */
+export function nativeQuestionTools() {
+  return {
+    ask_user: createNativeQuestionTool(),
+  };
+}
 
 /** Restore before subscribing to a persisted gate. Domain checks remain authoritative. */
 export async function configureNativeSessionPermissions(

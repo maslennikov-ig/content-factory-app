@@ -31,14 +31,15 @@ export type SelectionOption = z.infer<typeof selectionOption>;
 /** The card's schema for one answer key, plus what the answer continues. */
 export const selectionQuestion = <K extends string, E extends z.ZodRawShape>(
   answerKey: K,
-  extra: E
+  extra: E,
+  canDecideForPerson: z.ZodType<boolean> = z.literal(true)
 ) =>
   z.object({
     kind: z.literal('selection'),
     question: z.string(),
     answerKey: z.literal(answerKey),
     options: z.array(selectionOption),
-    canDecideForPerson: z.literal(true),
+    canDecideForPerson,
     ...extra,
   });
 
@@ -48,6 +49,23 @@ export const selectionAnswer = <K extends string>(answerKey: K, max: number) =>
     [answerKey]: z.array(z.string().max(400)).max(max).optional(),
     [AGENT_DECIDE_FOR_PERSON_KEY]: z.boolean().optional(),
   } as Record<K | typeof AGENT_DECIDE_FOR_PERSON_KEY, z.ZodOptional<z.ZodTypeAny>>);
+
+/** Full-text proposals accept every offered change or decline them all. */
+export const validFullPreviewAnswer = (
+  options: readonly unknown[], answer: Record<string, unknown>, answerKey: string
+): boolean => {
+  if (AGENT_DECIDE_FOR_PERSON_KEY in answer || !Array.isArray(answer[answerKey])) return false;
+  const ids = answer[answerKey] as unknown[];
+  if (!ids.every((id) => typeof id === 'string')) return false;
+  const offered = new Set<string>();
+  for (const option of options) {
+    if (!option || typeof option !== 'object' || !('id' in option) || typeof option.id !== 'string') return false;
+    offered.add(option.id);
+  }
+  const named = new Set(ids);
+  return offered.size === options.length && named.size === ids.length &&
+    (ids.length === 0 || (ids.length === options.length && ids.every((id) => typeof id === 'string' && offered.has(id))));
+};
 
 /** What the product keeps by itself: the screen's own preselection. */
 export const defaultIds = (options: readonly SelectionOption[]) =>

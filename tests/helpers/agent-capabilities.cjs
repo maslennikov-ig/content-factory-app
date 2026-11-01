@@ -698,7 +698,7 @@ const fixtures = () => ({
   },
   'piece.check_facts': {
     input: { pieceId: 'p1' },
-    resumeData: { decideForPerson: true },
+    resumeData: { changeIds: ['c1'] },
     services: {
       PieceService: {
         reviewV2: async () => ({
@@ -707,6 +707,7 @@ const fixtures = () => ({
           summary: INJECTION,
           changes: [{ id: 'c1', basket: 'show', excerpt: INJECTION, replacement: 'x', why: INJECTION }],
         }),
+        previewReviewV2: () => ({ title: null, text: 'x' }),
         acceptReviewV2: async () => ({ body: INJECTION }),
       },
     },
@@ -722,10 +723,12 @@ const fixtures = () => ({
           summary: INJECTION,
           changes: [{ id: 'c1', basket: 'show', excerpt: INJECTION, replacement: 'x', why: INJECTION }],
         }),
+        previewReviewV2: () => ({ title: null, text: 'x' }),
         acceptReviewV2: async () => ({ body: INJECTION }),
       },
     },
   },
+  'piece.series.resume': { input: { pieceId: 'p1', runId: 'series1' }, services: {} },
   'piece.adapt': {
     input: { pieceId: 'p1', channelId: 'c1' },
     resumeData: { answers: [{ key: 'ask-1', mode: 'custom', text: 'Мой случай' }] },
@@ -762,7 +765,7 @@ const fixtures = () => ({
   },
   'adaptation.review': {
     input: { pieceId: 'p1', adaptationId: 'a1', check: 'ai_traces' },
-    resumeData: { decideForPerson: true },
+    resumeData: { changeIds: ['c1'] },
     services: {
       PieceService: {
         reviewV2: async () => ({
@@ -771,6 +774,7 @@ const fixtures = () => ({
           summary: INJECTION,
           changes: [{ id: 'c1', basket: 'show', excerpt: INJECTION, replacement: 'x', why: INJECTION }],
         }),
+        previewReviewV2: () => ({ title: null, text: 'x' }),
         acceptReviewV2: async () => ({ body: INJECTION }),
       },
     },
@@ -786,6 +790,7 @@ const fixtures = () => ({
           summary: INJECTION,
           changes: [{ id: 'c1', basket: 'show', excerpt: INJECTION, replacement: 'x', why: INJECTION }],
         }),
+        previewReviewV2: () => ({ title: null, text: 'x' }),
         acceptReviewV2: async () => ({ body: INJECTION }),
       },
     },

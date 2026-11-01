@@ -66,6 +66,9 @@ export type AgentWorkContextV1 = {
   revision?: string;
 };
 
+/** Per-chat writing defaults; they never change a channel or avatar. */
+export type AgentWritingSelection = { channelId?: string; avatarId?: string };
+
 /** Persistent references never copy product text, secrets or another user's history. */
 export type AgentArtifactRef = {
   kind: Exclude<CardKind, 'channel-connect' | 'secret'>;
@@ -80,6 +83,7 @@ export type AgentArtifactRef = {
 export type AgentWorkspaceV1 = {
   version: 'assistant-workspace/v1';
   workContext: AgentWorkContextV1 | null;
+  writingSelection?: AgentWritingSelection;
   artifacts: AgentArtifactRef[];
   activeArtifact: AgentArtifactRef | null;
 };
@@ -142,6 +146,7 @@ export type AgentCardPayloads = {
    * channel, a repeat adaptation the next); no text rides here.
    */
   adaptation: {
+    series?: { id: string; index: number; total: number };
     kind: 'adaptation';
     id: string;
     pieceId: string;
@@ -288,7 +293,9 @@ export type AgentSelectionQuestionPayload = {
     /** Complete proposal text; private signed continuation stays server-side. */
     preview?: { before: string; after: string; reason?: string; target?: 'title' | 'text' };
   }>;
-  canDecideForPerson: true;
+  canDecideForPerson: boolean;
+  /** Complete candidate; accept all options or decline them together. */
+  fullPreview?: { title: string | null; text: string };
   /** `AGENT_CARD_ID_KEY`: added by the server to the card it shows. */
   cardId?: string;
 };
@@ -456,6 +463,8 @@ export type AgentToolOutput =
 export const AGENT_ERROR_CODES = [
   /** Anything not named below. */
   'AGENT_FAILED',
+  /** A native step ended without a complete executable tool call. */
+  'AGENT_TASK_OPERATION_FAILED',
   /** The workspace has no model key in the chosen mode. */
   'AI_PROVIDER_UNAVAILABLE',
   /** The model provider requires available credits or a higher key limit. */
@@ -703,6 +712,8 @@ export type AgentThreadExecutionV1 = {
   state: 'running' | 'settled' | 'unknown';
   /** Settled means no started work remains; it does not imply a successful write. */
   outcome?: 'completed' | 'failed' | 'interrupted';
+  /** Safe product code, preserved after native replay expires. */
+  errorCode?: AgentErrorCode;
 };
 
 export type AgentThreadHistoryV1 = {

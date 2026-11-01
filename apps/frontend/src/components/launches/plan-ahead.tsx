@@ -1,7 +1,7 @@
 'use client';
 
 import { Panel } from '@contentfactory/react/layout';
-import { FC, useCallback, useEffect, useRef } from 'react';
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -16,7 +16,6 @@ import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { EmptyState, ErrorState, SkeletonRows } from '../ui/surface';
 import { Table, Td, Th, Tr } from '../ui/table';
-import { usePopoverTrigger } from '../ui/use-popover-trigger';
 import { Metric } from '../ui/metric';
 
 /**
@@ -199,7 +198,8 @@ export const PlanAheadChip: FC<{
   const ahead = usePlanAhead(integrationIds, timeZone, revision, !noChannels);
   const data = noChannels ? NO_CHANNELS_AHEAD : ahead.data;
   const error = noChannels ? undefined : ahead.error;
-  const { open, setOpen, holder } = usePopoverTrigger<HTMLSpanElement>();
+  const [open, setOpen] = useState(false);
+  const holder = useRef<HTMLSpanElement>(null);
 
   if (error || !data) {
     // Loading keeps the place; a failure says so quietly and nothing else.
@@ -250,7 +250,10 @@ export const PlanAheadChip: FC<{
       {open && data.channels.length > 0 && (
         <Popover
           role="dialog"
-          className="absolute top-[calc(100%+4px)] end-0 z-[60] w-[min(360px,calc(100vw-32px))] p-[12px]"
+          anchorRef={holder}
+          onClose={() => setOpen(false)}
+          ariaLabel={copy.aheadByChannel}
+          className="w-[min(360px,calc(100vw-32px))] p-[12px]"
         >
           <SectionLabel as="p" className="pb-[8px]">
             {copy.aheadByChannel}

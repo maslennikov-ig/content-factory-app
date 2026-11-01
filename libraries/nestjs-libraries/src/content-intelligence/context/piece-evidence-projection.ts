@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
+import { CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
 import type { EvidenceCandidateV1, EvidenceProjectionV1, PieceEvidenceInputV1 } from './content-context.types';
 
 /** Internal piece-adaptation policy. Other context consumers retain v1/v2 limits. */
-export const PIECE_EVIDENCE_MAX_ITEMS = 16;
+export const PIECE_EVIDENCE_MAX_ITEMS = CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1;
 export const PIECE_EVIDENCE_MAX_CHARACTERS = 64_000;
 const MAX_SPANS = 64;
 const MAX_SOURCE_CHARACTERS = 8_000;
@@ -99,7 +100,7 @@ export function packPieceEvidence(input: {
   admit: (item: EvidenceCandidateV1) => boolean;
 }) {
   if (input.piece.version !== 'piece-evidence/v1' || typeof input.piece.core !== 'string' ||
-    !Array.isArray(input.piece.quotes) || input.piece.quotes.length > 64 ||
+    !Array.isArray(input.piece.quotes) || input.piece.quotes.length > CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 ||
     input.piece.quotes.some(item => !item || typeof item.evidenceId !== 'string' || !item.evidenceId ||
       typeof item.sourceUrl !== 'string' || typeof item.quote !== 'string')) {
     return proofPreflightFailure('The selected piece proof input exceeds its bounded contract.');

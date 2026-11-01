@@ -3,6 +3,7 @@
 import { FC, ReactNode, useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import useCookie from 'react-use-cookie';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -19,6 +20,7 @@ import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark'
 import { displayName } from '@contentfactory/react/helpers/display-name';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import { SidePanel } from '@contentfactory/frontend/components/ui/side-panel';
+import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
 
 const COLLAPSE_COOKIE = 'sidebar';
 
@@ -57,8 +59,23 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
 const Group: FC<{
   label: string;
   collapsed: boolean;
+  expandable?: boolean;
+  defaultOpen?: boolean;
   children: ReactNode;
-}> = ({ label, collapsed, children }) => (
+}> = ({ label, collapsed, expandable, defaultOpen, children }) => {
+  if (expandable && !collapsed) return (
+    <Disclosure
+      summary={label}
+      defaultOpen={defaultOpen}
+      triggerVariant="navigation"
+      triggerProps={{ title: label }}
+      triggerClassName="cf-nav-row px-[8px]"
+      contentClassName="flex flex-col gap-[4px] mt-[4px]"
+    >
+      {children}
+    </Disclosure>
+  );
+  return (
   <div className="flex flex-col gap-[2px]">
     <p
       className={clsx(
@@ -73,14 +90,15 @@ const Group: FC<{
     </p>
     {children}
   </div>
-);
+  );
+};
 
 /**
  * Signed application navigation.
  *
  * Desktop keeps the full 248px rail with visible labels; collapsing to 72px is
- * a space setting, not the default. Between 768px and 1024px the rail is always
- * compact. Below 768px the same navigation becomes a drawer with a focus trap
+ * a space setting, not the default. From 768px the rail can be resized or
+ * collapsed. Below 768px the same navigation becomes a drawer with a focus trap
  * and Escape to close, so nothing required is hidden on a phone.
  */
 export const Sidebar: FC<{
@@ -89,6 +107,7 @@ export const Sidebar: FC<{
 }> = ({ mobileOpen, onCloseMobile }) => {
   const t = useT();
   const user = useUser();
+  const pathname = usePathname() ?? '';
   const { billingEnabled } = useVariables();
   const { assistantMenu, workMenu, adminMenu, secondaryMenu } = useMenuItem();
   const [collapsedCookie, setCollapsedCookie] = useCookie(
@@ -146,8 +165,9 @@ export const Sidebar: FC<{
       items: filterMenu(assistantMenu, user as any, billingEnabled),
     },
     {
-      label: t('assistant_sections', 'Sections'),
+      label: t('assistant_sections', 'Tools'),
       items: filterMenu(workMenu, user as any, billingEnabled),
+      expandable: true,
     },
     {
       label: t('nav_group_more', 'More'),
@@ -190,9 +210,14 @@ export const Sidebar: FC<{
         >
           {groups.map((group) => (
             <Group
-              key={group.label}
+              key={group.expandable ? `${group.label}:${pathname}` : group.label}
               label={group.label}
               collapsed={isCollapsed}
+              expandable={group.expandable}
+              defaultOpen={group.items.some(({ path }) => {
+                const route = path.split('?')[0];
+                return pathname === route || pathname.startsWith(`${route}/`);
+              })}
             >
               {group.items.map((item) => (
                 item.path === '/agents' ? <AssistantMenuItem

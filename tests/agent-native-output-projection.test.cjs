@@ -9,7 +9,9 @@ test('native tool projections bound repeated payloads while exact complete recei
   });
   const result = JSON.parse(output.trim().split('\n').at(-1));
   expect(result).toEqual(expect.objectContaining({ passed: true, sources: 50, facts: 50,
-    completeRangeRetrieval: true, domainWrites: 1, digestAndThreadChecked: true, readOutageNotUncertain: true }));
+    completeRangeRetrieval: true, domainWrites: 1, digestAndThreadChecked: true, readOutageNotUncertain: true,
+    researchPagesVerified: true }));
   expect(result.projectionBytes).toBeLessThanOrEqual(32_768);
   expect(result.fullBytes).toBeGreaterThan(500_000);
+  expect(result.researchOverviewBytes).toBeLessThanOrEqual(32_768);
 });

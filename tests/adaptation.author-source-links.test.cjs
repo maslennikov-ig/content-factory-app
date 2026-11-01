@@ -16,6 +16,7 @@ const wish=('Подготовь полную адаптацию. '+ 'Сохра�
 const author=wish+'\n\nДополнительные уже найденные материалы:\n'+urls.join('\n');
 const nativeContext=(text=author)=>buildConductorContext({identity:IDENTITY,threadId:'owned-thread',originalAuthorRequest:{messageId:'current',text}});
 const resumeContext=()=>buildConductorContext({identity:IDENTITY,threadId:'owned-thread'});
+const longCurrentRequest = 'Адаптируй материал. ' + 'Сохрани существенные детали для аудитории. '.repeat(20) + 'Скидка доступна только участникам до пятницы.';
 function build(entrance='chat'){
   const paid=jest.fn(()=>{throw Error('No paid/model/search/source-fetch call allowed');});
   const requests=[],generatorRequests=[];
@@ -30,6 +31,7 @@ function build(entrance='chat'){
       brief:{brief:{thesis:'Digest',position:null,disagreement:null,audience:null,facts:[],origins:{},questions:[],options:{}},answers:[],writtenBy:'model'}})),
     listPieceIds:jest.fn(async()=>[{id:'p1'}]),
     listIntegrations:jest.fn(async()=>[channel]),adaptationsByPiece:jest.fn(async()=>[{id:'old',integrationId:'c1'}]),
+    findAvatar:jest.fn(async(_org,id)=>({id,activeVersionId:`version-${id}`})),
     createDraft:paid,createAdaptation:paid,
   };
   const pieces=new PieceService(repository,{start:async function*(org,request,options){
@@ -42,6 +44,42 @@ function build(entrance='chat'){
   return{pieces,repository,requests,generatorRequests,paid,prepared,tool};
 }
 const call=(built,context=nativeContext(),extra={})=>executeTool(built.tool,{pieceId:'p1',channelId:'c1',wish,...extra},{requestContext:context});
+
+test('native selection supplies the channel and avatar defaults, with explicit tool overrides taking precedence',async()=>{
+  for(const override of [undefined,'avatar-override']){
+    const built=build(),context=nativeContext();
+    context.set('cf.writingSelection',JSON.stringify({selection:{channelId:'c1',avatarId:'avatar-default'},
+      brandProfileSelection:{mode:'version',versionId:'version-avatar-default'}}));
+    const result=await executeTool(built.tool,{pieceId:'p1',wish,...(override?{avatarId:override}:{})},{requestContext:context});
+    expect(result.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
+    expect(built.prepared.mock.calls[0][2]).toMatchObject({integrationId:'c1',overrides:{brandProfileId:override||'avatar-default'}});
+    expect(built.paid).not.toHaveBeenCalled();
+  }
+});
+
+test('consent resumes with its captured channel and avatar even after chat selection changes',async()=>{
+  const built=build();jest.spyOn(built.pieces,'adaptPlanMode').mockResolvedValue('autopilot');
+  const firstContext=nativeContext();
+  firstContext.set('cf.writingSelection',JSON.stringify({selection:{channelId:'c1',avatarId:'avatar-first'}}));
+  const first=await executeTool(built.tool,{pieceId:'p1',wish},{requestContext:firstContext});
+  const payload=JSON.parse(JSON.stringify(first.suspended[0]));
+  expect(payload.continuation.writingSelection).toEqual({channelId:'c1',avatarId:'avatar-first'});
+  const changed=nativeContext('Да');
+  changed.set('cf.writingSelection',JSON.stringify({selection:{channelId:'c2',avatarId:'avatar-later'}}));
+  const resumed=await executeTool(built.tool,{pieceId:'p1',wish},{requestContext:changed,resumeData:{consentGiven:true},suspendPayload:payload});
+  expect(resumed.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
+  expect(built.prepared.mock.calls[0][2]).toMatchObject({integrationId:'c1',overrides:{brandProfileId:'avatar-first'}});
+  expect(built.paid).not.toHaveBeenCalled();
+});
+
+test('MCP cannot obtain a chat-only channel or avatar from a forged request context',async()=>{
+  const built=build('mcp'),context=nativeContext();
+  context.set('cf.writingSelection',JSON.stringify({selection:{channelId:'c1',avatarId:'avatar-forged'}}));
+  const result=await executeTool(built.tool,{pieceId:'p1',wish},{requestContext:context});
+  expect(result.output).toMatchObject({ok:false,code:'CAPABILITY_INPUT_INVALID'});
+  expect(built.prepared).not.toHaveBeenCalled();
+  expect(built.paid).not.toHaveBeenCalled();
+});
 
 test('actual native capability preserves author reference URLs omitted from the short model wish through real piece/generator handoff',async()=>{
   expect(wish.length).toBeLessThan(500);expect(wish).not.toContain('https://');
@@ -89,10 +127,26 @@ test('native autopilot resume retains server-stored references without a re-seed
   expect(built.paid).not.toHaveBeenCalled();
 });
 
+test.each([undefined, 'Короткое пожелание'])('current author request survives consent and a newer reply with wish %s',async shortWish=>{
+  const built=build();jest.spyOn(built.pieces,'adaptPlanMode').mockResolvedValue('autopilot');
+  const input={pieceId:'p1',channelId:'c1',...(shortWish?{wish:shortWish}:{})};
+  const first=await executeTool(built.tool,input,{requestContext:nativeContext(longCurrentRequest)});
+  const payload=JSON.parse(JSON.stringify(first.suspended[0]));
+  expect(payload.continuation.currentAuthorRequest).toBe(longCurrentRequest);
+  const {questionCardView}=loadCapabilityModule('question-card.ts');
+  expect(questionCardView(payload,'piece_adapt')).not.toHaveProperty('continuation');
+  const resumed=await executeTool(built.tool,input,{requestContext:nativeContext('Да'),resumeData:{consentGiven:true},suspendPayload:payload});
+  expect(resumed.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).toBe(longCurrentRequest);
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).not.toBe('Да');
+  expect(built.paid).not.toHaveBeenCalled();
+});
+
 test('unproven/manual capability calls cannot acquire author metadata from tool input or the ordinary HTTP request body',async()=>{
   const built=build();
-  await call(built,requestContextFor(registry),{authorReferenceUrls:urls});
+  await call(built,requestContextFor(registry),{authorReferenceUrls:urls,currentAuthorRequest:longCurrentRequest});
   expect(built.requests[0].pieceEvidence.sourceUrls).toBeUndefined();
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).toBeUndefined();
   const plan=await built.pieces.prepareAdapt(IDENTITY.organizationId,'p1',{integrationId:'c1',authorReferenceUrls:urls,overrides:{wish}},'ru');
   expect(plan.authorReferenceUrls).toBeUndefined();
   expect(built.paid).not.toHaveBeenCalled();
@@ -105,13 +159,15 @@ test('native interview resume preserves initial reference metadata without copyi
     if(!asked){asked=true;yield{name:'questions',questions:[{key:'ask-0',question:'Which details matter?',suggested:null,why:'Clarify scope.'}]};return;}
     yield*realAdapt(...args);
   };
-  const first=await call(built),payload=JSON.parse(JSON.stringify(first.suspended[0]));
+  const first=await call(built,nativeContext(author+'\n'+longCurrentRequest)),payload=JSON.parse(JSON.stringify(first.suspended[0]));
   expect(payload).toMatchObject({kind:'domain-questions',source:{kind:'adaptation',pieceId:'p1',channelId:'c1'},authorReferenceUrls:urls});
-  const result=await executeTool(built.tool,{pieceId:'p1',channelId:'c1',wish},{requestContext:resumeContext(),
+  expect(payload.continuation.currentAuthorRequest).toBe(author+'\n'+longCurrentRequest);
+  const result=await executeTool(built.tool,{pieceId:'p1',channelId:'c1',wish},{requestContext:nativeContext('Новый ответ'),
     resumeData:{answers:[{key:'ask-0',mode:'custom',text:'Все существенные детали.'}]},suspendPayload:payload});
   expect(result.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
   expect(built.requests[0].pieceEvidence.sourceUrls).toEqual(urls);
   expect(built.generatorRequests[0].intake.post.wish).toBe(wish);
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).toBe(author+'\n'+longCurrentRequest);
   expect(built.prepared.mock.calls.at(-1)[2].answers[0]).not.toHaveProperty('authorReferenceUrls');
   expect(built.paid).not.toHaveBeenCalled();
 });
@@ -120,10 +176,12 @@ test('legacy pending cards without reference metadata retain the existing core/w
   const built=build();jest.spyOn(built.pieces,'adaptPlanMode').mockResolvedValue('autopilot');
   const first=await call(built),payload=JSON.parse(JSON.stringify(first.suspended[0]));
   delete payload.authorReferenceUrls;
+  delete payload.continuation;
   const result=await executeTool(built.tool,{pieceId:'p1',channelId:'c1',wish},{requestContext:resumeContext(),resumeData:{consentGiven:true},suspendPayload:payload});
   expect(result.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
   expect(built.requests[0].pieceEvidence.sourceUrls).toBeUndefined();
   expect(built.generatorRequests[0].intake.authorReferenceUrls).toBeUndefined();
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).toBeUndefined();
   expect(built.paid).not.toHaveBeenCalled();
 });
 
@@ -141,9 +199,10 @@ test('shared reference-token extraction preserves priority, deduplicates, bounds
 
 test('ordinary MCP has only its existing core/wish selectors and no native author handoff authority',async()=>{
   const built=build('mcp'),wishUrl='https://example.org/current-wish';
-  const result=await call(built,requestContextFor(registry),{wish:'Use '+wishUrl,authorReferenceUrls:urls});
+  const result=await call(built,requestContextFor(registry),{wish:'Use '+wishUrl,authorReferenceUrls:urls,currentAuthorRequest:longCurrentRequest});
   expect(result.output).toMatchObject({ok:false,code:'CONTENT_EVIDENCE_REQUIRED'});
   expect(built.generatorRequests[0].intake.authorReferenceUrls).toBeUndefined();
+  expect(built.generatorRequests[0].intake.currentAuthorRequest).toBeUndefined();
   expect(built.requests[0].pieceEvidence.sourceUrls).toEqual([wishUrl]);
   expect(built.paid).not.toHaveBeenCalled();
 });

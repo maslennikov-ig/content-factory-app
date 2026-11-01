@@ -1,10 +1,14 @@
+import { startNativeAdaptationSeries, resumeNativeAdaptationSeries } from '../../conductor/native-adaptation-series';
 import { z } from 'zod';
 import { domainQuestionSchema, domainQuestionAnswer, isDomainQuestionCard, createDomainQuestionCard, domainQuestionRevision, continueDomainQuestions, type ManualDomainQuestion } from '../domain-questions';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { IntegrationsController } from '@contentfactory/backend/api/routes/integrations.controller';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
+import { readResolvedWritingSelection } from '../../conductor/work-context';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { EMOJI_STOPS } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import { CHANNEL_MIN_IDEAL_LENGTH } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import { POST_LINK_MAX, POST_LINK_PATTERN, POST_LINK_TEXT_MAX } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/post-link';
 import {
   AGENT_DECIDE_FOR_PERSON_KEY,
   type BrandVoiceFactScoreSummary,
@@ -23,10 +27,10 @@ import {
   reviewSummary,
   type Reviewed,
 } from './core.capabilities';
-import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion } from './selection';
+import { QUOTED_QUESTION_MAX, codedFailure, eventFailure, shortQuestion, unspentFailure } from './selection';
 import { ConfirmationNeeded } from '../mcp-confirmation';
 import { wrapUntrusted } from '../untrusted-data';
-import { proposalTarget } from '../capability.context';
+import { originalAuthorRequestSchema, proposalTarget } from '../capability.context';
 import { withAdaptationOpening } from '@contentfactory/nestjs-libraries/agent/adaptation-coverage';
 import { adaptationReferenceUrls } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import type { AdaptationQualityReviewV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -62,6 +66,18 @@ const postFields = {
   ctaKind: CTA.optional().describe('Call to action, only when the person asked'),
   avatarId: z.string().min(1).max(128).optional().describe('Another avatar for this post, id from the snapshot'),
 };
+const postAdaptFields = {
+  length: z.enum(['shorter', 'channel', 'longer']).optional().describe('Relative to the channel length; lengthPolicy takes precedence when both are supplied.'),
+  takeaway: z.string().max(500).optional().describe('A takeaway grounded in the actual task and material; preserve the author’s views.'),
+  postLink: z.string().max(POST_LINK_MAX).regex(POST_LINK_PATTERN).optional().describe('A supplied or selected-source http(s) link appropriate to the request, or none when requested; preserve an explicit existing link and never invent a promotional link.'),
+  postLinkText: z.string().max(POST_LINK_TEXT_MAX).optional().describe('Anchor text for the selected post link; preserve explicit author wording, or omit for the writer to choose.'),
+  lengthPolicy: z.enum(['auto', 'range']).optional().describe('Per-post length: auto lets the model choose for the material; range uses lengthRange. Preserve explicit author and channel requirements.'),
+  lengthRange: z.object({
+    idealMin: z.number().int().min(CHANNEL_MIN_IDEAL_LENGTH).nullable().optional(),
+    idealMax: z.number().int().min(CHANNEL_MIN_IDEAL_LENGTH),
+    hardMax: z.number().int().min(CHANNEL_MIN_IDEAL_LENGTH).max(100_000).nullable().optional(),
+  }).optional().describe('For lengthPolicy range: idealMin may be omitted or null for no minimum; hardMax is an optional explicit ceiling.'),
+};
 
 /* ---- The interview card --------------------------------------------------- */
 
@@ -72,9 +88,12 @@ const postFields = {
  * suggestion («Так и есть»), gives some to us, or all («Решите за меня»).
  */
 const authorReferences = z.array(z.string().min(1).max(2_000)).max(64).optional();
+const writingCheckpoint = z.object({ channelId: channelId, avatarId: z.string().min(1).max(128).optional() }).strict();
+const adaptationContinuation = z.object({ currentAuthorRequest: originalAuthorRequestSchema.shape.text.optional(), writingSelection: writingCheckpoint.optional(), skipInterview: z.boolean().optional() });
 
 const interviewQuestion = z.object({
   kind: z.literal('interview'),
+  continuation: adaptationContinuation.optional(),
   /** Trusted server payload only, never taken from the person's card answer. */
   authorReferenceUrls: authorReferences,
   question: z.string(),
@@ -134,6 +153,7 @@ const adaptAnswer = z.union([autopilotAnswer, interviewAnswer, domainQuestionAns
  */
 const autopilotQuestion = z.object({
   kind: z.literal('consent'),
+  continuation: adaptationContinuation.optional(),
   authorReferenceUrls: authorReferences,
   subject: z.literal('autopilot'),
   question: z.string(),
@@ -158,7 +178,13 @@ const INTERVIEW_TEXT = {
   en: 'A couple of questions so the post sounds like you. Answer or explicitly choose “Decide for me”.',
 };
 
+type AdaptPending = { pieceId: string; runId: string; status: string; generated: boolean; nativeStatus?: string; saved: false; saveFailure?: unknown };
+const isPending = (value: Adapted | AdaptDeclined | AdaptPending): value is AdaptPending => 'saved' in value && value.saved === false;
+
 type Adapted = {
+  presentationReason?: string;
+  series?: { id: string; index: number; total: number };
+  parts?: Array<{ adaptationId: string; postId: string; index: number; total: number }>;
   pieceId: string;
   adaptationId: string;
   channel: { id: string; name: string; provider: string };
@@ -185,12 +211,16 @@ type Adapted = {
 
 /** The person said no on the autopilot card: nothing spent, nothing written. */
 type AdaptDeclined = { pieceId: string; channelId: string; declined: true };
-const isDeclined = (output: Adapted | AdaptDeclined): output is AdaptDeclined =>
+const isDeclined = (output: Adapted | AdaptDeclined | AdaptPending): output is AdaptDeclined =>
   (output as AdaptDeclined).declined === true;
 
 type AdaptPass =
+  | ({ kind: 'pending' } & Omit<AdaptPending, 'pieceId'>)
   | {
       kind: 'adaptation';
+      seriesId?: string;
+      presentationReason?: string;
+      parts?: Array<{ adaptationId: string; postId: string }> ;
       adaptationId: string;
       state: string;
       channel: InterviewQuestion['channel'];
@@ -235,12 +265,32 @@ const adaptPass = async (
   body: Record<string, unknown>,
   emit: CapabilityEmit,
   queueAllowed: boolean,
-  sourceUrls: string[] = []
+  sourceUrls: string[] = [],
+  presentation?: 'auto' | 'series',
+  currentAuthorRequest?: string
 ): Promise<AdaptPass> => {
   const pieces = ctx.service(PieceService);
-  const plan = sourceUrls.length
-    ? await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language, { authorReferenceUrls: sourceUrls })
+  const plan = sourceUrls.length || currentAuthorRequest
+    ? await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language, {
+        ...(sourceUrls.length ? { authorReferenceUrls: sourceUrls } : {}),
+        ...(currentAuthorRequest ? { currentAuthorRequest } : {}),
+      })
     : await pieces.prepareAdapt(ctx.organizationId, id, body as any, ctx.language);
+  if (presentation) {
+    if (!ctx.mastra || !ctx.nativeToolCallId) throw unspentFailure('ADAPTATION_SERIES_UNAVAILABLE', 'Native workflow storage is required for a series.');
+    await emit({ kind: 'progress', data: { capability: 'piece.adapt', stage: 'adapt-started' }, transient: true });
+    const outcome = await startNativeAdaptationSeries(ctx.mastra, {
+      organizationId: ctx.organizationId, userId: ctx.userId, plan, presentation,
+    }, ctx.nativeToolCallId, ctx.requestContext, ctx.abortSignal);
+    if (outcome.status !== 'success') return { kind: 'pending', ...outcome };
+    const saved = outcome.result;
+    const channel = { id: plan.channel.id, name: plan.channel.name, provider: plan.channel.providerIdentifier };
+    if (saved.kind === 'questions') return { kind: 'questions', questions: saved.questions, channel };
+    return { kind: 'adaptation', adaptationId: saved.parts[0].adaptationId, parts: saved.parts,
+      seriesId: saved.seriesId, channel, state: 'draft', plan: null, note: null,
+      ...(saved.presentationReason ? { presentationReason: saved.presentationReason } : {}),
+      ...(saved.qualityReview ? { qualityReview: saved.qualityReview } : {}) };
+  }
   let channel: InterviewQuestion['channel'] = null;
   let result: AdaptPass | null = null;
   for await (const event of pieces.adapt(ctx.organizationId, plan, ctx.userId, { queueAllowed })) {
@@ -351,13 +401,20 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. Pass post fields only when the person asked for them in this request; a wish in their words goes to `wish`. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. qualityReview is advisory: partial or unavailable review does not undo the saved draft. Report the findings; do not rewrite or repeat checks without a new request. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
+    'Write a piece for one channel («Адаптировать»). Use presentation auto to choose one post or a semantic series from the complete material, save each as a separate DRAFT without queueing. Use series for an explicit series; single opts into the legacy one-post placement/consent flow below. Never reduce research scope or omit author views just to fit one post. If saving is pending, use piece.series.resume with its runId; do not generate again. Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. When the person delegates editorial choices, you may choose suitable per-post length, emoji, hashtags, link placement and call to action for the material and its full scope. Preserve explicit author requirements and channel constraints; omit fields to follow the channel profile. Put an actual author wish in `wish`. Ground the takeaway and links in the task and supplied sources; preserve the author’s views, explicit link and avatar choices, and never invent a promotional link. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. qualityReview is advisory: partial or unavailable review does not undo the saved draft. Report the findings; do not rewrite or repeat checks without a new request. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
-    channelId,
+    channelId: channelId.optional(),
+    presentation: z.enum(['auto', 'series', 'single']).optional().describe('auto chooses one post or a semantic series from the complete material; series requests multiple posts. Both save separate drafts without scheduling. single preserves one-post placement behavior.'),
     kind: z.enum(ADAPT_KINDS).optional().describe('post (default), caption, article or newsletter'),
+    skipInterview: z.boolean().optional().describe('When the person asks to skip questions to the author, skip both the interview and optional material questions for this adaptation. This does not suppress a question addressed to readers in the post or override the channel CTA.'),
     wish: z.string().max(500).optional().describe('The person’s wish for this post, verbatim'),
     ...postFields,
+    emojiLevel: EMOJI.optional().describe('Per-post emoji density; choose when delegated, respecting the author and channel.'),
+    hashtagPolicy: HASHTAGS.optional().describe('Per-post hashtag policy; choose when delegated, respecting the author and channel.'),
+    linkPolicy: LINKS.optional().describe('Per-post link placement; choose when delegated, respecting the author and channel.'),
+    ctaKind: CTA.optional().describe('Per-post call to action; choose when delegated, respecting the author and channel.'),
+    ...postAdaptFields,
   }),
   risk: 'paid',
   // Over MCP the autopilot consent is asked in the conversation (`kcxz.49`).
@@ -367,12 +424,35 @@ export const pieceAdapt = defineCapability({
   untrusted: [],
   suspendSchema: adaptQuestion,
   resumeSchema: adaptAnswer,
-  run: async (ctx, input, emit): Promise<Adapted | AdaptDeclined | undefined> => {
+  run: async (ctx, input, emit): Promise<Adapted | AdaptDeclined | AdaptPending | undefined> => {
+    const selected = ctx.entrance === 'chat' ? readResolvedWritingSelection(ctx.requestContext) : undefined;
+    const storedQuestion = ctx.resumeData !== undefined ? adaptQuestion.safeParse(ctx.suspendPayload) : null;
+    const savedWriting = storedQuestion?.success ? writingCheckpoint.safeParse(storedQuestion.data.continuation?.writingSelection) : null;
+    const targetChannel = (savedWriting?.success ? savedWriting.data.channelId : undefined) || input.channelId || selected?.selection.channelId;
+    if (!targetChannel) throw unspentFailure('CAPABILITY_INPUT_INVALID', 'Select a channel for this adaptation.');
+    const avatarId = savedWriting?.success ? savedWriting.data.avatarId : input.avatarId || selected?.selection.avatarId;
+    const range = input.lengthRange;
+    if ((input.lengthPolicy === 'range') !== Boolean(range) ||
+        (range && ((range.idealMin != null && range.idealMin > range.idealMax) ||
+          (range.hardMax != null && range.hardMax < range.idealMax)))) {
+      throw unspentFailure('CAPABILITY_INPUT_INVALID', 'Use lengthRange only with range; keep idealMin <= idealMax <= hardMax when those bounds are present.');
+    }
     const pieces = ctx.service(PieceService);
+    const presentation = input.presentation === 'single' ? undefined : input.presentation;
     // Native author text is read by the owned-chat resolver, never reconstructed
     // from a shortened tool wish. Server-stored references survive question resumes.
     const author = ctx.entrance === 'chat' ? await ctx.resolveAuthorRequest?.({}) : null;
-    const storedQuestion = ctx.resumeData !== undefined ? adaptQuestion.safeParse(ctx.suspendPayload) : null;
+    // A resume's current author record may be the answer (e.g. "yes"), not
+    // the original assignment. Only the server-held checkpoint can carry it.
+    const storedContinuation = storedQuestion?.success ? storedQuestion.data.continuation : undefined;
+    const skipInterview = typeof storedContinuation?.skipInterview === 'boolean'
+      ? storedContinuation.skipInterview : input.skipInterview === true;
+    const storedRequest = storedContinuation?.currentAuthorRequest;
+    const currentAuthorRequest = ctx.entrance === 'chat'
+      ? ctx.resumeData === undefined ? author?.text : typeof storedRequest === 'string' ? storedRequest : undefined
+      : undefined;
+    const requestMetadata = { ...(currentAuthorRequest ? { currentAuthorRequest } : {}), skipInterview,
+      ...(ctx.entrance === 'chat' ? { writingSelection: { channelId: targetChannel, ...(avatarId ? { avatarId } : {}) } } : {}) };
     const sourceUrls = ctx.entrance === 'chat' && ctx.resolveAuthorRequest ? adaptationReferenceUrls(
       ...(storedQuestion?.success ? storedQuestion.data.authorReferenceUrls || [] : []), ...(author ? [author.text] : [])
     ) : [];
@@ -385,42 +465,61 @@ export const pieceAdapt = defineCapability({
       ...(input.hashtagPolicy ? { hashtagPolicy: input.hashtagPolicy } : {}),
       ...(input.linkPolicy ? { linkPolicy: input.linkPolicy } : {}),
       ...(input.ctaKind ? { ctaKind: input.ctaKind } : {}),
-      ...(input.avatarId ? { brandProfileId: input.avatarId } : {}),
+      ...(avatarId ? { brandProfileId: avatarId } : {}),
+      ...(input.length ? { length: input.length } : {}),
+      ...(input.takeaway ? { takeaway: input.takeaway } : {}),
+      ...(input.postLink ? { postLink: input.postLink } : {}),
+      ...(input.postLinkText ? { postLinkText: input.postLinkText } : {}),
+      ...(input.lengthPolicy ? { lengthPolicy: input.lengthPolicy } : {}),
+      ...(range ? { lengthRange: { ...range, idealMin: range.idealMin ?? null } } : {}),
       ...(wish ? { wish } : {}),
     };
     const body = (extra: Record<string, unknown> = {}) => ({
-      integrationId: input.channelId,
+      integrationId: targetChannel,
       kind: input.kind ?? 'post',
+      ...(skipInterview ? { skipInterview: true } : {}),
       ...extra,
       ...(Object.keys(overrides).length ? { overrides } : {}),
     });
-    const finished = async (pass: AdaptPass, asked: number): Promise<Adapted | undefined> => {
+    const finished = async (pass: AdaptPass, asked: number, skipQuestions = skipInterview): Promise<Adapted | AdaptPending | undefined> => {
+      if (pass.kind === 'pending') return { pieceId: input.pieceId, runId: pass.runId, status: pass.status, generated: pass.generated, nativeStatus: pass.nativeStatus, saved: false, saveFailure: pass.saveFailure };
       if (pass.kind !== 'adaptation') {
         throw codedFailure('GENERATION_FAILED', 'The adaptation could not be written.');
       }
-      const written = await writtenOf(ctx, input.pieceId, input.channelId, pass.adaptationId);
+      const written = await writtenOf(ctx, input.pieceId, targetChannel, pass.adaptationId);
       const result: Adapted = {
         pieceId: input.pieceId,
+        ...(pass.presentationReason ? { presentationReason: pass.presentationReason } : {}),
+        ...(pass.parts && pass.seriesId ? {
+          series: { id: pass.seriesId, index: 1, total: pass.parts.length },
+          parts: pass.parts.map((part, index) => ({ ...part, index: index + 1, total: pass.parts!.length })),
+        } : {}),
         adaptationId: pass.adaptationId,
-        channel: (pass.channel as Adapted['channel'] | null) ?? { id: input.channelId, name: '', provider: '' },
+        channel: (pass.channel as Adapted['channel'] | null) ?? { id: targetChannel, name: '', provider: '' },
         variant: written.variant,
         state: pass.state,
         asked,
         ...(written.savedResult ? { savedResult: written.savedResult } : {}),
-        ...(written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
+        ...(!skipQuestions && written.openQuestions.length ? { openQuestions: written.openQuestions } : {}),
         ...(written.voiceScore ? { voiceScore: written.voiceScore } : {}),
         ...(pass.qualityReview ? { qualityReview: pass.qualityReview } : {}),
         plan: pass.plan,
         note: pass.note,
       };
-      if (ctx.suspend && written.materialAsk) {
+      if (result.parts && result.series) {
+        for (const part of result.parts.slice(1)) await emit({ kind: 'adaptation', data: {
+          id: part.adaptationId, pieceId: result.pieceId, channel: result.channel,
+          series: { id: result.series.id, index: part.index, total: part.total },
+        } });
+      }
+      if (!skipQuestions && ctx.suspend && written.materialAsk) {
         await emit({kind: 'adaptation', data: {id: result.adaptationId, pieceId: result.pieceId,
           ...(result.qualityReview ? { qualityReview: wrapUntrusted(result.qualityReview, ['workspace-text']) } : {})}});
-        await ctx.suspend(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: input.channelId,
+        await ctx.suspend(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: targetChannel,
           revision: written.questionRevision!}, written.materialAsk.questions,
           ctx.language === 'ru' ? 'Черновик сохранён. Можно дополнить материал — ответьте или выберите «Решите за меня», чтобы оставить пробелы без выдуманных фактов.'
             : 'The draft is saved. Add material by answering, or choose “Decide for me” to retain the gaps without inventing facts.',
-          { ...referenceMetadata, continuation: {operation: 'adaptation-material', adaptationId: result.adaptationId, result} }));
+          { ...referenceMetadata, continuation: {operation: 'adaptation-material', adaptationId: result.adaptationId, result, ...requestMetadata} }));
         return undefined;
       }
       return result;
@@ -429,24 +528,24 @@ export const pieceAdapt = defineCapability({
     // question round lands here too, as the page's limit of two rounds does:
     // that is a second service admission inside the call's one paid slot.
     const decideAll = async (asked: number, queueAllowed: boolean) =>
-      finished(await adaptPass(ctx, input.pieceId, body({ skipInterview: true }), emit, queueAllowed, sourceUrls), asked);
+      finished(await adaptPass(ctx, input.pieceId, body({ skipInterview: true }), emit, queueAllowed, sourceUrls, presentation, currentAuthorRequest), asked, true);
 
     // The first request of the page, or the interview pause after it.
     const askInterview = async (pass: Extract<AdaptPass, {kind: 'questions'}>, queueAllowed: boolean,
       previousAnswers: unknown[] = [], previousDecideKeys: string[] = []): Promise<undefined> => {
       const detail = await pieces.detail(ctx.organizationId, input.pieceId, ctx.language);
-      await ctx.suspend!(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: input.channelId,
-        revision: domainQuestionRevision(detail, {kind: 'adaptation', channelId: input.channelId})}, pass.questions,
+      await ctx.suspend!(createDomainQuestionCard({kind: 'adaptation', pieceId: input.pieceId, channelId: targetChannel,
+        revision: domainQuestionRevision(detail, {kind: 'adaptation', channelId: targetChannel})}, pass.questions,
         INTERVIEW_TEXT[ctx.language], {
           ...referenceMetadata,
           ...(queueAllowed ? {afterConsent: true as const} : {}),
-          continuation: {operation: 'adaptation-interview', channel: pass.channel, previousAnswers, previousDecideKeys},
+          continuation: {operation: 'adaptation-interview', channel: pass.channel, previousAnswers, previousDecideKeys, ...requestMetadata},
         }));
       return undefined;
     };
-    const firstPass = async (queueAllowed: boolean): Promise<Adapted | undefined> => {
-      const pass = await adaptPass(ctx, input.pieceId, body(), emit, queueAllowed, sourceUrls);
-      if (pass.kind === 'adaptation') return finished(pass, 0);
+    const firstPass = async (queueAllowed: boolean): Promise<Adapted | AdaptPending | undefined> => {
+      const pass = await adaptPass(ctx, input.pieceId, body(), emit, queueAllowed, sourceUrls, presentation, currentAuthorRequest);
+      if (pass.kind !== 'questions') return finished(pass, 0);
       if (!pass.questions.length) return decideAll(0, queueAllowed);
       return askInterview(pass, queueAllowed);
     };
@@ -456,10 +555,10 @@ export const pieceAdapt = defineCapability({
         const card = await continueDomainQuestions(ctx);
         if (!card) return undefined;
         if (card.source.kind === 'adaptation' && card.source.pieceId === input.pieceId &&
-          card.source.channelId === input.channelId && card.continuation?.operation === 'adaptation-material') {
+          card.source.channelId === targetChannel && card.continuation?.operation === 'adaptation-material') {
           const answers = card.answers.filter(answer => answer.mode !== 'delegate').map(answer => ({key: answer.key as any, text: answer.text!}));
           const adaptationId = String(card.continuation.adaptationId);
-          const applied = await pieces.materialQuestions(ctx.organizationId, input.pieceId, input.channelId,
+          const applied = await pieces.materialQuestions(ctx.organizationId, input.pieceId, targetChannel,
             answers.length ? {adaptationId, answers} : {adaptationId, dismiss: true}, ctx.language);
           if (!answers.length || applied.state !== 'answered') {
             const {openQuestions: _closed, ...saved} = card.continuation.result as Adapted;
@@ -467,10 +566,10 @@ export const pieceAdapt = defineCapability({
           }
           // The standalone manual flow applies the whole material batch, then rebuilds and adapts once.
           await pieces.rebuildCore(ctx.organizationId, input.pieceId, ctx.language);
-          return finished(await adaptPass(ctx, input.pieceId, body({skipInterview: true}), emit, false, sourceUrls), card.questions.length);
+          return finished(await adaptPass(ctx, input.pieceId, body({skipInterview: true}), emit, false, sourceUrls, presentation, currentAuthorRequest), card.questions.length, true);
         }
         if (card.source.kind !== 'adaptation' || card.source.pieceId !== input.pieceId ||
-          card.source.channelId !== input.channelId || card.continuation?.operation !== 'adaptation-interview') {
+          card.source.channelId !== targetChannel || card.continuation?.operation !== 'adaptation-interview') {
           throw codedFailure('INPUT_NEEDS_PERSON', 'The questions do not belong to this adaptation.');
         }
         const queueAllowed = card.afterConsent === true;
@@ -483,7 +582,7 @@ export const pieceAdapt = defineCapability({
         }))];
         const decideKeys = [...new Set([...previousDecideKeys, ...card.answers.filter(answer => answer.mode === 'delegate').map(answer => answer.key)])];
         if (!answers.length) return decideAll(card.questions.length, queueAllowed);
-        const pass = await adaptPass(ctx, input.pieceId, body({answers, ...(decideKeys.length ? {decideKeys} : {})}), emit, queueAllowed, sourceUrls);
+        const pass = await adaptPass(ctx, input.pieceId, body({answers, ...(decideKeys.length ? {decideKeys} : {})}), emit, queueAllowed, sourceUrls, presentation, currentAuthorRequest);
         if (pass.kind === 'questions') return askInterview(pass, queueAllowed, answers, decideKeys);
         return finished(pass, card.questions.length);
       }
@@ -494,7 +593,7 @@ export const pieceAdapt = defineCapability({
           throw codedFailure('INPUT_NEEDS_PERSON', 'The answer on the autopilot card was not understood; nothing was written.');
         }
         if (!answer.data.consentGiven) {
-          return { pieceId: input.pieceId, channelId: input.channelId, declined: true };
+          return { pieceId: input.pieceId, channelId: targetChannel, declined: true };
         }
         // The person consented on this call: this call may queue.
         return firstPass(true);
@@ -537,7 +636,7 @@ export const pieceAdapt = defineCapability({
         }),
         emit,
         queueAllowed,
-        sourceUrls
+        sourceUrls, presentation, currentAuthorRequest
       );
       // A second round is past the page's limit of two: we decide the rest.
       return pass.kind === 'questions' ? decideAll(asked, queueAllowed) : finished(pass, asked);
@@ -545,19 +644,20 @@ export const pieceAdapt = defineCapability({
 
     // Autopilot: the post would leave without a further act — the person
     // consents first, before anything is spent (spec §1.4, premortem A1).
-    const mode = await pieces.adaptPlanMode(ctx.organizationId, input.pieceId, input.channelId);
+    if (presentation) return ctx.suspend ? firstPass(false) : decideAll(0, false);
+    const mode = await pieces.adaptPlanMode(ctx.organizationId, input.pieceId, targetChannel);
     if (mode === 'autopilot') {
       const channel = await ctx
         .service(IntegrationService)
         .getIntegrationsForChannelList(ctx.organizationId)
-        .then((all: any[]) => all.find((one) => one.id === input.channelId))
+        .then((all: any[]) => all.find((one) => one.id === targetChannel))
         .catch(() => null);
       if (!ctx.suspend) {
         // MCP (`kcxz.49`): the same question, asked by the assistant in the
         // conversation; the repeat call carries the code of the person's «да».
         if (ctx.confirmed) return decideAll(0, true);
         if (ctx.entrance === 'mcp') {
-          throw new ConfirmationNeeded(AUTOPILOT_TEXT[ctx.language](String(channel?.name || input.channelId)));
+          throw new ConfirmationNeeded(AUTOPILOT_TEXT[ctx.language](String(channel?.name || targetChannel)));
         }
         throw codedFailure(
           'AUTOPILOT_NEEDS_CONSENT',
@@ -567,8 +667,9 @@ export const pieceAdapt = defineCapability({
       await ctx.suspend({
         kind: 'consent',
         ...referenceMetadata,
+        ...(Object.keys(requestMetadata).length ? { continuation: requestMetadata } : {}),
         subject: 'autopilot',
-        question: AUTOPILOT_TEXT[ctx.language](String(channel?.name || input.channelId)),
+        question: AUTOPILOT_TEXT[ctx.language](String(channel?.name || targetChannel)),
         answerKey: 'consentGiven',
         canDecideForPerson: false,
         channel: channel
@@ -587,6 +688,7 @@ export const pieceAdapt = defineCapability({
     return firstPass(false);
   },
   summarize: (output) =>
+    isPending(output) ? { ...output, ...(output.generated ? { recovery: { capability: 'piece.series.resume', pieceId: output.pieceId, runId: output.runId } } : {}), instruction: output.generated ? 'Generation is retained. Do not generate again; resume saving these drafts.' : 'Generation has no completed checkpoint. Do not claim that drafts exist or start generation again automatically. Report the actual failure or interruption.' } :
     isDeclined(output)
       ? { pieceId: output.pieceId, channelId: output.channelId, declined: true }
       : {
@@ -594,6 +696,8 @@ export const pieceAdapt = defineCapability({
           adaptationId: output.adaptationId,
           channelId: output.channel.id,
           variant: output.variant,
+          ...(output.parts ? { parts: output.parts, series: output.series, savedPostCount: output.parts.length } : {}),
+          ...(output.presentationReason ? { presentationReason: wrapUntrusted(output.presentationReason, ['workspace-text']) } : {}),
           state: output.state,
           ...(output.qualityReview ? { qualityReview: wrapUntrusted(output.qualityReview, ['workspace-text']) } : {}),
           savedResult: output.savedResult
@@ -620,6 +724,7 @@ export const pieceAdapt = defineCapability({
           ...(output.note ? { note: output.note } : {}),
         },
   cardOf: (output) =>
+    isPending(output) ? null :
     isDeclined(output)
       ? null
       : {
@@ -628,9 +733,39 @@ export const pieceAdapt = defineCapability({
           pieceId: output.pieceId,
           channel: output.channel,
           variant: output.variant,
+          ...(output.series ? { series: output.series } : {}),
           ...(output.voiceScore ? { voiceScore: output.voiceScore } : {}),
           ...(output.qualityReview ? { qualityReview: wrapUntrusted(output.qualityReview, ['workspace-text']) } : {}),
         },
+});
+
+/** Recovery consumes only a server-retained generated result and cannot call a model. */
+export const pieceSeriesResume = defineCapability({
+  id: 'piece.series.resume', group: 'content', entrances: ['chat'],
+  label: { ru: 'Сохранить серию черновиков', en: 'Save the draft series' },
+  description: 'Resume only saving a previously generated series, using runId from piece.adapt or piece.open. Free; never regenerates content, never queues or publishes. Report pending persistence honestly. A generation without a saved checkpoint cannot be recovered here.',
+  input: z.object({ pieceId, runId: z.string().min(1).max(256) }), risk: 'write',
+  door: door(ContentPieceController, 'adapt'), untrusted: [],
+  run: async (ctx, input, emit) => {
+    if (!ctx.mastra) throw codedFailure('ADAPTATION_SERIES_UNAVAILABLE', 'Native workflow storage is required.');
+    await ctx.service(PieceService).detail(ctx.organizationId, input.pieceId, ctx.language);
+    const outcome = await resumeNativeAdaptationSeries(ctx.mastra, { organizationId: ctx.organizationId,
+      userId: ctx.userId, pieceId: input.pieceId }, input.runId, ctx.requestContext, ctx.abortSignal);
+    if (outcome.status === 'success' && outcome.result.kind === 'adaptation') {
+      const result = outcome.result;
+      for (const [index, part] of result.parts.entries()) await emit({ kind: 'adaptation', data: {
+        id: part.adaptationId, pieceId: input.pieceId, channel: result.channel,
+        series: { id: result.seriesId, index: index + 1, total: result.parts.length },
+      } });
+      return { status: 'success', runId: outcome.runId, seriesId: result.seriesId, parts: result.parts, state: 'draft',
+        ...(result.presentationReason ? { presentationReason: result.presentationReason } : {}) };
+    }
+    return { status: outcome.status, runId: outcome.runId, saved: false };
+  },
+  summarize: output => 'parts' in output ? ({ ...output,
+    savedPostCount: output.parts.length,
+    ...(output.presentationReason ? { presentationReason: wrapUntrusted(output.presentationReason, ['workspace-text']) } : {}),
+  }) : output,
 });
 
 /* ---- «…и запомнить для канала» ------------------------------------------- */
@@ -764,7 +899,7 @@ export const adaptationReview = defineCapability({
   group: 'content',
   label: { ru: 'Проверить адаптацию', en: 'Check an adaptation' },
   description:
-    'Check a draft adaptation: `ai_traces` — «Убрать следы ИИ» (clichés and AI tells), `facts` — «Проверить факты» against web sources. Paid; runs without asking. The person accepts the proposed changes on a card (or «Решите за меня»); you never choose them. Returns final counts: `applied` of `offered` went in, `declined` were left out; nothing waits after it (`waitingOnCard: 0`).',
+    'Check a draft adaptation: `ai_traces` — «Убрать следы ИИ» (clichés and AI tells), `facts` — «Проверить факты» against web sources. Paid; runs without asking. The person reviews the complete candidate and accepts or declines it on the card; you never choose for them. Returns final counts: `applied` of `offered` went in, `declined` were left out; nothing waits after it (`waitingOnCard: 0`).',
   input: z.object({
     pieceId,
     adaptationId,
@@ -788,7 +923,7 @@ export const adaptationRewrite = defineCapability({
   group: 'content',
   label: { ru: 'Переписать адаптацию', en: 'Rewrite an adaptation' },
   description:
-    'Rewrite a draft adaptation by the person’s instruction («Переписать…»). Paid; runs without asking. Pass the instruction in their words. The person accepts the proposed changes on a card (or «Решите за меня»); you never choose them. To write a fresh variant instead, use piece.adapt again.',
+    'Rewrite a draft adaptation by the person’s instruction («Переписать…»). Paid; runs without asking. Pass the instruction in their words. The person reviews the complete candidate and accepts or declines it on the card; you never choose for them. To write a fresh variant instead, use piece.adapt again.',
   input: z.object({
     pieceId,
     adaptationId,

@@ -85,22 +85,22 @@ describe('assistant context and interrupted response recovery', () => {
     await redraw();
     expect(chat.stops).toBe(1);
     expect(document.querySelector('fieldset').disabled).toBe(true);
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     expect(document.querySelector('fieldset').disabled).toBe(true);
     available = true;
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     // A legacy history, a still-running write and a lost outcome are all
     // successful reads; none proves that a stopped service stopped writing.
     expect(document.querySelector('fieldset').disabled).toBe(true);
     for (const state of ['running', 'unknown']) {
       execution = { requestId: 'request-1', state };
-      await act(async () => fireEvent.click(view.getByText('Check saved result')));
+      await act(async () => fireEvent.click(view.getByText('Refresh status')));
       expect(document.querySelector('fieldset').disabled).toBe(true);
     }
     await act(async () => chat.submit({ text: 'Repeat the write', files: [] }));
     expect(chat.sent).toEqual([]);
     execution = { requestId: 'request-1', state: 'settled', outcome: 'interrupted' };
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     expect(document.querySelector('fieldset').disabled).toBe(false);
     expect(chat.messages).toEqual([person, saved]);
     expect(chat.sent).toEqual([]);
@@ -141,7 +141,7 @@ describe('assistant context and interrupted response recovery', () => {
     await redraw();
     try {
       expect(document.querySelector('fieldset').disabled).toBe(true);
-      expect(view.getByText('Check saved result')).not.toBeNull();
+      expect(view.getByText('Refresh status')).not.toBeNull();
       await act(async () => chat.submit({ text: 'Repeat the uncertain write', files: [] }));
       expect(chat.regenerated ?? 0).toBe(0);
       expect(chat.sent).toEqual([]);
@@ -189,7 +189,7 @@ describe('assistant context and interrupted response recovery', () => {
     });
     await redraw();
     expect(document.querySelector('fieldset').disabled).toBe(false);
-    expect(view.queryByText('Check saved result')).toBeNull();
+    expect(view.queryByText('Refresh status')).toBeNull();
     expect(onWorkContext).toHaveBeenLastCalledWith(current);
     expect(chat.sent).toEqual([]);
     expect(chat.regenerated ?? 0).toBe(0);
@@ -207,7 +207,7 @@ describe('assistant context and interrupted response recovery', () => {
       chat.options.onFinish({ isAbort: false, isError: true, isDisconnect: false });
     });
     await redraw();
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     expect(document.querySelector('fieldset').disabled).toBe(true);
     expect(chat.sent).toEqual([]);
     expect(chat.regenerated ?? 0).toBe(0);
@@ -219,7 +219,7 @@ describe('assistant context and interrupted response recovery', () => {
     await redraw();
     await act(async () => fireEvent.click(view.getByText('Fixture stop')));
     await redraw();
-    expect(view.queryByText('Check saved result')).toBeNull();
+    expect(view.queryByText('Refresh status')).toBeNull();
     expect(document.body.textContent).toContain('the action may have been saved');
     fireEvent.click(view.getByText(ru.threads.newThread));
     expect(onNewConversation).toHaveBeenCalledTimes(1);
@@ -591,12 +591,13 @@ describe('N1 — an approval card further up sends its answer, once', () => {
     expect(chat.messages[0].parts[1].state).toBe('approval-requested');
     const error = document.querySelector('[data-agent-card="error"]');
     expect(error).not.toBeNull();
-    expect(within(error).queryByRole('button')).toBeNull();
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    expect(within(error).getByRole('button', { name: 'Refresh status' })).not.toBeNull();
+    expect(within(error).queryByRole('button', { name: ru.error.retry })).toBeNull();
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     expect(button(ru.approval.yes).disabled).toBe(true);
     expect(chat.sent).toHaveLength(1);
     settled = true;
-    await act(async () => fireEvent.click(view.getByText('Check saved result')));
+    await act(async () => fireEvent.click(view.getByText('Refresh status')));
     await redraw();
     expect(button(ru.approval.yes).disabled).toBe(false);
     expect(chat.sent).toHaveLength(1);
@@ -774,7 +775,8 @@ describe('kcxz.34 — a question card after a stale tab and after a reload', () 
     await drawConversation({ messages: [message], pending: [] });
     const line = document.querySelector('[data-agent-card="question"]');
     expect(line.getAttribute('data-agent-question')).toBe('answered');
-    expect(line.textContent).toBe(`${ru.selection.kind}: Проверить адаптацию — ${ru.question.answered}`);
+    expect(within(line).getByRole('button').textContent).toBe(`${ru.selection.kind}: Проверить адаптацию — ${ru.question.answered}`);
+    expect(within(line).getByRole('button').getAttribute('aria-expanded')).toBe('false');
     // The adaptation's own line is still there, after the fold, as live.
     const blocks = contract.readMessageBlocks(message);
     expect(blocks.map((block) => block.type)).toEqual(['question', 'artifact']);
@@ -1049,7 +1051,8 @@ describe('kcxz.38 — a stale tab keeps its card and reads the other tab’s out
     const line = document.querySelector('[data-agent-card="question"]');
     expect(line).not.toBeNull();
     expect(line.getAttribute('data-agent-question')).toBe('closed');
-    expect(line.textContent).toBe(`${ru.selection.kind}: Проверить адаптацию — больше не ждёт ответа`);
+    expect(within(line).getByRole('button').textContent).toBe(`${ru.selection.kind}: Проверить адаптацию — больше не ждёт ответа`);
+    expect(within(line).getByRole('button').getAttribute('aria-expanded')).toBe('false');
     expect(document.body.textContent).toContain('Правку применили в основной вкладке.');
     expect(document.querySelector('[data-agent-selection-keep]')).toBeNull();
     expect(document.querySelector('[data-agent-card="error"]')).toBeNull();

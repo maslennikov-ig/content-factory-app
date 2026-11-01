@@ -238,13 +238,14 @@ describe('§5.1 / §5.4 / §5.5 — one pill, no hex badge, one popover trigger'
     expect(badge).not.toMatch(/text-white|\buppercase\b/u);
   });
 
-  test('the slot popover and the plan-ahead chip share usePopoverTrigger', () => {
+  test('the slot popover and the plan-ahead chip use the shared anchored Popover', () => {
     for (const file of [
       'apps/frontend/src/components/launches/calendar.tsx',
       'apps/frontend/src/components/launches/plan-ahead.tsx',
     ]) {
       const source = read(file);
-      expect(source).toContain('usePopoverTrigger<');
+      expect(source).toContain('anchorRef={');
+      expect(source).toContain('onClose={() => setOpen(false)}');
       expect(source).not.toMatch(/addEventListener\('mousedown'/u);
     }
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import useSWR from 'swr';
 import useSWRInfinite, { unstable_serialize } from 'swr/infinite';
 import { Button } from '@contentfactory/react/form/button';
@@ -77,6 +77,7 @@ export function AgentNotificationsBell({
   const feed = useAgentNotifications();
   const [open, setOpen] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
 
   const notifications = feed.data?.notifications ?? [];
   const tasks = feed.data?.backgroundTasks ?? [];
@@ -118,6 +119,7 @@ export function AgentNotificationsBell({
         type="button"
         variant="quiet"
         density="dense"
+        ref={bellRef}
         aria-label={nw.label}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -137,7 +139,10 @@ export function AgentNotificationsBell({
       {open ? (
         <Popover
           role="dialog"
-          className="absolute right-0 top-[calc(100%+4px)] z-[40] flex w-[320px] max-w-[calc(100vw-24px)] flex-col gap-[8px] p-[12px]"
+          anchorRef={bellRef}
+          ariaLabel={nw.label}
+          onClose={() => setOpen(false)}
+          className="flex w-[320px] flex-col gap-[8px] p-[12px]"
         >
           <div className="flex items-center justify-between gap-[8px]">
             <span className="cf-label-md text-cf-ink">{nw.label}</span>
@@ -313,6 +318,7 @@ export function ThreadSwitcher({
   onRemoved,
   words,
   actions,
+  compact = false,
 }: {
   /** The thread open now; `null` before its first message. */
   threadId: string | null;
@@ -325,6 +331,7 @@ export function ThreadSwitcher({
   onRemoved: () => void;
   words: AgentWords;
   actions?: ReactNode;
+  compact?: boolean;
   contextual?: boolean;
 }) {
   const w = words.threads;
@@ -399,16 +406,17 @@ export function ThreadSwitcher({
     }
   }, [onRemoved, request, setOpen, threadId, threads]);
 
-  return <>
-    <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]" wrap>
-      <Button type="button" variant="secondary" density="dense" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen(true); setRenaming(false); setFailed(false); }}>
-        {w.label}<AgentGlyph name="chevron" size={14} />
+  const controls = <>
+      <Button type="button" variant={compact ? 'quiet' : 'secondary'} density="dense" className={compact ? 'min-w-[48px] flex-1 justify-start px-[8px]' : undefined} innerClassName={compact ? 'min-w-0 flex-1 justify-start' : undefined} title={compact ? `${w.label}: ${title}` : undefined} aria-label={compact ? `${w.label}: ${title}` : undefined} aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen(true); setRenaming(false); setFailed(false); }}>
+        {compact ? <span className="min-w-0 flex-1 truncate text-start">{title}</span> : w.label}<AgentGlyph name="chevron" size={14} />
       </Button>
-      <span className="min-w-0 flex-1 truncate cf-label-md" title={title}>{title}</span>
+      {!compact ? <span className="min-w-0 flex-1 truncate cf-label-md" title={title}>{title}</span> : null}
       <AgentNotificationsBell language={language} words={words} onOpenThread={onOpen} />
-      <Button type="button" variant="secondary" density="dense" onClick={onNew}><AgentGlyph name="plus" />{w.newThread}</Button>
+      {compact ? <Button type="button" variant="quiet" density="dense" iconOnly aria-label={w.newThread} title={w.newThread} className="min-w-[44px] md:min-w-0" onClick={onNew}><AgentGlyph name="plus" /></Button> : <Button type="button" variant="secondary" density="dense" onClick={onNew}><AgentGlyph name="plus" />{w.newThread}</Button>}
       {actions}
-    </OpeningBand>
+    </>;
+  return <>
+    {compact ? <div data-assistant-thread-controls="" className="flex min-w-0 items-center gap-[4px]">{controls}</div> : <OpeningBand className="mb-0 shrink-0 gap-[8px] border-b border-cf-border bg-cf-surface px-[12px] md:px-[16px]" wrap>{controls}</OpeningBand>}
     <Dialog open={open} onClose={() => setOpen(false)} title={w.label} footer={<Button type="button" variant="quiet" onClick={() => setOpen(false)}>{w.close}</Button>}>
       <nav aria-label={w.label}><AgentThreadList threadId={threadId} language={language} words={w} onOpen={(id) => { setOpen(false); onOpen(id); }} /></nav>
             {threadId ? (

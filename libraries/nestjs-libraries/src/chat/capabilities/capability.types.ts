@@ -1,3 +1,5 @@
+import type { Mastra } from '@mastra/core/mastra';
+import type { RequestContext } from '@mastra/core/request-context';
 import type { Type } from '@nestjs/common';
 import type { z } from 'zod';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
@@ -95,6 +97,9 @@ export type CapabilityEntrance = 'chat' | 'mcp';
 export type OriginalAuthorRequest = { messageId: string; text: string };
 
 export type CapabilityRunContext = CapabilityIdentity & {
+  mastra?: Mastra;
+  requestContext?: RequestContext;
+  nativeToolCallId?: string;
   entrance: CapabilityEntrance;
   /** The Nest provider the door itself uses, resolved by class. */
   service: <T>(token: Type<T>) => T;
@@ -159,6 +164,7 @@ export type CapabilityDeclaration<
   /** Dotted product id, e.g. `piece.rename`. The tool name is derived from it. */
   id: string;
   group: CapabilityGroup;
+  entrances?: readonly CapabilityEntrance[];
   /** The label people read (the tool `title`), in both interface languages. */
   label: { ru: string; en: string };
   /** For the model: when to use it and what it returns. English. */

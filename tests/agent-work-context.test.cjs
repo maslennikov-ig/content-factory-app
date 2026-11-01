@@ -39,6 +39,17 @@ describe('assistant work context is a bounded identity, never client instruction
       artifacts: [{ kind: 'piece', id: 'piece-1' }], activeArtifact: { kind: 'piece', id: 'piece-1' },
     }, workingMemory: 'keep this' }).artifacts).toEqual([{ kind: 'piece', id: 'piece-1' }]);
   });
+
+  test('writing defaults are independent, bounded identities and an empty object clears them', () => {
+    expect(context.parseAgentWorkspacePatch({ writingSelection: {} })).toEqual({ writingSelection: {} });
+    expect(context.parseAgentWritingSelection({ channelId: 'channel-1', avatarId: 'avatar-1' })).toEqual({ channelId: 'channel-1', avatarId: 'avatar-1' });
+    for (const value of [{ avatarId: '../foreign' }, { channelId: null }, { prompt: 'publish' }]) {
+      expect(() => context.parseAgentWritingSelection(value)).toThrow();
+    }
+    expect(context.readStoredAgentWorkspace({ assistantWorkspace: { version: workspaceVersion,
+      workContext: target('piece', { id: 'piece-1' }), writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' } } }))
+      .toMatchObject({ workContext: target('piece', { id: 'piece-1' }), writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' } });
+  });
 });
 
 const { loadCapabilityModule, services, SERVICE_MODULES } = require('./helpers/agent-capabilities.cjs');
@@ -64,12 +75,14 @@ const setup = () => {
       getWritingProfile: jest.fn(async () => ({ stored: true, profile: { notes: 'Current writing rules', apiKey: 'must-never-be-read' } })),
     },
     VoiceService: {
-      avatars: jest.fn(async () => ({ avatars: [{ id: 'avatar-1', name: 'Saved avatar' }] })),
+      avatars: jest.fn(async () => ({ avatars: [{ id: 'avatar-1', name: 'Saved avatar', analysed: true }] })),
       passport: jest.fn(async () => ({ voice: { tone: 'Current active tone' } })),
     },
+    PieceRepository: { findAvatar: jest.fn(async (org, id) => org === 'org-1' && id === 'avatar-1' ? { id, activeVersionId: 'version-1' } : null) },
   };
   const gate = { check: jest.fn(async () => ({ allowed: true, policies: [] })) };
-  const { AgentWorkContextResolver } = loadTypeScriptModule(`${BASE}work-context.resolver.ts`, { './work-context': context }, {
+  const { AgentWorkContextResolver } = loadTypeScriptModule(`${BASE}work-context.resolver.ts`, { './work-context': context,
+    '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.repository': { PieceRepository: class PieceRepository {} } }, {
     resolve(request) {
       return SERVICE_MODULES[request] ? services[request] : undefined;
     },
@@ -81,6 +94,17 @@ const setup = () => {
 };
 
 describe('server reconstruction of the selected object', () => {
+  test('both writing targets are validated in the caller workspace and channel voice supplies the default', async () => {
+    const env = setup();
+    env.rows.IntegrationService.getWritingProfile.mockResolvedValue({ profile: { brandProfileId: 'avatar-1' } });
+    expect(await env.resolver.resolveWritingSelection(identity, { channelId: 'channel-1' })).toMatchObject({
+      selection: { channelId: 'channel-1' }, channel: { id: 'channel-1' }, avatar: { id: 'avatar-1' },
+      brandProfileSelection: { mode: 'version', versionId: 'version-1' },
+    });
+    await expect(env.resolver.resolveWritingSelection(identity, { channelId: 'foreign' })).rejects.toMatchObject({ status: 404 });
+    await expect(env.resolver.resolveWritingSelection(identity, { avatarId: 'foreign' })).rejects.toMatchObject({ status: 404 });
+    expect(env.rows.PieceRepository.findAvatar).toHaveBeenCalledWith('org-1', 'avatar-1');
+  });
   test('reads current piece text/task/material through its service in the caller workspace', async () => {
     const env = setup();
     const first = await env.resolver.resolve(identity, target('piece', { id: 'piece-1' }));
@@ -157,6 +181,7 @@ const setupPersistence = () => {
     conductor: async () => conductor,
     mastra: async () => ({}),
     resolveWorkContext: jest.fn((...args) => env.resolver.resolve(...args)),
+    resolveWritingSelection: jest.fn((...args) => env.resolver.resolveWritingSelection(...args)),
     validateWorkArtifact: jest.fn((...args) => env.resolver.validateArtifact(...args)),
     describeApproval: jest.fn(async () => null),
   };
@@ -194,6 +219,21 @@ class Response extends EventEmitter {
 const messageBody = (workContext) => ({ threadId: 'thread-1', workContext, messages: [{ id: 'message-1', role: 'user', parts: [{ type: 'text', text: 'Explain this saved text' }] }] });
 
 describe('private workspace metadata and pre-admission boundary', () => {
+  test('writing defaults persist independently and a run retains its earlier selection after a later edit', async () => {
+    const env = setupPersistence();
+    await env.threads.patchWorkspace(identity, 'thread-1', { workContext: target('piece', { id: 'piece-1' }),
+      writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' } });
+    const chosen = await env.threads.writingSelectionForTurn(identity, 'thread-1');
+    await env.threads.rememberNativeRun(identity, 'thread-1', 'run-1', 'request-1', chosen.selection);
+    await env.threads.patchWorkspace(identity, 'thread-1', { writingSelection: {} });
+    const workspace = (await env.threads.history(identity, 'thread-1')).workspace;
+    expect(workspace.workContext.id).toBe('piece-1');
+    expect(workspace.writingSelection).toEqual({});
+    expect((await env.threads.writingSelectionForTurn(identity, 'thread-1')).selection).toEqual({});
+    const saved = await env.threads.readNativeRun(identity, 'thread-1');
+    expect((await env.threads.writingSelectionForTurn(identity, 'thread-1', saved.continuationWritingSelection)).selection)
+      .toEqual({ channelId: 'channel-1', avatarId: 'avatar-1' });
+  });
   test('installed Mastra metadata update preserves native title/resource/working memory and private ownership', () => {
     const { execFileSync } = require('node:child_process');
     const path = require('node:path');
@@ -288,5 +328,53 @@ describe('private workspace metadata and pre-admission boundary', () => {
     const passed = JSON.parse(env.stream.mock.calls[0][0].params.requestContext.get(context.AGENT_WORK_CONTEXT_KEY));
     expect(JSON.stringify(passed.data)).toContain('A newer manual save');
     expect(env.stored.get('thread-1').metadata.assistantWorkspace.activeArtifact).toEqual(ownRef);
+  });
+
+  test('chat turn validates its writing targets without changing the saved choice or selected piece', async () => {
+    const env = setupPersistence();
+    await env.threads.patchWorkspace(identity, 'thread-1', { writingSelection: { channelId: 'channel-1' } });
+    const body = { ...messageBody(target('piece', { id: 'piece-1' })),
+      writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' } };
+    await env.controller.chat(ORG, USER, body, new Response());
+    const selected = JSON.parse(env.stream.mock.calls[0][0].params.requestContext.get(context.AGENT_WRITING_SELECTION_KEY));
+    expect(selected).toMatchObject({ selection: body.writingSelection, channel: { name: 'Saved channel' }, avatar: { name: 'Saved avatar' },
+      brandProfileSelection: { mode: 'version', versionId: 'version-1' } });
+    expect(env.stored.get('thread-1').metadata.assistantWorkspace.workContext).toMatchObject({ id: 'piece-1' });
+    expect(env.stored.get('thread-1').metadata.assistantWorkspace.writingSelection).toEqual({ channelId: 'channel-1' });
+    const refused = setupPersistence();
+    await expect(refused.controller.chat(ORG, USER, { ...body, writingSelection: { avatarId: 'foreign' } }, new Response())).rejects.toMatchObject({ status: 404 });
+    expect(refused.aiUsage.beginAiOperation).not.toHaveBeenCalled();
+    expect(refused.stream).not.toHaveBeenCalled();
+  });
+
+  test('a delivered signal uses the active run choice and does not overwrite saved writing defaults', async () => {
+    const env = setupPersistence();
+    await env.threads.patchWorkspace(identity, 'thread-1', { writingSelection: { channelId: 'channel-1' } });
+    jest.spyOn(env.threads, 'readNativeRun').mockResolvedValue({ runId: 'run', logicalRequestId: 'request',
+      continuationWritingSelection: { channelId: 'channel-1' } });
+    jest.spyOn(env.threads, 'pendingRuns').mockResolvedValue([]);
+    jest.spyOn(env.threads, 'rememberSignalReceipt').mockResolvedValue(undefined);
+    const sendSignal = jest.fn(() => ({ accepted: Promise.resolve({ action: 'deliver' }) }));
+    jest.spyOn(env.threads, 'sessionFor').mockResolvedValue({ sendSignal });
+    await env.controller.signalThread(ORG, USER, 'thread-1', { kind: 'deliver',
+      writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' },
+      message: { id: 'signal-1', role: 'user', parts: [{ type: 'text', text: 'Continue' }] } });
+    expect(JSON.parse(sendSignal.mock.calls[0][1].requestContext.get(context.AGENT_WRITING_SELECTION_KEY)).selection)
+      .toEqual({ channelId: 'channel-1' });
+    expect(env.stored.get('thread-1').metadata.assistantWorkspace.writingSelection).toEqual({ channelId: 'channel-1' });
+  });
+
+  test('a queued instruction captures its own writing override without persisting it as a chat default', async () => {
+    const env = setupPersistence();
+    await env.threads.patchWorkspace(identity, 'thread-1', { writingSelection: { channelId: 'channel-1' } });
+    jest.spyOn(env.threads, 'readNativeRun').mockResolvedValue({ runId: 'run', logicalRequestId: 'request' });
+    jest.spyOn(env.threads, 'pendingRuns').mockResolvedValue([]);
+    jest.spyOn(env.threads, 'rememberSignalReceipt').mockResolvedValue(undefined);
+    env.mastraService.queueNativeInput = jest.fn(async () => ({ childRunId: 'child' }));
+    await env.controller.signalThread(ORG, USER, 'thread-1', { kind: 'queue',
+      writingSelection: { channelId: 'channel-1', avatarId: 'avatar-1' },
+      message: { id: 'queued-1', role: 'user', parts: [{ type: 'text', text: 'Next task' }] } });
+    expect(env.mastraService.queueNativeInput.mock.calls[0][0].writingSelection).toEqual({ channelId: 'channel-1', avatarId: 'avatar-1' });
+    expect(env.stored.get('thread-1').metadata.assistantWorkspace.writingSelection).toEqual({ channelId: 'channel-1' });
   });
 });

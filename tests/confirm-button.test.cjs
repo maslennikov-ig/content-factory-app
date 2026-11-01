@@ -158,5 +158,6 @@ test('busy: the spinner is laid over the label, which stays in the flow, so the 
   // The first paint before any measure has a real spinner size, not NaN.
   expect(spinner.firstElementChild.style.width).toMatch(/^\d+px$/);
   expect(errors.mock.calls.filter((call) => String(call[0]).includes('NaN'))).toEqual([]);
+  expect(errors.mock.calls.filter((call) => String(call[0]).includes('a style property during rerender'))).toEqual([]);
   errors.mockRestore();
 });

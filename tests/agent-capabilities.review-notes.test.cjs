@@ -41,6 +41,7 @@ const change = {
 const services = (changes, accepted = []) => ({
   PieceService: {
     reviewV2: async () => ({ token: 't', verdict: 'review', changes }),
+    previewReviewV2: () => ({ title: null, text: 'Текст' }),
     acceptReviewV2: async (organizationId, pieceId, adaptationId, body) => {
       accepted.push(body.selectedIds);
       return {};
@@ -69,7 +70,7 @@ describe('review notes reach the agent (kcxz.38)', () => {
     expect(card.options.map((option) => option.id)).toEqual(['c1']);
     const { output } = await executeTool(tool, input, {
       ...context(),
-      resumeData: { decideForPerson: true },
+      resumeData: { changeIds: ['c1'] },
       suspendPayload: card,
     });
     expect(accepted).toEqual([['c1']]);

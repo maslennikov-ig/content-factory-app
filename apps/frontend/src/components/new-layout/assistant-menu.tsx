@@ -32,8 +32,7 @@ export function AssistantMenuItem({ label, icon, collapsed = false, onNavigate }
   if (collapsed) return <MenuItem label={label} icon={icon} path="/agents" collapsed onNavigate={onNavigate} />;
 
   return <div data-assistant-navigation="true" className="min-w-0">
-    <div className="hidden md:block lg:hidden"><MenuItem label={label} icon={icon} path="/agents" collapsed onNavigate={onNavigate} /></div>
-    <div className="flex min-w-0 items-center gap-[4px] md:hidden lg:flex">
+    <div className="flex min-w-0 items-center gap-[4px]">
       <Button type="button" variant={active ? 'navigation-current' : 'navigation'} density="dense"
         aria-expanded={expanded} aria-controls={listId} title={label}
         onClick={() => setExpanded((value) => !value)}
@@ -42,7 +41,7 @@ export function AssistantMenuItem({ label, icon, collapsed = false, onNavigate }
         <span className="cf-nav-label min-w-0 flex-1 truncate text-start">{label}</span>
         <span className="cf-nav-label shrink-0"><span className={`block transition-transform duration-state ${expanded ? '' : '-rotate-90 rtl:rotate-90'}`}><AgentGlyph name="chevron" size={14} /></span></span>
       </Button>
-      <div className="shrink-0 md:hidden lg:block">
+      <div className="shrink-0">
         <Button type="button" variant="navigation" density="dense" iconOnly aria-label={words.newThread} title={words.newThread}
           onClick={() => { setExpanded(true); router.push('/agents/new'); onNavigate?.(); }}>
           <AgentGlyph name="plus" />
@@ -50,7 +49,7 @@ export function AssistantMenuItem({ label, icon, collapsed = false, onNavigate }
       </div>
     </div>
     <div id={listId} hidden={!expanded}>
-      {expanded ? <div className="ms-[20px] mt-[4px] min-w-0 border-s border-cf-border-strong ps-[8px] text-cf-navigation-muted md:hidden lg:block"><AgentThreadList sidebar threadId={threadId} language={language} words={words}
+      {expanded ? <div className="ms-[20px] mt-[4px] min-w-0 border-s border-cf-border-strong ps-[8px] text-cf-navigation-muted"><AgentThreadList sidebar threadId={threadId} language={language} words={words}
         onOpen={(next) => { router.push(`/agents/${encodeURIComponent(next)}`); onNavigate?.(); }} /></div> : null}
     </div>
   </div>;

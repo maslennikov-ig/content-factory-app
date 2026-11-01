@@ -767,7 +767,7 @@ export function AgentComposer({
           onPaste={onPaste}
           className="w-full resize-none"
         />
-        <div className="flex min-w-0 items-center gap-[8px]">
+        <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
           <FileInput
             name="attachments"
             className="shrink-0"
@@ -782,10 +782,10 @@ export function AgentComposer({
             onFiles={addFiles}
           />
           <Hint label={w.attachHintLabel}>{w.attachHint}</Hint>
-          <span className="ms-auto inline-flex shrink-0 items-center gap-[8px]">
+          <span className="ms-auto inline-flex max-w-full shrink-0 flex-wrap items-center justify-end gap-[8px]">
             {transcribeVoice ? (
               recording ? (
-                <span className="inline-flex flex-wrap items-center gap-[8px]">
+                <span className="inline-flex max-w-full flex-wrap items-center gap-[8px]">
                   <span
                     role="status"
                     aria-live="polite"

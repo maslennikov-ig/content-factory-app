@@ -9,6 +9,8 @@ import {
   INSTANCE_AI_DEFAULTS_ID,
   resetAiConfigCache,
   defaultAdvancedModelForProvider,
+  defaultTextModelForProvider,
+  defaultTextFallbackModelForProvider,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
   includedQuotaFallback,
@@ -158,7 +160,7 @@ export class InstanceAiDefaultsService {
     const parsedFallback = parseStoredTextFallback(row?.textFallbackModel);
     const defaultPrimaryModel =
       effective.textModel ??
-      (provider === 'openrouter' ? 'openai/gpt-6-luna' : 'gpt-4.1');
+      defaultTextModelForProvider(provider);
     const modelRouting = resolveModelRoutingSettings(
       readStoredModelRouting(row?.roleModels), defaultAdvancedModelForProvider(provider)
     );
@@ -200,7 +202,7 @@ export class InstanceAiDefaultsService {
       textMaxRetries: parsedFallback.maxRetries ?? null,
       textChain: {
         ...resolveTextChainSettings(row),
-        defaultFallbackModel: defaultAdvancedModelForProvider(provider),
+        defaultFallbackModel: defaultTextFallbackModelForProvider(provider),
         fallbackModels: orderedPolicy.fallbackModels,
         configuredFallbackModels: orderedPolicy.configuredFallbackModels,
         fallbackDisabled: orderedPolicy.fallbackDisabled,

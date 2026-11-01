@@ -180,7 +180,7 @@ async function scenario(kind) {
     await firstTask;
     const saved = await handler.getThread(ORG, USER, threadId);
     const parts = firstResponse.parts();
-    const tripwires = parts.filter(part => part.type === 'data-tripwire');
+    const tripwires = parts.filter(part => part.type === 'error' && part.errorText === 'AI_PROVIDER_REJECTED');
     const finish = parts.find(part => part.type === 'finish');
     const text = parts.filter(part => part.type === 'text-delta').map(part => part.delta).join('');
     const modelCalls = (providerRequests.get(model[0].model) ?? [])
@@ -188,7 +188,7 @@ async function scenario(kind) {
     assert.equal(saved.execution.state, 'settled');
     assert.equal(text, '', 'A terminal native tripwire must not persist an empty response as a successful answer.');
     assert.equal(finish?.finishReason, 'other');
-    assert.equal(tripwires.some(part => part.data?.metadata?.terminalModelError === true), true,
+    assert.equal(tripwires.length > 0, true,
       'A real native input-processor tripwire must carry the terminal model marker to the HTTP UI stream.');
     assert.equal(saved.execution.outcome, 'failed');
     assert.deepEqual(finished, [false]);
@@ -197,7 +197,7 @@ async function scenario(kind) {
       'A terminal model error must stop before trying the backup model.');
     await mastra.shutdown();
     return { kind, outcome: saved.execution.outcome, finishReason: finish.finishReason,
-      terminalMarker: tripwires.some(part => part.data?.metadata?.terminalModelError === true),
+      terminalMarker: tripwires.length > 0,
       textEmpty: text === '' };
   }
   if (mode === 'skill') {

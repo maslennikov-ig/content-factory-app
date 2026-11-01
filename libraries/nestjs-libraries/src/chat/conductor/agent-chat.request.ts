@@ -27,8 +27,8 @@ import {
 } from '../capabilities/question-card';
 import { wrapUntrusted } from '../capabilities/untrusted-data';
 import { redactSecretLeaves, redactSecretShapes } from './secret-shapes';
-import { parseAgentWorkContext } from './work-context';
-import type { AgentWorkContextV1 } from '../capabilities/agent-parts.contract';
+import { parseAgentWorkContext, parseAgentWritingSelection } from './work-context';
+import type { AgentWorkContextV1, AgentWritingSelection } from '../capabilities/agent-parts.contract';
 
 /**
  * Reading `POST /agent/chat` (`content-factory-next-kcxz.8`, premortem S2–S5).
@@ -127,6 +127,7 @@ export type AgentChatInput =
       mode: 'message';
       threadId?: string;
       workContext?: AgentWorkContextV1 | null;
+      writingSelection?: AgentWritingSelection;
       /** The new user message, reduced to text and file parts (a samples receipt becomes text). */
       message: { id: string; role: 'user'; parts: Record<string, unknown>[] };
       text: string;
@@ -594,6 +595,7 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
   // A selection belongs to a new message, never to the authority of an old
   // approval/question card. Answers retain the validated thread selection.
   const workContext = body.workContext === undefined ? undefined : parseAgentWorkContext(body.workContext);
+  const writingSelection = body.writingSelection === undefined ? undefined : parseAgentWritingSelection(body.writingSelection);
 
   if (body.runId !== undefined || body.resumeData !== undefined) {
     const runId = runIdOrNull(body.runId);
@@ -639,6 +641,7 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
       message: { id: messageId, role: 'user', parts },
       text,
       ...(workContext !== undefined ? { workContext } : {}),
+      ...(writingSelection !== undefined ? { writingSelection } : {}),
       ...(samplesAvatarId !== undefined ? { samplesAvatarId } : {}),
       ...(mediaIds ? { mediaIds, mediaPart } : {}),
       ...(pictures ? { pictures } : {}),

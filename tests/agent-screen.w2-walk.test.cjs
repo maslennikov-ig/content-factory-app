@@ -201,7 +201,7 @@ describe('D2 — a card further up answers while the server waits for it', () =>
     });
     expect(keepButton()).toBeNull();
     const line = document.querySelector('[data-agent-question="closed"]');
-    expect(line.textContent).toBe(
+    expect(line.querySelector('button[aria-expanded]').textContent).toBe(
       `${ru.selection.kind}: ${SELECTION_PAYLOAD.question} — больше не ждёт ответа`
     );
   });
@@ -444,6 +444,12 @@ describe('D8 — an adaptation card with only {id, pieceId}', () => {
     expect(named.data.variant).toBe(2);
     expect(cards.artifactName(named, ru)).toBe('Кухня продукта · вариант 2');
     expect(pieceData.withPieceData({ ...bare, id: 'a1', data: { pieceId: 'p1' } }, piece).data.variant).toBe(1);
+  });
+
+  test('a saved series member supplies its position and title to an older card', () => {
+    const seriesPiece = { ...piece, adaptations: piece.adaptations.map((row) => row.id === 'a2' ? { ...row, title: 'Вторая часть', series: { id: 'series-1', index: 2, total: 3 } } : row) };
+    const named = pieceData.withPieceData(bare, seriesPiece);
+    expect(cards.artifactName(named, ru)).toBe('Кухня продукта · 2/3 · Вторая часть');
   });
 
   test('without it, the kind is said once, never twice', async () => {

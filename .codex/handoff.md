@@ -1,13 +1,72 @@
-# Content Factory current handoff — 26 October 2026
+# Release preparation — 1 November 2026
 
-## Voice/locale/memory release accepted
+Task `content-factory-next-io17`: accumulated chat/editor source selected for isolated release verification. User authorized push/merge/deploy after capacity check. [Scope and verification boundary](stages/honey-6013/release-closeout-20261101.md). [Chat/editor guide](../docs/operations/agent-chat-editor-guide.md). Deployment is pending, previous production remains authoritative.
+
+# Content Factory current handoff — 27 October 2026
+
+## HONEY-6013 implemented locally, no delivery
+
+Author/editorial follow-up `content-factory-next-zydk`: e26177768 opens consumed
+per-post length/takeaway/link controls and delegated editorial choices. Native
+channel-note/ask_user flow collects optional author views; labelled context now
+survives core save/read/rebuild/adaptation. The owner's local channel is auto-length
+with the explicitly confirmed comment preference; other effective settings remain.
+15 suites/428 tests, both type checks and local preservation pass. All 22 chats,
+existing question, drafts and original dirty files remain; only backend 3516 is
+replaced (PID 10246), frontend 4337 unchanged. No paid calls or delivery.
+[Controls, evidence and limits](stages/honey-6013/author-comments-and-editorial-controls.md).
+
+
+Live owner-case follow-up `content-factory-next-v8ie` accepted locally:
+`872e21cd4` simplifies selection/continuation, preserves supplementary evidence
+and source assessments, removes redundant post-selection sufficiency calls and
+fixes pre-effect recovery at the native tool adapter. Active brief prompt is flat;
+meaningful questions, ownership and uncertain-write/Stop safeguards remain.
+16 suites/280 tests and backend/frontend types PASS. Actual saved inputs replay
+once each without providers; all 22 chats/pending/execution, drafts and 12 original
+dirty files preserved. Owned backend 3516 now PID88711; frontend 4337 unchanged.
+[Changes, proof and limits](stages/honey-6013/harness-simplification-2026-10-27.md).
+No paid calls, push/deploy or production changes. Existing failed history remains;
+real-provider/editorial qualification stays with `content-factory-next-eqh5`.
+
+UI follow-up `content-factory-next-g9sh`: neighbouring completed steps now share
+one collapsed latest-status row; the active step takes that row while Stop stays
+visible. Existing Disclosure, copy/locales and native message data are reused.
+Errors/questions/artifacts/text/stale actions keep their own positions. Local
+browser proof on the owner's chat: six earlier steps hidden, Enter/Space and
+390px expansion pass; messages/pending/execution unchanged.43 UI tests, frontend
+types and the affected design/disclosure/copy checks pass. No paid call or restart.
+
+`content-factory-next-bods`, branch `codex/honey-6013-20261027`, isolated worktree
+`/home/me/code/content-factory-next-worktrees/honey-6013-20261027`. Useful bounded
+research, structured evidence reads, tool-history recovery, native incomplete-call
+handling and truthful provider/Stop settlement passed local acceptance:15 focused
+suites/193 tests, backend/frontend types, documentation links and diff checks.
+The separately requested default is Terra6.1 medium; included classification is
+Luna low. The local persisted primary/advanced profile is also Terra; live API
+readback confirms it. [Implementation, checks and limits](stages/honey-6013/implementation.md).
+Current API stand: http://localhost:4337/agents, backend 3516;21 threads/58 messages at HONEY-6013 acceptance,
+artifacts and usage preserved. Old4316/3516 processes were already absent; only
+the task-owned4337 frontend was restarted. Do not start the old stand manager.
+Interface-review URLs are synthetic; normal `/agents` uses configured real APIs.
+Native PG/Redis acceptance uses controlled free transports. No paid calls, push,
+deploy or chat rewrite; production settings, original dirty files and foreign
+services are preserved.
+
+## Current native instructions release accepted
+
+`content-factory-next-hbe3`: production `1fd383418d7a`, app source `b458f7883bf1`. [Release/limits](stages/agent-chat-5961/release-instructions-2026-10-27.md), [proof](stages/agent-chat-5961/release-instructions-proof-2026-10-27.json).
+Existing chats use current Agent/Memory instructions through native per-step processors; messages, snapshots, tasks and pending gates preserved.
+Nine local checks/public CI PASS; rollback `dc5893e2ad73`. No paid calls or provider/schema changes.
+
+## Previous voice/locale/memory release
 
 `content-factory-next-dv8a`: production `dc5893e2ad73`, tested private
 `7f8bc4742df6`. Nine local gates/public Build and Code Quality PASS;
 native chats/snapshots/usage/settings and foreign workloads preserved. No schema
 apply, provider change or paid invocation. Rollback `34d3591b2cc1` kept.
 First-person active status in 16 locales and full model locale; native memory/old-card
-repair. Frozen in-flight prompts remain historical until their run completes.
+repair. Historical frozen-prompt limitation is superseded by the current native refresh above.
 [Release, checks and limits](stages/agent-chat-5961/release-voice-2026-10-26.md),
 [proof](stages/agent-chat-5961/release-voice-proof-2026-10-26.json).
 
@@ -56,7 +115,7 @@ blocking copy/factual-support gate and its repair limit. Three suites/88 tests, 
 Current chat, source material, failed outcome and foreign workloads are retained.
 No paid replay, push or deployment. [Failure, fix and limits](stages/agent-chat-5961/api-adaptation-copy-scope.md).
 
-## Current local preview: production API configuration
+## Previous local preview: production API configuration (superseded above)
 
 Task `content-factory-next-o260`: owner rejected the local Qwen route. The
 4316/3516 preview now uses the ordinary production provider and search code,

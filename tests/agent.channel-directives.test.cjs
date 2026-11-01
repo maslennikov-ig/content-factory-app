@@ -72,14 +72,15 @@ describe('the channel says how long a post here may be', () => {
     expect(channelHardLimit(VK, true)).toBe(16000);
   });
 
-  test('the corridor is stated with its ceiling, and yields to a tighter voice', () => {
+  test('the channel corridor and ceiling outrank statistical avatar length', () => {
     const aim = linesFor(defaultWritingProfileFor('telegram', 'ru')).find((line) =>
       line.includes('500')
     );
 
     expect(aim).toContain('1000');
     expect(aim).toContain('1500');
-    expect(aim).toContain('tighter');
+    expect(aim).toContain('takes precedence over the avatar');
+    expect(aim).not.toContain('tighter');
   });
 
   test('provider_max says nothing about length at all', () => {
@@ -442,9 +443,22 @@ describe('97dq.98: a range is a frame, not a quota', () => {
       lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
     });
     expect(lines).toContain(NO_PAD_LINE);
+    expect(NO_PAD_LINE).toContain('including its hook');
+    expect(NO_PAD_LINE).toContain('develop the supported reasons');
+    expect(NO_PAD_LINE).not.toContain('every sentence of the neutral core stays');
   });
 
   test('no range, no line', () => {
     expect(linesFor({ ...base, lengthPolicy: 'auto' })).not.toContain(NO_PAD_LINE);
   });
+});
+
+
+test('an explicit short wish retains precedence over the channel target', () => {
+  const wish = 'Для этого поста коротко, два предложения.';
+  const lines = linesFor({ ...defaultWritingProfileFor('telegram', 'ru'),
+    lengthPolicy: { idealMin: 1600, idealMax: 2400 } }, TELEGRAM, { post: { wish } }).join(' ');
+  expect(lines).toContain(wish);
+  expect(lines).toContain('explicit author length request for this post takes priority');
+  expect(lines).not.toContain('a preference for brevity');
 });

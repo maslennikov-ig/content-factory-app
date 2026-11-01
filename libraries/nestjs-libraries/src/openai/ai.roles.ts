@@ -41,8 +41,8 @@
  *    or two (`content-factory-next-kcxz.7`, ADR-0012 §6). Not writing: the
  *    text a person reads is written by the capabilities it calls, each under
  *    its own role. Unset, it falls back to the text model like every other
- *    text role — on this instance `openai/gpt-6-luna` on the flex chain, the
- *    model the spike found as accurate as a forty times dearer one.
+ *    text role. The operator's default text model also handles unpinned
+ *    writing, research and extraction; only classification defaults cheaper.
  */
 export const AI_ROLES = [
   'classify',

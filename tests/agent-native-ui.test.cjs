@@ -94,10 +94,14 @@ describe('native harness UI contract and cards (on0i.6)', () => {
       expect(document.querySelector('[data-agent-card="question"]')).not.toBeNull()
     );
     const askCard = document.querySelector('[data-agent-card="question"]');
-    expect(askCard.textContent).toContain('Фокус на ROI и процессе');
-    expect(askCard.textContent).toContain('Фокус на архитектуре');
+    expect(within(askCard).getByRole('button', { name: 'Руководители', exact: true }).getAttribute('aria-description')).toBe('Фокус на ROI и процессе');
+    expect(within(askCard).getByRole('button', { name: 'Инженеры', exact: true }).getAttribute('aria-description')).toBe('Фокус на архитектуре');
+    await act(async () => fireEvent.click(within(askCard).getByRole('button', { name: 'Руководители: Фокус на ROI и процессе', exact: true })));
+    expect(document.querySelector('[role="tooltip"]').textContent).toContain('Фокус на ROI и процессе');
+    expect(askAnswers).toEqual([]);
+    await act(async () => fireEvent.keyDown(document, { key: 'Escape' }));
     await act(async () => {
-      fireEvent.click(within(askCard).getByRole('button', { name: 'Руководители' }));
+      fireEvent.click(within(askCard).getByRole('button', { name: 'Руководители', exact: true }));
     });
     expect(askAnswers).toEqual([{ answer: 'Руководители' }]);
 
@@ -402,7 +406,7 @@ describe('native harness UI contract and cards (on0i.6)', () => {
       );
     });
 
-    const progressCard = document.querySelector('[data-agent-card="progress"]');
+    const progressCard = document.querySelector('[data-agent-progress="running"]');
     expect(progressCard).not.toBeNull();
     expect(progressCard.textContent).toContain(ru.progress.working);
 
@@ -414,5 +418,51 @@ describe('native harness UI contract and cards (on0i.6)', () => {
       url: '/agent/threads/thread-bg-1/stop',
       method: 'POST',
     });
+  });
+});
+
+
+describe('compact native clarification choices', () => {
+  test.each([['ru', ru], ['en', en]])('%s shows the supplied delegate exactly once and preserves its native answer', async (_locale, words) => {
+    const answers = [];
+    const question = contract.readQuestion('ask_user', { question: 'Which angle?', options: [
+      { label: 'Angle A (Recommended)', description: 'A grounded possible angle, not personal experience.' },
+      { label: 'Angle B' }, { label: words.question.decide },
+    ], cardId: 'd'.repeat(32) }, null);
+    await act(async () => render(h(cards.QuestionCard, { question, answered: false, busy: false,
+      onAnswer: answer => answers.push(answer), words })));
+    const card = document.querySelector('[data-agent-card="question"]');
+    expect(within(card).getAllByRole('button', { name: words.question.decide, exact: true })).toHaveLength(1);
+    expect(card.querySelector('[data-agent-question-choices]')).not.toBeNull();
+    expect(within(card).getByRole('button', { name: 'Angle A (Recommended)', exact: true }).getAttribute('aria-description')).toContain('grounded');
+    await act(async () => fireEvent.click(within(card).getByRole('button', { name: words.question.decide, exact: true })));
+    expect(answers).toEqual([{ answer: words.question.decide }]);
+  });
+  test('host delegate remains available alongside choices and a custom answer', async () => {
+    const answers = [];
+    const question = contract.readQuestion('ask_user', { question: 'Which angle?', options: [{ label: 'A' }, { label: 'B' }] }, null);
+    await act(async () => render(h(cards.QuestionCard, { question, answered: false, busy: false,
+      onAnswer: answer => answers.push(answer), words: ru })));
+    const card = document.querySelector('[data-agent-card="question"]');
+    expect(within(card).getAllByRole('button', { name: ru.question.decide, exact: true })).toHaveLength(1);
+    expect(card.querySelector('[data-agent-question-choices]').contains(within(card).getByRole('button', { name: ru.question.decide, exact: true }))).toBe(true);
+    fireEvent.change(within(card).getByLabelText(ru.question.ownAnswer), { target: { value: 'My actual view' } });
+    await act(async () => fireEvent.click(within(card).getByRole('button', { name: ru.question.send, exact: true })));
+    expect(answers).toEqual([{ answer: 'My actual view' }]);
+  });
+  test('native multi_select keeps all chosen labels and does not duplicate delegation', async () => {
+    const answers = [];
+    const question = contract.readQuestion('ask_user', { question: 'Which angles?', selectionMode: 'multi_select',
+      options: [{ label: 'A' }, { label: 'B' }, { label: ru.question.decide }] }, null);
+    expect(question.selectionMode).toBe('multiple');
+    await act(async () => render(h(cards.QuestionCard, { question, answered: false, busy: false,
+      onAnswer: answer => answers.push(answer), words: ru })));
+    const card = document.querySelector('[data-agent-card="question"]');
+    expect(within(card).getAllByRole('checkbox', { name: ru.question.decide, exact: true })).toHaveLength(1);
+    expect(within(card).queryByRole('radio', { name: ru.question.decide, exact: true })).toBeNull();
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'A', exact: true }));
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'B', exact: true }));
+    await act(async () => fireEvent.click(within(card).getByRole('button', { name: ru.question.send, exact: true })));
+    expect(answers).toEqual([{ answer: ['A', 'B'] }]);
   });
 });

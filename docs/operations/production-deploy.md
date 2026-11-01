@@ -1,6 +1,19 @@
 # Развёртывание на сервере
 
-## Current release 26 October 2026: dc5893e2ad73
+## Current release 27 October 2026: 1fd383418d7a
+
+Existing suspended chats use current Agent/Memory instructions on their next native
+step. Same history/task state/pending gates; no snapshot edits or automatic approvals.
+App source `b458f7883bf18115b65dc23500337f9d79a8960a`; public/runtime `1fd383418d7af06d008379ce9fab09d6bf9273eb`.
+Registry `ghcr.io/maslennikov-ig/content-factory-next@sha256:2d50a9fdb7d88bb45e52e465df4843f07f1d79c58519d30b516ab64b7f5c124f`. Nine local checks and [Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40469996402) /
+[Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/40469995171) PASS. Empty schema diff, healthy/zero
+restarts, worker ready, exact source archive; chats/settings/usage/foreign workloads
+preserved. No paid calls. [Release/limits](../../.codex/stages/agent-chat-5961/release-instructions-2026-10-27.md).
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh dc5893e2ad73`.
+No schema rollback.
+
+## Previous release 26 October 2026: dc5893e2ad73
 
 First-person assistant actions, active status in 16 locales, full model reply
 locale and native personal-memory/old approval-card repair. Frozen in-flight

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Segmented } from '../../ui/segmented';
+import { Disclosure } from '../../ui/disclosure';
 import { WorkingLine } from '../../ui/working-line';
 import type { QualityChecksV1 } from '../intake/intake.adapter';
 import { QualityLine } from '../shared/quality-line';
@@ -29,6 +30,7 @@ import { ScheduleBar, type ScheduleBusy } from './schedule-bar';
 import { SectionLabel } from '../../ui/section-label';
 import { SidePanel } from '../../ui/side-panel';
 import { queuedEditDeadline } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
+import { adaptationEditions } from './piece-series';
 
 export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -207,7 +209,13 @@ export function PieceChannelTab({
       audio: t.kindAudio,
     })[value];
 
-  const versions = channel.adaptations;
+  const editions = adaptationEditions(channel.adaptations);
+  const selectedEdition = editions.find(edition => edition.parts.some(part => part.id === adaptation?.id));
+  const hasSeries = editions.some(edition => edition.series);
+  const versions = hasSeries ? selectedEdition?.parts ?? [] : channel.adaptations;
+  const editionDate = (at: string | null) => at
+    ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(at))
+    : t.historyDateUnknown;
   /*
     Пост в очереди правится, пока до его слота больше минуты (`97dq.80`,
     B2): публикация берёт текст из базы в момент выхода, поэтому правка до
@@ -300,21 +308,28 @@ export function PieceChannelTab({
             <>
               <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
                 <SectionLabel>{t.textFor(platformLabel)}</SectionLabel>
+                {hasSeries && selectedEdition ? (
+                  <span className="cf-caption text-cf-ink-muted" data-piece-edition={selectedEdition.key}>
+                    {selectedEdition === editions[0] ? t.latestEdition : t.savedEdition} · {editionDate(selectedEdition.createdAt)} · {t.editionPosts(selectedEdition.parts.length)}
+                  </span>
+                ) : null}
                 {versions.length > 1 ? (
                   <Segmented<string>
-                    label={t.variantsLabel}
+                    label={hasSeries ? t.seriesParts : t.variantsLabel}
                     value={adaptation.id}
-                    options={versions
-                      .slice()
-                      .reverse()
+                    options={(hasSeries ? versions : versions.slice().reverse())
                       .map((version, index) => ({
                         value: version.id,
-                        label: t.variant(index + 1),
+                        label: version.series
+                          ? [`${version.series.index}/${version.series.total}`, version.title?.trim()].filter(Boolean).join(' · ')
+                          : t.variant(index + 1),
                       }))}
                     onChange={onSelectAdaptation}
                     data-piece-variants={channel.id}
                     wrap
                   />
+                ) : adaptation.series ? (
+                  <span className="cf-label-md text-cf-ink">{[`${adaptation.series.index}/${adaptation.series.total}`, adaptation.title?.trim()].filter(Boolean).join(' · ')}</span>
                 ) : null}
                 {shown ? (
                   <Segmented<'text' | 'preview'>
@@ -339,6 +354,28 @@ export function PieceChannelTab({
                   </span>
                 ) : null}
               </div>
+
+              {hasSeries && editions.length > 1 ? (
+                <Disclosure
+                  summary={t.seriesHistory}
+                  className="min-w-0 border-b border-cf-border"
+                  triggerClassName="py-[8px]"
+                  contentClassName="pb-[8px]"
+                >
+                  <ul className="flex min-w-0 flex-col gap-[4px]">
+                    {editions.filter(edition => edition !== selectedEdition).map(edition => (
+                      <li key={edition.key} className="min-w-0">
+                        <Button type="button" variant="quiet" layout="content"
+                          className="w-full justify-start py-[8px] text-start"
+                          onClick={() => onSelectAdaptation(edition.parts[0].id)}
+                          data-piece-history-edition={edition.key}>
+                          {edition === editions[0] ? `${t.latestEdition} · ` : ''}{editionDate(edition.createdAt)} · {t.editionPosts(edition.parts.length)}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </Disclosure>
+              ) : null}
 
               {saveState === 'failed' ? (
                 <div

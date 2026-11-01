@@ -28,6 +28,7 @@ import {
   needsPerson,
   selectionAnswer,
   selectionQuestion,
+  validFullPreviewAnswer,
   type ResearchLevel,
   type SelectionOption,
 } from './selection';
@@ -444,12 +445,13 @@ export const changeSelection = selectionQuestion('changeIds', {
   verdict: z.string(),
   target: z.string().optional(),
   notes: z.array(z.string()).optional(),
-});
+  fullPreview: z.object({ title: z.string().nullable(), text: z.string() }).strict().optional(),
+}, z.boolean()).refine((card) => card.fullPreview ? card.canDecideForPerson === false : card.canDecideForPerson === true);
 export const changeAnswer = selectionAnswer('changeIds', 40);
 
 const CHANGES_QUESTION = {
-  ru: 'Вот что предлагаем поправить. Отметьте, что принять.',
-  en: 'Here is what we suggest changing. Mark what to accept.',
+  ru: 'Проверьте итоговый текст и примите или отклоните изменения.',
+  en: 'Review the final text and accept or decline the changes.',
 };
 
 export type Reviewed = {
@@ -540,6 +542,8 @@ export const proposeThenAccept =
         throw codedFailure('REVIEW_SELECTION', 'The proposal is no longer known; run it again.');
       }
       const card = stored.data;
+      if (card.fullPreview && !validFullPreviewAnswer(card.options, ctx.resumeData as Record<string, unknown>, 'changeIds'))
+        throw codedFailure('REVIEW_SELECTION', 'Accept all proposed changes or decline them.');
       const kept = chosenIds(card.options, answer.data as Record<string, unknown>, 'changeIds');
       const done = {
         pieceId: input.pieceId,
@@ -583,12 +587,16 @@ export const proposeThenAccept =
         ...(notes.length ? { notes } : {}),
       };
     }
+    const fullPreview = pieces.previewReviewV2(ctx.organizationId, input.pieceId, adaptationOf(input), {
+      token: proposal.token, selectedIds: options.map((option) => option.id),
+    });
     await ctx.suspend({
       kind: 'selection',
       question: CHANGES_QUESTION[ctx.language],
       answerKey: 'changeIds',
       options,
-      canDecideForPerson: true,
+      canDecideForPerson: false,
+      fullPreview,
       token: proposal.token,
       verdict: proposal.verdict,
       target: proposalTarget(input.pieceId, adaptationOf(input)),
@@ -602,7 +610,7 @@ export const pieceCheckFacts = defineCapability({
   group: 'content',
   label: { ru: 'Проверить факты', en: 'Check the facts' },
   description:
-    'Check the facts of a piece’s core against sources on the web («Проверить факты»). Paid; runs without asking. The person accepts the proposed changes on a card (or says «Решите за меня»); you never choose them. Returns the verdict and counts.',
+    'Check the facts of a piece’s core against sources on the web («Проверить факты»). Paid; runs without asking. The person reviews the complete candidate and accepts or declines it on the card; you never choose for them. Returns the verdict and counts.',
   input: z.object({ pieceId }),
   risk: 'paid',
   card: 'piece',
@@ -622,7 +630,7 @@ export const pieceRewrite = defineCapability({
   group: 'content',
   label: { ru: 'Переписать суть', en: 'Rewrite the core' },
   description:
-    'Rewrite a piece’s core by the person’s instruction («Переписать…»), e.g. «короче», «убери канцелярит». Paid; runs without asking. Pass the instruction in the person’s words. The person accepts the proposed changes on a card (or says «Решите за меня»); you never choose them.',
+    'Rewrite a piece’s core by the person’s instruction («Переписать…»), e.g. «короче», «убери канцелярит». Paid; runs without asking. Pass the instruction in the person’s words. The person reviews the complete candidate and accepts or declines it on the card; you never choose for them.',
   input: z.object({
     pieceId,
     instruction: z.string().min(1).max(2000).describe('What to change, in the person’s words'),

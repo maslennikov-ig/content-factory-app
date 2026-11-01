@@ -25,7 +25,7 @@ module.exports = {
       say: 'Перепиши пост короче',
       model: [[['tool', 'adaptation_rewrite', { pieceId: 'p1', adaptationId: 'a1', instruction: 'короче' }]]],
     },
-    { resume: { decideForPerson: true }, model: [[['text', 'Переписали.']]] },
+    { resume: { changeIds: ['w1'] }, model: [[['text', 'Переписали.']]] },
     {
       say: 'Замени текст на: Созвоны съедают день. И поставь картинку m7',
       model: [

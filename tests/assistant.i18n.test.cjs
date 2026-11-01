@@ -45,12 +45,31 @@ const assistantChromeKeys = [
   'assistant_discuss',
   'assistant_in_context',
   'assistant_remove_context',
+  'assistant_context',
+  'assistant_context_help_label',
+  'assistant_context_help',
+  'assistant_draft_review_title',
+  'assistant_accept_draft',
+  'assistant_keep_draft',
+  'assistant_review_changes',
+  'assistant_source_activity',
   'assistant_new_artifact',
   'assistant_workspace_empty',
   'assistant_workspace_search',
   'assistant_working',
   'assistant_stopped',
   'assistant_reconcile',
+  'assistant_reconcile_help',
+  'assistant_interrupted_note',
+  'assistant_reconcile_missing',
+  'assistant_reconcile_newer_draft',
+  'assistant_reconcile_saved',
+  'assistant_reconcile_running',
+  'assistant_reconcile_failed',
+  'assistant_reconcile_unavailable',
+  'assistant_reconcile_unconfirmed',
+  'assistant_delivery_details',
+  'assistant_recovered_attachments',
   'assistant_context_unavailable',
   'assistant_unsaved',
   'assistant_manual_edits',
@@ -164,10 +183,10 @@ test('assistant navigation, picker, period, and recovery copy cover all shipped 
   );
   expect(
     english.assistant_interrupted_note,
-  ).toBe('The displayed reply was interrupted. Check the saved result before continuing.');
+  ).toBe('Could not receive the reply. Refresh status to check message delivery and task progress.');
   expect(
     russian.assistant_interrupted_note,
-  ).toBe('Ответ прерван. Проверьте сохранённый результат перед продолжением.');
+  ).toBe('Не удалось получить ответ. Обновите состояние: проверим сохранение сообщения и ход задачи.');
   expect(english.assistant_unknown_result).toBe(
     'The reply was interrupted before the conversation ID arrived. Check conversation history: the action may have been saved. You can start a new conversation.'
   );

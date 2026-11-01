@@ -182,8 +182,10 @@ function ChannelCard({
           }#writing-profile`}
           variant="secondary"
           density="dense"
+          className="max-w-full"
+          title={row.writingProfileStored || !canWrite ? t.writing(row.name) : t.fill}
         >
-          {row.writingProfileStored || !canWrite ? t.writing(row.name) : t.fill}
+          <span className="min-w-0 truncate">{row.writingProfileStored || !canWrite ? t.writing(row.name) : t.fill}</span>
         </ButtonLink>
         <ButtonLink href={href} variant="quiet" density="dense">
           {t.open}

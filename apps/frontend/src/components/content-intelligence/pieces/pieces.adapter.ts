@@ -516,6 +516,7 @@ export const readAdaptation = (
 ): WorkspaceAdaptationV1 | null => {
   const record = asRecord(value);
   if (!record || typeof record.id !== 'string') return null;
+  const series = asRecord(record.series);
   return {
     id: record.id,
     pieceId: asText(record.pieceId),
@@ -527,6 +528,10 @@ export const readAdaptation = (
     body: asNullableText(record.body),
     postId: asNullableText(record.postId),
     mediaId: asNullableText(record.mediaId),
+    ...(series &&
+      typeof series.id === 'string' && typeof series.index === 'number' && Number.isInteger(series.index) &&
+      typeof series.total === 'number' && Number.isInteger(series.total) && series.index >= 1 && series.index <= series.total
+      ? { series: { id: series.id, index: series.index, total: series.total } } : {}),
     state: readAdaptationState(record.state),
     date: asNullableText(record.date),
     url: asNullableText(record.url),

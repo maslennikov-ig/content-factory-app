@@ -35,4 +35,6 @@ read per request. Four focused suites /122 tests PASS; the final real cold
 Session migration additionally starts with the old default Memory processor and
 proves current voice/preferences on explicit approval, unchanged user history,
 zero passive model/tool calls and exactly-once stored execution. All three app
-typechecks and all four application builds PASS. Delivery is pending release gates.
+typechecks and all four application builds PASS. Release gates passed; accepted runtime is linked below.
+
+Accepted production: [release and limits](release-instructions-2026-10-27.md).

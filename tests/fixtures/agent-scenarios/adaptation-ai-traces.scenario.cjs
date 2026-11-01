@@ -20,7 +20,7 @@ module.exports = {
       say: 'Убери следы ИИ в посте для Telegram',
       model: [[['tool', 'adaptation_review', { pieceId: 'p1', adaptationId: 'a1', check: 'ai_traces' }]]],
     },
-    { resume: { changeIds: ['s1'] }, model: [[['text', 'Убрали один штамп.']]] },
+    { resume: { changeIds: ['s1', 's2'] }, model: [[['text', 'Убрали оба штампа.']]] },
     {
       say: 'А теперь проверь факты',
       model: [[['tool', 'adaptation_review', { pieceId: 'p1', adaptationId: 'a1', check: 'facts' }]]],
@@ -34,14 +34,14 @@ module.exports = {
       ['piece.review', 'p1', 'a1', { mode: 'slop' }],
       ['piece.review', 'p1', 'a1', { mode: 'web', confirmWebSpend: true }],
     ]);
-    expect(ask.suspended[0].payload).toMatchObject({ kind: 'selection', answerKey: 'changeIds', canDecideForPerson: true });
+    expect(ask.suspended[0].payload).toMatchObject({ kind: 'selection', answerKey: 'changeIds', canDecideForPerson: false });
     expect(ask.suspended[0].payload.options.map((option) => [option.id, option.selected])).toEqual([
       ['s1', true],
       ['s2', true],
     ]);
     expect(ask.admissions.map(([operation]) => operation)).toEqual(['agent', 'text_generation']);
     expect(run.requests.filter(([door]) => door === 'piece.review.accept')).toEqual([
-      ['piece.review.accept', 'p1', 'a1', { token: 'token-1', selectedIds: ['s1'] }],
+      ['piece.review.accept', 'p1', 'a1', { token: 'token-1', selectedIds: ['s1', 's2'] }],
     ]);
     expect(answer.admissions).toEqual([['agent', 'agent', 'user-1', 'succeeded']]);
     expect(answer.data.at(-1)).toEqual({
@@ -56,8 +56,8 @@ module.exports = {
       adaptationId: 'a1',
       outcome: 'applied',
       offered: 2,
-      applied: 1,
-      declined: 1,
+      applied: 2,
+      declined: 0,
       waitingOnCard: 0,
       acceptedOnCard: true,
       note: expect.stringMatching(/person.*accepted.*card/i),
@@ -74,6 +74,6 @@ module.exports = {
       'web_research',
       'text_generation',
     ]);
-    expect(run.writes).toEqual([['piece.review.accepted', 'p1', ['s1']]]);
+    expect(run.writes).toEqual([['piece.review.accepted', 'p1', ['s1', 's2']]]);
   },
 };

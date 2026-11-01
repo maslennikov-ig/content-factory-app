@@ -3,6 +3,7 @@ import type { PieceFactV2 } from '../pieces/piece-facts.v2';
 import type { AcceptedEvidence } from './intake.service';
 import { exactResearchSourceSpan } from './research-digest.v4';
 import { retainedSourceText, retainedSourceRevision } from '../research/retained-source';
+import type { IntakeResearchSummaryV1 } from '../brand-voice/voice-wiring.contract';
 
 /** Private capture in IntakeSnapshotStore; accepted excerpts also live in the source registry. */
 export type ResearchReuseSnapshot = {
@@ -82,7 +83,7 @@ export const selectReusableResearch = (snapshot: ResearchReuseSnapshot, keys?: s
     const fact = facts.get(key);
     const evidence = snapshot.evidence.find(row => row.evidenceId === fact?.evidenceId && row.url === fact?.sourceUrl);
     if (!fact || (!fact.sourcePassage && (!fact.verified || fact.status !== 'confirmed')) || !fact.quote || !evidence ||
-        !exactResearchSourceSpan(fact.quote, evidence.excerpt)) {
+        !exactResearchSourceSpan(fact.quote, retainedSourceText(evidence))) {
       throw researchReuseError('INTAKE_RESEARCH_SELECTION_INVALID', 'Each selected fact must have its own saved supporting source and quote.');
     }
     // An explicitly selected literal capture is source material. Its exact
@@ -96,6 +97,19 @@ export const selectReusableResearch = (snapshot: ResearchReuseSnapshot, keys?: s
 
 
 export type ResearchCaptureReference = { snapshotKey: string; factKeys: string[] };
+
+/** Carry the original assessments into the draft instead of buying a new verdict. */
+export function researchReuseSummary(snapshot: ResearchReuseSnapshot, facts: PieceFactV2[]): IntakeResearchSummaryV1 {
+  const saved = snapshot.summary as { captures?: IntakeResearchSummaryV1['captures'] } | null;
+  const captures = saved?.captures ?? [{ snapshotKey: snapshot.snapshotKey, query: snapshot.query, assessment: snapshot.summary }];
+  const gaps = captures.flatMap(capture => {
+    const value = capture.assessment as { gaps?: unknown } | null;
+    return Array.isArray(value?.gaps) ? value.gaps.filter((gap): gap is string => typeof gap === 'string') : [];
+  });
+  return { confirmed: facts.length, found: facts.length, conflicting: 0, unverified: 0,
+    sources: new Set(facts.map(fact => fact.sourceUrl).filter(Boolean)).size, encyclopedic: 0,
+    status: 'partial', gaps: [...new Set(gaps)], captures };
+}
 export const qualifiedResearchFactKey = (snapshotKey: string, factKey: string) =>
   `joined:${createHash('sha256').update(`${snapshotKey}\0${factKey}`).digest('hex')}`;
 

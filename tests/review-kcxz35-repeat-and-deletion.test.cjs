@@ -279,6 +279,7 @@ describe('F7: the selection row of a deletion', () => {
   const rowsFor = async (language) => {
     const services = {
       PieceService: {
+        previewReviewV2: () => ({ title: null, text: 'Текст' }),
         reviewV2: async () => ({
           token: 't',
           verdict: 'review',

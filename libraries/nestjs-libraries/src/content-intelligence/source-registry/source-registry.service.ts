@@ -120,6 +120,41 @@ export class ContentSourceRegistryService {
     };
   }
 
+  /** Read one public page under the same network policy, without creating a monitored source. */
+  async readPublicUrl(inputUrl: string) {
+    if (!this.capabilities.directFetch) {
+      throw new SourceRegistryError('POLICY_DISABLED', 'Direct source fetching is disabled', 403);
+    }
+    const requestedUrl = canonicalizeSourceUrl(inputUrl);
+    const policies = new Map<string, Buffer>();
+    const check = async (url: string) => {
+      assertDomainAllowed(url, this.deniedDomains);
+      const robotsUrl = robotsUrlFor(url);
+      let body = policies.get(robotsUrl);
+      if (!body) {
+        const robots = await this.gateway.fetch(robotsUrl, 'ROBOTS', {},
+          hop => assertDomainAllowed(hop, this.deniedDomains));
+        body = robots.body;
+        policies.set(robotsUrl, body);
+      }
+      assertRobotsAllowed(body, url);
+    };
+    try {
+      // Evaluate the destination's robots policy before every redirect hop.
+      const fetched = await this.gateway.fetch(requestedUrl, 'URL', {}, check);
+      const freshness = calculateSourceFreshness({ now: this.now(),
+        cacheControl: fetched.headers.cacheControl, expires: fetched.headers.expires });
+      if (!freshness.storable) throw new SourceRegistryError('POLICY_DISABLED', 'Source forbids reusable storage', 409);
+      const parsed = this.parser.parse('URL', fetched.body, {
+        contentType: fetched.contentType as string, charset: fetched.charset,
+      });
+      if (!parsed.text.trim()) throw new SourceRegistryError('PARSE_FAILED', 'Source contains no readable text', 422);
+      return { requestedUrl: fetched.requestedUrl, url: fetched.finalUrl, title: parsed.title, text: parsed.text, provider: 'user_link' as const };
+    } catch (error) {
+      throw asSafeSourceError(error);
+    }
+  }
+
   async createSource(
     organizationId: string,
     actorUserId: string,

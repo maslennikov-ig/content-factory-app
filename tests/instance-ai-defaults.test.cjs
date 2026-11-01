@@ -124,6 +124,8 @@ const loadService = (rows) => {
       INSTANCE_AI_DEFAULTS_ID: 'instance',
       resetAiConfigCache: () => undefined,
       defaultAdvancedModelForProvider: provider => loadConfig(null,null).defaultAdvancedModelForProvider(provider),
+      defaultTextModelForProvider: provider => loadConfig(null,null).defaultTextModelForProvider(provider),
+      defaultTextFallbackModelForProvider: provider => loadConfig(null,null).defaultTextFallbackModelForProvider(provider),
     },
     '@contentfactory/nestjs-libraries/openai/ai.roles': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/openai/ai.roles.ts'
@@ -158,19 +160,21 @@ describe('service-managed model defaults preserve own-model choices (8o2z)', () 
     roleModels: {},
   };
 
-  test('included settings and runtime use Luna then Sol6.1 when no override is saved', async () => {
+  test('included settings and runtime use Terra then Sol6.1 when no override is saved', async () => {
     await withEnvironment(
       { AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: undefined },
       async () => {
         const { loadAiConfig } = loadConfig(includedRow, operator);
         const config = await loadAiConfig('included-defaults');
-        expect(config.textModel).toBe('openai/gpt-6-luna');
+        expect(config.textModel).toBe('openai/gpt-6.1-terra');
+        expect(config.roleModels).toEqual({ classify: 'openai/gpt-6-luna' });
+        expect(config.modelRouting.advancedModel).toBe(config.textModel);
         const policy = chain.resolveOrderedTextChainPolicy(config.textChain, {
           provider: config.provider, usageMode: config.usageMode,
           primaryModel: config.textModel, hasKey: Boolean(config.apiKey),
         });
         expect(policy.effectiveChain.map(({ model }) => model)).toEqual([
-          'openai/gpt-6-luna', 'openai/gpt-6.1-sol',
+          'openai/gpt-6.1-terra', 'openai/gpt-6.1-sol',
         ]);
         expect(policy.inheritedDefault).toBe(true);
         const { service } = loadService({ row: operator });

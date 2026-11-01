@@ -4,12 +4,14 @@ import type {
   AgentArtifactRef,
   AgentWorkContextV1,
   AgentWorkspaceV1,
+  AgentWritingSelection,
 } from '../capabilities/agent-parts.contract';
 import { redactSecretShapes } from './secret-shapes';
 
 /** Only identities persist here. Product records remain the content authority. */
 export const AGENT_WORKSPACE_METADATA_KEY = 'assistantWorkspace';
 export const AGENT_WORK_CONTEXT_KEY = 'cf.workContext';
+export const AGENT_WRITING_SELECTION_KEY = 'cf.writingSelection';
 export const AGENT_WORK_ARTIFACTS_MAX = 24;
 export const AGENT_WORK_CONTENT_MAX_CHARS = 16_000;
 export const AGENT_WORK_CONTEXT_VERSION = 'assistant-work-context/v1' as const;
@@ -27,6 +29,12 @@ export const forbiddenWorkContext = () => new AgentWorkContextError(403, 'This r
 export const staleWorkContext = () => new AgentWorkContextError(409, 'The selected object changed. Reload it before continuing.');
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+const writingSelectionSchema = z.object({ channelId: id.optional(), avatarId: id.optional() }).strict();
+export const parseAgentWritingSelection = (value: unknown): AgentWritingSelection => {
+  const parsed = writingSelectionSchema.safeParse(value);
+  if (!parsed.success) throw invalidWorkContext();
+  return parsed.data;
+};
 const date = z.string().max(35).refine((value) => {
   if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value)) return false;
   const parsed = Date.parse(value);
@@ -85,15 +93,31 @@ const artifactSchema = z.object({
 
 const patchSchema = z.object({
   workContext: contextSchema.nullable().optional(),
+  writingSelection: writingSelectionSchema.optional(),
   artifacts: z.array(artifactSchema).max(AGENT_WORK_ARTIFACTS_MAX).optional(),
   activeArtifact: artifactSchema.nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0) as z.ZodType<AgentWorkspacePatch>;
 
-export type AgentWorkspacePatch = Pick<Partial<AgentWorkspaceV1>, 'workContext' | 'artifacts' | 'activeArtifact'>;
+export type AgentWorkspacePatch = Pick<Partial<AgentWorkspaceV1>, 'workContext' | 'writingSelection' | 'artifacts' | 'activeArtifact'>;
 export type ResolvedAgentWorkContext = {
   context: AgentWorkContextV1;
   data: Record<string, unknown>;
   truncated: boolean;
+};
+export type ResolvedAgentWritingSelection = {
+  selection: AgentWritingSelection;
+  channel?: { id: string; name: string };
+  avatar?: { id: string; name: string | null };
+  brandProfileSelection?: { mode: 'version'; versionId: string };
+};
+/** Only server-built chat request context may carry this value. */
+export const readResolvedWritingSelection = (context: unknown): ResolvedAgentWritingSelection | undefined => {
+  const raw = (context as { get?: (key: string) => unknown } | undefined)?.get?.(AGENT_WRITING_SELECTION_KEY);
+  if (typeof raw !== 'string' || !raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return { ...parsed, selection: parseAgentWritingSelection(parsed.selection) };
+  } catch { return undefined; }
 };
 
 export const parseAgentWorkContext = (value: unknown): AgentWorkContextV1 | null => {
@@ -123,9 +147,11 @@ export const readStoredAgentWorkspace = (metadata: Record<string, unknown> | und
     return parsed.success ? [parsed.data] : [];
   });
   const active = artifactSchema.safeParse(stored.activeArtifact);
+  const writing = writingSelectionSchema.safeParse(stored.writingSelection);
   return {
     version: AGENT_WORKSPACE_VERSION,
     workContext: work && work.success ? work.data : null,
+    ...(writing.success ? { writingSelection: writing.data } : {}),
     artifacts,
     activeArtifact: active.success && artifacts.some((ref) => sameAgentArtifact(ref, active.data)) ? active.data : null,
   };

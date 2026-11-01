@@ -16,6 +16,7 @@ export const MAX_RESEARCH_EVIDENCE_CACHE_BYTES = 8 * 1024 * 1024;
 export type StoredResearchSource = {
   index: number;
   url: string | null;
+  requestedUrl?: string;
   title: string | null;
   publishedAt: string | null;
   provider: string | null;
@@ -37,6 +38,7 @@ export type StoredResearchFact = {
   kind: string | null;
   verified: boolean;
   selected: boolean;
+  sourcePassage: boolean;
   dateProvenance?: unknown;
   note?: string;
   totalCharacters: number;
@@ -87,6 +89,7 @@ const normalizeStoredSource = (source: any, index: number): StoredResearchSource
   return {
     index,
     url: typeof source?.url === 'string' ? source.url : null,
+    ...(typeof source?.requestedUrl === 'string' ? { requestedUrl: source.requestedUrl } : {}),
     title: typeof source?.title === 'string' ? redactSecretShapes(source.title).slice(0, 300) : null,
     publishedAt: typeof source?.publishedAt === 'string' ? source.publishedAt : null,
     provider: typeof source?.provider === 'string' ? source.provider : null,
@@ -130,7 +133,8 @@ const normalizeStoredFact = (fact: any, index: number): StoredResearchFact => {
     status,
     kind: fact?.kind ?? fact?.origin ?? 'found',
     verified: fact?.verified === true || status === 'confirmed',
-    selected: fact?.selected === true,
+    selected: fact?.sourcePassage === true ? false : fact?.selected === true,
+    sourcePassage: fact?.sourcePassage === true,
     ...(fact?.dateProvenance ? { dateProvenance: fact.dateProvenance } : {}),
     ...(fact?.note ? { note: redactSecretShapes(String(fact.note)).slice(0, 1_000) } : {}),
     totalCharacters: rawStatement.length + (rawQuote ? rawQuote.length : 0),
@@ -188,6 +192,116 @@ export const readResearchEvidence = (
 ): StoredResearchEvidence | null => {
   if (!organizationId || !snapshotKey) return null;
   return researchEvidenceStore.get(`${organizationId}:${snapshotKey}`) ?? null;
+};
+
+/** A byte-bounded, ordered index. Its cursor is an index, not a JSON offset. */
+export const researchIndexPage = (
+  evidence: StoredResearchEvidence,
+  part: 'research_sources' | 'research_facts',
+  offset = 0,
+  pageSize = 20
+) => {
+  const rows = part === 'research_sources' ? evidence.sources : evidence.facts;
+  const hash = createHash('sha256');
+  hash.update(part);
+  for (const row of rows) {
+    const { text, statement, quote, note, ...metadata } = row as StoredResearchSource & StoredResearchFact;
+    hash.update(JSON.stringify(metadata));
+  }
+  const revision = hash.digest('hex');
+  const start = Math.min(offset, rows.length);
+  const items: Record<string, unknown>[] = [];
+  for (let i = start; i < rows.length && items.length < pageSize; i++) {
+    const row = rows[i];
+    const item: Record<string, unknown> = part === 'research_sources'
+      ? (() => {
+          const source = row as StoredResearchSource;
+          return { sourceIndex: source.index, revision: source.revision,
+            ...(source.url && source.url.length <= 2_000 && Buffer.byteLength(JSON.stringify(source.url)) <= 2_000 ? { url: source.url } : { urlAvailableBySourceRead: !!source.url }),
+            title: source.title?.slice(0, 150) ?? null, excerpt: source.excerpt,
+            totalCharacters: source.totalCharacters };
+        })()
+      : (() => {
+          const fact = row as StoredResearchFact;
+          const rawText = [fact.statement, fact.quote ? `Quote: ${fact.quote}` : null, fact.note ? `Note: ${fact.note}` : null].filter(Boolean).join('\n\n');
+          return { factIndex: fact.index,
+            ...(fact.factKey.length <= 1_000 && Buffer.byteLength(JSON.stringify(fact.factKey)) <= 1_000 ? { factKey: fact.factKey } : { factKeyAvailableByFactRead: true }),
+            ...(fact.sourceUrl && fact.sourceUrl.length <= 2_000 && Buffer.byteLength(JSON.stringify(fact.sourceUrl)) <= 2_000 ? { sourceUrl: fact.sourceUrl } : {}),
+            statement: fact.statement.slice(0, COMPACT_FACT_STATEMENT_MAX),
+            status: String(fact.status).slice(0, 100), kind: typeof fact.kind === 'string' ? fact.kind.slice(0, 100) : null,
+            verified: fact.verified, selected: fact.selected, sourcePassage: fact.sourcePassage,
+            revision: sha256(rawText) };
+        })();
+    if (items.length && Buffer.byteLength(JSON.stringify([...items, item])) > 6_000) break;
+    items.push(item);
+  }
+  const nextOffset = start + items.length;
+  return { snapshotKey: evidence.snapshotKey, part, revision, offset: start, total: rows.length, items,
+    truncated: nextOffset < rows.length,
+    ...(nextOffset < rows.length ? { nextRead: { researchId: evidence.snapshotKey, part, offset: nextOffset, revision } } : {}) };
+};
+
+/** Rebuild a useful overview from a retained summary, including older receipts.
+ * The first continuation needs no index revision; piece.read returns one for
+ * subsequent pages after it has checked the caller's actual snapshot access. */
+export const projectResearchOverview = (input: Record<string, any>, evidence?: StoredResearchEvidence) => {
+  const clipped = (value: unknown, maxBytes: number) => {
+    if (typeof value !== 'string') return null;
+    const chars = Array.from(redactSecretShapes(value));
+    let lo = 0, hi = chars.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (Buffer.byteLength(JSON.stringify(chars.slice(0, mid).join(''))) <= maxBytes) lo = mid;
+      else hi = mid - 1;
+    }
+    return chars.slice(0, lo).join('');
+  };
+  const sourceRows = Array.isArray(input.sources) ? input.sources : [];
+  const factRows = Array.isArray(input.facts) ? input.facts : [];
+  const fallbackPage = (part: 'research_sources' | 'research_facts', rows: any[], total: number) => {
+    const items: Record<string, unknown>[] = [];
+    for (const [i, row] of rows.entries()) {
+      const validId = (value: unknown, max: number) => typeof value === 'string' && value.length <= max && Buffer.byteLength(JSON.stringify(value)) <= max;
+      const item = part === 'research_sources'
+        ? { sourceIndex: row.sourceIndex ?? row.index ?? i,
+            ...(/^[a-f0-9]{64}$/.test(row.revision) ? { revision: row.revision } : {}),
+            ...(validId(row.url, 2_000) ? { url: row.url } : { urlAvailableBySourceRead: !!row.url }),
+            title: clipped(row.title, 400), excerpt: clipped(row.excerpt, 500), totalCharacters: row.totalCharacters }
+        : { factIndex: row.factIndex ?? i, ...(validId(row.factKey, 1_000) ? { factKey: row.factKey } : { factKeyAvailableByFactRead: !!row.factKey }),
+            ...(validId(row.sourceUrl, 2_000) ? { sourceUrl: row.sourceUrl } : {}), statement: clipped(row.statement, 500),
+            status: clipped(row.status, 150), kind: clipped(row.kind, 150), selected: row.selected === true, sourcePassage: row.sourcePassage === true };
+      if (items.length && Buffer.byteLength(JSON.stringify([...items, item])) > 6_000) break;
+      items.push(item);
+      if (items.length >= 20) break;
+    }
+    return { snapshotKey: input.snapshotKey, part, offset: 0, total, items, truncated: items.length < total,
+      ...(items.length < total ? { nextRead: { researchId: input.snapshotKey, part, offset: items.length } } : {}) };
+  };
+  const sources = evidence ? researchIndexPage(evidence, 'research_sources') : fallbackPage('research_sources', sourceRows, input.sourceCount ?? sourceRows.length);
+  const facts = evidence ? researchIndexPage(evidence, 'research_facts') : fallbackPage('research_facts', factRows, input.factCount ?? factRows.length);
+  const assessment = input.assessment && typeof input.assessment === 'object' ? input.assessment : null;
+  const coverage = Array.isArray(assessment?.coverage) ? assessment.coverage : [];
+  const coveragePreview: Record<string, unknown>[] = [];
+  for (const row of coverage) {
+    const entry = { question: clipped(row?.question, 400), status: clipped(row?.status, 100) };
+    if (Buffer.byteLength(JSON.stringify([...coveragePreview, entry])) > 2_500) break;
+    coveragePreview.push(entry);
+  }
+  const summary = clipped(input.summary, 4_000) ?? '';
+  return { query: clipped(input.query, 1_000), snapshotKey: input.snapshotKey, level: input.level,
+    summary, ...((input.summaryTruncated || summary.length < String(input.summary ?? '').length)
+      ? { summaryTruncated: true, summaryTotalCharacters: input.summaryTotalCharacters ?? String(input.summary ?? '').length } : {}),
+    assessment: assessment ? { status: clipped(assessment.status, 150), periodStatus: clipped(assessment.periodStatus, 150),
+      requestedDate: clipped(assessment.requestedDate, 150),
+      ...(typeof assessment.inputBytes === 'number' ? { inputBytes: assessment.inputBytes } : {}),
+      reason: clipped(assessment.reason, 600), coverage: coveragePreview, coverageTotal: coverage.length,
+      coverageTruncated: coveragePreview.length < coverage.length, assessmentTruncated: true,
+      readWith: 'piece.read', part: 'research_assessment' } : null,
+    sources: sources.items, sourcePage: { ...sources, items: undefined as undefined },
+    facts: facts.items, factPage: { ...facts, items: undefined as undefined },
+    sourceCount: input.sourceCount ?? sourceRows.length, factCount: input.factCount ?? factRows.length,
+    fromCache: input.fromCache, outcome: input.outcome, readWith: 'piece.read',
+    note: 'These are ordered previews, not a complete evidence set. Follow sourcePage/factPage nextRead with piece.read for every omitted row. Read the full assessment with research_assessment and source/fact passages by index and revision. Captured source passages are not confirmed findings; assess evidence before selecting it. No piece was created.' };
 };
 
 /** Compact source list for model context; full source text stays readable via piece.read. */

@@ -789,6 +789,16 @@ describe('shared form-control contracts', () => {
     expect(standard).not.toContain('h-[32px] w-[32px]');
   });
 
+  test('text buttons grow with content and respect explicit vertical padding', () => {
+    const dense = render(Button, { density: 'dense' }, 'Long label');
+    const standard = render(Button, { className: 'pt-[2px] pb-[3px]' }, 'Long label');
+    expect(dense).toContain('h-fit min-h-[32px] pt-[4px] pb-[4px]');
+    expect(standard).toContain('h-fit min-h-[40px]');
+    expect(standard).not.toContain('pt-[8px]');
+    expect(standard).not.toContain('pb-[8px]');
+    expect(standard).toContain('min-w-0 flex-1');
+  });
+
   test('keeps one rendered owner for caller-overridden button geometry', () => {
     const standard = render(
       Button,
@@ -824,7 +834,8 @@ describe('shared form-control contracts', () => {
     expect(standard).not.toContain('h-[36px]');
     expect(standard).toContain('px-[12px]');
     expect(standard).not.toContain('min-h-[44px]');
-    expect(standard).toContain('h-[40px]');
+    expect(standard).toContain('min-h-[40px]');
+    expect(standard).toContain('h-fit');
     expect(standard).not.toContain('px-[16px]');
     expect(iconOnly).toContain('h-[32px] w-[32px]');
     expect(iconOnly).toContain('p-[8px]');

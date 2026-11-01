@@ -318,7 +318,7 @@ async function createRuntime(options = {}) {
     },
   });
   const membership = {
-    role: 'EDITOR',
+    role: options.membershipRole ?? 'EDITOR',
     disabled: false,
     user: { activated: true, blockedAt: null },
     organization: { createdAt: new Date(IDENTITY.organizationCreatedAt) },

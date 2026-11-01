@@ -48,7 +48,7 @@ import { AISDKTranscription } from '@mastra/core/voice';
 import { Agent } from '@mastra/core/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import { createNativeTextRetryConfig, nativeTextAbortSignal, setNativeTextMaxRetries } from './ai.native-retries';
+import { getNativeTerminalModelError, createNativeTextRetryConfig, nativeTextAbortSignal, setNativeTextMaxRetries } from './ai.native-retries';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -467,6 +467,12 @@ export const getRoutedMastraModelEntries = async (
     prepareModels?: (factory: () => Promise<MastraModelEntry[]>) => Promise<MastraModelEntry[]>;
   }
 ): Promise<RoutedMastraSelection> => {
+  // Native preflight can resolve again after a terminal provider refusal.
+  // Never spend a classifier call to rediscover a route for that failed turn.
+  const terminal = getNativeTerminalModelError(options?.requestContext);
+  if (terminal) throw Object.assign(new Error('Model provider request failed.'), {
+    payload: { metadata: { cfNativeTerminalModelError: terminal } },
+  });
   const config = await requireActiveAiConfig(organizationId);
   const task = withoutSecretShapes(input == null ? '' : typeof input === 'string' ? input : JSON.stringify(input));
   const key = identity(organizationId, config, JSON.stringify([role, options?.modelId, task]));
@@ -477,6 +483,12 @@ export const getRoutedMastraModelEntries = async (
     stageSelections.set(options.requestContext, cache);
   }
   const resolve = async (): Promise<RoutedMastraSelection> => {
+  // Native preflight can resolve again after a terminal provider refusal.
+  // Never spend a classifier call to rediscover a route for that failed turn.
+  const terminal = getNativeTerminalModelError(options?.requestContext);
+  if (terminal) throw Object.assign(new Error('Model provider request failed.'), {
+    payload: { metadata: { cfNativeTerminalModelError: terminal } },
+  });
     const base = await getMastraAgentModelEntries(organizationId, role, options);
     const advanced = config.modelRouting?.advancedModel;
     if (options?.modelId || !config.modelRouting?.enabled || !routingStageFor(role) ||

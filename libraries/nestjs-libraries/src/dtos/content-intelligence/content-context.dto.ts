@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MAX_SEARCH_QUERY_LENGTH } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
+import { CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 
 /**
  * Поиск по словам на витрине фактов (`content-factory-next-odb8.4`).
@@ -69,19 +70,19 @@ export class BuildContentContextDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(64)
+  @ArrayMaxSize(CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1)
   @IsString({ each: true })
   sourceIds?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(64)
+  @ArrayMaxSize(CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1)
   @IsString({ each: true })
   factIds?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(64)
+  @ArrayMaxSize(CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1)
   @IsString({ each: true })
   userMaterialEvidenceIds?: string[];
 }

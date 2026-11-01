@@ -260,6 +260,7 @@ describe('native Mastra tools', () => {
       'piece_check_facts',
       'piece_rewrite',
       'piece_adapt',
+      'piece_series_resume',
       'channel_writing_remember',
       'adaptation_review',
       'adaptation_rewrite',

@@ -161,7 +161,7 @@ describe('loadAiConfig', () => {
         ...workspaceRow,
         usageMode: 'included',
       }));
-      expect(config.roleModels).toEqual({});
+      expect(config.roleModels).toEqual({ classify: 'gpt-6-luna' });
       expect(config.textModel).not.toBe('');
     } finally {
       delete process.env.AI_INCLUDED_API_KEY;

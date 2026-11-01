@@ -3,11 +3,10 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 /**
  * One transport for every text call, and the ledger that learns what it cost.
  *
- * `content-factory-next-97dq.55`. Owner's decision of 23.09.2026: text runs on
- * `openai/gpt-6-luna` with reasoning effort `medium`, and each call walks
- * flex → standard → `z-ai/glm-5.3` (one flex attempt of 60 s since `97dq.94`;
- * two of three minutes each before it). Batch is not used, because a person
- * is waiting on every call.
+ * Primary and role models come from configuration. Since 27.10.2026 the
+ * defaults are Terra6.1 (medium), with Luna (low) for classification. The
+ * configured ordered fallback chain keeps its own model and tier policy.
+ * Batch is not used, because a person is waiting on every call.
  *
  * The chain is a `fetch`, not a wrapper around one SDK. LangChain's
  * `ChatOpenAI` and the plain OpenAI client both accept a custom `fetch`, and
@@ -637,12 +636,15 @@ export const textChainApplies = (source: TextChainSource): boolean => {
 };
 
 /**
- * Luna-family ids take `reasoning.effort`. The owner also selects medium for
- * Sol6.1; other fallback vendors keep their provider's native default.
+ * Model-specific request defaults, shared by Chat Completions and Responses.
  * Explicit caller reasoning settings remain authoritative.
  */
 export const isLunaModel = (model: string): boolean =>
   /(^|\/)gpt-[\w.]*-luna(\b|$)/i.test(model);
+
+const defaultReasoningEffort = (model: string): 'low' | 'medium' | undefined =>
+  isLunaModel(model) ? 'low' :
+  /^(openai\/)?gpt-6\.1-(terra|sol)$/.test(model) ? 'medium' : undefined;
 
 /**
  * OpenRouter's flex endpoints are OpenAI's (`openai/flex`). Asking a model of
@@ -832,12 +834,12 @@ export const buildAttemptBody = (
       : {};
   body.usage = { ...usage, include: true };
   if (
-    (isLunaModel(attempt.model) || ['openai/gpt-6.1-sol', 'gpt-6.1-sol'].includes(attempt.model)) &&
+    defaultReasoningEffort(attempt.model) &&
     original.reasoning === undefined &&
     original.reasoning_effort === undefined
   ) {
-    if (provider === 'openai') body.reasoning_effort = 'medium';
-    else body.reasoning = { effort: 'medium' };
+    if (provider === 'openai') body.reasoning_effort = defaultReasoningEffort(attempt.model);
+    else body.reasoning = { effort: defaultReasoningEffort(attempt.model) };
   }
   // Reasoning tokens are spent out of the same output ceiling. A caller's cap
   // is the visible budget — sized for the answer alone — so every capped
@@ -1753,8 +1755,8 @@ const sendText = (
       if (attempt.flex) body.service_tier = 'flex';
       if (typeof body.max_output_tokens === 'number')
         body.max_output_tokens = clampToOutputLimit(withReasoningHeadroom(body.max_output_tokens), source.outputLimits?.[attempt.model]);
-      if ((isLunaModel(attempt.model) || attempt.model === 'gpt-6.1-sol') && body.reasoning === undefined)
-        body.reasoning = { effort: 'medium' };
+      if (defaultReasoningEffort(attempt.model) && body.reasoning === undefined)
+        body.reasoning = { effort: defaultReasoningEffort(attempt.model) };
       const recorded = ledger ? { ...attempt, number: ledger.calls.length + 1 } : attempt;
       return runAttempt(baseFetch, input, init, body, recorded, true, streaming, ledger, true);
     }

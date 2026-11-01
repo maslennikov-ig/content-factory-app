@@ -32,6 +32,7 @@ import { AdaptationReview, CORE_REVIEW_ACTIONS } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceCoreTab } from './piece-core-tab';
 import { PieceChannelTab, type AutosaveState } from './piece-channel-tab';
+import { selectedAdaptation } from './piece-series';
 import { MaterialAsk } from './material-ask';
 /** Тишина, после которой ручная правка уходит в дверь (общая с `useAutosave`). */
 import { AUTOSAVE_MS } from '../../ui/use-autosave';
@@ -478,11 +479,7 @@ export function PieceContainer({
 
   const activeChannel = channelOfTab(channels, tab);
   const activeAdaptation: WorkspaceAdaptationV1 | null = activeChannel
-    ? activeChannel.adaptations.find(
-        (one) => one.id === chosenVersion[activeChannel.id]
-      ) ??
-      activeChannel.adaptations[0] ??
-      null
+    ? selectedAdaptation(activeChannel.adaptations, chosenVersion[activeChannel.id])
     : null;
 
   const profile = useChannelWritingProfile(
@@ -1795,12 +1792,7 @@ export function PieceContainer({
   ) : null;
 
   const renderChannelTab = (channel: (typeof channels)[number]) => {
-    const adaptation =
-      channel.adaptations.find(
-        (one) => one.id === chosenVersion[channel.id]
-      ) ??
-      channel.adaptations[0] ??
-      null;
+    const adaptation = selectedAdaptation(channel.adaptations, chosenVersion[channel.id]);
     const fresh = adaptation && draft?.adaptation.id === adaptation.id;
     const body = adaptation ? edits[adaptation.id] ?? adaptation.body ?? '' : '';
     const dirty =

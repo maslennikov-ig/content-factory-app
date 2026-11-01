@@ -78,6 +78,21 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
     expect(text).toMatch(/Lead with the result/);
   });
 
+  test('native questions propose distinct contextual answers with a recommendation instead of only skip actions', () => {
+    expect(text).toContain('one recommended substantive answer and 2–3 distinct alternatives in native options');
+    expect(text).toContain('mark the recommendation in its label in the response language');
+    expect(text).toContain('Put concise ready-to-use reply wording in options.label');
+    expect(text).toContain('not category, style or angle names');
+    expect(text).toContain('derive the alternatives from this question, its facts and the person’s goal');
+    expect(text).toContain('explain why you recommend that answer in its description');
+    expect(text).toContain('only their selection or edit makes it their view');
+    expect(text).toContain('never invent personal experience');
+    expect(text).toContain('must not replace all substantive choices');
+    expect(text).toContain('do not duplicate those controls as options');
+    expect(text).toContain('state a short public first-person decision before the next tool or question');
+    expect(text).toContain('never private reasoning or an invented author opinion');
+  });
+
   test('after an approved action it says it is done, never asks again (spike: Luna said «подтвердите»)', () => {
     expect(text).toMatch(/After an approved action ran, say in one line that it is done/);
     expect(text).toMatch(/Never ask to confirm again something that already ran/);

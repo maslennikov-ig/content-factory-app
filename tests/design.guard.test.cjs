@@ -304,7 +304,6 @@ const HAND_ROLLED_ACCENT_ALLOWED = [
   'apps/frontend/src/components/launches/helpers/pick.platform.component.tsx',
   'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
   'apps/frontend/src/components/launches/missing-release.modal.tsx',
-  'apps/frontend/src/components/launches/select.customer.tsx',
   'apps/frontend/src/components/media/media.component.tsx',
 ];
 

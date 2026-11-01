@@ -42,11 +42,14 @@ const readAll = async (stream) => {
   const zones = [];
   let refusal = null;
   const historyReads = [];
+  const captured = [];
+  const diagnostics = [];
   let preStartSignals = 0;
   let historyStatus = 200;
   let serverContext = null;
   let onHistoryRead = null;
   let replayReleased = false;
+  let observerFailure = false;
   const app = express();
   app.use(express.json());
   app.get('/agent/threads/:id', async (req, res) => {
@@ -60,6 +63,7 @@ const readAll = async (stream) => {
     zones.push(req.headers['x-agent-timezone'] ?? null);
     if (refusal) {
       if (refusal.proof) res.setHeader('x-agent-not-started', refusal.proof);
+      if (refusal.plain) { res.status(refusal.status).type('text').send(refusal.plain); return; }
       res.status(refusal.status).json({ code: refusal.code });
       return;
     }
@@ -84,6 +88,7 @@ const readAll = async (stream) => {
   });
   app.get('/agent/threads/:id/observe', (req, res) => {
     seen.push({ method: req.method, path: req.path });
+    if (observerFailure) { res.status(502).json({ code: 'OBSERVER_ERROR' }); return; }
     if (replayReleased) { res.status(204).end(); return; }
     res.setHeader('content-type', 'text/event-stream');
     res.setHeader('x-vercel-ai-ui-message-stream', 'v1');
@@ -100,14 +105,14 @@ const readAll = async (stream) => {
   const play = async (name, run) => {
     seen.length = 0;
     zones.length = 0;
-    historyReads.length = 0; preStartSignals = 0; historyStatus = 200; serverContext = null; onHistoryRead = null;
+    historyReads.length = 0; captured.length = 0; diagnostics.length = 0; preStartSignals = 0; historyStatus = 200; serverContext = null; onHistoryRead = null; observerFailure = false;
     replayReleased = false;
     const named = [];
     try {
       const parts = await run(named);
-      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], preStartSignals, named, parts: parts ?? [] };
+      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], captured: [...captured], diagnostics: [...diagnostics], preStartSignals, named, parts: parts ?? [] };
     } catch (error) {
-      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], preStartSignals, named, error: String(error?.message ?? error), notStarted: isAgentRequestNotStarted(error), status: error.status ?? null };
+      report[name] = { seen: [...seen], zones: [...zones], historyReads: [...historyReads], captured: [...captured], diagnostics: [...diagnostics], preStartSignals, named, error: String(error?.message ?? error), notStarted: isAgentRequestNotStarted(error), status: error.status ?? null };
     }
   };
   const transport = (thread, named) =>
@@ -115,6 +120,8 @@ const readAll = async (stream) => {
       request: customFetch({ baseUrl }),
       currentThread: () => thread,
       onThread: (id) => named.push(id),
+      onUserMessage: (message) => captured.push({ message: structuredClone(message), historyReads: historyReads.length, posts: seen.length }),
+      onRequestFailure: (diagnostic) => diagnostics.push(diagnostic),
     });
 
   await play('message', async (named) =>
@@ -254,6 +261,8 @@ const readAll = async (stream) => {
     'unproven-context': { status: 400, code: 'AGENT_BAD_REQUEST' },
     'unproven-proxy': { status: 502, code: 'AGENT_FAILED' },
     'unproven-header-value': { status: 400, code: 'AGENT_BAD_REQUEST', proof: 'true' },
+    'plain-proxy': { status: 502, plain: 'upstream unavailable' },
+    'unsafe-code': { status: 502, code: 'SECRET-unsafe text' },
   };
   for (const [name, config] of Object.entries(refusalCases)) {
     refusal = config;
@@ -298,7 +307,7 @@ const readAll = async (stream) => {
       if (mode === 'selection-changed') onHistoryRead = () => { selected = { ...oldContext, id: 'p2' }; };
       if (mode === 'thread-changed') onHistoryRead = () => { thread = 'different-thread'; };
       if (mode === 'stopped-before-post') onHistoryRead = async () => { abort.abort(); await new Promise(r => setTimeout(r, 20)); };
-      const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => thread, currentContext: () => selected, onThread: id => named.push(id), onNotStarted: () => { preStartSignals += 1; } });
+      const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => thread, currentContext: () => selected, onThread: id => named.push(id), onNotStarted: () => { preStartSignals += 1; }, onUserMessage: message => captured.push({ message: structuredClone(message), historyReads: historyReads.length, posts: seen.length }), onRequestFailure: diagnostic => diagnostics.push(diagnostic) });
       const options = { chatId: 'chat-context', trigger: 'submit-message', abortSignal: abort.signal,
         messages: [{ id: 'new-edit', role: 'user', parts: [{ type: 'text', text: 'Append my next sentence.' }] }] };
       if (mode === 'queued-null') options.body = { workContext: null };
@@ -310,7 +319,36 @@ const readAll = async (stream) => {
     });
   }
 
+  for (const mode of ['sdk-preflight-failure', 'sdk-post-failure']) {
+    await play(mode, async named => {
+      const state = {
+        status: 'ready', messages: [], error: undefined,
+        pushMessage(message) { this.messages = [...this.messages, message]; },
+        popMessage() { this.messages = this.messages.slice(0, -1); },
+        replaceMessage(index, message) { this.messages[index] = message; },
+        snapshot(value) { return structuredClone(value); },
+      };
+      serverContext = freshContext;
+      if (mode === 'sdk-preflight-failure') historyStatus = 403;
+      if (mode === 'sdk-post-failure') refusal = { status: 502, code: 'AGENT_FAILED' };
+      const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => THREAD,
+        currentContext: () => oldContext, onThread: id => named.push(id),
+        onUserMessage: message => captured.push({ message: structuredClone(message), historyReads: historyReads.length, posts: seen.length }) });
+      const chat = new AbstractChat({ transport: client, state });
+      try {
+        await chat.sendMessage({ text: 'Сохранить черновик.' });
+        return { userMessage: state.messages[0], status: state.status };
+      } finally { refusal = null; }
+    });
+  }
+
   await play('native-reconnect', async named => readAll(await transport(THREAD, named).reconnectToStream({ chatId: THREAD })));
+  await play('observer-failure', async named => { observerFailure = true; return readAll(await transport(THREAD, named).reconnectToStream({ chatId: THREAD })); });
+  await play('network-failure', async named => {
+    const client = createAgentTransport({ request: async () => { throw new Error('network failed'); }, currentThread: () => null,
+      onThread: id => named.push(id), onRequestFailure: diagnostic => diagnostics.push(diagnostic) });
+    return readAll(await client.sendMessages({ chatId: 'network-failure', trigger: 'submit-message', messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Hello' }] }] }));
+  });
   await play('native-replay-released', async named => {
     replayReleased = true;
     let hydrated = 0;
@@ -319,6 +357,22 @@ const readAll = async (stream) => {
     const stream = await client.reconnectToStream({ chatId: THREAD });
     return { streamAbsent: stream === null, hydrated };
   });
+  for (const mode of ['writing-new', 'writing-refresh-race', 'writing-queued', 'writing-cleared', 'writing-native-question', 'writing-save-refused', 'writing-save-await']) {
+    await play(mode, async named => {
+      let selection = { channelId: 'channel-original', avatarId: 'avatar-original' };
+      serverContext = freshContext;
+      if (mode === 'writing-refresh-race') onHistoryRead = () => { selection = { channelId: 'channel-new' }; };
+      const client = createAgentTransport({ request: customFetch({ baseUrl }), currentThread: () => THREAD,
+        currentContext: () => mode === 'writing-refresh-race' ? oldContext : null,
+        currentWritingSelection: () => selection,
+        prepareWritingSelection: async () => { if (mode === 'writing-save-refused') throw Error('save failed'); if (mode === 'writing-save-await') { await new Promise(resolve => setTimeout(resolve, 20)); selection = { channelId: 'newer-ui-channel' }; } }, onThread: id => named.push(id) });
+      const options = { chatId: 'writing', trigger: 'submit-message', messages: [{ id: 'u-writing', role: 'user', parts: [{ type: 'text', text: 'Write a post' }] }] };
+      if (mode === 'writing-queued') options.body = { writingSelection: { channelId: 'queued-channel' } };
+      if (mode === 'writing-cleared') options.body = { writingSelection: {} };
+      if (mode === 'writing-native-question') options.body = { resume: { runId: 'run-1', toolCallId: 'call-1', resumeData: { consentGiven: true } } };
+      return readAll(await client.sendMessages(options));
+    });
+  }
   await new Promise((resolve) => server.close(resolve));
   process.stdout.write(JSON.stringify(report));
 })().catch((error) => {

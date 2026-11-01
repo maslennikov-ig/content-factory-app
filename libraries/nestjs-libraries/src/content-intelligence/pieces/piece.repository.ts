@@ -783,6 +783,13 @@ export class PieceRepository {
     return this.briefs.recordAdaptation(organizationId, input);
   }
 
+  createAdaptationSeries(
+    organizationId: string,
+    input: Parameters<ContentBriefRepository['createAdaptationSeries']>[1]
+  ) {
+    return this.briefs.createAdaptationSeries(organizationId, input);
+  }
+
   /** Черновик и пост под адаптацию — тем же путём, что и любой другой пост. */
   createDraft(
     organizationId: string,

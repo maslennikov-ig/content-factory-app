@@ -1,0 +1,179 @@
+{
+  "result": "PASS",
+  "acceptedAt": "2026-10-27T08:56:18.329256+00:00",
+  "task": "content-factory-next-hbe3",
+  "privateSource": "b458f7883bf18115b65dc23500337f9d79a8960a",
+  "publicSource": "1fd383418d7af06d008379ce9fab09d6bf9273eb",
+  "tag": "1fd383418d7a",
+  "rollbackTag": "dc5893e2ad73",
+  "registryDigest": "ghcr.io/maslennikov-ig/content-factory-next@sha256:2d50a9fdb7d88bb45e52e465df4843f07f1d79c58519d30b516ab64b7f5c124f",
+  "localChecks": [
+    {
+      "name": "backend-types",
+      "exitCode": 0
+    },
+    {
+      "name": "frontend-types",
+      "exitCode": 0
+    },
+    {
+      "name": "orchestrator-types",
+      "exitCode": 0
+    },
+    {
+      "name": "source-build",
+      "exitCode": 0
+    },
+    {
+      "name": "full-suite",
+      "exitCode": 0
+    },
+    {
+      "name": "branding",
+      "exitCode": 0
+    },
+    {
+      "name": "docs",
+      "exitCode": 0
+    },
+    {
+      "name": "process",
+      "exitCode": 0
+    },
+    {
+      "name": "diff",
+      "exitCode": 0
+    }
+  ],
+  "suiteReceipt": {
+    "commit": "b458f7883bf18115b65dc23500337f9d79a8960a",
+    "command": "pnpm test",
+    "node": "v22.23.2",
+    "recordedAt": "2026-10-27T08:33:48Z",
+    "jest": {
+      "suites": "Test Suites: 16 skipped, 771 passed, 771 of 787 total",
+      "tests": "Tests:       151 skipped, 13485 passed, 13636 total"
+    },
+    "nodeTest": {
+      "pass": "# pass 167",
+      "fail": "# fail 0"
+    },
+    "python": "OK"
+  },
+  "publicCi": {
+    "Build": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40469996402",
+    "Code Quality Analysis": "https://github.com/maslennikov-ig/content-factory-app/actions/runs/40469995171"
+  },
+  "ciThreeHalves": {
+    "result": "PASS",
+    "publicSource": "1fd383418d7af06d008379ce9fab09d6bf9273eb",
+    "rawLogSha256": "89debb5d6c1b247658b6adebbb809fc66761c9cb7b6d77682282fe0092d01827",
+    "normalizedLogSha256": "c8117b6dd944cb5143ea12a928c90215315af2d0a940cccd6ffa440e70ede5ba",
+    "guardOutput": "jest: Test Suites: 16 skipped, 771 passed, 771 of 787 total / Tests:       153 skipped, 13483 passed, 13636 total\nnode --test: # pass 167 / # fail 0\npython unittest: Ran 50 tests in 1.704s / OK\nAll 3 suite halves reported.\n",
+    "normalization": "Only GitHub timestamp prefixes removed; raw logs preserved."
+  },
+  "nativeColdProof": {
+    "exitCode": 0,
+    "seconds": 36.39,
+    "command": [
+      "pnpm",
+      "exec",
+      "jest",
+      "--runInBand",
+      "tests/agent-native-memory-cold-policy.test.cjs"
+    ]
+  },
+  "runtimePreservation": {
+    "result": "PASS",
+    "mode": "after-retention",
+    "at": "2026-10-27T08:55:24.309184+00:00",
+    "release": "1fd383418d7a",
+    "pm2": [
+      {
+        "name": "backend",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "orchestrator",
+        "status": "online",
+        "restartCount": 0
+      },
+      {
+        "name": "frontend",
+        "status": "online",
+        "restartCount": 0
+      }
+    ],
+    "workerReadiness": {
+      "status": "ok"
+    },
+    "foreignContainersPreserved": 21,
+    "volumesPreserved": 21,
+    "suspendedSnapshotsPreserved": 8,
+    "threadsExact": 46,
+    "messagesExact": 377,
+    "usageRowsExact": 1248,
+    "newUsageRows": 0,
+    "settingsPreserved": true,
+    "protectedConfigPreserved": true,
+    "nativeSchemaFingerprint": "a71e1b3535b5a871c523624edbb84318e5b295f2b7971292d9cc45dae4fe8cf0",
+    "preexistingAdmittedRowsPreserved": 2
+  },
+  "browser": {
+    "url": "https://factory.aidevteam.ru/auth/login",
+    "layouts": [
+      {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "focusTag": "BUTTON",
+        "title": "Sign In \u00b7 Content Factory"
+      },
+      {
+        "width": 390,
+        "scrollWidth": 390,
+        "focusTag": "BUTTON",
+        "title": "Sign In \u00b7 Content Factory"
+      }
+    ],
+    "emailFields": 2,
+    "pageErrors": [],
+    "httpErrors": [],
+    "blocked": [],
+    "mutationsSent": 0,
+    "result": "PASS",
+    "release": "1fd383418d7a",
+    "publicSource": "1fd383418d7af06d008379ce9fab09d6bf9273eb",
+    "scope": "public login only; no authenticated chat, paid inference or production mutations"
+  },
+  "cleanup": {
+    "removedOwnedHostHelpers": [
+      "schema-engine",
+      "schema-preflight.cjs",
+      "schema-preflight.sh"
+    ],
+    "removedOwnedContainers": [
+      "cf-native-instructions-pg-20261027",
+      "cf-native-instructions-redis-20261027"
+    ],
+    "removedOwnedAnonymousVolumes": [
+      "6810e5c925ab1b8b248a5e9e9a49fa27f12580ca277016a76eaf69b6ae9a47a1",
+      "845270d9cfdeec1bf9d3c758be6bde363baf1caea34c1a9d2b7b3e7e71dd3018"
+    ],
+    "removedOwnedNetwork": "cf-native-instructions-20261027",
+    "removedEmptyOwnedSharingDirectory": true,
+    "removedOwnedLocalImageTags": [
+      "content-factory-next:1fd383418d7a",
+      "ghcr.io/maslennikov-ig/content-factory-next:1fd383418d7a"
+    ],
+    "keptConsumedImageTags": [],
+    "globalCachesAndForeignResourcesUntouched": true,
+    "removedOwnedCapacityHelper": "alpine:3.20",
+    "temporaryTestCredentialsRemoved": true
+  },
+  "paidCalls": 0,
+  "historyOrSnapshotEdits": 0,
+  "schemaApplied": false,
+  "docsReviewed": "updated",
+  "graphReviewed": "stale dd67538d owner graph used for orientation; exact current source/SDK verified"
+}

@@ -2202,16 +2202,17 @@ export class VoiceService {
     };
   }
 
-  /**
-   * The profile a hand-filled draft starts from: everything except the voice.
-   *
-   * The five voice fields are emptied and the rest of the profile — the project
-   * description, the offerings, the lexicon, the platform overrides — is kept.
-   * Starting from a copy of the active voice would put somebody else's
-   * sentences under «Заполню сам» and let them be activated as the person's
-   * own; starting from nothing at all would quietly drop a project description
-   * nobody was editing.
-   */
+  private manualBase(kind?: 'PERSON' | 'BRAND'): BrandProfileContentV1 {
+    const content = clone(EMPTY_CONTENT);
+    content.project.oneLineDescription = 'Профиль голоса, описанный вручную.';
+    if (kind) {
+      content.persona = { kind };
+      content.voice.pointOfView = kind === 'PERSON' ? 'first_person' : 'company_we';
+    }
+    return content;
+  }
+
+  /** Keep the active project's details while clearing the hand-filled fields. */
   private strippedVoiceContent(
     base: BrandProfileContentV1 | null
   ): BrandProfileContentV1 {
@@ -2314,7 +2315,7 @@ export class VoiceService {
       actor.organizationId,
       profile?.id ?? actor.avatarId
     );
-    return { draft, activeVersion };
+    return { draft, activeVersion, profile };
   }
 
   /**
@@ -2355,13 +2356,13 @@ export class VoiceService {
       );
     }
 
-    const { draft: found, activeVersion } = await this.manualScope(actor);
+    const { draft: found, activeVersion, profile } = await this.manualScope(actor);
     const draft =
       found ??
       (await this._profiles.createManualDraft(
         actor.organizationId,
         actor.userId,
-        this.strippedVoiceContent(activeVersion?.content ?? null),
+        this.strippedVoiceContent(activeVersion?.content ?? this.manualBase(profile?.kind)),
         undefined,
         actor.avatarId
       ));
@@ -2392,7 +2393,7 @@ export class VoiceService {
     actor: VoiceActor,
     body: VoiceProposalActivateRequestV1 & { version?: 2 }
   ): Promise<VoicePassportResponseV1> {
-    const { draft, activeVersion } = await this.manualScope(actor);
+    const { draft, activeVersion, profile } = await this.manualScope(actor);
     const blocker = this.manualBlocker(draft, body.version);
     if (blocker || !draft) throw blocker;
 
@@ -2404,7 +2405,7 @@ export class VoiceService {
       draft.id,
       this.contentFrom(
         this.manualAsProposal(fields, body.version === 2 ? 2 : 1),
-        activeVersion?.content ?? null
+        activeVersion?.content ?? this.manualBase(profile?.kind)
       ),
       draft.revision,
       body.label ?? draft.label ?? undefined

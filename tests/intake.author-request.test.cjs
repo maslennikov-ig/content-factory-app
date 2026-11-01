@@ -73,13 +73,37 @@ const contextFor = (text = original, messageId = 'current') => buildConductorCon
 const run = (built, input, requestContext = contextFor(), id = 'piece.create.from-research', entrance = 'chat') => {
   const tool = registry.buildCapabilityTool(registry.CAPABILITY_CATALOGUE.find(row => row.id === id), {
     entrance, language: 'ru', gate: { check: async () => ({ allowed: true, policies: [] }) },
-    services: servicesFrom({ IntakeService: built.service, AgentThreadsService: built.threads }),
+    services: servicesFrom({ IntakeService: built.service, AgentThreadsService: built.threads,
+      PieceRepository: { findAvatar: async (org, id) => org === IDENTITY.organizationId && id === 'avatar-override'
+        ? { id, activeVersionId: 'version-override' } : null } }),
   });
   registry.reservePaidSlot(requestContext, 'author-test');
   return executeTool(tool, id === 'piece.create' ? {
     researchId: built.saved.snapshotKey, factId: ['alpha'], ...input,
   } : { snapshotKey: built.saved.snapshotKey, factKeys: ['alpha'], ...input }, { requestContext });
 };
+
+test('native chat supplies its server-resolved avatar to the actual intake plan without changing author text', async () => {
+  const built = await build(), requestContext = contextFor();
+  requestContext.set('cf.writingSelection', JSON.stringify({ selection: { avatarId: 'avatar-1' },
+    avatar: { id: 'avatar-1', name: 'Author' }, brandProfileSelection: { mode: 'version', versionId: 'version-1' } }));
+  const result = await run(built, { text: original, material }, requestContext);
+  expect(result.output).toMatchObject({ ok: true });
+  expect(built.prepare.mock.calls[0][1]).toMatchObject({ input: original, brandProfileSelection: { mode: 'version', versionId: 'version-1' } });
+});
+
+test('an explicitly requested avatar overrides chat default and a foreign id is refused before write', async () => {
+  const built = await build(), requestContext = contextFor();
+  requestContext.set('cf.writingSelection', JSON.stringify({ selection: { avatarId: 'avatar-1' },
+    brandProfileSelection: { mode: 'version', versionId: 'version-1' } }));
+  const result = await run(built, { avatarId: 'avatar-override' }, requestContext);
+  expect(result.output).toMatchObject({ ok: true });
+  expect(built.prepare.mock.calls[0][1].brandProfileSelection).toEqual({ mode: 'version', versionId: 'version-override' });
+  const other = await build();
+  const refused = await run(other, { avatarId: 'foreign' }, contextFor());
+  expect(refused.output).toMatchObject({ ok: false, code: 'PIECE_AVATAR_UNKNOWN' });
+  expect(other.writes).not.toHaveBeenCalled();
+});
 const expectUnspent = (result, built, context) => {
   expect(result.output).toMatchObject({ ok: false, code: 'INTAKE_REQUEST_NOT_AUTHORED', canReviseInput: true });
   expect(built.prepare).not.toHaveBeenCalled();
@@ -156,6 +180,15 @@ test('continuation resolves the explicitly identified earlier author message thr
   expect(built.memory.recall).toHaveBeenCalledWith(expect.objectContaining({ threadId: 'owned', resourceId, page: 0, perPage: 200 }));
 });
 
+test('continuation resolves an authenticated native user signal after restart', async () => {
+  const built = await build({ history: [storedMessage('initial', original, { role: 'signal', content: { format: 2, metadata: { signal: { type: 'user' } }, parts: [{ type: 'text', text: original }] } })] });
+  const result = await run(built, { requestMessageId: 'initial', material }, contextFor('Продолжай.', 'continue'));
+  expect(result.output).toMatchObject({ ok: true, summary: { requestBasis: 'original_request' } });
+  expect(built.writes.mock.calls[0][1].brief.inputText).toBe(original);
+  expect(built.memory.recall).toHaveBeenCalledTimes(1);
+  expect(built.memory.recall).toHaveBeenCalledWith(expect.objectContaining({ threadId: 'owned', resourceId, page: 0, perPage: 200 }));
+});
+
 test('an exact earlier author text also binds without guessing which request to use', async () => {
   const built = await build({ history: [storedMessage('initial', original)] });
   const result = await run(built, { text: original }, contextFor('Продолжай.', 'continue'));
@@ -173,6 +206,7 @@ test('an explicit current id with changed text is refused without trying another
 
 test.each([
   ['assistant', { history: [storedMessage('initial', original, { role: 'assistant' })] }],
+  ['non-user native signal', { history: [storedMessage('initial', original, { role: 'signal', content: { format: 2, metadata: { signal: { type: 'state' } }, parts: [{ type: 'text', text: original }] } })] }],
   ['foreign message', { history: [storedMessage('initial', original, { resourceId: 'other:person' })] }],
   ['foreign user thread', { history: [storedMessage('initial', original)], threadResource: `${IDENTITY.organizationId}:other` }],
   ['foreign organization thread', { history: [storedMessage('initial', original)], threadResource: `other:${IDENTITY.userId}` }],
@@ -244,4 +278,22 @@ test('native multi-capture resolves the exact original once and refuses agent-ad
   expect(built.writes.mock.calls[0][1].brief.inputText).toBe(original);
   expect(built.research).not.toHaveBeenCalled();
   expect(built.fetch).not.toHaveBeenCalled();
+});
+
+
+test('author comments and explicit omissions remain labelled context in the saved core and are not forged source facts', async () => {
+  const built = await build();
+  const comments = { author_comments: [
+    { update: 'Alpha sessions', origin: 'author_reply', text: 'Мне это полезно для длинных задач.' },
+    { update: 'Beta tools', origin: 'author_reply', skipped: true },
+  ] };
+  const material = JSON.stringify(comments);
+  const created = await run(built, { material });
+  expect(created.output.ok).toBe(true);
+  const core = built.writes.mock.calls[0][1].brief;
+  expect(core.contextMaterial).toBe(material);
+  expect(modelCalls.find(call => call.role === 'draft').prompt).toContain(material);
+  expect(core.answers).toEqual([]);
+  expect(core.brief.facts.some(fact => fact.statement === comments.author_comments[0].text)).toBe(false);
+  expect(JSON.parse(core.contextMaterial).author_comments[1]).not.toHaveProperty('text');
 });

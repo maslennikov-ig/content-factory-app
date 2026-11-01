@@ -12,7 +12,31 @@ The execution mechanism is Mastra core 1.78.0 / AI SDK adapter 1.11.1. Native
 `maxSteps`, `stopWhen`, `prepareStep`, `onStepFinish`, model timeout and
 `abortSignal` enforce technical fuses. There is no replacement task scheduler.
 
-Owner direction on 20 October: Luna remains the primary model. Poor results
+Owner direction on27October: **Terra6.1 is the primary model**, medium
+reasoning. All unpinned substantive text roles use it, including conductor,
+writing, research, extraction and review. The included `classify` role alone
+defaults to Luna with low reasoning. This uses the existing model/role settings
+and Mastra model resolution; there is no task keyword router. The default
+advanced profile also names Terra, so it bypasses a redundant selector call
+when primary and advanced are equal. Explicit role pins, operator environment,
+persisted instance settings and own-key choices remain authoritative. The
+existing Sol6.1 fallback/tier policy is unchanged.
+
+Provider ids are `openai/gpt-6.1-terra` and `openai/gpt-6-luna` on OpenRouter;
+direct OpenAI uses the same ids without `openai/`. Direct native tool calling
+already uses Responses. The existing OpenRouter compatibility route remains;
+the public catalogue lists Terra tool/structured-output/reasoning parameters.
+Real provider tool execution and editorial quality were not invoked during
+this no-spend local change. [Terra model contract](https://developers.openai.com/api/docs/models/gpt-6.1-terra)
+confirms medium reasoning is supported and is its default.
+
+These are new source defaults, not a migration of existing selections. Before
+an authorized rollout, use the existing superadmin AI settings to change a
+persisted primary/advanced Luna profile to Terra and set only `classify` to
+Luna; leave keys, search, history and fallback policy intact. This task performs
+no production setting update or paid call.
+
+Historical owner direction on20October: Luna remained the primary model. Poor results
 require checking task/source handoff and channel rules before considering a
 more expensive route. The local Sol diagnostic override was removed after the
 Telegram repair; its accepted Sol outputs are not evidence of repaired-chain

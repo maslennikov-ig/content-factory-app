@@ -383,6 +383,11 @@ Cookie сессии выдаётся на точный хост из `FRONTEND_U
 - `AI_PROVIDER`, `AI_BASE_URL`, `AI_TEXT_MODEL` и `AI_IMAGE_MODEL` задают
   provider и модели для `included`; это не секреты. Смена режима применяется к
   следующей операции без process-local TTL.
+- Текстовая модель по умолчанию с27.10.2026 — Terra6.1, мышление `medium`;
+  простая классификация — Luna, `low`. Используются существующие роли и
+  `AI_ROLE_MODELS`. Явные настройки инстанса/области сильнее новых defaults;
+  уже сохранённую Luna переключают через обычные настройки, без миграции
+  истории. [Модельная политика и ограничения](agent-execution-budget.md).
 - `.env.example` не использует `OPENAI_API_KEY`, `OPENROUTER_API_KEY` или
   `TAVILY_API_KEY`: runtime не читает их как запасные credentials. Ключи
   `workspace_key` вводятся в настройках организации, а server-managed режим

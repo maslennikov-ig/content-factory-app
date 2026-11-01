@@ -19,6 +19,7 @@ import { piecesCopy } from '@contentfactory/frontend/components/content-intellig
 import { AGENT_DOORS, type AgentArtifact } from './agent.contract';
 import type { AgentWords } from './agent.copy';
 import { PIECES_API } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
+import { AgentGlyph } from './agent.icons';
 
 type BrowserKind = 'piece' | 'avatar' | 'channel' | 'plan';
 type BrowserRow = { artifact: AgentArtifact; state: ReactNode };
@@ -114,11 +115,11 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
 }
 
 /** Listing requests exist only while explicitly browsing; all writes stay in the shared editors. */
-export function AgentWorkspaceBrowser({ onSelect, words }: { onSelect: (artifact: AgentArtifact) => void; words: AgentWords }) {
+export function AgentWorkspaceBrowser({ onSelect, words, compact = false }: { onSelect: (artifact: AgentArtifact) => void; words: AgentWords; compact?: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return <>
-    <Button type="button" variant="quiet" density="dense" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>{t('assistant_workspace', 'Workspace')}</Button>
+    {compact ? <Button type="button" variant="quiet" density="dense" iconOnly className="min-w-[44px] md:min-w-0" title={t('assistant_workspace', 'Workspace')} aria-label={t('assistant_workspace', 'Workspace')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><AgentGlyph name="search" /></Button> : <Button type="button" variant="quiet" density="dense" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>{t('assistant_workspace', 'Workspace')}</Button>}
     <Dialog open={open} onClose={() => setOpen(false)} title={t('assistant_workspace', 'Workspace')}>
       {open ? <AgentWorkspaceBrowserContent words={words} onSelect={(artifact) => { onSelect(artifact); setOpen(false); }} /> : null}
     </Dialog>

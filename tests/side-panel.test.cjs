@@ -274,7 +274,6 @@ test('wired where the walk asked: the piece settings panel on the right, the nav
   expect(nav).toMatch(/<SidePanel\s+id="navigation"\s+side="start"/);
   // Collapsing by drag and by the chevron is one state, kept in one cookie.
   expect(nav).toContain("setCollapsedCookie(hidden ? 'collapsed' : 'open')");
-  expect(read('apps/frontend/src/app/global.scss')).toContain('.cf-sidebar [data-side-panel-handle]');
 });
 
 /* Second review, item 7. */

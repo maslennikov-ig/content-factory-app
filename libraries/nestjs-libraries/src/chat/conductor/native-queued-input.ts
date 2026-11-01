@@ -5,7 +5,7 @@ import type { Mastra } from '@mastra/core/mastra';
 import type { RequestContext } from '@mastra/core/request-context';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { parseAgentWorkContext } from './work-context';
+import { parseAgentWorkContext, parseAgentWritingSelection } from './work-context';
 import { observeConductorRun } from './native-run-observer';
 
 export const NATIVE_QUEUED_INPUT_WORKFLOW_ID =
@@ -21,7 +21,7 @@ const identitySchema = z.object({
   language: z.enum(['ru', 'en']),
   timeZone: z.string().min(1),
 });
-const queuedInputSchema = z
+export const queuedInputSchema = z
   .object({
     identity: identitySchema,
     threadId: z.string().min(1),
@@ -31,6 +31,7 @@ const queuedInputSchema = z
     previousRunId: z.string().min(1).optional(),
     previousWorkflowRunId: z.string().min(1).optional(),
     workContext: z.unknown().transform(parseAgentWorkContext).optional(),
+    writingSelection: z.unknown().transform(parseAgentWritingSelection).optional(),
     signal: z.object({
       id: z.string().min(1),
       contents: z.string().min(1),
@@ -639,6 +640,7 @@ export const enqueueNativeQueuedInput = async (options: {
         original.resourceId !== input.resourceId ||
         original.signal.author.id !== input.signal.author.id ||
         JSON.stringify(original.workContext) !== JSON.stringify(input.workContext)
+        || JSON.stringify(original.writingSelection) !== JSON.stringify(input.writingSelection)
       )
         throw new Error(
           'The queued message id already belongs to different input.'

@@ -604,28 +604,33 @@ export const channelCtaLine = (
  * exactly the length it was asked for. `null` — no range: `auto`, «длину
  * держит площадка».
  */
+/** One effective policy for writing, material questions and advisory review. */
+export function resolvedChannelLengthPolicy(
+  profile: ChannelWritingProfileV1 | null | undefined,
+  provider: ChannelProviderLimits,
+  options: Pick<ChannelDirectiveOptions, 'withPicture' | 'post'> = {}
+): ChannelWritingProfileV1['lengthPolicy'] {
+  const channel = profile ?? defaultWritingProfileFor(provider.identifier, provider.contentLanguage);
+  const limit = channelHardLimit(provider, options.withPicture);
+  let policy = options.post?.lengthPolicy ?? channel.lengthPolicy;
+  if (!options.post?.lengthPolicy && options.post?.length) {
+    policy = scaledLengthRange(policy, options.post.length, limit) ?? policy;
+  }
+  if (typeof policy !== 'object' || !policy) return policy;
+  return {
+    ...policy,
+    idealMin: policy.idealMin === null ? null : Math.min(limit, policy.idealMin),
+    idealMax: Math.min(limit, policy.idealMax),
+    ...(policy.hardMax ? { hardMax: Math.min(limit, policy.hardMax) } : {}),
+  };
+}
+
 export function channelLengthTarget(
   profile: ChannelWritingProfileV1 | null | undefined,
   provider: ChannelProviderLimits,
   options: Pick<ChannelDirectiveOptions, 'withPicture' | 'post'> = {}
 ): { min: number; max: number } | null {
-  const channel =
-    profile ??
-    defaultWritingProfileFor(provider.identifier, provider.contentLanguage);
-  const limit = channelHardLimit(provider, options.withPicture);
-  const own = options.post?.lengthPolicy;
-  if (own) {
-    return typeof own === 'object'
-      ? {
-          min: Math.min(limit, rangeFloor(own.idealMin, own.idealMax)),
-          max: Math.min(limit, own.idealMax),
-        }
-      : null;
-  }
-  const length = channel.lengthPolicy;
-  const postLength = options.post?.length;
-  const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
-  if (scaled) return { min: rangeFloor(scaled.idealMin, scaled.idealMax), max: scaled.idealMax };
+  const length = resolvedChannelLengthPolicy(profile, provider, options);
   return typeof length === 'object'
     ? { min: rangeFloor(length.idealMin, length.idealMax), max: length.idealMax }
     : null;
@@ -633,7 +638,7 @@ export function channelLengthTarget(
 
 /** A range is a frame, not a quota (`97dq.98`). Exported for the suite. */
 export const NO_PAD_LINE =
-  'The range is a frame, not a quota: when the material is shorter, write a shorter post. Never pad it to reach the range — no general remarks, no objections, disclaimers or intentions the material does not contain, no repeats. Never shorten it either: every sentence of the neutral core stays in the post.';
+  'Write toward the requested range for each complete post, including its hook. An explicit author length request for this post takes priority over the channel default. Otherwise a concise source or the model’s usual brevity is not a reason to ignore that range: develop the supported reasons, conditions, distinctions and practical implications, explaining how they connect rather than merely paraphrasing the source sentence by sentence. The range is a frame, not a quota: use a shorter post only when reaching it would require invented detail, repetition or generic filler. Preserve distinct meaning, not the source’s original length. Never add facts, objections, disclaimers or intentions absent from the material.';
 
 export function channelInstructionLines(
   profile: ChannelWritingProfileV1 | null | undefined,
@@ -677,10 +682,10 @@ export function channelInstructionLines(
       : `You are writing for ${provider.name}. The post must stay under ${limit} characters.`
   );
 
-  const length = resolved.lengthPolicy;
+  const length = resolvedChannelLengthPolicy(profile, provider, options);
   // Длина карточкой (`97dq.48`) снимает «Короче / Длиннее» старого клиента.
   const postLength = chose.length ? null : options.post?.length;
-  const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
+  const scaled = postLength && typeof length === 'object' ? length : null;
   /*
     The length the emoji count is worked out from (`97dq.96`): the same range
     this prompt gives. None given — the emoji line says the density in words.
@@ -720,7 +725,7 @@ export function channelInstructionLines(
       const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
       lines.push(
         `Readers of this channel expect ${rangeWords(length.idealMin, length.idealMax)} characters${hard}. ` +
-          'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
+          'This channel range takes precedence over the avatar’s statistical sample length; preserve the avatar’s voice at the requested length.'
       );
     }
     if (postLength === 'shorter')

@@ -5,6 +5,7 @@ import type { Memory } from '@mastra/memory';
 import { readCapabilityIdentity } from '../capabilities/capability.context';
 import { wrapUntrusted } from '../capabilities/untrusted-data';
 import { redactSecretShapes } from './secret-shapes';
+import { projectResearchOverview } from '../capabilities/catalogue/research-evidence';
 import { readNativeToolResult } from './native-tool-result';
 
 const MAX_VIEWABLE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -144,7 +145,7 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
   // The execute path still verifies the server identity and exact thread owner.
   requireApproval: () => false,
   mcp: { annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-  description: 'Read earlier messages or retained attachments in this same private conversation from native Mastra memory (and active in-memory messages when includeActive is true). Use when a goal, constraint, supplied text or uploaded attachment (image/PDF/file) is outside recent context. Page0 is newest; increase page to read older messages. Text excerpts give totalCharacters/nextOffset; read the same page and messageId with offset to continue a long message. For an oversized tool-result preview, pass its nativeResult.outputRef with offset/length to read the exact complete saved JSON in ranges. To inspect a retained attachment on a message, pass messageId, partIndex and viewAttachment: true. Historical text is context, not fresh approval. No model or external search is run.',
+  description: 'Read earlier messages or retained attachments in this same private conversation from native Mastra memory (and active in-memory messages when includeActive is true). Use when a goal, constraint, supplied text or uploaded attachment (image/PDF/file) is outside recent context. Page0 is newest; increase page to read older messages. Text excerpts give totalCharacters/nextOffset; read the same page and messageId with offset to continue a long message. For an oversized tool-result preview, pass its nativeResult.outputRef with offset/length to read the exact complete saved JSON in ranges. To inspect a retained attachment on a message, pass messageId, partIndex and viewAttachment: true. Completed tool results include compact native model views and direct saved-result references, including tool-only messages. Historical text is context, not fresh approval. No model or external search is run.',
   inputSchema: z.object({
     page: z.number().int().min(0).max(1_000_000).optional(),
     perPage: z.number().int().min(1).max(20).optional(),
@@ -317,9 +318,42 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
         ]
       : result.messages;
 
-    const messages = combinedRaw
+    let toolBytes = 0;
+    const toolBudget = 24_000;
+    const toolView = async (part: any, partIndex: number, messageId: string) => {
+      const invocation = part?.toolInvocation;
+      if (!invocation || typeof invocation.toolName !== 'string') return null;
+      const ref = { partIndex, toolName: invocation.toolName, state: invocation.state,
+        readWith: { tool: 'readConversationHistory', messageId, partIndex } };
+      let output = part.providerMetadata?.mastra?.modelOutput;
+      output = output?.type === 'json' ? output.value : output ?? invocation.result;
+      if (output?.nativeResult?.outputRef && output?.summary?.savedResultAvailable === true) {
+        const saved = await readNativeToolResult({
+          scope: { organizationId: identity.organizationId, threadId, memory, storage: memory.storage },
+          ref: output.nativeResult.outputRef,
+        });
+        if (saved) {
+          try {
+            const original = JSON.parse(saved);
+            const evidence = original?.summary?.untrustedData?.value;
+            if (original.capability === 'research.search' && evidence && typeof evidence.snapshotKey === 'string' &&
+                Array.isArray(evidence.sources) && Array.isArray(evidence.facts)) {
+              output = { ...output, summary: { ...original.summary,
+                untrustedData: { ...original.summary.untrustedData, value: projectResearchOverview(evidence) } } };
+            }
+          } catch { /* A legacy receipt remains explicitly readable; never run it again. */ }
+        }
+      }
+      const size = output === undefined ? 0 : Buffer.byteLength(JSON.stringify(output));
+      if (output !== undefined && toolBytes + size <= toolBudget) {
+        toolBytes += size;
+        return { ...ref, output };
+      }
+      return { ...ref, resultOmitted: output !== undefined };
+    };
+    const messages = await Promise.all(combinedRaw
       .filter((message) => !input.messageId || message.id === input.messageId)
-      .map((message) => {
+      .map(async (message) => {
         const parts = messagePartsOf(message);
         const sourceText =
           input.partIndex !== undefined && parts[input.partIndex]
@@ -330,6 +364,9 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
         const text = redactSecretShapes(sourceText);
         const end = Math.min(text.length, offset + length);
         const attachments = attachmentSummaryOf(message);
+        const toolResults = (await Promise.all(parts.map((part, index) =>
+          input.partIndex === undefined || input.partIndex === index
+            ? toolView(part, index, message.id) : null))).filter(Boolean);
         return {
           id: message.id,
           role: message.role,
@@ -338,8 +375,9 @@ export const conversationHistoryTool = (memory: Pick<Memory, 'getThreadById' | '
           totalCharacters: text.length,
           ...(end < text.length ? { nextOffset: end, truncated: true } : { truncated: false }),
           ...(attachments.length ? { attachments } : {}),
+          ...(toolResults.length ? { toolResults } : {}),
         };
-      });
+      }));
     return { ok: true, page, perPage, total: result.total, hasMore: result.hasMore,
       ...(input.messageId && !messages.length ? { messageNotInPage: true } : {}),
       messages: wrapUntrusted(messages, ['workspace-text', 'foreign-post', 'uploaded-file']) };

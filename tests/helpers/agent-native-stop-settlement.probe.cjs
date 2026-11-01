@@ -11,10 +11,11 @@ const { MockLanguageModelV3 } = requireRepo('ai/test');
 const ORG = { id: IDENTITY.organizationId, createdAt: IDENTITY.organizationCreatedAt, users: [{ role: 'EDITOR' }] };
 const USER = { id: IDENTITY.userId, language: 'ru' };
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function scenario(failCommit = false, alreadyFinishing = false) {
+async function scenario(failCommit = false, alreadyFinishing = false, throwOnStop = false) {
   const trace = [];
   let releaseTerminal, terminalEntered = false, stopResolved = false, stopRejected = false, stopReceipt, chatTask, stopTask;
   let runtime;
+  let stopRequested = false;
   const terminalGate = new Promise(resolve => { releaseTerminal = resolve; });
   runtime = await createRuntime({ modelFactory: modelId => new MockLanguageModelV3({ modelId,
     async doStream(args) {
@@ -47,8 +48,26 @@ async function scenario(failCommit = false, alreadyFinishing = false) {
     }
     return update(row);
   };
+  const nativeStream = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/native-session-stream.ts');
+  const wrappedStream = { ...nativeStream, streamNativeSession: async input => {
+    const source = await nativeStream.streamNativeSession(input);
+    if (!throwOnStop) return source;
+    const reader = source.getReader();
+    return new ReadableStream({
+      async pull(controller) {
+        const next = await reader.read();
+        if (stopRequested) {
+          trace.push('reader-cancel-error');
+          controller.error(Object.assign(new Error('Controlled reader cancelled.'), { name: 'AbortError' }));
+          await reader.cancel();
+        } else if (next.done) controller.close();
+        else controller.enqueue(next.value);
+      },
+      cancel: () => reader.cancel(),
+    });
+  } };
   const { AgentController } = loadTypeScriptModule('apps/backend/src/api/routes/agent.controller.ts', {
-    ...mocks, '@contentfactory/nestjs-libraries/chat/conductor/conductor.execution': runtime.executionModule,
+    ...mocks, '@contentfactory/nestjs-libraries/chat/conductor/native-session-stream': wrappedStream, '@contentfactory/nestjs-libraries/chat/conductor/conductor.execution': runtime.executionModule,
   });
   const threads = new AgentThreadsService(runtime.service, runtime.redis);
   const handler = new AgentController(runtime.service, threads, runtime.aiUsage);
@@ -59,6 +78,7 @@ async function scenario(failCommit = false, alreadyFinishing = false) {
     await until(() => response.parts().some(part => part.type === 'text-delta'), 'native partial');
     const before = await handler.getThread(ORG, USER, threadId);
     if (alreadyFinishing) await until(() => terminalEntered, 'terminal Memory write before Stop enters');
+    stopRequested = true;
     stopTask = handler.stopThread(ORG, USER, threadId).then(receipt => {
       trace.push('stop-response'); stopResolved = true; stopReceipt = receipt; return receipt;
     }, () => { trace.push('stop-error'); stopRejected = true; });
@@ -75,6 +95,7 @@ async function scenario(failCommit = false, alreadyFinishing = false) {
       messages: final.messages.map(message => ({ id: message.id, role: message.role })), admissions: runtime.admissions.length,
       trace, actualNativeSession: true, actualController: true, actualPostgresMemory: true, paidCalls: 0 };
     console.log(JSON.stringify(report, null, 2));
+    if (throwOnStop) assert(trace.includes('reader-cancel-error'), 'The explicit Stop exercised a throwing reader.');
     if (failCommit) {
       assert.equal(stopRejected, true, 'Failed terminal storage cannot acknowledge a settled Stop');
       assert.equal(stopReceipt, undefined);
@@ -93,5 +114,5 @@ async function scenario(failCommit = false, alreadyFinishing = false) {
 }
 (async () => {
   if (process.env.CF_NATIVE_STOP_SETTLEMENT_MODE === 'late') await scenario(false, true);
-  else { await scenario(); await scenario(true); await scenario(false, true); }
+  else { await scenario(); await scenario(true); await scenario(false, true); await scenario(false, false, true); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

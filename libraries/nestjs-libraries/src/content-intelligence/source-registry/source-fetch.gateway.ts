@@ -295,7 +295,7 @@ export class SourceFetchGateway {
     inputUrl: string,
     kind: SourceFetchKind,
     validators: { etag?: string; lastModified?: string } = {},
-    beforeHop: (url: string) => void = () => undefined
+    beforeHop: (url: string) => void | Promise<void> = () => undefined
   ): Promise<SourceFetchResult> {
     const requestedUrl = canonicalizeSourceUrl(inputUrl);
     let currentUrl = requestedUrl;
@@ -304,7 +304,7 @@ export class SourceFetchGateway {
     const originalOrigin = new URL(requestedUrl).origin;
 
     for (let hop = 0; hop <= this.budgets.redirects; hop += 1) {
-      beforeHop(currentUrl);
+      await beforeHop(currentUrl);
       const resolved = await resolvePublicSourceHop(
         currentUrl,
         this.resolver,
@@ -413,7 +413,7 @@ export class SourceFetchGateway {
         await response.dispose?.();
         throw new SourceRegistryError(
           'RATE_LIMITED',
-          'Source rate limited the request',
+          `Source rate limited the request (HTTP ${response.status})`,
           429
         );
       }
@@ -421,7 +421,7 @@ export class SourceFetchGateway {
         await response.dispose?.();
         throw new SourceRegistryError(
           'REMOTE_4XX',
-          'Source rejected the request',
+          `Source rejected the request (HTTP ${response.status})`,
           502
         );
       }
@@ -429,7 +429,7 @@ export class SourceFetchGateway {
         await response.dispose?.();
         throw new SourceRegistryError(
           'REMOTE_5XX',
-          'Source failed the request',
+          `Source failed the request (HTTP ${response.status})`,
           502
         );
       }

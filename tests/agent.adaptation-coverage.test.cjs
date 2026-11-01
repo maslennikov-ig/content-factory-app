@@ -5,7 +5,7 @@ const {
   loadAgentGraph,
 } = require('../scripts/evidence/voice-eval/product-graph.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
-const { materialSupport } = loadWithMocks(
+const { materialSupport, AUTHOR_MEANING_ADAPTATION_RULE, ADAPTATION_SOURCE_FIDELITY_RULE } = loadWithMocks(
   'libraries/nestjs-libraries/src/agent/adaptation-coverage.ts'
 );
 const { defaultWritingProfileFor } = loadWithMocks(
@@ -132,6 +132,32 @@ const build = (responses) => {
   };
   return { service, calls, usage };
 };
+
+test('writer and existing review share meaning-first avatar policy, retain raw context, and accept a paraphrase without another call', async () => {
+  const source = state(), reply = 'Ну, я голосом обычно только диктую текст. Разговаривать в реальном времени мне неудобно.';
+  source.intake.core = reply;
+  source.intake.contextMaterial = reply;
+  const addition = { text: 'Это экономит мне время только при проверке результата; чужие оценки я пока не проверял.', addedAt: '2026-10-31T12:00:00Z' };
+  source.intake.authorAdditions = [addition];
+  source.intake.instructionText = 'Передай мою мысль естественно голосом аватара.';
+  source.intake.request = { version: 'intake-request/v1', goal: 'Adapt the author view', constraints: { requirements: ['An older inferred summary says to preserve replies verbatim.'] } };
+  source.intake.material = [];
+  source.contentContext = { facts: [], evidence: [] };
+  const rewritten = 'Голосовой ввод использую для диктовки. Для живого разговора такой формат мне пока неудобен. Время экономится, если проверять результат; чужие оценки я пока не проверял.';
+  const { service, calls } = build([{ content: { content: rewritten } }, PASSED]);
+  const generated = await service.generateContent(source);
+  const result = await service.fixArray({ ...source, ...generated });
+  expect(calls).toHaveLength(2);
+  expect(calls[0]).toContain(AUTHOR_MEANING_ADAPTATION_RULE);
+  expect(calls[1]).toContain(AUTHOR_MEANING_ADAPTATION_RULE);
+  expect(calls[0]).not.toContain('over VERBATIM');
+  const input = JSON.parse(calls[1].slice(calls[1].indexOf('Human: ') + 7));
+  expect(input.core).toBe(reply); expect(input.contextMaterial).toBe(reply);
+  expect(input.authorAdditions).toEqual([addition]);
+  expect(calls[0]).toContain(addition.text);
+  expect(result.content[0].content).toBe(rewritten);
+  expect(source.intake.core).toBe(reply);
+});
 
 describe('final adaptation review advises without discarding or rewriting the draft', () => {
   test('a passed review retains the exact draft and supported own-core wording', async () => {
@@ -334,4 +360,59 @@ test('piece proof preflight receives the whole saved core and untrimmed proof hi
   expect(events).toEqual([expect.objectContaining({
     code: 'CONTENT_EVIDENCE_REQUIRED', missingRequirements: ['The essential late quote could not be admitted.'],
   })]);
+});
+
+// These checks exercise shipped prompts and review inputs, not a fabricated
+// semantic verdict. Real-provider editorial qualification remains separate.
+test('hook, body and advisory review preserve unspecified actors and distinguish creative wording from new facts', async () => {
+  const source = state();
+  source.intake.core = 'Черновик собирается из введённых вручную тезисов. Решение требует подтверждения.';
+  source.contentContext = { facts: [], evidence: [] };
+  source.intake.material = [];
+  const { service, calls } = build([{ hook: 'Кто проверит итог?' }, draft(source.intake.core), PASSED]);
+  const hook = await service.generateHook(source);
+  const body = await service.generateContent({ ...source, ...hook });
+  await service.fixArray({ ...source, ...hook, ...body });
+  expect(calls).toHaveLength(3);
+  expect(ADAPTATION_SOURCE_FIDELITY_RULE).toContain('leave an unspecified actor');
+  for (const prompt of calls) expect(prompt).toContain(ADAPTATION_SOURCE_FIDELITY_RULE);
+  expect(calls[2]).toContain('preferred channel range');
+  expect(calls[2]).not.toContain('not text length');
+});
+
+test.each([
+  [{ length: 'longer' }, { idealMin: 1350, idealMax: 1950, hardMax: 2250 }],
+  [{ length: 'longer', lengthPolicy: 'auto' }, 'auto'],
+  [{ lengthPolicy: { idealMin: null, idealMax: 1800 } }, { idealMin: null, idealMax: 1800 }],
+])('review receives the same resolved length as the writer for overrides %j', async (post, expected) => {
+  const source = state();
+  source.intake.post = post;
+  const { service, calls } = build([PASSED]);
+  await service.fixArray(source);
+  const input = JSON.parse(calls[0].slice(calls[0].indexOf('Human: ') + 7));
+  expect(input.channelLengthPolicy).toEqual(expected);
+  expect(input.postCharacterCounts).toEqual([(source.hook + '\n\n' + source.content.content).length]);
+});
+
+
+test.each([false, true])('caption targets are attainable and visible link labels determine preferred length (override=%s)', async override => {
+  const source = state();
+  source.isPicture = true;
+  source.intake.channel.maxCaptionLength = 1024;
+  const policy = { idealMin: 1600, idealMax: 2400, hardMax: 2700 };
+  if (override) source.intake.post = { lengthPolicy: policy };
+  else source.intake.channel.writingProfile.lengthPolicy = policy;
+  source.hook = '';
+  source.content = item('[Документ](https://example.test/' + 'a'.repeat(1200) + ')');
+  const { service, calls } = build([PASSED]);
+  await service.fixArray(source);
+  const input = JSON.parse(calls[0].slice(calls[0].indexOf('Human: ') + 7));
+  expect(input.channelLengthPolicy).toEqual({ idealMin: 1024, idealMax: 1024, hardMax: 1024 });
+  expect(input.postVisibleCharacterCounts).toEqual([8]);
+  expect(input.postCharacterCounts[0]).toBeGreaterThan(1200);
+  const lines = channelInstructionLines(source.intake.channel.writingProfile,
+    { identifier: 'telegram', name: 'Telegram', maxLength: 4096, maxCaptionLength: 1024 },
+    { withPicture: true, post: source.intake.post });
+  expect(lines.join(' ')).toContain('1024');
+  expect(lines.join(' ')).not.toMatch(/1600|2400|2700/);
 });

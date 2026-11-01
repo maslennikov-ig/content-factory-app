@@ -28,8 +28,9 @@ import {
  * own request (`request`, `kcxz.52`).
  */
 export const isMcpCapability = (capability: CapabilityDeclaration) =>
-  !WEB_ONLY_RISKS.includes(capability.risk) ||
-  (capability.risk === 'confirm' && capability.mcpConfirm !== undefined);
+  (!capability.entrances || capability.entrances.includes('mcp')) &&
+  (!WEB_ONLY_RISKS.includes(capability.risk) ||
+  (capability.risk === 'confirm' && capability.mcpConfirm !== undefined));
 
 export const buildMcpCapabilityTools = (
   capabilities: readonly CapabilityDeclaration[],

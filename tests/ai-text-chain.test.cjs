@@ -1,8 +1,8 @@
 /**
  * The shared text transport and its usage ledger (`content-factory-next-97dq.55`).
  *
- * Owner's default of 21.10.2026: text runs on `openai/gpt-6-luna` with
- * reasoning effort `medium` through flex → standard → discounted Sol6.1,
+ * A configured Luna chain (low reasoning since27.10.2026) through
+ * flex → standard → discounted Sol6.1,
  * and every usage row records tokens, served tier, model, attempt and cost.
  * The transport is mocked; no request leaves the process.
  */
@@ -147,7 +147,7 @@ describe('text chain plan', () => {
 });
 
 describe('text chain transport', () => {
-  test('bodies: metering and medium effort on Luna and discounted Sol6.1', async () => {
+  test('bodies: metering, low effort on Luna and medium on discounted Sol6.1', async () => {
     const { fetch, calls } = scripted(
       json(429, { error: { code: 429, message: 'flex capacity' } }),
       json(502, { error: { code: 502, message: 'bad gateway' } }),
@@ -157,8 +157,8 @@ describe('text chain transport', () => {
 
     expect(response.status).toBe(200);
     expect(calls.map(({ body }) => [body.model, body.service_tier, body.reasoning])).toEqual([
-      [LUNA, 'flex', { effort: 'medium' }],
-      [LUNA, undefined, { effort: 'medium' }],
+      [LUNA, 'flex', { effort: 'low' }],
+      [LUNA, undefined, { effort: 'low' }],
       ['openai/gpt-6.1-sol', 'flex', { effort: 'medium' }],
     ]);
     for (const { body } of calls) expect(body.usage).toEqual({ include: true });
@@ -1008,7 +1008,7 @@ describe('reasoning headroom (production 23.09: intake parse cut on «length»)'
 
   it('adds headroom to a caller cap when the attempt reasons', () => {
     const body = chain.buildAttemptBody({ model: LUNA, max_tokens: 2048 }, attempt(LUNA));
-    expect(body.reasoning).toEqual({ effort: 'medium' });
+    expect(body.reasoning).toEqual({ effort: 'low' });
     expect(body.max_tokens).toBe(2048 + chain.REASONING_HEADROOM_TOKENS);
     const alt = chain.buildAttemptBody({ model: LUNA, max_completion_tokens: 2048 }, attempt(LUNA));
     expect(alt.max_completion_tokens).toBe(2048 + chain.REASONING_HEADROOM_TOKENS);
@@ -1436,7 +1436,7 @@ describe('copilot chat through the chain (@ai-sdk/openai chat model)', () => {
         stream: true,
         stream_options: { include_usage: true },
         usage: { include: true },
-        reasoning: { effort: 'medium' },
+        reasoning: { effort: 'low' },
       });
       const text = parts
         .filter((part) => part.type === 'text-delta')

@@ -1,3 +1,6 @@
+import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
+import { getModelPromptTokenLimit } from '@contentfactory/nestjs-libraries/openai/ai.context-window';
+import { createNativeAdaptationSeriesWorkflow } from './conductor/native-adaptation-series';
 import {
   Injectable,
   type OnApplicationBootstrap,
@@ -26,6 +29,7 @@ import { readAgentOperationRunGuard } from './conductor/agent-operation-receipts
 import { observeConductorRun } from './conductor/native-run-observer';
 import { createNativeObservability } from './conductor/native-observability';
 import { NativeSessionCache } from './conductor/native-session-cache';
+import { restoreNativeRunContext } from './conductor/native-session-context';
 import {
   createNativeQueuedInputWorkflow,
   enqueueNativeQueuedInput,
@@ -42,7 +46,10 @@ import { runAsActingUser } from '../user/acting.user';
 import {
   readStoredAgentWorkspace,
   parseAgentWorkContext,
+  parseAgentWritingSelection,
+  readResolvedWritingSelection,
   AGENT_WORK_CONTEXT_KEY,
+  AGENT_WRITING_SELECTION_KEY,
 } from './conductor/work-context';
 import {
   agentCallAnswered,
@@ -226,6 +233,10 @@ export class MastraService
     options?: { refresh?: boolean }
   ) {
     return this.workContextResolver().resolve(identity, context, options);
+  }
+
+  resolveWritingSelection(identity: CapabilityIdentity, selection: import('./capabilities/agent-parts.contract').AgentWritingSelection) {
+    return this.workContextResolver().resolveWritingSelection(identity, selection);
   }
 
   validateWorkArtifact(
@@ -413,6 +424,8 @@ export class MastraService
           state: 'running',
           logicalRequestId,
           availabilityCycles: 0,
+          ...(readResolvedWritingSelection(position.requestContext)?.selection
+            ? { continuationWritingSelection: readResolvedWritingSelection(position.requestContext)!.selection } : {}),
         },
         true
       );
@@ -565,6 +578,9 @@ export class MastraService
                   .context
               )
             : null,
+          continuationWritingSelection: nextContext.get(AGENT_WRITING_SELECTION_KEY)
+            ? parseAgentWritingSelection(JSON.parse(String(nextContext.get(AGENT_WRITING_SELECTION_KEY))).selection)
+            : {},
           continuationModelTask: readConductorModelTask(nextContext) ?? null,
           state: 'queued',
           retryAt: null,
@@ -853,7 +869,8 @@ export class MastraService
     identity: CapabilityIdentity,
     threadId: string,
     requestId: string,
-    selectedOverride?: AgentWorkContextV1 | null
+    selectedOverride?: AgentWorkContextV1 | null,
+    writingOverride?: import('./capabilities/agent-parts.contract').AgentWritingSelection
   ) {
     const agent = await this.conductor();
     const memory = (await agent.getMemory())!;
@@ -880,6 +897,12 @@ export class MastraService
     const workContext = selected
       ? await this.resolveWorkContext(identity, selected, { refresh: true })
       : null;
+    const writing = writingOverride === undefined
+      ? pointer?.logicalRequestId === requestId && pointer.continuationWritingSelection !== undefined
+        ? parseAgentWritingSelection(pointer.continuationWritingSelection)
+        : readStoredAgentWorkspace(thread.metadata).writingSelection ?? {}
+      : writingOverride;
+    const writingSelection = await this.resolveWritingSelection(identity, writing);
     const pending = await agent.listSuspendedRuns({
       threadId,
       resourceId: thread.resourceId,
@@ -908,6 +931,7 @@ export class MastraService
       requestId,
       trackExecution: true,
       workContext,
+      writingSelection,
       openProposals: openProposalTargets(open),
     });
   }
@@ -924,7 +948,8 @@ export class MastraService
       identity,
       input.threadId,
       input.requestId,
-      input.workContext
+      input.workContext,
+      input.writingSelection
     );
     seedConductorModelTask(requestContext, input.signal.contents);
     const resourceId = conductorResourceId(
@@ -958,6 +983,7 @@ export class MastraService
             return {
               assistantNativeRun: {
                 ...(sameRequest ? pointer : { runId, logicalRequestId: input.requestId, state: 'running' }),
+                ...(input.writingSelection !== undefined ? { continuationWritingSelection: input.writingSelection } : {}),
                 response: { runId, messageId },
               },
             };
@@ -1431,6 +1457,7 @@ export class MastraService
         resolveRuntime: (input) => this.queuedInputRuntime(input),
       });
       const backingAgent = buildConductorAgent({
+        promptTokenLimit: ({ organizationId }, modelId) => getModelPromptTokenLimit(organizationId, modelId),
         services: this.service,
         gate: this.gate(),
         memory,
@@ -1570,6 +1597,7 @@ export class MastraService
             }
           : {}),
         workflows: {
+          nativeAdaptationSeries: createNativeAdaptationSeriesWorkflow(() => this.service(PieceService)),
           nativeModelAvailability: availabilityWorkflow,
           nativeQueuedInput: this.queuedInputWorkflow,
         },
@@ -1626,6 +1654,10 @@ export class MastraService
               capabilities: CAPABILITY_CATALOGUE,
               services: this.service,
               gate: this.gate(),
+              restoreRunContext: (address) =>
+                restoreNativeRunContext(pStore, address, (identity) =>
+                  this.currentIdentity(identity)
+                ),
             }
           ),
         },
@@ -2109,6 +2141,32 @@ export class MastraService
         new Error('Native session thread is outside this workspace.'),
         { name: 'PermissionDenied' }
       );
+    }
+    // A delayed thread-stream suspension can re-arm an already completed run
+    // after its answer was restored from durable storage. Reconcile only that
+    // terminal run's local mirror; never cancel or answer a persisted gate.
+    const previous = thread.metadata?.assistantNativeRun as
+      | { runId?: string; state?: string; logicalRequestId?: string }
+      | undefined;
+    const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+    if (session.suspensions.hasPending() && !session.approval.isArmed({ threadId }) &&
+        previous?.state === 'settled' && previous.runId && previous.logicalRequestId &&
+        previous.logicalRequestId !== requestContext.get(CONDUCTOR_REQUEST_ID_KEY)) {
+      const agent = await this.conductor();
+      const [pending, active] = await Promise.all([
+        agent.listSuspendedRuns({ threadId, resourceId }),
+        agent.listActiveRuns({ threadId, resourceId }),
+      ]);
+      const current = await session.thread.getById({ threadId });
+      const latest = current?.metadata?.assistantNativeRun as typeof previous;
+      const mirroredRunId = session.run.getRunId();
+      if (pending.total === 0 && pending.runs.length === 0 && active.total === 0 && active.runs.length === 0 &&
+          current?.resourceId === resourceId && latest?.state === 'settled' &&
+          latest.runId === previous.runId && latest.logicalRequestId === previous.logicalRequestId &&
+          !this.nativeTaskScopes.has(`${resourceId}:${threadId}`) &&
+          (!mirroredRunId || mirroredRunId === previous.runId) && !session.approval.isArmed({ threadId })) {
+        session.suspensions.deleteForRun({ resourceId, threadId, runId: previous.runId });
+      }
     }
     if (
       session.approval.isArmed({ threadId }) ||

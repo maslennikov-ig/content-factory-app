@@ -5,6 +5,7 @@ import {
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { ContentContextError } from './content-context.errors';
 import { canonicalizeSourceUrl } from '../source-registry/network-policy';
+import { CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { PIECE_EVIDENCE_MAX_ITEMS } from './piece-evidence-projection';
 import type {
   ContentContextBuildInputV1,
@@ -19,7 +20,7 @@ import type {
 type PrismaClientLike = Record<string, any>;
 
 const MAX_CANDIDATE_FACTS = 64;
-const MAX_EXPLICIT_IDS = 64;
+const MAX_EXPLICIT_IDS = CONTENT_CONTEXT_MAX_EXPLICIT_IDS_V1;
 
 function uniqueIds(values: string[] | undefined) {
   return [

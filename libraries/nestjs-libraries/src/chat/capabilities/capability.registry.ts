@@ -44,6 +44,7 @@ import {
   adaptationRewrite,
   channelWritingRemember,
   pieceAdapt,
+  pieceSeriesResume,
 } from './catalogue/adaptation.capabilities';
 import {
   pieceCheckFacts,
@@ -157,6 +158,7 @@ export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
   pieceCheckFacts as CapabilityDeclaration,
   pieceRewrite as CapabilityDeclaration,
   pieceAdapt as CapabilityDeclaration,
+  pieceSeriesResume as CapabilityDeclaration,
   channelWritingRemember as CapabilityDeclaration,
   adaptationReview as CapabilityDeclaration,
   adaptationRewrite as CapabilityDeclaration,

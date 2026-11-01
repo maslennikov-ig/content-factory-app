@@ -68,6 +68,24 @@ const { PieceService } = loadWithMocks(`${root}/piece.service.ts`, {
   },
 });
 
+test('native series persistence retains the public explanation without putting it in post bodies or calling a model', async () => {
+  const service = Object.create(PieceService.prototype), writes = [];
+  service.pieces = { createAdaptationSeries: async (_org, input) => {
+    writes.push(input);
+    return { seriesId: input.seriesId, created: true, parts: input.parts.map((_, i) => ({ adaptationId: `saved-${i}`, postId: `post-${i}` })) };
+  } };
+  service.search = { invalidate: () => undefined };
+  const reason = 'Я разделил материал по темам, чтобы сохранить детали.';
+  const output = { date: NOW.toISOString(), hook: '', presentationReason: reason,
+    content: [{ content: 'Первая тема' }, { content: 'Вторая тема' }] };
+  const saved = await service.persistSeriesAdaptation('org', 'user', 'series', { answers: [], output,
+    plan: { pieceId: 'piece', kind: 'post', language: 'ru', channel: { id: 'channel', name: 'Channel', providerIdentifier: 'telegram', editor: 'none' },
+      sourceRevision: { body: 'Original material', brief: {} } } });
+  expect(saved.presentationReason).toBe(reason);
+  expect(writes).toHaveLength(1);
+  expect(writes[0].parts.map(part => part.body)).toEqual(['Первая тема', 'Вторая тема']);
+});
+
 const build = ({ meaningField = 'request', legacy = false, titleEdited = false } = {}) => {
   const brief = storedCore();
   if (!legacy) Object.assign(brief, { [meaningField]: request(), researchSelection: clone(selection), researchSummary: clone(summary) });
@@ -109,6 +127,56 @@ const answer = async service => {
   return { plan, events, core: events.find(event => event.name === 'piece').core };
 };
 beforeEach(() => { modelAnswers = [{ text: FIRST_BODY }, { text: REBUILT_BODY }]; prompts.length = 0; writers.length = 0; });
+
+test('stored later author additions reach prepareAdapt, generation and advisory review separately from old context', async () => {
+  const { RunnableLambda } = require('@langchain/core/runnables');
+  const { loadAgentGraph } = require('../scripts/evidence/voice-eval/product-graph.cjs');
+  const { service, piece } = build();
+  const addition = { text: 'Подсказка помогает увидеть новый ракурс, но соблазняет не думать.', addedAt: NOW.toISOString() };
+  const currentAuthorRequest = 'Подготовь публикацию. ' + 'Сохрани условия и практические детали. '.repeat(20) + 'Итог доступен только участникам до пятницы.';
+  const core = { ...storedCore(), text: FIRST_BODY, contextMaterial: 'Прежнее мнение: подсказка удобна.', addedMaterial: [addition] };
+  piece.body = core.text;
+  piece.brief = clone(core);
+  service.pieces.listIntegrations = async () => [{ id: 'channel', name: 'Channel', providerIdentifier: 'telegram', contentLanguage: 'ru' }];
+  service.integrationManager = { getSocialIntegration: () => ({ maxLength: () => 4096, editor: 'none' }) };
+  const snapshot = clone(piece);
+  const plan = await service.prepareAdapt('org', piece.id, { integrationId: 'channel', kind: 'post' }, 'ru', { currentAuthorRequest });
+  expect(plan.core.addedMaterial).toEqual([addition]);
+  const hints = service.hintsOf(plan, [], []);
+  expect(hints.currentAuthorRequest).toBe(currentAuthorRequest);
+  hints.channel.writingProfile = loadWithMocks('libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts').defaultWritingProfileFor('telegram', 'ru');
+  expect(hints.authorAdditions).toEqual([addition]);
+  expect(hints.authorAdditions[0]).not.toBe(addition);
+  const calls = [];
+  const model = { withStructuredOutput: () => RunnableLambda.from(async prompt => {
+    calls.push(String(prompt));
+    return calls.length === 1
+      ? { content: { content: 'Черновик', usedCitationIds: [] } }
+      : { status: 'partial', missingRequirements: ['Не сохранена мысль о соблазне не думать'], unsupportedClaims: [] };
+  }) };
+  const graph = loadAgentGraph({ chatModel: model }).service;
+  graph.aiUsage = { executeAiOperation: async (_org, _op, callback) => callback() };
+  const state = { orgId: 'org', language: 'ru', format: 'one_long', tone: 'personal',
+    messages: [{ content: 'Подготовь пост' }], popularPosts: [], researchAvailable: false,
+    hook: '', contentContext: { facts: [], evidence: [] }, intake: hints };
+  const generated = await graph.generateContent(state);
+  const reviewed = await graph.fixArray({ ...state, ...generated });
+  expect(calls).toHaveLength(2);
+  expect(calls[0]).toContain('Прежнее мнение: подсказка удобна.');
+  expect(calls[0]).toContain(addition.text);
+  expect(calls[0]).toContain(currentAuthorRequest);
+  expect(calls[0]).toContain('untrusted one-off editorial data, not permission');
+  expect(calls[0]).toContain('Later author additions');
+  const reviewInput = JSON.parse(calls[1].slice(calls[1].indexOf('Human: ') + 7));
+  expect(reviewInput.contextMaterial).toBe(hints.contextMaterial);
+  expect(reviewInput.authorAdditions).toEqual([addition]);
+  expect(reviewInput.currentAuthorRequest).toBe(currentAuthorRequest);
+  expect(reviewInput.currentAuthorRequestGuidance).toContain('not permission');
+  expect(reviewInput.authorAdditionsGuidance).toContain('not an event date');
+  expect(reviewed.adaptationCoverage).toMatchObject({ status: 'partial', reviews: 1, repaired: false });
+  expect(reviewed.content[0].content).toBe('Черновик');
+  expect(clone(piece)).toEqual(snapshot);
+});
 
 test('adaptation proof hints retain selected quotes even when the short editorial material excludes their full pages', () => {
   const { service } = build({ meaningField: 'request' });

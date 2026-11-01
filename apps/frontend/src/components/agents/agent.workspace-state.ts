@@ -67,6 +67,9 @@ export function artifactWorkspaceReducer(state: ArtifactWorkspaceState, action: 
   if (action.type === 'select') return {
     ...state, artifacts, active: keyOf(action.artifact), activeSource: 'selected', hidden: false, unread: [], interacted: true,
   };
+  // The SDK clones message parts as text streams. Equal result snapshots do
+  // not change the workspace; actual result metadata must still reach it.
+  if (JSON.stringify(artifacts) === JSON.stringify(state.artifacts)) return state;
   const latest = incoming.at(-1);
   const previous = new Set(state.artifacts.map(keyOf));
   const newKeys = incoming.map(keyOf).filter((key) => !previous.has(key));

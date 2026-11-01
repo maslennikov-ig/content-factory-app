@@ -28,6 +28,16 @@ const baseConfig=()=>({usageMode:'workspace_key',provider:'openrouter',apiKey:'p
 });
 beforeEach(()=>{config=baseConfig();choice='base';calls=[];classifierFailure=false;malformed=false;});
 const ids=result=>result.entries.map(e=>e.model.modelId);
+test('the primary Terra profile uses the native model directly without a classifier call', async()=>{
+ config.textModel='openai/gpt-6.1-terra';
+ config.roleModels.classify='openai/gpt-6-luna';
+ config.modelRouting.advancedModel=config.textModel;
+ const r=await clients.getRoutedMastraModelEntries('terra-profile','agent','Research and draft a post');
+ expect(r.primaryModel).toBe('openai/gpt-6.1-terra');
+ expect(calls).toHaveLength(0);
+ const classify=await clients.getMastraAgentModelEntries('terra-profile','classify');
+ expect(classify.primaryModel).toBe('openai/gpt-6-luna');
+});
 test('native Classifier selects advanced with one unique ordered native fallback array',async()=>{
  choice='advanced';const r=await clients.getRoutedMastraModelEntries('tenant','draft','Competing evidence and an original editorial argument');
  expect(ids(r)).toEqual(['vendor/advanced','vendor/base']);

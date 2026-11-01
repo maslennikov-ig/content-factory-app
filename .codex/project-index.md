@@ -1,5 +1,11 @@
 # Content Factory Project Index
-- Current production `dc5893e2ad73`: [voice/locale/native-memory release](stages/agent-chat-5961/release-voice-2026-10-26.md); rollback 34d3591b2cc1, nine local gates/public CI PASS, no paid calls. Owner walkthrough: [chat questions, drafts, reload and Stop](../docs/operations/agent-chat-owner-check-2026-10-26.md).
+- [HONEY-6013 local implementation and checks](stages/honey-6013/implementation.md):
+  bounded research/structured source reads, useful native tool history,
+  recoverable provider/incomplete-call/Stop outcomes. Terra6.1 medium source
+  default, included classification Luna low. Current local API stand4337/3516
+  uses the owner-selected Terra profile with preserved chats and ordinary APIs;
+  production settings and explicit own-key choices are preserved.
+- Current production `1fd383418d7a`: [native instruction refresh](stages/agent-chat-5961/release-instructions-2026-10-27.md), rollback `dc5893e2ad73`, nine local checks/public CI PASS; existing chats/history kept, no paid calls. Owner walkthrough: [chat questions, drafts, reload and Stop](../docs/operations/agent-chat-owner-check-2026-10-26.md).
 - Current advisory draft review: [audit and local repair](stages/agent-chat-5961/advisory-review-audit.md). One semantic review, free copy/length findings and normalized citation bindings; save remains successful with honest optional advice. Native result/card retains findings across questions/reload. No automatic quality rewrite; explicit clarification and source ownership remain.
 - Real API adaptation false refusal: [copy-rule provenance fix](stages/agent-chat-5961/api-adaptation-copy-scope.md). Channel instructions scope copying to foreign passages; `agent.graph.service.ts` passes deterministic foreign-copy findings to existing review/repair. Provenance remains; its blocking editorial policy is superseded by the advisory review decision above.
 - Assistant voice/locales and native preference-memory approvals: `chat/conductor/conductor.instructions.ts`, `capabilities/capability.context.ts`, `conductor/conductor.memory.ts`, `native-session-permissions.ts`; active copy in 16 locales `apps/frontend/src/components/agents/agent.progress.copy.ts`. Released `dv8a`: [diagnosis and checks](stages/agent-chat-5961/voice-and-memory-repair-2026-10-26.md).
@@ -148,3 +154,5 @@ Linear is canonical; Beads is the agent interface. Live authority and publisher 
 - Keep current-state and target-state separate according to `docs/adr/0002-separate-current-and-target-state.md`.
 - Update documentation and the local Graphify index when architecture or durable workflow changes.
 - Review/regeneration: `docs/product/review-v2.md`; current `pieces/review.v3.ts`, `review.v3.contract.ts`, `review-semantic.v4.ts` preserve signed v2 results. Shared Disclosure: `apps/frontend/src/components/ui/disclosure.tsx`. Complete before/after in chat/manual review uses `pieces/review-change-preview.tsx` plus native16locale `review-change-preview.localized.tsx` (frontend content-intelligence components).
+
+- [Chat/editor guide](../docs/operations/agent-chat-editor-guide.md): native context, question batches, series/history and editorial acceptance limits.

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { AgentThreadExecutionV1 } from '../capabilities/agent-parts.contract';
+import { AGENT_ERROR_CODES, type AgentErrorCode, type AgentThreadExecutionV1 } from '../capabilities/agent-parts.contract';
 import {
   AGENT_CALL_ANSWERED_TTL_SECONDS,
   type AgentRunClaimStore,
@@ -45,7 +45,9 @@ export const readAgentThreadExecution = async (
   // A matching terminal receipt was written only after the actual Promises
   // settled. Keep that proof after the expiring store record is gone.
   if (terminal.state === 'settled' && outcomes.includes(String(terminal.outcome))) {
-    return { requestId, state: 'settled', outcome: terminal.outcome as AgentTurnOutcome };
+    const errorCode = (marker as any).errorCode;
+    return { requestId, state: 'settled', outcome: terminal.outcome as AgentTurnOutcome,
+      ...(AGENT_ERROR_CODES.includes(errorCode) ? { errorCode } : {}) };
   }
   const stored = await store.get(agentExecutionKey(requestId));
   if (!stored) return unknown;
@@ -79,10 +81,13 @@ export class AgentTurnLifecycle {
   private readonly pending = new Set<Promise<unknown>>();
   private accepting = true;
   private failed = false;
+  private errorCode?: AgentErrorCode;
+
+  fail(code: AgentErrorCode) { this.failed = true; this.errorCode = code; }
 
   constructor(
     readonly requestId: string,
-    private readonly settle: (outcome: AgentTurnOutcome) => Promise<void>
+    private readonly settle: (outcome: AgentTurnOutcome, errorCode?: AgentErrorCode) => Promise<void>
   ) {}
 
   /** Native resumed tool context can still contain its first request's id. */
@@ -95,7 +100,7 @@ export class AgentTurnLifecycle {
     markAgentTurnStopped(this.requestId);
   }
 
-  async track<T>(work: () => Promise<T>): Promise<T> {
+  async track<T>(work: () => Promise<T>, options?: { readOnly?: boolean }): Promise<T> {
     if (!this.accepting) throw new Error('The agent request has stopped.');
     const pending = Promise.resolve().then(() => {
       if (!this.accepting) throw new Error('The agent request has stopped.');
@@ -104,7 +109,10 @@ export class AgentTurnLifecycle {
     this.pending.add(pending);
     try {
       const result = await pending;
-      if (result && typeof result === 'object' && 'ok' in result && result.ok === false &&
+      // Read refusals remain visible tool results for Mastra to recover from.
+      // They do not override its eventual terminal outcome. Mutations retain
+      // their failure fence, including uncertain/late domain outcomes.
+      if (options?.readOnly !== true && result && typeof result === 'object' && 'ok' in result && result.ok === false &&
         (!('canReviseInput' in result) || result.canReviseInput !== true)) this.failed = true;
       return result;
     } catch (error) {
@@ -112,7 +120,7 @@ export class AgentTurnLifecycle {
         !this.accepting &&
         ((error as { name?: unknown })?.name === 'AbortError' ||
           /request has stopped|aborted/i.test(String((error as { message?: unknown })?.message ?? '')));
-      if (!isStoppedAbort) this.failed = true;
+      if (!isStoppedAbort && options?.readOnly !== true) this.failed = true;
       throw error;
     } finally { this.pending.delete(pending); }
   }
@@ -121,7 +129,7 @@ export class AgentTurnLifecycle {
     this.stop();
     await Promise.allSettled([...this.pending]);
     const settled = this.failed ? 'failed' : outcome;
-    await this.settle(settled);
+    await this.settle(settled, this.errorCode);
     return settled;
   }
 }
@@ -129,7 +137,8 @@ export class AgentTurnLifecycle {
 export const trackAgentTurnWork = <T>(
   context: { get?: (key: string) => unknown } | undefined,
   work: () => Promise<T>,
-  invocation?: { runId?: string; abortSignal?: { aborted: boolean } }
+  invocation?: { runId?: string; abortSignal?: { aborted: boolean } },
+  options?: { readOnly?: boolean }
 ): Promise<T> => {
   // Bind to the actual invocation, never to a restored snapshot or another
   // request of the thread. A late callback retains its own stopped scope,
@@ -142,9 +151,9 @@ export const trackAgentTurnWork = <T>(
       // Native queued work inherits the parent's async context. A fresh
       // server-built successor identity must pass the live native checks
       // below instead of binding to a lifecycle that has already finished.
-      return executionScope.exit(() => trackAgentTurnWork(context, work, invocation));
+      return executionScope.exit(() => trackAgentTurnWork(context, work, invocation, options));
     }
-    return execution.track(work);
+    return execution.track(work, options);
   }
   // Direct/legacy native callers and MCP retain their existing behavior.
   if (typeof requestId !== 'string' || !requestId) return work();

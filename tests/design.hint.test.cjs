@@ -303,3 +303,30 @@ describe('the bubble obeys the design rules for a floating layer', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });
+
+
+test('touch compatibility mouse events do not dismiss the tapped hint; a later mouse hover still works', () => {
+  renderHint();
+  const trigger = screen.getByRole('button');
+  const wrapper = trigger.closest('[data-hint-anchor]');
+  const pointer = (target, type, kind) => {
+    const event = new window.Event(type, { bubbles: true });
+    Object.defineProperty(event, 'pointerType', { value: kind });
+    fireEvent(target, event);
+  };
+  pointer(wrapper, 'pointerover', 'touch');
+  pointer(trigger, 'pointerdown', 'touch');
+  // Chromium emits these compatibility mouse events after the touch pointer.
+  fireEvent.mouseEnter(wrapper);
+  fireEvent.mouseDown(trigger);
+  fireEvent.click(trigger);
+  fireEvent.mouseLeave(wrapper);
+  expect(screen.getByRole('tooltip')).toBeTruthy();
+  fireEvent.click(trigger);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  pointer(wrapper, 'pointerover', 'mouse');
+  fireEvent.mouseEnter(wrapper);
+  expect(screen.getByRole('tooltip')).toBeTruthy();
+  fireEvent.mouseLeave(wrapper);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+});
