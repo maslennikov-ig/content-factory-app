@@ -71,6 +71,17 @@ describe('the full-suite CI job', () => {
 });
 
 describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequisites', (jobName) => {
+  test('prepares every image used by the offline research restart probe', () => {
+    const probe = fs.readFileSync(path.join(root, 'tests/helpers/agent-research-efficiency.probe.cjs'), 'utf8');
+    const images = [...probe.matchAll(/'--pull=never',\s*'([^']+)'/g)].map((match) => match[1]);
+    expect(images.length).toBeGreaterThan(0);
+    const steps = workflow.jobs[jobName].steps;
+    const execute = steps.findIndex((step) => /pnpm test\b|pnpm run test:time-travel 400/.test(step.run ?? ''));
+    const prepared = steps.slice(0, execute).filter((step) => !step.if && !step['continue-on-error'])
+      .flatMap((step) => [...(step.run ?? '').matchAll(/^\s*docker pull\s+(\S+)\s*$/gm)].map((match) => match[1]));
+    expect(prepared).toEqual(expect.arrayContaining(images));
+  });
+
   test('installs locked Chromium after dependencies and before the complete Jest run', () => {
     const current = workflow.jobs[jobName];
     const steps = current.steps;

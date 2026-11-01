@@ -124,9 +124,11 @@ jobs:
       - name: Install Chromium for editor geometry tests
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Prepare isolated research recovery database image
-        # The process-restart proof owns a separate database container and never pulls during tests.
-        run: docker pull postgres:16-alpine
+      - name: Prepare isolated research recovery images
+        # The process-restart proof owns separate PG/Redis containers and never pulls during tests.
+        run: |
+          docker pull postgres:16-alpine
+          docker pull redis:7-alpine
 
       - name: Run the full suite
         env:
@@ -210,9 +212,11 @@ jobs:
       - name: Install Chromium for editor geometry tests
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Prepare isolated research recovery database image
-        # The process-restart proof owns a separate database container and never pulls during tests.
-        run: docker pull postgres:16-alpine
+      - name: Prepare isolated research recovery images
+        # The process-restart proof owns separate PG/Redis containers and never pulls during tests.
+        run: |
+          docker pull postgres:16-alpine
+          docker pull redis:7-alpine
 
       - name: Run the suite with the calendar moved forward
         env:
