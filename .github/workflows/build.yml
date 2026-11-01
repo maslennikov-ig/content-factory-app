@@ -3,11 +3,20 @@ name: Build
 
 on:
   push:
+    branches: [main]
   merge_group:
   pull_request:
 
+# Replace older attempts for the same ref, without cancelling another workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The private repository owns history; the public copied tree owns hosted CI.
+# Gate before allocating any runner or service container (including PR events).
 jobs:
   build:
+    if: github.repository == 'maslennikov-ig/content-factory-app'
     runs-on: ubuntu-latest
     
 
@@ -61,6 +70,7 @@ jobs:
         run: pnpm run build
 
   full-suite:
+    if: github.repository == 'maslennikov-ig/content-factory-app'
     # `pnpm run build` and the Docker-backed proofs were the only things CI ran,
     # so the fourteen tests that turned red on 25.08.2026 were invisible here:
     # they live in suites no job executes. This job runs the whole of `pnpm test`
@@ -153,6 +163,7 @@ jobs:
           retention-days: 7
 
   time-travel-suite:
+    if: github.repository == 'maslennikov-ig/content-factory-app'
     # A suite that only ever runs on today's date cannot see a fixture aging
     # out from under it. On 31.08.2026 five backup tests went red at 12:00 UTC
     # on code nobody had touched — a pinned artifact name judged against the
@@ -164,7 +175,9 @@ jobs:
     # it arrives a year before a user would have met it.
     name: The suite, one year on
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The growing native suite can exceed 30 minutes on a hosted runner.
+    # Keep the same job budget as the complete ordinary suite.
+    timeout-minutes: 60
 
 
     # Native Mastra proofs use disposable schemas in a real local PG/Redis pair.
@@ -224,6 +237,7 @@ jobs:
         run: pnpm run test:time-travel 400
 
   docker-backed-operations:
+    if: github.repository == 'maslennikov-ig/content-factory-app'
     name: Docker-capable execution proofs (required)
     runs-on: ubuntu-latest
     timeout-minutes: 45

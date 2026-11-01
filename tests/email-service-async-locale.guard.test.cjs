@@ -1,4 +1,6 @@
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+// Cold SDK import belongs to fixture setup, not the signal-to-provider deadline.
+const { isCancellation } = require('@temporalio/workflow');
 
 /**
  * `EmailService.sendEmail` (libraries/nestjs-libraries/src/services/
@@ -64,7 +66,7 @@ function makeFakeWorkflowRuntime() {
         }),
       sleep: () => Promise.resolve(),
       proxyActivities: () => activityImplementations,
-      isCancellation: require('@temporalio/workflow').isCancellation,
+      isCancellation,
       continueAsNew: async (args) => args,
     },
     deliverSignal(name, payload) {
@@ -275,6 +277,9 @@ beforeEach(() => {
   sentByProvider.length = 0;
 });
 
+// Transpile the real service once, before timing its asynchronous behavior.
+const EmailService = loadRealEmailService();
+
 test('a Russian-language email sent through EmailService.sendEmail reaches the footer in Russian, over the real signal → workflow → activity leg', async () => {
   await withEnv(
     {
@@ -284,7 +289,6 @@ test('a Russian-language email sent through EmailService.sendEmail reaches the f
       EMAIL_PROVIDER: '',
     },
     async () => {
-      const EmailService = loadRealEmailService();
       const emailService = new EmailService({});
       activityImplementations = loadRealActivities(emailService);
 

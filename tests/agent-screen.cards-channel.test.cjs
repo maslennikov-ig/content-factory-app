@@ -42,28 +42,34 @@ const en = copy.agentCopy.en;
 
 afterEach(cleanup);
 
+// Compile real shared components once, outside each behavior test's deadline.
+// Each test still gets its own request/list/guide state and a fresh React mount.
+let current;
+const card = loadWithMocks('apps/frontend/src/components/agents/agent.channel-card.tsx', {
+  react: React,
+  '@contentfactory/helpers/utils/custom.fetch': {
+    useFetch: () => {
+      const env = current;
+      return async (url, init) => {
+        env.calls.push([url, init]);
+        return { ok: env.ok, status: env.ok ? 200 : 500, json: async () => env.body };
+      };
+    },
+  },
+  '@contentfactory/frontend/components/launches/helpers/use.integration.list': {
+    useIntegrationList: () => ({ data: current.rows, isLoading: current.loading }),
+  },
+  '@contentfactory/frontend/components/onboarding/onboarding.telegram': {
+    OnboardingTelegramGuide: (props) => {
+      current.guides.push(props);
+      return h('div', { 'data-guide': 'telegram' }, props.actionLabel);
+    },
+  },
+});
+
 const setup = ({ rows = [], loading = false, ok = true, body = { url: 'https://platform.example/auth' } } = {}) => {
-  const calls = [];
-  const guides = [];
-  const card = loadWithMocks('apps/frontend/src/components/agents/agent.channel-card.tsx', {
-    react: React,
-    '@contentfactory/helpers/utils/custom.fetch': {
-      useFetch: () => async (url, init) => {
-        calls.push([url, init]);
-        return { ok, status: ok ? 200 : 500, json: async () => body };
-      },
-    },
-    '@contentfactory/frontend/components/launches/helpers/use.integration.list': {
-      useIntegrationList: () => ({ data: rows, isLoading: loading }),
-    },
-    '@contentfactory/frontend/components/onboarding/onboarding.telegram': {
-      OnboardingTelegramGuide: (props) => {
-        guides.push(props);
-        return h('div', { 'data-guide': 'telegram' }, props.actionLabel);
-      },
-    },
-  });
-  return { card, calls, guides };
+  current = { card, rows, loading, ok, body, calls: [], guides: [] };
+  return current;
 };
 
 const draw = async (env, connect, { threadId = 't1', words = ru, onOpen = () => {} } = {}) => {

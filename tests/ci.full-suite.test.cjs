@@ -24,6 +24,29 @@ const job = workflow.jobs['full-suite'];
 const runSteps = (job?.steps ?? []).filter((step) => typeof step.run === 'string');
 const runText = runSteps.map((step) => step.run).join('\n');
 
+describe('hosted CI ownership', () => {
+  test('every Build job runs only on the published tree, before runner allocation', () => {
+    for (const current of Object.values(workflow.jobs)) {
+      expect(current.if).toBe("github.repository == 'maslennikov-ig/content-factory-app'");
+    }
+  });
+
+  test('branch updates use PR checks once, main and merge queue remain covered', () => {
+    expect(workflow.on.push.branches).toEqual(['main']);
+    expect(workflow.on).toHaveProperty('pull_request');
+    expect(workflow.on).toHaveProperty('merge_group');
+    expect(workflow.concurrency).toEqual({
+      group: '${{ github.workflow }}-${{ github.ref }}',
+      'cancel-in-progress': true,
+    });
+  });
+
+  test('calendar execution has the same bounded job budget as the full suite', () => {
+    expect(workflow.jobs['time-travel-suite']['timeout-minutes'])
+      .toBe(workflow.jobs['full-suite']['timeout-minutes']);
+  });
+});
+
 describe('the full-suite CI job', () => {
   test('exists and is named as required', () => {
     expect(job).toBeDefined();
@@ -104,7 +127,7 @@ describe('exact-head public CodeQL coverage', () => {
     expect(quality.on.push.branches).toContain('main');
     expect(quality.on.push.paths).toBeUndefined();
     expect(quality.on.push['paths-ignore']).toBeUndefined();
-    expect(quality.jobs.analyze.if).toBe("github.event.repository.visibility == 'public'");
+    expect(quality.jobs.analyze.if).toBe("github.repository == 'maslennikov-ig/content-factory-app'");
   });
 });
 

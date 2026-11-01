@@ -1,6 +1,48 @@
 # Развёртывание на сервере
 
-## Current release 27 October 2026: 1fd383418d7a
+## Где выполняются проверки CI
+
+Build и CodeQL выполняются только в публичном `maslennikov-ig/content-factory-app`.
+В приватном `content-factory-next` остаются история и PR; его задания пропускаются
+до выделения runner. Это ожидаемый пропуск, а не подтверждение прогона тестов.
+Для выпуска нужны успешные публичные задания на точном опубликованном коммите
+и локальная квитанция `record-suite-receipt.sh`; их назначение не изменилось.
+
+Build запускается при push в `main`, для PR и очереди слияния. Push обычной ветки
+не дублирует PR; новый запуск той же ветки отменяет устаревшую попытку этого workflow.
+Полный набор и календарный набор имеют ограничение 60 минут. Лимит отдельного
+поведенческого теста остаётся прежним: загрузка и компиляция холодных тестовых
+модулей выполняется при подготовке, а не внутри измеряемого сценария.
+
+## Current release 1 November 2026: 658f835b5f18
+
+Native Mastra recovery/questions, batched answers, source reads, author-comment
+guidance, series grouping/history, avatar/channel context and responsive chat/editor.
+Private application source `2e7f6c660ae7e1e484bbad3294931487bc5d68da`;
+public/runtime `658f835b5f187138500b3b8824bdb74eefd78116`.
+Registry `ghcr.io/maslennikov-ig/content-factory-next@sha256:c2da9dce5161150e5fe9bc2e3d4c7951586533068e6f068995e1ef4617bf7443`.
+Nine local release checks, [public Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41306821235)
+and [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41306821234)
+PASS. Private duplicate CI timeout/reliability is tracked separately in `xanf`.
+
+Empty schema diff before/after; no SQL applied. Healthy/zero restarts, worker ready,
+exact source archive; production history, suspended gates, usage and foreign workloads
+preserved. Public login 390/1440 px passes; no paid calls. Native instance defaults
+now use Terra 6.1 for main/advanced and Luna for classification; encrypted keys,
+spending limits and workspace overrides are unchanged. Prior profile retained privately.
+
+Capacity checked before pull: 24.6 GB free versus 14.8 GB required. Own-only retention
+keeps this image and `1fd383418d7a`; 24.58 GB remains free. Local original chats,
+drafts and services remain intact; only release-owned intermediates were cleaned.
+[Closeout and limits](../../.codex/stages/honey-6013/release-closeout-20261101.md),
+[chat/editor guide](agent-chat-editor-guide.md).
+
+Rollback: `CF_DEPLOY_HOST=root@<host> scripts/release/switch-host-image.sh 1fd383418d7a`.
+No schema rollback. A full behavior rollback also needs the privately retained prior
+instance model profile restored through the native service; image rollback alone does
+not revert saved model defaults.
+
+## Previous release 27 October 2026: 1fd383418d7a
 
 Existing suspended chats use current Agent/Memory instructions on their next native
 step. Same history/task state/pending gates; no snapshot edits or automatic approvals.
