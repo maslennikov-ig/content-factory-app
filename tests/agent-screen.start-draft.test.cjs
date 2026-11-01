@@ -198,7 +198,7 @@ test('the selected context lives in shared chat controls and leaves the composer
   const view = await open('/agents/new');
   const original = field();
   fireEvent.change(original, { target: { value: 'Несохранённый текст' } });
-  const trigger = view.getByRole('button', { name: 'Context: Pieces' });
+  const trigger = view.getByRole('button', { name: 'Context' });
   expect(trigger.closest('[data-switcher]')).not.toBeNull();
   expect(world.conversationProps.contextControls).toBeUndefined();
   fireEvent.click(trigger);

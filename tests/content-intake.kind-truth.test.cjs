@@ -607,11 +607,11 @@ describe('задание: слова человека о посте — не м�
     const { service, calls } = build({
       models: [
         (prompt) => {
-          // V12 keeps the explicit instruction label and output-only links;
+          // The brief keeps the explicit instruction label and output-only links;
           // it does not impose that role on every URL in every request.
-          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v13');
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v14');
           expect(prompt).toContain('"materialKind":"instruction"');
-          expect(prompt).toContain('A link explicitly requested in the finished text remains an exact output requirement.');
+          expect(prompt).toContain('Keep output-only URLs as output requirements.');
           expect(prompt).toContain(`"outputLinks":${JSON.stringify(RADIO_LINKS)}`);
           return briefAnswer({
             thesis: 'Я выступил на радио и отвечал на вопросы о том, может ли ИИ украсть идею',
