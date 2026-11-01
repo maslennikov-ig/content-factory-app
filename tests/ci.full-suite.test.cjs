@@ -27,7 +27,10 @@ const runText = runSteps.map((step) => step.run).join('\n');
 describe('hosted CI ownership', () => {
   test('every Build job runs only on the published tree, before runner allocation', () => {
     for (const current of Object.values(workflow.jobs)) {
-      expect(current.if).toBe("github.repository == 'maslennikov-ig/content-factory-app'");
+      expect([
+        "github.repository == 'maslennikov-ig/content-factory-app'",
+        "always() && github.repository == 'maslennikov-ig/content-factory-app'",
+      ]).toContain(current.if);
     }
   });
 
@@ -53,13 +56,18 @@ describe('the full-suite CI job', () => {
     expect(job.name).toBe('Full test suite (required)');
   });
 
-  test('runs the whole command, not a chosen subset of it', () => {
-    // A job that names individual suites drifts away from `package.json` and
-    // silently stops covering whatever was added since. `pnpm test` is the
-    // command `AGENTS.md` names in release acceptance; CI runs that one.
-    expect(runText).toMatch(/^\s*pnpm test\b/m);
-    expect(runText).not.toContain('jest --');
-    expect(runText).not.toContain('--test-concurrency');
+  test('keeps the canonical three halves and native whole-population discovery', () => {
+    const scripts = require('../package.json').scripts;
+    expect(scripts.test).toBe('pnpm run test:jest && pnpm run test:node && pnpm run test:python');
+    expect(scripts['test:jest']).toContain('jest --coverage --detectOpenHandles');
+    expect(scripts['test:node']).toMatch(/^node --test --test-concurrency=1 /);
+    expect(scripts['test:python']).toMatch(/^python3 -m unittest /);
+    expect(runText).toContain('jest --listTests --json');
+    expect(runText).toContain('jest-shards.cjs aggregate');
+    expect(runText).toContain('&& pnpm run test:node && pnpm run test:python');
+    expect(job.needs).toEqual(['full-suite-shards', 'time-travel-shards']);
+    expect(job.if).toMatch(/^always\(\) && /);
+    expect(runText).toContain('test "$FULL_RESULT" = success && test "$CALENDAR_RESULT" = success');
   });
 
   test('pipes into tee under pipefail, so tee cannot swallow a red run', () => {
@@ -91,15 +99,25 @@ describe('the full-suite CI job', () => {
     expect(check).toBeDefined();
     expect(check.if).toBe('always()');
   });
+
+  test.each(['failure', 'cancelled', 'skipped'])('a %s shard makes the required gate fail', (status) => {
+    const gate = job.steps.find((step) => step.name === 'Require every shard to pass');
+    for (const variable of ['FULL_RESULT', 'CALENDAR_RESULT']) {
+      const result = spawnSync('bash', ['-e', '-c', gate.run], {
+        env: { ...process.env, FULL_RESULT: 'success', CALENDAR_RESULT: 'success', [variable]: status },
+      });
+      expect(result.status).not.toBe(0);
+    }
+  });
 });
 
-describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequisites', (jobName) => {
+describe.each(['full-suite-shards', 'time-travel-shards'])('%s browser execution prerequisites', (jobName) => {
   test('prepares every image used by the offline research restart probe', () => {
     const probe = fs.readFileSync(path.join(root, 'tests/helpers/agent-research-efficiency.probe.cjs'), 'utf8');
     const images = [...probe.matchAll(/'--pull=never',\s*'([^']+)'/g)].map((match) => match[1]);
     expect(images.length).toBeGreaterThan(0);
     const steps = workflow.jobs[jobName].steps;
-    const execute = steps.findIndex((step) => /pnpm test\b|pnpm run test:time-travel 400/.test(step.run ?? ''));
+    const execute = steps.findIndex((step) => /pnpm run test:jest|pnpm run test:time-travel 400/.test(step.run ?? ''));
     const prepared = steps.slice(0, execute).filter((step) => !step.if && !step['continue-on-error'])
       .flatMap((step) => [...(step.run ?? '').matchAll(/^\s*docker pull\s+(\S+)\s*$/gm)].map((match) => match[1]));
     expect(prepared).toEqual(expect.arrayContaining(images));
@@ -110,7 +128,7 @@ describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequ
     const steps = current.steps;
     const dependencies = steps.findIndex((step) => /pnpm install --frozen-lockfile/.test(step.run ?? ''));
     const browser = steps.findIndex((step) => /^pnpm exec playwright install --with-deps chromium$/.test(step.run ?? ''));
-    const execute = steps.findIndex((step) => /pnpm test\b|pnpm run test:time-travel 400/.test(step.run ?? ''));
+    const execute = steps.findIndex((step) => /pnpm run test:jest|pnpm run test:time-travel 400/.test(step.run ?? ''));
 
     expect(dependencies).toBeGreaterThanOrEqual(0);
     expect(browser).toBeGreaterThan(dependencies);
@@ -118,6 +136,14 @@ describe.each(['full-suite', 'time-travel-suite'])('%s browser execution prerequ
     expect(steps[browser].if).toBeUndefined();
     expect(steps[browser]['continue-on-error']).toBeUndefined();
     expect(current['continue-on-error']).toBeUndefined();
+    expect(current.strategy['fail-fast']).toBe(false);
+    expect(current.env.CF_JEST_SHARD).toBe('${{ matrix.shard }}/${{ strategy.job-total }}');
+    const executeText = steps[execute].run;
+    expect(executeText).toContain('--shard="$CF_JEST_SHARD"');
+    expect(executeText).not.toMatch(/testPathIgnorePatterns|testNamePattern|runTestsByPath|forceExit/);
+    const artifact = steps.find((step) => step.uses === 'actions/upload-artifact@v4');
+    expect(artifact.if).toBe('always()');
+    expect(artifact.with['if-no-files-found']).toBe('error');
   });
 });
 

@@ -22,11 +22,10 @@ describe('root test runner boundary', () => {
         new RegExp(pattern).test(`/${suite}`)
       )
     );
-    const rootTestScript = require('../package.json').scripts.test;
-    const nativeCommand = rootTestScript
-      .split('&&')
-      .map((part) => part.trim())
-      .find((part) => part.startsWith('node --test'));
+    const scripts = require('../package.json').scripts;
+    expect(scripts.test.split('&&').map((part) => part.trim()))
+      .toEqual(['pnpm run test:jest', 'pnpm run test:node', 'pnpm run test:python']);
+    const nativeCommand = scripts['test:node'];
 
     expect(nativeSuites.length).toBeGreaterThan(0);
     expect(ignoredByJest).toEqual(nativeSuites);

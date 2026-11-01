@@ -69,18 +69,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
         run: pnpm run build
 
-  full-suite:
+  full-suite-shards:
     if: github.repository == 'maslennikov-ig/content-factory-app'
-    # `pnpm run build` and the Docker-backed proofs were the only things CI ran,
-    # so the fourteen tests that turned red on 25.08.2026 were invisible here:
-    # they live in suites no job executes. This job runs the whole of `pnpm test`
-    # — the same command `AGENTS.md` names in release acceptance — and then reads
-    # its log to confirm all three halves reported.
-    #
-    # It became affordable with the move to a public repository: on the private
-    # one these minutes were billed, and a six-to-eight minute run on every push
-    # was the reason the full suite stayed out of CI.
-    name: Full test suite (required)
+    # Native Jest partitioning; each hosted shard has its own PG/Redis.
+    name: Jest coverage + handles (${{ matrix.shard }}/${{ strategy.job-total }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     # The October native suite exceeded 45 minutes without a failed test.
     # Leave headroom for runner setup and all three halves; probe budgets remain bounded.
@@ -109,6 +105,8 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
+      CF_JEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+      JEST_JUNIT_OUTPUT_DIR: coverage/shard
       CF_TEST_PG_URL: postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db
       CF_TEST_REDIS_URL: redis://127.0.0.1:6380
 
@@ -140,29 +138,25 @@ jobs:
           docker pull postgres:16-alpine
           docker pull redis:7-alpine
 
-      - name: Run the full suite
+      - name: Run the complete assigned Jest shard
         env:
-          # The jest half builds enough of the workspace to meet the same V8
-          # heap ceiling the Build job documents.
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -o pipefail
-          pnpm test 2>&1 | tee suite.log
+          mkdir -p coverage/shard
+          node scripts/ci/jest-shards.cjs record full "$CF_JEST_SHARD" coverage/shard
+          pnpm run test:jest --shard="$CF_JEST_SHARD" --json --outputFile=coverage/shard/results.json --coverageDirectory=coverage/shard --coverageReporters=json 2>&1 | tee coverage/shard/suite.log
 
-      - name: Confirm all three halves reported
-        # Always: when the run fails, this names which half never got to speak.
+      - name: Keep native results and coverage
         if: always()
-        run: node scripts/ci/assert-suite-halves.cjs suite.log
-
-      - name: Keep the log when the suite did not pass
-        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: suite-log
-          path: suite.log
-          retention-days: 7
+          name: full-suite-shard-${{ matrix.shard }}
+          path: coverage/shard/
+          if-no-files-found: error
+          retention-days: 1
 
-  time-travel-suite:
+  time-travel-shards:
     if: github.repository == 'maslennikov-ig/content-factory-app'
     # A suite that only ever runs on today's date cannot see a fixture aging
     # out from under it. On 31.08.2026 five backup tests went red at 12:00 UTC
@@ -173,7 +167,11 @@ jobs:
     # So the suite runs a second time with the calendar moved forward. A
     # failure here is a test that depends on today, not a broken feature, and
     # it arrives a year before a user would have met it.
-    name: The suite, one year on
+    name: Jest +400 days (${{ matrix.shard }}/${{ strategy.job-total }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on: ubuntu-latest
     # The growing native suite can exceed 30 minutes on a hosted runner.
     # Keep the same job budget as the complete ordinary suite.
@@ -202,6 +200,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
+      CF_JEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
       CF_TEST_PG_URL: postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db
       CF_TEST_REDIS_URL: redis://127.0.0.1:6380
 
@@ -231,10 +230,114 @@ jobs:
           docker pull postgres:16-alpine
           docker pull redis:7-alpine
 
-      - name: Run the suite with the calendar moved forward
+      - name: Run the complete assigned calendar shard
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: pnpm run test:time-travel 400
+        run: |
+          set -o pipefail
+          mkdir -p coverage/shard
+          node scripts/ci/jest-shards.cjs record calendar "$CF_JEST_SHARD" coverage/shard
+          pnpm run test:time-travel 400 --shard="$CF_JEST_SHARD" --json --outputFile=coverage/shard/results.json 2>&1 | tee coverage/shard/suite.log
+
+      - name: Keep native calendar results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calendar-suite-shard-${{ matrix.shard }}
+          path: coverage/shard/
+          if-no-files-found: error
+          retention-days: 1
+
+  full-suite:
+    if: always() && github.repository == 'maslennikov-ig/content-factory-app'
+    name: Full test suite (required)
+    needs: [full-suite-shards, time-travel-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      native-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cf-dev
+          POSTGRES_PASSWORD: cf-dev-pwd
+          POSTGRES_DB: cf-dev-db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cf-dev -d cf-dev-db"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      native-redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      CF_TEST_PG_URL: postgresql://cf-dev:cf-dev-pwd@127.0.0.1:5433/cf-dev-db
+      CF_TEST_REDIS_URL: redis://127.0.0.1:6380
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every shard to pass
+        env:
+          FULL_RESULT: ${{ needs.full-suite-shards.result }}
+          CALENDAR_RESULT: ${{ needs.time-travel-shards.result }}
+        run: test "$FULL_RESULT" = success && test "$CALENDAR_RESULT" = success
+
+      - name: Use Node.js 22.23.2
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+      - name: Install pnpm 10.6.1
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.6.1
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-suite-shard-*'
+          path: coverage/shards
+
+      - name: Discover the complete test population
+        run: pnpm exec jest --listTests --json --runInBand > coverage/expected-tests.json
+
+      - name: Verify both complete populations, merge coverage, run Node and Python
+        run: |
+          set -o pipefail
+          (node scripts/ci/jest-shards.cjs aggregate coverage/shards coverage/expected-tests.json coverage/complete && pnpm run test:node && pnpm run test:python) 2>&1 | tee suite.log
+
+      - name: Confirm all three halves reported
+        if: always()
+        run: node scripts/ci/assert-suite-halves.cjs suite.log
+
+      - name: Keep complete coverage and verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-suite-results
+          path: |
+            coverage/complete/
+            coverage/expected-tests.json
+            suite.log
+          if-no-files-found: error
+          retention-days: 7
+
+  time-travel-suite:
+    if: always() && github.repository == 'maslennikov-ig/content-factory-app'
+    name: The suite, one year on
+    needs: [full-suite]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Require verified calendar membership and all shards
+        env:
+          RESULT: ${{ needs.full-suite.result }}
+        run: test "$RESULT" = success
 
   docker-backed-operations:
     if: github.repository == 'maslennikov-ig/content-factory-app'

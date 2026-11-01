@@ -33,6 +33,17 @@ their volumes/network, temporary public clone, build outputs and host schema hel
 have been removed. Accepted source, branch refs, unique evidence and rollback remain.
 Shared caches, original worktrees and their live services were preserved.
 
+## CI maintenance delivered — xanf
+
+PR https://github.com/maslennikov-ig/content-factory-next/pull/1216 merged at
+`5069e0614622`; public CI source `dfa9ae0c6b83`. Build/CodeQL are green, including
+full Jest/Node/Python and +400-day execution. Private PR/main jobs are deliberately
+skipped before runner allocation. Main/PR/merge-queue coverage remains public;
+ordinary branch pushes no longer duplicate PR runs. Cold component/SDK imports
+moved to test setup; the default 5-second behavior deadline remains unchanged.
+Production image remains `658f835b5f18`; original chats/drafts/services preserved.
+[Proof and limits](stages/ci-xanf-20261101/outcome.md).
+
 ## Local stand and preservation
 
 Live accepted source remains the dirty worktree
@@ -55,8 +66,6 @@ after the draft had already been saved, so do not claim full paid end-to-end pro
 
 `eqh5`: broader editorial and real-provider/owner qualification.
 `uhkz`: legacy body behavior. `xyka`: local preview shutdown hang.
-`xanf`: duplicate private CI and short test timeouts; the authoritative public
-release CI and full local suite pass. The private run is not claimed green.
 Video `.7` and epic retain real account/tool-schema/quote/billing/output-quality
 gates. Other owner defers for Store32, finance/retention, legal/pricing, external
 ChatGPT, offsite backup and reference population remain unchanged.
