@@ -181,10 +181,12 @@ const INTERVIEW_TEXT = {
 type AdaptPending = { pieceId: string; runId: string; status: string; generated: boolean; nativeStatus?: string; saved: false; saveFailure?: unknown };
 const isPending = (value: Adapted | AdaptDeclined | AdaptPending): value is AdaptPending => 'saved' in value && value.saved === false;
 
+type SavedSeriesPart = Awaited<ReturnType<PieceService['persistSeriesAdaptation']>>['parts'][number];
+
 type Adapted = {
   presentationReason?: string;
   series?: { id: string; index: number; total: number };
-  parts?: Array<{ adaptationId: string; postId: string; index: number; total: number }>;
+  parts?: Array<SavedSeriesPart & { index: number; total: number }>;
   pieceId: string;
   adaptationId: string;
   channel: { id: string; name: string; provider: string };
@@ -220,7 +222,7 @@ type AdaptPass =
       kind: 'adaptation';
       seriesId?: string;
       presentationReason?: string;
-      parts?: Array<{ adaptationId: string; postId: string }> ;
+      parts?: SavedSeriesPart[];
       adaptationId: string;
       state: string;
       channel: InterviewQuestion['channel'];
@@ -696,7 +698,7 @@ export const pieceAdapt = defineCapability({
           adaptationId: output.adaptationId,
           channelId: output.channel.id,
           variant: output.variant,
-          ...(output.parts ? { parts: output.parts, series: output.series, savedPostCount: output.parts.length } : {}),
+          ...(output.parts ? { parts: output.parts.map(part => ({ ...part, title: part.title ? wrapUntrusted(part.title, ['workspace-text']) : null })), series: output.series, savedPostCount: output.parts.length } : {}),
           ...(output.presentationReason ? { presentationReason: wrapUntrusted(output.presentationReason, ['workspace-text']) } : {}),
           state: output.state,
           ...(output.qualityReview ? { qualityReview: wrapUntrusted(output.qualityReview, ['workspace-text']) } : {}),
@@ -763,6 +765,7 @@ export const pieceSeriesResume = defineCapability({
     return { status: outcome.status, runId: outcome.runId, saved: false };
   },
   summarize: output => 'parts' in output ? ({ ...output,
+    parts: output.parts.map(part => ({ ...part, title: part.title ? wrapUntrusted(part.title, ['workspace-text']) : null })),
     savedPostCount: output.parts.length,
     ...(output.presentationReason ? { presentationReason: wrapUntrusted(output.presentationReason, ['workspace-text']) } : {}),
   }) : output,

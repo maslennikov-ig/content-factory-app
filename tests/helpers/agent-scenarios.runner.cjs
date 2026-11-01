@@ -377,9 +377,11 @@ const stand = (scenario) => {
       aiUsage.prepareModelExecution(organizationId, 'agent', async () => model),
     now: () => new Date('2026-09-27T10:00:00.000Z'),
   });
+  const { createNativeAdaptationSeriesWorkflow } = loadCapabilityModule('../conductor/native-adaptation-series.ts');
   const mastra = new Mastra({
     storage,
     agents: { [conductor.CONDUCTOR_AGENT_ID]: agent },
+    workflows: { nativeAdaptationSeries: createNativeAdaptationSeriesWorkflow(() => services.PieceService) },
     // Mastra's own logger as the backend runs it (`mastra.service.ts`): what
     // it prints lands in the watched log, which is scanned (review W4-25
     // vision F7) — a provider error quotes the whole request it refused.

@@ -70,7 +70,7 @@ describe('model-led tools keep original goals and actual research outcomes', () 
     expect(preview.suspended).toHaveLength(0);
     const saved = await run('piece.create.from-research', { snapshotKey: 'snapshot', factKeys: [fact.factKey] }, services);
     expect(summary(saved.output)).toMatchObject({ pieceId: 'created', outcome: 'created', selectionOrigin: 'model' });
-    expect(selectResearchForModel).toHaveBeenCalledWith('org-1', 'user-1', 'snapshot', [fact.factKey]);
+    expect(selectResearchForModel).toHaveBeenCalledWith('org-1', 'user-1', 'snapshot', [fact.factKey], undefined);
     expect(saved.suspended).toHaveLength(0);
   });
 
@@ -159,15 +159,31 @@ describe('model-led tools keep original goals and actual research outcomes', () 
 
     const value = summary(searchResult.output);
     expect(value.sourceCount).toBe(100);
-    expect(value.sources).toHaveLength(100);
-    expect(value.facts).toHaveLength(100);
-    expect(value.sources[99]).toMatchObject({
-      sourceIndex: 99,
-      url: 'https://example.test/source-99',
-      truncated: true,
-      readWith: 'piece.read',
-    });
-    expect(value.sources[99].excerpt).not.toContain('TAIL_MARKER_SOURCE_99');
+    expect(value.factCount).toBe(100);
+    // The bounded overview exposes the rest through ordered, revision-checked pages.
+    const readAll = async (initial, page) => {
+      const rows = [...initial];
+      let next = page.nextRead;
+      expect(page.truncated).toBe(true);
+      while (next) {
+        const result = await run('piece.read', next, {});
+        expect(result.output.ok).toBe(true);
+        const received = summary(result.output);
+        expect(received.offset).toBe(rows.length);
+        expect(received.total).toBe(100);
+        expect(received.items.length).toBeGreaterThan(0);
+        rows.push(...received.items);
+        next = received.nextRead;
+      }
+      expect(rows).toHaveLength(100);
+      return rows;
+    };
+    const sourceRows = await readAll(value.sources, value.sourcePage);
+    const factRows = await readAll(value.facts, value.factPage);
+    expect(sourceRows.map(row => row.sourceIndex)).toEqual(Array.from({ length: 100 }, (_, index) => index));
+    expect(factRows.map(row => row.factIndex)).toEqual(Array.from({ length: 100 }, (_, index) => index));
+    expect(sourceRows[99]).toMatchObject({ sourceIndex: 99, url: 'https://example.test/source-99' });
+    expect(sourceRows[99].excerpt).not.toContain('TAIL_MARKER_SOURCE_99');
 
     const firstChunk = summary((await run('piece.read', {
       researchId: value.snapshotKey,

@@ -460,13 +460,13 @@ describe('the brief and the channel reach the prompt', () => {
       expect(prompt).toContain(
         "State the author's position as it stands; do not extend it with opinions, conclusions or recommendations the author did not make."
       );
-      // Правило дословного переноса сути осталось на месте.
+      // Материал остаётся доступен без требования копировать формулировки.
       expect(
         chatModel.prompts[0].indexOf('Material of this piece')
       ).toBeGreaterThan(-1);
     });
 
-    test('суть переносится дословно, и запрет стоит даже без опор', async () => {
+    test('суть остаётся в промпте для адаптации голосом аватара, и запрет стоит даже без опор', async () => {
       const chatModel = capturingModel([draft('Текст поста')]);
       const { service } = loadAgentGraph({ chatModel });
 
@@ -475,7 +475,9 @@ describe('the brief and the channel reach the prompt', () => {
       );
       const prompt = chatModel.prompts[0];
 
-      expect(prompt).toContain('VERBATIM');
+      expect(prompt).toContain('Своя суть про сроки.');
+      expect(prompt).toContain('Adapt its supported substance and intended author position into the resolved avatar voice');
+      expect(prompt).not.toContain('VERBATIM');
       expect(prompt).toContain('Never add a fact, a number, a piece of advice');
       expect(prompt).not.toContain('Material of this piece');
     });

@@ -7,6 +7,7 @@ import { observeConductorRun } from './native-run-observer';
 import { NATIVE_TERMINAL_MODEL_ERROR_KEY } from '../../openai/ai.native-retries';
 import { readNativeTerminalProviderError } from '../../openai/ai.provider-terminal-error';
 import { seedConductorModelTask } from './conductor.model-task';
+import { CAPABILITY_CONTEXT_KEYS } from '../capabilities/capability.context';
 
 export const AGENT_NATIVE_RUN_METADATA_KEY = 'assistantNativeRun';
 export const AGENT_NATIVE_CONTINUATION_PART = 'data-native-run-continuation';
@@ -131,6 +132,18 @@ export async function streamNativeSession(input: {
     runId = accepted.runId;
   } else {
     runId = input.resume?.runId ?? input.approvals!.runId;
+    const approvalTools = new Map<string, string>();
+    if (input.approvals?.answers.some((answer) => answer.approved)) {
+      // Bind each proposed approval to its current owned snapshot before the
+      // HTTP caller can acknowledge it. Never trust a tool name from the UI.
+      const { runs } = await agent.listSuspendedRuns({ threadId: input.threadId, resourceId: input.resourceId });
+      const saved = runs.find(run => run.runId === runId && run.threadId === input.threadId && run.resourceId === input.resourceId);
+      for (const call of saved?.toolCalls ?? []) {
+        if (call.requiresApproval && call.toolCallId && call.toolName) approvalTools.set(call.toolCallId, call.toolName);
+      }
+      if (input.approvals.answers.some(answer => answer.approved && !approvalTools.has(answer.toolCallId)))
+        throw Object.assign(new Error('No current native approval at this address.'), { code: 'AGENT_RUN_NOT_PENDING' });
+    }
     if (input.resume) {
       const address = { runId, toolCallId: input.resume.toolCallId, threadId: input.threadId, resourceId: input.resourceId };
       if (!session.suspensions.has(address)) {
@@ -168,17 +181,22 @@ export async function streamNativeSession(input: {
         });
       } else {
         for (const answer of input.approvals!.answers) {
+          // The policy may have changed after the card was armed. A new deny
+          // wins over approval in both native response paths, with no effect.
+          const approved = answer.approved && session.resolveToolApproval(approvalTools.get(answer.toolCallId)!, input.threadId) !== 'deny';
           if (session.approval.isArmed({ runId, toolCallId: answer.toolCallId })) {
             await session.respondToToolApproval({
               toolCallId: answer.toolCallId,
-              decision: answer.approved ? 'approve' : 'decline',
+              decision: approved ? 'approve' : 'decline',
               requestContext,
-              ...(answer.reason ? { declineContext: { reason: answer.reason } } : {}),
+              ...(!approved && answer.approved ? { declineContext: { reason: requestContext.get(CAPABILITY_CONTEXT_KEYS.language) === 'ru'
+                ? 'Действие запрещено текущими настройками.' : 'Current policy denies this action.' } } :
+                answer.reason ? { declineContext: { reason: answer.reason } } : {}),
             });
           } else {
             await session.respondToPersistedToolApproval({
               toolCallId: answer.toolCallId,
-              approved: answer.approved,
+              approved,
               requestContext,
             });
           }

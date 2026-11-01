@@ -76,13 +76,14 @@ async function scenario(policy, decision, access) {
       assert.equal(pending.runs[0].toolCalls[0].requiresApproval, true);
       return { policy, decision: null, access, explicitGate: false, persistedEffect: false, modelCalls: 0, replayDuplicatedEffect: false };
     }
-    if (policy === 'ask') {
+    // A policy change to allow does not decide an older parked approval.
+    // A current deny remains authoritative and rejects that call natively.
+    if (policy !== 'deny') {
       await until(() => session.approval.isArmed() || errors.length, 'remote approval armed');
       assert.deepEqual(errors, []);
       assert.equal(session.approval.isArmed({ toolCallId: target }), true);
       assert.equal(copied.modelCalls.length, 0);
       assert.ok(!await readObjective(goalStore, threadId));
-      // A native gate carries its own context; no new context is supplied here.
       const answer = await session.respondToToolApproval({ toolCallId: target, decision });
       assert.equal(answer.accepted, true);
     }
@@ -94,7 +95,7 @@ async function scenario(policy, decision, access) {
     const pending = await copied.agent.listSuspendedRuns({ threadId, resourceId });
     assert.equal(pending.total, 0);
     assert.equal(copied.modelCalls.length, 1);
-    const expectedWrite = access !== 'downgraded' && (policy === 'allow' || decision === 'approve');
+    const expectedWrite = access !== 'downgraded' && policy !== 'deny' && decision === 'approve';
     assert.equal(writes, expectedWrite ? 1 : 0);
     for (const e of events) await copied.agent.getPubSub().publish(topic, e);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -109,7 +110,7 @@ async function main() {
   process.env.NODE_ENV = 'test'; let externalRequests = 0;
   global.fetch = async () => { externalRequests++; throw Error('No external HTTP in native context proof'); };
   const reports = [];
-  for (const [policy, decision, access] of [['ask','approve'], ['ask','decline'], ['deny'], ['allow'], ['allow', undefined, 'downgraded'], ['allow', undefined, 'revoked']]) reports.push(await scenario(policy, decision, access));
+  for (const [policy, decision, access] of [['ask','approve'], ['ask','decline'], ['deny'], ['allow','approve'], ['allow','approve','downgraded'], ['allow','approve','revoked']]) reports.push(await scenario(policy, decision, access));
   assert.equal(externalRequests, 0);
   console.log(JSON.stringify({ reports, realStorage, externalRequests }));
 }

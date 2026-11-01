@@ -419,6 +419,23 @@ describe('A4: foreign words reach the model only as data', () => {
     expect(exposures(model.value).filter((exposure) => !exposure.wrapped)).not.toEqual([]);
   });
 
+  test('series titles and explanation remain untrusted in normal and recovered results', () => {
+    const parts = [{ adaptationId: 'a1', postId: 'post1', title: INJECTION }];
+    const normal = catalogue.find((entry) => entry.id === 'piece.adapt').summarize({
+      pieceId: 'p1', adaptationId: 'a1', channel: { id: 'c1' }, variant: 1,
+      state: 'draft', asked: 0, parts, series: { id: 'series1', index: 1, total: 1 },
+      presentationReason: INJECTION,
+    });
+    const recovered = catalogue.find((entry) => entry.id === 'piece.series.resume').summarize({
+      status: 'success', runId: 'series1', seriesId: 'series1', state: 'draft', parts,
+      presentationReason: INJECTION,
+    });
+    for (const summary of [normal, recovered]) {
+      expect(exposures(summary).length).toBeGreaterThan(0);
+      expect(exposures(summary).filter((exposure) => !exposure.wrapped)).toEqual([]);
+    }
+  });
+
   test('a capability that declares an untrusted source always wraps its whole summary', async () => {
     for (const capability of catalogue.filter((entry) => entry.untrusted.length)) {
       const fixture = all[capability.id];
@@ -459,7 +476,7 @@ describe('U1: every paid capability goes through the paid adapter', () => {
                   yield item;
                 }
               }
-            : async (...args) => {
+            : (...args) => {
                 observe(method);
                 return value(...args);
               };
@@ -484,7 +501,7 @@ describe('U1: every paid capability goes through the paid adapter', () => {
           }),
         'agent'
       );
-      expect(output.ok).toBe(true);
+      expect({ id: capability.id, ok: output.ok }).toEqual({ id: capability.id, ok: true });
       // Every service call — and every generator pull — ran outside the turn.
       expect(seen.length).toBeGreaterThan(0);
       expect(seen.filter(([, config]) => config !== null)).toEqual([]);

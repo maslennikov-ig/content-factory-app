@@ -170,8 +170,17 @@ async function main() {
     assert.equal(active.session.run.isRunning(), true);
     const history = await runtime.memory.recall({ threadId: 'cache-first', resourceId, page: 0, perPage: 10 });
     assert.ok(JSON.stringify(history.messages).includes('Saved cached answer.'));
+    const threadsBefore = await runtime.memory.listThreads({ filter: { resourceId }, page: 0, perPage: 100 });
+    const reconnectContext = runtime.contextModule.buildConductorContext({ identity: IDENTITY, threadId: 'cache-first', requestId: 'cache-rebind-only' });
+    const rebound = await runtime.service.sessionFor(IDENTITY, 'cache-first', { bindThread: true, requestContext: reconnectContext });
+    assert.notEqual(rebound, first.session);
+    const historyAfter = await runtime.memory.recall({ threadId: 'cache-first', resourceId, page: 0, perPage: 10 });
+    const threadsAfter = await runtime.memory.listThreads({ filter: { resourceId }, page: 0, perPage: 100 });
+    assert.deepEqual(historyAfter.messages, history.messages, 'Passive rebind must not rewrite the conversation.');
+    assert.deepEqual(threadsAfter.threads.map((thread) => thread.id).sort(), threadsBefore.threads.map((thread) => thread.id).sort(),
+      'Passive rebind must not create an additional thread.');
     const recreated = await work('cache-first', 'CHECK_READ_DENY', false);
-    assert.notEqual(recreated.session, first.session);
+    assert.equal(recreated.session, rebound);
     assert.equal(recreated.session.model.get(), 'selected-primary');
     assert.equal(recreated.session.permissions.getRules().categories.read, 'deny');
     assert.equal((await recreated.settled)?.error, undefined);

@@ -30,6 +30,7 @@ import { observeConductorRun } from './conductor/native-run-observer';
 import { createNativeObservability } from './conductor/native-observability';
 import { NativeSessionCache } from './conductor/native-session-cache';
 import { restoreNativeRunContext } from './conductor/native-session-context';
+import { protectPersistedApprovals } from './conductor/native-session-permissions';
 import {
   createNativeQueuedInputWorkflow,
   enqueueNativeQueuedInput,
@@ -144,7 +145,6 @@ export class MastraService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
   private instance?: Mastra;
-  private readonly nativeSessionBindingId = randomUUID();
   private shutdownPromise?: Promise<void>;
   private modelAvailability?: NativeModelAvailability;
   private queuedInputWorkflow?: ReturnType<
@@ -2211,7 +2211,9 @@ export class MastraService
         scope: threadId,
         // Prevent automatic subscription during construction: permissions must be
         // restored before an existing pending gate can execute. Binding follows below.
-        tags: { assistantThreadId: threadId, assistantRuntime: this.nativeSessionBindingId },
+        // A fresh nonce also prevents a recreated Session in this same process
+        // from finding a previous binding and subscribing before the fence.
+        tags: { assistantThreadId: threadId, assistantRuntime: randomUUID() },
         createInitialThread: false,
         requestContext: options?.requestContext,
       });
@@ -2223,6 +2225,7 @@ export class MastraService
             new Error('Native session thread is outside this workspace.'),
             { name: 'PermissionDenied' }
           );
+        await protectPersistedApprovals(session, await this.conductor(), { threadId, resourceId });
         if (session.thread.getId() !== threadId) {
           await session.thread.switch({
             threadId,

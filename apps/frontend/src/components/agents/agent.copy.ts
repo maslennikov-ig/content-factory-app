@@ -809,6 +809,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         unsupportedClaims: 'Не подтверждено источником',
       },
       codes: {
+        ADAPTATION_SERIES_UNAVAILABLE: {
+          what: 'Серия или её исходный материал сейчас недоступны.',
+          next: 'Проверьте доступ к материалу и каналу и посмотрите сохранённые черновики, прежде чем запускать создание заново.',
+        },
+        SOURCE_READ_TIMEOUT: {
+          what: 'Источник не ответил вовремя — прочитать его не удалось.',
+          next: 'Проверьте ссылку или попробуйте прочитать источник позже.',
+        },
         CAPABILITY_RESULT_UNAVAILABLE: {
           what: 'Полученный результат не удалось надёжно сохранить.',
           next: 'Сохранённые материалы не изменены. Проверьте доступность хранилища и повторите чтение.',
@@ -940,6 +948,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         PIECE_NOT_FOUND: {
           what: 'Такой заготовки нет — возможно, её удалили.',
           next: 'Откройте «Контент» и выберите другую.',
+        },
+        PIECE_AVATAR_UNKNOWN: {
+          what: 'Выбранный аватар недоступен или у него нет активного голоса.',
+          next: 'Проверьте аватар и его голос или выберите другой.',
         },
         PIECE_AVATAR_NOT_READY: {
           what: 'У аватара ещё нет голоса — писать от его имени нечем.',
@@ -1689,6 +1701,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         unsupportedClaims: 'Unsupported by the source',
       },
       codes: {
+        ADAPTATION_SERIES_UNAVAILABLE: {
+          what: 'The series or its source material is currently unavailable.',
+          next: 'Check access to the material and channel, and inspect saved drafts before starting again.',
+        },
+        SOURCE_READ_TIMEOUT: {
+          what: 'The source did not respond in time and could not be read.',
+          next: 'Check the link or try reading the source later.',
+        },
         CAPABILITY_RESULT_UNAVAILABLE: {
           what: 'The retrieved result could not be durably saved.',
           next: 'Saved material is unchanged. Check storage availability, then repeat the read.',
@@ -1820,6 +1840,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         PIECE_NOT_FOUND: {
           what: 'There is no such piece — it may have been deleted.',
           next: 'Open Content and pick another one.',
+        },
+        PIECE_AVATAR_UNKNOWN: {
+          what: 'The selected avatar is unavailable or has no active voice.',
+          next: 'Check the avatar and its voice, or choose another one.',
         },
         PIECE_AVATAR_NOT_READY: {
           what: 'The avatar has no voice yet, so there is nothing to write in.',

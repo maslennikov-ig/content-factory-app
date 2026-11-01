@@ -58,7 +58,7 @@ export function AgentContextChip({ context, artifact, onRemove, writingSelection
         <p className="cf-body-sm text-cf-ink-muted">{t('assistant_writing_help', 'These choices apply to this chat. You can ask for another channel or voice in your message. Existing drafts stay unchanged.')}</p>
         {choices.loading ? <p role="status" className="cf-body-sm text-cf-ink-muted">{t('loading', 'Loading')}</p> : choices.error ? <div role="status" className="flex flex-col gap-[8px]">
           <p className="cf-body-sm text-cf-ink-muted">{t('assistant_writing_load_failed', 'Could not load channels and avatars. Your saved choices are kept.')}</p>
-          <Button type="button" variant="secondary" onClick={choices.retry}>{t('retry', 'Retry')}</Button>
+          <Button type="button" variant="secondary" onClick={choices.retry}>{t('try_again', 'Try again')}</Button>
         </div> : <>
           <div className="flex min-w-0 flex-col gap-[4px]">
             <Select disableForm name="writing-channel" label={channelLabel} value={writingSelection?.channelId ?? ''} onChange={event => { const { channelId: _, ...rest } = writingSelection ?? {}; onWritingSelection(event.target.value ? { ...rest, channelId: event.target.value } : rest); }}>

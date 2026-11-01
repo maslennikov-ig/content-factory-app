@@ -35,7 +35,8 @@ const consume = async parts => {
   const turn = { run: work => work(), finish: jest.fn(), stop: jest.fn() };
   const threads = {
     ownThread: async () => null, claimThreadTurn: async () => async () => {},
-    workContextForTurn: async () => null, threadForMessage: async () => {}, sessionFor: async () => {},
+    workContextForTurn: async () => null, writingSelectionForTurn: async () => ({ selection: {} }),
+    threadForMessage: async () => {}, sessionFor: async () => {},
     isDurableConductor: async () => false, startTurn: async () => turn,
     // Active turns own Stop/settlement only; native PubSub owns stream replay.
     registerActiveTurn: () => ({ finishStream() {} }),

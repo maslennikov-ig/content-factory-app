@@ -215,8 +215,8 @@ export class ContentBriefRepository {
     return this.client().$transaction(async (tx: PrismaClientLike) => {
       const member = await tx.userOrganization.findFirst({ where: { organizationId, userId: input.actorUserId, disabled: false }, select: { id: true, role: true } });
       if (!member || !['EDITOR', 'ADMIN', 'SUPERADMIN'].includes(member.role)) throw unavailable();
-      const where = { organizationId, id: input.pieceId, kind: 'CORE', archivedAt: null as null };
-      const read = () => tx.contentPiece.findFirst({ where, select: { body: true, brief: true, tags: true } });
+      const where = { id: input.pieceId, kind: 'CORE', archivedAt: null as null };
+      const read = () => tx.contentPiece.findFirst({ where: { ...where, organizationId }, select: { body: true, brief: true, tags: true } });
       const receiptsOf = (brief: any): SeriesReceipt[] => {
         if (brief?.adaptationSeries === undefined) return [];
         if (!Array.isArray(brief.adaptationSeries)) throw conflict();
@@ -242,7 +242,7 @@ export class ContentBriefRepository {
       if (prior) return prior;
       // A conditional no-op update takes the row lock. Re-read under that lock
       // so concurrent receipts are merged and a source edit is never overwritten.
-      const locked = await tx.contentPiece.updateMany({ where: { ...where, body: input.sourceBody }, data: { body: input.sourceBody } });
+      const locked = await tx.contentPiece.updateMany({ where: { ...where, organizationId, body: input.sourceBody }, data: { body: input.sourceBody } });
       if (locked.count !== 1) throw changed();
       piece = await read();
       if (!piece) throw unavailable();
@@ -279,7 +279,7 @@ export class ContentBriefRepository {
         mayAskMaterial(currentAsk, piece.body)
         ? withMaterialAsk(piece.tags, input.channelId, { ...ask, adaptationId: parts[0].adaptationId })
         : undefined;
-      const saved = await tx.contentPiece.updateMany({ where, data: { brief: { ...piece.brief,
+      const saved = await tx.contentPiece.updateMany({ where: { ...where, organizationId }, data: { brief: { ...piece.brief,
         adaptationSeries: [...receiptsOf(piece.brief), receipt] }, ...(tags ? { tags } : {}) } });
       if (saved.count !== 1) throw unavailable();
       return { seriesId: input.seriesId, parts, created: true };

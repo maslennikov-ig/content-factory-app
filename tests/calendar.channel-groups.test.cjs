@@ -17,13 +17,14 @@ const { JSDOM } = require('jsdom');
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'http://localhost/launches',
 });
-for (const key of ['window', 'document', 'navigator']) {
+for (const key of ['window', 'document', 'navigator', 'Node', 'Element', 'HTMLElement', 'ShadowRoot']) {
   Object.defineProperty(global, key, {
     configurable: true,
     value: key === 'window' ? dom.window : dom.window[key],
   });
 }
 global.self = dom.window;
+global.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 global.IS_REACT_ACT_ENVIRONMENT = true;
 const { render, screen, fireEvent, cleanup } = require('@testing-library/react');
 const dayjs = require('dayjs');

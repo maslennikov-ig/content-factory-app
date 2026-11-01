@@ -187,8 +187,9 @@ test('real produced/message reducer updates do not refetch retained editors; exp
   const beforeMessages = reads.length;
   for (let delta = 0; delta < 4; delta += 1) {
     const previous = current();
-    state = reduce(state, { type: 'produced', artifacts: [piece, avatar] });
+    state = reduce(state, { type: 'produced', artifacts: [{ ...piece, data: { revision: delta } }, avatar] });
     expect(current()).not.toBe(previous);
+    expect(current().data.revision).toBe(delta);
     expect(state.active).toBe('piece:p1');
     await act(async () => view.rerender(app()));
   }

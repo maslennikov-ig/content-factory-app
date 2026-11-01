@@ -15,7 +15,7 @@ test('the same native tool approval can become a question after the approval wai
       subscribe: fn => { listener = fn; return () => {}; },
       approval: { isArmed: () => !approved },
       suspensions: { has: () => suspended },
-    }, agent: {}, threadId: 'thread', resourceId: 'resource', requestContext: { get() {} },
+    }, agent: {}, threadId: 'thread', resourceId: 'resource', requestContext: new Map(),
     message: { id: 'user-message', parts: [{ type: 'text', text: 'Ask for the missing choice.' }] },
     onRunId: async () => {}, onError: () => 'ERROR',
   });

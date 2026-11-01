@@ -728,7 +728,20 @@ const fixtures = () => ({
       },
     },
   },
-  'piece.series.resume': { input: { pieceId: 'p1', runId: 'series1' }, services: {} },
+  'piece.series.resume': {
+    input: { pieceId: 'p1', runId: 'series1' },
+    services: { PieceService: { detail: async () => ({ piece: { id: 'p1' } }) } },
+    mastra: {
+      getWorkflow: () => ({ getWorkflowRunById: async () => ({
+        resourceId: `adaptation-series:${JSON.stringify([IDENTITY.organizationId, IDENTITY.userId, 'p1'])}`,
+        payload: { organizationId: IDENTITY.organizationId, userId: IDENTITY.userId, plan: { pieceId: 'p1' } },
+        status: 'success', result: { kind: 'adaptation', seriesId: 'series1',
+          channel: { id: 'c1', name: 'Channel', provider: 'telegram' },
+          parts: [{ adaptationId: 'a1', postId: 'post1', title: INJECTION }], presentationReason: INJECTION },
+      }) }),
+      getStorage: () => undefined,
+    },
+  },
   'piece.adapt': {
     input: { pieceId: 'p1', channelId: 'c1' },
     resumeData: { answers: [{ key: 'ask-1', mode: 'custom', text: 'Мой случай' }] },
@@ -1318,11 +1331,12 @@ const requestContextFor = (registry, identity = IDENTITY) => {
  * input, the request context, a writer and, for questions, the agent's
  * suspend/resume pair.
  */
-const executeTool = async (tool, input, { requestContext, resumeData, suspendPayload } = {}) => {
+const executeTool = async (tool, input, { requestContext, resumeData, suspendPayload, mastra } = {}) => {
   const parts = [];
   const suspended = [];
   const output = await tool.execute(input, {
     requestContext,
+    ...(mastra ? { mastra } : {}),
     writer: { custom: async (part) => void parts.push(part) },
     agent: {
       resumeData,
@@ -1352,11 +1366,12 @@ const executeFixture = async (tool, fixture, { requestContext }) => {
     requestContext.set('cf.originalAuthorRequest', JSON.stringify(fixture.originalAuthorRequest));
   }
   if (fixture.resumeData === undefined) {
-    return executeTool(tool, fixture.input, { requestContext });
+    return executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra });
   }
-  const asked = await executeTool(tool, fixture.input, { requestContext });
+  const asked = await executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra });
   const answered = await executeTool(tool, fixture.input, {
     requestContext,
+    mastra: fixture.mastra,
     resumeData: fixture.resumeData,
     suspendPayload: asked.suspended[0],
   });
