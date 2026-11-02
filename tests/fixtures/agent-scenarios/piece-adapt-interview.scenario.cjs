@@ -15,6 +15,11 @@ const QUESTIONS = [
 
 const QUALITY_REVIEW = { status: 'partial', missingRequirements: ['Уточнить охват темы.'], unsupportedClaims: [], reviews: 1, repaired: false };
 
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'piece-adapt-interview',
   title: 'Адаптация с вопросами → ответ и «Решите за меня» → вариант 1',
@@ -23,8 +28,9 @@ module.exports = {
   turns: [
     {
       say: 'Адаптируй cnt-1 в Telegram',
-      model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]]],
+      model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]]],
     },
+    { resume: { action: 'keep-channel' } },
     {
       resume: {
         answers: [{ key: 'ask-1', mode: 'custom', text: 'Созвон на 40 минут без итога' }, {key: 'hook', mode: 'delegate'}],
@@ -33,7 +39,9 @@ module.exports = {
     },
   ],
   check: (run) => {
-    const [ask, answer] = run.turns;
+    const [size, ask, answer] = run.turns;
+    expect(size.suspended[0].payload.kind).toBe('writing-settings');
+    expect(size.admissions.map(([operation]) => operation)).toEqual(['agent']);
     const screen = screenPieces();
     expect(ask.suspended).toHaveLength(1);
     expect(ask.suspended[0]).toMatchObject({runId: expect.any(String), toolName: 'piece_adapt', payload: {
@@ -80,6 +88,7 @@ module.exports = {
       transient: false,
     });
     expect(answer.outputs[0].output.summary).toEqual({
+      writingSettings: { scope: 'post', action: 'keep-channel', current: size.suspended[0].payload.current, settings: size.suspended[0].payload.current },
       pieceId: 'p1',
       adaptationId: 'a1',
       channelId: 'c1',

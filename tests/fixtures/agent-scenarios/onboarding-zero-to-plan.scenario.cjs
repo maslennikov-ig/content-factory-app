@@ -42,6 +42,11 @@ const CHANNEL = {
 };
 const AT = '2026-10-01T10:00:00+03:00';
 
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'onboarding-zero-to-plan',
   title: 'A1 «с нуля до поста в плане» — аватар, Telegram, заготовка, адаптация, бронь; шаги закрыты по данным',
@@ -114,15 +119,20 @@ module.exports = {
         [['text', 'Заготовка cnt-9 готова.']],
       ],
     },
-    /* 9. Адаптация для канала. */
+    /* 9–10. Выбор объёма человеком, затем адаптация для канала. */
     {
       say: STARTERS.adaptation,
       model: [
-        [['tool', 'piece_adapt', { pieceId: 'p9', channelId: 'c2' }]],
+        [['tool', 'piece_adapt', { pieceId: 'p9', channelId: 'c2', lengthOptions: LENGTH_OPTIONS }]],
+      ],
+    },
+    {
+      resume: { action: 'keep-channel' },
+      model: [
         [['text', 'Пост для «Заметки из цеха» готов.']],
       ],
     },
-    /* 10. Бронь в плане. */
+    /* 11. Бронь в плане. */
     {
       say: 'Поставь его в план на среду, 1 октября, 10:00',
       model: [
@@ -130,7 +140,7 @@ module.exports = {
         [['text', 'Поставили бронь на среду, 10:00.']],
       ],
     },
-    /* 11. Дальше — обычная работа: что в плане. */
+    /* 12. Дальше — обычная работа: что в плане. */
     {
       say: STARTERS.week,
       model: [[['tool', 'plan_ahead', {}]], [['text', 'Одна бронь в среду.']]],
@@ -197,18 +207,21 @@ module.exports = {
     expect(stepsAt(8)).toEqual({ done: ['avatar', 'channel', 'piece', 'plan'], next: 'adaptation', channelByAdmin: false });
 
     // Adaptation for the new channel.
-    expect(t[8].outputs[0].output).toMatchObject({ ok: true });
+    expect(t[8].suspended[0].payload.kind).toBe('writing-settings');
+    expect(t[8].admissions.map(([operation]) => operation)).toEqual(['agent']);
+    expect(stepsAt(9)).toEqual({ done: ['avatar', 'channel', 'piece', 'adaptation', 'plan'], next: null, channelByAdmin: false });
+    expect(t[9].outputs[0].output).toMatchObject({ ok: true });
     expect(run.world.adaptations).toEqual([
       expect.objectContaining({ id: 'a1', pieceId: 'p9', integrationId: 'c2', state: 'draft' }),
     ]);
-    expect(stepsAt(9)).toEqual({ done: ['avatar', 'channel', 'piece', 'adaptation', 'plan'], next: null, channelByAdmin: false });
+    expect(stepsAt(10)).toEqual({ done: ['avatar', 'channel', 'piece', 'adaptation', 'plan'], next: null, channelByAdmin: false });
 
     // The reserve: no card, the calendar picker's own body.
-    expect(t[9].approvals).toEqual([]);
+    expect(t[10].approvals).toEqual([]);
     expect(run.requests.filter(([door]) => door === 'plan.place')).toEqual([
       ['plan.place', 'p9', 'a1', { date: new Date(AT).toISOString() }],
     ]);
-    expect(t[9].outputs[0].output).toMatchObject({
+    expect(t[10].outputs[0].output).toMatchObject({
       ok: true,
       summary: { pieceId: 'p9', adaptationId: 'a1', channelId: 'c2', state: 'reserve' },
       card: { kind: 'plan', id: 'a1' },
@@ -217,10 +230,10 @@ module.exports = {
     // All five done by the screens' own rule, on every opening; the empty
     // thread now offers the everyday two.
     for (const index of opened.keys()) expect(stepsAt(index).done).toEqual(screenDone(index));
-    expect(stepsAt(10)).toEqual({ done: ['avatar', 'channel', 'piece', 'adaptation', 'plan'], next: null, channelByAdmin: false });
-    expect(onboarding.allStepsDone(opened[10].counts)).toBe(true);
-    expect(startersFor(opened[10].counts, 'ADMIN')).toEqual(['piece', 'week']);
-    expect(t[10].outputs[0].output.summary.untrustedData.value).toMatchObject({ planned: 1, reserved: 1 });
+    expect(stepsAt(11)).toEqual({ done: ['avatar', 'channel', 'piece', 'adaptation', 'plan'], next: null, channelByAdmin: false });
+    expect(onboarding.allStepsDone(opened[11].counts)).toBe(true);
+    expect(startersFor(opened[11].counts, 'ADMIN')).toEqual(['piece', 'week']);
+    expect(t[11].outputs[0].output.summary.untrustedData.value).toMatchObject({ planned: 1, reserved: 1 });
 
     // The records are the ones the screens leave, in the order made.
     expect(run.writes).toEqual([

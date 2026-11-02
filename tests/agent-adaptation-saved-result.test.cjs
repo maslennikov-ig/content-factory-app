@@ -151,6 +151,24 @@ describe('failed adaptation review retains bounded evidence for diagnosis', () =
 
 
 describe('saved draft advisory uses the existing native artifact and tool result', () => {
+  test('applied editorial corrections survive the native result, artifact and JSON history', async () => {
+    const registry = loadRegistry();
+    const qualityReview = { status: 'passed', missingRequirements: [], unsupportedClaims: [], reviews: 1,
+      repaired: true, corrections: ['Added the in-post headline.', 'Shortened without dropping topics.'] };
+    const tool = registry.buildCapabilityTool(registry.CAPABILITY_CATALOGUE.find(one => one.id === 'piece.adapt'), {
+      language: 'ru', entrance: 'chat', services: servicesFrom({ PieceService: {
+        adaptPlanMode: async () => 'reserve', prepareAdapt: async () => ({}),
+        adapt: async function* () { yield { name: 'adaptation', qualityReview, adaptation: { id: 'a1', state: 'draft' } }; },
+        detail: async () => ({ core: { text: 'Core' }, adaptations: [{ id: 'a1', integrationId: 'c1', body: '# Headline\n\nCorrected draft.' }] }),
+      } }),
+    });
+    const result = await executeTool(tool, { pieceId: 'p1', channelId: 'c1' }, { requestContext: requestContextFor(registry) });
+    expect(result.output.summary.qualityReview.untrustedData.value).toEqual(qualityReview);
+    const card = JSON.parse(JSON.stringify(result.parts.find(part => part.type === 'data-adaptation')));
+    expect(card.data.qualityReview.untrustedData.value).toEqual(qualityReview);
+    expect(result.output.summary.savedResult.data.untrustedData.value.text).toBe('# Headline\n\nCorrected draft.');
+  });
+
   test.each(['partial', 'unavailable'])('a %s review stays attached to its exact saved id', async status => {
     const registry = loadRegistry();
     const qualityReview = { status, missingRequirements: ['A topic needs review.'], unsupportedClaims: ['Check the date.'], reviews: 1, repaired: false };

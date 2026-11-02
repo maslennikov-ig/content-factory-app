@@ -73,11 +73,17 @@ test('invalid range and MCP without a human card cannot spend', async () => {
   const m = setup(); delete m.ctx.suspend; m.ctx.entrance = 'mcp'; m.ctx.confirmed = true;
   await expect(m.run()).rejects.toMatchObject({code: 'INPUT_NEEDS_PERSON'}); expect(m.requests).toHaveLength(0);
 });
-test('omitted settings and unchanged choices do not interrupt generation', async () => {
-  const f = setup(); await f.run({pieceId: 'piece', channelId: 'channel'});
-  expect(f.cards).toHaveLength(0); expect(f.requests).toHaveLength(1);
-  const g = setup(); await g.run({pieceId: 'piece', channelId: 'channel', emojiLevel: 'few'});
-  expect(g.cards).toHaveLength(0); expect(g.requests[0].overrides).toBeUndefined();
+test('a current native request cannot silently inherit the manual length, even with unchanged style', async () => {
+  for (const args of [{pieceId: 'piece', channelId: 'channel'}, {pieceId: 'piece', channelId: 'channel', emojiLevel: 'few'}]) {
+    const f = setup();
+    await expect(f.run(args)).rejects.toMatchObject({code: 'CAPABILITY_INPUT_INVALID'});
+    expect(f.requests).toHaveLength(0); expect(f.cards).toHaveLength(0);
+  }
+});
+test('legacy direct/MCP generation without a native author request retains its manual default', async () => {
+  const f = setup(); f.ctx.entrance = 'mcp'; delete f.ctx.resolveAuthorRequest;
+  await f.run({pieceId: 'piece', channelId: 'channel'});
+  expect(f.cards).toHaveLength(0); expect(f.requests[0].overrides).toBeUndefined();
 });
 
 test('platform limit is shown and an impossible edited range cannot spend', async () => {
@@ -89,4 +95,40 @@ test('platform limit is shown and an impossible edited range cannot spend', asyn
 test('auto/series proposal states that settings cover this material and its draft parts', async () => {
   const f = setup(); await f.run({...input, presentation: 'auto'});
   expect(f.cards[0].scope).toBe('drafts'); expect(f.requests).toHaveLength(0);
+});
+
+const lengthOptions = [
+  {id: 'brief', label: 'Короткая сводка', description: 'Только основные изменения.', lengthRange: {idealMin: 600, idealMax: 900, hardMax: 1100}, recommended: false},
+  {id: 'detailed', label: 'Развёрнутый разбор', description: 'Все новости с практической пользой и условиями доступа.', lengthRange: {idealMin: 2300, idealMax: 3200, hardMax: 3600}, recommended: true},
+];
+test('task-specific options are shown before spending and can exceed the manual channel ceiling', async () => {
+  const f = setup();
+  const args = {pieceId: 'piece', channelId: 'channel', lengthOptions};
+  await f.run(args);
+  expect(f.requests).toHaveLength(0);
+  expect(f.cards[0]).toMatchObject({lengthOptions, maxCharacters: 4096,
+    proposed: {lengthPolicy: 'range', lengthRange: lengthOptions[1].lengthRange}});
+  const settings = {...f.cards[0].proposed, lengthRange: {idealMin: 2400, idealMax: 3400, hardMax: 3800}};
+  await f.resume({action: 'apply', settings}, f.cards[0], args);
+  expect(f.cards).toHaveLength(1);
+  expect(f.requests[0].overrides.lengthRange).toEqual(settings.lengthRange);
+  expect(f.integrations.updateWritingProfile).not.toHaveBeenCalled();
+});
+test('the shorter option is an actual approved range, not relative to channel defaults', async () => {
+  const f = setup(); const args = {pieceId: 'piece', channelId: 'channel', lengthOptions};
+  await f.run(args);
+  const settings = {...f.cards[0].proposed, lengthRange: lengthOptions[0].lengthRange};
+  await f.resume({action: 'apply', settings}, f.cards[0], args);
+  expect(f.requests[0].overrides).toEqual({lengthPolicy: 'range', lengthRange: lengthOptions[0].lengthRange});
+  expect(f.events.find(event => event.data.stage === 'writing-settings-confirmed').data.answer.settings).toEqual(settings);
+});
+test('options must be distinct and cannot exceed the technical platform limit', async () => {
+  for (const options of [
+    [lengthOptions[0], {...lengthOptions[1], lengthRange: lengthOptions[0].lengthRange}],
+    [lengthOptions[0], {...lengthOptions[1], lengthRange: {idealMin: 4000, idealMax: 5000, hardMax: 5500}}],
+  ]) {
+    const f = setup();
+    await expect(f.run({pieceId: 'piece', channelId: 'channel', lengthOptions: options})).rejects.toMatchObject({code: 'CAPABILITY_INPUT_INVALID'});
+    expect(f.requests).toHaveLength(0);
+  }
 });

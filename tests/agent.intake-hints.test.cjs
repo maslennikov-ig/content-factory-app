@@ -531,7 +531,7 @@ describe('the brief and the channel reach the prompt', () => {
     const prompt = chatModel.prompts[0];
 
     const example = prompt.indexOf('Так он пишет сам.');
-    const channel = prompt.indexOf('The first 80–180 characters');
+    const channel = prompt.indexOf('Notification previews vary');
     const guardrail = prompt.indexOf('outrank everything above');
 
     expect(example).toBeGreaterThan(-1);
@@ -581,7 +581,7 @@ describe('the brief and the channel reach the prompt', () => {
     expect(prompt).toContain("Don't add any hashtags");
     expect(prompt).toContain('Try to put some call to action at the end of the post');
     expect(prompt).not.toContain('Brief (from the author, follow it):');
-    expect(prompt).not.toContain('The first 80–180 characters');
+    expect(prompt).not.toContain('Notification previews vary');
     expect(result.antiCopy).toBeUndefined();
   });
 });

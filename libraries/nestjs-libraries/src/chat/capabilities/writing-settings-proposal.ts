@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { writingSettingsSchema, writingSettingsAnswerSchema, type WritingSettings } from '@contentfactory/helpers/utils/writing-settings';
+import { writingSettingsSchema, writingSettingsAnswerSchema, writingLengthOptionsSchema, type WritingSettings, type WritingLengthOption } from '@contentfactory/helpers/utils/writing-settings';
 import { readEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 import { approvalFingerprint } from './approval-fingerprint';
@@ -14,6 +14,7 @@ export const writingSettingsQuestionFields = {
   kind: z.literal('writing-settings'), question: z.string(), reason: z.string(),
   scope: z.enum(['post', 'drafts']), maxCharacters: z.number().int().positive(),
   current: writingSettingsSchema, proposed: writingSettingsSchema,
+  lengthOptions: writingLengthOptionsSchema.optional(),
   channel: z.object({id: z.string(), name: z.string(), provider: z.string()}),
   canDecideForPerson: z.literal(false),
 };
@@ -29,16 +30,20 @@ export const channelWritingSettings = (profile: ChannelWritingProfileV1): Writin
 type ProposedInput = Partial<Pick<WritingSettings, 'emojiLevel' | 'hashtagPolicy' | 'linkPolicy' | 'ctaKind'>> & {
   length?: 'shorter' | 'channel' | 'longer'; lengthPolicy?: 'auto' | 'range';
   lengthRange?: {idealMin?: number | null; idealMax?: number; hardMax?: number | null};
+  lengthOptions?: WritingLengthOption[];
 };
 export const hasWritingProposal = (input: ProposedInput) =>
-  ['emojiLevel', 'hashtagPolicy', 'linkPolicy', 'ctaKind', 'lengthPolicy', 'lengthRange'].some(key => (input as Record<string, unknown>)[key] !== undefined) ||
+  ['emojiLevel', 'hashtagPolicy', 'linkPolicy', 'ctaKind', 'lengthPolicy', 'lengthRange', 'lengthOptions'].some(key => (input as Record<string, unknown>)[key] !== undefined) ||
   (input.length !== undefined && input.length !== 'channel');
-export const proposedWritingSettings = (current: WritingSettings, input: ProposedInput): WritingSettings => writingSettingsSchema.parse({
+export const proposedWritingSettings = (current: WritingSettings, input: ProposedInput): WritingSettings => {
+  const choice = input.lengthOptions?.find(option => option.recommended);
+  return writingSettingsSchema.parse({
   ...current,
   ...Object.fromEntries(['emojiLevel', 'hashtagPolicy', 'linkPolicy', 'ctaKind'].filter(key => (input as any)[key] !== undefined).map(key => [key, (input as any)[key]])),
-  lengthPolicy: input.lengthPolicy || input.length || 'channel',
-  lengthRange: input.lengthRange ? {idealMin: input.lengthRange.idealMin ?? null, idealMax: input.lengthRange.idealMax, hardMax: input.lengthRange.hardMax ?? null} : current.lengthRange,
-});
+  lengthPolicy: choice ? 'range' : input.lengthPolicy || input.length || 'channel',
+  lengthRange: choice?.lengthRange ?? (input.lengthRange ? {idealMin: input.lengthRange.idealMin ?? null, idealMax: input.lengthRange.idealMax, hardMax: input.lengthRange.hardMax ?? null} : current.lengthRange),
+  });
+};
 /** Only approved differences reach the existing per-post DTO. No channel write. */
 export const writingSettingsOverrides = (current: WritingSettings, settings: WritingSettings) => ({
   ...Object.fromEntries((['emojiLevel', 'hashtagPolicy', 'linkPolicy', 'ctaKind'] as const).filter(key => settings[key] !== current[key]).map(key => [key, settings[key]])),

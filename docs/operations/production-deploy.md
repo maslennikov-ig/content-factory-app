@@ -30,7 +30,16 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 1 November 2026: 658f835b5f18
+## Current release 2 November 2026: 0bdd01349db6
+
+Telegram editorial quality and per-material settings approval, private source
+`dc1be38711f1`, public source `0bdd01349db6`, rollback `658f835b5f18`. Exact-source
+local Jest/Node/Python suite and public Build/Code Quality passed. App healthy, three
+processes online/zero restarts, Prisma diff empty; separate Mastra storage retained
+47 tables. Public login and source archive verified; no live Telegram send or paid
+model call. [Release evidence](../../.codex/stages/editorial-release-20261102/outcome.md).
+
+## Previous release 1 November 2026: 658f835b5f18
 
 Native Mastra recovery/questions, batched answers, source reads, author-comment
 guidance, series grouping/history, avatar/channel context and responsive chat/editor.

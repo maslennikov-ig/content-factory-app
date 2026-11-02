@@ -1,4 +1,4 @@
-import { writingSettingsSchema, writingSettingsAnswerSchema, type WritingSettings } from '@contentfactory/helpers/utils/writing-settings';
+import { writingSettingsSchema, writingSettingsAnswerSchema, writingLengthOptionsSchema, type WritingSettings, type WritingLengthOption } from '@contentfactory/helpers/utils/writing-settings';
 import type { UIMessage } from 'ai';
 import { videoApprovalScopeV1, videoWorkspacePath, type VideoApprovalScopeV1 } from '../videos/video-ui.v1';
 
@@ -1401,7 +1401,7 @@ export type AgentQuestion = (
       channel: AgentInterviewQuestionPayload['channel'];
     }
   | { kind: 'writing-settings-invalid'; text: string }
-  | { kind: 'writing-settings'; text: string; reason: string; current: WritingSettings; proposed: WritingSettings; channel: { id: string; name: string; provider: string }; canDecideForPerson: false; scope: 'post' | 'drafts'; maxCharacters?: number }
+  | { kind: 'writing-settings'; text: string; reason: string; current: WritingSettings; proposed: WritingSettings; lengthOptions?: WritingLengthOption[]; channel: { id: string; name: string; provider: string }; canDecideForPerson: false; scope: 'post' | 'drafts'; maxCharacters?: number }
   | (Omit<AgentDomainQuestionPayload, 'question' | 'cardId'> & { text: string })
   | {
       /** Native `submit_plan` card (`content-factory-next-on0i.6`, `A18`). */
@@ -1526,11 +1526,12 @@ const readQuestionShape = (
   if (record.kind === 'writing-settings') {
     const current = writingSettingsSchema.safeParse(record.current);
     const proposed = writingSettingsSchema.safeParse(record.proposed);
+    const lengthOptions = record.lengthOptions === undefined ? null : writingLengthOptionsSchema.safeParse(record.lengthOptions);
     const channel = recordOf(record.channel);
-    if (current.success && proposed.success && typeof record.reason === 'string' && typeof channel.id === 'string' && typeof channel.name === 'string' && typeof channel.provider === 'string' && record.canDecideForPerson === false) {
+    if (current.success && proposed.success && (!lengthOptions || lengthOptions.success) && typeof record.reason === 'string' && typeof channel.id === 'string' && typeof channel.name === 'string' && typeof channel.provider === 'string' && record.canDecideForPerson === false) {
       const scope = record.scope === 'drafts' ? 'drafts' : 'post';
       const maxCharacters = typeof record.maxCharacters === 'number' && Number.isInteger(record.maxCharacters) && record.maxCharacters >= 50 && record.maxCharacters <= 100_000 ? record.maxCharacters : undefined;
-      return { kind: 'writing-settings', text, reason: record.reason, current: current.data, proposed: proposed.data, channel: { id: channel.id, name: channel.name, provider: channel.provider }, canDecideForPerson: false, scope, ...(maxCharacters !== undefined ? { maxCharacters } : {}) };
+      return { kind: 'writing-settings', text, reason: record.reason, current: current.data, proposed: proposed.data, ...(lengthOptions?.success ? { lengthOptions: lengthOptions.data } : {}), channel: { id: channel.id, name: channel.name, provider: channel.provider }, canDecideForPerson: false, scope, ...(maxCharacters !== undefined ? { maxCharacters } : {}) };
     }
     return { kind: 'writing-settings-invalid', text };
   }

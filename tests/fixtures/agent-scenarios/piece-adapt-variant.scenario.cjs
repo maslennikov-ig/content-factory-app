@@ -7,6 +7,11 @@ const { screenPieces } = require('../../helpers/agent-scenarios.cjs');
  * writes the next variant while the old one stays. The post fields the
  * person named go as the page's `adaptOverrides` would send them.
  */
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'piece-adapt-variant',
   title: 'Адаптация без вопросов, повтор даёт вариант',
@@ -21,7 +26,7 @@ module.exports = {
     {
       say: 'Ещё вариант для Telegram, без эмодзи и короче',
       model: [
-        [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', emojiLevel: 'none', wish: 'Короче' }]],
+        [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', emojiLevel: 'none', wish: 'Короче', lengthOptions: LENGTH_OPTIONS }]],
       ],
     },
     {
@@ -33,12 +38,18 @@ module.exports = {
     },
     {
       say: 'И ещё один',
-      model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]], [['text', 'Вариант 3.']]],
+      model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]]],
+    },
+    {
+      resume: { action: 'keep-channel' },
+      model: [[['text', 'Вариант 3.']]],
     },
   ],
   check: (run) => {
     const screen = screenPieces();
-    const [proposal, first, second] = run.turns;
+    const [proposal, first, secondProposal, second] = run.turns;
+    expect(secondProposal.suspended[0].payload.kind).toBe('writing-settings');
+    expect(secondProposal.admissions.map(([operation]) => operation)).toEqual(['agent']);
     expect(proposal.suspended).toHaveLength(1);
     expect(proposal.suspended[0].payload).toMatchObject({ kind: 'writing-settings', proposed: { emojiLevel: 'none' } });
     expect(proposal.admissions.map(([operation]) => operation)).toEqual(['agent']);

@@ -93,11 +93,11 @@ describe('the channel says how long a post here may be', () => {
   });
 });
 
-describe('the rules the research measured', () => {
-  test('the preview window and the paragraph shape are always said', () => {
+describe('the platform rules grounded in research', () => {
+  test('preview variability and paragraph shape reach the writer', () => {
     const lines = linesFor(defaultWritingProfileFor('telegram', 'ru'));
 
-    expect(lines.some((line) => line.includes('80–180'))).toBe(true);
+    expect(lines.some((line) => line.includes('Notification previews vary'))).toBe(true);
     expect(lines.some((line) => line.includes('2–4 lines'))).toBe(true);
   });
 
@@ -121,7 +121,7 @@ describe('the rules the research measured', () => {
     ).toContain(
       'For emoji, this channel setting overrides the voice and neutral core: Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
     );
-    expect(linesFor(null, VK)).not.toContain('The first 80–180 characters');
+    expect(linesFor(null, VK)).not.toContain('Notification previews vary');
   });
 
   test('every explicit card value reaches the prompt, including free choices', () => {
@@ -143,11 +143,11 @@ describe('the rules the research measured', () => {
     const telegram = linesFor(defaultWritingProfileFor('telegram', 'ru'));
     const vk = linesFor(defaultWritingProfileFor('vk', 'ru'), VK);
 
-    expect(telegram.some((line) => line.includes('80–180'))).toBe(true);
+    expect(telegram.some((line) => line.includes('Notification previews vary'))).toBe(true);
     expect(telegram.some((line) => line.includes('2–4 lines'))).toBe(true);
     expect(telegram.some((line) => line.includes('meaningful # or ## headings'))).toBe(true);
     expect(vk[0]).toContain('16000');
-    expect(vk.some((line) => line.includes('80–180'))).toBe(false);
+    expect(vk.some((line) => line.includes('Notification previews vary'))).toBe(false);
     expect(vk.some((line) => line.includes('2–4 lines'))).toBe(false);
     expect(vk.some((line) => line.includes('meaningful # or ## headings'))).toBe(false);
   });

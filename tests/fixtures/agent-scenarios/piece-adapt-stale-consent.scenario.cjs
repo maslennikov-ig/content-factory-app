@@ -14,6 +14,11 @@ const AUTOPILOT = [
   { id: 'c1', name: 'Канал про работу', providerIdentifier: 'telegram', disabled: false, refreshNeeded: false, planMode: 'autopilot', posts: 0 },
 ];
 
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'piece-adapt-stale-consent',
   title: 'Устаревшая карточка: «Нет» со старой вкладки не отвечает на интервью',
@@ -22,16 +27,19 @@ module.exports = {
     channels: AUTOPILOT,
     adaptQuestions: [{ key: 'hook', question: 'С чего начать?', suggested: 'С цифры' }],
   },
-  // The third request is the stale tab's, refused at the door.
-  refusedTurns: [2],
+  // The fourth request is the stale tab's, refused at the door.
+  refusedTurns: [3],
   turns: [
-    { say: 'Адаптируй cnt-1 в канал', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]]] },
+    { say: 'Адаптируй cnt-1 в канал', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]]] },
+    { resume: { action: 'keep-channel' } },
     { resume: { consentGiven: true } },
-    { resume: { consentGiven: false }, resumeCardOfTurn: 1 },
+    { resume: { consentGiven: false }, resumeCardOfTurn: 2 },
     { resume: { decideForPerson: true }, model: [[['text', 'Пост ждёт в очереди канала.']]] },
   ],
   check: (run) => {
-    const [ask, yes, stale, decided] = run.turns;
+    const [size, ask, yes, stale, decided] = run.turns;
+    expect(size.suspended[0].payload.kind).toBe('writing-settings');
+    expect(size.admissions.map(([operation]) => operation)).toEqual(['agent']);
     expect(ask.suspended.map((one) => one.payload.kind)).toEqual(['consent']);
     expect(yes.suspended.map((one) => one.payload.kind)).toEqual(['domain-questions']);
     // The stale «Нет» names the consent card: not the card that waits.

@@ -15,6 +15,7 @@ import {
   type StoredEmojiLevel,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { TELEGRAM_EDITORIAL_RULES } from './telegram-editorial-policy';
 
 /**
  * Что генератору говорят о канале, в который он пишет.
@@ -745,12 +746,13 @@ export function channelInstructionLines(
   lines.push('The resolved numeric length and settings above are the agreed constraints. A general wish for more detail does not authorize silently increasing them or replacing a range with auto. Preserve the useful substance concisely; report a genuine conflict instead of pretending the constraints were met.');
   if (isTelegram) {
     lines.push(
-      'The first 80–180 characters are what the notification preview shows, so the fact, the number or the disagreement goes there — not a greeting and not a wind-up.'
+      'Notification previews vary by client and device. Put the subject and useful point in the first short lines, without a greeting or a wind-up.'
     );
     lines.push(
       'Keep paragraphs to 2–4 lines with a blank line between them; a wall of text is not read here.'
     );
     lines.push(EDITOR_LINE[provider.editor]);
+    lines.push(TELEGRAM_EDITORIAL_RULES);
   } else if (provider.editor === 'none') {
     lines.push(EDITOR_LINE.none);
   }

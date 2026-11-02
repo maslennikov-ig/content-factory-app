@@ -1,5 +1,28 @@
 # Content Factory current handoff — 1 November 2026
 
+## Telegram editorial follow-up — local, 2 November 2026
+
+`content-factory-next-g4qy`: owner-reported live digest exposed optional length
+negotiation, metadata-only title and the prior explicit no-correction rule.
+Current changes share Telegram editorial rules across all three writing stages
+and permit one inline correction in the existing pre-save review call. Native
+agent generation proposes 2–3 task-specific length choices; manual channel
+numbers are only an explicit secondary choice. Selected/edited values persist
+per material, including after native recovery. No channel settings are silently
+changed. Applied corrections persist separately from remaining findings.
+Owner authorized push, merge and deployment; release acceptance is in progress.
+No paid model check or external send. See
+[local result and limits](stages/editorial-followup-20261102/outcome.md).
+
+## Production release — Telegram editorial quality, 2 November 2026
+
+`content-factory-next-s1fi`: runtime/public source `0bdd01349db6`, private source
+`dc1be38711f1`, previous rollback `658f835b5f18`. Full local suite, application
+build and both exact-source public CI workflows passed. Runtime healthy, three
+processes online/zero restarts, schema diff empty and Mastra 47 tables unchanged.
+No paid model call or actual Telegram send; account-specific rendering and live
+editorial quality remain unverified. [Release evidence](stages/editorial-release-20261102/outcome.md).
+
 ## Telegram editorial quality — local implementation, 2 November 2026
 
 `content-factory-next-ncj4`, branch `codex/telegram-editorial-quality-20261102`,

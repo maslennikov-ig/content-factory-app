@@ -13,6 +13,11 @@ const AUTOPILOT = [
   { id: 'c1', name: 'Канал про работу', providerIdentifier: 'telegram', disabled: false, refreshNeeded: false, planMode: 'autopilot', posts: 0 },
 ];
 
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'piece-adapt-autopilot',
   title: 'Автопилот: согласие до траты — «нет» и «да»',
@@ -22,14 +27,20 @@ module.exports = {
     adaptQuestions: [{ key: 'hook', question: 'С чего начать?', suggested: 'С цифры' }],
   },
   turns: [
-    { say: 'Адаптируй cnt-1 в канал', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]]] },
+    { say: 'Адаптируй cnt-1 в канал', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]]] },
+    { resume: { action: 'keep-channel' } },
     { resume: { consentGiven: false }, model: [[['text', 'Не пишем.']]] },
-    { say: 'Ладно, пиши', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]]] },
+    { say: 'Ладно, пиши', model: [[['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]]] },
+    { resume: { action: 'keep-channel' } },
     { resume: { consentGiven: true } },
     { resume: { decideForPerson: true }, model: [[['text', 'Пост ждёт в очереди канала.']]] },
   ],
   check: (run) => {
-    const [ask, no, askAgain, yes, decided] = run.turns;
+    const [size, ask, no, sizeAgain, askAgain, yes, decided] = run.turns;
+    for (const proposal of [size, sizeAgain]) {
+      expect(proposal.suspended[0].payload.kind).toBe('writing-settings');
+      expect(proposal.admissions.map(([operation]) => operation)).toEqual(['agent']);
+    }
     const consent = {
       runId: expect.any(String),
       toolName: 'piece_adapt',

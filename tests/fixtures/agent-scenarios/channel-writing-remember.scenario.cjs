@@ -7,6 +7,11 @@ const { screenPieces } = require('../../helpers/agent-scenarios.cjs');
  * through its own door (the page's `rememberedProfilePayload` over the
  * stored card), then the post is adapted «как в канале».
  */
+const LENGTH_OPTIONS = [
+  { id: 'brief', label: 'Кратко по сути', description: 'Главная мысль и один полезный вывод.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'context', label: 'С контекстом', description: 'Главная мысль, объяснение и практический вывод.', lengthRange: { idealMin: 900, idealMax: 1300, hardMax: 1600 }, recommended: true },
+];
+
 module.exports = {
   id: 'channel-writing-remember',
   title: '«…и запомнить для канала» — карточка канала, потом адаптация',
@@ -21,13 +26,20 @@ module.exports = {
       say: 'Перепиши пост без эмодзи и с вопросом в конце, и запомни так для канала',
       model: [
         [['tool', 'channel_writing_remember', { channelId: 'c1', emojiLevel: 'none', ctaKind: 'question' }]],
-        [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1' }]],
+        [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', lengthOptions: LENGTH_OPTIONS }]],
+      ],
+    },
+    {
+      resume: { action: 'keep-channel' },
+      model: [
         [['text', 'Запомнили для канала и переписали.']],
       ],
     },
   ],
   check: (run) => {
     const screen = screenPieces();
+    expect(run.turns[0].suspended[0].payload.kind).toBe('writing-settings');
+    expect(run.turns[0].admissions.map(([operation]) => operation)).toEqual(['agent']);
     const stored = {
       version: 'channel-writing-profile/v2',
       lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },

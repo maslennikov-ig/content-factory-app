@@ -133,6 +133,133 @@ const build = (responses) => {
   return { service, calls, usage };
 };
 
+describe('Telegram correction inside the existing pre-save review', () => {
+  const source = () => {
+    const result = state();
+    result.hook = 'Weekly updates';
+    result.intake.post = { lengthPolicy: { idealMin: null, idealMax: 1500, hardMax: 1500 } };
+    result.content = item(`${FIRST} ${SECOND} ${THIRD}`);
+    return result;
+  };
+  const revised = (overrides = {}) => ({
+    ...MISSING,
+    revision: {
+      hook: '# Weekly updates for editors',
+      contents: [`1. ${FIRST}\n2. ${SECOND}\n3. ${THIRD}`],
+      changes: ['Added an in-post headline and consistent list.'],
+      finalReview: PASSED,
+      ...overrides,
+    },
+  });
+
+  test('corrects the generated text in one existing call and returns final findings plus changes', async () => {
+    const original = source();
+    original.content.prompt = 'Keep this image prompt';
+    const { service, calls, usage } = build([revised()]);
+    const result = await service.fixArray(original);
+    expect(result.hook).toBe('# Weekly updates for editors');
+    expect(result.content[0]).toEqual({ ...original.content, content: revised().revision.contents[0] });
+    expect(result.adaptationCoverage).toEqual({
+      ...PASSED, reviews: 1, repaired: true,
+      corrections: revised().revision.changes,
+    });
+    expect(calls).toHaveLength(1);
+    expect(usage.map(x => x.role)).toEqual(['review']);
+    expect(original.hook).toBe('Weekly updates');
+    expect(original.content.content).toContain(FIRST);
+  });
+
+  test.each([
+    { contents: [] },
+    { contents: [''] },
+    { contents: ['one', 'two'] },
+    { contents: ['Invented link https://untrusted.example/new'] },
+    { contents: ['x'.repeat(1600)] },
+    { finalReview: { status: 'invalid' } },
+  ])('keeps the paid original for an invalid correction: %j', async correction => {
+    const original = source();
+    const { service, calls } = build([revised(correction)]);
+    const result = await service.fixArray(original);
+    expect(result.content).toEqual([original.content]);
+    expect(result.hook).toBe(original.hook);
+    expect(result.adaptationCoverage.repaired).toBe(false);
+    expect(result.adaptationCoverage.status).toBe('partial');
+    expect(calls).toHaveLength(1);
+  });
+
+  test('cannot delete existing links or increase foreign copying', async () => {
+    const original = source();
+    original.content.content += ' https://example.test/updates';
+    const { service } = build([revised()]);
+    const result = await service.fixArray(original);
+    expect(result.content).toEqual([original.content]);
+    expect(result.adaptationCoverage.repaired).toBe(false);
+
+    const copy = 'These eight consecutive words belong to another independent foreign publisher';
+    const other = source();
+    other.foreignShingles = wordShingles(copy);
+    const second = build([revised({ contents: [copy] })]);
+    const rejected = await second.service.fixArray(other);
+    expect(rejected.content).toEqual([other.content]);
+    expect(rejected.adaptationCoverage.repaired).toBe(false);
+  });
+
+  test('preserves unresolved evidence findings after a safe correction', async () => {
+    const original = source();
+    original.adaptationCoverage = { ...MISSING, missingRequirements: ['Unbound source.'], reviews: 0, repaired: false };
+    const { service } = build([revised()]);
+    const result = await service.fixArray(original);
+    expect(result.adaptationCoverage.repaired).toBe(true);
+    expect(result.adaptationCoverage.status).toBe('partial');
+    expect(result.adaptationCoverage.missingRequirements).toContain('Unbound source.');
+  });
+
+  test('does not apply the Telegram correction policy to other providers', async () => {
+    const original = source();
+    original.intake.channel.providerIdentifier = 'linkedin';
+    const { service } = build([revised()]);
+    const result = await service.fixArray(original);
+    expect(result.content).toEqual([original.content]);
+    expect(result.adaptationCoverage.repaired).toBe(false);
+  });
+
+  test('does not rewrite a satisfactory draft for taste', async () => {
+    const original = source();
+    const { service } = build([{ ...revised(), ...PASSED }]);
+    const result = await service.fixArray(original);
+    expect(result.content).toEqual([original.content]);
+    expect(result.adaptationCoverage.repaired).toBe(false);
+  });
+
+  test('counts formatted Telegram text visibly and keeps each series item and image metadata', async () => {
+    const original = source();
+    original.intake.presentation = 'auto';
+    original.intake.post.lengthPolicy = { idealMin: null, idealMax: 65, hardMax: 65 };
+    original.content = [item('x'.repeat(66)), { ...item('second post'), prompt: 'Image 2' }];
+    const { service, calls } = build([revised({ hook: '# A headline', contents: ['**' + 'a'.repeat(50) + '**', 'Second post'] })]);
+    const result = await service.fixArray(original);
+    expect(result.adaptationCoverage).toMatchObject({ status: 'passed', repaired: true });
+    expect(result.content).toHaveLength(2);
+    expect(result.content[1].prompt).toBe('Image 2');
+    expect(result.content[0].usedCitationIds).toEqual(['E1']);
+    const input = JSON.parse(calls[0].slice(calls[0].indexOf('Human: ') + 7));
+    expect(input.hardLimitCharacterCounts).toEqual(input.postVisibleCharacterCounts);
+  });
+
+  test('the shared editorial policy reaches the real opening, body and final-review prompts', async () => {
+    const { TELEGRAM_EDITORIAL_RULES } = loadWithMocks('libraries/nestjs-libraries/src/agent/telegram-editorial-policy.ts');
+    const original = source();
+    original.channelLines = channelInstructionLines(defaultWritingProfileFor('telegram', 'ru'),
+      { identifier: 'telegram', name: 'Telegram', maxLength: 4096, editor: 'html' });
+    const { service, calls } = build([{ hook: '# Editorial updates' }, draft(CORE), PASSED]);
+    const opening = await service.generateHook(original);
+    const body = await service.generateContent({ ...original, ...opening });
+    await service.fixArray({ ...original, ...opening, ...body });
+    expect(calls).toHaveLength(3);
+    for (const prompt of calls) expect(prompt).toContain(TELEGRAM_EDITORIAL_RULES);
+  });
+});
+
 test('writer and existing review share meaning-first avatar policy, retain raw context, and accept a paraphrase without another call', async () => {
   const source = state(), reply = 'Ну, я голосом обычно только диктую текст. Разговаривать в реальном времени мне неудобно.';
   source.intake.core = reply;

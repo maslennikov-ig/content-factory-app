@@ -81,3 +81,80 @@ test('persisted keep-channel confirmation is shown after reload without inventin
   expect(screen.getByText('Оставлены настройки канала')).toBeTruthy();
   expect(screen.queryByText('Применены настройки для поста')).toBeNull();
 });
+
+const lengthOptions = [
+  { id: 'brief', label: 'Короткая новость', description: 'Один факт и его значение для читателя.', lengthRange: { idealMin: 300, idealMax: 600, hardMax: 800 }, recommended: false },
+  { id: 'explained', label: 'Новость с контекстом', description: 'Добавим причину и конкретный пример.', lengthRange: { idealMin: 900, idealMax: 1400, hardMax: 1800 }, recommended: true },
+];
+const optionsQuestion = () => readQuestion('piece_adapt', { ...payload, lengthOptions }, null);
+test('task-specific options select the recommendation without sending, then apply the chosen range', async () => {
+  const tailored = optionsQuestion();
+  expect(tailored.lengthOptions).toEqual(lengthOptions);
+  const answers = await show({ question: tailored });
+  expect(screen.getByRole('radio', { name: /Новость с контекстом/ }).getAttribute('aria-checked')).toBe('true');
+  expect(screen.getByLabelText('Желаемый максимум, знаков').value).toBe('1400');
+  expect(answers).toEqual([]);
+  expect(screen.queryByLabelText('Длина')).toBeNull();
+  fireEvent.click(screen.getByRole('radio', { name: /Короткая новость/ }));
+  expect(screen.getByLabelText('Желаемый максимум, знаков').value).toBe('600');
+  fireEvent.change(screen.getByLabelText('Желаемый максимум, знаков'), { target: { value: '700' } });
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Применить объём' })));
+  expect(answers).toEqual([{ action: 'apply', settings: { ...proposed, lengthPolicy: 'range', lengthRange: { idealMin: 300, idealMax: 700, hardMax: 800 } } }]);
+});
+test('option keyboard selection is reversible, and channel defaults remain an explicit secondary fallback', async () => {
+  const answers = await show({ question: optionsQuestion(), words: words.en });
+  const recommended = screen.getByRole('radio', { name: /Новость с контекстом/ });
+  recommended.focus();
+  fireEvent.keyDown(recommended, { key: 'ArrowUp' });
+  expect(screen.getByRole('radio', { name: /Короткая новость/ }).getAttribute('aria-checked')).toBe('true');
+  expect(answers).toEqual([]);
+  expect(screen.queryByRole('button', { name: 'Keep channel settings' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Channel settings' }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Keep channel settings' })));
+  expect(answers).toEqual([{ action: 'keep-channel' }]);
+});
+test('edited option survives send failure and a reload without reverting to the recommendation', async () => {
+  const draftStorageKey = 'writing-options-reload';
+  window.sessionStorage.removeItem(draftStorageKey);
+  await show({ question: optionsQuestion(), draftStorageKey, onAnswer: () => Promise.reject(new Error('offline')) });
+  fireEvent.click(screen.getByRole('radio', { name: /Короткая новость/ }));
+  fireEvent.change(screen.getByLabelText('Желаемый максимум, знаков'), { target: { value: '750' } });
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Применить объём' })));
+  expect(screen.getByText(words.ru.question.answerFailed)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Применить объём' }).disabled).toBe(false);
+  cleanup();
+  const answers = await show({ question: optionsQuestion(), draftStorageKey });
+  expect(screen.getByLabelText('Желаемый максимум, знаков').value).toBe('750');
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Применить объём' })));
+  expect(answers[0].settings.lengthRange).toEqual({ idealMin: 300, idealMax: 750, hardMax: 800 });
+  expect(window.sessionStorage.getItem(draftStorageKey)).toBeNull();
+});
+test('option history shows accepted edited values and no live controls', async () => {
+  const accepted = { ...proposed, lengthRange: { idealMin: 300, idealMax: 750, hardMax: 800 } };
+  await show({ question: optionsQuestion(), readOnly: true, history: { writingAnswer: { action: 'apply', settings: accepted } } });
+  expect(screen.getByText(/300–750/)).toBeTruthy();
+  expect(screen.queryByText(/600–1100/)).toBeNull();
+  expect(screen.queryByRole('radiogroup')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Применить объём' })).toBeNull();
+});
+test('invalid options cannot silently become a legacy approval card', () => {
+  for (const invalidOptions of [[], [lengthOptions[0]], [lengthOptions[0], lengthOptions[0]], lengthOptions.map(option => ({ ...option, recommended: true }))]) {
+    expect(readQuestion('piece_adapt', { ...payload, lengthOptions: invalidOptions }, null).kind).toBe('writing-settings-invalid');
+  }
+});
+test('busy option cards lock choices and numeric edits without sending', async () => {
+  const answers = await show({ question: optionsQuestion(), busy: true });
+  expect(screen.getByRole('button', { name: 'Применить объём' }).disabled).toBe(true);
+  for (const choice of screen.getAllByRole('radio')) expect(choice.disabled).toBe(true);
+  expect(screen.getByLabelText('Желаемый максимум, знаков').disabled).toBe(true);
+  expect(answers).toEqual([]);
+});
+test('an agent recommendation label is not repeated by a second recommendation marker', async () => {
+  for (const [locale, label] of [['ru', 'Новость с контекстом (рекомендую)'], ['en', 'Context (recommended)']]) {
+    const tailored = readQuestion('piece_adapt', { ...payload, lengthOptions: lengthOptions.map(option => option.recommended ? { ...option, label } : option) }, null);
+    await show({ question: tailored, words: words[locale] });
+    expect(screen.getByRole('radio', { name: new RegExp(label.split(' (')[0]) })).toBeTruthy();
+    expect(screen.queryByText(locale === 'ru' ? 'Рекомендую' : 'Recommended')).toBeNull();
+    cleanup();
+  }
+});

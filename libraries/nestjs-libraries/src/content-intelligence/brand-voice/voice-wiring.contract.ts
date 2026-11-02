@@ -2635,6 +2635,8 @@ export type AdaptationQualityReviewV1 = {
   unsupportedClaims: string[];
   reviews: number;
   repaired: boolean;
+  /** Applied before save by the existing editorial review; not pending edits. */
+  corrections?: string[];
 };
 
 export type AdaptationChecksV1 = {

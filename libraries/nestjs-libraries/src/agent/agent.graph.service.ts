@@ -1,4 +1,5 @@
 import { visiblePostLength } from '../content-intelligence/pieces/material-asks';
+import { TELEGRAM_EDITORIAL_RULES, TELEGRAM_INLINE_EDIT_RULES } from './telegram-editorial-policy';
 import { adaptationReferenceUrls, editorialPresentationInstruction } from './generator-run-input';
 import { unavoidableQuestionSchemaV2, unavoidableQuestionV2, hasAutomaticChannelField, channelQuestionPromptV2, channelQuestionTemplateV2 } from '../content-intelligence/channels/channel-question.v2';
 import type { PieceQuestionV1 } from '../content-intelligence/brand-voice/voice-wiring.contract';
@@ -107,6 +108,8 @@ import {
   ADAPTATION_DATE_PROVENANCE_RULE,
   AUTHOR_MEANING_ADAPTATION_RULE,
   adaptationCoverageSchema,
+  adaptationEditorialReviewSchema,
+  adaptationInlineRevisionSchema,
   preferredLengthFindings,
   materialSupport,
   readAdaptationCoverage,
@@ -261,7 +264,7 @@ const contentZod = (
 ) => {
   const content = z.object({
     content: z.string().describe('Content for the new post'),
-    ...(presentation ? { title: z.string().nullable().optional().describe('Short informative title identifying this complete post within the series; not the channel name or a variant number.') } : {}),
+    ...(presentation ? { title: z.string().nullable().optional().describe('Short informative metadata title identifying this complete post; not the channel name or a variant number. This field is not inserted into the published text: when the genre needs a headline, it must also be present in the assembled hook/body.') } : {}),
     website: z
       .string()
       .nullable()
@@ -1499,10 +1502,11 @@ export class AgentGraphService {
     return checked;
   }
 
-  /** One advisory review; an existing draft is never lost to a quality verdict. */
+  /** One pre-save review, with optional Telegram editing in the same call. */
   private async checkAdaptationCoverage(state: WorkflowChannelsState) {
-    const content = state.content;
-    const opening = state.hook || '';
+    // Legacy single-post generation can supply one item before fixArray.
+    let content: WorkflowChannelsState['content'] | NonNullable<WorkflowChannelsState['content']>[number] = state.content;
+    let opening = state.hook || '';
     const hardLimit = adaptationHardLimit(state);
     const profile = state.resolvedChannelProfile?.profile ?? state.intake?.channel.writingProfile;
     const provider = state.resolvedChannelProfile?.provider ?? {
@@ -1512,10 +1516,11 @@ export class AgentGraphService {
     const channelLengthPolicy = resolvedChannelLengthPolicy(profile, provider, {
       withPicture: state.isPicture, post: state.intake?.post,
     });
-    const postTexts = (Array.isArray(content) ? content : [content])
+    const inlineEdit = state.intake?.channel.providerIdentifier === 'telegram';
+    let postTexts = (Array.isArray(content) ? content : [content])
       .map((item, index) => index === 0 ? withAdaptationOpening(opening, item?.content || '') : item?.content || '');
-    const visibleCounts = postTexts.map(visiblePostLength);
-    const runs = state.foreignShingles?.length
+    let visibleCounts = postTexts.map(visiblePostLength);
+    let runs = state.foreignShingles?.length
       ? sharedRuns(postTexts.join('\n\n'), state.foreignShingles) : [];
     const input = () => ({
       assignment: {
@@ -1556,6 +1561,7 @@ export class AgentGraphService {
       hardCharacterLimit: hardLimit,
       postCharacterCounts: postTexts.map(text => text.length),
       postVisibleCharacterCounts: visibleCounts,
+      hardLimitCharacterCounts: inlineEdit ? visibleCounts : postTexts.map(text => text.length),
       channelLengthPolicy,
       withPicture: state.isPicture,
       maxCaptionLength: state.intake?.channel.maxCaptionLength,
@@ -1564,24 +1570,60 @@ export class AgentGraphService {
     });
     let verdict: AdaptationCoverageVerdict;
     let unavailable = false;
+    let corrections: string[] | undefined;
     try {
-      verdict = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
-        const model = (await getChatModel(state.orgId, 0.1, 3_000, 'review'))
-          .withStructuredOutput(adaptationCoverageSchema);
-        const result = await ChatPromptTemplate.fromMessages([
-          ['system', ADAPTATION_COVERAGE_REVIEW_RULES],
+      const result = await this.aiUsage.executeAiOperation(state.orgId, 'text_generation', async () => {
+        // A corrected candidate needs output room, but never another paid call.
+        const reviewTokens = inlineEdit ? Math.max(3_000, Math.min(12_000,
+          2_000 + Math.ceil(postTexts.join('\n\n').length * 1.25))) : 3_000;
+        const model = (await getChatModel(state.orgId, 0.1, reviewTokens, 'review'))
+          .withStructuredOutput(inlineEdit ? adaptationEditorialReviewSchema : adaptationCoverageSchema);
+        return ChatPromptTemplate.fromMessages([
+          ['system', inlineEdit
+            ? `${ADAPTATION_COVERAGE_REVIEW_RULES}\n${TELEGRAM_EDITORIAL_RULES}\n${TELEGRAM_INLINE_EDIT_RULES}`
+            : ADAPTATION_COVERAGE_REVIEW_RULES],
           ['human', '{input}'],
         ]).pipe(model).invoke({ input: JSON.stringify(input()) });
-        return readAdaptationCoverage(result, state.language);
       }, 'review');
+      verdict = readAdaptationCoverage(result, state.language);
+      const revision = adaptationInlineRevisionSchema.safeParse((result as any)?.revision);
+      const targetMax = typeof channelLengthPolicy === 'object' ? channelLengthPolicy?.idealMax : null;
+      const needsEditing = verdict.status === 'partial' || runs.length > 0 ||
+        visibleCounts.some(count => (hardLimit && count > hardLimit) || (targetMax && count > targetMax));
+      if (inlineEdit && needsEditing && adaptationCoverageSchema.safeParse(result).success && revision.success) {
+        const original = Array.isArray(content) ? content : [content];
+        const candidate = revision.data;
+        const texts = candidate.contents.map((body, index) =>
+          index === 0 ? withAdaptationOpening(candidate.hook, body) : body);
+        const urls = (values: string[]) => new Set(values.flatMap(text =>
+          text.match(/https?:\/\/[^\s<>"')\]]+/gu) || []));
+        const beforeUrls = urls(postTexts), afterUrls = urls(texts);
+        const sameUrls = beforeUrls.size === afterUrls.size && [...beforeUrls].every(url => afterUrls.has(url));
+        const candidateRuns = state.foreignShingles?.length
+          ? sharedRuns(texts.join('\n\n'), state.foreignShingles) : [];
+        const fits = texts.every(text => (!hardLimit || visiblePostLength(text) <= hardLimit) &&
+          (!targetMax || visiblePostLength(text) <= targetMax));
+        if (candidate.contents.length === original.length && sameUrls && fits &&
+            candidateRuns.length === 0 && texts.some((text, index) => text !== postTexts[index])) {
+          const items = original.map((item, index) => ({ ...item, content: candidate.contents[index] }));
+          content = Array.isArray(content) ? items : items[0];
+          opening = candidate.hook;
+          postTexts = texts;
+          visibleCounts = texts.map(visiblePostLength);
+          runs = candidateRuns;
+          corrections = candidate.changes;
+          verdict = readAdaptationCoverage(candidate.finalReview, state.language);
+        }
+      }
     } catch {
       unavailable = true;
       verdict = { status: 'partial', missingRequirements: [], unsupportedClaims: [] };
     }
-    const overLimit = hardLimit ? postTexts.flatMap((text, index) =>
-      text.length > hardLimit ? [state.language === 'ru'
-        ? `Текст ${index + 1}: ${text.length} знаков при ограничении ${hardLimit}.`
-        : `Post ${index + 1} including its hook has ${text.length} characters; the hard limit is ${hardLimit}.`] : []) : [];
+    const limitCounts = inlineEdit ? visibleCounts : postTexts.map(text => text.length);
+    const overLimit = hardLimit ? limitCounts.flatMap((count, index) =>
+      count > hardLimit ? [state.language === 'ru'
+        ? `Текст ${index + 1}: ${count} знаков при ограничении ${hardLimit}.`
+        : `Post ${index + 1} including its hook has ${count} characters; the hard limit is ${hardLimit}.`] : []) : [];
     const preferredLength = preferredLengthFindings(visibleCounts, channelLengthPolicy, state.language);
     const findings = readAdaptationCoverage({
       ...verdict,
@@ -1599,7 +1641,7 @@ export class AgentGraphService {
       } } : {}),
       adaptationCoverage: { ...findings,
         status: unavailable ? 'unavailable' as const : findings.status,
-        reviews: 1, repaired: false },
+        reviews: 1, repaired: Boolean(corrections), ...(corrections ? { corrections } : {}) },
     };
   }
 

@@ -1,5 +1,32 @@
 import { z } from 'zod';
 
+export const writingLengthRangeSchema = z.object({
+  idealMin: z.number().int().min(50).max(100_000).nullable(),
+  idealMax: z.number().int().min(50).max(100_000),
+  hardMax: z.number().int().min(50).max(100_000).nullable(),
+}).strict().superRefine((range, ctx) => {
+  if ((range.idealMin !== null && range.idealMin > range.idealMax) ||
+      (range.hardMax !== null && range.hardMax < range.idealMax)) {
+    ctx.addIssue({code: 'custom', message: 'Use minimum ≤ maximum ≤ hard maximum.'});
+  }
+});
+
+/** Task-specific proposals, supplied by the agent; never derived from presets. */
+export const writingLengthOptionsSchema = z.array(z.object({
+  id: z.string().trim().min(1).max(80),
+  label: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(500),
+  lengthRange: writingLengthRangeSchema,
+  recommended: z.boolean(),
+}).strict()).min(2).max(3).superRefine((options, ctx) => {
+  if (new Set(options.map(option => option.id)).size !== options.length ||
+      new Set(options.map(option => JSON.stringify(option.lengthRange))).size !== options.length ||
+      options.filter(option => option.recommended).length !== 1) {
+    ctx.addIssue({code: 'custom', message: 'Provide distinct size options with unique ids and exactly one recommendation.'});
+  }
+});
+export type WritingLengthOption = z.infer<typeof writingLengthOptionsSchema>[number];
+
 /** The browser and native resume door share the same bounded, editable values. */
 export const writingSettingsSchema = z.object({
   lengthPolicy: z.enum(['channel', 'auto', 'range', 'shorter', 'longer']),
