@@ -23,6 +23,10 @@ const PASSAGE = 'Точный фрагмент позднего источник
 const SNAPSHOT = 'res_fixture_6013';
 const CORE = 'Осторожный вывод: данные позднего источника требуют проверки контекста.';
 const DRAFT = 'Черновик Telegram: данные требуют проверки контекста.';
+const lengthOptions = [
+  {id:'brief',label:'Осторожный краткий вывод',description:'Точный вывод с оговоркой о проверке контекста.',lengthRange:{idealMin:50,idealMax:300,hardMax:500},recommended:true},
+  {id:'context',label:'Вывод с пояснением',description:'Добавить контекст и ограничение позднего источника.',lengthRange:{idealMin:300,idealMax:600,hardMax:800},recommended:false},
+];
 const sources = Array.from({length: 50}, (_, i) => ({url: `https://source.example.test/${i}`, title: `Источник ${i} ${'описание '.repeat(90)}`, text: `${'Текст источника. '.repeat(180)}${i === 43 ? PASSAGE : ''}`, excerpt: 'Фрагмент '.repeat(100)}));
 const facts = sources.map((source, i) => ({factKey: `fact-${i}`, statement: `Наблюдение ${i} ${'описание '.repeat(60)}`, sourceUrl: source.url, evidenceId: `evidence-${i}`, quote: i === 43 ? PASSAGE : 'Текст источника.', status: 'confirmed', verified: true}));
 const evidence = sources.map((source, i) => ({evidenceId: `evidence-${i}`, url: source.url, excerpt: source.text}));
@@ -58,6 +62,12 @@ async function child(phase, statePath) {
     },
     detail: async (_org, id) => ({piece: {id, code: id}, core: {text: CORE}, adaptations: (await prisma.contentDerivation.findMany({where: {organizationId: IDENTITY.organizationId, contentPieceId: id}})), channels: []}),
   };
+  const profile = {version:'channel-writing-profile/v2',lengthPolicy:{idealMin:500,idealMax:1000,hardMax:1500},
+    emojiLevel:'few',hashtagPolicy:'none',linkPolicy:'end',ctaKind:'auto',formatPreference:'auto',notes:null};
+  const integrations = {
+    getWritingProfile: async () => ({profile,providerIdentifier:'telegram',provider:{maxLength:4096}}),
+    getIntegrationsForChannelList: async () => [{id:'fixture-channel',name:'Telegram fixture',providerIdentifier:'telegram'}],
+  };
   const web = {research: async () => {const state = read(); state.searches++; write(state); return {summary: 'Исследование неполное; изучите источники.', readerAssessment: assessment, sources, facts, fromCache: false};}};
   const modelFactory = modelId => new MockLanguageModelV3({modelId, doStream: async args => {
     const state = read(); const step = state.modelCalls++;
@@ -85,14 +95,14 @@ async function child(phase, statePath) {
       throw Object.assign(new Error('Provider balance exhausted. private-fixture-secret'), {name: 'AI_APICallError', statusCode: 402, isRetryable: false, url: 'https://fixture.invalid/v1/chat'});
     }
     if (step === 4) return call('create', 'piece_create', {requestMessageId: 'original', inputKind: 'instruction', researchId: SNAPSHOT, factId: ['fact-43']});
-    if (step === 5) {assert(serialized.includes('fixture-piece'), 'Created piece must appear in the native result'); return call('adapt', 'piece_adapt', {pieceId: 'fixture-piece', channelId: 'fixture-channel', kind: 'post'});}
+    if (step === 5) {assert(serialized.includes('fixture-piece'), 'Created piece must appear in the native result'); return call('adapt-post', 'piece_adapt', {pieceId: 'fixture-piece', channelId: 'fixture-channel', kind: 'post', lengthOptions});}
     if (step === 6) {assert(serialized.includes('fixture-adaptation'), 'Saved adaptation must appear in the native result'); return answer('Заготовка и черновик сохранены.');}
     if (step === 7) return call('expired-read', 'piece_read', {researchId: SNAPSHOT, part: 'research_source', sourceIndex: 43});
     if (step === 8) {assert(serialized.includes('MATERIAL_NOT_AVAILABLE'), 'Expired evidence must be reported as unavailable'); return answer('Срок хранения источника истёк.');}
     return call('stop-question', 'ask_user', {question: 'Продолжать работу?', options: [{label: 'Продолжить'}, {label: 'Остановить'}]});
   }});
   let threads;
-  const runtime = await createRuntime({schemaName: 'cf_honey6013_acceptance', capabilities: [researchSearch, pieceRead, pieceCreate, pieceAdapt], serviceFor: token => token.name === 'IntakeService' ? intake : token.name === 'WebResearchService' ? web : token.name === 'PieceService' ? pieces : token.name === 'AgentThreadsService' ? threads : {}, modelFactory});
+  const runtime = await createRuntime({schemaName: 'cf_honey6013_acceptance', capabilities: [researchSearch, pieceRead, pieceCreate, pieceAdapt], serviceFor: token => token.name === 'IntakeService' ? intake : token.name === 'WebResearchService' ? web : token.name === 'PieceService' ? pieces : token.name === 'IntegrationService' ? integrations : token.name === 'AgentThreadsService' ? threads : {}, modelFactory});
   const threadId = 'cf-honey6013-thread';
   threads = new AgentThreadsService(runtime.service, runtime.redis);
   const handler = new HttpController(runtime.service, threads, runtime.aiUsage);
@@ -128,7 +138,17 @@ async function child(phase, statePath) {
     const coldPointer = await threads.readNativeRun(IDENTITY, threadId); assert.equal(coldPointer.state, 'settled'); assert.equal(coldPointer.outcome, 'failed');
     assert.equal(read().modelCalls, count, 'GET must not run inference');
     const continued = await send({threadId, messages: [{id: 'continue', role: 'user', parts: [{type: 'text', text: 'Продолжи явно.'}]}]});
+    const choosingLength = await handler.getThread(ORG, USER, threadId);
+    const lengthChoice = choosingLength.pending.find(item => item.suspendPayload?.kind === 'writing-settings');
+    assert(lengthChoice, JSON.stringify(continued.response.parts()));
+    assert.deepEqual(lengthChoice.suspendPayload.lengthOptions, lengthOptions);
+    assert.equal(read().modelCalls, count + 2, 'Size choice must suspend before another model call');
+    assert.equal(await prisma.post.count({where: {organizationId: IDENTITY.organizationId}}), 0, 'No draft before explicit size approval');
+    const sizeApproved = await send({threadId, runId:lengthChoice.runId, toolCallId:lengthChoice.toolCallId,
+      cardId:lengthChoice.suspendPayload.cardId, resumeData:{action:'apply',settings:lengthChoice.suspendPayload.proposed}});
     await continued.pending;
+    await sizeApproved.pending;
+    assert(sizeApproved.response.parts().some(part => part.type === 'data-progress' && part.data?.stage === 'writing-settings-confirmed'));
     const final = await handler.getThread(ORG, USER, threadId);
     assert.equal(final.execution.outcome, 'completed', JSON.stringify({parts: continued.response.parts(), calls: read().modelCalls})); assert.equal(read().modelCalls, count + 3); assert.equal(read().searches, 1);
     const cores = await prisma.contentPiece.findMany({where: {organizationId: IDENTITY.organizationId}});
@@ -148,7 +168,7 @@ async function child(phase, statePath) {
     assert.equal(read().modelCalls, count + 6, 'Stop and subsequent GET cannot infer');
     assert.equal(await prisma.contentPiece.count({where: {organizationId: IDENTITY.organizationId}}), 1);
     assert.equal(await prisma.post.count({where: {organizationId: IDENTITY.organizationId}}), 1);
-    process.send({phase: 'complete', result: {coldPointer: {state: coldPointer.state, outcome: coldPointer.outcome}, stoppedPointer: {state: stoppedPointer.state}, humanRowsStableOnGet: true, writesStableOnGet: true, inputTokens: null, cachedInputTokens: null, usageNote: 'Fixture usage is synthetic; actual provider tokens are unavailable.', expiredEvidence: true, stopped: true, native: true, sources: sources.length, laterSource: 43, questionAnswered: true, restart: true, getNoInference: true, originalPreserved: true, searches: read().searches, modelCalls: read().modelCalls, cores: cores.length, telegramDrafts: posts.length, prompts: read().prompts}});
+    process.send({phase: 'complete', result: {coldPointer: {state: coldPointer.state, outcome: coldPointer.outcome}, stoppedPointer: {state: stoppedPointer.state}, humanRowsStableOnGet: true, writesStableOnGet: true, inputTokens: null, cachedInputTokens: null, usageNote: 'Fixture usage is synthetic; actual provider tokens are unavailable.', expiredEvidence: true, stopped: true, native: true, sources: sources.length, laterSource: 43, questionAnswered: true, lengthChoiceAnswered:true, restart: true, getNoInference: true, originalPreserved: true, searches: read().searches, modelCalls: read().modelCalls, cores: cores.length, telegramDrafts: posts.length, prompts: read().prompts}});
   } finally {await runtime.close({drop: phase !== 'start'}); await prisma.$disconnect();}
   process.exit(0);
 }

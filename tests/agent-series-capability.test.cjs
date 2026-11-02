@@ -33,11 +33,32 @@ test.each([1, 2, 5])('auto persists/readbacks %i separate posts and emits ordere
 
 test('native series preparation receives the full server-resolved request separately from the short wish', async () => {
   const f = setup(1), currentAuthorRequest = 'Уточнения автора. '.repeat(50) + 'Доступно только до пятницы.';
+  const profile = {version: 'channel-writing-profile/v2', lengthPolicy: {idealMin: 500, idealMax: 1000, hardMax: 1500},
+    emojiLevel: 'few', hashtagPolicy: 'none', linkPolicy: 'end', ctaKind: 'auto', formatPreference: 'auto', notes: null};
+  f.ctx.service = servicesFrom({PieceService: f.pieces, IntegrationService: {
+    getWritingProfile: async () => ({profile, providerIdentifier: 'telegram', provider: {maxLength: 4096}}),
+    getIntegrationsForChannelList: async () => [channel],
+  }});
   f.ctx.resolveAuthorRequest = async () => ({messageId:'original', text:currentAuthorRequest});
   start.mockResolvedValue(result(1));
-  await pieceAdapt.run(f.ctx, {pieceId:'piece',channelId:'c1',presentation:'auto',wish:'Коротко'}, f.emit);
+  const input = {pieceId:'piece',channelId:'c1',presentation:'auto',wish:'Коротко',lengthOptions: [
+    {id:'brief',label:'Краткое объявление',description:'Главное условие и срок до пятницы.',lengthRange:{idealMin:300,idealMax:600,hardMax:800},recommended:true},
+    {id:'context',label:'Объявление с пояснением',description:'Условия автора с дополнительным контекстом.',lengthRange:{idealMin:700,idealMax:1000,hardMax:1200},recommended:false},
+  ]};
+  await pieceAdapt.run(f.ctx, input, f.emit);
+  expect(f.ctx.suspend).toHaveBeenCalledTimes(1);
+  const proposal = f.ctx.suspend.mock.calls[0][0];
+  expect(proposal).toMatchObject({kind:'writing-settings',lengthOptions:input.lengthOptions,continuation:{currentAuthorRequest}});
+  expect(f.pieces.prepareAdapt).not.toHaveBeenCalled();
+  expect(start).not.toHaveBeenCalled();
+  f.ctx.suspendPayload = JSON.parse(JSON.stringify(proposal));
+  f.ctx.resumeData = {action:'apply',settings:proposal.proposed};
+  f.ctx.resolveAuthorRequest = async () => ({messageId:'answer',text:'Выбираю краткое объявление.'});
+  await pieceAdapt.run(f.ctx, input, f.emit);
   expect(f.pieces.prepareAdapt.mock.calls[0][4]).toEqual({currentAuthorRequest});
   expect(f.pieces.prepareAdapt.mock.calls[0][2].overrides.wish).toBe('Коротко');
+  expect(f.pieces.prepareAdapt.mock.calls[0][2].overrides.lengthRange).toEqual(input.lengthOptions[0].lengthRange);
+  expect(start).toHaveBeenCalledTimes(1);
   expect(start.mock.calls[0][1].presentation).toBe('auto');
 });
 test('native series checkpoint receives the author-question skip flag', async () => {

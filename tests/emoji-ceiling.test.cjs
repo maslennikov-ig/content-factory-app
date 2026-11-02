@@ -194,7 +194,7 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
       post ? { post } : undefined
     );
   const channel = (emojiLevel, profile) =>
-    lines(emojiLevel, null, profile).find((line) => line.includes('emoji')) ?? null;
+    lines(emojiLevel, null, profile).find((line) => line.startsWith('For emoji,')) ?? null;
   const channelLine = (rule) =>
     `For emoji, this channel setting overrides the voice and neutral core: ${rule}`;
 
@@ -249,7 +249,7 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
   test('the count follows the post’s own length', () => {
     // «Короче» scales 500–1000 to 300–600.
     expect(
-      lines('medium', { length: 'shorter' }).find((line) => line.includes('emoji'))
+      lines('medium', { length: 'shorter' }).find((line) => line.startsWith('For emoji,'))
     ).toBe(
       channelLine(
         'Use 1 to 3 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'

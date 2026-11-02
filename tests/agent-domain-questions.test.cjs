@@ -243,11 +243,24 @@ test.each([false, true])('saved optional adaptation material questions apply one
   });
   const rebuildCore = jest.fn(async () => {saved.core.text = 'Суть с новым материалом'; return {revisions: 1};});
   const prepareAdapt = jest.fn(async (_org, pieceId, request) => ({pieceId, request}));
+  const profile = {version: 'channel-writing-profile/v2', lengthPolicy: {idealMin: 500, idealMax: 1000, hardMax: 1500},
+    emojiLevel: 'few', hashtagPolicy: 'none', linkPolicy: 'end', ctaKind: 'auto', formatPreference: 'auto', notes: null};
   const tool = build('piece.adapt', {PieceService: {detail: async () => saved, adaptPlanMode: async () => 'draft',
-    prepareAdapt, adapt, materialQuestions, rebuildCore}});
-  const input = {pieceId: 'piece-1', channelId: 'channel-1'};
+    prepareAdapt, adapt, materialQuestions, rebuildCore}, IntegrationService: {
+      getWritingProfile: async () => ({profile, providerIdentifier: 'telegram', provider: {maxLength: 4096}}),
+      getIntegrationsForChannelList: async () => [{id: 'channel-1', name: 'Telegram', providerIdentifier: 'telegram'}],
+    }});
+  const input = {pieceId: 'piece-1', channelId: 'channel-1', lengthOptions: [
+    {id: 'brief', label: 'Коротко', description: 'Позиция и главное условие.', lengthRange: {idealMin: 400, idealMax: 800, hardMax: 1000}, recommended: false},
+    {id: 'full', label: 'С подробностями', description: 'Позиция, условия и пояснение.', lengthRange: {idealMin: 1200, idealMax: 2000, hardMax: 2400}, recommended: true},
+  ]};
   const originalRequest = 'Сохраните это условие в публикации. '.repeat(25);
-  const first = await executeTool(tool, input, {requestContext: authorContext(originalRequest)});
+  const choice = await executeTool(tool, input, {requestContext: authorContext(originalRequest)});
+  expect(choice.suspended[0]).toMatchObject({kind: 'writing-settings', lengthOptions: input.lengthOptions});
+  expect(prepareAdapt).not.toHaveBeenCalled();
+  expect(adapt).not.toHaveBeenCalled();
+  const first = await executeTool(tool, input, {requestContext: authorContext('Оставить настройки канала'),
+    suspendPayload: JSON.parse(JSON.stringify(choice.suspended[0])), resumeData: {action: 'keep-channel'}});
   expect(first.suspended[0]).toMatchObject({kind: 'domain-questions', continuation: {operation: 'adaptation-material', result: { qualityReview }}});
   expect(first.suspended[0].continuation.currentAuthorRequest).toBe(originalRequest);
   expect(prepareAdapt.mock.calls[0][4].currentAuthorRequest).toBe(originalRequest);
