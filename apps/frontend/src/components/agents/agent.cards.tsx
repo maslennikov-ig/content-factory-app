@@ -877,12 +877,12 @@ export function QuestionClosedLine({
             {option.label}{'description' in option && option.description ? ` — ${option.description}` : ''}
           </li>)}
         </ul> : null}
-        <div className="flex min-w-0 flex-col gap-[4px]">
+        {question?.kind !== 'writing-settings' ? <div className="flex min-w-0 flex-col gap-[4px]">
           <p className="cf-label-sm text-cf-ink-muted">{w.historyAnswer}</p>
           {saved !== undefined ? <p className="cf-body-md text-cf-ink whitespace-pre-wrap [overflow-wrap:anywhere]">
             {Array.isArray(saved) ? saved.map(answerText).join('\n') : answerText(saved)}
           </p> : <p className="cf-body-sm text-cf-ink-muted">{w.historyAnswerUnavailable}</p>}
-        </div>
+        </div> : null}
         {history?.followUp || saved !== undefined ? <div className="flex min-w-0 flex-col gap-[4px]">
           <p className="cf-label-sm text-cf-ink-muted">{w.historyFollowUp}</p>
           {history?.followUp ? <AgentMarkdown text={history.followUp} /> : <p className="cf-body-sm text-cf-ink-muted">{w.historyFollowUpUnavailable}</p>}
@@ -1240,7 +1240,9 @@ export function QuestionCard({
   if (
     question.kind === 'selection' ||
     question.kind === 'interview' ||
-    question.kind === 'domain-questions'
+    question.kind === 'domain-questions' ||
+    question.kind === 'writing-settings' ||
+    question.kind === 'writing-settings-invalid'
   )
     return null;
 

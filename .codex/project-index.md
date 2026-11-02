@@ -1,4 +1,4 @@
-# Content Factory Project Index
+# Content Factory Project Index — [Telegram editorial quality](../docs/operations/telegram-editorial-quality.md) — structured formatting, per-material settings approval, date/availability evidence and advisory length/value checks.
 - [HONEY-6013 implementation and checks](stages/honey-6013/implementation.md): native research, questions, recovery and source model defaults. Active runtime/settings are in [handoff](handoff.md).
 - [Native instruction refresh release](stages/agent-chat-5961/release-instructions-2026-10-27.md); [owner walkthrough](../docs/operations/agent-chat-owner-check-2026-10-26.md).
 - Current advisory draft review: [audit and local repair](stages/agent-chat-5961/advisory-review-audit.md). One semantic review, free copy/length findings and normalized citation bindings; save remains successful with honest optional advice. Native result/card retains findings across questions/reload. No automatic quality rewrite; explicit clarification and source ownership remain.

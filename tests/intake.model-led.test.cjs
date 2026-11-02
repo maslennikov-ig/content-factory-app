@@ -526,3 +526,19 @@ test.each(['model', 'person'])('an empty %s choice does not count as sufficient 
   expect(writes).toEqual([]);
   expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
 });
+
+test('a model-grounded relative availability keeps its publication anchor and refuses a metadata-only event', () => {
+  const { settleResearchDigestV6, researchDigestPromptV6, digestSourcesForV6 } = loadWithMocks(`${path}/intake/research-digest.v6.ts`);
+  const intent = resolveResearchIntent({ input: 'Что изменилось?', now, temporal });
+  const passage = 'Starting today Nova is available through Work, Code and the API.';
+  const input = { language: 'ru', level: 'standard', subject: intent.task, researchIntent: intent, claims: [],
+    sources: [{ evidenceId: 'ev-1', url: 'https://primary.example/announcement', title: 'Nova', excerpt: passage, publishedAt: '2026-10-12' }] };
+  const relative = finding({ statement: 'Nova доступна через Work, Code и API с 12 октября.', quote: passage, eventDateQuote: passage });
+  const result = settleResearchDigestV6({ verdicts: [], findings: [relative], assessment: assessment() }, input);
+  expect(result.findings[0]).toMatchObject({ quote: passage, dateProvenance: { eventDate: '2026-10-12', sourcePublishedAt: '2026-10-12', eventDateQuote: passage } });
+  const metadataOnly = settleResearchDigestV6({ verdicts: [], findings: [finding({ quote: passage, dateBasis: 'publication', eventDateQuote: null })], assessment: assessment() }, input);
+  expect(metadataOnly.findings).toEqual([]);
+  const prompt = researchDigestPromptV6(input, digestSourcesForV6(input.sources));
+  expect(prompt).toContain('additional platform dates only that platform, not global launch');
+  expect(prompt).toContain('partial coverage does not make every confirmed claim unknown');
+});

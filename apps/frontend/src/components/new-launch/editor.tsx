@@ -48,10 +48,11 @@ import Document from '@tiptap/extension-document';
 import Bold from '@tiptap/extension-bold';
 import Text from '@tiptap/extension-text';
 import Paragraph from '@tiptap/extension-paragraph';
+import HardBreak from '@tiptap/extension-hard-break';
 import Underline from '@tiptap/extension-underline';
 import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
 import { History } from '@tiptap/extension-history';
-import { BulletList, ListItem } from '@tiptap/extension-list';
+import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list';
 import { Bullets } from '@contentfactory/frontend/components/new-launch/bullets.component';
 import Heading from '@tiptap/extension-heading';
 import { HeadingComponent } from '@contentfactory/frontend/components/new-launch/heading.component';
@@ -998,12 +999,14 @@ export const OnlyEditor = forwardRef<
     extensions: [
       Document,
       Paragraph,
+      HardBreak,
       Text,
       Underline,
       Bold,
       InterceptBoldShortcut,
       InterceptUnderlineShortcut,
       BulletList,
+      OrderedList,
       ListItem,
       Placeholder.configure({
         placeholder: t('write_something', 'Write something …'),
@@ -1110,7 +1113,7 @@ export const OnlyEditor = forwardRef<
       ...(editorType === 'html' || editorType === 'markdown'
         ? [
             Heading.configure({
-              levels: [1, 2, 3],
+              levels: [1, 2, 3, 4, 5, 6],
             }),
           ]
         : []),

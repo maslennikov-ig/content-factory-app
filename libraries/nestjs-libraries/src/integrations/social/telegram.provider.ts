@@ -35,15 +35,28 @@ const publicUploadPrefix = '/uploads/';
  * an http(s) one: the editors add `target` and `rel`, which Telegram does not
  * take, and any other scheme becomes plain words.
  */
-export const telegramHtml = (html: string): string => {
-  const kept = striptags(html || '', ['u', 'strong', 'b', 'em', 'i', 'a', 'p']);
+export const telegramHtml = (html: string, rich = false): string => {
+  let number = 0;
+  const prepared = rich ? (html || '') : (html || '')
+    .replace(/(<li\b[^>]*>)([\s\S]*?)(<\/li\s*>)/giu, (_all, start: string, inner: string, end: string) =>
+      start + inner.replace(/<\/p\s*>\s*<p\b[^>]*>/giu, '<br>').replace(/<\/?p\b[^>]*>/giu, '') + end)
+    .replace(/<(\/?)\s*(ol|ul|li)\b[^>]*>/giu, (_tag, closing: string, raw: string) => {
+      const name = raw.toLowerCase();
+      if (closing) return '\n';
+      if (name === 'ol') { number = 0; return ''; }
+      if (name === 'ul') { number = -1; return ''; }
+      return number < 0 ? '• ' : `${++number}. `;
+    })
+    .replace(/<h[1-6]\b[^>]*>/giu, '<b>')
+    .replace(/<\/h[1-6]\s*>/giu, '</b>\n\n');
+  const kept = striptags(prepared, ['u', 'strong', 'b', 'em', 'i', 'a', 'p', 'br', ...(rich ? ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ol', 'ul', 'li'] : [])]);
   /*
     Every kept tag is rebuilt, never passed through (`97dq.75` review P2-6):
     attributes on <b>/<i>/<u> go, a closing tag with nothing open goes, a link
     inside a link loses its inner tags, and whatever is still open at the end
     is closed — Telegram refuses a message that breaks any of these.
   */
-  const NAME: Record<string, 'b' | 'i' | 'u' | 'a' | 'p'> = {
+  const NAME: Record<string, string> = {
     strong: 'b',
     b: 'b',
     em: 'i',
@@ -51,14 +64,16 @@ export const telegramHtml = (html: string): string => {
     u: 'u',
     a: 'a',
     p: 'p',
+    br: 'br', h1: 'h1', h2: 'h2', h3: 'h3', h4: 'h4', h5: 'h5', h6: 'h6', ol: 'ol', ul: 'ul', li: 'li',
   };
-  const open: Array<'b' | 'i' | 'u' | 'a' | 'drop-a'> = [];
+  const open: string[] = [];
   const out = kept.replace(
-    /<(\/?)([a-z]+)\b([^>]*)>/gi,
+    /<(\/?)([a-z][a-z0-9]*)\b([^>]*)>/gi,
     (_tag, closing: string, raw: string, attrs: string) => {
       const name = NAME[raw.toLowerCase()];
       if (!name) return '';
-      if (name === 'p') return closing ? '\n' : '';
+      if (name === 'br') return closing ? '' : rich ? '<br>' : '\n';
+      if (name === 'p' && !rich) return closing ? '\n\n' : '';
       if (!closing) {
         if (name === 'a') {
           const href = /\bhref\s*=\s*"([^"]*)"/i.exec(attrs)?.[1] ?? '';
@@ -84,13 +99,14 @@ export const telegramHtml = (html: string): string => {
         .join('');
     }
   );
-  return (
+  const result = (
     out +
     open
       .reverse()
       .map((one) => (one === 'drop-a' ? '' : `</${one}>`))
       .join('')
   );
+  return rich ? result : result.replace(/\n{3,}/gu, '\n\n').replace(/\n\n$/u, '\n');
 };
 
 export const telegramReleaseUrl = (
@@ -296,10 +312,19 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
 
     // if there's no media, bot sends a text message only
     if (processedMedia.length === 0) {
-      const response = await telegramBot.sendMessage(accessToken, text, {
-        parse_mode: 'HTML',
-        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
-      });
+      const structured = /<(?:h[1-6]|ol|ul)\b/iu.test(message.message || '');
+      const response = structured
+        ? await (telegramBot as unknown as { _request: (method: string, options: object) => Promise<{ message_id: number }> })._request('sendRichMessage', {
+            form: {
+              chat_id: accessToken,
+              rich_message: JSON.stringify({ html: telegramHtml(message.message || '', true) }),
+              ...(replyToMessageId ? { reply_parameters: JSON.stringify({ message_id: replyToMessageId }) } : {}),
+            },
+          })
+        : await telegramBot.sendMessage(accessToken, text, {
+            parse_mode: 'HTML',
+            ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+          });
       messageId = response.message_id;
     }
     // if there's only one media, bot sends the media with the text message as caption

@@ -40,6 +40,7 @@ if [ "\${1:-}" != 'test' ]; then
   printf 'stub pnpm: unexpected command %s\\n' "\${1:-}" >&2
   exit 127
 fi
+if [ "\${CF_STUB_MISSING:-}" = yes ]; then exit 0; fi
 printf 'Test Suites: 221 passed, 221 total\\n'
 printf 'Tests:       1 skipped, 3036 passed, 3037 total\\n'
 printf '# pass 93\\n'
@@ -168,6 +169,23 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
     expect(recorded.stderr).toContain('no receipt was written');
 
     expect(run(repo, 'check-suite-receipt.sh').status).toBe(1);
+  });
+
+  test('an incomplete interrupted run cannot create a successful receipt', () => {
+    const { repo } = makeRepository();
+    const recorded = run(repo, 'record-suite-receipt.sh', { CF_STUB_MISSING: 'yes' });
+    expect(recorded.status).not.toBe(0);
+    expect(fs.existsSync(path.join(repo, 'var/release/suite-receipt.json'))).toBe(false);
+  });
+
+  test('the gate refuses an incomplete receipt even when it names HEAD', () => {
+    const { repo, git } = makeRepository();
+    fs.mkdirSync(path.join(repo, 'var/release'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'var/release/suite-receipt.json'), JSON.stringify({
+      commit: headOf(git), command: 'pnpm test', jest: {suites: 'Test Suites: (not reported)', tests: 'Tests: (not reported)'},
+      nodeTest: {pass: '# pass (not reported)', fail: '# fail (not reported)'}, python: '(not reported)',
+    }));
+    expect(run(repo, 'check-suite-receipt.sh').status).not.toBe(0);
   });
 
   test('a receipt does not carry over to the next commit', () => {

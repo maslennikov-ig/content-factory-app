@@ -1,3 +1,4 @@
+import { writingSettingsSchema, writingSettingsAnswerSchema, type WritingSettings } from '@contentfactory/helpers/utils/writing-settings';
 import type { UIMessage } from 'ai';
 import { videoApprovalScopeV1, videoWorkspacePath, type VideoApprovalScopeV1 } from '../videos/video-ui.v1';
 
@@ -1317,7 +1318,7 @@ export const linksIn = (text: string): string[] =>
 
 /** Read-only projection of native retained answers and public assistant continuation. */
 export type AgentNativeBatchAnswer = { answer: string | string[] } | { decideForPerson: true } | { skipped: true };
-export type AgentQuestionHistory = { answer?: string | string[]; batchAnswers?: AgentNativeBatchAnswer[]; followUp?: string };
+export type AgentQuestionHistory = { answer?: string | string[]; writingAnswer?: ReturnType<typeof writingSettingsAnswerSchema.parse>; batchAnswers?: AgentNativeBatchAnswer[]; followUp?: string };
 
 export type AgentQuestionOption = {
   id: string;
@@ -1399,6 +1400,8 @@ export type AgentQuestion = (
       canDecideForPerson: boolean;
       channel: AgentInterviewQuestionPayload['channel'];
     }
+  | { kind: 'writing-settings-invalid'; text: string }
+  | { kind: 'writing-settings'; text: string; reason: string; current: WritingSettings; proposed: WritingSettings; channel: { id: string; name: string; provider: string }; canDecideForPerson: false; scope: 'post' | 'drafts'; maxCharacters?: number }
   | (Omit<AgentDomainQuestionPayload, 'question' | 'cardId'> & { text: string })
   | {
       /** Native `submit_plan` card (`content-factory-next-on0i.6`, `A18`). */
@@ -1519,6 +1522,17 @@ const readQuestionShape = (
       text,
       pictureKey: stringOf(record.pictureKey) ?? '',
     };
+  }
+  if (record.kind === 'writing-settings') {
+    const current = writingSettingsSchema.safeParse(record.current);
+    const proposed = writingSettingsSchema.safeParse(record.proposed);
+    const channel = recordOf(record.channel);
+    if (current.success && proposed.success && typeof record.reason === 'string' && typeof channel.id === 'string' && typeof channel.name === 'string' && typeof channel.provider === 'string' && record.canDecideForPerson === false) {
+      const scope = record.scope === 'drafts' ? 'drafts' : 'post';
+      const maxCharacters = typeof record.maxCharacters === 'number' && Number.isInteger(record.maxCharacters) && record.maxCharacters >= 50 && record.maxCharacters <= 100_000 ? record.maxCharacters : undefined;
+      return { kind: 'writing-settings', text, reason: record.reason, current: current.data, proposed: proposed.data, channel: { id: channel.id, name: channel.name, provider: channel.provider }, canDecideForPerson: false, scope, ...(maxCharacters !== undefined ? { maxCharacters } : {}) };
+    }
+    return { kind: 'writing-settings-invalid', text };
   }
   if (record.kind === 'domain-questions') {
     const source = recordOf(record.source);
@@ -1962,6 +1976,7 @@ export type AgentBlock =
       toolCallId: string | null;
       question: AgentQuestion;
       history?: AgentQuestionHistory;
+      writingConfirmed?: true;
       /**
        * Answered, but the text had changed since the proposal: nothing was
        * applied (`kcxz.32`, N2).
@@ -2519,6 +2534,8 @@ export const recoverableMaterialRange = (
 
 const questionHistoryOf = (toolName: string, output: unknown, resumed: unknown, followUp: string): AgentQuestionHistory | undefined => {
   const raw = recordOf(output);
+  const writingAnswer = writingSettingsAnswerSchema.safeParse(resumed);
+  if (writingAnswer.success) return { writingAnswer: writingAnswer.data, ...(followUp ? { followUp } : {}) };
   const batch = recordOf(resumed).answers ?? raw.answers;
   if (toolName === 'ask_user' && Array.isArray(batch) && batch.length && batch.every(item => {
     const value = recordOf(item);
@@ -2795,6 +2812,18 @@ export const readMessageBlocks = (
       return;
     }
 
+    if (part.type === PROGRESS_PART_TYPE) {
+      const data = recordOf(part.data);
+      if (data.capability === 'piece.adapt' && data.stage === 'writing-settings-confirmed') {
+        const question = readQuestion('piece_adapt', data.question, null);
+        const answer = writingSettingsAnswerSchema.safeParse(data.answer);
+        if (question.kind === 'writing-settings' && question.cardId && answer.success) {
+          blocks.push({ type: 'question', key, toolName: 'piece_adapt', title: null, runId: null, toolCallId: null, question, writingConfirmed: true, history: { writingAnswer: answer.data } });
+        }
+        return;
+      }
+    }
+
     if (part.type.startsWith('data-')) {
       // `data-piece`, `data-avatar`, … — the persisted card, by id. Mastra's
       // own `data-tool-call-*` parts are read above with their tool part.
@@ -3065,6 +3094,12 @@ export const withoutRepeatedQuestionLines = (
   const historyKey = (block: Extract<AgentBlock, { type: 'question' }>) => block.toolCallId
     ? JSON.stringify([block.toolCallId, block.question.cardId ?? block.question.text])
     : block.question.cardId ? `card:${block.question.cardId}` : null;
+  // Confirmation is durable even if generation later fails. Prefer it over
+  // an older waiting copy, including across different messages in the chat.
+  const confirmedWritingCards = new Set(perMessage.flatMap(blocks => blocks.flatMap(block =>
+    block.type === 'question' && block.question.kind === 'writing-settings' && block.question.cardId && block.writingConfirmed
+      ? [block.question.cardId] : [])));
+  const drawnWritingCards = new Set<string>();
   const histories = new Map<string, AgentQuestionHistory>();
   for (const blocks of perMessage) for (const block of blocks) {
     if (block.type !== 'question' || !block.history) continue;
@@ -3078,6 +3113,11 @@ export const withoutRepeatedQuestionLines = (
     return history ? { ...block, history } : block;
   }).filter((block) => {
     if (block.type !== 'question') return true;
+    if (block.question.kind === 'writing-settings' && block.question.cardId && confirmedWritingCards.has(block.question.cardId)) {
+      if (!block.writingConfirmed || drawnWritingCards.has(block.question.cardId)) return false;
+      drawnWritingCards.add(block.question.cardId);
+      return true;
+    }
     const keys = [block.toolCallId ? `call:${block.toolCallId}` : null,
       block.question.cardId ? `card:${block.question.cardId}` : null].filter((key): key is string => key !== null);
     const repeat = block.runId === null && keys.some((key) => seen.has(key));

@@ -211,14 +211,14 @@ export function emojiLine(
   const per = `one per ${density.densest}–${density.sparsest} characters`;
   if (!length) {
     const range = emojiRangeFor(read, EMOJI_DEFAULT_POST_CHARS)!;
-    return `Use ${EMOJI_DENSITY_WORD[read]}: about ${per}, which is ${range.min} to ${range.max} in a post of ${EMOJI_DEFAULT_POST_CHARS} characters; scale that to the length you write, use at least 1, place them where they fit the meaning, never as list bullets.`;
+    return `Use ${EMOJI_DENSITY_WORD[read]}: about ${per}, which is ${range.min} to ${range.max} in a post of ${EMOJI_DEFAULT_POST_CHARS} characters; scale that to the length you write, use at least 1, place them where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.`;
   }
   const range = emojiRangeFor(read, length.min, length.max)!;
   if (range.min === range.max) {
     const one = range.min === 1;
-    return `Use ${range.min} emoji in the whole post (about ${per}) where ${one ? 'it fits' : 'they fit'} the meaning, never as ${one ? 'a list bullet' : 'list bullets'}.`;
+    return `Use ${range.min} emoji in the whole post (about ${per}) where ${one ? 'it fits' : 'they fit'} the meaning, use native list markers for lists.`;
   }
-  return `Use ${range.min} to ${range.max} emoji in the whole post (about ${per}) where they fit the meaning, never as list bullets.`;
+  return `Use ${range.min} to ${range.max} emoji in the whole post (about ${per}) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.`;
 }
 
 /**
@@ -320,8 +320,8 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
   normal:
     'This channel shows no formatting at all: no bold, no italics, no markup characters — write it plain.',
   markdown:
-    'Formatting is emphasis, not decoration: write bold as **text**, and use at most two short bold spans in the whole post.',
-  html: 'Formatting is emphasis, not decoration: write bold as **text**, and use at most two short bold spans in the whole post.',
+    'Use **short bold emphasis** for key points. Structure a multi-part post with meaningful # or ## headings, blank lines between paragraphs, and - bullets or a sequential 1. numbered list when the content benefits. Do not force headings or lists into a short note; never output raw HTML.',
+  html: 'Use **short bold emphasis** for key points. Structure a multi-part post with meaningful # or ## headings, blank lines between paragraphs, and - bullets or a sequential 1. numbered list when the content benefits. Do not force headings or lists into a short note; never output raw HTML.',
 };
 
 /**
@@ -742,6 +742,7 @@ export function channelInstructionLines(
     instead (`material-questions`).
   */
   if (emojiLength) lines.push(NO_PAD_LINE);
+  lines.push('The resolved numeric length and settings above are the agreed constraints. A general wish for more detail does not authorize silently increasing them or replacing a range with auto. Preserve the useful substance concisely; report a genuine conflict instead of pretending the constraints were met.');
   if (isTelegram) {
     lines.push(
       'The first 80–180 characters are what the notification preview shows, so the fact, the number or the disagreement goes there — not a greeting and not a wind-up.'

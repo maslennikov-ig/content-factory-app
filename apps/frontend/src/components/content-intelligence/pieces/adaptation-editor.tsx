@@ -30,6 +30,7 @@ import { AdaptationEmojiPicker } from './adaptation-emoji-picker';
 import {
   readLinkAddress,
   visibleLength,
+  visibleEditorialLength,
   type AdaptationImageV1,
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
@@ -277,8 +278,9 @@ export function AdaptationEditor({
     setEmojiOpen(false);
   };
 
-  const count = visibleLength(value);
-  const over = maxLength !== null && maxLength > 0 && count > maxLength;
+  const count = visibleEditorialLength(value);
+  const hardCount = visibleLength(value);
+  const over = maxLength !== null && maxLength > 0 && hardCount > maxLength;
   const inEdit = editing && !readOnly;
   const ready = inEdit && editor !== null;
 
@@ -593,13 +595,14 @@ export function AdaptationEditor({
           ) : null}
           <span className="min-w-[8px] flex-1" />
           <span
+            title={count !== hardCount ? t.visibleCountWithMarkupLimit(count) : undefined}
             data-editor-counter={over ? 'over' : 'within'}
             className={clsx(
               'cf-caption tabular-nums',
               over ? 'text-cf-danger' : 'text-cf-ink-muted'
             )}
           >
-            {maxLength ? t.counter(count, maxLength) : t.counterNoMax(count)}
+            {maxLength ? t.counter(hardCount, maxLength) : t.counterNoMax(count)}
           </span>
           <Button
             type="button"
@@ -861,7 +864,7 @@ export function AdaptationEditor({
 
         {over ? (
           <p role="status" className="cf-body-sm text-cf-danger">
-            {t.overLimit(count - (maxLength ?? 0))}
+            {t.overLimit(hardCount - (maxLength ?? 0))}
           </p>
         ) : null}
       </div>

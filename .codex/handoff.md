@@ -1,5 +1,19 @@
 # Content Factory current handoff — 1 November 2026
 
+## Telegram editorial quality — local implementation, 2 November 2026
+
+`content-factory-next-ncj4`, branch `codex/telegram-editorial-quality-20261102`,
+worktree `/home/me/.codex/worktrees/telegram-editorial-quality/content-factory-next`.
+Formatting survives editor/sanitizer/provider; structured text uses Telegram rich
+messages. Dates/availability retain evidence; practical-value and deterministic
+length findings use the existing advisory review. Native editable settings approval
+applies to this material only and persists the exact accepted values in history.
+Channel defaults require a separate explicit request.
+[Behavior and limits](../docs/operations/telegram-editorial-quality.md).
+[Local acceptance](stages/telegram-editorial-quality-20261102/acceptance.md).
+No production deployment, real social send or paid model call in this change.
+The production release and shared local stand below remain separate.
+
 ## Delivered release
 
 Task `content-factory-next-io17`: owner authorized cleanup, closeout, push, merge
@@ -43,6 +57,18 @@ ordinary branch pushes no longer duplicate PR runs. Cold component/SDK imports
 moved to test setup; the default 5-second behavior deadline remains unchanged.
 Production image remains `658f835b5f18`; original chats/drafts/services preserved.
 [Proof and limits](stages/ci-xanf-20261101/outcome.md).
+
+## CI acceleration delivered — sbci
+
+Private source `9470882b6535`, public CI source `074e4105dd41`;
+[PR 1218](https://github.com/maslennikov-ig/content-factory-next/pull/1218).
+All 10 Build jobs and CodeQL pass. Complete CI wall time 51:30 -> 18:38
+(63.82% reduction / 2.76x); native full Jest parts 15:18. All original 821 files
+remain, one new CI test file added; 13,869 Jest pass in ordinary and +400-day
+modes, Node 170 / Python 50. Legacy coverage metrics are unchanged in all four
+categories. Canonical commands/diagnostics/deadlines remain; native 4-way full /
+2-way calendar partitioning plus checked Istanbul merge. No image/deploy needed.
+[Measurement, proof and limits](stages/ci-speed-20261101/outcome.md).
 
 ## Local stand and preservation
 

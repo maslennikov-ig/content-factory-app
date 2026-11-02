@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PieceFactV2 } from '../pieces/piece-facts.v2';
 import type { AcceptedEvidence } from './intake.service';
+import { sourceDateMetadata } from './evidence-envelope';
 import { exactResearchSourceSpan } from './research-digest.v4';
 import { retainedSourceText, retainedSourceRevision } from '../research/retained-source';
 import type { IntakeResearchSummaryV1 } from '../brand-voice/voice-wiring.contract';
@@ -91,7 +92,7 @@ export const selectReusableResearch = (snapshot: ResearchReuseSnapshot, keys?: s
     if (fact.sourcePassage && fact.statement !== fact.quote) {
       throw researchReuseError('INTAKE_RESEARCH_SELECTION_INVALID', 'A source-passage candidate must retain its actual literal text.');
     }
-    return { ...fact, verified: true, status: 'confirmed', selected: true };
+    return { ...fact, sourceDates: fact.sourceDates ?? sourceDateMetadata(snapshot.sources.find(row => row.url === fact.sourceUrl)), verified: true, status: 'confirmed', selected: true };
   });
 };
 

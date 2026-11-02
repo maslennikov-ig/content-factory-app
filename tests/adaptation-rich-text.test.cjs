@@ -31,6 +31,9 @@ const Paragraph = require('@tiptap/extension-paragraph').default;
 const Text = require('@tiptap/extension-text').default;
 const Bold = require('@tiptap/extension-bold').default;
 const Link = require('@tiptap/extension-link').default;
+const HardBreak = require('@tiptap/extension-hard-break').default;
+const Heading = require('@tiptap/extension-heading').default;
+const { BulletList, OrderedList, ListItem } = require('@tiptap/extension-list');
 const {
   act,
   cleanup,
@@ -48,6 +51,14 @@ const { AdaptationEditor } = loadTypeScriptModule(
   `${base}/adaptation-editor.tsx`
 );
 const { AdaptationBody } = loadTypeScriptModule(`${base}/adaptation-body.tsx`);
+const { postAsReviewText } = loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/pieces/review-input.ts');
+
+test('post editor preserves structural blocks and single line breaks for review', () => {
+  const editor = new Editor({ extensions: [Document, Paragraph, Text, Bold, HardBreak, Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }), BulletList, OrderedList, ListItem], content: '<h4>Заголовок</h4><p>Один<br>два</p><ul><li><p>Первый</p></li><li><p>Второй</p></li></ul><ol><li><p>Раз</p></li><li><p>Два</p></li></ol>' });
+  try {
+    expect(postAsReviewText(editor.getHTML(), 'html')).toBe('#### Заголовок\n\nОдин\nдва\n\n- Первый\n- Второй\n\n1. Раз\n2. Два');
+  } finally { editor.destroy(); }
+});
 
 afterEach(cleanup);
 

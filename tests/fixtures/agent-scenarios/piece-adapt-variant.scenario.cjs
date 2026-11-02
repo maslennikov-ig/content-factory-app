@@ -3,7 +3,7 @@
 const { screenPieces } = require('../../helpers/agent-scenarios.cjs');
 
 /**
- * No questions on a channel that already has a text, and a repeat adaptation
+ * Settings require human approval; a repeat adaptation
  * writes the next variant while the old one stays. The post fields the
  * person named go as the page's `adaptOverrides` would send them.
  */
@@ -22,8 +22,14 @@ module.exports = {
       say: 'Ещё вариант для Telegram, без эмодзи и короче',
       model: [
         [['tool', 'piece_adapt', { pieceId: 'p1', channelId: 'c1', emojiLevel: 'none', wish: 'Короче' }]],
-        [['text', 'Готов вариант 2.']],
       ],
+    },
+    {
+      resume: { action: 'apply', settings: {
+        lengthPolicy: 'channel', lengthRange: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
+        emojiLevel: 'none', hashtagPolicy: 'none', linkPolicy: 'end', ctaKind: 'auto',
+      } },
+      model: [[['text', 'Готов вариант 2.']]],
     },
     {
       say: 'И ещё один',
@@ -32,7 +38,10 @@ module.exports = {
   ],
   check: (run) => {
     const screen = screenPieces();
-    const [first, second] = run.turns;
+    const [proposal, first, second] = run.turns;
+    expect(proposal.suspended).toHaveLength(1);
+    expect(proposal.suspended[0].payload).toMatchObject({ kind: 'writing-settings', proposed: { emojiLevel: 'none' } });
+    expect(proposal.admissions.map(([operation]) => operation)).toEqual(['agent']);
     expect(first.suspended).toEqual([]);
     expect(run.requests.filter(([door]) => door === 'piece.adapt')).toEqual([
       [

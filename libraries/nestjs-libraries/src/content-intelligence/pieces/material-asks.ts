@@ -20,6 +20,7 @@
 
 import { createHash } from 'node:crypto';
 import { stripInlineMarks } from '@contentfactory/helpers/utils/inline-marks';
+import { stripEditorialBlockMarks } from '@contentfactory/helpers/utils/editorial-blocks';
 import type {
   PieceMaterialAskV1,
   PieceQuestionV1,
@@ -37,7 +38,7 @@ export const MATERIAL_SHORTFALL_RATIO = 0.9;
 
 /** What a reader sees, in characters: bold marks and link addresses do not count. */
 export const visiblePostLength = (text: string): number =>
-  Array.from(stripInlineMarks(text || '').trim()).length;
+  Array.from(stripInlineMarks(stripEditorialBlockMarks(text || '')).trim()).length;
 
 /**
  * The shortfall of a post against the length it was written to, or `null`

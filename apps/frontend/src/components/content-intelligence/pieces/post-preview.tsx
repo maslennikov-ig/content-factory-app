@@ -1,6 +1,7 @@
 'use client';
 
 import { formatStoredMarkup } from './adaptation-markup';
+import { editorialBlocks } from '@contentfactory/helpers/utils/editorial-blocks';
 import type { AdaptationImageV1 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 
@@ -18,6 +19,7 @@ import { piecesCopy, type PiecesLocale } from './pieces.copy';
 export function PostPreview({
   locale,
   channelName,
+  platform,
   text,
   image,
   time,
@@ -25,6 +27,7 @@ export function PostPreview({
 }: {
   locale: PiecesLocale;
   channelName: string;
+  platform?: string;
   text: string;
   image: AdaptationImageV1 | null;
   /** Время поста, если оно уже решено; иначе подписи нет. */
@@ -49,9 +52,18 @@ export function PostPreview({
         ) : image ? (
           <span className="cf-caption text-cf-ink-muted">{t.imageAttached}</span>
         ) : null}
-        <p className="whitespace-pre-wrap cf-body-sm text-cf-ink [overflow-wrap:anywhere]">
-          {formatStoredMarkup(text)}
-        </p>
+        {platform === 'telegram' ? <div className="flex flex-col gap-[8px] whitespace-pre-wrap cf-body-sm text-cf-ink [overflow-wrap:anywhere]">
+          {editorialBlocks(text).map((block, index) => {
+            if (block.kind === 'heading') return image
+              ? <p key={index}><strong>{formatStoredMarkup(block.text)}</strong></p>
+              : <div key={index} className="cf-heading-md">{formatStoredMarkup(block.text)}</div>;
+            if (block.kind === 'list') {
+              const Tag = block.ordered ? 'ol' : 'ul';
+              return <Tag key={index} className={block.ordered ? 'list-decimal pl-[24px]' : 'list-disc pl-[24px]'}>{block.items.map((item, itemIndex) => <li key={itemIndex}>{formatStoredMarkup(item)}</li>)}</Tag>;
+            }
+            return <p key={index}>{formatStoredMarkup(block.lines.join('\n'))}</p>;
+          })}
+        </div> : <p className="whitespace-pre-wrap cf-body-sm text-cf-ink [overflow-wrap:anywhere]">{formatStoredMarkup(text)}</p>}
         {time ? (
           <span className="self-end cf-caption tabular-nums text-cf-ink-muted">
             {time}

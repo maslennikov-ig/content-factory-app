@@ -107,6 +107,7 @@ import {
   ADAPTATION_DATE_PROVENANCE_RULE,
   AUTHOR_MEANING_ADAPTATION_RULE,
   adaptationCoverageSchema,
+  preferredLengthFindings,
   materialSupport,
   readAdaptationCoverage,
   withAdaptationOpening,
@@ -1513,6 +1514,7 @@ export class AgentGraphService {
     });
     const postTexts = (Array.isArray(content) ? content : [content])
       .map((item, index) => index === 0 ? withAdaptationOpening(opening, item?.content || '') : item?.content || '');
+    const visibleCounts = postTexts.map(visiblePostLength);
     const runs = state.foreignShingles?.length
       ? sharedRuns(postTexts.join('\n\n'), state.foreignShingles) : [];
     const input = () => ({
@@ -1553,7 +1555,7 @@ export class AgentGraphService {
       presentation: state.intake?.presentation ?? 'single',
       hardCharacterLimit: hardLimit,
       postCharacterCounts: postTexts.map(text => text.length),
-      postVisibleCharacterCounts: postTexts.map(visiblePostLength),
+      postVisibleCharacterCounts: visibleCounts,
       channelLengthPolicy,
       withPicture: state.isPicture,
       maxCaptionLength: state.intake?.channel.maxCaptionLength,
@@ -1580,9 +1582,10 @@ export class AgentGraphService {
       text.length > hardLimit ? [state.language === 'ru'
         ? `Текст ${index + 1}: ${text.length} знаков при ограничении ${hardLimit}.`
         : `Post ${index + 1} including its hook has ${text.length} characters; the hard limit is ${hardLimit}.`] : []) : [];
+    const preferredLength = preferredLengthFindings(visibleCounts, channelLengthPolicy, state.language);
     const findings = readAdaptationCoverage({
       ...verdict,
-      missingRequirements: [...(state.adaptationCoverage?.missingRequirements || []), ...verdict.missingRequirements, ...overLimit].slice(0, 20),
+      missingRequirements: [...overLimit, ...preferredLength, ...(state.adaptationCoverage?.missingRequirements || []), ...verdict.missingRequirements].slice(0, 20),
       unsupportedClaims: [...verdict.unsupportedClaims, ...(runs.length ? [state.language === 'ru'
         ? 'Есть дословные совпадения с чужими источниками.'
         : 'The complete post repeats source wording.'] : [])].slice(0, 20),

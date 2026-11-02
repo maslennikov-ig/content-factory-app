@@ -2017,6 +2017,7 @@ const createWorld = (overrides = {}) => {
         // numbers the stand shows (final recheck F-2a).
         const defaults = defaultWritingProfileFor(channel.providerIdentifier, 'ru');
         return {
+          providerIdentifier: channel.providerIdentifier,
           integrationId: id,
           profile: JSON.parse(JSON.stringify(channel.profile ?? defaults)),
           stored: !!channel.profile,

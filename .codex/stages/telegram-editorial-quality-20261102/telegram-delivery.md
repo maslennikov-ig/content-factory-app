@@ -1,0 +1,15 @@
+# Telegram formatting stream delivery
+
+- Canonical body: headings `#` through `######`, flat bullet (`-` or `*`) and sequential ordered lists beginning with `1.`, blank-line paragraphs, and single line breaks. The block grammar is shared by the HTML renderer and Telegram adaptation preview; existing non-HTML editor modes are unchanged.
+- `stripHtmlValidation` now retains the relevant structural tags and inline emphasis before publication. The post editor retains `<br>`, h1–h6 and ordered lists. The adaptation text editor still displays block markers literally, retaining them on edit; the formatted preview renders them.
+- Text-only structured Telegram posts use `sendRichMessage` with sanitized HTML; normal text and media keep the existing API path. Media captions render headings as bold and lists as numbered/bullet lines. No retry or second message is attempted after an uncertain request.
+- Telegram Bot API documentation confirms `sendRichMessage` and `rich_message.html`: https://core.telegram.org/bots/api#sendrichmessage and https://core.telegram.org/bots/api#rich-message-formatting-options. Installed `node-telegram-bot-api` 0.66.0 has no rich method; its `_request` accepts a form and parses the Bot API result. The provider JSON-serializes `rich_message` before passing it to that existing transport.
+- Verification: focused Jest set covering the formatting stream, editor round-trip, publisher escaping and legacy Telegram behavior: 8 suites, 260 tests passed. `review-fact-check.test.cjs` also passed before the final preview/provider changes. `git diff --check` passed before delivery. Tests used Node 22 and existing local dependencies through NODE_PATH. No network send, browser check, full suite or typecheck was run by this stream.
+- Limitations for integration: the Telegram adaptation preview is source-body based; the post editor handles native HTML blocks. Nested lists, custom list start values and arbitrary malformed HTML are not part of the canonical model-generated grammar. Root owns final integration, browser and type checks.
+- Added and reran an additional focused preview regression after that set: caption heading versus text-only heading and unchanged non-Telegram preview; `telegram.editorial-format.test.cjs` passed 7/7.
+- Follow-up: `stripEditorialBlockMarks` shares the renderer's actual line classification and preserves line breaks. Editorial length review and the editor's visible counter exclude supported block markers; its existing hard-limit calculation remains unchanged. Three focused suites passed (91 tests), including hashtags, years, headings, links, lists and line boundaries. Near the hard limit, the visible counter can differ from the conservative hard-limit warning because that older calculation includes block markers.
+
+## Root acceptance
+Accepted into the shared isolated task worktree; root integration and relevant follow-ups passed (see acceptance.md).
+cleanup_status: cleaned
+cleanup_notes: No child worktree/runtime was created; shared source and root-owned evidence retained.

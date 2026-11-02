@@ -157,7 +157,8 @@ import { interviewQuestionsV9 } from './intake.prompts.v9';
   отданному полю может опираться на общеизвестное знание, но по-прежнему не
   на выдуманный опыт человека. Модуль v10 остаётся для квитанций.
 */
-import { briefFillPromptV14, briefFillSchemaV14 } from './intake.prompts.v14';
+import { briefFillPromptV15, briefFillSchemaV15 } from './intake.prompts.v15';
+import { briefEvidenceEnvelope, sourceDateMetadata } from './evidence-envelope';
 import {
   DEFAULT_DELEGATED_POLICY,
   delegatedPolicyOf,
@@ -178,7 +179,7 @@ import { avatarReader } from './avatar-audience';
 import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
 import { resolveResearchIntentV2 as resolveResearchIntent, researchIntentQuery, researchTimezone, type ResearchIntentV1 } from './research-intent';
-import { digestSourcesForV5, researchDigestPromptV5, researchDigestSchemaV5, settleResearchDigestV5 } from './research-digest.v5';
+import { digestSourcesForV6, researchDigestPromptV6, researchDigestSchemaV6, settleResearchDigestV6 } from './research-digest.v6';
 import { parseIntakeUnderstanding, parseModelIntakeUnderstanding, type IntakeUnderstandingV1, type IntakeResearchSelectionV1 } from './request-understanding';
 import { PIECE_RESEARCH_DIRECTION_MAX } from '../pieces/piece-research.contract';
 
@@ -344,6 +345,8 @@ export type AcceptedEvidence = {
   url: string;
   title: string | null;
   excerpt: string;
+  publishedAt?: string | null;
+  fetchedAt?: string | null;
   /** Retained for owned source reads, excluded from every model prompt preview. */
   fullText?: string;
   requestMaterial?: import('./request-understanding').IntakeSourceMaterialV1;
@@ -1598,10 +1601,10 @@ export class IntakeService {
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 4_096, 'extract')
-        ).withStructuredOutput(briefFillSchemaV14);
+        ).withStructuredOutput(briefFillSchemaV15);
         try {
           return await model.invoke(
-            briefFillPromptV14({
+            briefFillPromptV15({
               language: plan.language,
               originalRequest: plan.input,
               contextMaterial: plan.contextMaterial,
@@ -1629,12 +1632,8 @@ export class IntakeService {
               avatar: avatar.lines,
               channel: [],
               facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
-              evidence: [...evidence.values()].map(
-                (item) =>
-                  `[E:${item.evidenceId}] ${item.requestMaterial ? JSON.stringify(item.requestMaterial) + ' ' : ''}${oneLine(item.title || item.url)} — ${oneLine(
-                    item.excerpt
-                  ).slice(0, 400)}`
-              ),
+              evidence: [...evidence.values()].map(item =>
+                briefEvidenceEnvelope(item, WEB_SEARCH_MAX_SOURCE_CHARS)),
             })
           );
         } catch (error) {
@@ -2062,7 +2061,7 @@ export class IntakeService {
         kind: evidenceId || !this.ownWords(plan) ? 'external' : 'own',
         status: evidenceId || factId ? 'confirmed' : 'unverified',
         verified: Boolean(evidenceId || factId),
-        ...(quote ? { quote } : {}),
+        ...(quote ? { quote, sourceDates: sourceDateMetadata(source) } : {}),
       });
     }
     // Preserve every explicit selection, including sources omitted by the brief model.
@@ -2345,9 +2344,10 @@ export class IntakeService {
       if (!savedQuote) throw researchReuseError('INTAKE_RESEARCH_EVIDENCE_MISMATCH', 'The stored evidence does not contain the selected source passage.');
       if (!snapshot.evidence.some(row => row.evidenceId === accepted.evidenceId)) snapshot.evidence.push({
         evidenceId: accepted.evidenceId, url: accepted.url, title: accepted.title, excerpt: accepted.excerpt,
+        ...sourceDateMetadata(source),
       });
       snapshot.facts.push({ statement, factKey, sourceUrl: accepted.url, evidenceId: accepted.evidenceId,
-        factId: null, quote: savedQuote, origin: 'search', kind: 'found', status: 'confirmed', verified: true, selected: true,
+        factId: null, quote: savedQuote, sourceDates: sourceDateMetadata(source), origin: 'search', kind: 'found', status: 'confirmed', verified: true, selected: true,
         ...(fact.dateProvenance ? { dateProvenance: fact.dateProvenance } : {}) });
     }
     // Preserve pages which the bounded semantic/snippet pass did not turn into
@@ -2363,6 +2363,7 @@ export class IntakeService {
       if (!quote) throw researchReuseError('INTAKE_RESEARCH_EVIDENCE_MISMATCH', 'The saved page capture does not contain its actual source passage.');
       if (!snapshot.evidence.some(row => row.evidenceId === accepted.evidenceId)) snapshot.evidence.push({
         evidenceId: accepted.evidenceId, url: accepted.url, title: accepted.title, excerpt: accepted.excerpt,
+        ...sourceDateMetadata(source),
       });
       snapshot.facts.push({ factKey: `source:${index}:${factKeyOf({ statement: quote, origin: 'search' })}`,
         statement: quote, sourceUrl: accepted.url, evidenceId: accepted.evidenceId, quote, factId: null,
@@ -2880,6 +2881,7 @@ export class IntakeService {
           url: accepted.url,
           title: accepted.title,
           excerpt: accepted.excerpt,
+          ...sourceDateMetadata(source),
           ...(source?.fullText ? { fullText: source.fullText } : {}),
         });
         sources.push({
@@ -2937,7 +2939,7 @@ export class IntakeService {
         statement: fact.statement,
         own: factKind(fact, filled.brief.inputKind) === 'own',
       }));
-    const sources = digestSourcesForV5(researched.sources);
+    const sources = digestSourcesForV6(researched.sources);
     if (!sources.length) return null;
     // General is also a model-understood scope; a later digest must not
     // replace it with a period found inside reference material.
@@ -2961,12 +2963,12 @@ export class IntakeService {
         async () => {
           const model = (
             await getChatModel(organizationId, 0, 4_096, 'review')
-          ).withStructuredOutput(researchDigestSchemaV5);
-          return await model.invoke(researchDigestPromptV5(input, sources));
+          ).withStructuredOutput(researchDigestSchemaV6);
+          return await model.invoke(researchDigestPromptV6(input, sources));
         },
         'review'
       );
-      const settled = settleResearchDigestV5(answer as any, input);
+      const settled = settleResearchDigestV6(answer as any, input);
       if (settled.resolvedIntent) researched.researchIntent = settled.resolvedIntent;
       const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
       const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;
@@ -3104,6 +3106,7 @@ export class IntakeService {
           evidenceId: finding.evidenceId, origin: 'search', verified: true,
           kind: 'found', status: 'confirmed', quote: finding.quote, note: null, selected: true,
           ...(finding.dateProvenance ? { dateProvenance: finding.dateProvenance } : {}),
+          sourceDates: sourceDateMetadata(researched.sources.find(source => source.evidenceId === finding.evidenceId)),
         };
         row.factKey = factKeyOf(row);
         facts.push(row);

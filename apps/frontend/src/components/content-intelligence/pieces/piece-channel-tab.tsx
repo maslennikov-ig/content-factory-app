@@ -405,6 +405,7 @@ export function PieceChannelTab({
                 <PostPreview
                   locale={locale}
                   channelName={channel.name}
+                  platform={channel.providerIdentifier || channel.platform}
                   text={shown}
                   image={image}
                   time={cellDate('queued', adaptation.date)}

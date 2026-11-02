@@ -309,7 +309,7 @@ describe('writeCoreWithDecisions', () => {
     }), deps);
     expect(modelCalls).toHaveLength(1);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain(withResearch ? 'PROMPT VERSION: core-write/v20' : 'PROMPT VERSION: core-write/v19');
+    expect(prompt).toContain(withResearch ? 'PROMPT VERSION: core-write/v21' : 'PROMPT VERSION: core-write/v19');
     expect(prompt).toContain('This call writes exactly one cohesive core');
     expect(prompt).toContain('do not write them in the core');
     expect(prompt).toContain('substantive sections, examples, distinctions and comparisons');

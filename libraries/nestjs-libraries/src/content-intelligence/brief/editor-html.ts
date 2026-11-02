@@ -20,6 +20,7 @@ import {
   inlinePlain,
   parseInline,
 } from '@contentfactory/helpers/utils/inline-marks';
+import { editorialBlocks } from '@contentfactory/helpers/utils/editorial-blocks';
 
 export { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 
@@ -63,9 +64,8 @@ export const boldToStrong = (escaped: string): string =>
 /**
  * Абзацы сгенерированного текста, каждый своим `<p>`.
  *
- * Пустая строка — граница абзаца, одиночный перевод строки внутри абзаца
- * сохраняется как пробел: модель ставит их произвольно, а лишний `<p>` на
- * каждой строке превратил бы телеграм-пост в лесенку.
+ * Пустая строка — граница абзаца; одиночный перевод строки сохраняется как
+ * `<br>`. Заголовки и списки читаются общей с предпросмотром грамматикой.
  *
  * Редактор канала решает, что делать с разметкой. `html` принимает теги — там
  * появляется `<strong>`, и Telegram уже своим путём делает из него `<b>`.
@@ -124,6 +124,14 @@ export const editorHtml = (
       : editor === 'html'
       ? boldToStrong(escape(line))
       : stripBoldMarkers(escape(line));
+  if (editor === 'html') return editorialBlocks(body).map((block) => {
+    if (block.kind === 'heading') return `<h${block.level}>${inline(block.text)}</h${block.level}>`;
+    if (block.kind === 'list') {
+      const tag = block.ordered ? 'ol' : 'ul';
+      return `<${tag}>${block.items.map((item) => `<li>${inline(item)}</li>`).join('')}</${tag}>`;
+    }
+    return `<p>${block.lines.map(inline).join('<br>')}</p>`;
+  }).join('');
   return body
     .split(/\n{2,}/u)
     .map((block) =>

@@ -62,6 +62,7 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { PLATFORM_NAMES } from '@contentfactory/react/platform/platform.families';
 import { stripInlineMarks } from '@contentfactory/helpers/utils/inline-marks';
+import { stripEditorialBlockMarks } from '@contentfactory/helpers/utils/editorial-blocks';
 import {
   PIECE_ADAPTATION_WORKSPACE_ROUTES,
   type PieceAdaptationEditRequestV1,
@@ -1895,6 +1896,9 @@ export const EDIT_CLOSED_CODES: ReadonlySet<string> = new Set([
 /** Сколько знаков увидит читатель: звёздочки выделения не в счёт. */
 export const visibleLength = (text: string): number =>
   Array.from(stripInlineMarks(text)).length;
+
+export const visibleEditorialLength = (text: string): number =>
+  Array.from(stripInlineMarks(stripEditorialBlockMarks(text))).length;
 
 /* ---- Правка текста -------------------------------------------------------- */
 

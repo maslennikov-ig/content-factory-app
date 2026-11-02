@@ -45,6 +45,8 @@ mkdir -p "$out_dir"
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "Running the full suite for $(git rev-parse --short=12 HEAD). This takes minutes."
 echo
@@ -69,6 +71,15 @@ jest_tests="$(grep -m1 '^Tests:' "$log" || echo 'Tests: (not reported)')"
 node_pass="$(grep -m1 '^# pass' "$log" || echo '# pass (not reported)')"
 node_fail="$(grep -m1 '^# fail' "$log" || echo '# fail (not reported)')"
 python_line="$(grep -m1 -E '^(OK|FAILED)' "$log" || echo '(not reported)')"
+
+# A signal can leave an apparently successful pipeline without complete output.
+# Never create a receipt unless all three runs actually reported success.
+if ! [[ "$jest_suites" =~ [0-9]+\ passed ]] || ! [[ "$jest_tests" =~ [0-9]+\ passed ]] ||
+   ! [[ "$node_pass" =~ ^\#\ pass\ [1-9][0-9]*$ ]] || [[ "$node_fail" != '# fail 0' ]] ||
+   ! [[ "$python_line" =~ ^OK(\ \(.*\))?$ ]]; then
+  echo 'The suite did not report all three successful summaries; no receipt was written.' >&2
+  exit 1
+fi
 
 cat >"$receipt" <<JSON
 {

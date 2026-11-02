@@ -84,6 +84,29 @@ if [ -z "$receipt_commit" ]; then
   refuse "The receipt at var/release/suite-receipt.json names no commit."
 fi
 
+# A matching commit alone is not evidence: an interrupted run may have left
+# placeholder summaries. Validate every reported result before publishing.
+if ! python3 - "$receipt" <<'PY_CHECK'
+import json, re, sys
+try:
+    with open(sys.argv[1], encoding='utf-8') as handle:
+        value = json.load(handle)
+    jest = value.get('jest') or {}
+    node = value.get('nodeTest') or {}
+    valid = (value.get('command') == 'pnpm test'
+        and re.search(r'\b[1-9]\d* passed\b', jest.get('suites', ''))
+        and re.search(r'\b[1-9]\d* passed\b', jest.get('tests', ''))
+        and re.fullmatch(r'# pass [1-9]\d*', node.get('pass', ''))
+        and node.get('fail') == '# fail 0'
+        and re.fullmatch(r'OK(?: \(.*\))?', value.get('python', '')))
+    sys.exit(0 if valid else 1)
+except (OSError, ValueError, TypeError, AttributeError):
+    sys.exit(1)
+PY_CHECK
+then
+  refuse 'The receipt does not contain successful summaries for all three test runs.'
+fi
+
 if [ "$receipt_commit" != "$covered_commit" ]; then
   if [ "$published" -eq 1 ]; then
     refuse "The receipt covers ${receipt_commit:0:12}, and HEAD ($short) was

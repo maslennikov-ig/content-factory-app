@@ -1,3 +1,4 @@
+import { EDITORIAL_VALUE_REVIEW_RULE } from './editorial-value-policy';
 import { z } from 'zod';
 import type { IntakeMaterialHintV1 } from './generator-run-input';
 import type { ContentContextEnvelopeResultV1 } from '../content-intelligence/context/content-context.types';
@@ -59,6 +60,24 @@ export const AUTHOR_MEANING_ADAPTATION_RULE = "Author replies are ideas and view
 
 export const ADAPTATION_SOURCE_FIDELITY_RULE = 'Be creative in wording, structure and clearly figurative comparisons, not in factual detail. Preserve the source’s level of specificity: leave an unspecified actor, role, cause, timing or procedure unspecified. A plausible detail is not a supported detail; use neutral phrasing rather than filling it in. Develop only implications justified by the supplied material and distinguish an explanation from a newly reported fact. Keep fictional examples labelled as fictional, and never turn them into the author’s personal experience.';
 
+/** The range is already resolved for this post, including an approved override. */
+export const preferredLengthFindings = (
+  counts: readonly number[],
+  policy: 'auto' | 'provider_max' | { idealMin: number | null; idealMax: number } | null | undefined,
+  language: string
+): string[] => {
+  if (!policy || typeof policy !== 'object') return [];
+  return counts.flatMap((count, index) => {
+    const min = policy.idealMin;
+    const max = policy.idealMax;
+    if ((min === null || count >= min) && count <= max) return [];
+    const range = min === null ? (language === 'ru' ? `не более ${max}` : `at most ${max}`) : `${min}–${max}`;
+    return [language === 'ru'
+      ? `Текст ${index + 1}: видимых знаков ${count}, целевой диапазон ${range}.`
+      : `Post ${index + 1}: ${count} visible characters; target range ${range}.`];
+  });
+};
+
 export const adaptationCoverageSchema = z.object({
   unsupportedClaims: z.array(z.string().min(1).max(1_000)).max(20)
     .describe('Evaluate source support first. List unsupported assertions, including implied event timing or changed qualifiers. Official authorship does not establish when an event happened.'),
@@ -97,7 +116,7 @@ export const readAdaptationCoverage = (
   };
 };
 
-export const ADAPTATION_DATE_PROVENANCE_RULE = 'Preserve what each date actually dates. A source published on a date supports "published/reported/announced on that date", not "launched/completed/changed on that date" unless the source explicitly dates that event. Publisher authority never fills a missing event date: even an official article can describe work completed earlier. Reporting intervals in the hook or opening also make timing claims. For a newly published account of earlier work, describe what the publisher reported during the interval, not what happened during it. Do not turn a retrospective into a new product release, an announced intention into a completed action, or availability in additional markets into total availability. Preserve these qualifiers in both the hook and body, even when shortening. If event timing is unknown, retain publication attribution and leave event timing unknown.';
+export const ADAPTATION_DATE_PROVENANCE_RULE = 'Preserve what each date actually dates. A source published on a date supports "published/reported/announced on that date", not "launched/completed/changed on that date" unless the source explicitly dates that event. Publisher authority never fills a missing event date: even an official article can describe work completed earlier. Reporting intervals in the hook or opening also make timing claims. For a newly published account of earlier work, describe what the publisher reported during the interval, not what happened during it. Do not turn a retrospective into a new product release, an announced intention into a completed action, or availability in additional markets into total availability. Preserve these qualifiers in both the hook and body, even when shortening. A dated primary announcement explicitly stating that availability starts today can anchor that specific availability to its publication date, with its exact audience and platform scope. A later platform announcement does not date global launch; publication or fetch metadata alone never establishes an event. If event timing is unknown, retain publication attribution and leave event timing unknown.';
 
 export const ADAPTATION_COVERAGE_REVIEW_RULES = `Review the COMPLETE saved-post candidate: its hook and every body item together. Return a verdict only; do not write a replacement.
 Findings are advisory notes for the person, not permission to save. Write human-readable findings in the input language.
@@ -110,5 +129,6 @@ Compare the draft with the original assignment's goal, outputs and requirements,
 Foreign-copy compliance is checked separately by the server against the actual foreign-source fingerprints; foreignCopy.matches contains its literal findings. Do not invent a copying violation from overlap with the neutral core or the author's own answers. Reusing their supported wording, names and numbers is allowed. The core is not an additional foreign source for that check. Actual foreign-source matches remain violations even when the same wording appears in the core.
 The core is material to adapt, not independent proof of external claims. Author statements may remain attributed to the author. External claims, dates, names and numbers need actual support from the supplied facts or source excerpts. Check meaning, scope and qualifiers, not just word overlap. A checked flag, URL, evidence id or citation id alone proves nothing. In particular, a quote about a different entity, date, amount or opposite outcome cannot support the selected statement. Mark unsupported assertions, and require explicit uncertainty for a source conflict instead of silently choosing a version.
 ${ADAPTATION_DATE_PROVENANCE_RULE} Mark violations as unsupportedClaims and return partial.
+${EDITORIAL_VALUE_REVIEW_RULE}
 Check the explicit resolved channel instructions, including how to address readers and where links belong, together with the one-post overrides. These are requirements for this post; statistical voice examples cannot override them or its requested scope. An explanation of a campaign or promise must preserve who it applies to, its alternatives and material conditions; merely naming it is insufficient. The result must deliver the requested publication itself, without invented authoring plans, unrequested case exclusions, or commentary about how the text was assembled.
 Return passed only when the complete requested scope and the core's supported substance survive with no unsupported claim. Otherwise return partial, with concrete missingRequirements and unsupportedClaims. Assess semantic coverage rather than topic keywords. Also compare postVisibleCharacterCounts (visible text, excluding markup and hidden link destinations) with the resolved channelLengthPolicy; use postCharacterCounts for the separate hardCharacterLimit. An explicit author length request for this post overrides the channel default; do not flag that authorized departure as an unmet requirement. The preferred channel range is an editorial target, not a reason to invent facts or repeat prose. If a post is outside that range, explain the difference in missingRequirements and whether the supplied material supports a fuller or more concise treatment; do not claim that being below the hard limit means the target was met. With auto or no minimum, do not invent a minimum. Never demand filler to make a short source longer.`;

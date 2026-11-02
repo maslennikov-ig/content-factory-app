@@ -1,3 +1,4 @@
+import { writingSettingsAnswerSchema, writingSettingsWithinLimit } from '@contentfactory/helpers/utils/writing-settings';
 import { AGENT_CARD_ID_KEY, AGENT_DECIDE_FOR_PERSON_KEY } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
 import { validFullPreviewAnswer } from './catalogue/selection';
@@ -172,6 +173,11 @@ export const answerFitsCard = (
   const decide = answer[AGENT_DECIDE_FOR_PERSON_KEY];
   if (decide !== undefined && typeof decide !== 'boolean') return false;
   switch (payload.kind) {
+    case 'writing-settings': {
+      const parsed = writingSettingsAnswerSchema.safeParse(answer);
+      return payload.canDecideForPerson === false && parsed.success && (parsed.data.action === 'keep-channel' ||
+        (typeof payload.maxCharacters === 'number' && writingSettingsWithinLimit(parsed.data.settings, payload.maxCharacters)));
+    }
     case 'domain-questions': {
       if (!domainQuestionSchema.safeParse(payload).success || !domainQuestionAnswer.safeParse(answer).success) return false;
       try { mergeDomainQuestionAnswers(payload as any, answer); return true; }

@@ -17,12 +17,7 @@
  * подсунуть проверке старое тело значило бы молча откатить его правку. Тогда
  * выделение возвращают из `<strong>`/`<b>` обратно в `**`.
  *
- * Круговой эта дорога для выделения и ссылок (ссылки — `97dq.77`).
- * Правленый руками пост читается через `htmlToPlainText`, а он снимает теги:
- * список теряет маркеры, заголовок — свой уровень. Принятая правка запишет в пост то, что `editorHtml` соберёт из этих
- * слов, то есть абзацы. Это поведение было здесь до `97dq.3` и этой волной не
- * чинится — сказано, чтобы никто не прочитал «круг» шире, чем он есть
- * (`content-factory-next-97dq.3`, P2-15).
+ * Заголовки и простые списки тоже переводятся в хранимые знаки до снятия HTML.
  */
 import { isHttpUrl } from '@contentfactory/helpers/utils/inline-marks';
 import { editorHtml } from '../brief/editor-html';
@@ -104,10 +99,22 @@ export const anchorsToLinks = (html: string): string =>
     }
   );
 
+/** Preserve editor blocks before stripping HTML for review. */
+const blocksToStored = (html: string): string => html
+  .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1\s*>/giu,
+    (_all, level: string, content: string) => `<p>${'#'.repeat(Number(level))} ${content}</p>`)
+  .replace(/<(ul|ol)\b[^>]*>([\s\S]*?)<\/\1\s*>/giu,
+    (_all, tag: string, content: string) => {
+      let number = 0;
+      const items = [...content.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li\s*>/giu)]
+        .map((item) => `${tag.toLowerCase() === 'ol' ? `${++number}.` : '-'} ${item[1].replace(/<\/?p\b[^>]*>/giu, '')}`);
+      return `<p>${items.join('<br>')}</p>`;
+    });
+
 /** Пост как текст для проверки: теги сняты, выделение и ссылки остались знаками тела. */
 export const postAsReviewText = (content: string, editor: EditorKind): string =>
   editor === 'html' || editor === 'normal'
-    ? htmlToPlainText(anchorsToLinks(strongToBold(content)))
+    ? htmlToPlainText(blocksToStored(anchorsToLinks(strongToBold(content))))
     : content;
 
 /**

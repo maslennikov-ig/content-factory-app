@@ -100,6 +100,15 @@ describe('the trigger: clearly short of the length the post was written to', () 
     expect(asks.visiblePostLength('  🙂 ok  ')).toBe(4);
   });
 
+  test('visible length follows the same heading and list grammar as the renderer', () => {
+    const body = '# **Тема**\n\n- [сайт](https://example.com/path)\n- Два\n\n1. Раз\n2. Два\n\n#тег\n2026. год';
+    const visible = 'Тема\n\nсайт\nДва\n\nРаз\nДва\n\n#тег\n2026. год';
+    expect(asks.visiblePostLength(body)).toBe(Array.from(visible).length);
+    const { visibleEditorialLength, visibleLength } = loadTypeScriptModule('apps/frontend/src/components/content-intelligence/pieces/pieces.adapter.ts');
+    expect(visibleEditorialLength(body)).toBe(Array.from(visible).length);
+    expect(visibleLength(body)).toBeGreaterThan(visibleEditorialLength(body));
+  });
+
   test('auto length has no target, from the channel or from the post', () => {
     expect(directives.channelLengthTarget(profile('auto'), TELEGRAM)).toBeNull();
     expect(directives.channelLengthTarget(profile('provider_max'), TELEGRAM)).toBeNull();

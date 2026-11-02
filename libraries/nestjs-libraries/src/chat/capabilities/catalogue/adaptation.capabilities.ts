@@ -1,5 +1,8 @@
 import { startNativeAdaptationSeries, resumeNativeAdaptationSeries } from '../../conductor/native-adaptation-series';
 import { z } from 'zod';
+import { writingSettingsWithinLimit } from '@contentfactory/helpers/utils/writing-settings';
+import { questionCardView } from '../question-card';
+import { writingSettingsQuestionFields, writingSettingsAnswerSchema, writingSettingsCheckpoint, channelWritingSettings, hasWritingProposal, proposedWritingSettings, settingsProfileFingerprint, writingSettingsDiffer, writingSettingsOverrides } from '../writing-settings-proposal';
 import { domainQuestionSchema, domainQuestionAnswer, isDomainQuestionCard, createDomainQuestionCard, domainQuestionRevision, continueDomainQuestions, type ManualDomainQuestion } from '../domain-questions';
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 import { IntegrationsController } from '@contentfactory/backend/api/routes/integrations.controller';
@@ -89,7 +92,14 @@ const postAdaptFields = {
  */
 const authorReferences = z.array(z.string().min(1).max(2_000)).max(64).optional();
 const writingCheckpoint = z.object({ channelId: channelId, avatarId: z.string().min(1).max(128).optional() }).strict();
-const adaptationContinuation = z.object({ currentAuthorRequest: originalAuthorRequestSchema.shape.text.optional(), writingSelection: writingCheckpoint.optional(), skipInterview: z.boolean().optional() });
+const adaptationContinuation = z.object({
+  currentAuthorRequest: originalAuthorRequestSchema.shape.text.optional(), writingSelection: writingCheckpoint.optional(), skipInterview: z.boolean().optional(),
+  settingsDecision: writingSettingsCheckpoint.optional(),
+  settingsProposal: z.object({pieceId: z.string(), profileFingerprint: z.string(), sourceRevision: z.string()}).strict().optional(),
+});
+const writingSettingsQuestion = z.object({...writingSettingsQuestionFields,
+  continuation: adaptationContinuation, authorReferenceUrls: authorReferences,
+});
 
 const interviewQuestion = z.object({
   kind: z.literal('interview'),
@@ -143,7 +153,7 @@ const interviewAnswer = z
 const autopilotAnswer = z.object({ consentGiven: z.boolean() }).strict();
 
 /** What `piece.adapt` takes on resume: one of its two cards' answers. */
-const adaptAnswer = z.union([autopilotAnswer, interviewAnswer, domainQuestionAnswer]);
+const adaptAnswer = z.union([autopilotAnswer, interviewAnswer, domainQuestionAnswer, writingSettingsAnswerSchema]);
 
 /**
  * Consent to write into an autopilot channel (spec §1.4, premortem A1): the
@@ -171,7 +181,7 @@ const AUTOPILOT_TEXT = {
 };
 
 /** Both cards of `piece.adapt`: the autopilot consent first, the interview after. */
-const adaptQuestion = z.union([autopilotQuestion, interviewQuestion, domainQuestionSchema]);
+const adaptQuestion = z.union([autopilotQuestion, interviewQuestion, domainQuestionSchema, writingSettingsQuestion]);
 
 const INTERVIEW_TEXT = {
   ru: 'Пара вопросов, чтобы пост получился вашим. Ответьте или явно выберите «Решите за меня».',
@@ -184,6 +194,7 @@ const isPending = (value: Adapted | AdaptDeclined | AdaptPending): value is Adap
 type SavedSeriesPart = Awaited<ReturnType<PieceService['persistSeriesAdaptation']>>['parts'][number];
 
 type Adapted = {
+  writingSettings?: {scope: 'post' | 'drafts'; action: 'apply' | 'keep-channel'; current: z.infer<typeof writingSettingsCheckpoint>['current']; settings: z.infer<typeof writingSettingsCheckpoint>['settings']};
   presentationReason?: string;
   series?: { id: string; index: number; total: number };
   parts?: Array<SavedSeriesPart & { index: number; total: number }>;
@@ -403,14 +414,15 @@ export const pieceAdapt = defineCapability({
   group: 'content',
   label: { ru: 'Адаптировать под канал', en: 'Adapt for a channel' },
   description:
-    'Write a piece for one channel («Адаптировать»). Use presentation auto to choose one post or a semantic series from the complete material, save each as a separate DRAFT without queueing. Use series for an explicit series; single opts into the legacy one-post placement/consent flow below. Never reduce research scope or omit author views just to fit one post. If saving is pending, use piece.series.resume with its runId; do not generate again. Paid; runs without asking — except into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. When the person delegates editorial choices, you may choose suitable per-post length, emoji, hashtags, link placement and call to action for the material and its full scope. Preserve explicit author requirements and channel constraints; omit fields to follow the channel profile. Put an actual author wish in `wish`. Ground the takeaway and links in the task and supplied sources; preserve the author’s views, explicit link and avatar choices, and never invent a promotional link. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. qualityReview is advisory: partial or unavailable review does not undo the saved draft. Report the findings; do not rewrite or repeat checks without a new request. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
+    'Write a piece for one channel («Адаптировать»). Use presentation auto to choose one post or a semantic series from the complete material, save each as a separate DRAFT without queueing. Use series for an explicit series; single opts into the legacy one-post placement/consent flow below. Never reduce research scope or omit author views just to fit one post. If saving is pending, use piece.series.resume with its runId; do not generate again. Paid; follows channel settings unless you propose changes. Per-post setting changes pause on an editable human card before spending; never answer it yourself. Autopilot also asks separately: into a channel on autopilot, where the person first consents, because the post would go out by itself: on a card in the web chat (a «no» ends the call, nothing written); over MCP the call answers `needsConfirmation` with a question you ask the person, and after their «да» you call again with its `confirmation` code. The first text for a channel may ask the person a few questions on a card (they answer or say «Решите за меня»); you never answer them. Adapting again for the same channel writes a new variant; the old one stays. You may propose per-post length, emoji, hashtags, link placement and call to action with settingsReason explaining the benefit. The human card accepts or edits them; omit fields to use the channel defaults. A wish or delegated editorial choice is not silent permission to change configured values. Apply only to this post; use channel.writing only after a separate explicit request to save channel defaults. Preserve explicit author requirements and channel constraints; omit fields to follow the channel profile. Put an actual author wish in `wish`. Ground the takeaway and links in the task and supplied sources; preserve the author’s views, explicit link and avatar choices, and never invent a promotional link. After consent the post waits in the channel queue (`state: queued`): say so. Even with consent it may stay planned (`plan: reserved` with a `note`, e.g. an earlier version the person scheduled stays queued): say the note as given and do not call it queued. Without consent on this call it never queues — if the channel went on autopilot meanwhile, the post stays planned (`plan: reserved` with a `note`); offer plan.schedule, which the person approves. Returns ids, the variant number, the state and the plan; the text is on the card. qualityReview is advisory: partial or unavailable review does not undo the saved draft. Report the findings; do not rewrite or repeat checks without a new request. `answeredOnCard` counts questions already answered in this call — none of them waits. `openQuestions` is what waits under the post: optional questions for more material, with their exact count; when you mention them, say that count, that they are optional, and quote them in «» word for word, as given.',
   input: z.object({
     pieceId,
     channelId: channelId.optional(),
     presentation: z.enum(['auto', 'series', 'single']).optional().describe('auto chooses one post or a semantic series from the complete material; series requests multiple posts. Both save separate drafts without scheduling. single preserves one-post placement behavior.'),
     kind: z.enum(ADAPT_KINDS).optional().describe('post (default), caption, article or newsletter'),
     skipInterview: z.boolean().optional().describe('When the person asks to skip questions to the author, skip both the interview and optional material questions for this adaptation. This does not suppress a question addressed to readers in the post or override the channel CTA.'),
-    wish: z.string().max(500).optional().describe('The person’s wish for this post, verbatim'),
+    wish: z.string().max(500).optional().describe('The person’s wish for this post, verbatim; it does not override approved numeric/settings constraints'),
+    settingsReason: z.string().trim().min(1).max(1000).optional().describe('Explain why the proposed settings suit this post; shown beside before/after values for human approval.'),
     ...postFields,
     emojiLevel: EMOJI.optional().describe('Per-post emoji density; choose when delegated, respecting the author and channel.'),
     hashtagPolicy: HASHTAGS.optional().describe('Per-post hashtag policy; choose when delegated, respecting the author and channel.'),
@@ -453,6 +465,7 @@ export const pieceAdapt = defineCapability({
     const currentAuthorRequest = ctx.entrance === 'chat'
       ? ctx.resumeData === undefined ? author?.text : typeof storedRequest === 'string' ? storedRequest : undefined
       : undefined;
+    let settingsDecision = writingSettingsCheckpoint.safeParse(storedContinuation?.settingsDecision);
     const requestMetadata = { ...(currentAuthorRequest ? { currentAuthorRequest } : {}), skipInterview,
       ...(ctx.entrance === 'chat' ? { writingSelection: { channelId: targetChannel, ...(avatarId ? { avatarId } : {}) } } : {}) };
     const sourceUrls = ctx.entrance === 'chat' && ctx.resolveAuthorRequest ? adaptationReferenceUrls(
@@ -460,20 +473,66 @@ export const pieceAdapt = defineCapability({
     ) : [];
     const referenceMetadata = sourceUrls.length ? { authorReferenceUrls: sourceUrls } : {};
     const wish = input.wish?.trim();
+    let settingsAnswered = false;
+    let approvedOverrides: ReturnType<typeof writingSettingsOverrides> = {};
+    const settingsCard = writingSettingsQuestion.safeParse(ctx.suspendPayload);
+    if (settingsDecision.success || hasWritingProposal(input) || settingsCard.success) {
+      const integrations = ctx.service(IntegrationService);
+      const read = await integrations.getWritingProfile(ctx.organizationId, targetChannel);
+      const current = channelWritingSettings(read.profile);
+      const fingerprint = settingsProfileFingerprint(read.profile);
+      const maxCharacters = read.provider.maxLength;
+      if (settingsDecision.success) {
+        const saved = settingsDecision.data;
+        if (saved.pieceId !== input.pieceId || saved.channelId !== targetChannel || saved.profileFingerprint !== fingerprint || !writingSettingsWithinLimit(saved.settings, maxCharacters)) {
+          throw unspentFailure('INPUT_NEEDS_PERSON', 'The channel settings changed. Propose the current values again before generating.');
+        }
+        approvedOverrides = writingSettingsOverrides(saved.current, saved.settings);
+      } else if (ctx.resumeData !== undefined && settingsCard.success) {
+        const proposal = settingsCard.data.continuation.settingsProposal;
+        const answer = writingSettingsAnswerSchema.safeParse(ctx.resumeData);
+        const detail = await pieces.detail(ctx.organizationId, input.pieceId, ctx.language);
+        if (!answer.success || !proposal || proposal.pieceId !== input.pieceId || proposal.profileFingerprint !== fingerprint ||
+          proposal.sourceRevision !== domainQuestionRevision(detail, {kind: 'piece'})) {
+          throw unspentFailure('INPUT_NEEDS_PERSON', 'The material or channel settings changed, or the answer does not fit this card. Propose the current values again.');
+        }
+        const settings = answer.data.action === 'apply' ? answer.data.settings : current;
+        if (!writingSettingsWithinLimit(settings, maxCharacters)) throw unspentFailure('INPUT_NEEDS_PERSON', `The range exceeds the platform limit of ${maxCharacters} characters. Edit the range before generating.`);
+        settingsDecision = writingSettingsCheckpoint.safeParse({scope: settingsCard.data.scope, pieceId: input.pieceId, channelId: targetChannel,
+          profileFingerprint: fingerprint, current, settings, action: answer.data.action});
+        approvedOverrides = writingSettingsOverrides(current, settings);
+        settingsAnswered = true;
+        await emit({kind: 'progress', data: {capability: 'piece.adapt', stage: 'writing-settings-confirmed',
+          question: questionCardView(settingsCard.data), answer: answer.data}});
+      } else {
+        const proposed = proposedWritingSettings(current, input);
+        if (writingSettingsDiffer(current, proposed)) {
+          if (!ctx.suspend || ctx.resumeData !== undefined) throw unspentFailure('INPUT_NEEDS_PERSON', 'Approve the proposed per-post settings in the chat card, or omit overrides to follow the channel. Nothing was generated.');
+          const rows = await integrations.getIntegrationsForChannelList(ctx.organizationId);
+          const channel = rows.find(row => row.id === targetChannel);
+          const detail = await pieces.detail(ctx.organizationId, input.pieceId, ctx.language);
+          await ctx.suspend({kind: 'writing-settings', scope: presentation ? 'drafts' : 'post', maxCharacters,
+            question: ctx.language === 'ru' ? 'Изменить настройки для этого поста?' : 'Change settings for this post?',
+            reason: input.settingsReason || (ctx.language === 'ru' ? 'Агент предложил отступить от настроек канала. Проверьте значения перед генерацией.' : 'The agent proposed different settings. Review the values before generation.'),
+            current, proposed, channel: {id: targetChannel, name: channel?.name || targetChannel, provider: read.providerIdentifier},
+            canDecideForPerson: false, ...referenceMetadata,
+            continuation: {...requestMetadata, settingsProposal: {pieceId: input.pieceId, profileFingerprint: fingerprint,
+              sourceRevision: domainQuestionRevision(detail, {kind: 'piece'})}},
+          });
+          return undefined;
+        }
+      }
+    }
+    // A trusted checkpoint survives every later interview/autopilot suspension.
+    const continuedRequestMetadata = {...requestMetadata, ...(settingsDecision.success ? {settingsDecision: settingsDecision.data} : {})};
     // `buildAdaptPayload` with `adaptOverrides`: only what differs from the
     // channel, which is what the person named.
     const overrides = {
-      ...(input.emojiLevel ? { emojiLevel: input.emojiLevel } : {}),
-      ...(input.hashtagPolicy ? { hashtagPolicy: input.hashtagPolicy } : {}),
-      ...(input.linkPolicy ? { linkPolicy: input.linkPolicy } : {}),
-      ...(input.ctaKind ? { ctaKind: input.ctaKind } : {}),
+      ...approvedOverrides,
       ...(avatarId ? { brandProfileId: avatarId } : {}),
-      ...(input.length ? { length: input.length } : {}),
       ...(input.takeaway ? { takeaway: input.takeaway } : {}),
       ...(input.postLink ? { postLink: input.postLink } : {}),
       ...(input.postLinkText ? { postLinkText: input.postLinkText } : {}),
-      ...(input.lengthPolicy ? { lengthPolicy: input.lengthPolicy } : {}),
-      ...(range ? { lengthRange: { ...range, idealMin: range.idealMin ?? null } } : {}),
       ...(wish ? { wish } : {}),
     };
     const body = (extra: Record<string, unknown> = {}) => ({
@@ -491,6 +550,7 @@ export const pieceAdapt = defineCapability({
       const written = await writtenOf(ctx, input.pieceId, targetChannel, pass.adaptationId);
       const result: Adapted = {
         pieceId: input.pieceId,
+        ...(settingsDecision.success ? {writingSettings: {scope: settingsDecision.data.scope, action: settingsDecision.data.action, current: settingsDecision.data.current, settings: settingsDecision.data.settings}} : {}),
         ...(pass.presentationReason ? { presentationReason: pass.presentationReason } : {}),
         ...(pass.parts && pass.seriesId ? {
           series: { id: pass.seriesId, index: 1, total: pass.parts.length },
@@ -521,7 +581,7 @@ export const pieceAdapt = defineCapability({
           revision: written.questionRevision!}, written.materialAsk.questions,
           ctx.language === 'ru' ? 'Черновик сохранён. Можно дополнить материал — ответьте или выберите «Решите за меня», чтобы оставить пробелы без выдуманных фактов.'
             : 'The draft is saved. Add material by answering, or choose “Decide for me” to retain the gaps without inventing facts.',
-          { ...referenceMetadata, continuation: {operation: 'adaptation-material', adaptationId: result.adaptationId, result, ...requestMetadata} }));
+          { ...referenceMetadata, continuation: {operation: 'adaptation-material', adaptationId: result.adaptationId, result, ...continuedRequestMetadata} }));
         return undefined;
       }
       return result;
@@ -541,7 +601,7 @@ export const pieceAdapt = defineCapability({
         INTERVIEW_TEXT[ctx.language], {
           ...referenceMetadata,
           ...(queueAllowed ? {afterConsent: true as const} : {}),
-          continuation: {operation: 'adaptation-interview', channel: pass.channel, previousAnswers, previousDecideKeys, ...requestMetadata},
+          continuation: {operation: 'adaptation-interview', channel: pass.channel, previousAnswers, previousDecideKeys, ...continuedRequestMetadata},
         }));
       return undefined;
     };
@@ -552,7 +612,7 @@ export const pieceAdapt = defineCapability({
       return askInterview(pass, queueAllowed);
     };
 
-    if (ctx.resumeData !== undefined) {
+    if (ctx.resumeData !== undefined && !settingsAnswered) {
       if (isDomainQuestionCard(ctx.suspendPayload)) {
         const card = await continueDomainQuestions(ctx);
         if (!card) return undefined;
@@ -669,7 +729,7 @@ export const pieceAdapt = defineCapability({
       await ctx.suspend({
         kind: 'consent',
         ...referenceMetadata,
-        ...(Object.keys(requestMetadata).length ? { continuation: requestMetadata } : {}),
+        ...(Object.keys(continuedRequestMetadata).length ? { continuation: continuedRequestMetadata } : {}),
         subject: 'autopilot',
         question: AUTOPILOT_TEXT[ctx.language](String(channel?.name || targetChannel)),
         answerKey: 'consentGiven',
@@ -696,6 +756,7 @@ export const pieceAdapt = defineCapability({
       : {
           pieceId: output.pieceId,
           adaptationId: output.adaptationId,
+          ...(output.writingSettings ? {writingSettings: output.writingSettings} : {}),
           channelId: output.channel.id,
           variant: output.variant,
           ...(output.parts ? { parts: output.parts.map(part => ({ ...part, title: part.title ? wrapUntrusted(part.title, ['workspace-text']) : null })), series: output.series, savedPostCount: output.parts.length } : {}),

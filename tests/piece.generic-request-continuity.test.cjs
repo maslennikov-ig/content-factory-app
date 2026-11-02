@@ -219,7 +219,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   expect(piece.brief.questions.items).toEqual([]);
   expect(piece.brief.questions.answered).toContainEqual(expect.objectContaining({ key: 'ask-1', text: AUTHOR_REPLY, origin: 'person' }));
   expect(answered.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
-  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v20');
+  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v21');
   expect(prompts[0].prompt).toContain(summary.gaps[0]);
   expect(prompts[0].prompt).toContain(request().goal);
   expect(prompts[0].prompt).toContain(AUTHOR_REPLY);
@@ -241,7 +241,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   const reread = await service.detail('org', 'piece-1', 'ru');
   expect(reread.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
   expect(prompts.map(call => call.role)).toEqual(['draft', 'draft']);
-  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v20');
+  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v21');
   expect(prompts[1].prompt).toContain(summary.gaps[0]);
   expect(prompts[1].prompt).toContain(AUTHOR_REPLY);
 });

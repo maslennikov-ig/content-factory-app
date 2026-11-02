@@ -870,7 +870,7 @@ test('actual producer insufficient-evidence assessment permits an exact selected
   expect(output.assessment).toMatchObject({status:'insufficient_evidence'});
   const candidate=output.facts.find(fact=>fact.sourcePassage);
   expect(candidate).toMatchObject({status:'unverified',selected:false});
-  answers=[brief(),{text:'The retained source does not confirm the requested result.'}];
+  answers=[brief({ understanding: { version: 'intake-request/v1', goal: 'Explain the requested capability.', constraints: { research: 'allowed' } } }), {text:'The retained source does not confirm the requested result.'}];
   const result=await run('piece.create.from-research',{snapshotKey:output.snapshotKey,factKeys:[candidate.factKey],text:'Explain the requested capability.'},built);
   expect(result.output.ok).toBe(true);
   expect(unwrap(result.output)).toMatchObject({outcome:'created',pieceId:'piece-1'});
@@ -1411,4 +1411,37 @@ test('a legacy passage capture restores the owned original assessment on read wi
   expect((await run('piece.create.from-research', { text: input, snapshotKey: derived.snapshotKey,
     factKeys: [derived.facts.find(fact => fact.verified).factKey] }, built)).output.ok).toBe(true);
   expect(calls.at(-1).prompt).toContain('Account eligibility remains unknown.');
+});
+
+test('dated primary availability and later platform announcement survive partial research as distinct source evidence', async () => {
+  const built = build();
+  const primary = 'Starting today, Nova is available in Work, Code and the API.';
+  const secondary = 'Nova is now available on Cloud East.';
+  const raw = { query: 'Explain Nova availability', level: 'standard',
+    summary: { status: 'partial', gaps: ['Regional access conditions remain unverified.'] },
+    sources: [
+      { url: urlA, title: 'Nova announcement', publishedAt: '2026-10-10', fetchedAt: '2026-10-20T09:00:00Z', text: primary, provider: 'exa' },
+      { url: urlB, title: 'Cloud East announcement', publishedAt: '2026-10-18', text: secondary, provider: 'exa' },
+    ], facts: [
+      { factKey: 'primary', statement: primary, sourceUrl: urlA, quote: primary },
+      { factKey: 'platform', statement: secondary, sourceUrl: urlB, quote: secondary },
+    ] };
+  const saved = await built.service.storeResearchEvidence(IDENTITY.organizationId, IDENTITY.userId, raw);
+  answers = [brief(), { text: 'Nova доступна в Work, Code и API; Cloud East добавлена позже.' }];
+  const created = await run('piece.create.from-research', { text: 'Объясни доступность Nova.', inputKind: 'instruction', snapshotKey: saved.snapshotKey, factKeys: ['primary', 'platform'] }, built);
+  expect(created.output.ok).toBe(true);
+  const rows = built.writes.mock.calls[0][1].brief.brief.facts;
+  expect(rows.find(row => row.factKey === 'primary')).toMatchObject({ verified: true, quote: primary,
+    sourceDates: { publishedAt: '2026-10-10', fetchedAt: '2026-10-20T09:00:00Z' } });
+  expect(rows.find(row => row.factKey === 'platform')).toMatchObject({ verified: true, quote: secondary,
+    sourceDates: { publishedAt: '2026-10-18', fetchedAt: null } });
+  for (const prompt of calls.map(call => call.prompt)) {
+    expect(prompt).toContain(primary);
+    expect(prompt).toContain('2026-10-10');
+    expect(prompt).toContain('2026-10-18');
+    expect(prompt).toMatch(/partial/i);
+  }
+  expect(calls[0].prompt).toContain('secondary platform announcement date as a global release date');
+  expect(calls[1].prompt).toContain('later platform announcement does not establish a global launch date');
+  expect(built.research).not.toHaveBeenCalled();
 });

@@ -104,7 +104,7 @@ test('model-selected partial evidence reaches the existing-core writer with its 
   const input = { snapshotKey: preview.snapshotKey, selectedKeys: preview.facts.filter(f => f.verified && f.status === 'confirmed').map(f => f.factKey) };
   await service.acceptCoreResearchForModel('org', 'p', 'user', input);
   const prompt = modelCalls.find(call => call.role === 'draft').prompt;
-  expect(prompt).toContain('PROMPT VERSION: core-write/v20');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v21');
   expect(prompt).toContain('Research assessment and limitations');
   expect(prompt).toContain('Полнота наблюдений не подтверждена.');
   expect(piece.brief.researchSummary.status).toBe('partial');
@@ -202,7 +202,7 @@ test('deep research carries an optional direction as a wish into search and dige
   );
   expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review']);
   expect(modelCalls[0].prompt).toContain(direction);
-  expect(modelCalls[1].prompt).toMatch(/^PROMPT VERSION: research-digest\/v5\n/);
+  expect(modelCalls[1].prompt).toMatch(/^PROMPT VERSION: research-digest\/v6\n/);
   expect(modelCalls[1].prompt).toContain(direction);
   expect(modelCalls[1].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
 });

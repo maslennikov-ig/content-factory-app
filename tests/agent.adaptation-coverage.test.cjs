@@ -5,7 +5,7 @@ const {
   loadAgentGraph,
 } = require('../scripts/evidence/voice-eval/product-graph.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
-const { materialSupport, AUTHOR_MEANING_ADAPTATION_RULE, ADAPTATION_SOURCE_FIDELITY_RULE } = loadWithMocks(
+const { materialSupport, preferredLengthFindings, AUTHOR_MEANING_ADAPTATION_RULE, ADAPTATION_SOURCE_FIDELITY_RULE } = loadWithMocks(
   'libraries/nestjs-libraries/src/agent/adaptation-coverage.ts'
 );
 const { defaultWritingProfileFor } = loadWithMocks(
@@ -165,6 +165,7 @@ describe('final adaptation review advises without discarding or rewriting the dr
     const source = state();
     source.hook = '';
     source.intake.core = own;
+    source.intake.post = { lengthPolicy: 'auto' };
     source.content = item(own);
     source.foreignShingles = wordShingles('Eligible research labs can receive thirty seats for one year.');
     source.channelLines = channelInstructionLines(defaultWritingProfileFor('telegram', 'ru'),
@@ -205,7 +206,7 @@ describe('final adaptation review advises without discarding or rewriting the dr
     const result = await service.fixArray({ ...source, ...generated });
     expect(result.content[0].content).toBe(CORE);
     expect(result.content[0].usedCitationIds).toEqual([]);
-    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: [expect.stringContaining('не связана с источниками')] });
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: expect.arrayContaining([expect.stringContaining('не связана с источниками')]) });
   });
 
   test('foreign copying is reported even if it also appears in the core and the model says passed', async () => {
@@ -233,7 +234,7 @@ describe('final adaptation review advises without discarding or rewriting the dr
     const { service, calls } = build([PASSED]);
     const result = await service.fixArray(source);
     expect(result.content).toEqual([source.content]);
-    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: [expect.stringContaining(`при ограничении ${picture ? 80 : 220}`)] });
+    expect(result.adaptationCoverage).toMatchObject({ status: 'partial', missingRequirements: expect.arrayContaining([expect.stringContaining(`при ограничении ${picture ? 80 : 220}`)]) });
     expect(calls).toHaveLength(1);
   });
 
@@ -248,7 +249,7 @@ describe('final adaptation review advises without discarding or rewriting the dr
     expect(result.content).toEqual([source.content]);
     expect(result.adaptationCoverage).toMatchObject({ status: 'unavailable', reviews: 1, repaired: false,
       unsupportedClaims: [expect.stringContaining('совпадения')],
-      missingRequirements: [expect.stringContaining('при ограничении 20')] });
+      missingRequirements: expect.arrayContaining([expect.stringContaining('при ограничении 20')]) });
     expect(result.antiCopy.clean).toBe(false);
     expect(calls).toHaveLength(1);
   });
@@ -276,6 +277,7 @@ describe('final adaptation review advises without discarding or rewriting the dr
   test.each([true, false, 'unavailable'])('the assembled native graph returns the draft once for review outcome %s', async outcome => {
     const source = state();
     source.intake.channel.writingProfile = defaultWritingProfileFor('telegram', 'ru');
+    source.intake.post = { lengthPolicy: 'auto' };
     const reviews = [], usage = [];
     const model = { withStructuredOutput: schema => RunnableLambda.from(async () => {
       const shape = schema.shape;
@@ -415,4 +417,47 @@ test.each([false, true])('caption targets are attainable and visible link labels
     { withPicture: true, post: source.intake.post });
   expect(lines.join(' ')).toContain('1024');
   expect(lines.join(' ')).not.toMatch(/1600|2400|2700/);
+});
+
+test.each([PASSED, new Error('Reviewer unavailable')])('preferred range violation survives the review result without another call', async verdict => {
+  const source = state();
+  source.hook = '';
+  source.content = item('т'.repeat(100));
+  source.intake.post = { lengthPolicy: { idealMin: 200, idealMax: 400, hardMax: 500 } };
+  const { service, calls } = build([verdict]);
+  const result = await service.fixArray(source);
+  expect(result.content).toEqual([source.content]);
+  expect(result.adaptationCoverage.status).toBe(verdict instanceof Error ? 'unavailable' : 'partial');
+  expect(result.adaptationCoverage.missingRequirements).toEqual(expect.arrayContaining([
+    expect.stringMatching(/100.*200.*400/),
+  ]));
+  expect(calls).toHaveLength(1);
+});
+
+test('approved per-post range is used instead of the channel default and hidden link destinations do not inflate visible length', async () => {
+  const source = state();
+  source.hook = '';
+  source.intake.post = { lengthPolicy: { idealMin: 10, idealMax: 20, hardMax: 2000 } };
+  source.content = item('[123456789012345](https://example.test/' + 'x'.repeat(1000) + ')');
+  const { service } = build([PASSED]);
+  const result = await service.fixArray(source);
+  expect(result.adaptationCoverage).toEqual({ ...PASSED, reviews: 1, repaired: false });
+});
+
+test('each series post is measured independently and auto has no preferred range', async () => {
+  const source = state();
+  source.hook = 'hook';
+  source.intake.presentation = 'series';
+  source.intake.post = { lengthPolicy: { idealMin: 10, idealMax: 20, hardMax: 50 } };
+  source.content = [item('a'.repeat(6)), item('b'.repeat(21))];
+  const { service } = build([PASSED, PASSED]);
+  const result = await service.fixArray(source);
+  expect(result.adaptationCoverage.missingRequirements).toEqual([expect.stringMatching(/2.*21.*10.*20/)]);
+  source.intake.post = { lengthPolicy: 'auto' };
+  const automatic = await service.fixArray(source);
+  expect(automatic.adaptationCoverage).toEqual({ ...PASSED, reviews: 1, repaired: false });
+});
+
+test('provider maximum alone does not invent a preferred range', () => {
+  expect(preferredLengthFindings([1, 1000], 'provider_max', 'ru')).toEqual([]);
 });

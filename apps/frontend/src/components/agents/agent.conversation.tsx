@@ -92,6 +92,7 @@ import { SecretCard } from './agent.secret-card';
 import { ChannelConnectCard } from './agent.channel-card';
 import { SelectionCard } from './agent.selection-card';
 import { InterviewCard } from './agent.interview-card';
+import { WritingSettingsCard } from './agent.writing-settings-card';
 import { DomainQuestionCard } from './agent.domain-question-card';
 import { PlanCard } from './agent.plan-card';
 import { AgentMarkdown } from './agent.markdown';
@@ -1580,6 +1581,12 @@ export function AgentConversation({
         );
       }
       case 'question': {
+        if (block.question.kind === 'writing-settings-invalid') {
+          return <div key={block.key} role="status" className="cf-body-sm text-cf-warning">{words.question.answerFailed}</div>;
+        }
+        if (block.question.kind === 'writing-settings' && block.runId === null) {
+          return <div key={block.key} className="flex min-w-0 flex-col gap-[8px]"><QuestionClosedLine {...closedLineOf(block, words)} state={block.history?.writingAnswer ? 'answered' : 'closed'} words={words} /><WritingSettingsCard question={block.question} busy={false} readOnly history={block.history} onAnswer={() => undefined} words={words} /></div>;
+        }
         // Refused here as no longer waiting, and since read back from the
         // thread with its answer from elsewhere: it still says so (R2).
         if (
@@ -1628,7 +1635,7 @@ export function AgentConversation({
             toolCallId: block.toolCallId,
             cardId: block.question.cardId,
           }) ||
-            (block.question.kind === 'domain-questions' &&
+            ((block.question.kind === 'domain-questions' || block.question.kind === 'writing-settings') &&
               questionSent.current?.cardId === block.question.cardId &&
               (busy || questionInFlight.current)) ||
             (last && !pendingKnown));
@@ -1648,6 +1655,7 @@ export function AgentConversation({
                 }
                 words={words}
               />
+              {block.question.kind === 'writing-settings' ? <WritingSettingsCard question={block.question} busy={false} readOnly history={block.history} onAnswer={() => undefined} words={words} /> : null}
               {block.question.kind === 'domain-questions' &&
               closedCards.has(block.question.cardId ?? '') ? (
                 <DomainQuestionCard
@@ -1672,6 +1680,10 @@ export function AgentConversation({
               ) : null}
             </div>
           );
+        }
+        if (block.question.kind === 'writing-settings' && block.runId) {
+          const runId = block.runId;
+          return <WritingSettingsCard key={`${block.key}:${block.question.cardId}`} question={block.question} busy={busy || interrupted} failure={questionFailures.has(block.question.cardId ?? '')} draftStorageKey={draftStorageKey ? `${draftStorageKey}:writing-settings:${block.question.cardId}` : undefined} onAnswer={(answer) => answerQuestion(runId, block.toolCallId, block.question.cardId, answer)} words={words} />;
         }
         if (block.question.kind === 'domain-questions' && block.runId) {
           const runId = block.runId;

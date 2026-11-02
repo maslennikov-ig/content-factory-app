@@ -2342,6 +2342,8 @@ export type BriefFieldOriginV1 =
   | 'model';
 
 export type BriefFilledFactV1 = {
+  /** Publication/retrieval metadata; neither is an event date. */
+  sourceDates?: import('../intake/evidence-envelope').SourceDateMetadata;
   dateProvenance?: import('../intake/research-intent').ResearchEventDateV1;
   statement: string;
   sourceUrl?: string | null;

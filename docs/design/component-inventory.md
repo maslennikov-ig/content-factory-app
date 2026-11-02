@@ -565,3 +565,5 @@ site: переданные снаружи `bg-*` и `border-*` встают на
 | Writing choices | `apps/frontend/src/components/agents/agent.writing-selection.ts` | Read-only channel/avatar discovery, single-channel/context inference and channel-to-workspace avatar fallback. |
 
 Shared `Dialog` includes a localized close button. Anchored `Popover` accepts `anchorRef`, `onClose`, `placement` and uses Floating UI in a portal; existing positioned shells remain supported. Text `Button` uses the 32/40px action-scale minimum and grows for wrapped content; icon geometry stays fixed.
+
+| `WritingSettingsCard` | `agents/agent.writing-settings-card.tsx` | Native approval of typed generation settings for the current post: channel baseline, proposed settings and reason, editable values, explicit apply or keep channel defaults, platform-bound validation, retry and retained confirmation history even after later failure. A scope covers the current post or all parts of a resulting series. Channel defaults are not changed. |

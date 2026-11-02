@@ -199,10 +199,10 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
     `For emoji, this channel setting overrides the voice and neutral core: ${rule}`;
 
   test.each([
-    ['few', 'Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, never as list bullets.'],
-    ['medium', 'Use 2 to 5 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, never as list bullets.'],
-    ['many', 'Use 3 to 10 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, never as list bullets.'],
-    ['max', 'Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, never as list bullets.'],
+    ['few', 'Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'],
+    ['medium', 'Use 2 to 5 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'],
+    ['many', 'Use 3 to 10 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'],
+    ['max', 'Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'],
   ])('%s at 500–1000 characters', (level, rule) => {
     expect(emojiLine(level, { min: 500, max: 1000 })).toBe(rule);
     expect(channel(level)).toBe(channelLine(rule));
@@ -216,14 +216,14 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
 
   test('one emoji reads in the singular', () => {
     expect(emojiLine('few', { min: 300, max: 600 })).toBe(
-      'Use 1 emoji in the whole post (about one per 400–700 characters) where it fits the meaning, never as a list bullet.'
+      'Use 1 emoji in the whole post (about one per 400–700 characters) where it fits the meaning, use native list markers for lists.'
     );
   });
 
   test('without a length the density is said in words, counted against 800 characters', () => {
     expect(channel('medium', { lengthPolicy: 'auto' })).toBe(
       channelLine(
-        'Use a moderate number of emoji: about one per 200–350 characters, which is 3 to 4 in a post of 800 characters; scale that to the length you write, use at least 1, place them where they fit the meaning, never as list bullets.'
+        'Use a moderate number of emoji: about one per 200–350 characters, which is 3 to 4 in a post of 800 characters; scale that to the length you write, use at least 1, place them where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
       )
     );
     expect(channel('max', { lengthPolicy: 'provider_max' })).toContain(
@@ -239,7 +239,7 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
   test('a stop set for one post overrides the channel, marked as one-off', () => {
     const post = lines('few', { emojiLevel: 'max' });
     expect(post).toContain(
-      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, never as list bullets.'
+      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
     );
     expect(post.join('\n')).not.toContain('400–700');
     // An old stop on the post reads as its density.
@@ -252,7 +252,7 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
       lines('medium', { length: 'shorter' }).find((line) => line.includes('emoji'))
     ).toBe(
       channelLine(
-        'Use 1 to 3 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, never as list bullets.'
+        'Use 1 to 3 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
       )
     );
     // A range set on the post is the length counted against.
@@ -262,7 +262,7 @@ describe('the prompt gets a count worked out from the length (97dq.96)', () => {
         emojiLevel: 'many',
       })
     ).toContain(
-      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 9 to 25 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, never as list bullets.'
+      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 9 to 25 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
     );
   });
 

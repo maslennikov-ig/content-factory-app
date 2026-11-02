@@ -119,7 +119,7 @@ describe('the rules the research measured', () => {
     expect(
       linesFor(null, { ...TELEGRAM, contentLanguage: 'ru' })
     ).toContain(
-      'For emoji, this channel setting overrides the voice and neutral core: Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, never as list bullets.'
+      'For emoji, this channel setting overrides the voice and neutral core: Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, use native list markers for lists; a checkmark may carry meaning but is not a substitute for list structure.'
     );
     expect(linesFor(null, VK)).not.toContain('The first 80–180 characters');
   });
@@ -145,11 +145,11 @@ describe('the rules the research measured', () => {
 
     expect(telegram.some((line) => line.includes('80–180'))).toBe(true);
     expect(telegram.some((line) => line.includes('2–4 lines'))).toBe(true);
-    expect(telegram.some((line) => line.includes('two short bold spans'))).toBe(true);
+    expect(telegram.some((line) => line.includes('meaningful # or ## headings'))).toBe(true);
     expect(vk[0]).toContain('16000');
     expect(vk.some((line) => line.includes('80–180'))).toBe(false);
     expect(vk.some((line) => line.includes('2–4 lines'))).toBe(false);
-    expect(vk.some((line) => line.includes('two short bold spans'))).toBe(false);
+    expect(vk.some((line) => line.includes('meaningful # or ## headings'))).toBe(false);
   });
 
   test('every call to action is one call to action', () => {
@@ -191,7 +191,7 @@ describe('the rules the research measured', () => {
     ).toBe(true);
     expect(
       linesFor(defaultWritingProfileFor('telegram', 'ru')).some((line) =>
-        line.includes('two short bold spans')
+        line.includes('meaningful # or ## headings')
       )
     ).toBe(true);
   });

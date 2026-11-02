@@ -333,6 +333,7 @@ export const piecesCopy = {
     counter: (count: number, max: number) => `${count} из ${max} знаков`,
     counterNoMax: (count: number) =>
       `${count} ${plural(count, ['знак', 'знака', 'знаков'])}`,
+    visibleCountWithMarkupLimit: (count: number) => `Видимый текст: ${count} знаков. Лимит отправки учитывает разметку.`,
     overLimit: (extra: number) =>
       `Длиннее, чем принимает площадка, на ${extra} ${plural(extra, [
         'знак',
@@ -809,6 +810,7 @@ export const piecesCopy = {
       `${count} of ${max} characters`,
     counterNoMax: (count: number) =>
       `${count} ${count === 1 ? 'character' : 'characters'}`,
+    visibleCountWithMarkupLimit: (count: number) => `Visible text: ${count} characters. The sending limit includes markup.`,
     overLimit: (extra: number) =>
       `Longer than the platform accepts by ${extra} ${
         extra === 1 ? 'character' : 'characters'
